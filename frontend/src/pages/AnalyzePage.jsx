@@ -7,6 +7,7 @@ import { JobContextCard } from '../components/analyze/JobContextCard.jsx';
 import { NZSettingsCard } from '../components/analyze/NZSettingsCard.jsx';
 import { AnalysisStatusCard } from '../components/analyze/AnalysisStatusCard.jsx';
 import { Button } from '../components/common/Button.jsx';
+import { StatusBanner } from '../components/common/StatusBanner.jsx';
 import { uploadCV, getRecentCVs, selectCV } from '../api/uploadApi.js';
 import { paraphraseJD, matchCV, generateInterviewPlan } from '../api/analyzeApi.js';
 
@@ -19,6 +20,7 @@ export function AnalyzePage() {
   const [selectedCV, setSelectedCV] = useState(null);
   const [rawJD, setRawJD] = useState('');
   const [structuredJD, setStructuredJD] = useState('');
+  const [structuredJDRubric, setStructuredJDRubric] = useState(null);
   
   const [settings, setSettings] = useState({
     seniorityLevel: 'Junior/Grad',
@@ -30,8 +32,8 @@ export function AnalyzePage() {
   const [analysisResult, setAnalysisResult] = useState(null);
   const [matchRate, setMatchRate] = useState(null);
   const [generatedSessionId, setGeneratedSessionId] = useState(null);
-
   const [isSummarizingJD, setIsSummarizingJD] = useState(false);
+  const [pageStatus, setPageStatus] = useState(null);
 
   let currentStep = 1;
   if (analysisStatus === 'matching' || analysisStatus === 'summarizing') {
@@ -48,6 +50,7 @@ export function AnalyzePage() {
         setSelectedCV(parsed.selectedCV || null);
         setRawJD(parsed.rawJD || '');
         setStructuredJD(parsed.structuredJD || '');
+        setStructuredJDRubric(parsed.structuredJDRubric || null);
         setSettings(parsed.settings || {
           seniorityLevel: 'Junior/Grad',
           enableNZCultureFit: false,
@@ -67,20 +70,30 @@ export function AnalyzePage() {
       selectedCV,
       rawJD,
       structuredJD,
+      structuredJDRubric,
       settings,
     }));
-  }, [selectedCV, rawJD, structuredJD, settings]);
+  }, [selectedCV, rawJD, structuredJD, structuredJDRubric, settings]);
 
   const handleUpload = async (file) => {
     try {
       const res = await uploadCV(file);
       setSelectedCV(res);
+      setPageStatus({
+        type: 'success',
+        title: 'CV uploaded',
+        message: `${res.name} was parsed and is ready for matching.`,
+      });
       // Refresh recent CVs
       const updatedRecent = await getRecentCVs();
       setRecentCVs(updatedRecent);
       return true;
     } catch (error) {
-      alert(error.message);
+      setPageStatus({
+        type: 'error',
+        title: 'Upload failed',
+        message: error.message,
+      });
       return false;
     }
   };
@@ -89,8 +102,17 @@ export function AnalyzePage() {
     try {
       const res = await selectCV(cvId);
       setSelectedCV(res);
+      setPageStatus({
+        type: 'info',
+        title: 'CV selected',
+        message: `${res.name} is now the active CV for JD matching.`,
+      });
     } catch (error) {
-      alert(error.message);
+      setPageStatus({
+        type: 'error',
+        title: 'Could not select CV',
+        message: error.message,
+      });
     }
   };
 
@@ -101,9 +123,19 @@ export function AnalyzePage() {
     try {
       const jdRes = await paraphraseJD(rawJD);
       setStructuredJD(jdRes.structuredJD);
+      setStructuredJDRubric(jdRes.structuredJDRubric);
       setAnalysisStatus('idle');
+      setPageStatus({
+        type: 'success',
+        title: 'JD summary ready',
+        message: 'The current JD summary will be used for CV matching.',
+      });
     } catch (error) {
-      alert('Failed to summarize JD: ' + error.message);
+      setPageStatus({
+        type: 'error',
+        title: 'JD summary failed',
+        message: error.message,
+      });
       setAnalysisStatus('error');
     } finally {
       setIsSummarizingJD(false);
@@ -112,7 +144,11 @@ export function AnalyzePage() {
 
   const handleGeneratePlan = async () => {
     if (!selectedCV || !rawJD) {
-      alert('Please provide both a CV and a Job Description.');
+      setPageStatus({
+        type: 'error',
+        title: 'Missing input',
+        message: 'Please provide both a CV and a job description.',
+      });
       return;
     }
 
@@ -120,15 +156,18 @@ export function AnalyzePage() {
     
     try {
       let finalStructuredJD = structuredJD;
+      let finalStructuredJDRubric = structuredJDRubric;
       // 1. Paraphrase JD if not already done
-      if (!finalStructuredJD) {
+      if (!finalStructuredJD || !finalStructuredJDRubric) {
         const jdRes = await paraphraseJD(rawJD);
         finalStructuredJD = jdRes.structuredJD;
+        finalStructuredJDRubric = jdRes.structuredJDRubric;
         setStructuredJD(finalStructuredJD);
+        setStructuredJDRubric(finalStructuredJDRubric);
       }
 
       // 2. Match CV
-      const matchRes = await matchCV(selectedCV.text, finalStructuredJD, settings);
+      const matchRes = await matchCV(selectedCV.text, rawJD, finalStructuredJDRubric, settings);
       setAnalysisResult(matchRes);
       if (matchRes && matchRes.matchScore) {
         setMatchRate(matchRes.matchScore);
@@ -139,11 +178,20 @@ export function AnalyzePage() {
       
       setGeneratedSessionId(planRes.sessionId);
       setAnalysisStatus('success');
+      setPageStatus({
+        type: 'success',
+        title: 'Match analysis complete',
+        message: 'Review the score breakdown before starting the text interview.',
+      });
 
     } catch (error) {
       console.error(error);
       setAnalysisStatus('error');
-      alert('Analysis failed: ' + error.message);
+      setPageStatus({
+        type: 'error',
+        title: 'Analysis failed',
+        message: error.message,
+      });
     }
   };
 
@@ -161,11 +209,13 @@ export function AnalyzePage() {
               onUpload={handleUpload} 
               recentCVs={recentCVs} 
               onSelectRecent={handleSelectRecent} 
+              validationMessage={pageStatus?.type === 'error' && pageStatus.title === 'Upload failed' ? pageStatus.message : null}
             />
             <JobContextCard 
               rawJD={rawJD} 
               setRawJD={setRawJD} 
               structuredJD={structuredJD}
+              structuredJDRubric={structuredJDRubric}
               onSummarize={handleSummarizeJD}
               isSummarizing={isSummarizingJD}
             />
@@ -173,6 +223,13 @@ export function AnalyzePage() {
 
           {/* Right Column */}
           <div className="space-y-8">
+            {pageStatus ? (
+              <StatusBanner
+                variant={pageStatus.type}
+                title={pageStatus.title}
+                message={pageStatus.message}
+              />
+            ) : null}
             <NZSettingsCard 
               settings={settings} 
               setSettings={setSettings} 
@@ -180,6 +237,7 @@ export function AnalyzePage() {
             <AnalysisStatusCard 
               status={analysisStatus} 
               matchRate={matchRate}
+              analysisResult={analysisResult}
             />
 
             {/* Action Buttons */}
@@ -191,7 +249,7 @@ export function AnalyzePage() {
                   className="w-full"
                   onClick={() => navigate(`/interview/${generatedSessionId}`)}
                 >
-                  Start Interview
+                  Start Text Interview
                 </Button>
               ) : (
                 <Button 
@@ -201,26 +259,11 @@ export function AnalyzePage() {
                   onClick={handleGeneratePlan}
                   disabled={!selectedCV || !rawJD || analysisStatus === 'matching' || analysisStatus === 'summarizing'}
                 >
-                  Generate Interview Plan
+                  Generate Match Analysis
                 </Button>
               )}
-              <Button 
-                variant="secondary" 
-                size="lg" 
-                className="w-full"
-                onClick={() => {
-                  window.localStorage.setItem(ANALYZE_DRAFT_KEY, JSON.stringify({
-                    selectedCV,
-                    rawJD,
-                    structuredJD,
-                    settings,
-                  }));
-                }}
-              >
-                Save & Continue Later
-              </Button>
               <p className="text-xs text-gray-500 text-center mt-2">
-                By generating, you agree to Kiwi Voice Coach's NZ privacy-compliant processing of uploaded materials.
+                Current scope: CV upload, JD summary, CV to JD match score, and text interview.
               </p>
             </div>
           </div>

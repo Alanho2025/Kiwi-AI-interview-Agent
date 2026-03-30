@@ -4,12 +4,12 @@ import { createSession } from '../services/sessionService.js';
 
 export const matchCV = async (req, res, next) => {
   try {
-    const { cvText, jdText, settings } = req.body;
-    if (!cvText || !jdText) {
-      return res.status(400).json(formatError('Missing text', 'MISSING_PARAM', 'CV and JD text are required'));
+    const { cvText, rawJD, jdRubric, settings } = req.body;
+    if (!cvText || (!rawJD && !jdRubric)) {
+      return res.status(400).json(formatError('Missing text', 'MISSING_PARAM', 'CV text and JD input are required'));
     }
 
-    const matchData = compareCvToJobDescription(cvText, jdText, settings);
+    const matchData = compareCvToJobDescription(cvText, rawJD, jdRubric, settings);
     res.json(formatSuccess('Match analysis completed', matchData));
   } catch (error) {
     next(error);
