@@ -4,6 +4,7 @@
 
 - Ask for approval before making any non-trivial code change.
 - Ask for approval before running destructive commands, dependency installs, git pushes, or architecture changes.
+- Ask for approval before installing any package or dependency. Do not silently change implementation strategy just to avoid asking for package installation approval.
 - Ask for approval before any UI design change. Do not change layout, styling, spacing, color, typography, or interaction patterns without presenting a concrete proposal first.
 
 ## Code Quality
