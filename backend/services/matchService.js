@@ -281,7 +281,7 @@ const calculateLooseCoverage = (requiredItems, cvText, minimumTokenRatio = 0.5) 
 
 const clampScore = (value) => Math.max(0, Math.min(100, Math.round(value)));
 
-const normalizeRubric = (rawJD, jdRubric) => {
+const normalizeRubric = async (rawJD, jdRubric) => {
   if (jdRubric) {
     return {
       title: jdRubric.title || 'Target Role',
@@ -296,12 +296,12 @@ const normalizeRubric = (rawJD, jdRubric) => {
     };
   }
 
-  return buildStructuredJobDescriptionRubric(rawJD || '');
+  return await buildStructuredJobDescriptionRubric(rawJD || '');
 };
 
-export const compareCvToJobDescription = (cvText, rawJD, jdRubric, settings = {}) => {
+export const compareCvToJobDescription = async (cvText, rawJD, jdRubric, settings = {}) => {
   const normalizedCv = normalizeText(cvText);
-  const rubric = normalizeRubric(rawJD, jdRubric);
+  const rubric = await normalizeRubric(rawJD, jdRubric);
   const normalizedRubricText = normalizeText([
     rubric.title,
     ...rubric.roleSummary,
@@ -373,16 +373,13 @@ export const compareCvToJobDescription = (cvText, rawJD, jdRubric, settings = {}
     weightedBreakdown.rolesMatch.score;
 
   const strengths = unique([
-    ...technicalSkillCoverage.matched.slice(0, 3).map((item) => `Technical evidence: ${item}`),
-    ...softSkillCoverage.matched.slice(0, 2).map((item) => `Soft skill evidence: ${item}`),
-    ...qualificationCoverage.matched.slice(0, 2).map((item) => `Qualification evidence: ${item}`),
+    ...technicalSkillCoverage.matched.slice(0, 4),
+    ...softSkillCoverage.matched.slice(0, 3),
   ]).slice(0, 5);
 
   const gaps = unique([
-    ...technicalSkillCoverage.missing.slice(0, 3),
-    ...softSkillCoverage.missing.slice(0, 2),
-    ...qualificationCoverage.missing.slice(0, 2),
-    ...roleCoverage.missing.slice(0, 1),
+    ...technicalSkillCoverage.missing.slice(0, 4),
+    ...softSkillCoverage.missing.slice(0, 3),
   ]).slice(0, 5);
 
   const interviewFocus = unique([

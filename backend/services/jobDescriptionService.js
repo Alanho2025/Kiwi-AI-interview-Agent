@@ -1,3 +1,5 @@
+import { callDeepSeek } from './deepseekService.js';
+
 const ROLE_KEYWORDS = /engineer|developer|manager|designer|analyst|architect|consultant|specialist|intern/i;
 const TECH_SKILL_PATTERN = /\b(react|node\.?js|typescript|javascript|python|java|aws|azure|gcp|docker|kubernetes|sql|testing|communication|leadership|agile|api|graphql|tailwind|html|css|excel|power bi|tableau|data analysis|machine learning)\b/gi;
 const SOFT_SKILL_PATTERN = /\b(communication|stakeholder management|stakeholder communication|teamwork|collaboration|leadership|problem solving|adaptability|accountability|ownership|willingness to learn|learning mindset|attention to detail|time management)\b/gi;
@@ -77,6 +79,31 @@ const collectSkillWords = (text) => {
   return unique(matches.map((item) => item.toLowerCase())).slice(0, 12);
 };
 
+const collectDynamicTechnicalSkills = (sections) => {
+  // Enhanced fallback: collect 2-6 word phrases from key sections
+  const candidates = [];
+  const lines = toLines(sections.join('\n'));
+  for (const line of lines) {
+    if (!/experience|required|must|skills|tools|proficien|know|use/i.test(line)) continue;
+    const words = line.split(/\s+/).filter(w => w.length > 2);
+    for (let i = 0; i <= words.length - 2; i++) {
+      const phrase = words.slice(i, i + Math.min(4, words.length - i)).join(' ');
+      if (phrase.length > 5 && phrase.length < 40) candidates.push(phrase);
+    }
+  }
+  return unique(candidates.map(p => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase())).slice(0, 12);
+};
+
+const collectDynamicSoftSkills = (sections) => {
+  const softCandidates = [];
+  const lines = toLines(sections.join('\n'));
+  for (const line of lines) {
+    const words = line.toLowerCase().match(SOFT_SKILL_PATTERN);
+    if (words) softCandidates.push(...words);
+  }
+  return unique(softCandidates).slice(0, 8);
+};
+
 const collectSoftSkillWords = (text) => {
   const matches = text.match(SOFT_SKILL_PATTERN) || [];
   return unique(matches.map((item) => item.toLowerCase())).slice(0, 10);
@@ -102,7 +129,32 @@ const collectKeywords = (text) => {
   ).slice(0, 18);
 };
 
-export const buildStructuredJobDescriptionRubric = (rawJD) => {
+export const extractSkillsWithAI = async (rawJD) => {
+  try {
+    const systemPrompt = `You are a precise JD skill extractor agent. Rules:
+1. ONLY extract from provided raw JD text. No assumptions or additions.
+2. Technical skills: Top 8-12 specific tools/tech from responsibilities/requirements (e.g. Python, AWS, Django). Ignore generics.
+3. Soft skills: Top 5-8 behavioral (e.g. leadership, problem solving).
+4. Return ONLY valid JSON: {"technicalSkills": ["skill1", "skill2"], "softSkills": ["soft1", "soft2"]}. No explanations, no markdown, no extra text.
+
+Raw JD:
+\`\`\`
+${rawJD.slice(0, 4000)}
+\`\`\``;
+
+    const result = await callDeepSeek(systemPrompt);
+    const parsed = JSON.parse(result);
+    return {
+      technicalSkillRequirements: parsed.technicalSkills || [],
+      softSkillRequirements: parsed.softSkills || []
+    };
+  } catch (error) {
+    console.warn('AI skill extraction failed:', error.message);
+    return { technicalSkillRequirements: [], softSkillRequirements: [] };
+  }
+};
+
+export const buildStructuredJobDescriptionRubric = async (rawJD) => {
   const lines = toLines(rawJD);
   const title =
     firstMatchingLine(lines.slice(0, 8), ROLE_KEYWORDS) ||
@@ -129,17 +181,36 @@ export const buildStructuredJobDescriptionRubric = (rawJD) => {
     ...collectSectionItems(lines, /nice to have|preferred|bonus|desirable/i, /application|benefits|how to apply/i, 6),
   ]).slice(0, 6);
 
-  const softSkillRequirements = unique([
+  let aiSkills = { technicalSkillRequirements: [], softSkillRequirements: [] };
+  try {
+    aiSkills = await extractSkillsWithAI(rawJD);
+  } catch (e) {
+    console.warn('AI skills fallback to rule-based');
+  }
+
+  const ruleSoft = unique([
     ...collectSoftSkillWords(rawJD),
+    ...collectDynamicSoftSkills([...qualifications, ...mustHaveRequirements, ...niceToHaveExperience]),
     ...qualifications.flatMap((item) => collectSoftSkillWords(item)),
     ...mustHaveRequirements.flatMap((item) => collectSoftSkillWords(item)),
   ]).slice(0, 10);
 
-  const technicalSkillRequirements = unique([
+  const ruleTech = unique([
     ...collectSkillWords(rawJD),
+    ...collectDynamicTechnicalSkills([...mustHaveRequirements, ...qualifications, ...responsibilities, ...niceToHaveExperience]),
     ...mustHaveRequirements.flatMap((item) => collectSkillWords(item)),
     ...qualifications.flatMap((item) => collectSkillWords(item)),
-  ]).filter((item) => !softSkillRequirements.includes(item)).slice(0, 12);
+  ]).slice(0, 12);
+
+  const softSkillRequirements = unique([
+    ...aiSkills.softSkillRequirements,
+    ...ruleSoft
+  ]).slice(0, 10);
+
+  const technicalSkillRequirements = unique([
+    ...aiSkills.technicalSkillRequirements,
+    ...ruleTech
+  ]).filter((item) => !softSkillRequirements.includes(item.toLowerCase())).slice(0, 12);
 
   const neededSkills = unique([
     ...technicalSkillRequirements,
@@ -165,7 +236,10 @@ export const buildStructuredJobDescriptionRubric = (rawJD) => {
   };
 };
 
-const formatList = (items, fallback) => (items.length > 0 ? items.join('; ') : fallback);
+const formatList = (items, fallback) => {
+  if (!Array.isArray(items)) return fallback;
+  return (items.length > 0 ? items.join('; ') : fallback);
+};
 
 export const formatStructuredJobDescription = (rubric) => [
   `1. Job Title: ${rubric.title}`,
