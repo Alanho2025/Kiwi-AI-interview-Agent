@@ -1,20 +1,22 @@
 import { useState, useRef } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../common/Card.jsx';
 import { Button } from '../common/Button.jsx';
-import { Checkbox } from '../common/Checkbox.jsx';
 import { FileText, UploadCloud, Lock, CheckCircle2, Loader2 } from 'lucide-react';
 import { cn } from '../../utils/formatters.js';
+import { StatusBanner } from '../common/StatusBanner.jsx';
 
-export function CVManagementCard({ onUpload, recentCVs, onSelectRecent }) {
+export function CVManagementCard({ onUpload, recentCVs, onSelectRecent, validationMessage }) {
   const [selectedRecent, setSelectedRecent] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [localValidationMessage, setLocalValidationMessage] = useState('');
   const fileInputRef = useRef(null);
 
   const processUpload = async (file) => {
     setIsUploading(true);
     setUploadSuccess(false);
+    setLocalValidationMessage('');
     setSelectedRecent(null); // Clear selected recent when uploading new
     const success = await onUpload(file);
     setIsUploading(false);
@@ -34,12 +36,8 @@ export function CVManagementCard({ onUpload, recentCVs, onSelectRecent }) {
   const requestPermissionAndOpenPicker = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    const deviceName = isMobile ? "device's" : "computer's";
-    const confirmed = window.confirm(`Allow Kiwi Voice Coach to access your ${deviceName} file system?`);
-    if (confirmed) {
-      fileInputRef.current?.click();
-    }
+    setLocalValidationMessage('');
+    fileInputRef.current?.click();
   };
 
   const handleDragOver = (e) => {
@@ -63,7 +61,7 @@ export function CVManagementCard({ onUpload, recentCVs, onSelectRecent }) {
       const file = e.dataTransfer.files[0];
       const ext = file.name.split('.').pop().toLowerCase();
       if (ext !== 'pdf' && ext !== 'docx') {
-        alert('Only PDF and DOCX files are allowed');
+        setLocalValidationMessage('Only PDF and DOCX files are supported right now.');
         return;
       }
       processUpload(file);
@@ -79,10 +77,13 @@ export function CVManagementCard({ onUpload, recentCVs, onSelectRecent }) {
         </div>
         <div className="flex items-center text-xs text-gray-400 gap-1">
           <Lock className="w-3 h-3" />
-          <span>Encrypted · Google connected</span>
+          <span>Document text is used for CV to JD matching</span>
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
+        {validationMessage || localValidationMessage ? (
+          <StatusBanner variant="error" message={validationMessage || localValidationMessage} />
+        ) : null}
         <div>
           <div className="flex justify-between items-end mb-3">
             <h4 className="text-sm font-medium text-gray-900">Upload your CV</h4>
@@ -125,11 +126,6 @@ export function CVManagementCard({ onUpload, recentCVs, onSelectRecent }) {
               onClick={(e) => e.stopPropagation()}
             />
           </div>
-        </div>
-
-        <div className="flex items-center justify-between">
-          <Checkbox label="Use my default CV from Profile" />
-          <button className="text-sm text-[#2eb886] hover:underline">Manage profile CV</button>
         </div>
 
         {recentCVs && recentCVs.length > 0 && (

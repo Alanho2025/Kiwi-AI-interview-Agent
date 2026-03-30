@@ -7,6 +7,7 @@ import { SessionInfoCard } from '../components/interview/SessionInfoCard.jsx';
 import { InterviewChatPanel } from '../components/interview/InterviewChatPanel.jsx';
 import { TranscriptPanel } from '../components/interview/TranscriptPanel.jsx';
 import { TextBackupCard } from '../components/interview/TextBackupCard.jsx';
+import { InterviewStatusBanner } from '../components/interview/InterviewStatusBanner.jsx';
 import { startInterview, replyInterview, pauseInterview, resumeInterview, repeatQuestion, endInterview } from '../api/interviewApi.js';
 import { getSession } from '../api/sessionApi.js';
 import { exportTranscript } from '../api/exportApi.js';
@@ -20,6 +21,7 @@ export function InterviewPage() {
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [timerOffset, setTimerOffset] = useState(0);
+  const [pageStatus, setPageStatus] = useState(null);
 
   useEffect(() => {
     const fetchSession = async () => {
@@ -32,7 +34,11 @@ export function InterviewPage() {
         }
       } catch (error) {
         console.error(error);
-        alert('Failed to load session');
+        setPageStatus({
+          type: 'error',
+          title: 'Could not load interview',
+          message: error.message || 'Failed to load session.',
+        });
         navigate('/');
       } finally {
         setLoading(false);
@@ -75,7 +81,11 @@ export function InterviewPage() {
       setSession(data.session);
     } catch (error) {
       setSession(previousSession);
-      alert('Failed to send reply: ' + error.message);
+      setPageStatus({
+        type: 'error',
+        title: 'Reply failed',
+        message: error.message,
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -93,6 +103,11 @@ export function InterviewPage() {
       }
     } catch (error) {
       console.error(error);
+      setPageStatus({
+        type: 'error',
+        title: 'Pause/resume failed',
+        message: error.message || 'Could not update interview status.',
+      });
     }
   };
 
@@ -121,17 +136,38 @@ export function InterviewPage() {
       }
     } catch (error) {
       console.error(error);
+      setPageStatus({
+        type: 'error',
+        title: 'Repeat failed',
+        message: error.message || 'Could not repeat the last question.',
+      });
     }
   };
 
   const handleEnd = async () => {
-    if (!window.confirm('Are you sure you want to end the interview?')) return;
+    setPageStatus({
+      type: 'confirm-end',
+      title: 'End interview?',
+      message: 'This will mark the text interview as completed.',
+    });
+  };
+
+  const handleConfirmEnd = async () => {
     try {
       const data = await endInterview(sessionId);
       setSession(data.session);
-      alert('Interview ended. You can now review your transcript.');
+      setPageStatus({
+        type: 'success',
+        title: 'Interview ended',
+        message: 'You can now review or export the text transcript.',
+      });
     } catch (error) {
       console.error(error);
+      setPageStatus({
+        type: 'error',
+        title: 'Could not end interview',
+        message: error.message || 'Please try again.',
+      });
     }
   };
 
@@ -148,6 +184,11 @@ export function InterviewPage() {
       URL.revokeObjectURL(url);
     } catch (error) {
       console.error(error);
+      setPageStatus({
+        type: 'error',
+        title: 'Export failed',
+        message: error.message || 'Could not export the transcript.',
+      });
     }
   };
 
@@ -164,7 +205,7 @@ export function InterviewPage() {
               {session.targetRole}
             </span>
           </div>
-          <div className="text-lg font-semibold text-gray-900">Mock Interview</div>
+          <div className="text-lg font-semibold text-gray-900">Text Interview Practice</div>
           <div className="flex items-center gap-6">
             <div className="text-right">
               <p className="text-xs text-gray-500 uppercase tracking-wider">Timer</p>
@@ -179,6 +220,13 @@ export function InterviewPage() {
       </AppHeader>
 
       <main className="flex-1 max-w-[1600px] w-full mx-auto p-6 grid grid-cols-12 gap-6 h-[calc(100vh-64px)] overflow-hidden min-h-0">
+        <div className="col-span-12">
+          <InterviewStatusBanner
+            status={pageStatus}
+            onConfirmEnd={handleConfirmEnd}
+            onCancelEnd={() => setPageStatus(null)}
+          />
+        </div>
         {/* Left Panel */}
         <div className="col-span-3 flex flex-col gap-6 overflow-y-auto pr-2 pb-6 min-h-0">
           <CandidateCard 

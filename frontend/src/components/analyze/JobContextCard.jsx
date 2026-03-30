@@ -3,7 +3,25 @@ import { TextArea } from '../common/TextArea.jsx';
 import { Button } from '../common/Button.jsx';
 import { Loader2, UploadCloud } from 'lucide-react';
 
-export function JobContextCard({ rawJD, setRawJD, structuredJD, onSummarize, isSummarizing }) {
+const SummarySection = ({ title, items = [] }) => (
+  <div className="rounded-lg border border-gray-100 bg-white p-4">
+    <h5 className="text-sm font-semibold text-gray-900">{title}</h5>
+    {items.length > 0 ? (
+      <ul className="mt-3 space-y-2 text-sm text-gray-600">
+        {items.map((item, index) => (
+          <li key={`${title}-${index}`} className="flex gap-2">
+            <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#2eb886]" />
+            <span>{item}</span>
+          </li>
+        ))}
+      </ul>
+    ) : (
+      <p className="mt-3 text-sm text-gray-500">No clear items detected in this section.</p>
+    )}
+  </div>
+);
+
+export function JobContextCard({ rawJD, setRawJD, structuredJD, structuredJDRubric, onSummarize, isSummarizing }) {
   return (
     <Card>
       <CardHeader>
@@ -42,11 +60,34 @@ export function JobContextCard({ rawJD, setRawJD, structuredJD, onSummarize, isS
           )}
         </Button>
 
-        {structuredJD && (
-          <div className="mt-4 p-4 bg-gray-50 rounded-xl border border-gray-100">
-            <h4 className="text-sm font-medium text-gray-900 mb-2">JD Summary</h4>
-            <div className="text-sm text-gray-600 whitespace-pre-wrap">
-              {structuredJD}
+        {structuredJD && structuredJDRubric && (
+          <div className="mt-4 space-y-4 rounded-xl border border-gray-100 bg-gray-50 p-4">
+            <div>
+              <h4 className="text-sm font-medium text-gray-900">JD Summary</h4>
+              <p className="mt-1 text-xs text-gray-500">
+                This is the first structured pass of the raw JD. The same rubric is stored and reused for match scoring and interview question generation.
+              </p>
+            </div>
+
+            <div className="rounded-lg border border-gray-100 bg-white p-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-gray-400">Job Title</p>
+              <p className="mt-2 text-sm font-semibold text-gray-900">{structuredJDRubric.title}</p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <SummarySection title="What This Job Does" items={structuredJDRubric.roleSummary} />
+              <SummarySection title="Qualifications" items={structuredJDRubric.qualifications} />
+              <SummarySection
+                title="Related Skill Requirements"
+                items={[
+                  ...(structuredJDRubric.technicalSkillRequirements?.length
+                    ? [`Technical: ${structuredJDRubric.technicalSkillRequirements.join(', ')}`]
+                    : []),
+                  ...(structuredJDRubric.softSkillRequirements?.length
+                    ? [`Soft: ${structuredJDRubric.softSkillRequirements.join(', ')}`]
+                    : []),
+                ]}
+              />
             </div>
           </div>
         )}
