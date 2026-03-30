@@ -9,7 +9,7 @@ export const matchCV = async (req, res, next) => {
       return res.status(400).json(formatError('Missing text', 'MISSING_PARAM', 'CV text and JD input are required'));
     }
 
-    const matchData = compareCvToJobDescription(cvText, rawJD, jdRubric, settings);
+    const matchData = await compareCvToJobDescription(cvText, rawJD, jdRubric, settings);
     res.json(formatSuccess('Match analysis completed', matchData));
   } catch (error) {
     next(error);
@@ -19,7 +19,7 @@ export const matchCV = async (req, res, next) => {
 export const generateInterviewPlan = async (req, res, next) => {
   try {
     const { cvText, jdText, settings, analysisResult } = req.body;
-    
+
     // 1. Try to extract job title from structured JD directly
     let extractedRole = '';
     if (jdText) {
@@ -28,12 +28,12 @@ export const generateInterviewPlan = async (req, res, next) => {
         extractedRole = match[1].trim();
       }
     }
-    
+
     // 2. Fallback to analyzed job title from JD summary
     if (!extractedRole && analysisResult?.jobTitle) {
       extractedRole = analysisResult.jobTitle;
     }
-    
+
     // Create a new session with the plan
     const session = createSession({
       cvText,
