@@ -7,7 +7,9 @@ import interviewRoutes from '../routes/interviewRoutes.js';
 import sessionRoutes from '../routes/sessionRoutes.js';
 import exportRoutes from '../routes/exportRoutes.js';
 import { errorHandler } from '../middleware/errorHandler.js';
+import dotenv from 'dotenv';
 
+dotenv.config();
 const api = express.Router();
 
 api.use(cors());

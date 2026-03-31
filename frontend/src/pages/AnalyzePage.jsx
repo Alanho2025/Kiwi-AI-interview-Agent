@@ -21,6 +21,7 @@ export function AnalyzePage() {
   const [rawJD, setRawJD] = useState('');
   const [structuredJD, setStructuredJD] = useState('');
   const [structuredJDRubric, setStructuredJDRubric] = useState(null);
+  const [summarizedRawJD, setSummarizedRawJD] = useState('');
   
   const [settings, setSettings] = useState({
     seniorityLevel: 'Junior/Grad',
@@ -34,6 +35,28 @@ export function AnalyzePage() {
   const [generatedSessionId, setGeneratedSessionId] = useState(null);
   const [isSummarizingJD, setIsSummarizingJD] = useState(false);
   const [pageStatus, setPageStatus] = useState(null);
+
+  const resetAnalysisState = () => {
+    setAnalysisStatus('idle');
+    setAnalysisResult(null);
+    setMatchRate(null);
+    setGeneratedSessionId(null);
+  };
+
+  const invalidateJobDescriptionSummary = () => {
+    setStructuredJD('');
+    setStructuredJDRubric(null);
+    setSummarizedRawJD('');
+  };
+
+  const handleRawJDChange = (value) => {
+    setRawJD(value);
+    resetAnalysisState();
+
+    if (value.trim() !== summarizedRawJD.trim()) {
+      invalidateJobDescriptionSummary();
+    }
+  };
 
   let currentStep = 1;
   if (analysisStatus === 'matching' || analysisStatus === 'summarizing') {
@@ -51,6 +74,7 @@ export function AnalyzePage() {
         setRawJD(parsed.rawJD || '');
         setStructuredJD(parsed.structuredJD || '');
         setStructuredJDRubric(parsed.structuredJDRubric || null);
+        setSummarizedRawJD(parsed.summarizedRawJD || '');
         setSettings(parsed.settings || {
           seniorityLevel: 'Junior/Grad',
           enableNZCultureFit: false,
@@ -71,13 +95,15 @@ export function AnalyzePage() {
       rawJD,
       structuredJD,
       structuredJDRubric,
+      summarizedRawJD,
       settings,
     }));
-  }, [selectedCV, rawJD, structuredJD, structuredJDRubric, settings]);
+  }, [selectedCV, rawJD, structuredJD, structuredJDRubric, summarizedRawJD, settings]);
 
   const handleUpload = async (file) => {
     try {
       const res = await uploadCV(file);
+      resetAnalysisState();
       setSelectedCV(res);
       setPageStatus({
         type: 'success',
@@ -101,6 +127,7 @@ export function AnalyzePage() {
   const handleSelectRecent = async (cvId) => {
     try {
       const res = await selectCV(cvId);
+      resetAnalysisState();
       setSelectedCV(res);
       setPageStatus({
         type: 'info',
@@ -124,6 +151,7 @@ export function AnalyzePage() {
       const jdRes = await paraphraseJD(rawJD);
       setStructuredJD(jdRes.structuredJD);
       setStructuredJDRubric(jdRes.structuredJDRubric);
+      setSummarizedRawJD(rawJD);
       setAnalysisStatus('idle');
       setPageStatus({
         type: 'success',
@@ -153,17 +181,23 @@ export function AnalyzePage() {
     }
 
     setAnalysisStatus('matching');
-    
+
     try {
       let finalStructuredJD = structuredJD;
       let finalStructuredJDRubric = structuredJDRubric;
+      const requiresFreshSummary =
+        !finalStructuredJD ||
+        !finalStructuredJDRubric ||
+        rawJD.trim() !== summarizedRawJD.trim();
+
       // 1. Paraphrase JD if not already done
-      if (!finalStructuredJD || !finalStructuredJDRubric) {
+      if (requiresFreshSummary) {
         const jdRes = await paraphraseJD(rawJD);
         finalStructuredJD = jdRes.structuredJD;
         finalStructuredJDRubric = jdRes.structuredJDRubric;
         setStructuredJD(finalStructuredJD);
         setStructuredJDRubric(finalStructuredJDRubric);
+        setSummarizedRawJD(rawJD);
       }
 
       // 2. Match CV
@@ -213,7 +247,7 @@ export function AnalyzePage() {
             />
             <JobContextCard 
               rawJD={rawJD} 
-              setRawJD={setRawJD} 
+              setRawJD={handleRawJDChange} 
               structuredJD={structuredJD}
               structuredJDRubric={structuredJDRubric}
               onSummarize={handleSummarizeJD}
