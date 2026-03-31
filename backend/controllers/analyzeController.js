@@ -3,20 +3,25 @@ import { compareCvToJobDescription } from '../services/matchService.js';
 import { createSession } from '../services/sessionService.js';
 
 export const matchCV = async (req, res, next) => {
+  console.log('ENTERING matchCV');
   try {
     const { cvText, rawJD, jdRubric, settings } = req.body;
     if (!cvText || (!rawJD && !jdRubric)) {
       return res.status(400).json(formatError('Missing text', 'MISSING_PARAM', 'CV text and JD input are required'));
     }
 
+    console.log('Calling matchService for matchCV');
     const matchData = await compareCvToJobDescription(cvText, rawJD, jdRubric, settings);
+    console.log('EXITING matchCV successfully');
     res.json(formatSuccess('Match analysis completed', matchData));
   } catch (error) {
+    console.error('ERROR in matchCV:', error.message, error.stack);
     next(error);
   }
 };
 
 export const generateInterviewPlan = async (req, res, next) => {
+  console.log('ENTERING generateInterviewPlan');
   try {
     const { cvText, jdText, settings, analysisResult } = req.body;
 
@@ -35,6 +40,7 @@ export const generateInterviewPlan = async (req, res, next) => {
     }
 
     // Create a new session with the plan
+    console.log('Creating session for generateInterviewPlan');
     const session = createSession({
       cvText,
       jdText,
@@ -46,8 +52,10 @@ export const generateInterviewPlan = async (req, res, next) => {
       candidateName: analysisResult?.candidateName || 'Candidate'
     });
 
+    console.log('EXITING generateInterviewPlan successfully');
     res.json(formatSuccess('Interview plan generated', { sessionId: session.id, session }));
   } catch (error) {
+    console.error('ERROR in generateInterviewPlan:', error.message, error.stack);
     next(error);
   }
 };

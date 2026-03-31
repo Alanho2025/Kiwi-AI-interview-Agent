@@ -1,16 +1,29 @@
-# Skill Requirement Extraction Fix - TODO
+# Backend API Error Handling & Logging Enhancement
 
-## 批准計劃
-- [ ] 基於用戶確認的計劃：增強 jobDescriptionService.js 用 AI + rule 提取 skills，避免空白。
-- 依賴：jobDescriptionService.js (primary), matchService.js (secondary)。
+## Overall Plan
+1. Create TODO.md ✅
+2. Read remaining controllers/services if needed
+3. Edit controllers: Add detailed console.log entry points, step logs, enhanced error logs
+4. Edit key services: Enhance logging in deepseekService, sessionService, etc.
+5. Test: Restart server, trigger errors, verify console output
+6. attempt_completion
 
-## 步驟分解 (依序完成)
-1. [x] **新增 AI 技能提取**：已加 `extractSkillsWithAI` + 整合到 `buildStructuredJobDescriptionRubric` (async)，AI first + rule fallback。
-2. [x] **增強 rule-based fallback**：已加 `collectDynamicTechnicalSkills` / `collectDynamicSoftSkills`，測試通過：提取 Python/AWS/K8s。
-3. [x] **更新 buildStructuredJobDescriptionRubric**：skills = AI || fallback。
-4. [x] **更新 matchService.js**：async 支持，簡化 strengths/gaps 只列 skills 關鍵字 (無 'evidence' 前綴)。
-5. [x] **更新 analyzeController**：await matchData。
-6. [ ] **測試**：全流程。
-7. [ ] **完成**：attempt_completion。
+## Current Step: 5/6 ✅ All controllers ✅ Services reviewed, deepseekService already has good logging ✅ Next: Testing & Completion
 
-進度將每步更新此文件。當前：步驟2 完成，測試 fallback 後繼續 AI。
+**Priority order:**
+- interviewController.js ✅
+- analyzeController.js ✅
+- uploadController.js ✅
+- jobDescriptionController.js ✅
+- sessionController.js
+- Services
+- sessionController.js
+- Services
+- jobDescriptionController.js
+- sessionController.js
+- Services
+- uploadController.js  
+- jobDescriptionController.js
+- sessionController.js
+- Services
+
