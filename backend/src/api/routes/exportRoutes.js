@@ -1,5 +1,5 @@
 import express from 'express';
-import { exportTranscript } from '../controllers/exportController.js';
+import { exportTranscript } from '../../controllers/exportController.js';
 
 const router = express.Router();
 

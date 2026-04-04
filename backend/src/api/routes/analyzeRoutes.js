@@ -1,5 +1,5 @@
 import express from 'express';
-import { matchCV, generateInterviewPlan } from '../controllers/analyzeController.js';
+import { matchCV, generateInterviewPlan } from '../../controllers/analyzeController.js';
 
 const router = express.Router();
 

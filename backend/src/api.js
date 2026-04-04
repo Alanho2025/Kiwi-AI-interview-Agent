@@ -1,13 +1,14 @@
 import express from 'express';
 import cors from 'cors';
-import uploadRoutes from '../routes/uploadRoutes.js';
-import jobDescriptionRoutes from '../routes/jobDescriptionRoutes.js';
-import analyzeRoutes from '../routes/analyzeRoutes.js';
-import interviewRoutes from '../routes/interviewRoutes.js';
-import sessionRoutes from '../routes/sessionRoutes.js';
-import exportRoutes from '../routes/exportRoutes.js';
-import authRoutes from '../routes/authRoutes.js';
-import { errorHandler } from '../middleware/errorHandler.js';
+import uploadRoutes from './api/routes/uploadRoutes.js';
+import jobDescriptionRoutes from './api/routes/jobDescriptionRoutes.js';
+import analyzeRoutes from './api/routes/analyzeRoutes.js';
+import interviewRoutes from './api/routes/interviewRoutes.js';
+import sessionRoutes from './api/routes/sessionRoutes.js';
+import exportRoutes from './api/routes/exportRoutes.js';
+import authRoutes from './api/routes/authRoutes.js';
+import { errorHandler } from './middleware/errorHandler.js';
+import { optionalAuth, requireAuth } from './middleware/authMiddleware.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -18,14 +19,15 @@ api.use(cors({
   credentials: true,
 }));
 api.use(express.json());
+api.use(optionalAuth);
 
 api.use('/auth', authRoutes);
-api.use('/upload', uploadRoutes);
-api.use('/job-description', jobDescriptionRoutes);
-api.use('/analyze', analyzeRoutes);
-api.use('/interview', interviewRoutes);
-api.use('/session', sessionRoutes);
-api.use('/export', exportRoutes);
+api.use('/upload', requireAuth, uploadRoutes);
+api.use('/job-description', requireAuth, jobDescriptionRoutes);
+api.use('/analyze', requireAuth, analyzeRoutes);
+api.use('/interview', requireAuth, interviewRoutes);
+api.use('/session', requireAuth, sessionRoutes);
+api.use('/export', requireAuth, exportRoutes);
 
 api.use(errorHandler);
 

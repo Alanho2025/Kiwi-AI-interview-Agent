@@ -5,8 +5,7 @@ import {
 } from 'lucide-react';
 import { PrivacySecurityCard } from '../components/home/PrivacySecurityCard.jsx';
 import { logoutFromSession } from '../api/authApi.js';
-
-const AUTH_STORAGE_KEY = 'kiwi-auth-session';
+import { clearStoredAuthSession, getStoredAuthSession } from '../utils/authSession.js';
 
 // --- Mock Data (模拟数据) ---
 const sessionHistory = [
@@ -33,27 +32,20 @@ export default function HomePage() {
   const [isAvatarBroken, setIsAvatarBroken] = useState(false);
 
   useEffect(() => {
-    const savedSession = window.localStorage.getItem(AUTH_STORAGE_KEY);
+    const savedSession = getStoredAuthSession();
 
     if (!savedSession) {
       navigate('/login', { replace: true });
       return;
     }
 
-    try {
-      const parsedSession = JSON.parse(savedSession);
-      setUser({
-        name: parsedSession.name || 'Guest User',
-        email: parsedSession.email || 'guest@kiwi.nz',
-        picture: parsedSession.picture || '',
-        loginProvider: parsedSession.loginProvider || '',
-      });
-      setIsAvatarBroken(false);
-    } catch (error) {
-      console.error('Failed to restore auth session', error);
-      window.localStorage.removeItem(AUTH_STORAGE_KEY);
-      navigate('/login', { replace: true });
-    }
+    setUser({
+      name: savedSession.name || 'Guest User',
+      email: savedSession.email || 'guest@kiwi.nz',
+      picture: savedSession.picture || '',
+      loginProvider: savedSession.loginProvider || '',
+    });
+    setIsAvatarBroken(false);
   }, [navigate]);
 
   const handleSignOut = async () => {
@@ -62,7 +54,7 @@ export default function HomePage() {
     } catch (error) {
       console.error('Failed to clear backend session', error);
     } finally {
-      window.localStorage.removeItem(AUTH_STORAGE_KEY);
+      clearStoredAuthSession();
       navigate('/login', { replace: true });
     }
   };

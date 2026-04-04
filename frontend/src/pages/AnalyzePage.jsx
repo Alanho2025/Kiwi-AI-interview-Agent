@@ -208,7 +208,15 @@ export function AnalyzePage() {
       }
 
       // 3. Generate Plan
-      const planRes = await generateInterviewPlan(selectedCV.text, finalStructuredJD, settings, matchRes);
+      const planRes = await generateInterviewPlan({
+        cvId: selectedCV.id,
+        cvText: selectedCV.text,
+        rawJD,
+        jdText: finalStructuredJD,
+        jdRubric: finalStructuredJDRubric,
+        settings,
+        analysisResult: matchRes,
+      });
       
       setGeneratedSessionId(planRes.sessionId);
       setAnalysisStatus('success');

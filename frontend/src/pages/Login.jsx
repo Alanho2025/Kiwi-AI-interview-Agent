@@ -3,12 +3,11 @@ import { GoogleLogin } from '@react-oauth/google';
 import { useNavigate } from 'react-router-dom';
 import { Bird } from 'lucide-react';
 import { loginWithGoogle } from '../api/authApi.js';
+import { getStoredAuthSession, setStoredAuthSession } from '../utils/authSession.js';
 
 import kiwiMicImg from '../assets/kiwiMicImg.png';
 import kiwiHeadphoneImg from '../assets/kiwiHeadphoneImg.png';
 import dataVizImg from '../assets/dataVizImg.png';
-
-const AUTH_STORAGE_KEY = 'kiwi-auth-session';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -17,7 +16,7 @@ export default function Login() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    const existingSession = window.localStorage.getItem(AUTH_STORAGE_KEY);
+    const existingSession = getStoredAuthSession();
     if (existingSession) {
       navigate('/home', { replace: true });
     }
@@ -50,7 +49,7 @@ export default function Login() {
         token: data.token || '',
       };
 
-      window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authSession));
+      setStoredAuthSession(authSession);
       navigate('/home', { replace: true });
     } catch (loginError) {
       console.error('Failed to log in with Google', loginError);

@@ -6,7 +6,7 @@ export const saveSession = async (req, res, next) => {
   try {
     const { sessionId, data } = req.body;
     console.log('Calling updateSession for saveSession');
-    const session = updateSession(sessionId, data);
+    const session = await updateSession(sessionId, data);
     if (!session) {
       return res.status(404).json(formatError('Session not found', 'NOT_FOUND', 'Invalid session ID'));
     }
@@ -22,7 +22,7 @@ export const getSession = async (req, res, next) => {
   console.log('ENTERING getSession, sessionId:', req.params.sessionId);
   try {
     const { sessionId } = req.params;
-    const session = getSessionById(sessionId);
+    const session = await getSessionById(sessionId);
     if (!session) return res.status(404).json(formatError('Session not found', 'NOT_FOUND', 'Invalid session ID'));
     console.log('EXITING getSession successfully');
     res.json(formatSuccess('Session retrieved', { session }));
@@ -37,11 +37,11 @@ export const resumeSession = async (req, res, next) => {
   try {
     const { sessionId } = req.body;
     console.log('Calling getSessionById for resumeSession');
-    const session = getSessionById(sessionId);
+    const session = await getSessionById(sessionId);
     if (!session) return res.status(404).json(formatError('Session not found', 'NOT_FOUND', 'Invalid session ID'));
 
     session.status = 'in_progress';
-    updateSession(sessionId, session);
+    await updateSession(sessionId, session);
     console.log('EXITING resumeSession successfully');
     res.json(formatSuccess('Session resumed', { session }));
   } catch (error) {
