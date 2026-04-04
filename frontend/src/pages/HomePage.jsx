@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Bird, Clock, Star, Briefcase, Mic, CheckCircle2, 
-  TrendingUp, ShieldCheck, Settings, LogOut, FileText
+  Bird, Clock, Star, Briefcase, Mic, TrendingUp, Settings, FileText
 } from 'lucide-react';
+import { PrivacySecurityCard } from '../components/home/PrivacySecurityCard.jsx';
 
 const AUTH_STORAGE_KEY = 'kiwi-auth-session';
 
@@ -267,23 +267,7 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* 3. Privacy & Security */}
-          <div className="bg-white rounded-3xl p-6 shadow-[0_2px_10px_rgb(0,0,0,0.02)] border border-gray-100">
-            <h3 className="text-lg font-bold mb-2 flex items-center gap-2">
-              Privacy & Security
-            </h3>
-            <p className="text-xs text-gray-400 leading-relaxed mb-6">
-              Connected via Google with NZ privacy safeguards. Recordings are encrypted and stored with New Zealand-compliant retention policies.
-            </p>
-            <div className="flex gap-3">
-              <button className="flex-1 border border-gray-300 rounded-full py-2 text-xs font-semibold hover:bg-gray-50 transition">
-                Manage Connection
-              </button>
-              <button className="flex-1 bg-[#20B2AA] text-white rounded-full py-2 text-xs font-semibold shadow-sm hover:bg-[#1c9c95] transition">
-                View Privacy Settings
-              </button>
-            </div>
-          </div>
+          <PrivacySecurityCard />
 
         </div>
       </main>
