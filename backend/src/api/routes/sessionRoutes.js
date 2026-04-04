@@ -1,5 +1,5 @@
 import express from 'express';
-import { saveSession, getSession, resumeSession } from '../controllers/sessionController.js';
+import { saveSession, getSession, resumeSession } from '../../controllers/sessionController.js';
 
 const router = express.Router();
 

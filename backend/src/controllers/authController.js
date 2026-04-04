@@ -38,7 +38,7 @@ const serializeUser = (user) => ({
 
 export const getMe = async (req, res) => {
   try {
-    const userId = req.user?.id || req.query.userId;
+    const userId = req.user?.id;
 
     if (!userId) {
       return errorResponse(res, 'User id is required', 401);
@@ -72,10 +72,6 @@ export const googleLogin = async (req, res) => {
       return errorResponse(res, 'Google ID Token is required');
     }
 
-    console.log('GOOGLE_CLIENT_ID =', process.env.GOOGLE_CLIENT_ID);
-    console.log('idToken received =', Boolean(idToken));
-    console.log('Backend expected audience =', process.env.GOOGLE_CLIENT_ID);
-
     if (!process.env.GOOGLE_CLIENT_ID) {
       return errorResponse(res, 'GOOGLE_CLIENT_ID is not configured', 500);
     }
@@ -86,13 +82,13 @@ export const googleLogin = async (req, res) => {
     });
 
     const payload = ticket.getPayload();
-    const { email, name } = payload;
+    const { email, name, sub } = payload;
 
     if (!email) {
       return errorResponse(res, 'Google account email is missing', 401);
     }
 
-    const user = await authService.findOrCreateGoogleUser(email, name);
+    const user = await authService.findOrCreateGoogleUser(email, name, sub);
     const token = generateToken(user.id);
 
     res.cookie('auth_token', token, cookieOptions);

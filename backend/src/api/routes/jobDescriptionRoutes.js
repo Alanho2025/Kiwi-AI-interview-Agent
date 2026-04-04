@@ -1,5 +1,5 @@
 import express from 'express';
-import { paraphraseJD } from '../controllers/jobDescriptionController.js';
+import { paraphraseJD } from '../../controllers/jobDescriptionController.js';
 
 const router = express.Router();
 

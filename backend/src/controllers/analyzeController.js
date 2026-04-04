@@ -1,6 +1,8 @@
 import { formatSuccess, formatError } from '../utils/responseFormatter.js';
 import { compareCvToJobDescription } from '../services/matchService.js';
 import { createSession } from '../services/sessionService.js';
+import * as authService from '../services/authService.js';
+import { createAuditLog } from '../services/auditService.js';
 
 export const matchCV = async (req, res, next) => {
   console.log('ENTERING matchCV');
@@ -23,7 +25,8 @@ export const matchCV = async (req, res, next) => {
 export const generateInterviewPlan = async (req, res, next) => {
   console.log('ENTERING generateInterviewPlan');
   try {
-    const { cvText, jdText, settings, analysisResult } = req.body;
+    const { cvId, cvText, rawJD, jdText, jdRubric, settings, analysisResult } = req.body;
+    const user = await authService.resolveUserFromRequest(req);
 
     // 1. Try to extract job title from structured JD directly
     let extractedRole = '';
@@ -41,15 +44,31 @@ export const generateInterviewPlan = async (req, res, next) => {
 
     // Create a new session with the plan
     console.log('Creating session for generateInterviewPlan');
-    const session = createSession({
+    const session = await createSession({
+      userId: user.id,
+      cvFileId: cvId || null,
       cvText,
+      rawJD: rawJD || '',
       jdText,
+      jdRubric: jdRubric || null,
       settings,
       analysisResult,
       targetRole: extractedRole || (jdText ? 'Target Role' : 'General Interview'),
       totalQuestions: 8,
       currentQuestionIndex: 1,
       candidateName: analysisResult?.candidateName || 'Candidate'
+    });
+
+    await createAuditLog({
+      actorUserId: user.id,
+      targetUserId: user.id,
+      sessionId: session.id,
+      actionType: 'create_interview_session',
+      resourceType: 'interview_session',
+      resourceId: session.id,
+      metadata: { cvId: cvId || null, targetRole: session.targetRole },
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent'),
     });
 
     console.log('EXITING generateInterviewPlan successfully');

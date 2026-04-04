@@ -1,5 +1,5 @@
 import express from 'express';
-import { startInterview, replyInterview, repeatQuestion, pauseInterview, resumeInterview, endInterview } from '../controllers/interviewController.js';
+import { startInterview, replyInterview, repeatQuestion, pauseInterview, resumeInterview, endInterview } from '../../controllers/interviewController.js';
 
 const router = express.Router();
 

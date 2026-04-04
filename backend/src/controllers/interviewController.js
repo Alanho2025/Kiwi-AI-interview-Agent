@@ -1,6 +1,14 @@
 import { formatSuccess, formatError } from '../utils/responseFormatter.js';
-import { getSessionById, updateSession } from '../services/sessionService.js';
+import {
+  appendTranscriptTurn,
+  createInterviewQuestion,
+  createInterviewResponse,
+  getLatestQuestionForSession,
+  getSessionById,
+  updateSession,
+} from '../services/sessionService.js';
 import { callDeepSeek } from '../services/deepseekService.js';
+import { createAuditLog } from '../services/auditService.js';
 
 const buildInterviewSystemInstruction = (session) => `
 You are a Kiwi AI Interview Agent.
@@ -96,23 +104,48 @@ export const startInterview = async (req, res, next) => {
   console.log('ENTERING startInterview, sessionId:', req.body?.sessionId);
   try {
     const { sessionId } = req.body;
-    const session = getSessionById(sessionId);
+    const session = await getSessionById(sessionId);
     if (!session) return res.status(404).json(formatError('Session not found', 'NOT_FOUND', 'Invalid session ID'));
 
     const firstQuestion = "Please introduce yourself.";
-
-    session.status = 'in_progress';
-    session.lastResumedAt = new Date().toISOString();
+    const nextState = {
+      status: 'in_progress',
+      lastResumedAt: new Date().toISOString(),
+    };
 
     // Prevent duplicate opening questions (e.g. from React Strict Mode double-firing)
     if (session.transcript.length === 0) {
-      session.transcript.push({ role: 'ai', text: firstQuestion, timestamp: new Date().toISOString() });
+      const questionId = await createInterviewQuestion({
+        sessionId,
+        questionOrder: 1,
+        questionType: 'self_intro',
+        sourceType: 'template',
+        questionText: firstQuestion,
+        basedOnCv: false,
+        basedOnJd: false,
+      });
+      await appendTranscriptTurn(sessionId, {
+        role: 'ai',
+        text: firstQuestion,
+        timestamp: new Date().toISOString(),
+        questionId,
+      });
     }
 
-    updateSession(sessionId, session);
+    const updatedSession = await updateSession(sessionId, nextState);
+    await createAuditLog({
+      actorUserId: updatedSession.userId,
+      targetUserId: updatedSession.userId,
+      sessionId,
+      actionType: 'start_interview',
+      resourceType: 'interview_session',
+      resourceId: sessionId,
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent'),
+    });
 
     console.log('EXITING startInterview successfully');
-    res.json(formatSuccess('Interview started', { question: firstQuestion, session }));
+    res.json(formatSuccess('Interview started', { question: firstQuestion, session: updatedSession }));
   } catch (error) {
     console.error('ERROR in startInterview:', error.message, error.stack);
     next(error);
@@ -123,7 +156,7 @@ export const replyInterview = async (req, res, next) => {
   console.log('ENTERING replyInterview, sessionId:', req.body?.sessionId);
   try {
     const { sessionId, answer } = req.body;
-    const session = getSessionById(sessionId);
+    const session = await getSessionById(sessionId);
     if (!session) return res.status(404).json(formatError('Session not found', 'NOT_FOUND', 'Invalid session ID'));
     if (session.status !== 'in_progress') {
       return res.status(400).json(formatError('Interview is not active', 'INVALID_STATE', 'Resume the interview before replying'));
@@ -132,14 +165,23 @@ export const replyInterview = async (req, res, next) => {
       return res.status(400).json(formatError('Missing answer', 'MISSING_PARAM', 'Please provide an interview answer'));
     }
 
-    session.transcript.push({ role: 'user', text: answer.trim(), timestamp: new Date().toISOString() });
+    const latestQuestion = await getLatestQuestionForSession(sessionId);
+    await appendTranscriptTurn(sessionId, { role: 'user', text: answer.trim(), timestamp: new Date().toISOString() });
+    if (latestQuestion?.id) {
+      await createInterviewResponse({
+        sessionId,
+        questionId: latestQuestion.id,
+        transcriptText: answer.trim(),
+      });
+    }
 
     // Build context for DeepSeek
-    const systemInstruction = buildInterviewSystemInstruction(session);
+    const refreshedSession = await getSessionById(sessionId);
+    const systemInstruction = buildInterviewSystemInstruction(refreshedSession);
 
     console.log('Calling DeepSeek for replyInterview, sessionId:', sessionId);
     // Format transcript for DeepSeek
-    const messages = session.transcript.map(msg => ({
+    const messages = refreshedSession.transcript.map(msg => ({
       role: msg.role === 'ai' ? 'assistant' : 'user',
       content: msg.text
     }));
@@ -155,7 +197,7 @@ export const replyInterview = async (req, res, next) => {
     } catch (e) {
       console.warn('DeepSeek call failed in interview, using fallback:', e);
       // Fallback logic if API fails
-      const isFirstFollowUp = session.transcript.length === 2; // AI intro, User intro
+      const isFirstFollowUp = refreshedSession.transcript.length === 2;
       if (isFirstFollowUp) {
         nextQuestion = "Thanks for sharing that background. What made you decide to pursue this specific role?";
       } else {
@@ -163,12 +205,28 @@ export const replyInterview = async (req, res, next) => {
       }
     }
 
-    session.transcript.push({ role: 'ai', text: nextQuestion, timestamp: new Date().toISOString() });
-    session.currentQuestionIndex = Math.min((session.currentQuestionIndex || 1) + 1, session.totalQuestions || 8);
-    updateSession(sessionId, session);
+    const nextQuestionOrder = Math.min((refreshedSession.currentQuestionIndex || 1) + 1, refreshedSession.totalQuestions || 8);
+    const nextQuestionId = await createInterviewQuestion({
+      sessionId,
+      questionOrder: nextQuestionOrder,
+      questionText: nextQuestion,
+      questionType: nextQuestionOrder <= 3 ? 'follow_up' : 'technical',
+      sourceType: 'generated',
+      basedOnCv: true,
+      basedOnJd: true,
+    });
+    await appendTranscriptTurn(sessionId, {
+      role: 'ai',
+      text: nextQuestion,
+      timestamp: new Date().toISOString(),
+      questionId: nextQuestionId,
+    });
+    const updatedSession = await updateSession(sessionId, {
+      currentQuestionIndex: nextQuestionOrder,
+    });
 
     console.log('EXITING replyInterview successfully');
-    res.json(formatSuccess('Reply processed', { nextQuestion, session }));
+    res.json(formatSuccess('Reply processed', { nextQuestion, session: updatedSession }));
   } catch (error) {
     console.error('ERROR in replyInterview:', error.message, error.stack);
     next(error);
@@ -179,7 +237,7 @@ export const repeatQuestion = async (req, res, next) => {
   console.log('ENTERING repeatQuestion, sessionId:', req.body?.sessionId);
   try {
     const { sessionId } = req.body;
-    const session = getSessionById(sessionId);
+    const session = await getSessionById(sessionId);
     if (!session) return res.status(404).json(formatError('Session not found', 'NOT_FOUND', 'Invalid session ID'));
 
     const lastAiMessage = session.transcript.filter(m => m.role === 'ai').pop();
@@ -195,14 +253,14 @@ export const pauseInterview = async (req, res, next) => {
   console.log('ENTERING pauseInterview, sessionId:', req.body?.sessionId);
   try {
     const { sessionId } = req.body;
-    const session = getSessionById(sessionId);
+    const session = await getSessionById(sessionId);
     if (!session) return res.status(404).json(formatError('Session not found', 'NOT_FOUND', 'Invalid session ID'));
 
     updateElapsedSeconds(session);
     session.status = 'paused';
-    updateSession(sessionId, session);
+    const updatedSession = await updateSession(sessionId, session);
     console.log('EXITING pauseInterview successfully');
-    res.json(formatSuccess('Interview paused', { session }));
+    res.json(formatSuccess('Interview paused', { session: updatedSession }));
   } catch (error) {
     console.error('ERROR in pauseInterview:', error.message, error.stack);
     next(error);
@@ -213,14 +271,14 @@ export const resumeInterview = async (req, res, next) => {
   console.log('ENTERING resumeInterview, sessionId:', req.body?.sessionId);
   try {
     const { sessionId } = req.body;
-    const session = getSessionById(sessionId);
+    const session = await getSessionById(sessionId);
     if (!session) return res.status(404).json(formatError('Session not found', 'NOT_FOUND', 'Invalid session ID'));
 
     session.status = 'in_progress';
     session.lastResumedAt = new Date().toISOString();
-    updateSession(sessionId, session);
+    const updatedSession = await updateSession(sessionId, session);
     console.log('EXITING resumeInterview successfully');
-    res.json(formatSuccess('Interview resumed', { session }));
+    res.json(formatSuccess('Interview resumed', { session: updatedSession }));
   } catch (error) {
     console.error('ERROR in resumeInterview:', error.message, error.stack);
     next(error);
@@ -231,14 +289,24 @@ export const endInterview = async (req, res, next) => {
   console.log('ENTERING endInterview, sessionId:', req.body?.sessionId);
   try {
     const { sessionId } = req.body;
-    const session = getSessionById(sessionId);
+    const session = await getSessionById(sessionId);
     if (!session) return res.status(404).json(formatError('Session not found', 'NOT_FOUND', 'Invalid session ID'));
 
     updateElapsedSeconds(session);
     session.status = 'completed';
-    updateSession(sessionId, session);
+    const updatedSession = await updateSession(sessionId, session);
+    await createAuditLog({
+      actorUserId: updatedSession.userId,
+      targetUserId: updatedSession.userId,
+      sessionId,
+      actionType: 'end_interview',
+      resourceType: 'interview_session',
+      resourceId: sessionId,
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent'),
+    });
     console.log('EXITING endInterview successfully');
-    res.json(formatSuccess('Interview ended', { session }));
+    res.json(formatSuccess('Interview ended', { session: updatedSession }));
   } catch (error) {
     console.error('ERROR in endInterview:', error.message, error.stack);
     next(error);

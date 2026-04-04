@@ -1,6 +1,6 @@
 import express from 'express';
-import { uploadCV, getRecentCVs, selectCV } from '../controllers/uploadController.js';
-import { uploadMiddleware } from '../middleware/uploadMiddleware.js';
+import { uploadCV, getRecentCVs, selectCV } from '../../controllers/uploadController.js';
+import { uploadMiddleware } from '../../middleware/uploadMiddleware.js';
 
 const router = express.Router();
 
