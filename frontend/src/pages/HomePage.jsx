@@ -29,6 +29,7 @@ export default function HomePage() {
     picture: '',
     loginProvider: '',
   });
+  const [isAvatarBroken, setIsAvatarBroken] = useState(false);
 
   useEffect(() => {
     const savedSession = window.localStorage.getItem(AUTH_STORAGE_KEY);
@@ -46,6 +47,7 @@ export default function HomePage() {
         picture: parsedSession.picture || '',
         loginProvider: parsedSession.loginProvider || '',
       });
+      setIsAvatarBroken(false);
     } catch (error) {
       console.error('Failed to restore auth session', error);
       window.localStorage.removeItem(AUTH_STORAGE_KEY);
@@ -81,11 +83,13 @@ export default function HomePage() {
         
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-3">
-            {user.picture ? (
+            {user.picture && !isAvatarBroken ? (
               <img 
                 src={user.picture}
                 alt={user.name}
                 className="w-10 h-10 rounded-full border border-gray-200 object-cover"
+                referrerPolicy="no-referrer"
+                onError={() => setIsAvatarBroken(true)}
               />
             ) : (
               <div className="w-10 h-10 rounded-full border border-gray-200 bg-emerald-50 text-emerald-700 flex items-center justify-center text-sm font-bold">
@@ -129,7 +133,10 @@ export default function HomePage() {
                 <button className="border border-gray-300 rounded-full px-6 py-3 text-sm font-semibold hover:bg-gray-50 transition">
                   Customize
                 </button>
-                <button className="bg-[#20B2AA] text-white rounded-full px-6 py-3 text-sm font-semibold shadow-md hover:bg-[#1c9c95] transition">
+                <button
+                  className="bg-[#20B2AA] text-white rounded-full px-6 py-3 text-sm font-semibold shadow-md hover:bg-[#1c9c95] transition"
+                  onClick={() => navigate('/')}
+                >
                   Start New Session
                 </button>
                 <span className="text-xs text-gray-400 ml-2">Estimated time: <strong className="text-gray-600">10–20 min</strong></span>
