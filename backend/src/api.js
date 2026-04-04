@@ -6,15 +6,20 @@ import analyzeRoutes from '../routes/analyzeRoutes.js';
 import interviewRoutes from '../routes/interviewRoutes.js';
 import sessionRoutes from '../routes/sessionRoutes.js';
 import exportRoutes from '../routes/exportRoutes.js';
+import authRoutes from '../routes/authRoutes.js';
 import { errorHandler } from '../middleware/errorHandler.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
 const api = express.Router();
 
-api.use(cors());
+api.use(cors({
+  origin: true,
+  credentials: true,
+}));
 api.use(express.json());
 
+api.use('/auth', authRoutes);
 api.use('/upload', uploadRoutes);
 api.use('/job-description', jobDescriptionRoutes);
 api.use('/analyze', analyzeRoutes);

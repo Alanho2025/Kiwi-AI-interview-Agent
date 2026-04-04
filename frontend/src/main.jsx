@@ -1,16 +1,30 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { GoogleOAuthProvider } from '@react-oauth/google';  // 新增
+import { GoogleOAuthProvider } from '@react-oauth/google';
 import App from './App.jsx';
 import './index.css';
+import { getGoogleClientConfig } from './api/authApi.js';
 
-// 你的 Google Client ID
-const clientId = "394786670055-0d0cf48c668p290qfgmdjmj2natck5ka.apps.googleusercontent.com";
+const rootElement = document.getElementById('root');
 
-createRoot(document.getElementById('root')).render(
-  <StrictMode>
-    <GoogleOAuthProvider clientId={clientId}>
-      <App />
-    </GoogleOAuthProvider>
-  </StrictMode>,
-);
+const renderApp = (clientId = '') => {
+  createRoot(rootElement).render(
+    <StrictMode>
+      <GoogleOAuthProvider clientId={clientId}>
+        <App />
+      </GoogleOAuthProvider>
+    </StrictMode>,
+  );
+};
+
+const bootstrap = async () => {
+  try {
+    const data = await getGoogleClientConfig();
+    renderApp(data.clientId);
+  } catch (error) {
+    console.error('Failed to load Google client config', error);
+    renderApp('');
+  }
+};
+
+bootstrap();

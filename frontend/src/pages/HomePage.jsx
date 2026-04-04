@@ -4,6 +4,7 @@ import {
   Bird, Clock, Star, Briefcase, Mic, TrendingUp, Settings, FileText
 } from 'lucide-react';
 import { PrivacySecurityCard } from '../components/home/PrivacySecurityCard.jsx';
+import { logoutFromSession } from '../api/authApi.js';
 
 const AUTH_STORAGE_KEY = 'kiwi-auth-session';
 
@@ -55,9 +56,15 @@ export default function HomePage() {
     }
   }, [navigate]);
 
-  const handleSignOut = () => {
-    window.localStorage.removeItem(AUTH_STORAGE_KEY);
-    navigate('/login', { replace: true });
+  const handleSignOut = async () => {
+    try {
+      await logoutFromSession();
+    } catch (error) {
+      console.error('Failed to clear backend session', error);
+    } finally {
+      window.localStorage.removeItem(AUTH_STORAGE_KEY);
+      navigate('/login', { replace: true });
+    }
   };
 
   const userInitials = user.name
@@ -135,7 +142,7 @@ export default function HomePage() {
                 </button>
                 <button
                   className="bg-[#20B2AA] text-white rounded-full px-6 py-3 text-sm font-semibold shadow-md hover:bg-[#1c9c95] transition"
-                  onClick={() => navigate('/')}
+                  onClick={() => navigate('/analysis')}
                 >
                   Start New Session
                 </button>
