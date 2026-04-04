@@ -1,225 +1,174 @@
-# Kiwi AI Interview Agent
+# Kiwi AI Interview Agent 🥝
 
-Kiwi AI Interview Agent is a split frontend/backend application for:
+[![Node.js](https://img.shields.io/badge/Node.js-22%2B-green)](https://nodejs.org)
+[![React](https://img.shields.io/badge/React-19-blue)](https://reactjs.org)
+[![License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
 
-- uploading a candidate CV in `PDF` or `DOCX`
-- parsing the uploaded document into real text
-- pasting a job description and restructuring it
-- generating a deterministic CV-to-JD match score
-- creating a mock interview session based on the CV, JD, and settings
-- running a text-based interview flow with pause, resume, repeat, export, and transcript review
+## 🚀 Project Introduction
 
-## Current Product Scope
+**Kiwi AI Interview Agent** is an AI-powered mock interview platform designed to help job seekers practice interviews tailored to their CV and target job descriptions. 
 
-### Analyze Flow
+### Key MVP Features
+- **Auth**: Google OAuth login
+- **Document Upload**: CV (PDF/DOCX) + Job Description (file/text paste)
+- **Smart Parsing**: Extract skills, experience, projects from real documents
+- **CV-JD Matching**: Deterministic scoring (skills 45%, keywords 35%, etc.)
+- **Interview Simulation**: 5-min AI-led session (self-intro + follow-ups via DeepSeek)
+- **Real-time Interaction**: Voice/text input, pause/resume/repeat
+- **Feedback & Export**: Report with strengths/gaps + transcript export
 
-- Upload CV from the frontend
-- Extract text from:
-- `PDF` via `pdf-parse`
-- `DOCX` via `mammoth`
-- Paste a job description
-- Optionally paraphrase the JD through DeepSeek
-- Compare CV text and JD text on the backend
-- Generate:
-- `matchScore`
-- strengths
-- gaps
-- interview focus
-- plan preview
+Built for NZ job market with optional cultural fit questions. Current state: Functional MVP with in-memory sessions (persistence planned).
 
-### Interview Flow
+**User Flow**: Login → Upload CV/JD → Analyze Match → Start Interview → Get Report.
 
-- Create a session from analyzed CV/JD data
-- Start interview
-- Send candidate replies
-- Generate next interviewer question
-- Pause or resume an interview
-- Repeat the last question
-- End an interview
-- Export transcript as plain text
+## 🛠 Initial Setup (After Clone)
 
-## Architecture
-
-### Frontend
-
-Location: `frontend/`
-
-Stack:
-
-- React
-- Vite
-- Tailwind CSS
-- React Router
-
-Main responsibilities:
-
-- Render analysis and interview flows
-- Call backend APIs
-- Persist analysis draft in local storage
-- Display transcript, progress, and match results
-
-### Backend
-
-Location: `backend/`
-
-Stack:
-
-- Node.js
-- Express
-- Multer
-- DeepSeek API
-
-Main responsibilities:
-
-- File upload handling
-- CV text extraction
-- JD paraphrasing
-- Deterministic CV/JD comparison
-- Interview session lifecycle
-- Transcript export
-
-## Project Structure
-
-```text
-.
-├── AGENTS.md
-├── backend
-│   ├── controllers
-│   ├── middleware
-│   ├── routes
-│   ├── services
-│   ├── src
-│   ├── utils
-│   ├── index.js
-│   └── package.json
-├── frontend
-│   ├── src
-│   │   ├── api
-│   │   ├── components
-│   │   ├── pages
-│   │   └── utils
-│   ├── index.html
-│   ├── package.json
-│   └── vite.config.js
-└── README.md
-```
-
-## Setup
+**Note**: `node_modules` not committed. Run installs manually.
 
 ### Prerequisites
-
 - Node.js 22+
 - npm
+- DeepSeek API key (for AI features)
 
-### Install
-
+### 1. Clone & Install
 ```bash
-cd backend && npm install
-cd ../frontend && npm install
+git clone <repo> Kiwi-AI-interview-Agent
+cd Kiwi-AI-interview-Agent
 ```
 
-### Environment
-
-Create `backend/.env` from `backend/.env.example`:
-
+**Backend:**
 ```bash
-cp backend/.env.example backend/.env
+cd backend
+npm install
+cp .env.example .env  # Add DEEPSEEK_API_KEY=your_key_here
 ```
 
-Variables:
-
-- `PORT`: backend server port
-- `DEEPSEEK_API_KEY`: enables JD paraphrasing and interview question generation
-
-## Run Locally
-
-Start backend:
-
+**Frontend:**
 ```bash
-cd backend && npm run dev
+cd ../frontend
+npm install
 ```
 
-Start frontend in a second terminal:
+### 2. Run Development Servers
+Terminal 1 (Backend): `cd backend && npm run dev` (runs on http://localhost:3000)
 
-```bash
-cd frontend && npm run dev
+Terminal 2 (Frontend): `cd frontend && npm run dev` (proxies /api to backend)
+
+Open http://localhost:5173 (Vite default).
+
+**Production Build**: `cd frontend && npm run build` → serve `dist/`.
+
+## 🏗 System Architecture
+
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   Frontend      │    │     Backend      │    │    Storage      │
+│ (React/Vite)    │◄──►│ (Node/Express)   │◄──►│ - Local files   │
+│ - UI Components │    │ - API Routes     │    │ - Future S3     │
+│ - Voice UI      │    │ - Parsing/Match  │    └─────────────────┘
+│ - Local Storage │    │ - Session Mgmt   │         ▲
+└─────────────────┘    └─────────────────┘         │
+                           ▲                        │
+                    ┌─────────────────┐             │
+                    │     Database    │             │
+                    │ - Postgres      │◄────────────┘
+                    │   (planned)     │
+                    │ - Mongo (docs)  │
+                    └─────────────────┘
 ```
 
-Frontend development requests to `/api` are proxied to `http://localhost:3000`.
+- **Frontend**: Single-page app, API client, real-time interview UI.
+- **Backend**: REST API, file processing, AI integration.
+- **Current Storage**: In-memory sessions + local uploads (backend/uploads).
+- **Planned**: Postgres (users/sessions/files) + MongoDB (transcripts/plans/raw docs).
 
-## Build
+## ✨ Main Features
 
-Frontend production build:
+| Feature | Description |
+|---------|-------------|
+| **Analysis** | Upload CV/JD → Parse → Match score + plan preview |
+| **Interview** | Start/pause/end session, reply via mic/text, auto-end @5min |
+| **AI Questions** | Self-intro → CV/JD-based follow-ups (DeepSeek) |
+| **Feedback** | Post-session report (impression, strengths, gaps) |
+| **Export** | Transcript as TXT |
+| **UX** | Responsive, status banners, progress tracking |
 
+## 🌐 API Architecture
+
+**Base Path**: `/api` (proxied in dev)
+
+**Grouped Routes**:
+- **Upload**: `POST /upload/cv`, `GET /upload/recent-cvs`
+- **Analyze**: `POST /analyze/match`, `POST /job-description/paraphrase`
+- **Session**: `POST /session/save`, `GET /session/:id`
+- **Interview**: `POST /interview/start|reply|pause|resume|end|repeat`
+- **Export**: `POST /export/transcript`
+
+**Example** (curl analyze):
 ```bash
-cd frontend && npm run build
+curl -X POST http://localhost:3000/api/analyze/match \
+  -H 'Content-Type: application/json' \
+  -d '{"cvText": "CV content", "jdText": "JD content"}'
 ```
 
-## Match Score Logic
+Full list in current README → controllers/routes.
 
-The current match score is not a free-form LLM score. It is computed on the backend from the uploaded CV text and the provided JD text.
+## 🛠 Technology Summary
 
-Inputs:
+### Backend (`backend/package.json`)
+| Category | Tech |
+|----------|------|
+| Server | Node.js, Express 4.21 |
+| Upload/Parse | Multer, pdf-parse 2.4, mammoth 1.12 |
+| DB | pg 8.20 (Postgres), mongodb/mongoose 9.4 |
+| AI/Auth | DeepSeek, JWT 9.0, Google Auth Lib |
+| Utils | cors 2.8, dotenv 17.2 |
 
-- parsed CV text
-- JD text
-- extracted skill patterns
-- extracted keywords
-- extracted requirement phrases
-- seniority alignment
+**Scripts**: `npm run dev` (node index.js)
 
-The score currently weights:
+### Frontend (`frontend/package.json`)
+| Category | Tech |
+|----------|------|
+| Framework | React 19, Vite 6.2 |
+| Styling | TailwindCSS 4.1 (@tailwindcss/vite) |
+| UI/Routing | lucide-react, react-router-dom 7.14, motion 12.23 |
+| Auth | @react-oauth/google 0.13, jwt-decode |
+| Other | clsx 2.1, tailwind-merge 3.5 |
 
-- skill coverage: 45%
-- keyword coverage: 35%
-- requirement phrase coverage: 15%
-- seniority alignment: 5%
+**Scripts**: `npm run dev|build|preview`
 
-Returned analysis includes:
+## 📁 Project Structure
+```
+.
+├── backend/          # API server
+│   ├── src/          # controllers/services/db/api
+│   ├── uploads/      # CVs/dummy
+│   └── package.json
+├── frontend/         # React SPA
+│   ├── src/components/ # Analyze/Interview/UI
+│   └── package.json
+├── docs/             # Architecture plans
+├── AGENTS.md         # AI collab rules
+└── TODO.md           # Progress tracker
+```
 
-- `matchScore`
-- `strengths`
-- `gaps`
-- `interviewFocus`
-- `matchingDetails`
+## ⚖️ Match Score Logic
+Heuristic (not pure LLM):
+- Skills: 45%
+- Keywords: 35%
+- Phrases: 15%
+- Seniority: 5%
 
-## API Overview
+Returns: `matchScore`, strengths, gaps, focus.
 
-Base path: `/api`
+## 🚧 Limitations & Roadmap
+- **Current**: In-memory sessions (lost on restart), basic auth, no tests, alert-based UX.
+- **Next**: Full DB persistence, tests, modals/toasts, multi-session history.
+See `docs/` for DB/UI plans.
 
-Routes:
+## 🤝 Contributing
+Follow [AGENTS.md](AGENTS.md). Ask before changes!
 
-- `POST /upload/cv`
-- `GET /upload/recent-cvs`
-- `POST /upload/select-cv`
-- `POST /job-description/paraphrase`
-- `POST /analyze/match`
-- `POST /analyze/interview-plan`
-- `GET /session/:sessionId`
-- `POST /session/save`
-- `POST /session/resume`
-- `POST /interview/start`
-- `POST /interview/reply`
-- `POST /interview/repeat`
-- `POST /interview/pause`
-- `POST /interview/resume`
-- `POST /interview/end`
-- `POST /export/transcript`
+## 📄 License
+MIT
 
-## Known Limitations
-
-- Sessions are currently stored in memory and are lost when the backend restarts.
-- Match scoring is deterministic and more reliable than an LLM estimate, but it is still heuristic rather than a full semantic ranking engine.
-- Transcript export is plain text only.
-- There is no authentication or persistent user profile yet.
-
-## Working Rules
-
-The repository-level collaboration rules are defined in [AGENTS.md](./AGENTS.md).
-
-Key rules:
-
-- ask before making non-trivial changes
-- ask before any UI design change
-- keep structure aligned with clean code principles
-- do not push or rewrite git history without approval
