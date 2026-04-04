@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { GoogleLogin } from '@react-oauth/google';
 import { useNavigate } from 'react-router-dom';
-import { jwtDecode } from 'jwt-decode';
 import { Bird } from 'lucide-react';
+import { loginWithGoogle } from '../api/authApi.js';
 
 import kiwiMicImg from '../assets/kiwiMicImg.png';
 import kiwiHeadphoneImg from '../assets/kiwiHeadphoneImg.png';
@@ -14,6 +14,7 @@ export default function Login() {
   const navigate = useNavigate();
   const [isAgreed, setIsAgreed] = useState(false);
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const existingSession = window.localStorage.getItem(AUTH_STORAGE_KEY);
@@ -22,7 +23,7 @@ export default function Login() {
     }
   }, [navigate]);
 
-  const handleSuccess = (credentialResponse) => {
+  const handleSuccess = async (credentialResponse) => {
     if (!isAgreed) {
       setError('Please agree to the Privacy Act terms before continuing.');
       return;
@@ -34,23 +35,28 @@ export default function Login() {
     }
 
     setError('');
+    setIsSubmitting(true);
 
     try {
-      const decodedToken = jwtDecode(credentialResponse.credential);
+      const data = await loginWithGoogle(credentialResponse.credential);
       const authSession = {
-        email: decodedToken.email || '',
-        name: decodedToken.name || '',
-        picture: decodedToken.picture || '',
+        userId: data.user?.id || '',
+        email: data.user?.email || '',
+        name: data.user?.full_name || '',
+        picture: '',
         loginProvider: 'google',
         acceptedPrivacyTerms: true,
         loggedInAt: new Date().toISOString(),
+        token: data.token || '',
       };
 
       window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authSession));
       navigate('/home', { replace: true });
-    } catch (decodeError) {
-      console.error('Failed to decode Google credential', decodeError);
-      setError('Login failed. Please try again.');
+    } catch (loginError) {
+      console.error('Failed to log in with Google', loginError);
+      setError(loginError.message || 'Login failed. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -98,7 +104,7 @@ export default function Login() {
 
           {/* Google 登录按钮 */}
           <div className="mb-6 flex justify-center relative">
-            <div className={`w-full flex justify-center transition-opacity duration-300 ${!isAgreed ? 'opacity-50 grayscale' : 'opacity-100'}`}>
+            <div className={`w-full flex justify-center transition-opacity duration-300 ${!isAgreed || isSubmitting ? 'opacity-50 grayscale' : 'opacity-100'}`}>
               <GoogleLogin
                 onSuccess={handleSuccess}
                 onError={handleError}

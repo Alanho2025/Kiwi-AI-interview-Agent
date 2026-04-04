@@ -35,7 +35,7 @@ export const apiClient = async (endpoint, options = {}) => {
     : { message: await response.text() };
 
   if (!response.ok) {
-    throw new Error(payload.error?.details || payload.message || 'API request failed');
+    throw new Error(payload.error?.details || payload.message || payload.msg || 'API request failed');
   }
 
   return payload.data;

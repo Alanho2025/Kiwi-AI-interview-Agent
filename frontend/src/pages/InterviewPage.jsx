@@ -39,7 +39,7 @@ export function InterviewPage() {
           title: 'Could not load interview',
           message: error.message || 'Failed to load session.',
         });
-        navigate('/');
+        navigate('/analysis');
       } finally {
         setLoading(false);
       }
