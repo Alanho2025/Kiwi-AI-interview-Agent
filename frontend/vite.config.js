@@ -9,6 +9,7 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, 'src'),
     },
+    dedupe: ['react', 'react-dom'],   // 新增：强制使用同一个 React 副本
   },
   server: {
     hmr: process.env.DISABLE_HMR !== 'true',
