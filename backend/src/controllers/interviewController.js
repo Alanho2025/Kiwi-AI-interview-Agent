@@ -9,6 +9,7 @@ import {
 } from '../services/sessionService.js';
 import { runTask } from '../services/masterAiService.js';
 import { createAuditLog } from '../services/auditService.js';
+import { getOpeningQuestionText, hasAskedOpeningQuestion } from '../services/interviewStateService.js';
 
 const buildInterviewSystemInstruction = (session) => `
 You are a Kiwi AI Interview Agent.
@@ -107,26 +108,25 @@ export const startInterview = async (req, res, next) => {
     const session = await getSessionById(sessionId);
     if (!session) return res.status(404).json(formatError('Session not found', 'NOT_FOUND', 'Invalid session ID'));
 
-    const firstQuestion = "Please introduce yourself.";
+    const openingQuestion = getOpeningQuestionText(session);
     const nextState = {
       status: 'in_progress',
       lastResumedAt: new Date().toISOString(),
     };
 
-    // Prevent duplicate opening questions (e.g. from React Strict Mode double-firing)
-    if (session.transcript.length === 0) {
+    if (!hasAskedOpeningQuestion(session)) {
       const questionId = await createInterviewQuestion({
         sessionId,
         questionOrder: 1,
         questionType: 'self_intro',
         sourceType: 'template',
-        questionText: firstQuestion,
+        questionText: openingQuestion,
         basedOnCv: false,
         basedOnJd: false,
       });
       await appendTranscriptTurn(sessionId, {
         role: 'ai',
-        text: firstQuestion,
+        text: openingQuestion,
         timestamp: new Date().toISOString(),
         questionId,
       });
@@ -145,7 +145,7 @@ export const startInterview = async (req, res, next) => {
     });
 
     console.log('EXITING startInterview successfully');
-    res.json(formatSuccess('Interview started', { question: firstQuestion, session: updatedSession }));
+    res.json(formatSuccess('Interview started', { question: openingQuestion, session: updatedSession }));
   } catch (error) {
     console.error('ERROR in startInterview:', error.message, error.stack);
     next(error);
@@ -181,15 +181,25 @@ export const replyInterview = async (req, res, next) => {
       payload: { answer: answer.trim() },
     });
 
-    const updatedSession = await updateSession(sessionId, {
-      currentQuestionIndex: agentResult.nextQuestionOrder,
-    });
+    const sessionPatch = agentResult.isComplete
+      ? {
+          status: 'completed',
+          endedAt: new Date().toISOString(),
+          lastResumedAt: null,
+        }
+      : {
+          currentQuestionIndex: agentResult.nextQuestionOrder,
+        };
+
+    const updatedSession = await updateSession(sessionId, sessionPatch);
 
     console.log('EXITING replyInterview successfully');
     res.json(formatSuccess('Reply processed', {
       nextQuestion: agentResult.nextQuestion,
       rationale: agentResult.rationale,
       retrievalSnapshot: agentResult.retrievalSnapshot,
+      isComplete: Boolean(agentResult.isComplete),
+      completedBecause: agentResult.completedBecause || null,
       session: updatedSession,
     }));
   } catch (error) {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AppHeader } from '../components/layout/AppHeader.jsx';
 import { CandidateCard } from '../components/interview/CandidateCard.jsx';
@@ -28,13 +28,15 @@ export function InterviewPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [timerOffset, setTimerOffset] = useState(0);
   const [pageStatus, setPageStatus] = useState(null);
+  const hasStartedRef = useRef(false);
 
   useEffect(() => {
     const fetchSession = async () => {
       try {
         const data = await getSession(sessionId);
         setSession(data.session);
-        if (data.session.status === 'ready') {
+        if (data.session.status === 'ready' && !hasStartedRef.current) {
+          hasStartedRef.current = true;
           const startData = await startInterview(sessionId);
           setSession(startData.session);
         }
@@ -73,6 +75,9 @@ export function InterviewPage() {
       setSession((prev) => ({ ...prev, transcript: [...prev.transcript, { role: 'user', text: answer.trim(), timestamp: new Date().toISOString() }] }));
       const data = await replyInterview(sessionId, answer.trim());
       setSession(data.session);
+      if (data.session?.status === 'completed') {
+        setPageStatus({ type: 'success', title: 'Interview completed', message: 'The planned question set is finished. You can now review the report.' });
+      }
     } catch (error) {
       setSession(previousSession);
       setPageStatus({ type: 'error', title: 'Reply failed', message: error.message });
@@ -82,6 +87,7 @@ export function InterviewPage() {
   };
 
   const handlePause = async () => {
+    if (session?.status === 'completed') return;
     try {
       const data = session.status === 'paused' ? await resumeInterview(sessionId) : await pauseInterview(sessionId);
       setSession(data.session);
@@ -92,6 +98,7 @@ export function InterviewPage() {
   };
 
   const handleRepeat = async () => {
+    if (session?.status === 'completed') return;
     try {
       const data = await repeatQuestion(sessionId);
       if (data.question) {
@@ -189,7 +196,7 @@ export function InterviewPage() {
         </div>
 
         <div className="col-span-6 flex flex-col h-full pb-6 min-h-0">
-          <InterviewChatPanel transcript={session.transcript} onReply={handleReply} onPause={handlePause} onRepeat={handleRepeat} onEnd={handleEnd} isPaused={session.status === 'paused'} isSubmitting={isSubmitting} candidateName={session.candidateName} />
+          <InterviewChatPanel transcript={session.transcript} onReply={handleReply} onPause={handlePause} onRepeat={handleRepeat} onEnd={handleEnd} isPaused={session.status === 'paused'} isCompleted={session.status === 'completed'} isSubmitting={isSubmitting} candidateName={session.candidateName} />
         </div>
 
         <div className="col-span-3 flex flex-col gap-6 h-full pb-6 min-h-0">
@@ -197,7 +204,7 @@ export function InterviewPage() {
             <TranscriptPanel transcript={session.transcript} onExport={handleExport} candidateName={session.candidateName} />
           </div>
           <div className="shrink-0">
-            <TextBackupCard onSubmit={handleReply} disabled={isSubmitting || session.status === 'paused'} />
+            <TextBackupCard onSubmit={handleReply} disabled={isSubmitting || session.status === 'paused' || session.status === 'completed'} />
           </div>
         </div>
       </main>

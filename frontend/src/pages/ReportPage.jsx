@@ -56,6 +56,9 @@ export function ReportPage() {
 
   const report = reportData?.report || {};
   const qa = reportData?.qaResult || {};
+  const interviewMetrics = report.interviewMetrics || {};
+  const evidenceDiagnostics = report.evidenceDiagnostics || {};
+  const qaDiagnostics = qa.diagnostics || {};
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -77,6 +80,25 @@ export function ReportPage() {
               <div className="rounded-xl bg-gray-50 p-4 text-sm">Micro: {report.scores?.micro ?? '-'}</div>
               <div className="rounded-xl bg-gray-50 p-4 text-sm">Requirements: {report.scores?.requirements ?? '-'}</div>
             </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-3">
+              <div className="rounded-xl bg-gray-50 p-4 text-sm">Evidence strength: {report.scores?.evidenceStrength ?? '-'}</div>
+              <div className="rounded-xl bg-gray-50 p-4 text-sm">Direct evidence turns: {report.scores?.directEvidenceTurns ?? '-'}</div>
+              <div className="rounded-xl bg-gray-50 p-4 text-sm">Hypothetical turns: {report.scores?.hypotheticalTurns ?? '-'}</div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle>Interview metrics</CardTitle></CardHeader>
+          <CardContent>
+            <div className="grid gap-3 md:grid-cols-4">
+              <div className="rounded-xl bg-gray-50 p-4 text-sm">Planned questions: {interviewMetrics.plannedQuestionCount ?? '-'}</div>
+              <div className="rounded-xl bg-gray-50 p-4 text-sm">Scored questions: {interviewMetrics.interviewerQuestionCount ?? '-'}</div>
+              <div className="rounded-xl bg-gray-50 p-4 text-sm">Candidate turns: {interviewMetrics.candidateTurnCount ?? '-'}</div>
+              <div className="rounded-xl bg-gray-50 p-4 text-sm">Extra AI turns: {interviewMetrics.extraAiTurnCount ?? '-'}</div>
+            </div>
+            <p className="mt-3 text-sm text-gray-700">Interview completed by limit: {interviewMetrics.interviewCompletedByLimit ? 'Yes' : 'No'}</p>
+            <p className="mt-2 text-sm text-gray-700">Average evidence strength: {evidenceDiagnostics.averageStrength ?? '-'}</p>
           </CardContent>
         </Card>
 
@@ -99,6 +121,7 @@ export function ReportPage() {
           <CardContent>
             <p className="text-sm text-gray-700">Coverage score: {qa.coverageScore ?? '-'} | Hallucination risk: {qa.hallucinationRisk || '-'}</p>
             <p className="mt-2 text-sm text-gray-700">Passed: {qa.passed ? 'Yes' : 'No'}</p>
+            <p className="mt-2 text-sm text-gray-700">QA question alignment: {qaDiagnostics.interviewerQuestionCount ?? '-'} / {qaDiagnostics.plannedQuestionCount ?? '-'} | Avg evidence strength: {qaDiagnostics.averageEvidenceStrength ?? '-'}</p>
             <div className="mt-3 flex flex-wrap gap-2">
               {(qa.qualityFlags || []).map((flag) => <span key={flag} className="rounded-full bg-amber-100 px-3 py-1 text-xs text-amber-800">{flag}</span>)}
             </div>
