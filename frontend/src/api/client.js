@@ -51,3 +51,7 @@ export const apiClient = async (endpoint, options = {}) => {
 
   return payload.data;
 };
+
+
+export const apiGet = (endpoint, options = {}) => apiClient(endpoint, { method: 'GET', ...options });
+export const apiPost = (endpoint, body, options = {}) => apiClient(endpoint, { method: 'POST', body, ...options });

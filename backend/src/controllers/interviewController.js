@@ -7,7 +7,7 @@ import {
   getSessionById,
   updateSession,
 } from '../services/sessionService.js';
-import { callDeepSeek } from '../services/deepseekService.js';
+import { runTask } from '../services/masterAiService.js';
 import { createAuditLog } from '../services/auditService.js';
 
 const buildInterviewSystemInstruction = (session) => `
@@ -175,58 +175,23 @@ export const replyInterview = async (req, res, next) => {
       });
     }
 
-    // Build context for DeepSeek
-    const refreshedSession = await getSessionById(sessionId);
-    const systemInstruction = buildInterviewSystemInstruction(refreshedSession);
-
-    console.log('Calling DeepSeek for replyInterview, sessionId:', sessionId);
-    // Format transcript for DeepSeek
-    const messages = refreshedSession.transcript.map(msg => ({
-      role: msg.role === 'ai' ? 'assistant' : 'user',
-      content: msg.text
-    }));
-
-    let nextQuestion = '';
-    try {
-      // We pass the full conversation history to DeepSeek
-      nextQuestion = await callDeepSeek(
-        JSON.stringify(messages),
-        `${systemInstruction}\n\nConversation history is provided as a JSON array of role/content messages. Read it and produce the next interviewer turn.`
-      );
-      nextQuestion = nextQuestion.trim();
-    } catch (e) {
-      console.warn('DeepSeek call failed in interview, using fallback:', e);
-      // Fallback logic if API fails
-      const isFirstFollowUp = refreshedSession.transcript.length === 2;
-      if (isFirstFollowUp) {
-        nextQuestion = "Thanks for sharing that background. What made you decide to pursue this specific role?";
-      } else {
-        nextQuestion = "That's interesting. Can you tell me more about a specific challenge you faced in that area and how you overcame it?";
-      }
-    }
-
-    const nextQuestionOrder = Math.min((refreshedSession.currentQuestionIndex || 1) + 1, refreshedSession.totalQuestions || 8);
-    const nextQuestionId = await createInterviewQuestion({
+    const agentResult = await runTask({
+      taskType: 'interview_next_turn',
       sessionId,
-      questionOrder: nextQuestionOrder,
-      questionText: nextQuestion,
-      questionType: nextQuestionOrder <= 3 ? 'follow_up' : 'technical',
-      sourceType: 'generated',
-      basedOnCv: true,
-      basedOnJd: true,
+      payload: { answer: answer.trim() },
     });
-    await appendTranscriptTurn(sessionId, {
-      role: 'ai',
-      text: nextQuestion,
-      timestamp: new Date().toISOString(),
-      questionId: nextQuestionId,
-    });
+
     const updatedSession = await updateSession(sessionId, {
-      currentQuestionIndex: nextQuestionOrder,
+      currentQuestionIndex: agentResult.nextQuestionOrder,
     });
 
     console.log('EXITING replyInterview successfully');
-    res.json(formatSuccess('Reply processed', { nextQuestion, session: updatedSession }));
+    res.json(formatSuccess('Reply processed', {
+      nextQuestion: agentResult.nextQuestion,
+      rationale: agentResult.rationale,
+      retrievalSnapshot: agentResult.retrievalSnapshot,
+      session: updatedSession,
+    }));
   } catch (error) {
     console.error('ERROR in replyInterview:', error.message, error.stack);
     next(error);

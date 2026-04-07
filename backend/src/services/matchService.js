@@ -1,414 +1,207 @@
 import { buildStructuredJobDescriptionRubric } from './jobDescriptionService.js';
+import {
+  buildAnalyzeOutput,
+  buildExplanationItem,
+  buildExplanationObject,
+  buildRequirementItem,
+  buildScoreItem,
+  clampScore,
+  deriveDecision,
+  requirementStatusToScore,
+  roundScore,
+} from './scoringSchemaService.js';
+import { validateAnalyzeOutput } from './schemaValidationService.js';
+import { normalizeTaxonomyLabel } from './taxonomyService.js';
 
-const STOP_WORDS = new Set([
-  'a', 'an', 'and', 'are', 'as', 'at', 'be', 'by', 'for', 'from', 'in', 'is', 'it', 'of', 'on', 'or',
-  'that', 'the', 'to', 'with', 'will', 'you', 'your', 'our', 'we', 'they', 'this', 'these', 'those',
-  'have', 'has', 'had', 'their', 'them', 'can', 'may', 'should', 'must', 'not', 'than', 'into', 'about',
-  'role', 'job', 'experience', 'skills', 'skill', 'requirements', 'required', 'preferred', 'looking',
-  'candidate', 'ability', 'using', 'used', 'strong', 'including', 'across', 'within', 'such'
-]);
+const normalizeText = (text = '') => String(text || '').toLowerCase();
+const tokenize = (text = '') => normalizeText(text).split(/[^a-z0-9+#.]+/).filter(Boolean);
+const unique = (items = []) => [...new Set(items.filter(Boolean))];
+const tokenSet = (text = '') => new Set(tokenize(text));
 
-const TOKEN_ALIASES = new Map([
-  ['bachelors', 'bachelor'],
-  ['bachelor', 'bachelor'],
-  ['masters', 'master'],
-  ['master', 'master'],
-  ['phd', 'doctorate'],
-  ['doctorate', 'doctorate'],
-  ['certification', 'certificate'],
-  ['certified', 'certificate'],
-  ['certificates', 'certificate'],
-  ['qualification', 'qualified'],
-  ['qualifications', 'qualified'],
-  ['qualified', 'qualified'],
-  ['equivalent', 'equivalent'],
-  ['analyst', 'analyst'],
-  ['analysis', 'analyst'],
-  ['analytics', 'analyst'],
-  ['analyze', 'analyst'],
-  ['analysing', 'analyst'],
-  ['dashboard', 'dashboard'],
-  ['dashboards', 'dashboard'],
-  ['reporting', 'report'],
-  ['reports', 'report'],
-  ['report', 'report'],
-  ['communication', 'communication'],
-  ['communicate', 'communication'],
-  ['communicating', 'communication'],
-  ['stakeholders', 'stakeholder'],
-  ['stakeholder', 'stakeholder'],
-  ['team', 'teamwork'],
-  ['teams', 'teamwork'],
-  ['teamwork', 'teamwork'],
-  ['collaborate', 'collaboration'],
-  ['collaboration', 'collaboration'],
-  ['collaborative', 'collaboration'],
-  ['owned', 'ownership'],
-  ['owning', 'ownership'],
-  ['ownership', 'ownership'],
-  ['internship', 'intern'],
-  ['intern', 'intern'],
-]);
-
-const QUALIFICATION_SIGNALS = new Set([
-  'bachelor',
-  'master',
-  'doctorate',
-  'diploma',
-  'certificate',
-  'qualified',
-  'equivalent',
-  'degree',
-]);
-
-const SKILL_PATTERNS = [
-  ['javascript', /\bjavascript\b/i],
-  ['typescript', /\btypescript\b/i],
-  ['node.js', /\bnode(?:\.js)?\b/i],
-  ['react', /\breact\b/i],
-  ['vue', /\bvue\b/i],
-  ['angular', /\bangular\b/i],
-  ['next.js', /\bnext(?:\.js)?\b/i],
-  ['html', /\bhtml\b/i],
-  ['css', /\bcss\b/i],
-  ['tailwind', /\btailwind\b/i],
-  ['python', /\bpython\b/i],
-  ['java', /\bjava\b/i],
-  ['c#', /\bc#\b|\bcsharp\b/i],
-  ['php', /\bphp\b/i],
-  ['go', /\bgolang\b|\bgo\b/i],
-  ['sql', /\bsql\b/i],
-  ['postgresql', /\bpostgres(?:ql)?\b/i],
-  ['mysql', /\bmysql\b/i],
-  ['mongodb', /\bmongodb\b|\bmongo\b/i],
-  ['redis', /\bredis\b/i],
-  ['aws', /\baws\b|\bamazon web services\b/i],
-  ['azure', /\bazure\b/i],
-  ['gcp', /\bgcp\b|\bgoogle cloud\b/i],
-  ['docker', /\bdocker\b/i],
-  ['kubernetes', /\bkubernetes\b|\bk8s\b/i],
-  ['git', /\bgit\b/i],
-  ['ci/cd', /\bci\/cd\b|\bcontinuous integration\b|\bcontinuous delivery\b/i],
-  ['testing', /\btesting\b|\bjest\b|\bcypress\b|\bplaywright\b|\bunit test/i],
-  ['rest api', /\brest\b|\brestful\b|\bapi\b/i],
-  ['graphql', /\bgraphql\b/i],
-  ['agile', /\bagile\b|\bscrum\b|\bkanban\b/i],
-  ['communication', /\bcommunication\b|\bstakeholder\b|\bcollaboration\b/i],
-  ['leadership', /\bleadership\b|\bmentor\b|\bmentoring\b|\blead\b/i],
-];
-
-const SENIORITY_PATTERNS = [
-  ['junior', /\bjunior\b|\bgraduate\b|\bgrad\b|\bentry[- ]level\b/i],
-  ['mid', /\bintermediate\b|\bmid(?:[- ]level)?\b/i],
-  ['senior', /\bsenior\b|\blead\b|\bprincipal\b|\bstaff\b/i],
-];
-
-const normalizeToken = (token) => {
-  const normalized = (token || '').toLowerCase().trim();
-  if (!normalized) {
-    return '';
-  }
-
-  if (TOKEN_ALIASES.has(normalized)) {
-    return TOKEN_ALIASES.get(normalized);
-  }
-
-  if (normalized.endsWith('ies') && normalized.length > 4) {
-    return `${normalized.slice(0, -3)}y`;
-  }
-
-  if (normalized.endsWith('ing') && normalized.length > 5) {
-    return normalized.slice(0, -3);
-  }
-
-  if (normalized.endsWith('ed') && normalized.length > 4) {
-    return normalized.slice(0, -2);
-  }
-
-  if (normalized.endsWith('s') && normalized.length > 4) {
-    return normalized.slice(0, -1);
-  }
-
-  return normalized;
-};
-
-const normalizeText = (text) =>
-  (text || '')
-    .toLowerCase()
-    .replace(/\r/g, '\n')
-    .replace(/[^a-z0-9+#.\n/ -]/g, ' ')
-    .replace(/[ \t]{2,}/g, ' ')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
-
-const tokenize = (text) =>
-  normalizeText(text)
-    .split(/[^a-z0-9+#.]+/)
-    .map(normalizeToken)
-    .filter((token) => token.length >= 3 && !STOP_WORDS.has(token));
-
-const unique = (items) => [...new Set(items)];
-
-const extractSkills = (text) =>
-  SKILL_PATTERNS.filter(([, pattern]) => pattern.test(text)).map(([skill]) => skill);
-
-const extractSeniority = (text) => {
-  const found = SENIORITY_PATTERNS.find(([, pattern]) => pattern.test(text));
-  return found?.[0] || '';
-};
-
-const extractCandidateName = (cvText) => {
+const extractCandidateName = (cvText = '') => {
   const firstLine = (cvText || '').split('\n').map((line) => line.trim()).find(Boolean) || '';
-  if (/^[A-Za-z][A-Za-z' -]{1,60}$/.test(firstLine) && firstLine.split(/\s+/).length <= 4) {
-    return firstLine;
-  }
+  if (/^[A-Za-z][A-Za-z' -]{1,60}$/.test(firstLine) && firstLine.split(/\s+/).length <= 4) return firstLine;
   return 'Candidate';
 };
 
-const extractJobTitle = (jdText) => {
-  const explicitMatch = jdText.match(/1\.\s*Job Title:\s*(.+)/i);
-  if (explicitMatch?.[1]) {
-    return explicitMatch[1].trim();
-  }
-
-  const lines = jdText.split('\n').map((line) => line.trim()).filter(Boolean);
-  const titleLine = lines.find((line) => /engineer|developer|manager|designer|analyst|architect|consultant/i.test(line));
-  return titleLine || 'Target Role';
-};
-
-const extractKeywordPhrases = (jdText) => {
-  const phrases = [];
-  const normalized = normalizeText(jdText);
-  const lines = normalized.split('\n').map((line) => line.trim()).filter(Boolean);
-
-  for (const line of lines) {
-    if (!/must|required|responsib|qualif|need|experience|skill|knowledge|familiar|profic/i.test(line)) {
-      continue;
-    }
-
-    const content = line.includes(':') ? line.split(':').slice(1).join(':') : line;
-    const candidates = content
-      .split(/[,;•]|(?:\band\b)|(?:\bor\b)/)
-      .map((part) => part.trim())
-      .filter((part) => {
-        const words = part.split(/\s+/).filter(Boolean);
-        return words.length >= 2 && words.length <= 6 && part.length <= 50;
-      });
-
-    phrases.push(...candidates);
-  }
-
-  return unique(phrases).slice(0, 20);
-};
-
-const buildKeywordUniverse = (jdText) => {
-  const tokens = tokenize(jdText);
-  const frequencies = new Map();
-
-  for (const token of tokens) {
-    frequencies.set(token, (frequencies.get(token) || 0) + 1);
-  }
-
-  return [...frequencies.entries()]
-    .filter(([, count]) => count >= 1)
-    .sort((a, b) => b[1] - a[1] || b[0].length - a[0].length)
-    .slice(0, 30)
-    .map(([token]) => token);
-};
-
-const calculateCoverage = (requiredItems, cvText) => {
-  if (requiredItems.length === 0) {
-    return { matched: [], missing: [], ratio: 0 };
-  }
-
+const computeItemMatch = (label, cvText) => {
   const normalizedCv = normalizeText(cvText);
-  const matched = [];
-  const missing = [];
+  const labelText = String(label || '').toLowerCase().trim();
+  const labelTokens = unique(tokenize(labelText));
+  const cvTokens = tokenSet(normalizedCv);
+  const directMatch = labelText.length > 2 && normalizedCv.includes(labelText);
+  const overlap = labelTokens.filter((token) => cvTokens.has(token));
+  const overlapRatio = labelTokens.length > 0 ? overlap.length / labelTokens.length : 0;
 
-  for (const item of requiredItems) {
-    const escaped = item.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const pattern = new RegExp(`\\b${escaped.replace(/\s+/g, '\\s+')}\\b`, 'i');
-    if (pattern.test(normalizedCv)) {
-      matched.push(item);
-    } else {
-      missing.push(item);
-    }
-  }
+  let status = 'not_met';
+  if (directMatch || overlapRatio >= 0.8) status = 'met';
+  else if (overlapRatio >= 0.5) status = 'partial';
+  else if (overlapRatio > 0) status = 'inferred';
 
   return {
-    matched,
-    missing,
-    ratio: matched.length / requiredItems.length,
+    status,
+    overlap,
+    evidence: overlap.length > 0 ? [`Matched tokens: ${overlap.join(', ')}`] : [],
   };
 };
 
-const calculateLooseCoverage = (requiredItems, cvText, minimumTokenRatio = 0.5) => {
-  if (requiredItems.length === 0) {
-    return { matched: [], missing: [], ratio: 0 };
-  }
+const buildCvProfile = (cvText) => ({
+  rawLength: cvText?.length || 0,
+  tokenCount: tokenize(cvText).length,
+  candidateName: extractCandidateName(cvText),
+  evidencePreview: normalizeText(cvText).slice(0, 300),
+});
 
-  const cvTokens = new Set(tokenize(cvText));
-  const matched = [];
-  const missing = [];
-
-  for (const item of requiredItems) {
-    const itemTokens = unique(tokenize(item));
-    if (itemTokens.length === 0) {
-      missing.push(item);
-      continue;
-    }
-
-    const overlap = itemTokens.filter((token) => cvTokens.has(token));
-    const ratio = overlap.length / itemTokens.length;
-    const hasQualificationSignal = itemTokens.some((token) => QUALIFICATION_SIGNALS.has(token));
-    const shortItemMatch = itemTokens.length <= 2 && overlap.length >= 1;
-    const mediumItemMatch = itemTokens.length <= 4 && overlap.length >= 2;
-    const qualificationSignalMatch = hasQualificationSignal && overlap.length >= 1;
-
-    if (ratio >= minimumTokenRatio || shortItemMatch || mediumItemMatch || qualificationSignalMatch) {
-      matched.push(item);
-    } else {
-      missing.push(item);
-    }
-  }
-
-  return {
-    matched,
-    missing,
-    ratio: matched.length / requiredItems.length,
-  };
+const sumWeightedScores = (items = []) => {
+  const totalWeight = items.reduce((sum, item) => sum + (Number(item.weight) || 0), 0) || 1;
+  const weighted = items.reduce((sum, item) => sum + (Number(item.score) || 0) * (Number(item.weight) || 0), 0);
+  return weighted / totalWeight;
 };
 
-const clampScore = (value) => Math.max(0, Math.min(100, Math.round(value)));
+const toPercent = (value) => clampScore(value * 100);
+
+const buildLegacyWeightedBreakdown = ({ macroScore, microScore, requirementScore, requirementChecks }) => {
+  const hardItems = requirementChecks.filter((item) => item.type === 'hard');
+  const softItems = requirementChecks.filter((item) => item.type !== 'hard');
+  const metHard = hardItems.filter((item) => item.status === 'met').length;
+  const metSoft = softItems.filter((item) => item.status === 'met').length;
+  return {
+    softSkills: { label: 'Soft Skill Requirement', weight: 25, rawRatio: roundScore(microScore / 100, 4), score: clampScore(microScore * 0.25), matchedCount: metSoft, totalCount: softItems.length },
+    technicalSkills: { label: 'Technical Skill Requirement', weight: 35, rawRatio: roundScore(microScore / 100, 4), score: clampScore(microScore * 0.35), matchedCount: metSoft, totalCount: softItems.length },
+    qualificationMatch: { label: 'Qualification / Requirement Match', weight: 20, rawRatio: roundScore(requirementScore / 100, 4), score: clampScore(requirementScore * 0.2), matchedCount: metHard, totalCount: hardItems.length },
+    rolesMatch: { label: 'Role / Macro Match', weight: 20, rawRatio: roundScore(macroScore / 100, 4), score: clampScore(macroScore * 0.2), matchedCount: Math.round((macroScore / 100) * 4), totalCount: 4 },
+  };
+};
 
 const normalizeRubric = async (rawJD, jdRubric) => {
+  if (jdRubric?.schemaVersion === 'v3' && jdRubric?.macroCriteria && jdRubric?.microCriteria) return jdRubric;
   if (jdRubric) {
-    return {
-      title: jdRubric.title || 'Target Role',
-      roleSummary: jdRubric.roleSummary || [],
-      qualifications: jdRubric.qualifications || [],
-      neededSkills: jdRubric.neededSkills || [],
-      softSkillRequirements: jdRubric.softSkillRequirements || [],
-      technicalSkillRequirements: jdRubric.technicalSkillRequirements || [],
-      mustHaveRequirements: jdRubric.mustHaveRequirements || [],
-      niceToHaveExperience: jdRubric.niceToHaveExperience || [],
-      keywords: jdRubric.keywords || [],
-    };
+    return await buildStructuredJobDescriptionRubric(rawJD || [jdRubric.title, ...(jdRubric.roleSummary || []), ...(jdRubric.qualifications || []), ...(jdRubric.mustHaveRequirements || []), ...(jdRubric.niceToHaveExperience || [])].join('\n'));
   }
+  return buildStructuredJobDescriptionRubric(rawJD || '');
+};
 
-  return await buildStructuredJobDescriptionRubric(rawJD || '');
+const buildQuestionPlanHints = ({ rubric, requirementChecks, microScores, settings = {} }) => {
+  const mustProbeSkills = unique([
+    ...(rubric.interviewTargets?.prioritySkills || []).slice(0, 4),
+    ...requirementChecks.filter((item) => item.status !== 'met').slice(0, 3).map((item) => item.label),
+    ...microScores.filter((item) => item.score >= 45 && item.score < 80).slice(0, 3).map((item) => item.label),
+  ]).slice(0, 6);
+
+  const mustProbeExperience = unique([
+    ...(rubric.interviewTargets?.experienceFocus || []).slice(0, 4),
+    ...requirementChecks.filter((item) => /experience|project|production|stakeholder/i.test(item.label)).map((item) => item.label),
+  ]).slice(0, 5);
+
+  const mustProbeBehavioural = unique([
+    ...(rubric.interviewTargets?.behaviouralFocus || []).slice(0, 4),
+    ...(settings.enableNZCultureFit ? ['teamwork', 'communication', 'adaptability'] : []),
+  ]).slice(0, 5);
+
+  return {
+    roleCanonical: rubric.roleCanonical,
+    roleFamily: rubric.roleFamily,
+    roleLevel: rubric.roleLevel,
+    mustProbeSkills,
+    mustProbeExperience,
+    mustProbeBehavioural,
+    avoidTopics: [],
+    followUpAnchors: unique([...mustProbeSkills.slice(0, 3), ...mustProbeExperience.slice(0, 2)]),
+    orderedStages: ['opening', 'technical_core', 'experience_deep_dive', 'behavioural', 'gap_probe', 'wrap_up'],
+  };
 };
 
 export const compareCvToJobDescription = async (cvText, rawJD, jdRubric, settings = {}) => {
-  const normalizedCv = normalizeText(cvText);
   const rubric = await normalizeRubric(rawJD, jdRubric);
-  const normalizedRubricText = normalizeText([
-    rubric.title,
-    ...rubric.roleSummary,
-    ...rubric.qualifications,
-    ...rubric.neededSkills,
-    ...rubric.mustHaveRequirements,
-    ...rubric.niceToHaveExperience,
-    ...rubric.keywords,
-  ].join('\n'));
+  const parsedCvProfile = buildCvProfile(cvText);
 
-  const softSkillItems = unique((rubric.softSkillRequirements || []).map((item) => item.toLowerCase()));
-  const softSkillCoverage = calculateCoverage(softSkillItems, normalizedCv);
+  const macroScores = (rubric.macroCriteria || []).map((criterion) => {
+    const match = computeItemMatch(criterion.label, cvText);
+    return buildScoreItem({
+      label: criterion.label,
+      score: toPercent(match.status === 'met' ? 1 : match.status === 'partial' ? 0.6 : match.status === 'inferred' ? 0.3 : 0),
+      weight: rubric.weights?.macro?.[normalizeTaxonomyLabel(criterion.label)] ?? criterion.weight ?? 1,
+      evidence: match.evidence,
+      matched: match.status !== 'not_met',
+      detail: match.status,
+      criterionType: 'macro',
+    });
+  });
 
-  const technicalSkillItems = unique((rubric.technicalSkillRequirements || []).map((item) => item.toLowerCase()));
-  const technicalSkillCoverage = calculateCoverage(technicalSkillItems, normalizedCv);
+  const microScores = (rubric.microCriteria || []).map((criterion) => {
+    const match = computeItemMatch(criterion.label, cvText);
+    return buildScoreItem({
+      label: criterion.label,
+      score: toPercent(match.status === 'met' ? 1 : match.status === 'partial' ? 0.65 : match.status === 'inferred' ? 0.35 : 0),
+      weight: rubric.weights?.micro?.[normalizeTaxonomyLabel(criterion.label)] ?? criterion.weight ?? 1,
+      evidence: match.evidence,
+      matched: match.status !== 'not_met',
+      detail: match.status,
+      criterionType: 'micro',
+    });
+  });
 
-  const qualificationItems = unique((rubric.qualifications || []).map((item) => item.toLowerCase()));
-  const qualificationCoverage = calculateLooseCoverage(qualificationItems, normalizedCv, 0.4);
+  const requirementChecks = (rubric.requirements || []).map((requirement) => {
+    const match = computeItemMatch(requirement.label, cvText);
+    const status = requirement.status && requirement.status !== 'not_met' ? requirement.status : match.status;
+    return buildRequirementItem({
+      label: requirement.label,
+      type: requirement.type || 'soft',
+      importance: requirement.importance || 'medium',
+      status,
+      evidence: [...(requirement.evidence || []), ...match.evidence],
+      sourceChunks: requirement.sourceChunks || [],
+    });
+  });
 
-  const roleItems = unique([
-    rubric.title?.toLowerCase(),
-    ...(rubric.roleSummary || []).map((item) => item.toLowerCase()),
-  ]);
-  const roleCoverage = calculateLooseCoverage(roleItems, normalizedCv, 0.34);
+  const macroScore = sumWeightedScores(macroScores);
+  const microScore = sumWeightedScores(microScores);
+  const requirementScore = requirementChecks.length === 0 ? 0 : sumWeightedScores(requirementChecks.map((item) => ({ score: requirementStatusToScore(item.status) * 100, weight: item.importance === 'high' ? 1.5 : item.importance === 'low' ? 0.75 : 1 })));
+  const overallScore = macroScore * (rubric.weights?.overall?.macro ?? 0.45) + microScore * (rubric.weights?.overall?.micro ?? 0.35) + requirementScore * (rubric.weights?.overall?.requirements ?? 0.2);
 
-  const jdSeniority = extractSeniority(normalizedRubricText);
-  const cvSeniority = extractSeniority(normalizedCv);
-  const seniorityAligned = !jdSeniority || !cvSeniority || jdSeniority === cvSeniority;
+  const strengths = microScores.filter((item) => item.score >= 80).slice(0, 4).map((item) => buildExplanationItem({ label: item.label, evidence: item.evidence, detail: 'Strong matched micro criterion' }));
+  const gaps = requirementChecks.filter((item) => item.status === 'not_met').slice(0, 4).map((item) => buildExplanationItem({ label: item.label, evidence: item.evidence, detail: 'Requirement not met' }));
+  const risks = requirementChecks.filter((item) => item.type === 'hard' && item.status !== 'met').slice(0, 4).map((item) => buildExplanationItem({ label: item.label, evidence: item.evidence, detail: 'Hard requirement risk' }));
 
-  const weightedBreakdown = {
-    softSkills: {
-      label: 'Soft Skill Requirement',
-      weight: 45,
-      rawRatio: softSkillCoverage.ratio,
-      score: clampScore(softSkillCoverage.ratio * 45),
-      matchedCount: softSkillCoverage.matched.length,
-      totalCount: softSkillCoverage.matched.length + softSkillCoverage.missing.length,
-    },
-    technicalSkills: {
-      label: 'Technical Skill Requirement',
-      weight: 35,
-      rawRatio: technicalSkillCoverage.ratio,
-      score: clampScore(technicalSkillCoverage.ratio * 35),
-      matchedCount: technicalSkillCoverage.matched.length,
-      totalCount: technicalSkillCoverage.matched.length + technicalSkillCoverage.missing.length,
-    },
-    qualificationMatch: {
-      label: 'Qualification Match',
-      weight: 15,
-      rawRatio: qualificationCoverage.ratio,
-      score: clampScore(qualificationCoverage.ratio * 15),
-      matchedCount: qualificationCoverage.matched.length,
-      totalCount: qualificationCoverage.matched.length + qualificationCoverage.missing.length,
-    },
-    rolesMatch: {
-      label: 'Roles Match',
-      weight: 5,
-      rawRatio: roleCoverage.ratio,
-      score: clampScore(roleCoverage.ratio * 5),
-      matchedCount: roleCoverage.matched.length,
-      totalCount: roleCoverage.matched.length + roleCoverage.missing.length,
-    },
+  const confidence = roundScore(Math.min(0.95, 0.35 + Math.min(0.25, ((macroScores.length + microScores.length) / 20) * 0.25) + Math.min(0.2, requirementChecks.filter((item) => item.evidence.length > 0).length * 0.04) + Math.min(0.15, parsedCvProfile.tokenCount / 8000)), 2);
+  const questionPlanHints = buildQuestionPlanHints({ rubric, requirementChecks, microScores, settings });
+  const explanation = buildExplanationObject({
+    strengths,
+    gaps,
+    risks,
+    summary: strengths.length > 0 ? `Top matched areas: ${strengths.map((item) => item.label).join(', ')}.` : 'Limited strong matches were found, so the interview should probe fundamentals and evidence depth.',
+  });
+  const decision = deriveDecision({ overallScore, confidence, hardGateFailed: risks.length > 0 });
+  const interviewFocus = unique([...questionPlanHints.mustProbeSkills.slice(0, 3), ...questionPlanHints.mustProbeExperience.slice(0, 2), ...questionPlanHints.mustProbeBehavioural.slice(0, 2)]).slice(0, 6);
+
+  const matchingDetails = {
+    weightedBreakdown: buildLegacyWeightedBreakdown({ macroScore, microScore, requirementScore, requirementChecks }),
+    rubric,
+    macroScore,
+    microScore,
+    requirementScore,
+    questionPlanHints,
   };
 
-  const score =
-    weightedBreakdown.softSkills.score +
-    weightedBreakdown.technicalSkills.score +
-    weightedBreakdown.qualificationMatch.score +
-    weightedBreakdown.rolesMatch.score;
-
-  const strengths = unique([
-    ...technicalSkillCoverage.matched.slice(0, 4),
-    ...softSkillCoverage.matched.slice(0, 3),
-  ]).slice(0, 5);
-
-  const gaps = unique([
-    ...technicalSkillCoverage.missing.slice(0, 4),
-    ...softSkillCoverage.missing.slice(0, 3),
-  ]).slice(0, 5);
-
-  const interviewFocus = unique([
-    ...gaps.slice(0, 3),
-    ...(settings.enableNZCultureFit ? ['communication', 'teamwork'] : []),
-  ]).slice(0, 4);
-
-  return {
-    candidateName: extractCandidateName(cvText),
-    jobTitle: rubric.title || extractJobTitle(rawJD || ''),
-    matchScore: clampScore(score),
-    strengths: strengths.length > 0 ? strengths : ['General alignment with the job description'],
-    gaps: gaps.length > 0 ? gaps : ['No major coverage gaps detected from the parsed JD'],
-    interviewFocus: interviewFocus.length > 0 ? interviewFocus : ['role-specific problem solving'],
-    planPreview: `Interview emphasis: ${interviewFocus.length > 0 ? interviewFocus.join(', ') : 'role-specific problem solving'}.`,
-    matchingDetails: {
-      weightedBreakdown,
-      matchedSoftSkills: softSkillCoverage.matched,
-      missingSoftSkills: softSkillCoverage.missing,
-      matchedTechnicalSkills: technicalSkillCoverage.matched,
-      missingTechnicalSkills: technicalSkillCoverage.missing,
-      matchedQualifications: qualificationCoverage.matched,
-      missingQualifications: qualificationCoverage.missing,
-      matchedRoleSignals: roleCoverage.matched,
-      missingRoleSignals: roleCoverage.missing,
-      jdSeniority,
-      cvSeniority,
-      seniorityAligned,
-      rubric,
+  return validateAnalyzeOutput(buildAnalyzeOutput({
+    candidateName: parsedCvProfile.candidateName,
+    jobTitle: rubric.title || rubric.jobTitle || 'Target Role',
+    overallScore,
+    confidence,
+    decision,
+    parsedCvProfile,
+    parsedJdProfile: rubric,
+    macroScores,
+    microScores,
+    requirementChecks,
+    scoreBreakdown: { macro: clampScore(macroScore), micro: clampScore(microScore), requirements: clampScore(requirementScore) },
+    explanation,
+    evidenceMap: [...strengths.map((item) => ({ type: 'strength', ...item })), ...gaps.map((item) => ({ type: 'gap', ...item }))],
+    sourceSnapshots: [{ sourceType: 'jd_rubric', title: rubric.title, criteriaCount: (rubric.microCriteria || []).length + (rubric.macroCriteria || []).length }],
+    matchingDetails,
+    legacy: {
+      interviewFocus,
+      planPreview: `Interview emphasis: ${interviewFocus.join(', ') || 'role-specific problem solving'}.`,
     },
-  };
+  }));
 };
