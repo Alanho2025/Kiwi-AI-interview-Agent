@@ -1,71 +1,67 @@
 import { callDeepSeek } from './deepseekService.js';
+import { validateInterviewPlan } from './schemaValidationService.js';
 
-const extractJsonObject = (text) => {
+const extractJsonObject = (text = '') => {
   const fencedMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
   if (fencedMatch?.[1]) {
     return fencedMatch[1].trim();
   }
-
   const start = text.indexOf('{');
   const end = text.lastIndexOf('}');
   if (start >= 0 && end > start) {
     return text.slice(start, end + 1);
   }
-
   return text.trim();
 };
 
-export const generatePlan = async (cvText, jdText, settings) => {
-  const prompt = `
-    Analyze this CV and Job Description.
-    Settings: Seniority: ${settings.seniorityLevel}, Focus: ${settings.focusArea}, NZ Culture Fit: ${settings.enableNZCultureFit}.
-    
-    Extract the candidate's name from the CV (if not found, use "Candidate").
-    Extract the job title from the Job Description summary (if not found, use "Software Engineer").
-    
-    Return a JSON object with EXACTLY these keys:
-    - candidateName (string)
-    - jobTitle (string)
-    - matchScore (number 1-100)
-    - strengths (array of strings)
-    - gaps (array of strings)
-    - interviewFocus (array of strings)
-    - planPreview (string)
+export const generatePlan = async (cvText, jdText, settings, analysisResult = {}) => {
+  const prompt = `Analyze this CV and job description and return JSON only.
+Required keys: candidateName, jobTitle, matchScore, confidence, interviewFocus, planPreview, strategy, questionPool, fallbackRules.
+Use this analysis summary when available: ${JSON.stringify({
+    strengths: analysisResult.strengths || [],
+    gaps: analysisResult.gaps || [],
+    decision: analysisResult.decision || {},
+    confidence: analysisResult.confidence || null,
+  })}
+Settings: ${JSON.stringify(settings)}
+CV Text:\n${String(cvText || '').slice(0, 1800)}\n\nJD Text:\n${String(jdText || '').slice(0, 1800)}`;
 
-    CV Text:
-    ${cvText.substring(0, 2000)}
-
-    JD Text:
-    ${jdText.substring(0, 2000)}
-  `;
-  
   try {
-    const responseText = await callDeepSeek(
-      prompt,
-      'You analyze CVs and job descriptions and return only valid JSON with the requested schema.'
-    );
+    const responseText = await callDeepSeek(prompt, 'You output valid JSON only.');
     const result = JSON.parse(extractJsonObject(responseText));
-    
-    // Ensure all fields exist
-    return {
-      candidateName: result.candidateName || 'Candidate',
-      jobTitle: result.jobTitle || '',
-      matchScore: result.matchScore || 80,
-      strengths: result.strengths || ["Relevant experience"],
-      gaps: result.gaps || ["Specific domain knowledge"],
-      interviewFocus: result.interviewFocus || ["Technical skills", "Behavioral"],
-      planPreview: result.planPreview || "A balanced interview focusing on technical depth and behavioral scenarios."
-    };
+    return validateInterviewPlan({
+      schemaVersion: 'v3',
+      candidateName: result.candidateName || analysisResult.candidateName || 'Candidate',
+      jobTitle: result.jobTitle || analysisResult.jobTitle || 'Target Role',
+      matchScore: result.matchScore || analysisResult.matchScore || 0,
+      confidence: result.confidence || analysisResult.confidence || 0.4,
+      decision: analysisResult.decision || result.decision || {},
+      requirementChecks: analysisResult.requirementChecks || [],
+      explanation: analysisResult.explanation || {},
+      interviewFocus: result.interviewFocus || analysisResult.interviewFocus || ['technical depth', 'behavioural examples'],
+      planPreview: result.planPreview || 'Balanced interview with gap-driven follow-up questions.',
+      strategy: result.strategy || { opening: 1, followUp: 3, technical: 2, behavioural: 2 },
+      questionPool: result.questionPool || [],
+      fallbackRules: result.fallbackRules || { short_answer: 'ask_probe', time_low: 'end_early' },
+      settingsSnapshot: settings,
+    });
   } catch (error) {
-    console.error("Failed to generate plan from DeepSeek, using fallback:", error);
-    return {
-      candidateName: 'Candidate', // Fallback
-      jobTitle: '', // Fallback, let controller handle it
-      matchScore: 85,
-      strengths: ["Relevant experience", "Technical skills"],
-      gaps: ["Specific domain knowledge mentioned in JD"],
-      interviewFocus: ["Technical depth", "Behavioral scenarios"],
-      planPreview: "A balanced interview focusing on technical depth and behavioral scenarios."
-    };
+    console.error('Failed to generate plan from DeepSeek, using fallback:', error);
+    return validateInterviewPlan({
+      schemaVersion: 'v3',
+      candidateName: analysisResult.candidateName || 'Candidate',
+      jobTitle: analysisResult.jobTitle || 'Target Role',
+      matchScore: analysisResult.matchScore || 0,
+      confidence: analysisResult.confidence || 0.4,
+      decision: analysisResult.decision || {},
+      requirementChecks: analysisResult.requirementChecks || [],
+      explanation: analysisResult.explanation || {},
+      interviewFocus: analysisResult.interviewFocus || ['technical depth', 'behavioural scenarios'],
+      planPreview: 'A balanced interview focusing on technical depth and behavioural examples.',
+      strategy: { opening: 1, followUp: 3, technical: 2, behavioural: 2 },
+      questionPool: [],
+      fallbackRules: { short_answer: 'ask_probe', time_low: 'end_early' },
+      settingsSnapshot: settings,
+    });
   }
 };

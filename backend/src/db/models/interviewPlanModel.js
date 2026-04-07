@@ -7,6 +7,13 @@ const QuestionPoolItemSchema = new mongoose.Schema(
     reason: String,
     priority: Number,
     basedOnSkills: [String],
+    stage: String,
+    topic: String,
+    followUpDepth: Number,
+    sourceType: String,
+    sourceId: String,
+    roleCanonical: String,
+    roleFamily: String,
   },
   { _id: false }
 );
@@ -19,6 +26,10 @@ const InterviewPlanSchema = new mongoose.Schema(
     candidateName: { type: String, default: 'Candidate' },
     jobTitle: { type: String, default: '' },
     matchScore: { type: Number, default: 0 },
+    confidence: { type: Number, default: 0 },
+    decision: { type: mongoose.Schema.Types.Mixed, default: {} },
+    requirementChecks: { type: [mongoose.Schema.Types.Mixed], default: [] },
+    explanation: { type: mongoose.Schema.Types.Mixed, default: {} },
     strengths: { type: [String], default: [] },
     gaps: { type: [String], default: [] },
     interviewFocus: { type: [String], default: [] },
@@ -30,7 +41,7 @@ const InterviewPlanSchema = new mongoose.Schema(
     deletedAt: { type: Date },
     containsSensitiveData: { type: Boolean, default: true },
     accessScope: { type: String, default: 'private' },
-    schemaVersion: { type: String, default: 'v1' },
+    schemaVersion: { type: String, default: 'v3' },
   },
   { timestamps: true }
 );

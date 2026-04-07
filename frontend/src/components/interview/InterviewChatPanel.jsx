@@ -5,7 +5,7 @@ import { TextArea } from '../common/TextArea.jsx';
 import { Bird, Send } from 'lucide-react';
 import { cn } from '../../utils/formatters.js';
 
-export function InterviewChatPanel({ transcript, onReply, onPause, onRepeat, onEnd, isPaused, isSubmitting, candidateName = "Candidate" }) {
+export function InterviewChatPanel({ transcript, onReply, onPause, onRepeat, onEnd, isPaused, isCompleted, isSubmitting, candidateName = "Candidate" }) {
   const [draft, setDraft] = useState('');
   const messagesEndRef = useRef(null);
 
@@ -20,7 +20,7 @@ export function InterviewChatPanel({ transcript, onReply, onPause, onRepeat, onE
   }, [transcript, isSubmitting]);
 
   const handleSend = () => {
-    if (draft.trim() && !isSubmitting && !isPaused) {
+    if (draft.trim() && !isSubmitting && !isPaused && !isCompleted) {
       onReply(draft);
       setDraft('');
     }
@@ -66,6 +66,11 @@ export function InterviewChatPanel({ transcript, onReply, onPause, onRepeat, onE
               <p className="text-lg font-semibold text-amber-700 mb-2">Interview Paused</p>
               <p className="text-sm text-amber-600">Click Resume to continue your interview.</p>
             </div>
+          ) : isCompleted ? (
+            <div className="flex flex-col items-center justify-center py-4">
+              <p className="text-lg font-semibold text-emerald-700 mb-2">Interview Completed</p>
+              <p className="text-sm text-emerald-600">The planned questions are finished. You can review the report now.</p>
+            </div>
           ) : (
             <>
               <p className="text-xs font-medium text-gray-500 mb-2 uppercase tracking-wider">
@@ -90,7 +95,7 @@ export function InterviewChatPanel({ transcript, onReply, onPause, onRepeat, onE
             <TextArea 
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
-              placeholder={isPaused ? "Interview paused..." : (isSubmitting ? "Aroha is thinking..." : "Type your answer here...")}
+              placeholder={isCompleted ? "Interview completed" : (isPaused ? "Interview paused..." : (isSubmitting ? "Aroha is thinking..." : "Type your answer here..."))}
               rows={3}
               className="pr-12"
               onKeyDown={(e) => {
@@ -99,11 +104,11 @@ export function InterviewChatPanel({ transcript, onReply, onPause, onRepeat, onE
                   handleSend();
                 }
               }}
-              disabled={isPaused || isSubmitting}
+              disabled={isPaused || isCompleted || isSubmitting}
             />
             <button 
               onClick={handleSend}
-              disabled={!draft.trim() || isPaused || isSubmitting}
+              disabled={!draft.trim() || isPaused || isCompleted || isSubmitting}
               className="absolute bottom-3 right-3 p-2 bg-[#2eb886] text-white rounded-lg hover:bg-[#259a6f] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <Send className="w-4 h-4" />
@@ -115,15 +120,15 @@ export function InterviewChatPanel({ transcript, onReply, onPause, onRepeat, onE
       {/* Action Bar */}
       <div className="flex items-center justify-between px-2 shrink-0">
         <div className="flex gap-3">
-          <Button variant="secondary" onClick={onPause}>
+          <Button variant="secondary" onClick={onPause} disabled={isCompleted}>
             {isPaused ? 'Resume' : 'Pause'}
           </Button>
-          <Button variant="secondary" onClick={onRepeat} disabled={isPaused || isSubmitting}>
+          <Button variant="secondary" onClick={onRepeat} disabled={isPaused || isCompleted || isSubmitting}>
             Repeat Question
           </Button>
         </div>
         <div className="flex gap-3">
-          <Button variant="danger" onClick={onEnd} disabled={isSubmitting}>End Interview</Button>
+          <Button variant="danger" onClick={onEnd} disabled={isSubmitting || isCompleted}>End Interview</Button>
         </div>
       </div>
     </div>
