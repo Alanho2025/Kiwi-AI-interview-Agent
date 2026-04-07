@@ -1,5 +1,6 @@
 import { agentRegistry } from './agentRegistryService.js';
 import { getSessionById, appendTranscriptTurn, createInterviewQuestion } from './sessionService.js';
+import { getNextQuestionOrder, hasReachedQuestionLimit } from './interviewStateService.js';
 import { indexSessionArtifacts } from './ragIndexService.js';
 import { SessionAnalysis } from '../db/models/sessionAnalysisModel.js';
 import { SessionReport } from '../db/models/sessionReportModel.js';
@@ -42,6 +43,17 @@ export const runTask = async ({ taskType, sessionId, payload = {} } = {}) => {
       throw new Error('Session not found');
     }
 
+    if (hasReachedQuestionLimit(session)) {
+      return {
+        isComplete: true,
+        completedBecause: 'question_limit_reached',
+        nextQuestion: null,
+        nextQuestionOrder: session.currentQuestionIndex,
+        rationale: 'Interview completed after the planned question limit.',
+        retrievalSnapshot: null,
+      };
+    }
+
     await indexSessionArtifacts(sessionId);
     const retrievalBundle = await agentRegistry.retrieval({
       query: `${session.targetRole} ${session.analysisResult?.matchingDetails?.questionPlanHints?.roleCanonical || ''} ${(session.analysisResult?.interviewFocus || []).join(' ')} ${(payload.answer || '').slice(0, 300)}`,
@@ -51,12 +63,22 @@ export const runTask = async ({ taskType, sessionId, payload = {} } = {}) => {
     });
     const interviewerOutput = await agentRegistry.interviewer({ session, retrievalBundle });
 
-    const nextQuestionOrder = Math.min((session.currentQuestionIndex || 1) + 1, session.totalQuestions || 8);
+    if (interviewerOutput?.isComplete || !interviewerOutput?.nextQuestion) {
+      return {
+        ...interviewerOutput,
+        isComplete: true,
+        completedBecause: interviewerOutput?.completedBecause || 'question_limit_reached',
+        nextQuestion: null,
+        nextQuestionOrder: session.currentQuestionIndex,
+      };
+    }
+
+    const nextQuestionOrder = getNextQuestionOrder(session);
     const questionId = await createInterviewQuestion({
       sessionId,
       questionOrder: nextQuestionOrder,
       questionType: interviewerOutput.questionType || 'follow_up',
-      sourceType: 'agent_generated',
+      sourceType: interviewerOutput.sourceType || 'agent_generated',
       questionText: interviewerOutput.nextQuestion,
       basedOnCv: true,
       basedOnJd: true,
@@ -67,9 +89,14 @@ export const runTask = async ({ taskType, sessionId, payload = {} } = {}) => {
       text: interviewerOutput.nextQuestion,
       timestamp: new Date().toISOString(),
       questionId,
+      metadata: {
+        stage: interviewerOutput.stage,
+        topic: interviewerOutput.topic,
+        evidenceTypeHint: interviewerOutput.evidenceTypeHint || null,
+      },
     });
 
-    return { ...interviewerOutput, nextQuestionOrder };
+    return { ...interviewerOutput, nextQuestionOrder, isComplete: false };
   }
 
   if (taskType === 'generate_report') {

@@ -85,6 +85,8 @@ export const validateReportOutput = (report = {}) => ({
   scores: isObject(report.scores) ? report.scores : {},
   recommendations: ensureArray(report.recommendations).filter(Boolean),
   evidenceReferences: ensureArray(report.evidenceReferences),
+  interviewMetrics: isObject(report.interviewMetrics) ? report.interviewMetrics : {},
+  evidenceDiagnostics: isObject(report.evidenceDiagnostics) ? report.evidenceDiagnostics : {},
 });
 
 export const validateReportQaOutput = (qa = {}) => ({
@@ -96,4 +98,5 @@ export const validateReportQaOutput = (qa = {}) => ({
   coverageScore: ensureNumber(qa.coverageScore, 0),
   hallucinationRisk: ensureString(qa.hallucinationRisk, 'unknown'),
   passed: Boolean(qa.passed ?? qa.pass),
+  diagnostics: isObject(qa.diagnostics) ? qa.diagnostics : {},
 });

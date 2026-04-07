@@ -1,0 +1,53 @@
+AI: Please introduce yourself.
+
+AI: Please introduce yourself.
+
+USER: Hello, my name is Alan Ho. I am currently studying for a Master of Information Technology at the University of Auckland. Before this, I worked as a System Electrical Engineer at Foxconn, where I supported Apple product projects and worked on process improvement and data analysis tasks.
+My background combines engineering, problem-solving, and technology. Over time, I became more interested in software, data, and AI, which is why I decided to move further into IT. I enjoy building practical systems, analysing data, and finding ways to use technology to solve real problems.
+Recently, I have been working on projects related to web development, AI-based systems, and recommendation tools. These experiences helped me improve both my technical skills and my ability to think from a user and business perspective.
+I would describe myself as someone who is curious, responsible, and willing to learn. I enjoy challenges, and I am especially interested in opportunities where I can keep growing while contributing to meaningful projects.
+
+AI: What was your exact approach with Python, and how did you know it worked?
+
+USER: When I used Python, my goal was not to build a very complex model. It was to reduce manual checking time in the failure analysis process. My approach was to first understand the exact rules engineers were using when they reviewed the data manually. After that, I translated those checks into a Python workflow.
+The script mainly did three things. First, it cleaned and organised the raw test data. Second, it applied rule-based checks to identify abnormal patterns, missing values, and cases that needed attention. Third, it generated a clearer output so engineers could review the results faster instead of checking everything line by line.
+To make sure it worked, I compared the Python results with past cases that had already been reviewed manually by engineers. I checked whether the script could flag the same problems consistently and whether it reduced missed cases. I also looked at efficiency. Before that, one review could take about an hour manually. After using the semi-automated process, it dropped to around 30 minutes. That time reduction, plus the consistency with manual review, showed that the approach was working.
+What I learned from that experience is that Python was valuable not just because it automated the task, but because it made the checking process more standardised, repeatable, and easier to scale.
+
+AI: Tell me about a project where you used TypeScript in a Machine Learning Engineer context.
+
+USER: I have not used TypeScript as the core language for building machine learning models themselves, because my model development and data work were mainly done in Python. However, I have worked on projects where TypeScript would fit naturally around the ML workflow, especially on the application and integration side.
+For example, in an ML engineer context, I would use TypeScript on the service layer that connects the frontend, backend APIs, and model outputs. A typical case would be an AI-driven recommendation or evaluation system, where the model inference might run in Python or through an external model API, while the TypeScript layer handles request validation, response formatting, user input flow, and integration with the web application.
+In that kind of project, my focus would be on making the ML feature usable and reliable in production. TypeScript helps because it gives stronger type safety for API contracts, structured input and output schemas, and cleaner debugging when multiple components interact. That is especially useful when passing prediction results, confidence scores, extracted entities, or ranking outputs between services.
+One example close to my experience is building AI-based web systems where the model logic and application logic need to work together. Even when the ML part is not written in TypeScript, the engineering around deployment, data flow, validation, and product integration is still very important. That is where TypeScript adds value.
+So my honest answer is that Python has been my main language for ML tasks, but I understand how TypeScript supports machine learning products at the system level, and I would be comfortable using it in that engineering context.
+
+AI: What was your exact approach with TypeScript, and how did you know it worked?
+
+USER: My exact approach with TypeScript was to use it to control the data contracts around the ML workflow. I defined clear types for inputs, outputs, and API responses, then used those types to reduce integration errors between services. I also kept the code modular so validation, service logic, and API handling were separated. I knew it worked because TypeScript caught data mismatch issues early in development, reduced runtime bugs, and made the whole flow more stable when model results were passed into the product.
+
+AI: Tell me about a project where you used JavaScript in a Machine Learning Engineer context.
+
+USER: I used JavaScript in an AI-related web project where the focus was not model training itself, but integrating machine learning outputs into a usable product. I handled the frontend logic, API calls, state management, and result display. The main goal was to make sure user input could move cleanly through the system and that model outputs were shown in a stable and useful way. That experience taught me that in ML engineering, JavaScript is important for bridging the gap between the model and the end user.
+
+AI: What was your exact approach with JavaScript, and how did you know it worked?
+
+USER: My approach with JavaScript was to build the interaction layer around the ML workflow. I used it to capture user input, send requests to the backend or model service, and display the returned results in a clear way. I knew it worked because the full flow was stable end to end: inputs were passed correctly, outputs were rendered correctly, and users could complete the task without confusion or broken states.
+
+AI: Can you walk me through a specific example that shows experience as a Systems Developer?
+
+USER: One example that shows my systems development experience was a process improvement project at Foxconn. I worked on a failure analysis workflow that relied heavily on manual review, which made it slow and inconsistent. I first studied the full process and identified where the bottlenecks were. Then I built a Python-based semi-automated checking tool that cleaned test data, applied rule-based logic, and generated structured outputs for engineers. This reduced review time from about one hour to thirty minutes and made the process more standardised. What makes this a strong systems development example is that I was improving the overall workflow, not just writing code in isolation.
+
+AI: What was your role, what action did you take, and what result came from it?
+
+USER: My role was to support the failure analysis workflow and look for ways to improve it. I analysed how the manual review process worked, then built a Python-based semi-automated checking tool to handle data cleaning, rule-based issue detection, and result formatting. As a result, the review time dropped from about one hour to thirty minutes, and the process became more consistent and efficient.
+
+AI: Can you walk me through a specific example that shows experience in programming languages?
+
+USER: One clear example is a project where I used Python to improve a failure analysis workflow. The original process relied heavily on manual review of test data, which was time-consuming and inconsistent. I studied how engineers performed the checks, then built a Python-based semi-automated workflow to clean data, apply rule-based checks, and generate structured outputs. As a result, the review time was reduced from about one hour to thirty minutes, and the process became more standardised. I think this shows my programming language experience well because I used code to solve a real problem and create measurable improvement.
+
+AI: What was your role, what action did you take, and what result came from it?
+
+USER: My role was to support and improve the failure analysis process. I analysed the manual review steps, then built a Python-based semi-automated workflow to clean data, flag abnormal cases, and structure the output more clearly. As a result, the review time was reduced from about one hour to thirty minutes, and the process became more standardised.
+
+AI: Tell me about a time when you had to show problem solving.
