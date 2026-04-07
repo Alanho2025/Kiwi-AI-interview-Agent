@@ -4,8 +4,11 @@ import { DocumentContent } from '../db/models/documentContentModel.js';
 import { SessionAnalysis } from '../db/models/sessionAnalysisModel.js';
 import { InterviewPlan } from '../db/models/interviewPlanModel.js';
 import { SessionTranscript } from '../db/models/sessionTranscriptModel.js';
+import { validateAnalyzeOutput, validateInterviewPlan } from './schemaValidationService.js';
+import { prettifyCanonicalRole } from './taxonomyService.js';
 
 const buildFullTranscript = (turns) => turns.map((turn) => `${turn.role.toUpperCase()}: ${turn.text}`).join('\n\n');
+const retentionDate = () => new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
 
 const mapSessionRow = (row) => ({
   id: row.id,
@@ -32,6 +35,31 @@ const mapSessionRow = (row) => ({
   },
 });
 
+const buildQuestionPoolFromAnalysis = (analysisResult) => {
+  const hints = analysisResult?.matchingDetails?.questionPlanHints || {};
+  const rubric = analysisResult?.parsedJdProfile || analysisResult?.matchingDetails?.rubric || {};
+  const roleLabel = prettifyCanonicalRole(hints.roleCanonical || rubric.roleCanonical || '') || analysisResult?.jobTitle || 'the role';
+  const technicalCore = (hints.mustProbeSkills || []).slice(0, 3).flatMap((skill, index) => ([
+    { type: 'technical_core', stage: 'technical_core', topic: skill, followUpDepth: 0, text: `Tell me about a project where you used ${skill} in a ${roleLabel} context.`, reason: 'Role-aligned technical core question generated from JD requirements and matching gaps.', priority: index + 2, basedOnSkills: [skill] },
+    { type: 'technical_follow_up', stage: 'technical_core', topic: skill, followUpDepth: 1, text: `What was your exact approach with ${skill}, and how did you know it worked?`, reason: 'Follow-up to keep the conversation on the same technical topic.', priority: index + 20, basedOnSkills: [skill] },
+  ]));
+  const experienceDeepDive = (hints.mustProbeExperience || []).slice(0, 2).flatMap((topic, index) => ([
+    { type: 'experience_deep_dive', stage: 'experience_deep_dive', topic, followUpDepth: 0, text: `Can you walk me through a specific example that shows ${topic}?`, reason: 'Experience probe generated from JD requirements and CV-JD comparison.', priority: index + 40, basedOnSkills: [topic] },
+    { type: 'experience_follow_up', stage: 'experience_deep_dive', topic, followUpDepth: 1, text: 'What was your role, what action did you take, and what result came from it?', reason: 'STAR-style follow-up to gather evidence before changing topic.', priority: index + 60, basedOnSkills: [topic] },
+  ]));
+  const behavioural = (hints.mustProbeBehavioural || ['teamwork', 'communication']).slice(0, 2).flatMap((topic, index) => ([
+    { type: 'behavioural', stage: 'behavioural', topic, followUpDepth: 0, text: `Tell me about a time when you had to show ${topic}.`, reason: 'Behavioural probe aligned to the role and NZ interview style.', priority: index + 80, basedOnSkills: [topic] },
+    { type: 'behavioural_follow_up', stage: 'behavioural', topic, followUpDepth: 1, text: 'What was the situation, what did you do, and what was the outcome?', reason: 'STAR follow-up keeps the answer structured and natural.', priority: index + 100, basedOnSkills: [topic] },
+  ]));
+  return [
+    { type: 'self_intro', stage: 'opening', topic: 'self_introduction', followUpDepth: 0, text: 'Please introduce yourself.', reason: 'default opener', priority: 1, basedOnSkills: [] },
+    ...technicalCore,
+    ...experienceDeepDive,
+    ...behavioural,
+    { type: 'wrap_up', stage: 'wrap_up', topic: 'candidate_questions', followUpDepth: 0, text: 'Before we finish, what questions do you have for me about the role or team?', reason: 'Close the conversation naturally.', priority: 999, basedOnSkills: [] },
+  ];
+};
+
 export const createSession = async ({
   userId,
   cvFileId = null,
@@ -45,7 +73,9 @@ export const createSession = async ({
   candidateName = 'Candidate',
 }) => {
   const id = crypto.randomUUID();
-  const resolvedTargetRole = targetRole || analysisResult?.jobTitle || 'Target Role';
+  const normalizedAnalysis = validateAnalyzeOutput(analysisResult || {});
+  const resolvedTargetRole = targetRole || normalizedAnalysis.jobTitle || 'Target Role';
+  const resolvedCandidateName = normalizedAnalysis.candidateName || candidateName || 'Candidate';
 
   await withTransaction(async (client) => {
     await client.query(
@@ -58,7 +88,7 @@ export const createSession = async ({
         id,
         userId,
         resolvedTargetRole,
-        candidateName,
+        resolvedCandidateName,
         settings.seniorityLevel || 'Junior/Grad',
         settings.focusArea || 'Combined',
         Boolean(settings.enableNZCultureFit),
@@ -81,7 +111,7 @@ export const createSession = async ({
       `INSERT INTO parsed_profiles (
         id, session_id, candidate_name, job_title, cv_summary, jd_summary, match_score,
         profile_source_version, created_at, updated_at
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,'v1',now(),now())
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,'v3',now(),now())
       ON CONFLICT (session_id) DO UPDATE SET
         candidate_name = EXCLUDED.candidate_name,
         job_title = EXCLUDED.job_title,
@@ -92,18 +122,19 @@ export const createSession = async ({
       [
         crypto.randomUUID(),
         id,
-        candidateName,
+        resolvedCandidateName,
         resolvedTargetRole,
-        analysisResult?.planPreview || null,
+        normalizedAnalysis.planPreview || null,
         jdText || null,
-        analysisResult?.matchScore || null,
+        normalizedAnalysis.matchScore || null,
       ]
     );
   });
 
-  const rubric = analysisResult?.matchingDetails?.rubric || jdRubric || {};
-  const cvSkills = [...(analysisResult?.strengths || [])];
+  const rubric = normalizedAnalysis.parsedJdProfile || normalizedAnalysis.matchingDetails?.rubric || jdRubric || {};
+  const cvSkills = [...(normalizedAnalysis.strengths || [])];
   const jdSkills = [
+    ...((rubric.microCriteria || []).map((item) => item.label)),
     ...(rubric.technicalSkillRequirements || []),
     ...(rubric.softSkillRequirements || []),
   ];
@@ -113,7 +144,7 @@ export const createSession = async ({
       `INSERT INTO parsed_skills (
         id, session_id, source_type, skill_name, skill_category, importance_level, evidence_text, created_at
       ) VALUES ($1,$2,'cv',$3,'detected','detected',$4,now())`,
-      [crypto.randomUUID(), id, skill, 'Derived from current match strengths']
+      [crypto.randomUUID(), id, skill, 'Derived from analysis strengths']
     );
   }
 
@@ -134,55 +165,59 @@ export const createSession = async ({
       cvDocumentId: cvFileId,
       jdStructuredText: jdText,
       jdRubric: rubric,
+      parsedCvProfile: normalizedAnalysis.parsedCvProfile || {},
+      parsedJdProfile: normalizedAnalysis.parsedJdProfile || rubric,
       matchSummary: {
-        candidateName: analysisResult?.candidateName,
-        jobTitle: analysisResult?.jobTitle,
-        matchScore: analysisResult?.matchScore,
-        strengths: analysisResult?.strengths || [],
-        gaps: analysisResult?.gaps || [],
-        interviewFocus: analysisResult?.interviewFocus || [],
+        candidateName: normalizedAnalysis.candidateName,
+        jobTitle: normalizedAnalysis.jobTitle,
+        matchScore: normalizedAnalysis.matchScore,
+        strengths: normalizedAnalysis.strengths || [],
+        gaps: normalizedAnalysis.gaps || [],
+        interviewFocus: normalizedAnalysis.interviewFocus || [],
       },
-      matchingDetails: analysisResult?.matchingDetails || {},
+      matchingDetails: normalizedAnalysis.matchingDetails || {},
+      macroScores: normalizedAnalysis.macroScores || [],
+      microScores: normalizedAnalysis.microScores || [],
+      requirementChecks: normalizedAnalysis.requirementChecks || [],
+      scoreBreakdown: normalizedAnalysis.scoreBreakdown || {},
+      decision: normalizedAnalysis.decision || {},
+      confidence: normalizedAnalysis.confidence || 0,
+      explanation: normalizedAnalysis.explanation || {},
+      evidenceMap: normalizedAnalysis.evidenceMap || [],
+      sourceSnapshots: normalizedAnalysis.sourceSnapshots || [],
       analysisStatus: 'completed',
-      retentionUntil: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+      retentionUntil: retentionDate(),
+      schemaVersion: normalizedAnalysis.schemaVersion || 'v3',
     },
     { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
   );
+
+  const validatedPlan = validateInterviewPlan({
+    schemaVersion: normalizedAnalysis.schemaVersion || 'v3',
+    candidateName: resolvedCandidateName,
+    jobTitle: resolvedTargetRole,
+    matchScore: normalizedAnalysis.matchScore || 0,
+    decision: normalizedAnalysis.decision,
+    confidence: normalizedAnalysis.confidence,
+    requirementChecks: normalizedAnalysis.requirementChecks,
+    explanation: normalizedAnalysis.explanation,
+    strengths: normalizedAnalysis.strengths || [],
+    gaps: normalizedAnalysis.gaps || [],
+    interviewFocus: normalizedAnalysis.interviewFocus || [],
+    planPreview: normalizedAnalysis.planPreview || '',
+    strategy: { opening: 1, followUp: 3, technical: 2, behavioural: 2 },
+    questionPool: buildQuestionPoolFromAnalysis(normalizedAnalysis),
+    fallbackRules: { short_answer: 'ask_probe', time_low: 'end_early' },
+    settingsSnapshot: settings,
+  });
 
   await InterviewPlan.findOneAndUpdate(
     { sessionId: id },
     {
       sessionId: id,
       userId,
-      settingsSnapshot: settings,
-      candidateName,
-      jobTitle: resolvedTargetRole,
-      matchScore: analysisResult?.matchScore || 0,
-      strengths: analysisResult?.strengths || [],
-      gaps: analysisResult?.gaps || [],
-      interviewFocus: analysisResult?.interviewFocus || [],
-      planPreview: analysisResult?.planPreview || '',
-      strategy: {
-        opening: 1,
-        followUp: 3,
-        technical: 2,
-        behavioural: 2,
-      },
-      questionPool: [
-        { type: 'self_intro', text: 'Please introduce yourself.', reason: 'default opener', priority: 1 },
-        ...(analysisResult?.interviewFocus || []).slice(0, 3).map((item, index) => ({
-          type: 'follow_up',
-          text: `Can you share a specific example related to ${item}?`,
-          reason: 'Generated from match gaps/focus',
-          priority: index + 2,
-          basedOnSkills: [item],
-        })),
-      ],
-      fallbackRules: {
-        short_answer: 'ask_probe',
-        time_low: 'end_early',
-      },
-      retentionUntil: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+      ...validatedPlan,
+      retentionUntil: retentionDate(),
     },
     { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
   );
@@ -196,7 +231,7 @@ export const createSession = async ({
       fullTranscript: '',
       redactedTranscript: '',
       lastTurnOrder: 0,
-      retentionUntil: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+      retentionUntil: retentionDate(),
     },
     { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
   );
@@ -205,11 +240,7 @@ export const createSession = async ({
 };
 
 export const getSessionById = async (id) => {
-  const sessionResult = await query(
-    'SELECT * FROM interview_sessions WHERE id = $1 AND deleted_at IS NULL LIMIT 1',
-    [id]
-  );
-
+  const sessionResult = await query('SELECT * FROM interview_sessions WHERE id = $1 AND deleted_at IS NULL LIMIT 1', [id]);
   if (!sessionResult.rows[0]) {
     return null;
   }
@@ -223,21 +254,13 @@ export const getSessionById = async (id) => {
     row.cv_file_id ? DocumentContent.findOne({ fileId: row.cv_file_id }).lean() : Promise.resolve(null),
   ]);
 
+  const normalizedAnalysis = analysis ? validateAnalyzeOutput({ ...analysis.matchSummary, ...analysis.toObject?.(), ...analysis }) : null;
+
   return {
     ...baseSession,
     settings: plan?.settingsSnapshot || baseSession.settings,
-    analysisResult: plan
-      ? {
-          candidateName: plan.candidateName,
-          jobTitle: plan.jobTitle,
-          matchScore: plan.matchScore,
-          strengths: plan.strengths || [],
-          gaps: plan.gaps || [],
-          interviewFocus: plan.interviewFocus || [],
-          planPreview: plan.planPreview || '',
-          matchingDetails: analysis?.matchingDetails || {},
-        }
-      : null,
+    analysisResult: normalizedAnalysis,
+    interviewPlan: plan ? validateInterviewPlan(plan) : null,
     cvText: cvDocument?.normalizedText || cvDocument?.rawText || '',
     transcript: transcript?.turns?.map((turn) => ({
       role: turn.role,
@@ -254,14 +277,6 @@ export const updateSession = async (id, data) => {
     return null;
   }
 
-  const nextStatus = data.status ?? current.status;
-  const nextCurrentQuestionIndex = data.currentQuestionIndex ?? current.currentQuestionIndex;
-  const nextElapsedSeconds = data.elapsedSeconds ?? current.elapsedSeconds;
-  const nextLastResumedAt = data.lastResumedAt ?? current.lastResumedAt;
-  const nextEndedAt = data.endedAt ?? current.endedAt;
-  const nextSummaryText = data.summaryText ?? current.summaryText;
-  const nextOverallScore = data.overallScore ?? current.overallScore;
-
   await query(
     `UPDATE interview_sessions
      SET status = $2,
@@ -273,26 +288,41 @@ export const updateSession = async (id, data) => {
          overall_score = $8,
          updated_at = now()
      WHERE id = $1`,
-    [id, nextStatus, nextCurrentQuestionIndex, nextElapsedSeconds, nextLastResumedAt, nextEndedAt, nextSummaryText, nextOverallScore]
+    [
+      id,
+      data.status ?? current.status,
+      data.currentQuestionIndex ?? current.currentQuestionIndex,
+      data.elapsedSeconds ?? current.elapsedSeconds,
+      data.lastResumedAt ?? current.lastResumedAt,
+      data.endedAt ?? current.endedAt,
+      data.summaryText ?? current.summaryText,
+      data.overallScore ?? current.overallScore,
+    ]
   );
 
   if (data.settings || data.analysisResult) {
+    const normalizedAnalysis = data.analysisResult ? validateAnalyzeOutput(data.analysisResult) : current.analysisResult;
     await InterviewPlan.findOneAndUpdate(
       { sessionId: id },
-      {
+      validateInterviewPlan({
         ...(data.settings ? { settingsSnapshot: data.settings } : {}),
-        ...(data.analysisResult
+        ...(normalizedAnalysis
           ? {
-              candidateName: data.analysisResult.candidateName ?? current.analysisResult?.candidateName ?? current.candidateName,
-              jobTitle: data.analysisResult.jobTitle ?? current.analysisResult?.jobTitle ?? current.targetRole,
-              matchScore: data.analysisResult.matchScore ?? current.analysisResult?.matchScore ?? 0,
-              strengths: data.analysisResult.strengths ?? current.analysisResult?.strengths ?? [],
-              gaps: data.analysisResult.gaps ?? current.analysisResult?.gaps ?? [],
-              interviewFocus: data.analysisResult.interviewFocus ?? current.analysisResult?.interviewFocus ?? [],
-              planPreview: data.analysisResult.planPreview ?? current.analysisResult?.planPreview ?? '',
+              candidateName: normalizedAnalysis.candidateName,
+              jobTitle: normalizedAnalysis.jobTitle,
+              matchScore: normalizedAnalysis.matchScore,
+              confidence: normalizedAnalysis.confidence,
+              decision: normalizedAnalysis.decision,
+              requirementChecks: normalizedAnalysis.requirementChecks,
+              explanation: normalizedAnalysis.explanation,
+              strengths: normalizedAnalysis.strengths,
+              gaps: normalizedAnalysis.gaps,
+              interviewFocus: normalizedAnalysis.interviewFocus,
+              planPreview: normalizedAnalysis.planPreview,
+              questionPool: buildQuestionPoolFromAnalysis(normalizedAnalysis),
             }
           : {}),
-      },
+      }),
       { returnDocument: 'after' }
     );
   }
@@ -329,15 +359,7 @@ export const appendTranscriptTurn = async (sessionId, turn) => {
   };
 };
 
-export const createInterviewQuestion = async ({
-  sessionId,
-  questionOrder,
-  questionType = 'follow_up',
-  sourceType = 'generated',
-  questionText,
-  basedOnCv = false,
-  basedOnJd = true,
-}) => {
+export const createInterviewQuestion = async ({ sessionId, questionOrder, questionType = 'follow_up', sourceType = 'generated', questionText, basedOnCv = false, basedOnJd = true }) => {
   const id = crypto.randomUUID();
   await query(
     `INSERT INTO interview_questions (
@@ -354,10 +376,7 @@ export const createInterviewQuestion = async ({
     [id, sessionId, questionOrder, questionType, sourceType, questionText, basedOnCv, basedOnJd]
   );
 
-  const latest = await query(
-    `SELECT id FROM interview_questions WHERE session_id = $1 AND question_order = $2 LIMIT 1`,
-    [sessionId, questionOrder]
-  );
+  const latest = await query(`SELECT id FROM interview_questions WHERE session_id = $1 AND question_order = $2 LIMIT 1`, [sessionId, questionOrder]);
   return latest.rows[0]?.id || id;
 };
 
@@ -373,12 +392,7 @@ export const getLatestQuestionForSession = async (sessionId) => {
   return result.rows[0] || null;
 };
 
-export const createInterviewResponse = async ({
-  sessionId,
-  questionId,
-  transcriptText,
-  responseMode = 'text',
-}) => {
+export const createInterviewResponse = async ({ sessionId, questionId, transcriptText, responseMode = 'text' }) => {
   await query(
     `INSERT INTO interview_responses (
       id, session_id, question_id, response_mode, transcript_text,

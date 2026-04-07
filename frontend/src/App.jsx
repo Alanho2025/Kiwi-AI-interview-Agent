@@ -3,6 +3,7 @@ import { AnalyzePage } from './pages/AnalyzePage.jsx';
 import { InterviewPage } from './pages/InterviewPage.jsx';
 import Login from './pages/Login.jsx'; 
 import HomePage from './pages/HomePage.jsx';
+import { ReportPage } from './pages/ReportPage.jsx';
 import { ProtectedRoute } from './components/auth/ProtectedRoute.jsx';
 
 export default function App() {
@@ -15,6 +16,7 @@ export default function App() {
           <Route path="/home" element={<HomePage />} />
           <Route path="/analysis" element={<AnalyzePage />} />
           <Route path="/interview/:sessionId" element={<InterviewPage />} />
+          <Route path="/report/:sessionId" element={<ReportPage />} />
         </Route>
       </Routes>
     </Router>
