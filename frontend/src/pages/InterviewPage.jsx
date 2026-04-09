@@ -65,6 +65,7 @@ export function InterviewPage() {
   const currentPlanItem = getCurrentPlanItem(session);
   const displayRole = rubric.title || session?.targetRole;
   const roleMetaLabel = prettifyRole(rubric.roleCanonical || '');
+  const compactRoleLabel = roleMetaLabel || displayRole || 'Role';
 
   const handleReply = async (answer) => {
     if (isSubmitting || !answer?.trim()) return;
@@ -153,16 +154,20 @@ export function InterviewPage() {
   return (
     <div className="min-h-screen bg-[#f9fafb] flex flex-col h-screen overflow-hidden">
       <AppHeader>
-        <div className="flex items-center gap-8">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-end gap-6 min-w-0">
+          <div className="flex items-center gap-2 min-w-0">
             <span className="text-sm text-gray-500">Role</span>
-            <span className="px-3 py-1 bg-[#e6f7f0] text-[#2eb886] text-sm font-medium rounded-full">{displayRole}</span>
+            <span className="px-3 py-1 bg-[#e6f7f0] text-[#2eb886] text-sm font-medium rounded-full max-w-[220px] truncate">
+              {compactRoleLabel}
+            </span>
           </div>
-          <div>
-            <div className="text-lg font-semibold text-gray-900">{displayRole} Interview</div>
-            <div className="text-xs text-gray-500 mt-1">{roleMetaLabel ? `${roleMetaLabel} • ` : ''}{rubric.roleLevel || session.settings?.seniorityLevel || 'mid'} • {(currentPlanItem?.stage || 'opening').replace(/_/g, ' ')}</div>
+          <div className="min-w-0 flex-1 max-w-[420px]">
+            <div className="text-lg font-semibold text-gray-900 truncate">{displayRole} Interview</div>
+            <div className="text-xs text-gray-500 mt-1 truncate">
+              {(rubric.roleLevel || session.settings?.seniorityLevel || 'mid')} • {(currentPlanItem?.stage || 'opening').replace(/_/g, ' ')}
+            </div>
           </div>
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-6 shrink-0">
             <div className="text-right">
               <p className="text-xs text-gray-500 uppercase tracking-wider">Timer</p>
               <p className="text-lg font-mono font-medium text-gray-900">{formatDuration(elapsedSeconds)}</p>

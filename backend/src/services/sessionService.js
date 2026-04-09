@@ -9,6 +9,10 @@ import { prettifyCanonicalRole } from './taxonomyService.js';
 
 const buildFullTranscript = (turns) => turns.map((turn) => `${turn.role.toUpperCase()}: ${turn.text}`).join('\n\n');
 const retentionDate = () => new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
+const clampVarchar = (value, maxLength = 255, fallback = '') => {
+  const text = String(value ?? fallback ?? '').trim() || fallback;
+  return text.length > maxLength ? text.slice(0, maxLength) : text;
+};
 
 const mapSessionRow = (row) => ({
   id: row.id,
@@ -74,8 +78,10 @@ export const createSession = async ({
 }) => {
   const id = crypto.randomUUID();
   const normalizedAnalysis = validateAnalyzeOutput(analysisResult || {});
-  const resolvedTargetRole = targetRole || normalizedAnalysis.jobTitle || 'Target Role';
-  const resolvedCandidateName = normalizedAnalysis.candidateName || candidateName || 'Candidate';
+  const resolvedTargetRole = clampVarchar(targetRole || normalizedAnalysis.jobTitle || 'Target Role');
+  const resolvedCandidateName = clampVarchar(normalizedAnalysis.candidateName || candidateName || 'Candidate');
+  const resolvedSeniorityLevel = clampVarchar(settings.seniorityLevel || 'Junior/Grad');
+  const resolvedFocusArea = clampVarchar(settings.focusArea || 'Combined');
 
   await withTransaction(async (client) => {
     await client.query(
@@ -89,8 +95,8 @@ export const createSession = async ({
         userId,
         resolvedTargetRole,
         resolvedCandidateName,
-        settings.seniorityLevel || 'Junior/Grad',
-        settings.focusArea || 'Combined',
+        resolvedSeniorityLevel,
+        resolvedFocusArea,
         Boolean(settings.enableNZCultureFit),
         totalQuestions,
       ]
