@@ -11,17 +11,27 @@ const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.join(__dirname, '.env') });
 
 async function startServer() {
-  await bootstrapDatabases();
+  try {
+    const startup = await bootstrapDatabases({
+      mongoRequired: String(process.env.MONGO_REQUIRED || '').toLowerCase() === 'true',
+    });
 
-  const app = express();
-  const PORT = process.env.PORT || 3000;
+    const app = express();
+    const PORT = process.env.PORT || 3000;
 
-  // Mount API routes
-  app.use('/api', api);
+    app.locals.startupStatus = startup;
+    app.use('/api', api);
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`API server running on http://localhost:${PORT}`);
-  });
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`API server running on http://localhost:${PORT}`);
+      if (!startup.mongo?.ok) {
+        console.warn('[Startup] Running in degraded mode: Mongo is unavailable. Postgres-backed routes can still work.');
+      }
+    });
+  } catch (error) {
+    console.error('[Startup] Failed to start server:', error);
+    process.exit(1);
+  }
 }
 
 startServer();

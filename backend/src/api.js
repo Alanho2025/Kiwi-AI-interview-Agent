@@ -9,6 +9,7 @@ import exportRoutes from './api/routes/exportRoutes.js';
 import authRoutes from './api/routes/authRoutes.js';
 import ragRoutes from './api/routes/ragRoutes.js';
 import reportRoutes from './api/routes/reportRoutes.js';
+import healthRoutes from './api/routes/healthRoutes.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { optionalAuth, requireAuth } from './middleware/authMiddleware.js';
 import dotenv from 'dotenv';
@@ -23,6 +24,7 @@ api.use(cors({
 api.use(express.json());
 api.use(optionalAuth);
 
+api.use('/health', healthRoutes);
 api.use('/auth', authRoutes);
 api.use('/upload', requireAuth, uploadRoutes);
 api.use('/job-description', requireAuth, jobDescriptionRoutes);
