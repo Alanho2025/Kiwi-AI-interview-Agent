@@ -1,0 +1,86 @@
+AI: Please introduce yourself.
+
+USER: Hello, thank you for having me. My name is Yuning Fan. I’m currently a Master of Information Technology student at the University of Auckland, with a background in Computational Linguistics and SEO. I’m passionate about using AI and technical SEO to improve business efficiency.
+
+In terms of technical skills, I’m proficient in full-stack web development including Shopify Liquid, React, Svelte, Node.js, and also AI-related areas like RAG, prompt engineering, and LLM integration. I have hands-on experience with Python automation, Java, SQL, and AWS.
+
+During my summer internship as a Web Developer at CF Creation in New Zealand, I rebuilt key e-commerce pages using Shopify Liquid, implemented a multi-level filtering system, and used Python scripts to optimize metadata. These efforts significantly improved site navigation and search rankings. I also streamlined product launch processes, increasing listing efficiency by 30%.
+
+Previously, as an IT Support & SEO Specialist at WebNovel in Beijing, I supported a team of over 30 people, maintained Microsoft 365 environments, and created troubleshooting manuals that reduced system downtime by 15%.
+
+One of my key projects is an AI Voice Chatbot Agent, where I built a RAG-based knowledge base and used prompt engineering to deliver structured real-time feedback.
+
+I’m now looking for an internship where I can apply my technical problem-solving and full-stack development skills in a collaborative team environment. I’m a fast learner, adaptable, and enjoy bridging the gap between linguistics and technology. Thank you.
+
+AI: Tell me about a project where you used React Native in a Software Engineer context.
+
+USER: I haven’t had the chance to work with React Native on a real project yet — my React experience has been strictly for web applications. However, I know that React Native shares the exact same core concepts: components, props, state, hooks, and the component lifecycle. The main differences are the primitives (View, Text, ScrollView instead of div, span, etc.) and the way styling works (StyleSheet vs CSS).
+
+To prepare myself for roles that might use React Native, I built a small learning project: a simple habit tracker mobile app following the official React Native tutorial. I used functional components, useState, useEffect, FlatList for performance, and AsyncStorage for local data persistence. I also practiced navigation using React Navigation (stack and tab navigators).
+
+AI: What was your exact approach with React Native, and how did you know it worked?
+
+USER: Exact approach with React Native
+Project: A Habit Tracker mobile app (iOS/Android) built over one weekend to learn React Native.
+
+Step‑by‑step approach:
+
+Environment setup
+
+Installed Expo (simpler for beginners) or React Native CLI.
+
+Used VS Code with TypeScript template.
+
+Core components mapping
+
+Replaced web div with View, span with Text, button with TouchableOpacity.
+
+Used ScrollView for the list of habits (later optimized with FlatList for performance).
+
+State management (same as React web)
+
+useState for local UI state (e.g., current habit name input).
+
+useReducer for the list of habits (add, toggle completion, delete).
+
+useEffect to load/save data from AsyncStorage (like localStorage but async).
+
+Navigation
+
+Used React Navigation (@react-navigation/stack) to switch between HabitList screen and AddHabit screen.
+
+Styling
+
+Wrote styles with StyleSheet.create() – similar to CSS-in-JS but with mobile‑specific properties (e.g., flex, padding, margin).
+
+Data persistence
+
+On every habit change, saved the updated array to AsyncStorage.
+
+On app launch, loaded from AsyncStorage into state.
+
+Testing on device
+
+Ran on Expo Go app (my own iPhone) and Android emulator.
+
+AI: Tell me about a project where you used iOS in a Software Engineer context.
+
+USER: I haven’t worked on any iOS projects yet — my mobile experience has been limited to web and some self‑learning in React Native, which targets both iOS and Android. I’ve never built a native iOS app using Swift or Xcode.
+
+AI: What was your exact approach with iOS, and how did you know it worked?
+
+USER: I haven’t worked on any iOS projects yet
+
+AI: Tell me about a project where you used Android in a Software Engineer context.
+
+USER: I haven’t built any native Android projects yet. My background is in web development (React, Node.js) and some cross‑platform exploration with React Native, which targets both iOS and Android. I also know Java from backend work, which is still used in Android development.
+
+AI: What was your exact approach with Android, and how did you know it worked?
+
+USER: I haven’t built any native Android projects yet.
+
+AI: Can you walk me through a specific example that shows Minimum 2 years of experience in React Native, iOS or Android?
+
+USER: To be upfront: I don’t have 2 years of experience in React Native, iOS, or Android. My experience is in web React, TypeScript, Node.js, and Python.
+
+However, I see this role is early‑career (up to 2 years). I have built production web apps with React – which shares 80% of its core with React Native. I also learned React Native on my own over a weekend (built a habit tracker with navigation, state, and local storage).

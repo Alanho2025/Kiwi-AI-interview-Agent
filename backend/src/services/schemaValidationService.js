@@ -72,6 +72,22 @@ const normalizeSection = (section = {}, index = 0) => ({
   content: ensureString(section.content),
 });
 
+const normalizeCandidateFeedbackItem = (item = {}) => ({
+  id: ensureString(item.id),
+  label: ensureString(item.label),
+  title: ensureString(item.title),
+  theme: ensureString(item.theme),
+  value: ensureNumber(item.value, 0),
+  interpretation: ensureString(item.interpretation),
+  explanation: ensureString(item.explanation),
+  whyItMatters: ensureString(item.whyItMatters),
+  action: ensureString(item.action),
+  advice: ensureString(item.advice),
+  example: ensureString(item.example),
+  weak: ensureString(item.weak),
+  better: ensureString(item.better),
+});
+
 export const validateReportOutput = (report = {}) => ({
   schemaVersion: ensureString(report.schemaVersion, 'v3'),
   id: ensureString(report.id, report.sessionId || ''),
@@ -87,6 +103,27 @@ export const validateReportOutput = (report = {}) => ({
   evidenceReferences: ensureArray(report.evidenceReferences),
   interviewMetrics: isObject(report.interviewMetrics) ? report.interviewMetrics : {},
   evidenceDiagnostics: isObject(report.evidenceDiagnostics) ? report.evidenceDiagnostics : {},
+  candidateFeedback: isObject(report.candidateFeedback)
+    ? {
+        overallTakeaway: ensureString(report.candidateFeedback.overallTakeaway),
+        scoreBand: ensureString(report.candidateFeedback.scoreBand),
+        generationSource: ensureString(report.candidateFeedback.generationSource),
+        plainEnglishMetrics: ensureArray(report.candidateFeedback.plainEnglishMetrics).map(normalizeCandidateFeedbackItem),
+        strengthHighlights: ensureArray(report.candidateFeedback.strengthHighlights).map(normalizeCandidateFeedbackItem),
+        improvementPriorities: ensureArray(report.candidateFeedback.improvementPriorities).map(normalizeCandidateFeedbackItem),
+        coachingAdvice: ensureArray(report.candidateFeedback.coachingAdvice).map(normalizeCandidateFeedbackItem),
+        answerRewriteExamples: ensureArray(report.candidateFeedback.answerRewriteExamples).map(normalizeCandidateFeedbackItem),
+      }
+    : {
+        overallTakeaway: '',
+        scoreBand: '',
+        generationSource: '',
+        plainEnglishMetrics: [],
+        strengthHighlights: [],
+        improvementPriorities: [],
+        coachingAdvice: [],
+        answerRewriteExamples: [],
+      },
 });
 
 export const validateReportQaOutput = (qa = {}) => ({

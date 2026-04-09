@@ -1,6 +1,11 @@
 import crypto from 'crypto';
 import { query, withTransaction } from '../db/postgres.js';
 
+const clampVarchar = (value, maxLength = 255, fallback = '') => {
+  const text = String(value ?? fallback ?? '').trim() || fallback;
+  return text.length > maxLength ? text.slice(0, maxLength) : text;
+};
+
 const mapSessionRow = (row) => ({
   id: row.id,
   userId: row.user_id,
@@ -39,6 +44,11 @@ export const createSessionAggregate = async ({
   totalQuestions = 8,
   candidateName = 'Candidate',
 }) => {
+  const resolvedTargetRole = clampVarchar(targetRole || 'Target Role');
+  const resolvedCandidateName = clampVarchar(candidateName || 'Candidate');
+  const resolvedSeniorityLevel = clampVarchar(settings.seniorityLevel || 'Junior/Grad');
+  const resolvedFocusArea = clampVarchar(settings.focusArea || 'Combined');
+
   await withTransaction(async (client) => {
     await client.query(
       `INSERT INTO interview_sessions (
@@ -49,10 +59,10 @@ export const createSessionAggregate = async ({
       [
         sessionId,
         userId,
-        targetRole,
-        candidateName,
-        settings.seniorityLevel || 'Junior/Grad',
-        settings.focusArea || 'Combined',
+        resolvedTargetRole,
+        resolvedCandidateName,
+        resolvedSeniorityLevel,
+        resolvedFocusArea,
         Boolean(settings.enableNZCultureFit),
         totalQuestions,
       ]
@@ -87,8 +97,8 @@ export const createSessionAggregate = async ({
       [
         crypto.randomUUID(),
         sessionId,
-        candidateName,
-        targetRole,
+        resolvedCandidateName,
+        resolvedTargetRole,
         analysisResult?.planPreview || null,
         jdText || null,
         analysisResult?.matchScore || null,
