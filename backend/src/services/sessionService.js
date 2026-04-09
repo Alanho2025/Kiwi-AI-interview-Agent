@@ -4,6 +4,7 @@ import { DocumentContent } from '../db/models/documentContentModel.js';
 import { SessionAnalysis } from '../db/models/sessionAnalysisModel.js';
 import { InterviewPlan } from '../db/models/interviewPlanModel.js';
 import { SessionTranscript } from '../db/models/sessionTranscriptModel.js';
+import { SessionReport } from '../db/models/sessionReportModel.js';
 import { validateAnalyzeOutput, validateInterviewPlan } from './schemaValidationService.js';
 import { prettifyCanonicalRole } from './taxonomyService.js';
 
@@ -12,6 +13,51 @@ const retentionDate = () => new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
 const clampVarchar = (value, maxLength = 255, fallback = '') => {
   const text = String(value ?? fallback ?? '').trim() || fallback;
   return text.length > maxLength ? text.slice(0, maxLength) : text;
+};
+const titleCaseWords = (value = '') => value
+  .split(/\s+/)
+  .filter(Boolean)
+  .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+  .join(' ');
+const cleanDisplayTitle = (value = '') =>
+  String(value || '')
+    .replace(/\s+/g, ' ')
+    .replace(/[.,;:!?-]+\s*$/, '')
+    .trim();
+const extractDisplayTitle = (...candidates) => {
+  for (const candidate of candidates) {
+    const text = String(candidate || '').replace(/\s+/g, ' ').trim();
+    if (!text) continue;
+
+    const directTitleMatch = text.match(/(?:job\s*title|position|role)\s*:\s*([^\n.]{3,120})/i);
+    if (directTitleMatch?.[1]) {
+      return cleanDisplayTitle(directTitleMatch[1]);
+    }
+
+    const firstLine = text.split('\n').map((line) => line.trim()).find(Boolean) || '';
+    if (firstLine && firstLine.length <= 120 && !/^(we|our|about)\b/i.test(firstLine)) {
+      return cleanDisplayTitle(firstLine);
+    }
+
+    const commonRoleMatch = text.match(/\b((?:Junior|Senior|Lead|Principal|Staff|Graduate|Mid-Level|Solutions|Software|Backend|Frontend|Full[-\s]?Stack|Mobile|DevOps|Data|Civil|Platform|QA|Test|Product)?\s*(?:Software Engineer|Solutions Engineer|Backend Engineer|Frontend Engineer|Full Stack Engineer|Mobile Developer|React Native Developer|DevOps Engineer|Data Engineer|Civil Engineer|Platform Engineer|QA Engineer|Test Engineer|Product Manager|Developer))\b/i);
+    if (commonRoleMatch?.[1]) {
+      return cleanDisplayTitle(commonRoleMatch[1]);
+    }
+
+    const sentenceMatch = text.match(/^([^.!?]{8,140}?)(?:[.!?]|$)/);
+    if (sentenceMatch?.[1] && !/^(we|our)\b/i.test(sentenceMatch[1].trim())) {
+      return cleanDisplayTitle(sentenceMatch[1]);
+    }
+
+    const titleLikeMatch = text.match(/\b([A-Z][A-Za-z/&()-]+(?:\s+[A-Z][A-Za-z/&()-]+){1,5})\b/);
+    if (titleLikeMatch?.[1] && !/^(We|Our)\b/.test(titleLikeMatch[1])) {
+      return cleanDisplayTitle(titleLikeMatch[1]);
+    }
+
+    return cleanDisplayTitle(text.slice(0, 80));
+  }
+
+  return 'Interview Session';
 };
 
 const mapSessionRow = (row) => ({
@@ -275,6 +321,77 @@ export const getSessionById = async (id) => {
       questionId: turn.questionId,
     })) || [],
   };
+};
+
+export const listSessionsByUserId = async (userId, limit = 20) => {
+  const safeLimit = Math.min(Math.max(Number(limit) || 20, 1), 50);
+  const result = await query(
+    `SELECT *
+     FROM interview_sessions
+     WHERE user_id = $1 AND deleted_at IS NULL
+     ORDER BY created_at DESC
+     LIMIT $2`,
+    [String(userId), safeLimit]
+  );
+
+  const rows = result.rows || [];
+  if (!rows.length) {
+    return [];
+  }
+
+  const sessionIds = rows.map((row) => row.id);
+  const [reports, plans, analyses] = await Promise.all([
+    SessionReport.find({ sessionId: { $in: sessionIds } }).lean(),
+    InterviewPlan.find({ sessionId: { $in: sessionIds } }).lean(),
+    SessionAnalysis.find({ sessionId: { $in: sessionIds } }).lean(),
+  ]);
+
+  const reportMap = new Map(reports.map((item) => [item.sessionId, item]));
+  const planMap = new Map(plans.map((item) => [item.sessionId, item]));
+  const analysisMap = new Map(analyses.map((item) => [item.sessionId, item]));
+
+  return rows.map((row) => {
+    const plan = planMap.get(row.id);
+    const report = reportMap.get(row.id);
+    const analysis = analysisMap.get(row.id);
+    const matchSummary = analysis?.matchSummary || {};
+    const roleLabel = row.target_role || matchSummary.jobTitle || plan?.jobTitle || 'Interview Session';
+    const displayTitle = extractDisplayTitle(
+      matchSummary.jobTitle,
+      plan?.jobTitle,
+      analysis?.parsedJdProfile?.title,
+      analysis?.parsedJdProfile?.jobTitle,
+      roleLabel
+    );
+    const reportOverallScore = report?.report?.scores?.overall;
+    const displayScore = Number.isFinite(Number(reportOverallScore))
+      ? Number(reportOverallScore)
+      : Number.isFinite(Number(row.overall_score))
+        ? Number(row.overall_score)
+        : Number.isFinite(Number(matchSummary.matchScore))
+          ? Number(matchSummary.matchScore)
+          : null;
+
+    return {
+      id: row.id,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      status: row.status,
+      targetRole: roleLabel,
+      candidateName: row.candidate_name,
+      overallScore: reportOverallScore ?? row.overall_score,
+      displayScore,
+      totalQuestions: row.total_questions,
+      currentQuestionIndex: row.current_question_index,
+      durationSeconds: row.duration_seconds ?? row.elapsed_seconds ?? 0,
+      planPreview: plan?.planPreview || matchSummary.planPreview || analysis?.explanation?.summary || '',
+      scoreBand: report?.report?.candidateFeedback?.scoreBand || '',
+      reportStatus: report?.latestStatus || null,
+      hasReport: Boolean(report?.report),
+      matchScore: matchSummary.matchScore ?? null,
+      displayTitle: titleCaseWords(displayTitle),
+    };
+  });
 };
 
 export const updateSession = async (id, data) => {

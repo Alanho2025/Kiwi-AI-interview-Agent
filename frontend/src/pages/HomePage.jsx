@@ -5,21 +5,57 @@ import {
 } from 'lucide-react';
 import { PrivacySecurityCard } from '../components/home/PrivacySecurityCard.jsx';
 import { logoutFromSession } from '../api/authApi.js';
+import { getSessionHistory } from '../api/sessionApi.js';
 import { clearStoredAuthSession, getStoredAuthSession } from '../utils/authSession.js';
 
-// --- Mock Data (模拟数据) ---
-const sessionHistory = [
-  { id: 1, date: '2026-03-18', title: 'Backend Engineer – Aotearoa Tech', sub: 'Full-stack interview simulation', score: null, status: 'Completed', icon: Bird },
-  { id: 2, date: '2026-03-10', title: 'Frontend Engineer – Southern Cloud', sub: 'UI timing & clarity practice', score: 76, status: 'Draft', icon: Briefcase },
-  { id: 3, date: '2026-02-25', title: 'Data Engineer – Kiwi Analytics', sub: 'Clear pronunciation focus', score: null, status: 'Completed', icon: Star },
-  { id: 4, date: '2026-02-11', title: 'Mobile Engineer – Tui Mobile', sub: 'Timing & intonation practice', score: 69, status: 'Draft', icon: FileText },
-  { id: 5, date: '2026-01-28', title: 'DevOps Engineer – HarbourOps', sub: 'Clarity and command practice', score: null, status: 'Completed', icon: Settings },
-];
+const formatFullDate = (value) => {
+  if (!value) return '-';
+  return new Date(value).toLocaleDateString('en-NZ', {
+    year: 'numeric',
+    month: 'short',
+    day: '2-digit',
+  });
+};
 
-const recentActivity = [
-  { id: 1, title: 'Timed Practice', date: '18 Mar', duration: '7 min', avgScore: 82, status: 'Completed', icon: Clock },
-  { id: 2, title: 'Mock Interview', date: '10 Mar', duration: '18 min', avgScore: 76, status: 'Draft', icon: FileText },
-];
+const formatShortDate = (value) => {
+  if (!value) return '-';
+  return new Date(value).toLocaleDateString('en-NZ', {
+    month: 'short',
+    day: 'numeric',
+  });
+};
+
+const formatDurationLabel = (seconds = 0) => {
+  const safeSeconds = Math.max(0, Number(seconds) || 0);
+  if (safeSeconds < 60) return '<1 min';
+  const minutes = Math.round(safeSeconds / 60);
+  return `${minutes} min`;
+};
+
+const getHistoryIcon = (status = '', hasReport = false) => {
+  if (hasReport) return FileText;
+  if (status === 'completed') return Star;
+  if (status === 'paused') return Clock;
+  if (status === 'in_progress') return Mic;
+  return Briefcase;
+};
+
+const summarizeSession = (session = {}) => {
+  if (session.planPreview) return session.planPreview;
+  if (session.scoreBand) return session.scoreBand;
+  if (session.status === 'completed') return 'Interview completed';
+  if (session.status === 'in_progress') return 'Interview in progress';
+  return 'Interview session';
+};
+
+const isPresentNumber = (value) => value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value));
+
+const resolveDisplayScore = (session = {}) => {
+  if (isPresentNumber(session.displayScore)) return Number(session.displayScore);
+  if (isPresentNumber(session.overallScore)) return Number(session.overallScore);
+  if (isPresentNumber(session.matchScore)) return Number(session.matchScore);
+  return null;
+};
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -30,6 +66,8 @@ export default function HomePage() {
     loginProvider: '',
   });
   const [isAvatarBroken, setIsAvatarBroken] = useState(false);
+  const [sessionHistory, setSessionHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
 
   useEffect(() => {
     const savedSession = getStoredAuthSession();
@@ -46,6 +84,21 @@ export default function HomePage() {
       loginProvider: savedSession.loginProvider || '',
     });
     setIsAvatarBroken(false);
+
+    const loadHistory = async () => {
+      try {
+        setHistoryLoading(true);
+        const data = await getSessionHistory(20);
+        setSessionHistory(data.sessions || []);
+      } catch (error) {
+        console.error('Failed to load session history', error);
+        setSessionHistory([]);
+      } finally {
+        setHistoryLoading(false);
+      }
+    };
+
+    loadHistory();
   }, [navigate]);
 
   const handleSignOut = async () => {
@@ -65,6 +118,24 @@ export default function HomePage() {
     .join('')
     .slice(0, 2)
     .toUpperCase();
+
+  const completedSessions = sessionHistory.filter((item) => item.status === 'completed');
+  const scoredSessions = sessionHistory
+    .map((item) => resolveDisplayScore(item))
+    .filter((value) => Number.isFinite(Number(value)));
+  const averageScore = scoredSessions.length
+    ? Math.round(scoredSessions.reduce((sum, value) => sum + Number(value || 0), 0) / scoredSessions.length)
+    : '-';
+  const latestRole = sessionHistory[0]?.displayTitle || sessionHistory[0]?.targetRole || 'No sessions yet';
+  const recentActivity = sessionHistory.slice(0, 3).map((item) => ({
+    id: item.id,
+    title: item.displayTitle || item.targetRole || 'Interview Session',
+    date: formatShortDate(item.createdAt),
+    duration: formatDurationLabel(item.durationSeconds),
+    avgScore: Number.isFinite(Number(resolveDisplayScore(item))) ? Math.round(Number(resolveDisplayScore(item))) : '-',
+    status: item.status === 'completed' ? 'Completed' : item.status === 'in_progress' ? 'In Progress' : item.status === 'paused' ? 'Paused' : 'Draft',
+    icon: getHistoryIcon(item.status, item.hasReport),
+  }));
 
   return (
     <div className="min-h-screen bg-[#f8fafc] font-sans text-gray-900 pb-12">
@@ -161,16 +232,16 @@ export default function HomePage() {
 
           {/* 2. Stats Row */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <StatCard icon={<Clock size={20}/>} title="Total Sessions" value="124" />
-            <StatCard icon={<Star size={20}/>} title="Avg. Score" value="78" iconBg="bg-[#20B2AA] text-white" />
-            <StatCard icon={<Briefcase size={20}/>} title="Target Role" value="Software Engineer – Backend" />
+            <StatCard icon={<Clock size={20}/>} title="Total Sessions" value={historyLoading ? '...' : String(sessionHistory.length)} />
+            <StatCard icon={<Star size={20}/>} title="Avg. Score" value={historyLoading ? '...' : String(averageScore)} iconBg="bg-[#20B2AA] text-white" />
+            <StatCard icon={<Briefcase size={20}/>} title="Latest Role" value={historyLoading ? '...' : latestRole} />
           </div>
 
           {/* 3. Session History */}
           <div className="bg-white rounded-3xl p-8 shadow-[0_2px_10px_rgb(0,0,0,0.02)] border border-gray-100">
             <div className="flex justify-between items-end mb-6">
               <h2 className="text-xl font-bold">Session History</h2>
-              <span className="text-sm text-gray-400">Manage and review past sessions</span>
+              <span className="text-sm text-gray-400">Your recent interview sessions</span>
             </div>
             
             {/* Table Header */}
@@ -183,33 +254,59 @@ export default function HomePage() {
 
             {/* Table Body */}
             <div className="flex flex-col gap-2">
-              {sessionHistory.map((item) => (
-                <div key={item.id} className="grid grid-cols-12 items-center py-3 border-b border-gray-50 last:border-0 hover:bg-gray-50 transition rounded-xl px-2 -mx-2">
-                  <div className="col-span-2 text-sm font-medium">{item.date}</div>
-                  <div className="col-span-6 flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">
-                      <item.icon size={18} />
+              {historyLoading ? (
+                <div className="py-10 text-sm text-gray-400">Loading session history...</div>
+              ) : sessionHistory.length === 0 ? (
+                <div className="py-10 text-sm text-gray-400">No interview sessions yet. Start a new session to build your history.</div>
+              ) : (
+                sessionHistory.map((item) => {
+                  const ItemIcon = getHistoryIcon(item.status, item.hasReport);
+                  const displayStatus = item.status === 'completed'
+                    ? 'Completed'
+                    : item.status === 'in_progress'
+                      ? 'In Progress'
+                      : item.status === 'paused'
+                        ? 'Paused'
+                        : 'Draft';
+
+                  return (
+                    <div key={item.id} className="grid grid-cols-12 items-center py-3 border-b border-gray-50 last:border-0 hover:bg-gray-50 transition rounded-xl px-2 -mx-2">
+                      <div className="col-span-2 text-sm font-medium">{formatFullDate(item.createdAt)}</div>
+                      <div className="col-span-6 flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">
+                          <ItemIcon size={18} />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-sm font-bold text-gray-900 truncate">{item.displayTitle || item.targetRole || 'Interview Session'}</div>
+                          <div className="text-xs text-gray-400 truncate">{summarizeSession(item)}</div>
+                        </div>
+                      </div>
+                      <div className="col-span-2 text-center font-bold text-sm">
+                        {Number.isFinite(Number(resolveDisplayScore(item))) ? Math.round(Number(resolveDisplayScore(item))) : '-'}
+                      </div>
+                      <div className="col-span-2 flex items-center justify-end gap-3">
+                        <span className={`text-xs font-semibold px-2 py-1 rounded-md ${
+                          displayStatus === 'Completed'
+                            ? 'bg-emerald-50 text-emerald-600'
+                            : displayStatus === 'In Progress'
+                              ? 'bg-sky-50 text-sky-600'
+                              : displayStatus === 'Paused'
+                                ? 'bg-amber-50 text-amber-700'
+                                : 'bg-orange-50 text-orange-600'
+                        }`}>
+                          {displayStatus}
+                        </span>
+                        <button
+                          className="border border-emerald-200 text-emerald-600 rounded-full px-4 py-1 text-xs font-semibold hover:bg-emerald-50 transition whitespace-nowrap"
+                          onClick={() => navigate(item.hasReport && displayStatus === 'Completed' ? `/report/${item.id}` : `/interview/${item.id}`)}
+                        >
+                          {item.hasReport && displayStatus === 'Completed' ? 'View Report' : 'Open Session'}
+                        </button>
+                      </div>
                     </div>
-                    <div>
-                      <div className="text-sm font-bold text-gray-900">{item.title}</div>
-                      <div className="text-xs text-gray-400">{item.sub}</div>
-                    </div>
-                  </div>
-                  <div className="col-span-2 text-center font-bold text-sm">
-                    {item.score ? item.score : '-'}
-                  </div>
-                  <div className="col-span-2 flex items-center justify-end gap-3">
-                    <span className={`text-xs font-semibold px-2 py-1 rounded-md ${
-                      item.status === 'Completed' ? 'bg-emerald-50 text-emerald-600' : 'bg-orange-50 text-orange-600'
-                    }`}>
-                      {item.status}
-                    </span>
-                    <button className="border border-emerald-200 text-emerald-600 rounded-full px-4 py-1 text-xs font-semibold hover:bg-emerald-50 transition whitespace-nowrap">
-                      View Report
-                    </button>
-                  </div>
-                </div>
-              ))}
+                  );
+                })
+              )}
             </div>
           </div>
         </div>
@@ -222,27 +319,41 @@ export default function HomePage() {
             <div className="flex justify-between items-start mb-6">
               <div>
                 <h3 className="text-lg font-bold">Recent Activity</h3>
-                <p className="text-xs text-gray-400">Quick snapshot of last week</p>
+                <p className="text-xs text-gray-400">Latest updates from your sessions</p>
               </div>
-              <span className="text-xs text-gray-400">Updated: 2 days ago</span>
+              <span className="text-xs text-gray-400">{historyLoading ? 'Syncing...' : `${completedSessions.length} completed`}</span>
             </div>
             <div className="flex flex-col gap-4">
-              {recentActivity.map(activity => (
-                <div key={activity.id} className="flex justify-between items-center">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">
-                      <activity.icon size={18} />
+              {historyLoading ? (
+                <div className="text-sm text-gray-400">Loading recent activity...</div>
+              ) : recentActivity.length === 0 ? (
+                <div className="text-sm text-gray-400">No recent activity yet. Your completed and draft sessions will appear here.</div>
+              ) : (
+                recentActivity.map(activity => (
+                  <div key={activity.id} className="flex justify-between items-center">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 shrink-0">
+                        <activity.icon size={18} />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-sm font-bold truncate">{activity.title} • {activity.date}</div>
+                        <div className="text-xs text-gray-400 truncate">{activity.duration} – Avg score {activity.avgScore}</div>
+                      </div>
                     </div>
-                    <div>
-                      <div className="text-sm font-bold">{activity.title} • {activity.date}</div>
-                      <div className="text-xs text-gray-400">{activity.duration} – Avg score {activity.avgScore}</div>
-                    </div>
+                    <span className={`text-xs font-medium shrink-0 ${
+                      activity.status === 'Completed'
+                        ? 'text-emerald-500'
+                        : activity.status === 'In Progress'
+                          ? 'text-sky-500'
+                          : activity.status === 'Paused'
+                            ? 'text-amber-600'
+                            : 'text-orange-500'
+                    }`}>
+                      {activity.status}
+                    </span>
                   </div>
-                  <span className={`text-xs font-medium ${activity.status === 'Completed' ? 'text-emerald-500' : 'text-orange-500'}`}>
-                    {activity.status}
-                  </span>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
 
