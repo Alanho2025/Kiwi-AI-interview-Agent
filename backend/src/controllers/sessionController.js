@@ -1,5 +1,6 @@
 import { formatSuccess, formatError } from '../utils/responseFormatter.js';
-import { getSessionById, updateSession } from '../services/sessionService.js';
+import { getSessionById, listSessionsByUserId, updateSession } from '../services/sessionService.js';
+import { resolveUserFromRequest } from '../services/authService.js';
 
 export const saveSession = async (req, res, next) => {
   console.log('ENTERING saveSession, sessionId:', req.body?.sessionId);
@@ -28,6 +29,16 @@ export const getSession = async (req, res, next) => {
     res.json(formatSuccess('Session retrieved', { session }));
   } catch (error) {
     console.error('ERROR in getSession:', error.message, error.stack);
+    next(error);
+  }
+};
+
+export const getSessionHistory = async (req, res, next) => {
+  try {
+    const user = await resolveUserFromRequest(req);
+    const sessions = await listSessionsByUserId(user.id, req.query.limit || 20);
+    res.json(formatSuccess('Session history retrieved', { sessions }));
+  } catch (error) {
     next(error);
   }
 };

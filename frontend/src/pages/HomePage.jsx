@@ -5,21 +5,74 @@ import {
 } from 'lucide-react';
 import { PrivacySecurityCard } from '../components/home/PrivacySecurityCard.jsx';
 import { logoutFromSession } from '../api/authApi.js';
+import { getSessionHistory } from '../api/sessionApi.js';
 import { clearStoredAuthSession, getStoredAuthSession } from '../utils/authSession.js';
 
-// --- Mock Data (模拟数据) ---
-const sessionHistory = [
-  { id: 1, date: '2026-03-18', title: 'Backend Engineer – Aotearoa Tech', sub: 'Full-stack interview simulation', score: null, status: 'Completed', icon: Bird },
-  { id: 2, date: '2026-03-10', title: 'Frontend Engineer – Southern Cloud', sub: 'UI timing & clarity practice', score: 76, status: 'Draft', icon: Briefcase },
-  { id: 3, date: '2026-02-25', title: 'Data Engineer – Kiwi Analytics', sub: 'Clear pronunciation focus', score: null, status: 'Completed', icon: Star },
-  { id: 4, date: '2026-02-11', title: 'Mobile Engineer – Tui Mobile', sub: 'Timing & intonation practice', score: 69, status: 'Draft', icon: FileText },
-  { id: 5, date: '2026-01-28', title: 'DevOps Engineer – HarbourOps', sub: 'Clarity and command practice', score: null, status: 'Completed', icon: Settings },
-];
+const HOME_SESSION_DEFAULTS_KEY = 'kiwi-home-session-defaults';
 
-const recentActivity = [
-  { id: 1, title: 'Timed Practice', date: '18 Mar', duration: '7 min', avgScore: 82, status: 'Completed', icon: Clock },
-  { id: 2, title: 'Mock Interview', date: '10 Mar', duration: '18 min', avgScore: 76, status: 'Draft', icon: FileText },
-];
+const formatFullDate = (value) => {
+  if (!value) return '-';
+  return new Date(value).toLocaleDateString('en-NZ', {
+    year: 'numeric',
+    month: 'short',
+    day: '2-digit',
+  });
+};
+
+const formatShortDate = (value) => {
+  if (!value) return '-';
+  return new Date(value).toLocaleDateString('en-NZ', {
+    month: 'short',
+    day: 'numeric',
+  });
+};
+
+const formatDurationLabel = (seconds = 0) => {
+  const safeSeconds = Math.max(0, Number(seconds) || 0);
+  if (safeSeconds < 60) return '<1 min';
+  const minutes = Math.round(safeSeconds / 60);
+  return `${minutes} min`;
+};
+
+const getHistoryIcon = (status = '', hasReport = false) => {
+  if (hasReport) return FileText;
+  if (status === 'completed') return Star;
+  if (status === 'paused') return Clock;
+  if (status === 'in_progress') return Mic;
+  return Briefcase;
+};
+
+const summarizeSession = (session = {}) => {
+  if (session.planPreview) return session.planPreview;
+  if (session.scoreBand) return session.scoreBand;
+  if (session.status === 'completed') return 'Interview completed';
+  if (session.status === 'in_progress') return 'Interview in progress';
+  return 'Interview session';
+};
+
+const isPresentNumber = (value) => value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value));
+
+const resolveDisplayScore = (session = {}) => {
+  if (isPresentNumber(session.displayScore)) return Number(session.displayScore);
+  if (isPresentNumber(session.overallScore)) return Number(session.overallScore);
+  if (isPresentNumber(session.matchScore)) return Number(session.matchScore);
+  return null;
+};
+
+const DEFAULT_SESSION_SETTINGS = {
+  seniorityLevel: 'Junior/Grad',
+  enableNZCultureFit: false,
+  focusArea: 'Combined',
+};
+
+const seniorityOptions = ['Junior/Grad', 'Mid-level', 'Senior'];
+const focusOptions = ['Technical', 'Behavioral', 'Combined'];
+
+const settingsSummary = (settings = DEFAULT_SESSION_SETTINGS) => ({
+  level: settings.seniorityLevel || 'Junior/Grad',
+  focus: settings.focusArea || 'Combined',
+  nzContext: settings.enableNZCultureFit ? 'On' : 'Off',
+});
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -30,6 +83,11 @@ export default function HomePage() {
     loginProvider: '',
   });
   const [isAvatarBroken, setIsAvatarBroken] = useState(false);
+  const [sessionHistory, setSessionHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [showSessionSettings, setShowSessionSettings] = useState(false);
+  const [sessionDefaults, setSessionDefaults] = useState(DEFAULT_SESSION_SETTINGS);
+  const [settingsSaved, setSettingsSaved] = useState('');
 
   useEffect(() => {
     const savedSession = getStoredAuthSession();
@@ -46,7 +104,49 @@ export default function HomePage() {
       loginProvider: savedSession.loginProvider || '',
     });
     setIsAvatarBroken(false);
+
+    try {
+      const rawDefaults = window.localStorage.getItem(HOME_SESSION_DEFAULTS_KEY);
+      if (rawDefaults) {
+        const parsedDefaults = JSON.parse(rawDefaults);
+        setSessionDefaults({
+          seniorityLevel: parsedDefaults.seniorityLevel || DEFAULT_SESSION_SETTINGS.seniorityLevel,
+          enableNZCultureFit: Boolean(parsedDefaults.enableNZCultureFit),
+          focusArea: parsedDefaults.focusArea || DEFAULT_SESSION_SETTINGS.focusArea,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load homepage session defaults', error);
+    }
+
+    const loadHistory = async () => {
+      try {
+        setHistoryLoading(true);
+        const data = await getSessionHistory(20);
+        setSessionHistory(data.sessions || []);
+      } catch (error) {
+        console.error('Failed to load session history', error);
+        setSessionHistory([]);
+      } finally {
+        setHistoryLoading(false);
+      }
+    };
+
+    loadHistory();
   }, [navigate]);
+
+  const handleSaveSessionDefaults = () => {
+    window.localStorage.setItem(HOME_SESSION_DEFAULTS_KEY, JSON.stringify(sessionDefaults));
+    setSettingsSaved('Defaults saved');
+    window.setTimeout(() => setSettingsSaved(''), 1800);
+  };
+
+  const handleResetSessionDefaults = () => {
+    setSessionDefaults(DEFAULT_SESSION_SETTINGS);
+    window.localStorage.setItem(HOME_SESSION_DEFAULTS_KEY, JSON.stringify(DEFAULT_SESSION_SETTINGS));
+    setSettingsSaved('Defaults reset');
+    window.setTimeout(() => setSettingsSaved(''), 1800);
+  };
 
   const handleSignOut = async () => {
     try {
@@ -65,6 +165,25 @@ export default function HomePage() {
     .join('')
     .slice(0, 2)
     .toUpperCase();
+
+  const completedSessions = sessionHistory.filter((item) => item.status === 'completed');
+  const scoredSessions = sessionHistory
+    .map((item) => resolveDisplayScore(item))
+    .filter((value) => Number.isFinite(Number(value)));
+  const averageScore = scoredSessions.length
+    ? Math.round(scoredSessions.reduce((sum, value) => sum + Number(value || 0), 0) / scoredSessions.length)
+    : '-';
+  const latestRole = sessionHistory[0]?.displayTitle || sessionHistory[0]?.targetRole || 'No sessions yet';
+  const recentActivity = sessionHistory.slice(0, 3).map((item) => ({
+    id: item.id,
+    title: item.displayTitle || item.targetRole || 'Interview Session',
+    date: formatShortDate(item.createdAt),
+    duration: formatDurationLabel(item.durationSeconds),
+    avgScore: Number.isFinite(Number(resolveDisplayScore(item))) ? Math.round(Number(resolveDisplayScore(item))) : '-',
+    status: item.status === 'completed' ? 'Completed' : item.status === 'in_progress' ? 'In Progress' : item.status === 'paused' ? 'Paused' : 'Draft',
+    icon: getHistoryIcon(item.status, item.hasReport),
+  }));
+  const summary = settingsSummary(sessionDefaults);
 
   return (
     <div className="min-h-screen bg-[#f8fafc] font-sans text-gray-900 pb-12">
@@ -128,9 +247,21 @@ export default function HomePage() {
                 Fast, NZ-focused interview practice for pronunciation, timing and clarity. 
                 Securely recorded to your Google account with NZ privacy compliance.
               </p>
+              <div className="mb-5">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">Session settings</p>
+                <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                  <span className="rounded-full bg-gray-100 px-3 py-1 font-semibold text-gray-700">Level: {summary.level}</span>
+                  <span className="rounded-full bg-gray-100 px-3 py-1 font-semibold text-gray-700">Focus: {summary.focus}</span>
+                  <span className="rounded-full bg-gray-100 px-3 py-1 font-semibold text-gray-700">NZ Context: {summary.nzContext}</span>
+                </div>
+                <p className="mt-2 text-xs text-gray-500">Adjust level, focus, and NZ interview context before starting.</p>
+              </div>
               <div className="flex items-center gap-4">
-                <button className="border border-gray-300 rounded-full px-6 py-3 text-sm font-semibold hover:bg-gray-50 transition">
-                  Customize
+                <button
+                  className="border border-gray-300 rounded-full px-6 py-3 text-sm font-semibold hover:bg-gray-50 transition"
+                  onClick={() => setShowSessionSettings((value) => !value)}
+                >
+                  Session Settings
                 </button>
                 <button
                   className="bg-[#20B2AA] text-white rounded-full px-6 py-3 text-sm font-semibold shadow-md hover:bg-[#1c9c95] transition"
@@ -140,6 +271,86 @@ export default function HomePage() {
                 </button>
                 <span className="text-xs text-gray-400 ml-2">Estimated time: <strong className="text-gray-600">10–20 min</strong></span>
               </div>
+              {showSessionSettings ? (
+                <div className="mt-4 rounded-2xl border border-gray-200 bg-gray-50 p-4 max-w-lg">
+                  <div className="grid gap-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Level</span>
+                      <select
+                        className="rounded-full border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700"
+                        value={sessionDefaults.seniorityLevel}
+                        onChange={(event) => setSessionDefaults((prev) => ({ ...prev, seniorityLevel: event.target.value }))}
+                      >
+                        {seniorityOptions.map((option) => (
+                          <option key={option} value={option}>{option}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Focus</span>
+                      <div className="flex items-center gap-1 rounded-full border border-gray-300 bg-white p-1">
+                        {focusOptions.map((option) => (
+                          <button
+                            key={option}
+                            type="button"
+                            onClick={() => setSessionDefaults((prev) => ({ ...prev, focusArea: option }))}
+                            className={`rounded-full px-3 py-1 text-[11px] font-semibold transition ${
+                              sessionDefaults.focusArea === option
+                                ? 'bg-[#20B2AA] text-white'
+                                : 'text-gray-600 hover:bg-gray-100'
+                            }`}
+                          >
+                            {option}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">NZ Context</span>
+                      <button
+                        type="button"
+                        onClick={() => setSessionDefaults((prev) => ({ ...prev, enableNZCultureFit: !prev.enableNZCultureFit }))}
+                        className={`inline-flex items-center gap-2 rounded-full border px-2 py-1 text-[11px] font-semibold transition ${
+                          sessionDefaults.enableNZCultureFit
+                            ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
+                            : 'border-gray-300 bg-white text-gray-600'
+                        }`}
+                        aria-pressed={sessionDefaults.enableNZCultureFit}
+                        aria-label="Toggle NZ context"
+                      >
+                        <span className={`relative inline-flex h-4 w-7 items-center rounded-full transition ${
+                          sessionDefaults.enableNZCultureFit ? 'bg-emerald-500' : 'bg-gray-300'
+                        }`}>
+                          <span className={`h-3 w-3 rounded-full bg-white shadow transition ${
+                            sessionDefaults.enableNZCultureFit ? 'translate-x-3.5' : 'translate-x-0.5'
+                          }`} />
+                        </span>
+                        {sessionDefaults.enableNZCultureFit ? 'On' : 'Off'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex items-center gap-2">
+                    <button
+                      type="button"
+                      className="rounded-full bg-[#20B2AA] px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-[#1c9c95]"
+                      onClick={handleSaveSessionDefaults}
+                    >
+                      Save Defaults
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded-full border border-gray-300 px-3 py-1.5 text-[11px] font-semibold text-gray-700 transition hover:bg-gray-100"
+                      onClick={handleResetSessionDefaults}
+                    >
+                      Reset
+                    </button>
+                    {settingsSaved ? <span className="text-[11px] font-semibold text-emerald-600">{settingsSaved}</span> : null}
+                  </div>
+                </div>
+              ) : null}
             </div>
             
             {/* 卡片右侧的小组件和插画占位 */}
@@ -161,16 +372,16 @@ export default function HomePage() {
 
           {/* 2. Stats Row */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <StatCard icon={<Clock size={20}/>} title="Total Sessions" value="124" />
-            <StatCard icon={<Star size={20}/>} title="Avg. Score" value="78" iconBg="bg-[#20B2AA] text-white" />
-            <StatCard icon={<Briefcase size={20}/>} title="Target Role" value="Software Engineer – Backend" />
+            <StatCard icon={<Clock size={20}/>} title="Total Sessions" value={historyLoading ? '...' : String(sessionHistory.length)} />
+            <StatCard icon={<Star size={20}/>} title="Avg. Score" value={historyLoading ? '...' : String(averageScore)} iconBg="bg-[#20B2AA] text-white" />
+            <StatCard icon={<Briefcase size={20}/>} title="Latest Role" value={historyLoading ? '...' : latestRole} />
           </div>
 
           {/* 3. Session History */}
           <div className="bg-white rounded-3xl p-8 shadow-[0_2px_10px_rgb(0,0,0,0.02)] border border-gray-100">
             <div className="flex justify-between items-end mb-6">
               <h2 className="text-xl font-bold">Session History</h2>
-              <span className="text-sm text-gray-400">Manage and review past sessions</span>
+              <span className="text-sm text-gray-400">Your recent interview sessions</span>
             </div>
             
             {/* Table Header */}
@@ -183,33 +394,59 @@ export default function HomePage() {
 
             {/* Table Body */}
             <div className="flex flex-col gap-2">
-              {sessionHistory.map((item) => (
-                <div key={item.id} className="grid grid-cols-12 items-center py-3 border-b border-gray-50 last:border-0 hover:bg-gray-50 transition rounded-xl px-2 -mx-2">
-                  <div className="col-span-2 text-sm font-medium">{item.date}</div>
-                  <div className="col-span-6 flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">
-                      <item.icon size={18} />
+              {historyLoading ? (
+                <div className="py-10 text-sm text-gray-400">Loading session history...</div>
+              ) : sessionHistory.length === 0 ? (
+                <div className="py-10 text-sm text-gray-400">No interview sessions yet. Start a new session to build your history.</div>
+              ) : (
+                sessionHistory.map((item) => {
+                  const ItemIcon = getHistoryIcon(item.status, item.hasReport);
+                  const displayStatus = item.status === 'completed'
+                    ? 'Completed'
+                    : item.status === 'in_progress'
+                      ? 'In Progress'
+                      : item.status === 'paused'
+                        ? 'Paused'
+                        : 'Draft';
+
+                  return (
+                    <div key={item.id} className="grid grid-cols-12 items-center py-3 border-b border-gray-50 last:border-0 hover:bg-gray-50 transition rounded-xl px-2 -mx-2">
+                      <div className="col-span-2 text-sm font-medium">{formatFullDate(item.createdAt)}</div>
+                      <div className="col-span-6 flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">
+                          <ItemIcon size={18} />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-sm font-bold text-gray-900 truncate">{item.displayTitle || item.targetRole || 'Interview Session'}</div>
+                          <div className="text-xs text-gray-400 truncate">{summarizeSession(item)}</div>
+                        </div>
+                      </div>
+                      <div className="col-span-2 text-center font-bold text-sm">
+                        {Number.isFinite(Number(resolveDisplayScore(item))) ? Math.round(Number(resolveDisplayScore(item))) : '-'}
+                      </div>
+                      <div className="col-span-2 flex items-center justify-end gap-3">
+                        <span className={`text-xs font-semibold px-2 py-1 rounded-md ${
+                          displayStatus === 'Completed'
+                            ? 'bg-emerald-50 text-emerald-600'
+                            : displayStatus === 'In Progress'
+                              ? 'bg-sky-50 text-sky-600'
+                              : displayStatus === 'Paused'
+                                ? 'bg-amber-50 text-amber-700'
+                                : 'bg-orange-50 text-orange-600'
+                        }`}>
+                          {displayStatus}
+                        </span>
+                        <button
+                          className="border border-emerald-200 text-emerald-600 rounded-full px-4 py-1 text-xs font-semibold hover:bg-emerald-50 transition whitespace-nowrap"
+                          onClick={() => navigate(item.hasReport && displayStatus === 'Completed' ? `/report/${item.id}` : `/interview/${item.id}`)}
+                        >
+                          {item.hasReport && displayStatus === 'Completed' ? 'View Report' : 'Open Session'}
+                        </button>
+                      </div>
                     </div>
-                    <div>
-                      <div className="text-sm font-bold text-gray-900">{item.title}</div>
-                      <div className="text-xs text-gray-400">{item.sub}</div>
-                    </div>
-                  </div>
-                  <div className="col-span-2 text-center font-bold text-sm">
-                    {item.score ? item.score : '-'}
-                  </div>
-                  <div className="col-span-2 flex items-center justify-end gap-3">
-                    <span className={`text-xs font-semibold px-2 py-1 rounded-md ${
-                      item.status === 'Completed' ? 'bg-emerald-50 text-emerald-600' : 'bg-orange-50 text-orange-600'
-                    }`}>
-                      {item.status}
-                    </span>
-                    <button className="border border-emerald-200 text-emerald-600 rounded-full px-4 py-1 text-xs font-semibold hover:bg-emerald-50 transition whitespace-nowrap">
-                      View Report
-                    </button>
-                  </div>
-                </div>
-              ))}
+                  );
+                })
+              )}
             </div>
           </div>
         </div>
@@ -222,27 +459,41 @@ export default function HomePage() {
             <div className="flex justify-between items-start mb-6">
               <div>
                 <h3 className="text-lg font-bold">Recent Activity</h3>
-                <p className="text-xs text-gray-400">Quick snapshot of last week</p>
+                <p className="text-xs text-gray-400">Latest updates from your sessions</p>
               </div>
-              <span className="text-xs text-gray-400">Updated: 2 days ago</span>
+              <span className="text-xs text-gray-400">{historyLoading ? 'Syncing...' : `${completedSessions.length} completed`}</span>
             </div>
             <div className="flex flex-col gap-4">
-              {recentActivity.map(activity => (
-                <div key={activity.id} className="flex justify-between items-center">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">
-                      <activity.icon size={18} />
+              {historyLoading ? (
+                <div className="text-sm text-gray-400">Loading recent activity...</div>
+              ) : recentActivity.length === 0 ? (
+                <div className="text-sm text-gray-400">No recent activity yet. Your completed and draft sessions will appear here.</div>
+              ) : (
+                recentActivity.map(activity => (
+                  <div key={activity.id} className="flex justify-between items-center">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 shrink-0">
+                        <activity.icon size={18} />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-sm font-bold truncate">{activity.title} • {activity.date}</div>
+                        <div className="text-xs text-gray-400 truncate">{activity.duration} – Avg score {activity.avgScore}</div>
+                      </div>
                     </div>
-                    <div>
-                      <div className="text-sm font-bold">{activity.title} • {activity.date}</div>
-                      <div className="text-xs text-gray-400">{activity.duration} – Avg score {activity.avgScore}</div>
-                    </div>
+                    <span className={`text-xs font-medium shrink-0 ${
+                      activity.status === 'Completed'
+                        ? 'text-emerald-500'
+                        : activity.status === 'In Progress'
+                          ? 'text-sky-500'
+                          : activity.status === 'Paused'
+                            ? 'text-amber-600'
+                            : 'text-orange-500'
+                    }`}>
+                      {activity.status}
+                    </span>
                   </div>
-                  <span className={`text-xs font-medium ${activity.status === 'Completed' ? 'text-emerald-500' : 'text-orange-500'}`}>
-                    {activity.status}
-                  </span>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
 
@@ -266,7 +517,7 @@ export default function HomePage() {
             </div>
           </div>
 
-          <PrivacySecurityCard />
+          <PrivacySecurityCard email={user.email} loginProvider={user.loginProvider} />
 
         </div>
       </main>

@@ -12,6 +12,24 @@ import { uploadCV, getRecentCVs, selectCV } from '../api/uploadApi.js';
 import { paraphraseJD, matchCV, generateInterviewPlan } from '../api/analyzeApi.js';
 
 const ANALYZE_DRAFT_KEY = 'kiwi-analyze-draft';
+const HOME_SESSION_DEFAULTS_KEY = 'kiwi-home-session-defaults';
+const DEFAULT_SETTINGS = {
+  seniorityLevel: 'Junior/Grad',
+  enableNZCultureFit: false,
+  focusArea: 'Combined',
+};
+const ALLOWED_SENIORITY = new Set(['Junior/Grad', 'Mid-level', 'Senior']);
+const ALLOWED_FOCUS = new Set(['Technical', 'Behavioral', 'Combined']);
+
+const sanitizeSettings = (input) => ({
+  seniorityLevel: ALLOWED_SENIORITY.has(input?.seniorityLevel)
+    ? input.seniorityLevel
+    : DEFAULT_SETTINGS.seniorityLevel,
+  enableNZCultureFit: Boolean(input?.enableNZCultureFit),
+  focusArea: ALLOWED_FOCUS.has(input?.focusArea)
+    ? input.focusArea
+    : DEFAULT_SETTINGS.focusArea,
+});
 
 export function AnalyzePage() {
   const navigate = useNavigate();
@@ -24,9 +42,9 @@ export function AnalyzePage() {
   const [summarizedRawJD, setSummarizedRawJD] = useState('');
   
   const [settings, setSettings] = useState({
-    seniorityLevel: 'Junior/Grad',
-    enableNZCultureFit: false,
-    focusArea: 'Combined'
+    seniorityLevel: DEFAULT_SETTINGS.seniorityLevel,
+    enableNZCultureFit: DEFAULT_SETTINGS.enableNZCultureFit,
+    focusArea: DEFAULT_SETTINGS.focusArea
   });
   
   const [analysisStatus, setAnalysisStatus] = useState('idle'); // idle, summarizing, matching, success, error
@@ -66,6 +84,16 @@ export function AnalyzePage() {
   }
 
   useEffect(() => {
+    let homeDefaults = DEFAULT_SETTINGS;
+    try {
+      const rawHomeDefaults = window.localStorage.getItem(HOME_SESSION_DEFAULTS_KEY);
+      if (rawHomeDefaults) {
+        homeDefaults = sanitizeSettings(JSON.parse(rawHomeDefaults));
+      }
+    } catch (error) {
+      console.error('Failed to restore homepage session defaults', error);
+    }
+
     const savedDraft = window.localStorage.getItem(ANALYZE_DRAFT_KEY);
     if (savedDraft) {
       try {
@@ -75,14 +103,13 @@ export function AnalyzePage() {
         setStructuredJD(parsed.structuredJD || '');
         setStructuredJDRubric(parsed.structuredJDRubric || null);
         setSummarizedRawJD(parsed.summarizedRawJD || '');
-        setSettings(parsed.settings || {
-          seniorityLevel: 'Junior/Grad',
-          enableNZCultureFit: false,
-          focusArea: 'Combined'
-        });
+        setSettings(parsed.settings ? sanitizeSettings(parsed.settings) : homeDefaults);
       } catch (error) {
         console.error('Failed to restore analyze draft', error);
+        setSettings(homeDefaults);
       }
+    } else {
+      setSettings(homeDefaults);
     }
 
     // Fetch recent CVs on mount
