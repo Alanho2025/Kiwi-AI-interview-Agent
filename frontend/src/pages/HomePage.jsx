@@ -8,6 +8,8 @@ import { logoutFromSession } from '../api/authApi.js';
 import { getSessionHistory } from '../api/sessionApi.js';
 import { clearStoredAuthSession, getStoredAuthSession } from '../utils/authSession.js';
 
+const HOME_SESSION_DEFAULTS_KEY = 'kiwi-home-session-defaults';
+
 const formatFullDate = (value) => {
   if (!value) return '-';
   return new Date(value).toLocaleDateString('en-NZ', {
@@ -57,6 +59,21 @@ const resolveDisplayScore = (session = {}) => {
   return null;
 };
 
+const DEFAULT_SESSION_SETTINGS = {
+  seniorityLevel: 'Junior/Grad',
+  enableNZCultureFit: false,
+  focusArea: 'Combined',
+};
+
+const seniorityOptions = ['Junior/Grad', 'Mid-level', 'Senior'];
+const focusOptions = ['Technical', 'Behavioral', 'Combined'];
+
+const settingsSummary = (settings = DEFAULT_SESSION_SETTINGS) => ({
+  level: settings.seniorityLevel || 'Junior/Grad',
+  focus: settings.focusArea || 'Combined',
+  nzContext: settings.enableNZCultureFit ? 'On' : 'Off',
+});
+
 export default function HomePage() {
   const navigate = useNavigate();
   const [user, setUser] = useState({
@@ -68,6 +85,9 @@ export default function HomePage() {
   const [isAvatarBroken, setIsAvatarBroken] = useState(false);
   const [sessionHistory, setSessionHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(true);
+  const [showSessionSettings, setShowSessionSettings] = useState(false);
+  const [sessionDefaults, setSessionDefaults] = useState(DEFAULT_SESSION_SETTINGS);
+  const [settingsSaved, setSettingsSaved] = useState('');
 
   useEffect(() => {
     const savedSession = getStoredAuthSession();
@@ -85,6 +105,20 @@ export default function HomePage() {
     });
     setIsAvatarBroken(false);
 
+    try {
+      const rawDefaults = window.localStorage.getItem(HOME_SESSION_DEFAULTS_KEY);
+      if (rawDefaults) {
+        const parsedDefaults = JSON.parse(rawDefaults);
+        setSessionDefaults({
+          seniorityLevel: parsedDefaults.seniorityLevel || DEFAULT_SESSION_SETTINGS.seniorityLevel,
+          enableNZCultureFit: Boolean(parsedDefaults.enableNZCultureFit),
+          focusArea: parsedDefaults.focusArea || DEFAULT_SESSION_SETTINGS.focusArea,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load homepage session defaults', error);
+    }
+
     const loadHistory = async () => {
       try {
         setHistoryLoading(true);
@@ -100,6 +134,19 @@ export default function HomePage() {
 
     loadHistory();
   }, [navigate]);
+
+  const handleSaveSessionDefaults = () => {
+    window.localStorage.setItem(HOME_SESSION_DEFAULTS_KEY, JSON.stringify(sessionDefaults));
+    setSettingsSaved('Defaults saved');
+    window.setTimeout(() => setSettingsSaved(''), 1800);
+  };
+
+  const handleResetSessionDefaults = () => {
+    setSessionDefaults(DEFAULT_SESSION_SETTINGS);
+    window.localStorage.setItem(HOME_SESSION_DEFAULTS_KEY, JSON.stringify(DEFAULT_SESSION_SETTINGS));
+    setSettingsSaved('Defaults reset');
+    window.setTimeout(() => setSettingsSaved(''), 1800);
+  };
 
   const handleSignOut = async () => {
     try {
@@ -136,6 +183,7 @@ export default function HomePage() {
     status: item.status === 'completed' ? 'Completed' : item.status === 'in_progress' ? 'In Progress' : item.status === 'paused' ? 'Paused' : 'Draft',
     icon: getHistoryIcon(item.status, item.hasReport),
   }));
+  const summary = settingsSummary(sessionDefaults);
 
   return (
     <div className="min-h-screen bg-[#f8fafc] font-sans text-gray-900 pb-12">
@@ -199,9 +247,21 @@ export default function HomePage() {
                 Fast, NZ-focused interview practice for pronunciation, timing and clarity. 
                 Securely recorded to your Google account with NZ privacy compliance.
               </p>
+              <div className="mb-5">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">Session settings</p>
+                <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                  <span className="rounded-full bg-gray-100 px-3 py-1 font-semibold text-gray-700">Level: {summary.level}</span>
+                  <span className="rounded-full bg-gray-100 px-3 py-1 font-semibold text-gray-700">Focus: {summary.focus}</span>
+                  <span className="rounded-full bg-gray-100 px-3 py-1 font-semibold text-gray-700">NZ Context: {summary.nzContext}</span>
+                </div>
+                <p className="mt-2 text-xs text-gray-500">Adjust level, focus, and NZ interview context before starting.</p>
+              </div>
               <div className="flex items-center gap-4">
-                <button className="border border-gray-300 rounded-full px-6 py-3 text-sm font-semibold hover:bg-gray-50 transition">
-                  Customize
+                <button
+                  className="border border-gray-300 rounded-full px-6 py-3 text-sm font-semibold hover:bg-gray-50 transition"
+                  onClick={() => setShowSessionSettings((value) => !value)}
+                >
+                  Session Settings
                 </button>
                 <button
                   className="bg-[#20B2AA] text-white rounded-full px-6 py-3 text-sm font-semibold shadow-md hover:bg-[#1c9c95] transition"
@@ -211,6 +271,86 @@ export default function HomePage() {
                 </button>
                 <span className="text-xs text-gray-400 ml-2">Estimated time: <strong className="text-gray-600">10–20 min</strong></span>
               </div>
+              {showSessionSettings ? (
+                <div className="mt-4 rounded-2xl border border-gray-200 bg-gray-50 p-4 max-w-lg">
+                  <div className="grid gap-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Level</span>
+                      <select
+                        className="rounded-full border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700"
+                        value={sessionDefaults.seniorityLevel}
+                        onChange={(event) => setSessionDefaults((prev) => ({ ...prev, seniorityLevel: event.target.value }))}
+                      >
+                        {seniorityOptions.map((option) => (
+                          <option key={option} value={option}>{option}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Focus</span>
+                      <div className="flex items-center gap-1 rounded-full border border-gray-300 bg-white p-1">
+                        {focusOptions.map((option) => (
+                          <button
+                            key={option}
+                            type="button"
+                            onClick={() => setSessionDefaults((prev) => ({ ...prev, focusArea: option }))}
+                            className={`rounded-full px-3 py-1 text-[11px] font-semibold transition ${
+                              sessionDefaults.focusArea === option
+                                ? 'bg-[#20B2AA] text-white'
+                                : 'text-gray-600 hover:bg-gray-100'
+                            }`}
+                          >
+                            {option}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">NZ Context</span>
+                      <button
+                        type="button"
+                        onClick={() => setSessionDefaults((prev) => ({ ...prev, enableNZCultureFit: !prev.enableNZCultureFit }))}
+                        className={`inline-flex items-center gap-2 rounded-full border px-2 py-1 text-[11px] font-semibold transition ${
+                          sessionDefaults.enableNZCultureFit
+                            ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
+                            : 'border-gray-300 bg-white text-gray-600'
+                        }`}
+                        aria-pressed={sessionDefaults.enableNZCultureFit}
+                        aria-label="Toggle NZ context"
+                      >
+                        <span className={`relative inline-flex h-4 w-7 items-center rounded-full transition ${
+                          sessionDefaults.enableNZCultureFit ? 'bg-emerald-500' : 'bg-gray-300'
+                        }`}>
+                          <span className={`h-3 w-3 rounded-full bg-white shadow transition ${
+                            sessionDefaults.enableNZCultureFit ? 'translate-x-3.5' : 'translate-x-0.5'
+                          }`} />
+                        </span>
+                        {sessionDefaults.enableNZCultureFit ? 'On' : 'Off'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex items-center gap-2">
+                    <button
+                      type="button"
+                      className="rounded-full bg-[#20B2AA] px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-[#1c9c95]"
+                      onClick={handleSaveSessionDefaults}
+                    >
+                      Save Defaults
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded-full border border-gray-300 px-3 py-1.5 text-[11px] font-semibold text-gray-700 transition hover:bg-gray-100"
+                      onClick={handleResetSessionDefaults}
+                    >
+                      Reset
+                    </button>
+                    {settingsSaved ? <span className="text-[11px] font-semibold text-emerald-600">{settingsSaved}</span> : null}
+                  </div>
+                </div>
+              ) : null}
             </div>
             
             {/* 卡片右侧的小组件和插画占位 */}
@@ -377,7 +517,7 @@ export default function HomePage() {
             </div>
           </div>
 
-          <PrivacySecurityCard />
+          <PrivacySecurityCard email={user.email} loginProvider={user.loginProvider} />
 
         </div>
       </main>
