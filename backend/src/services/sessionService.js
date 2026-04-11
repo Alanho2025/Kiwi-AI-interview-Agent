@@ -12,6 +12,7 @@
 export {
   createSession,
   getSessionById,
+  getOwnedSessionById,
   listSessionsByUserId,
   updateSession,
   softDeleteOwnedSession,

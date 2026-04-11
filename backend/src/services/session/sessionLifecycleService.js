@@ -14,7 +14,7 @@ import { query } from '../../db/postgres.js';
 import { SessionAnalysis } from '../../db/models/sessionAnalysisModel.js';
 import { InterviewPlan } from '../../db/models/interviewPlanModel.js';
 import { SessionReport } from '../../db/models/sessionReportModel.js';
-import { clampVarchar, fetchSessionRowById } from './sessionShared.js';
+import { clampVarchar, fetchSessionRowById, fetchOwnedSessionRowById } from './sessionShared.js';
 import {
   fetchSessionDependencies,
   initializeTranscript,
@@ -88,6 +88,22 @@ export const createSession = async ({
  */
 export const getSessionById = async (id) => {
   const row = await fetchSessionRowById(id);
+  if (!row) {
+    return null;
+  }
+
+  const dependencies = await fetchSessionDependencies({ id, cvFileId: row.cv_file_id });
+  return buildSessionDetails({ row, ...dependencies });
+};
+
+/**
+ * Purpose: Execute the main responsibility for getOwnedSessionById.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
+export const getOwnedSessionById = async (id, userId) => {
+  const row = await fetchOwnedSessionRowById(id, userId);
   if (!row) {
     return null;
   }

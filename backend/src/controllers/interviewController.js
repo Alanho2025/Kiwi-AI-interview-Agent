@@ -20,7 +20,7 @@ import { createInterviewLifecycleAuditLog } from '../services/interview/intervie
 import {
   completeInterviewSession,
   ensureInterviewInProgress,
-  loadSessionOrThrow,
+  loadOwnedSessionOrThrow,
   normalizeInterviewAnswer,
   pauseInterviewSession,
   requireSessionId,
@@ -28,6 +28,7 @@ import {
   saveInterviewAnswer,
 } from '../services/interview/interviewSessionService.js';
 import { getOpeningQuestionText, hasAskedOpeningQuestion } from '../services/interviewStateService.js';
+import { resolveUserFromRequest } from '../services/authService.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { logger, getRequestLogMeta } from '../utils/logger.js';
 
@@ -51,8 +52,9 @@ const tryGenerateReportForCompletedSession = async (req, sessionId) => {
 export const startInterview = asyncHandler(async (req, res) => {
   const { sessionId } = req.body;
   requireSessionId(sessionId);
+  const user = await resolveUserFromRequest(req);
 
-  const session = await loadSessionOrThrow(sessionId);
+  const session = await loadOwnedSessionOrThrow({ sessionId, userId: user.id });
   const openingQuestion = getOpeningQuestionText(session);
   const nextState = {
     status: 'in_progress',
@@ -87,8 +89,9 @@ export const startInterview = asyncHandler(async (req, res) => {
 export const replyInterview = asyncHandler(async (req, res) => {
   const { sessionId, answer } = req.body;
   requireSessionId(sessionId);
+  const user = await resolveUserFromRequest(req);
 
-  const session = await loadSessionOrThrow(sessionId);
+  const session = await loadOwnedSessionOrThrow({ sessionId, userId: user.id });
   ensureInterviewInProgress(session);
 
   const normalizedAnswer = normalizeInterviewAnswer(answer);
@@ -135,8 +138,9 @@ export const replyInterview = asyncHandler(async (req, res) => {
 export const repeatQuestion = asyncHandler(async (req, res) => {
   const { sessionId } = req.body;
   requireSessionId(sessionId);
+  const user = await resolveUserFromRequest(req);
 
-  const session = await loadSessionOrThrow(sessionId);
+  const session = await loadOwnedSessionOrThrow({ sessionId, userId: user.id });
   const lastAiMessage = session.transcript.filter((message) => message.role === 'ai').pop();
   res.json(formatSuccess('Question repeated', { question: lastAiMessage?.text }));
 });
@@ -144,8 +148,9 @@ export const repeatQuestion = asyncHandler(async (req, res) => {
 export const pauseInterview = asyncHandler(async (req, res) => {
   const { sessionId } = req.body;
   requireSessionId(sessionId);
+  const user = await resolveUserFromRequest(req);
 
-  const session = await loadSessionOrThrow(sessionId);
+  const session = await loadOwnedSessionOrThrow({ sessionId, userId: user.id });
   const updatedSession = await pauseInterviewSession(session);
   logger.info('Interview paused', getRequestLogMeta(req));
   res.json(formatSuccess('Interview paused', { session: updatedSession }));
@@ -154,8 +159,9 @@ export const pauseInterview = asyncHandler(async (req, res) => {
 export const resumeInterview = asyncHandler(async (req, res) => {
   const { sessionId } = req.body;
   requireSessionId(sessionId);
+  const user = await resolveUserFromRequest(req);
 
-  const session = await loadSessionOrThrow(sessionId);
+  const session = await loadOwnedSessionOrThrow({ sessionId, userId: user.id });
   const updatedSession = await resumeInterviewSession(session);
   logger.info('Interview resumed', getRequestLogMeta(req));
   res.json(formatSuccess('Interview resumed', { session: updatedSession }));
@@ -164,8 +170,9 @@ export const resumeInterview = asyncHandler(async (req, res) => {
 export const endInterview = asyncHandler(async (req, res) => {
   const { sessionId } = req.body;
   requireSessionId(sessionId);
+  const user = await resolveUserFromRequest(req);
 
-  const session = await loadSessionOrThrow(sessionId);
+  const session = await loadOwnedSessionOrThrow({ sessionId, userId: user.id });
   const updatedSession = await completeInterviewSession(session);
   await createInterviewLifecycleAuditLog({ req, session: updatedSession, actionType: 'end_interview' });
   const generatedReport = await tryGenerateReportForCompletedSession(req, sessionId);

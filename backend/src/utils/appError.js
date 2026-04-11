@@ -54,6 +54,19 @@ export const unauthorized = (message = 'Unauthorized', details = message, meta =
 });
 
 /**
+ * Purpose: Execute the main responsibility for forbidden.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
+export const forbidden = (message = 'Forbidden', details = message, meta = {}) => new AppError(message, {
+  statusCode: 403,
+  code: 'FORBIDDEN',
+  details,
+  meta,
+});
+
+/**
  * Purpose: Execute the main responsibility for notFound.
  * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
