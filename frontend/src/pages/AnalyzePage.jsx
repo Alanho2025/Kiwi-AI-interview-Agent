@@ -116,7 +116,7 @@ export function AnalyzePage() {
       const uploadedCV = await uploadCV(file);
       resetAnalysisState();
       setSelectedCV(uploadedCV);
-      setPageStatus(buildStatusMessage('success', 'CV uploaded', `${uploadedCV.name} was parsed and is ready for matching.`));
+      setPageStatus(buildStatusMessage('success', 'CV uploaded', `${uploadedCV.name} was parsed into a CV profile and is ready for matching.`));
       await refreshRecentCVs();
       return true;
     } catch (error) {
@@ -177,18 +177,18 @@ export function AnalyzePage() {
         applyStructuredJD(jdResponse, rawJD);
       }
 
-      const matchResponse = await matchCV(selectedCV.text, rawJD, finalStructuredJDRubric, settings);
+      const matchResponse = await matchCV(selectedCV.id, rawJD, finalStructuredJDRubric, settings);
       setAnalysisResult(matchResponse);
       setMatchRate(matchResponse?.matchScore || null);
 
       const planResponse = await generateInterviewPlan({
         cvId: selectedCV.id,
-        cvText: selectedCV.text,
         rawJD,
         jdText: finalStructuredJD,
         jdRubric: finalStructuredJDRubric,
         settings,
         analysisResult: matchResponse,
+        matchAnalysisId: matchResponse.matchAnalysisId || null,
       });
 
       setGeneratedSessionId(planResponse.sessionId);
