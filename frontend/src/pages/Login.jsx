@@ -1,3 +1,14 @@
+/**
+ * File responsibility: Page container.
+ * Main responsibilities:
+ * - Keep presentation, state orchestration, and display helpers separated so React components stay reusable.
+ * - Main file role: Login should orchestrate the screen and compose child sections without burying domain rules in JSX.
+ * - Prefer extending behaviour by adding small helpers or sibling modules instead of growing one large file.
+ * Maintenance notes:
+ * - Keep this file focused on one layer of responsibility.
+ * - Prefer composition and small helpers over repeated inline logic.
+ */
+
 import React, { useEffect, useState } from 'react';
 import { GoogleLogin } from '@react-oauth/google';
 import { useNavigate } from 'react-router-dom';

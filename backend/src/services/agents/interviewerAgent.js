@@ -1,5 +1,22 @@
+/**
+ * File responsibility: Service module.
+ * Main responsibilities:
+ * - Keep HTTP, business logic, persistence, and formatting concerns separated to reduce change impact.
+ * - Main file role: interviewerAgent should encapsulate domain behaviour behind small callable functions with predictable inputs and outputs.
+ * - Prefer extending behaviour by adding small helpers or sibling modules instead of growing one large file.
+ * Maintenance notes:
+ * - Keep this file focused on one layer of responsibility.
+ * - Prefer composition and small helpers over repeated inline logic.
+ */
+
 import { getNextPoolQuestion, hasReachedQuestionLimit } from '../interviewStateService.js';
 
+/**
+ * Purpose: Execute the main responsibility for getLastUserAnswer.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 const getLastUserAnswer = (transcript = []) => [...transcript].reverse().find((turn) => turn.role === 'user')?.text || '';
 const tokenize = (value = '') => String(value || '').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
 
@@ -14,6 +31,12 @@ const buildRoleLockedQuestion = (retrievedItem, fallback = {}) => ({
   sourceId: retrievedItem.sourceId,
 });
 
+/**
+ * Purpose: Execute the main responsibility for pickRetrievedQuestion.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 const pickRetrievedQuestion = (retrievalBundle, selectedQuestion) => {
   if (!retrievalBundle?.items?.length || !selectedQuestion) return null;
   const topicTokens = new Set(tokenize(selectedQuestion.topic || ''));
@@ -32,6 +55,12 @@ const pickRetrievedQuestion = (retrievalBundle, selectedQuestion) => {
     || null;
 };
 
+/**
+ * Purpose: Execute the main responsibility for inferEvidenceTypeHint.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 const inferEvidenceTypeHint = (question = {}) => {
   const stage = String(question.stage || question.type || '').toLowerCase();
   if (stage.includes('technical')) return 'direct_past_experience';
@@ -41,6 +70,12 @@ const inferEvidenceTypeHint = (question = {}) => {
   return 'adjacent_experience';
 };
 
+/**
+ * Purpose: Execute the main responsibility for runInterviewerAgent.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const runInterviewerAgent = async ({ session, retrievalBundle = null } = {}) => {
   const transcript = session?.transcript || [];
   const lastUserAnswer = getLastUserAnswer(transcript).toLowerCase();
