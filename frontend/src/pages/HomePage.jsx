@@ -117,7 +117,7 @@ export default function HomePage() {
   };
 
   const handleStartInterview = () => {
-    navigate('/analyze');
+    navigate('/analysis');
   };
 
   const stats = buildHomepageStats(sessionHistory, historyLoading);

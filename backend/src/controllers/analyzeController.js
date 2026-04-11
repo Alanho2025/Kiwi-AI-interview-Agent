@@ -10,7 +10,9 @@
  */
 
 import { formatSuccess } from '../utils/responseFormatter.js';
-import { compareCvToJobDescription } from '../services/matchService.js';
+import { runCvJdMatchAnalysis } from '../services/cv/cvAnalysisService.js';
+import { createMatchAnalysisRecord } from '../services/cv/matchAnalysisRecordService.js';
+import { getOwnedCvDocumentOrThrow, getOwnedMatchAnalysisOrThrow } from '../services/cv/cvOwnershipService.js';
 import { createSession } from '../services/sessionService.js';
 import * as authService from '../services/authService.js';
 import { createAuditLog } from '../services/auditService.js';
@@ -19,22 +21,26 @@ import { badRequest } from '../utils/appError.js';
 import { logger, getRequestLogMeta } from '../utils/logger.js';
 
 export const matchCV = asyncHandler(async (req, res) => {
-  const { cvText, rawJD, jdRubric, settings } = req.body;
-  if (!cvText || (!rawJD && !jdRubric)) {
-    throw badRequest('Missing text', 'CV text and JD input are required');
+  const { cvId, rawJD, jdRubric, settings } = req.body;
+  const user = await authService.resolveUserFromRequest(req);
+
+  if (!cvId || (!rawJD && !jdRubric)) {
+    throw badRequest('Missing input', 'A selected CV and JD input are required');
   }
 
-  const matchData = await compareCvToJobDescription(cvText, rawJD, jdRubric, settings);
+  const matchData = await runCvJdMatchAnalysis({ cvId, userId: user.id, rawJD, jdRubric, settings });
+  const cvDocument = await getOwnedCvDocumentOrThrow({ cvId, userId: user.id });
+  const persisted = await createMatchAnalysisRecord({ userId: user.id, cvFileId: cvId, jdStructuredText: rawJD || '', jdRubric, matchData, cvDocument });
   logger.info('CV and JD match completed', getRequestLogMeta(req, {
     strengthsCount: matchData?.strengths?.length || 0,
     gapsCount: matchData?.gaps?.length || 0,
   }));
 
-  res.json(formatSuccess('Match analysis completed', matchData));
+  res.json(formatSuccess('Match analysis completed', { ...matchData, matchAnalysisId: persisted.matchAnalysisId, evidenceRefs: persisted.evidenceRefs }));
 });
 
 export const generateInterviewPlan = asyncHandler(async (req, res) => {
-  const { cvId, cvText, rawJD, jdText, jdRubric, settings, analysisResult } = req.body;
+  const { cvId, rawJD, jdText, jdRubric, settings, analysisResult, matchAnalysisId } = req.body;
   const user = await authService.resolveUserFromRequest(req);
 
   let extractedRole = '';
@@ -49,19 +55,25 @@ export const generateInterviewPlan = asyncHandler(async (req, res) => {
     extractedRole = analysisResult.jobTitle;
   }
 
+  const persistedAnalysis = matchAnalysisId
+    ? await getOwnedMatchAnalysisOrThrow({ matchAnalysisId, userId: user.id })
+    : null;
+
+  const resolvedAnalysis = persistedAnalysis?.matchAnalysis || analysisResult || {};
   const session = await createSession({
     userId: user.id,
     cvFileId: cvId || null,
-    cvText,
     rawJD: rawJD || '',
     jdText,
     jdRubric: jdRubric || null,
     settings,
-    analysisResult,
+    analysisResult: resolvedAnalysis,
+    matchAnalysisId: matchAnalysisId || null,
+    evidenceRefs: persistedAnalysis?.evidenceRefs || resolvedAnalysis?.evidenceRefs || [],
     targetRole: extractedRole || (jdText ? 'Target Role' : 'General Interview'),
     totalQuestions: 8,
     currentQuestionIndex: 1,
-    candidateName: analysisResult?.candidateName || 'Candidate',
+    candidateName: resolvedAnalysis?.candidateName || 'Candidate',
   });
 
   await createAuditLog({
@@ -71,7 +83,7 @@ export const generateInterviewPlan = asyncHandler(async (req, res) => {
     actionType: 'create_interview_session',
     resourceType: 'interview_session',
     resourceId: session.id,
-    metadata: { cvId: cvId || null, targetRole: session.targetRole },
+    metadata: { cvId: cvId || null, targetRole: session.targetRole, matchAnalysisId: matchAnalysisId || null },
     ipAddress: req.ip,
     userAgent: req.get('user-agent'),
   });

@@ -13,48 +13,35 @@ import crypto from 'crypto';
 import { query } from '../db/postgres.js';
 import { DocumentContent } from '../db/models/documentContentModel.js';
 
-/**
- * Purpose: Execute the main responsibility for formatFileSize.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
 const formatFileSize = (fileSizeBytes) => {
   const sizeKB = fileSizeBytes / 1024;
   return sizeKB > 1024 ? `${(sizeKB / 1024).toFixed(1)}MB` : `${sizeKB.toFixed(1)}KB`;
 };
 
-/**
- * Purpose: Execute the main responsibility for formatDisplayDate.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
 const formatDisplayDate = (isoDate) =>
   new Date(isoDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
-/**
- * Purpose: Execute the main responsibility for buildCvResponse.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
-const buildCvResponse = (row, document) => ({
+const buildCvListItem = (row, document) => ({
   id: row.id,
   name: row.original_filename,
   size: formatFileSize(Number(row.file_size_bytes)),
   updated: formatDisplayDate(row.uploaded_at),
   type: row.mime_type,
-  text: document?.normalizedText || document?.rawText || '',
+  parseStatus: document?.parseStatus || 'pending',
+  profileStatus: document?.cvProfile ? 'completed' : 'pending',
+  candidateName: document?.cvProfile?.candidateName || 'Candidate',
+  topSkills: document?.displayProfile?.topSkills || [],
+  summary: document?.displayProfile?.summary || '',
+  warnings: document?.displayProfile?.warnings || document?.parseWarnings || [],
   isDummyData: row.original_filename.includes('[DUMMY DATA]') || false,
 });
 
-/**
- * Purpose: Execute the main responsibility for createUploadedFileRecord.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
+const buildCvDetailResponse = (row, document) => ({
+  ...buildCvListItem(row, document),
+  profile: document?.cvProfile || null,
+  display: document?.displayProfile || null,
+});
+
 export const createUploadedFileRecord = async ({
   userId,
   sessionId = null,
@@ -71,19 +58,13 @@ export const createUploadedFileRecord = async ({
     `INSERT INTO uploaded_files (
       id, user_id, session_id, file_role, original_filename, mime_type,
       storage_provider, storage_key, file_size_bytes, checksum,
-      virus_scan_status, virus_scanned_at, uploaded_at
-    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'completed',now(),now())`,
+      virus_scan_status, uploaded_at
+    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'not_scanned',now())`,
     [id, userId, sessionId, fileRole, originalFilename, mimeType, storageProvider, storageKey, fileSizeBytes, checksum]
   );
   return id;
 };
 
-/**
- * Purpose: Execute the main responsibility for attachDocumentContent.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
 export const attachDocumentContent = async ({
   fileId,
   sessionId = null,
@@ -92,6 +73,12 @@ export const attachDocumentContent = async ({
   rawText,
   normalizedText,
   redactedText = '',
+  parseStatus = 'completed',
+  parseWarnings = [],
+  parseConfidence = 0.5,
+  extractedSections = [],
+  cvProfile = null,
+  displayProfile = null,
 }) => {
   return DocumentContent.findOneAndUpdate(
     { fileId },
@@ -103,7 +90,12 @@ export const attachDocumentContent = async ({
       rawText,
       normalizedText,
       redactedText,
-      parseStatus: 'completed',
+      parseStatus,
+      parseWarnings,
+      parseConfidence,
+      extractedSections,
+      cvProfile,
+      displayProfile,
       containsSensitiveData: true,
       retentionUntil: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
     },
@@ -111,12 +103,6 @@ export const attachDocumentContent = async ({
   );
 };
 
-/**
- * Purpose: Execute the main responsibility for getRecentCvRecords.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
 export const getRecentCvRecords = async (userId, limit = 5) => {
   const result = await query(
     `SELECT *
@@ -131,15 +117,9 @@ export const getRecentCvRecords = async (userId, limit = 5) => {
   const documents = await DocumentContent.find({ fileId: { $in: fileIds } }).lean();
   const documentsByFileId = new Map(documents.map((doc) => [doc.fileId, doc]));
 
-  return result.rows.map((row) => buildCvResponse(row, documentsByFileId.get(row.id)));
+  return result.rows.map((row) => buildCvListItem(row, documentsByFileId.get(row.id)));
 };
 
-/**
- * Purpose: Execute the main responsibility for getCvRecordById.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
 export const getCvRecordById = async (fileId, userId) => {
   const result = await query(
     `SELECT *
@@ -154,5 +134,34 @@ export const getCvRecordById = async (fileId, userId) => {
   }
 
   const document = await DocumentContent.findOne({ fileId }).lean();
-  return buildCvResponse(result.rows[0], document);
+  return buildCvDetailResponse(result.rows[0], document);
+};
+
+export const getCvDocumentForAnalysis = async (fileId, userId) => {
+  const result = await query(
+    `SELECT *
+     FROM uploaded_files
+     WHERE id = $1 AND user_id = $2 AND file_role = 'cv' AND deleted_at IS NULL
+     LIMIT 1`,
+    [fileId, userId]
+  );
+
+  if (!result.rows[0]) {
+    return null;
+  }
+
+  const document = await DocumentContent.findOne({ fileId }).lean();
+  if (!document) {
+    return null;
+  }
+
+  return {
+    fileId,
+    userId,
+    normalizedText: document.normalizedText || document.rawText || '',
+    rawText: document.rawText || '',
+    cvProfile: document.cvProfile || null,
+    displayProfile: document.displayProfile || null,
+    parseWarnings: document.parseWarnings || [],
+  };
 };
