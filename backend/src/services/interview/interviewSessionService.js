@@ -13,7 +13,7 @@ import {
   appendTranscriptTurn,
   createInterviewResponse,
   getLatestQuestionForSession,
-  getSessionById,
+  getOwnedSessionById,
   updateSession,
 } from '../sessionService.js';
 import { badRequest, invalidState, notFound } from '../../utils/appError.js';
@@ -45,15 +45,15 @@ export const normalizeInterviewAnswer = (answer) => {
 };
 
 /**
- * Purpose: Execute the main responsibility for loadSessionOrThrow.
+ * Purpose: Execute the main responsibility for loadOwnedSessionOrThrow.
  * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-export const loadSessionOrThrow = async (sessionId) => {
-  const session = await getSessionById(sessionId);
+export const loadOwnedSessionOrThrow = async ({ sessionId, userId }) => {
+  const session = await getOwnedSessionById(sessionId, userId);
   if (!session) {
-    throw notFound('Session not found', 'Invalid session ID');
+    throw notFound('Session not found or access denied', 'Invalid session ID or you do not have permission to access this session');
   }
   return session;
 };

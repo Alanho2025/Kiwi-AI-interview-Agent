@@ -10,10 +10,11 @@
  */
 
 import { formatSuccess } from '../utils/responseFormatter.js';
-import { getSessionById } from '../services/sessionService.js';
+import { getOwnedSessionById } from '../services/sessionService.js';
 import { saveTextToLocalStorage } from '../services/storageService.js';
 import { createUploadedFileRecord } from '../services/fileRepositoryService.js';
 import { createAuditLog } from '../services/auditService.js';
+import { resolveUserFromRequest } from '../services/authService.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { badRequest, notFound } from '../utils/appError.js';
 import { logger, getRequestLogMeta } from '../utils/logger.js';
@@ -24,9 +25,10 @@ export const exportTranscript = asyncHandler(async (req, res) => {
     throw badRequest('Missing sessionId', 'sessionId is required');
   }
 
-  const session = await getSessionById(sessionId);
+  const user = await resolveUserFromRequest(req);
+  const session = await getOwnedSessionById(sessionId, user.id);
   if (!session) {
-    throw notFound('Session not found', 'Invalid session ID');
+    throw notFound('Session not found or access denied', 'Invalid session ID or you do not have permission to export this session');
   }
 
   const transcriptText = session.transcript.map((message) => `${message.role.toUpperCase()}: ${message.text}`).join('\n\n');
