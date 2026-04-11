@@ -1,8 +1,31 @@
+/**
+ * File responsibility: Service module.
+ * Main responsibilities:
+ * - Keep HTTP, business logic, persistence, and formatting concerns separated to reduce change impact.
+ * - Main file role: schemaValidationService should encapsulate domain behaviour behind small callable functions with predictable inputs and outputs.
+ * - Prefer extending behaviour by adding small helpers or sibling modules instead of growing one large file.
+ * Maintenance notes:
+ * - Keep this file focused on one layer of responsibility.
+ * - Prefer composition and small helpers over repeated inline logic.
+ */
+
 import { buildAnalyzeOutput, buildExplanationObject } from './scoringSchemaService.js';
 
+/**
+ * Purpose: Execute the main responsibility for isObject.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 const isObject = (value) => value && typeof value === 'object' && !Array.isArray(value);
 const ensureArray = (value) => (Array.isArray(value) ? value : []);
 const ensureNumber = (value, fallback = 0) => (Number.isFinite(Number(value)) ? Number(value) : fallback);
+/**
+ * Purpose: Execute the main responsibility for ensureString.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 const ensureString = (value, fallback = '') => (typeof value === 'string' ? value : fallback);
 
 const normalizeDecision = (decision = {}) => ({
@@ -10,6 +33,12 @@ const normalizeDecision = (decision = {}) => ({
   reasonCodes: ensureArray(decision.reasonCodes).filter(Boolean),
 });
 
+/**
+ * Purpose: Execute the main responsibility for validateAnalyzeOutput.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const validateAnalyzeOutput = (payload = {}) => {
   const safePayload = isObject(payload) ? payload : {};
   return buildAnalyzeOutput({
@@ -42,6 +71,12 @@ export const validateAnalyzeOutput = (payload = {}) => {
   });
 };
 
+/**
+ * Purpose: Execute the main responsibility for validateInterviewPlan.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const validateInterviewPlan = (plan = {}) => ({
   schemaVersion: ensureString(plan.schemaVersion, 'v3'),
   candidateName: ensureString(plan.candidateName, 'Candidate'),
@@ -66,12 +101,24 @@ export const validateInterviewPlan = (plan = {}) => ({
   settingsSnapshot: isObject(plan.settingsSnapshot) ? plan.settingsSnapshot : {},
 });
 
+/**
+ * Purpose: Execute the main responsibility for normalizeSection.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 const normalizeSection = (section = {}, index = 0) => ({
   id: ensureString(section.id, `section_${index + 1}`),
   title: ensureString(section.title, `Section ${index + 1}`),
   content: ensureString(section.content),
 });
 
+/**
+ * Purpose: Execute the main responsibility for normalizeCandidateFeedbackItem.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 const normalizeCandidateFeedbackItem = (item = {}) => ({
   id: ensureString(item.id),
   label: ensureString(item.label),
@@ -88,6 +135,12 @@ const normalizeCandidateFeedbackItem = (item = {}) => ({
   better: ensureString(item.better),
 });
 
+/**
+ * Purpose: Execute the main responsibility for validateReportOutput.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const validateReportOutput = (report = {}) => ({
   schemaVersion: ensureString(report.schemaVersion, 'v3'),
   id: ensureString(report.id, report.sessionId || ''),
@@ -126,6 +179,12 @@ export const validateReportOutput = (report = {}) => ({
       },
 });
 
+/**
+ * Purpose: Execute the main responsibility for validateReportQaOutput.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const validateReportQaOutput = (qa = {}) => ({
   schemaVersion: ensureString(qa.schemaVersion, 'v3'),
   reportId: ensureString(qa.reportId),

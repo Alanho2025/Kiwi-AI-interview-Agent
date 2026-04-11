@@ -1,6 +1,23 @@
+/**
+ * File responsibility: Reusable UI component.
+ * Main responsibilities:
+ * - Keep presentation, state orchestration, and display helpers separated so React components stay reusable.
+ * - Main file role: AnalysisStatusCard should render the UI block and receive data through props so the component stays reusable.
+ * - Prefer extending behaviour by adding small helpers or sibling modules instead of growing one large file.
+ * Maintenance notes:
+ * - Keep this file focused on one layer of responsibility.
+ * - Prefer composition and small helpers over repeated inline logic.
+ */
+
 import { Card, CardHeader, CardTitle, CardContent } from '../common/Card.jsx';
 import { Loader2, CheckCircle2, AlertTriangle } from 'lucide-react';
 
+/**
+ * Purpose: Execute the main responsibility for ScorePill.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 const ScorePill = ({ label, value }) => (
   <div className="rounded-xl border border-gray-100 bg-white p-4">
     <p className="text-xs uppercase tracking-wide text-gray-400">{label}</p>
@@ -8,6 +25,12 @@ const ScorePill = ({ label, value }) => (
   </div>
 );
 
+/**
+ * Purpose: Execute the main responsibility for ListBlock.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 const ListBlock = ({ title, items, emptyText }) => (
   <div className="rounded-xl border border-gray-100 bg-white p-4">
     <p className="text-sm font-semibold text-gray-900">{title}</p>
@@ -26,6 +49,12 @@ const ListBlock = ({ title, items, emptyText }) => (
   </div>
 );
 
+/**
+ * Purpose: Execute the main responsibility for RequirementTable.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 const RequirementTable = ({ items }) => {
   if (!items?.length) {
     return (
@@ -54,6 +83,12 @@ const RequirementTable = ({ items }) => {
   );
 };
 
+/**
+ * Purpose: Execute the main responsibility for AnalysisStatusCard.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export function AnalysisStatusCard({ status, matchRate, analysisResult }) {
   const explanation = analysisResult?.explanation || {};
   const scoreBreakdown = analysisResult?.scoreBreakdown || {};

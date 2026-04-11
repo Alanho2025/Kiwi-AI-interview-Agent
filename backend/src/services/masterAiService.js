@@ -1,3 +1,14 @@
+/**
+ * File responsibility: Service module.
+ * Main responsibilities:
+ * - Keep HTTP, business logic, persistence, and formatting concerns separated to reduce change impact.
+ * - Main file role: masterAiService should encapsulate domain behaviour behind small callable functions with predictable inputs and outputs.
+ * - Prefer extending behaviour by adding small helpers or sibling modules instead of growing one large file.
+ * Maintenance notes:
+ * - Keep this file focused on one layer of responsibility.
+ * - Prefer composition and small helpers over repeated inline logic.
+ */
+
 import { agentRegistry } from './agentRegistryService.js';
 import { getSessionById, appendTranscriptTurn, createInterviewQuestion } from './sessionService.js';
 import { getNextQuestionOrder, hasReachedQuestionLimit } from './interviewStateService.js';
@@ -5,6 +16,12 @@ import { indexSessionArtifacts } from './ragIndexService.js';
 import { SessionAnalysis } from '../db/models/sessionAnalysisModel.js';
 import { SessionReport } from '../db/models/sessionReportModel.js';
 
+/**
+ * Purpose: Execute the main responsibility for persistReportArtifact.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 const persistReportArtifact = async ({ sessionId, report, qaResult }) => {
   await SessionAnalysis.findOneAndUpdate(
     { sessionId },
@@ -32,6 +49,12 @@ const persistReportArtifact = async ({ sessionId, report, qaResult }) => {
   );
 };
 
+/**
+ * Purpose: Execute the main responsibility for runTask.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const runTask = async ({ taskType, sessionId, payload = {} } = {}) => {
   if (!taskType) {
     throw new Error('taskType is required');

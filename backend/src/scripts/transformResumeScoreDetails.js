@@ -1,3 +1,14 @@
+/**
+ * File responsibility: Application module.
+ * Main responsibilities:
+ * - Keep HTTP, business logic, persistence, and formatting concerns separated to reduce change impact.
+ * - Main file role: transformResumeScoreDetails should keep its module boundaries clear and focused.
+ * - Prefer extending behaviour by adding small helpers or sibling modules instead of growing one large file.
+ * Maintenance notes:
+ * - Keep this file focused on one layer of responsibility.
+ * - Prefer composition and small helpers over repeated inline logic.
+ */
+
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
@@ -10,12 +21,30 @@ const __dirname = path.dirname(__filename);
 const defaultInputDir = path.resolve(__dirname, '../../../../resume-score-details');
 const defaultOutputDir = path.resolve(__dirname, '../../../../data/resume-score-details-normalized');
 
+/**
+ * Purpose: Execute the main responsibility for ensureDir.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 const ensureDir = (dir) => fs.mkdirSync(dir, { recursive: true });
 const safeReadJson = (filePath) => JSON.parse(fs.readFileSync(filePath, 'utf8'));
 const listJsonFiles = (dir) => fs.readdirSync(dir).filter((name) => name.endsWith('.json')).map((name) => path.join(dir, name));
 
+/**
+ * Purpose: Execute the main responsibility for toArray.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 const toArray = (value) => (Array.isArray(value) ? value : []);
 const toString = (value) => (typeof value === 'string' ? value : '');
+/**
+ * Purpose: Execute the main responsibility for parseCaseLabel.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 const parseCaseLabel = (fileName) => {
   if (fileName.startsWith('match_')) return 'match';
   if (fileName.startsWith('mismatch_')) return 'mismatch';
@@ -24,6 +53,12 @@ const parseCaseLabel = (fileName) => {
   return 'other';
 };
 
+/**
+ * Purpose: Execute the main responsibility for normalizeCvProfile.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 const normalizeCvProfile = (details = {}, caseId) => ({
   caseId,
   candidateName: toString(details.name) || 'Candidate',
@@ -42,6 +77,12 @@ const normalizeCvProfile = (details = {}, caseId) => ({
   schemaVersion: 'v1',
 });
 
+/**
+ * Purpose: Execute the main responsibility for normalizeJdRubric.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 const normalizeJdRubric = (input = {}, caseId) => {
   const macroDict = input.macro_dict || {};
   const microDict = input.micro_dict || {};
@@ -71,6 +112,12 @@ const normalizeJdRubric = (input = {}, caseId) => {
   });
 };
 
+/**
+ * Purpose: Execute the main responsibility for normalizeGroundTruth.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 const normalizeGroundTruth = (output = {}, caseId) => {
   const scores = output.scores || {};
   const macroScores = toArray(scores.macro_scores).map((item) => ({
@@ -110,6 +157,12 @@ const normalizeGroundTruth = (output = {}, caseId) => {
   };
 };
 
+/**
+ * Purpose: Execute the main responsibility for buildChunks.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 const buildChunks = ({ caseId, cvProfile, jdRubric, groundTruth, rawResume, rawJobDescription }) => {
   const chunks = [];
   const pushChunk = (documentType, sourceType, text, metadata = {}) => {
@@ -139,6 +192,12 @@ const buildChunks = ({ caseId, cvProfile, jdRubric, groundTruth, rawResume, rawJ
   return chunks;
 };
 
+/**
+ * Purpose: Execute the main responsibility for writeJsonl.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 const writeJsonl = (filePath, records) => fs.writeFileSync(filePath, records.map((record) => JSON.stringify(record)).join('\n'));
 
 const run = ({ inputDir = defaultInputDir, outputDir = defaultOutputDir } = {}) => {

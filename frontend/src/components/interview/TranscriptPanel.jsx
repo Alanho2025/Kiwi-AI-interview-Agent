@@ -1,8 +1,25 @@
+/**
+ * File responsibility: Reusable UI component.
+ * Main responsibilities:
+ * - Keep presentation, state orchestration, and display helpers separated so React components stay reusable.
+ * - Main file role: TranscriptPanel should render the UI block and receive data through props so the component stays reusable.
+ * - Prefer extending behaviour by adding small helpers or sibling modules instead of growing one large file.
+ * Maintenance notes:
+ * - Keep this file focused on one layer of responsibility.
+ * - Prefer composition and small helpers over repeated inline logic.
+ */
+
 import { Card, CardContent } from '../common/Card.jsx';
 import { Button } from '../common/Button.jsx';
 import { Bird } from 'lucide-react';
 import { formatClockTime } from '../../utils/formatters.js';
 
+/**
+ * Purpose: Execute the main responsibility for TranscriptPanel.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export function TranscriptPanel({ transcript, onExport, candidateName = "Candidate" }) {
   const firstName = candidateName.split(' ')[0];
   const initials = candidateName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();

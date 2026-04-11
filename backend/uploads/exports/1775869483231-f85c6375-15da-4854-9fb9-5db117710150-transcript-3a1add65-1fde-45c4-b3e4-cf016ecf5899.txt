@@ -1,0 +1,43 @@
+AI: Please introduce yourself.
+
+USER: Hi, my name is Alan. I am currently studying Information Technology at the University of Auckland. Before this, I worked as a System Electrical Engineer at Foxconn, where I supported new product projects and worked with cross-functional teams to solve technical and process issues. Through that experience, I built strong problem-solving and data analysis skills, and it also made me more interested in software and AI. Now, I am looking for an opportunity where I can apply my technical skills, keep learning, and contribute to real business problems as part of a team.
+
+AI: Tell me about a project where you used .NET in a Software Engineer context.
+
+USER: One project where I used .NET was an interview preparation platform. I worked on the backend in a software engineering role, where my main focus was building APIs and structuring the system logic. I used .NET to handle core features such as user session management, interview record processing, and report generation. I also worked on connecting the backend with the frontend and making sure the data flow was clean and reliable.
+One thing I paid attention to was code structure. I separated controllers, services, and data access logic so the project would be easier to maintain and extend later. I also spent time on error handling and input validation, because I wanted the system to be stable from both the developer side and the user side.
+Through that project, I improved my backend development skills, especially in API design, system structure, and building features that support real user workflows.
+
+AI: What was your exact approach with .NET, and how did you know it worked?
+
+USER: My approach with .NET was to use it as the backend framework for building structured and maintainable APIs. I used ASP.NET Core to separate the system into clear layers, such as controllers for handling requests, services for business logic, and data access for interacting with the database. This made the code easier to manage, test, and extend.
+For example, when working on interview session and report-related features, I first defined the API endpoints and data models, then implemented the business rules in the service layer, and finally connected them to the frontend through API calls. I also added validation and error handling to make sure the system could handle incorrect input safely.
+I knew it worked in a few ways. First, I tested the endpoints using tools like Postman to confirm that the requests and responses were correct. Second, I checked whether the frontend could successfully use the APIs without data or flow issues. Third, I reviewed the output against the expected user journey, such as whether a session could be created, processed, and returned correctly in the report flow. If the feature worked end to end and the structure remained clean and stable, I considered that a successful result.
+
+AI: Tell me about a project where you used C# in a Software Engineer context.
+
+USER: One project where I used C# was an interview preparation platform. I worked on the backend in a software engineering context, using C# with ASP.NET Core to build APIs and handle the main system logic. My work included structuring endpoints, processing user and session data, and supporting features like interview records and feedback flow.
+I focused on writing clean and maintainable code, so I separated controllers, services, and data access logic. I also added validation and error handling to make the system more reliable. Through that project, I strengthened my skills in backend development, API design, and building software that supports real user workflows.
+
+AI: What was your exact approach with C#, and how did you know it worked?
+
+USER: My approach with C# was to use it to build backend logic in a structured way. I focused on separating the code into clear parts, such as controllers for handling requests, services for business logic, and data access for working with stored data. This made the code easier to maintain, test, and extend.
+When I worked on a feature, I usually started by defining the input and output, then wrote the logic step by step in C#, and added validation and error handling to make it more reliable. I also made sure the backend could connect properly with the frontend through API calls.
+I knew it worked by testing the feature with expected and invalid inputs, checking that the API responses were correct, and confirming that the full user flow worked properly from the frontend side. If the feature behaved correctly, returned the right data, and stayed stable during testing, I considered that successful.
+
+AI: Tell me about a project where you used ASP.NET in a Software Engineer context.
+
+USER: One project where I used ASP.NET was an interview preparation platform. I worked on the backend in a software engineering role, and I used ASP.NET Core to build APIs and manage the main application logic. My work included handling user input, managing interview session data, and supporting features such as report generation and frontend-backend communication.
+I focused on keeping the backend structured, so I separated controllers, services, and data access logic to make the code easier to maintain and extend. I also added validation and error handling to improve reliability. This project helped me strengthen my backend development skills and gave me practical experience in building software for real user workflows.
+
+AI: What was your exact approach with ASP.NET, and how did you know it worked?
+
+USER: My approach with ASP.NET was to use ASP.NET Core to build the backend in a structured way. I separated the project into controllers for handling HTTP requests, services for business logic, and data access for working with storage. This helped keep the code clean and made it easier to debug, maintain, and extend.
+When building a feature, I first defined the API contract, including the input, output, and expected behavior. Then I implemented the backend logic in the service layer, added validation and error handling, and connected the endpoint to the frontend. I tried to keep each part focused on one responsibility, so the system would be more stable and easier to test.
+I knew it worked by testing the endpoints with different inputs, including normal cases and invalid cases, and checking that the API responses were correct. I also verified that the frontend could use the API properly and that the full user flow worked as expected. If the feature worked end to end, returned the right data, and stayed stable during testing, I considered that successful.
+
+AI: Can you walk me through a specific example that shows Some hands-on experience with C#/.NET (coursework, internships, personal projects or GitHub).?
+
+USER: Sure. One specific example was a web-based project where I used C# and .NET on the backend side. The goal of the project was to build a structured system that could handle user requests, process data, and return results clearly to the frontend.
+My hands-on work was mainly in ASP.NET Core. I built API endpoints, handled request and response logic, and organised the backend into controllers, services, and data access layers. For example, when adding a feature, I would first define the input and output, then write the business logic in C#, add validation, and test the endpoint using different cases.
+What made it practical was that I was not just writing isolated code. I had to make sure the backend worked with the frontend, handled invalid input properly, and stayed maintainable as the project grew. Through that, I built real experience with C# syntax, object-oriented structure, API development, and backend problem-solving in a .NET environment.

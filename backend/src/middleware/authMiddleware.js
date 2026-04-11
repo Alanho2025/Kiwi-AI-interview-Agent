@@ -1,5 +1,22 @@
+/**
+ * File responsibility: Middleware.
+ * Main responsibilities:
+ * - Keep HTTP, business logic, persistence, and formatting concerns separated to reduce change impact.
+ * - Main file role: authMiddleware should apply request pipeline behaviour consistently across the application.
+ * - Prefer extending behaviour by adding small helpers or sibling modules instead of growing one large file.
+ * Maintenance notes:
+ * - Keep this file focused on one layer of responsibility.
+ * - Prefer composition and small helpers over repeated inline logic.
+ */
+
 import jwt from 'jsonwebtoken';
 
+/**
+ * Purpose: Execute the main responsibility for parseCookies.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 const parseCookies = (cookieHeader = '') =>
   cookieHeader
     .split(';')
@@ -17,6 +34,12 @@ const parseCookies = (cookieHeader = '') =>
       return acc;
     }, {});
 
+/**
+ * Purpose: Execute the main responsibility for readBearerToken.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 const readBearerToken = (authorizationHeader = '') => {
   const [scheme, token] = authorizationHeader.split(' ');
   if (scheme?.toLowerCase() !== 'bearer' || !token) {
@@ -25,11 +48,23 @@ const readBearerToken = (authorizationHeader = '') => {
   return token.trim();
 };
 
+/**
+ * Purpose: Execute the main responsibility for verifyToken.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 const verifyToken = (token) => {
   const secret = process.env.JWT_SECRET || 'fallback_secret_for_dev';
   return jwt.verify(token, secret);
 };
 
+/**
+ * Purpose: Execute the main responsibility for optionalAuth.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const optionalAuth = (req, _res, next) => {
   try {
     const cookies = parseCookies(req.headers.cookie || '');
@@ -49,6 +84,12 @@ export const optionalAuth = (req, _res, next) => {
   }
 };
 
+/**
+ * Purpose: Execute the main responsibility for requireAuth.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const requireAuth = (req, res, next) =>
   req.user?.id
     ? next()

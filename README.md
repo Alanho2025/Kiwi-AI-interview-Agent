@@ -1,174 +1,308 @@
-# Kiwi AI Interview Agent 🥝
+# Kiwi AI Interview Agent
 
-[![Node.js](https://img.shields.io/badge/Node.js-22%2B-green)](https://nodejs.org)
-[![React](https://img.shields.io/badge/React-19-blue)](https://reactjs.org)
-[![License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
+Kiwi AI Interview Agent is a mock interview platform for CV-based and JD-based interview practice.
+It combines a React frontend, an Express backend, PostgreSQL for structured session data, and MongoDB for flexible AI artifacts such as transcripts, analysis, reports, and RAG chunks.
 
-## 🚀 Project Introduction
+This repository is no longer a simple demo-only prototype. The current codebase already includes:
+- Google login flow
+- CV upload and parsing
+- JD paraphrasing and rubric building
+- CV-to-JD analysis
+- interview session creation and progression
+- report generation and QA
+- transcript export
+- session-aware RAG indexing and retrieval
 
-**Kiwi AI Interview Agent** is an AI-powered mock interview platform designed to help job seekers practice interviews tailored to their CV and target job descriptions. 
+## What is implemented now
 
-### Key MVP Features
-- **Auth**: Google OAuth login
-- **Document Upload**: CV (PDF/DOCX) + Job Description (file/text paste)
-- **Smart Parsing**: Extract skills, experience, projects from real documents
-- **CV-JD Matching**: Deterministic scoring (skills 45%, keywords 35%, etc.)
-- **Interview Simulation**: 5-min AI-led session (self-intro + follow-ups via DeepSeek)
-- **Real-time Interaction**: Voice/text input, pause/resume/repeat
-- **Feedback & Export**: Report with strengths/gaps + transcript export
+### Frontend
+The frontend is a React + Vite single-page app with protected routes and a multi-step interview workflow.
 
-Built for NZ job market with optional cultural fit questions. Current state: Functional MVP with in-memory sessions (persistence planned).
+Main pages:
+- `/login` - Google sign-in entry
+- `/home` - user profile, recent sessions, saved defaults
+- `/analysis` - CV upload, JD input, NZ interview settings, analysis status
+- `/interview/:sessionId` - live interview page with reply, pause, resume, repeat, and transcript view
+- `/report/:sessionId` - generated report, QA status, feedback insights, export actions
 
-**User Flow**: Login → Upload CV/JD → Analyze Match → Start Interview → Get Report.
+Main frontend groups:
+- `src/pages` - route-level pages
+- `src/components/analyze` - upload, JD, and settings cards
+- `src/components/interview` - interview UI panels and session cards
+- `src/components/home` - privacy and dashboard cards
+- `src/api` - thin API wrappers by domain
+- `src/utils` - auth session helpers and UI formatting helpers
 
-## 🛠 Initial Setup (After Clone)
+### Backend
+The backend is an Express API with route, controller, service, repository, and database layers.
 
-**Note**: `node_modules` not committed. Run installs manually.
+Implemented backend capabilities:
+- Google auth endpoints
+- CV upload with PDF and DOCX text extraction
+- local file persistence for uploaded CVs and transcript exports
+- JD paraphrasing into a structured rubric
+- deterministic CV-JD matching and interview focus generation
+- session creation and persistence in PostgreSQL
+- transcript, report, and analysis storage in MongoDB
+- interview state progression
+- report generation and report QA tasks
+- session artifact indexing and RAG retrieval endpoints
+- health endpoint for PostgreSQL and MongoDB
+
+### Data layer
+The project uses a hybrid storage model.
+
+PostgreSQL stores structured operational data such as:
+- users
+- interview sessions
+- parsed profiles
+- parsed skills
+- uploaded file metadata
+
+MongoDB stores flexible AI-oriented records such as:
+- session analysis
+- session transcripts
+- session reports
+- document chunks
+- benchmark and interview knowledge chunks
+
+## Current architecture
+
+```text
+Frontend (React/Vite)
+  -> domain pages, UI components, local draft state, API wrappers
+  -> calls /api/* with credentials
+
+Backend (Express)
+  -> routes
+  -> controllers
+  -> services
+  -> repositories / db access
+
+Storage
+  -> PostgreSQL for structured session and file metadata
+  -> MongoDB for analysis, transcript, report, and RAG documents
+  -> local filesystem for uploaded CV files and transcript exports
+```
+
+## Maintainability refactor included in this version
+
+Track 6 work started in this repository revision focuses on reducing controller noise and making the backend easier to extend with multiple contributors.
+
+Changes made:
+- added a shared `asyncHandler` to remove repetitive controller `try/catch`
+- added `requestContext` middleware to generate a per-request `requestId`
+- added a shared structured `logger`
+- added shared `AppError` helpers for common HTTP errors
+- added small controller helpers for required request fields and missing resources
+- refactored core controllers to use the shared error and logging flow
+- updated startup and error handling to use structured logging instead of scattered `console.log` patterns
+
+Why this matters:
+- smaller and cleaner controller diffs
+- easier code review when two people are working in parallel
+- less noisy merge conflicts
+- more consistent backend behavior
+- easier future refactor of service-level responsibilities
+
+## Project structure
+
+```text
+Kiwi-AI-interview-Agent/
+├── backend/
+│   ├── index.js
+│   ├── package.json
+│   └── src/
+│       ├── api/
+│       │   └── routes/
+│       ├── controllers/
+│       ├── db/
+│       ├── middleware/
+│       ├── repositories/
+│       ├── scripts/
+│       ├── services/
+│       │   └── agents/
+│       └── utils/
+├── frontend/
+│   ├── package.json
+│   └── src/
+│       ├── api/
+│       ├── components/
+│       ├── pages/
+│       └── utils/
+├── data/
+│   ├── interview-knowledge/
+│   └── resume-score-details-normalized/
+├── docs/
+├── AGENTS.md
+└── README.md
+```
+
+## API summary
+
+Base path: `/api`
+
+Public or semi-public routes:
+- `GET /api/health`
+- `GET /api/auth/google/config`
+- `POST /api/auth/google`
+- `POST /api/auth/logout`
+
+Authenticated route groups:
+- `/api/upload`
+- `/api/job-description`
+- `/api/analyze`
+- `/api/interview`
+- `/api/session`
+- `/api/export`
+- `/api/rag`
+- `/api/report`
+
+Key endpoints:
+- `POST /api/upload/cv`
+- `GET /api/upload/recent-cvs`
+- `POST /api/upload/select-cv`
+- `POST /api/job-description/paraphrase`
+- `POST /api/analyze/match`
+- `POST /api/analyze/interview-plan`
+- `POST /api/interview/start`
+- `POST /api/interview/reply`
+- `POST /api/interview/pause`
+- `POST /api/interview/resume`
+- `POST /api/interview/repeat`
+- `POST /api/interview/end`
+- `GET /api/session/history`
+- `GET /api/session/:sessionId`
+- `POST /api/export/transcript`
+- `POST /api/report/generate`
+- `POST /api/report/qa`
+- `GET /api/report/:sessionId`
+- `POST /api/rag/rebuild-session`
+- `POST /api/rag/retrieve`
+
+## Environment setup
 
 ### Prerequisites
 - Node.js 22+
 - npm
-- DeepSeek API key (for AI features)
+- PostgreSQL
+- MongoDB
+- Google OAuth client ID
+- DeepSeek API key for AI-backed generation paths
 
-### 1. Clone & Install
-```bash
-git clone <repo> Kiwi-AI-interview-Agent
-cd Kiwi-AI-interview-Agent
-```
-
-**Backend:**
+### Backend setup
 ```bash
 cd backend
 npm install
-cp .env.example .env  # Add DEEPSEEK_API_KEY=your_key_here
+cp .env.example .env
 ```
 
-**Frontend:**
+Expected environment values include items such as:
+- `PORT`
+- `JWT_SECRET`
+- `GOOGLE_CLIENT_ID`
+- `DEEPSEEK_API_KEY`
+- PostgreSQL connection settings
+- MongoDB connection settings
+
+Start backend:
 ```bash
-cd ../frontend
+cd backend
+npm run dev
+```
+
+### Frontend setup
+```bash
+cd frontend
 npm install
+npm run dev
 ```
 
-### 2. Run Development Servers
-Terminal 1 (Backend): `cd backend && npm run dev` (runs on http://localhost:3000)
+The Vite app runs on the default dev port and talks to the backend through the configured API client and dev proxy setup.
 
-Terminal 2 (Frontend): `cd frontend && npm run dev` (proxies /api to backend)
+## Scripts
 
-Open http://localhost:5173 (Vite default).
-
-**Production Build**: `cd frontend && npm run build` → serve `dist/`.
-
-## 🏗 System Architecture
-
-```
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Frontend      │    │     Backend      │    │    Storage      │
-│ (React/Vite)    │◄──►│ (Node/Express)   │◄──►│ - Local files   │
-│ - UI Components │    │ - API Routes     │    │ - Future S3     │
-│ - Voice UI      │    │ - Parsing/Match  │    └─────────────────┘
-│ - Local Storage │    │ - Session Mgmt   │         ▲
-└─────────────────┘    └─────────────────┘         │
-                           ▲                        │
-                    ┌─────────────────┐             │
-                    │     Database    │             │
-                    │ - Postgres      │◄────────────┘
-                    │   (planned)     │
-                    │ - Mongo (docs)  │
-                    └─────────────────┘
-```
-
-- **Frontend**: Single-page app, API client, real-time interview UI.
-- **Backend**: REST API, file processing, AI integration.
-- **Current Storage**: In-memory sessions + local uploads (backend/uploads).
-- **Planned**: Postgres (users/sessions/files) + MongoDB (transcripts/plans/raw docs).
-
-## ✨ Main Features
-
-| Feature | Description |
-|---------|-------------|
-| **Analysis** | Upload CV/JD → Parse → Match score + plan preview |
-| **Interview** | Start/pause/end session, reply via mic/text, auto-end @5min |
-| **AI Questions** | Self-intro → CV/JD-based follow-ups (DeepSeek) |
-| **Feedback** | Post-session report (impression, strengths, gaps) |
-| **Export** | Transcript as TXT |
-| **UX** | Responsive, status banners, progress tracking |
-
-## 🌐 API Architecture
-
-**Base Path**: `/api` (proxied in dev)
-
-**Grouped Routes**:
-- **Upload**: `POST /upload/cv`, `GET /upload/recent-cvs`
-- **Analyze**: `POST /analyze/match`, `POST /job-description/paraphrase`
-- **Session**: `POST /session/save`, `GET /session/:id`
-- **Interview**: `POST /interview/start|reply|pause|resume|end|repeat`
-- **Export**: `POST /export/transcript`
-
-**Example** (curl analyze):
+### Backend
 ```bash
-curl -X POST http://localhost:3000/api/analyze/match \
-  -H 'Content-Type: application/json' \
-  -d '{"cvText": "CV content", "jdText": "JD content"}'
+npm run dev
+npm run start
 ```
 
-Full list in current README → controllers/routes.
-
-## 🛠 Technology Summary
-
-### Backend (`backend/package.json`)
-| Category | Tech |
-|----------|------|
-| Server | Node.js, Express 4.21 |
-| Upload/Parse | Multer, pdf-parse 2.4, mammoth 1.12 |
-| DB | pg 8.20 (Postgres), mongodb/mongoose 9.4 |
-| AI/Auth | DeepSeek, JWT 9.0, Google Auth Lib |
-| Utils | cors 2.8, dotenv 17.2 |
-
-**Scripts**: `npm run dev` (node index.js)
-
-### Frontend (`frontend/package.json`)
-| Category | Tech |
-|----------|------|
-| Framework | React 19, Vite 6.2 |
-| Styling | TailwindCSS 4.1 (@tailwindcss/vite) |
-| UI/Routing | lucide-react, react-router-dom 7.14, motion 12.23 |
-| Auth | @react-oauth/google 0.13, jwt-decode |
-| Other | clsx 2.1, tailwind-merge 3.5 |
-
-**Scripts**: `npm run dev|build|preview`
-
-## 📁 Project Structure
-```
-.
-├── backend/          # API server
-│   ├── src/          # controllers/services/db/api
-│   ├── uploads/      # CVs/dummy
-│   └── package.json
-├── frontend/         # React SPA
-│   ├── src/components/ # Analyze/Interview/UI
-│   └── package.json
-├── docs/             # Architecture plans
-├── AGENTS.md         # AI collab rules
-└── TODO.md           # Progress tracker
+### Frontend
+```bash
+npm run dev
+npm run build
+npm run preview
+npm run clean
+npm run lint
 ```
 
-## ⚖️ Match Score Logic
-Heuristic (not pure LLM):
-- Skills: 45%
-- Keywords: 35%
-- Phrases: 15%
-- Seniority: 5%
+## Data import and RAG utilities
 
-Returns: `matchScore`, strengths, gaps, focus.
+The repository includes normalized datasets and import scripts.
 
-## 🚧 Limitations & Roadmap
-- **Current**: In-memory sessions (lost on restart), basic auth, no tests, alert-based UX.
-- **Next**: Full DB persistence, tests, modals/toasts, multi-session history.
-See `docs/` for DB/UI plans.
+Important script files:
+- `backend/src/scripts/importResumeScoreDetails.js`
+- `backend/src/scripts/importInterviewKnowledge.js`
+- `backend/src/scripts/transformResumeScoreDetails.js`
 
-## 🤝 Contributing
-Follow [AGENTS.md](AGENTS.md). Ask before changes!
+These support:
+- benchmark case import
+- interview knowledge import
+- normalized chunk creation
+- session artifact indexing for retrieval
 
-## 📄 License
-MIT
+## What is strong already
 
+- clear frontend page separation
+- backend has route, controller, service, and repository layers
+- hybrid data model matches the product needs well
+- interview flow is more than a single chatbot call
+- report generation has a dedicated QA path
+- RAG is already integrated, not just mocked in slides
+
+## Current gaps and known technical debt
+
+These are still important and should be treated honestly.
+
+Not fully solved yet:
+- some core services are still too large, especially `sessionService`
+- formal automated test coverage is still limited
+- privacy wording and implementation depth may still need better alignment
+- auth and ownership hardening is a separate high-priority track
+- transcript export still returns transcript content in JSON
+- some frontend state patterns are still localStorage-heavy
+
+## Recommended next engineering steps
+
+1. Continue splitting broad backend services by domain responsibility.
+2. Add service-level and API-level tests for session lifecycle and report generation.
+3. Finish the auth and ownership hardening track.
+4. Separate global knowledge retrieval and session-scoped retrieval more clearly.
+5. Clean the release package before final submission or handoff.
+
+## Notes for collaborators
+
+If two people are working on this repository at the same time, avoid both people editing the same broad service file in parallel unless there is a clear split.
+
+Safer collaboration pattern:
+- one person handles auth, session ownership, and privacy hardening
+- one person handles maintainability, logging, controller cleanup, and docs
+- create short-lived feature branches
+- keep PR scope small
+- merge structure changes before feature changes whenever possible
+
+## Repository docs
+
+Additional notes and planning documents are already in the repo:
+- `docs/code-review.md`
+- `docs/data_related.md`
+- `docs/database_architecture_plan.md`
+- `docs/ui-ux-proposal.md`
+- `docs/website_feature.md`
+- `summary.md`
+- `schema-gap-map.md`
+
+## Final status
+
+This project is beyond the stage of a toy mockup. The key challenge now is not whether features exist, but whether the system is clean enough, secure enough, and maintainable enough to support continued development and a strong review.

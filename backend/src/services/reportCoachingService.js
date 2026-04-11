@@ -1,5 +1,22 @@
+/**
+ * File responsibility: Service module.
+ * Main responsibilities:
+ * - Keep HTTP, business logic, persistence, and formatting concerns separated to reduce change impact.
+ * - Main file role: reportCoachingService should encapsulate domain behaviour behind small callable functions with predictable inputs and outputs.
+ * - Prefer extending behaviour by adding small helpers or sibling modules instead of growing one large file.
+ * Maintenance notes:
+ * - Keep this file focused on one layer of responsibility.
+ * - Prefer composition and small helpers over repeated inline logic.
+ */
+
 import { callDeepSeek } from './deepseekService.js';
 
+/**
+ * Purpose: Execute the main responsibility for ensureString.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 const ensureString = (value, fallback = '') => (typeof value === 'string' ? value.trim() : fallback);
 const ensureArray = (value) => (Array.isArray(value) ? value : []);
 
@@ -16,6 +33,12 @@ const extractJsonObject = (text = '') => {
   return text.trim();
 };
 
+/**
+ * Purpose: Execute the main responsibility for normalizeMetric.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 const normalizeMetric = (item = {}, fallback = {}) => ({
   id: ensureString(item.id, fallback.id || ''),
   label: ensureString(item.label, fallback.label || ''),
@@ -23,28 +46,58 @@ const normalizeMetric = (item = {}, fallback = {}) => ({
   interpretation: ensureString(item.interpretation, fallback.interpretation || ''),
 });
 
+/**
+ * Purpose: Execute the main responsibility for normalizeStrength.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 const normalizeStrength = (item = {}, fallback = {}) => ({
   title: ensureString(item.title, fallback.title || fallback.label || ''),
   explanation: ensureString(item.explanation, fallback.explanation || ''),
 });
 
+/**
+ * Purpose: Execute the main responsibility for normalizePriority.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 const normalizePriority = (item = {}, fallback = {}) => ({
   title: ensureString(item.title, fallback.title || ''),
   whyItMatters: ensureString(item.whyItMatters, fallback.whyItMatters || ''),
   action: ensureString(item.action, fallback.action || ''),
 });
 
+/**
+ * Purpose: Execute the main responsibility for normalizeAdvice.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 const normalizeAdvice = (item = {}, fallback = {}) => ({
   theme: ensureString(item.theme, fallback.theme || ''),
   advice: ensureString(item.advice, fallback.advice || ''),
   example: ensureString(item.example, fallback.example || ''),
 });
 
+/**
+ * Purpose: Execute the main responsibility for normalizeRewrite.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 const normalizeRewrite = (item = {}, fallback = {}) => ({
   weak: ensureString(item.weak, fallback.weak || ''),
   better: ensureString(item.better, fallback.better || ''),
 });
 
+/**
+ * Purpose: Execute the main responsibility for normalizeCandidateFeedback.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 const normalizeCandidateFeedback = (candidateFeedback = {}, fallback = {}) => ({
   overallTakeaway: ensureString(candidateFeedback.overallTakeaway, fallback.overallTakeaway || ''),
   scoreBand: ensureString(candidateFeedback.scoreBand, fallback.scoreBand || ''),
@@ -66,6 +119,12 @@ const normalizeCandidateFeedback = (candidateFeedback = {}, fallback = {}) => ({
     .filter((item) => item.weak && item.better),
 });
 
+/**
+ * Purpose: Execute the main responsibility for buildPrompt.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 const buildPrompt = ({ session, analysisResult, interviewPlan, evidenceSummary, interviewMetrics, strongestExamples, deterministicFeedback }) => {
   const groundingPayload = {
     candidateName: analysisResult.candidateName || session.candidateName || 'Candidate',
@@ -125,6 +184,12 @@ Rules:
 `;
 };
 
+/**
+ * Purpose: Execute the main responsibility for generateCandidateFeedback.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const generateCandidateFeedback = async ({
   session = {},
   analysisResult = {},
