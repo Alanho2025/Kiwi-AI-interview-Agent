@@ -39,7 +39,6 @@ const ListBlock = ({ title, items, emptyText }) => (
         {items.map((item) => (
           <li key={item.id || item.label || item} className="rounded-lg bg-gray-50 px-3 py-2">
             <span className="font-medium text-gray-800">{item.label || item}</span>
-            {item.detail ? <span className="ml-2 text-xs text-gray-500">{item.detail}</span> : null}
           </li>
         ))}
       </ul>
@@ -168,8 +167,8 @@ export function AnalysisStatusCard({ status, matchRate, analysisResult }) {
 
             <div className="grid gap-3 lg:grid-cols-3">
               <ListBlock title="Strengths" items={explanation.strengths} emptyText="No strong strengths were identified." />
-              <ListBlock title="Gaps" items={explanation.gaps} emptyText="No obvious gaps were identified." />
-              <ListBlock title="Risks" items={explanation.risks} emptyText="No major risks were flagged." />
+              <ListBlock title="Gaps" items={explanation.gaps} emptyText="No major gaps were highlighted by the current rubric." />
+              <ListBlock title="Risks" items={explanation.risks} emptyText="No hard-risk items were flagged by the current rubric." />
             </div>
           </div>
         )}

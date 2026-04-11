@@ -10,13 +10,16 @@
  */
 
 const SECTION_LABELS = [
+  { key: 'personal_statement', patterns: [/^personal statement$/i, /^career objective$/i, /^objective$/i] },
   { key: 'summary', patterns: [/^summary$/i, /^profile$/i, /^professional summary$/i, /^about me$/i] },
   { key: 'experience', patterns: [/^experience$/i, /^work experience$/i, /^employment$/i, /^professional experience$/i] },
   { key: 'projects', patterns: [/^projects$/i, /^project experience$/i] },
   { key: 'education', patterns: [/^education$/i, /^academic background$/i, /^qualifications$/i] },
-  { key: 'skills', patterns: [/^skills$/i, /^technical skills$/i, /^core skills$/i, /^competencies$/i] },
+  { key: 'skills', patterns: [/^skills$/i, /^technical skills$/i, /^core skills$/i] },
+  { key: 'key_competencies', patterns: [/^competencies$/i, /^key competencies$/i, /^core competencies$/i] },
   { key: 'certifications', patterns: [/^certifications$/i, /^certificates$/i, /^licenses$/i] },
   { key: 'achievements', patterns: [/^achievements$/i, /^awards$/i, /^accomplishments$/i] },
+  { key: 'volunteer', patterns: [/^volunteer experience$/i, /^volunteering$/i, /^community work$/i] },
 ];
 
 const normalizeLine = (line = '') => String(line || '').replace(/\s+/g, ' ').trim();
