@@ -1,14 +1,3 @@
-/**
- * File responsibility: Service module.
- * Main responsibilities:
- * - Keep HTTP, business logic, persistence, and formatting concerns separated to reduce change impact.
- * - Main file role: matchScoringService should encapsulate domain behaviour behind small callable functions with predictable inputs and outputs.
- * - Prefer extending behaviour by adding small helpers or sibling modules instead of growing one large file.
- * Maintenance notes:
- * - Keep this file focused on one layer of responsibility.
- * - Prefer composition and small helpers over repeated inline logic.
- */
-
 import {
   buildExplanationItem,
   buildExplanationObject,
@@ -19,103 +8,195 @@ import {
   roundScore,
 } from '../scoringSchemaService.js';
 import { normalizeTaxonomyLabel } from '../taxonomyService.js';
-import { normalizeText, tokenize, tokenSet, unique, sumWeightedScores } from './matchShared.js';
+import { normalizeText, sumWeightedScores } from './matchShared.js';
+import { computeSectionAwareMatch } from './sectionAwareMatchService.js';
+import { computeCapabilityMatch } from './capabilityMatchService.js';
+import { computeAchievementBoost } from './achievementBoostService.js';
 
-/**
- * Purpose: Execute the main responsibility for computeItemMatch.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
-export const computeItemMatch = (label, cvText) => {
-  const normalizedCv = normalizeText(cvText);
-  const labelText = String(label || '').toLowerCase().trim();
-  const labelTokens = unique(tokenize(labelText));
-  const cvTokens = tokenSet(normalizedCv);
-  const directMatch = labelText.length > 2 && normalizedCv.includes(labelText);
-  const overlap = labelTokens.filter((token) => cvTokens.has(token));
-  const overlapRatio = labelTokens.length > 0 ? overlap.length / labelTokens.length : 0;
+const toPercent = (value) => clampScore(value * 100);
+const STATUS_ORDER = { not_met: 0, inferred: 1, partial: 2, met: 3 };
+const CORE_STACK_PATTERN = /c#|\.net|mvc|java(script)?|react|vue|angular|html|css|sql|aws|api|node|postgres/i;
+const COMMERCIAL_EXPERIENCE_PATTERN = /\b\d+\+?\s+years?|professional experience|commercial experience/i;
 
-  let status = 'not_met';
-  if (directMatch || overlapRatio >= 0.8) status = 'met';
-  else if (overlapRatio >= 0.5) status = 'partial';
-  else if (overlapRatio > 0) status = 'inferred';
+const statusFromCombinedSignal = (status, combinedSignal) => {
+  if (combinedSignal >= 1.45) return 'met';
+  if (combinedSignal >= 0.9) return 'partial';
+  if (combinedSignal > 0.2) return 'inferred';
+  return status;
+};
 
+const statusMax = (statuses = []) => statuses.reduce((best, current) => (STATUS_ORDER[current] > STATUS_ORDER[best] ? current : best), 'not_met');
+const statusMin = (statuses = []) => statuses.reduce((worst, current) => (STATUS_ORDER[current] < STATUS_ORDER[worst] ? current : worst), 'met');
+
+const splitCompositeRequirement = (label = '') => {
+  const raw = String(label || '').trim();
+  if (!raw) return [];
+
+  const extracted = [];
+  const yearsMatch = raw.match(/\b\d+\+?\s+years? of professional experience/i);
+  if (yearsMatch) extracted.push(yearsMatch[0]);
+
+  const techWithMatch = raw.match(/with\s+(.+)$/i);
+  if (techWithMatch?.[1]) {
+    techWithMatch[1]
+      .split(/,| and /i)
+      .map((item) => item.replace(/[.;]+$/g, '').trim())
+      .filter(Boolean)
+      .forEach((item) => extracted.push(item));
+  }
+
+  if (!extracted.length && /,| and |\//i.test(raw)) {
+    raw.split(/,| and |\//i)
+      .map((item) => item.replace(/[.;]+$/g, '').trim())
+      .filter((item) => item.length > 2)
+      .forEach((item) => extracted.push(item));
+  }
+
+  return [...new Set(extracted.filter((item) => normalizeText(item) !== normalizeText(raw)))];
+};
+
+const describeEvidenceQuality = ({ requirementType = 'soft', status = 'not_met', matchedSection = '', matchedCapabilities = [], label = '', evidenceProfile = {} }) => {
+  const projectOnly = matchedSection === 'projects';
+  const transferableOnly = matchedCapabilities.length > 0 && !projectOnly && !['experience', 'skills'].includes(matchedSection);
+  const isCommercialRequirement = COMMERCIAL_EXPERIENCE_PATTERN.test(label) || /c#|\.net|mvc/i.test(label);
+  const hasCommercialSignals = Boolean((evidenceProfile.sections?.experience || []).length);
+
+  if (status === 'met') return 'direct evidence found';
+  if (isCommercialRequirement && projectOnly) return 'project-based evidence only';
+  if (isCommercialRequirement && !hasCommercialSignals) return 'missing direct commercial proof';
+  if (transferableOnly) return 'transferable evidence only';
+  if (projectOnly) return 'project-based evidence only';
+  if (status === 'partial') return requirementType === 'hard' ? 'partial direct evidence' : 'partial evidence found';
+  if (status === 'inferred') return 'limited direct proof';
+  return 'missing direct proof';
+};
+
+const computeEnhancedMatch = (label, criterionType, evidenceProfile) => {
+  const sectionMatch = computeSectionAwareMatch({ label, criterionType, evidenceProfile });
+  const capabilityMatch = computeCapabilityMatch({ label, evidenceProfile });
+  const achievementBoost = computeAchievementBoost({ label, evidenceProfile });
+  const combinedSignal = sectionMatch.scoreSignal + capabilityMatch.boost + achievementBoost.boost;
+  const status = statusFromCombinedSignal(sectionMatch.status, combinedSignal);
   return {
     status,
-    overlap,
-    evidence: overlap.length > 0 ? [`Matched tokens: ${overlap.join(', ')}`] : [],
+    combinedSignal,
+    matchedSection: sectionMatch.matchedSection,
+    matchedCapabilities: capabilityMatch.matchedCapabilities,
+    evidence: [
+      ...sectionMatch.evidence,
+      ...capabilityMatch.evidence,
+      ...achievementBoost.evidence.map((item) => `Achievement evidence: ${item}`),
+    ].filter(Boolean),
   };
 };
 
-/**
- * Purpose: Execute the main responsibility for toPercent.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
-const toPercent = (value) => clampScore(value * 100);
+const computeRequirementStatus = (requirement, evidenceProfile = {}) => {
+  const childLabels = splitCompositeRequirement(requirement.label);
+  const baseMatch = computeEnhancedMatch(requirement.label, 'requirement', evidenceProfile);
 
-export const buildMacroScores = (macroCriteria = [], cvText, weights = {}) =>
+  if (!childLabels.length) {
+    return {
+      ...baseMatch,
+      finalStatus: baseMatch.status,
+      detailNote: describeEvidenceQuality({
+        requirementType: requirement.type,
+        status: baseMatch.status,
+        matchedSection: baseMatch.matchedSection,
+        matchedCapabilities: baseMatch.matchedCapabilities,
+        label: requirement.label,
+        evidenceProfile,
+      }),
+    };
+  }
+
+  const childMatches = childLabels.map((label) => ({ label, ...computeEnhancedMatch(label, 'requirement', evidenceProfile) }));
+  const statuses = childMatches.map((item) => item.status);
+  const metCount = childMatches.filter((item) => item.status === 'met').length;
+  const partialishCount = childMatches.filter((item) => ['met', 'partial'].includes(item.status)).length;
+
+  let finalStatus = 'not_met';
+  if (metCount === childMatches.length) finalStatus = 'met';
+  else if (partialishCount >= Math.max(1, Math.ceil(childMatches.length / 2))) finalStatus = 'partial';
+  else if (statusMax(statuses) !== 'not_met') finalStatus = 'inferred';
+
+  if (COMMERCIAL_EXPERIENCE_PATTERN.test(requirement.label) && childMatches.some((item) => /c#|\.net|mvc/i.test(item.label) && item.status === 'not_met')) {
+    finalStatus = finalStatus === 'met' ? 'partial' : statusMin([finalStatus, 'partial']);
+  }
+
+  if (CORE_STACK_PATTERN.test(requirement.label) && childMatches.filter((item) => item.status === 'not_met').length >= 2) {
+    finalStatus = finalStatus === 'met' ? 'partial' : finalStatus;
+  }
+
+  const allEvidence = [
+    ...baseMatch.evidence,
+    ...childMatches.flatMap((item) => item.evidence.map((entry) => `${item.label}: ${entry}`)),
+  ];
+
+  const matchedSection = childMatches.find((item) => item.status === 'met')?.matchedSection
+    || childMatches.find((item) => item.status === 'partial')?.matchedSection
+    || baseMatch.matchedSection;
+  const matchedCapabilities = [...new Set(childMatches.flatMap((item) => item.matchedCapabilities || []))];
+  const childSummary = childMatches.map((item) => `${item.label}=${item.status}`).join('; ');
+
+  return {
+    ...baseMatch,
+    finalStatus,
+    matchedSection,
+    matchedCapabilities,
+    evidence: allEvidence,
+    detailNote: `${describeEvidenceQuality({
+      requirementType: requirement.type,
+      status: finalStatus,
+      matchedSection,
+      matchedCapabilities,
+      label: requirement.label,
+      evidenceProfile,
+    })}; coverage: ${childSummary}`,
+  };
+};
+
+export const buildMacroScores = (macroCriteria = [], _cvText, weights = {}, evidenceProfile = {}) =>
   macroCriteria.map((criterion) => {
-    const match = computeItemMatch(criterion.label, cvText);
+    const match = computeEnhancedMatch(criterion.label, 'macro', evidenceProfile);
     return buildScoreItem({
       label: criterion.label,
-      score: toPercent(match.status === 'met' ? 1 : match.status === 'partial' ? 0.6 : match.status === 'inferred' ? 0.3 : 0),
+      score: toPercent(match.status === 'met' ? 1 : match.status === 'partial' ? 0.68 : match.status === 'inferred' ? 0.38 : 0),
       weight: weights?.macro?.[normalizeTaxonomyLabel(criterion.label)] ?? criterion.weight ?? 1,
       evidence: match.evidence,
       matched: match.status !== 'not_met',
-      detail: match.status,
+      detail: `${match.status}; section=${match.matchedSection}; capabilities=${match.matchedCapabilities.join(', ')}`,
       criterionType: 'macro',
     });
   });
 
-/**
- * Purpose: Execute the main responsibility for buildMicroScores.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
-export const buildMicroScores = (microCriteria = [], cvText, weights = {}) =>
+export const buildMicroScores = (microCriteria = [], _cvText, weights = {}, evidenceProfile = {}) =>
   microCriteria.map((criterion) => {
-    const match = computeItemMatch(criterion.label, cvText);
+    const match = computeEnhancedMatch(criterion.label, 'micro', evidenceProfile);
     return buildScoreItem({
       label: criterion.label,
-      score: toPercent(match.status === 'met' ? 1 : match.status === 'partial' ? 0.65 : match.status === 'inferred' ? 0.35 : 0),
+      score: toPercent(match.status === 'met' ? 1 : match.status === 'partial' ? 0.7 : match.status === 'inferred' ? 0.4 : 0),
       weight: weights?.micro?.[normalizeTaxonomyLabel(criterion.label)] ?? criterion.weight ?? 1,
       evidence: match.evidence,
       matched: match.status !== 'not_met',
-      detail: match.status,
+      detail: `${match.status}; section=${match.matchedSection}; capabilities=${match.matchedCapabilities.join(', ')}`,
       criterionType: 'micro',
     });
   });
 
-/**
- * Purpose: Execute the main responsibility for buildRequirementChecks.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
-export const buildRequirementChecks = (requirements = [], cvText) =>
+export const buildRequirementChecks = (requirements = [], _cvText, evidenceProfile = {}) =>
   requirements.map((requirement) => {
-    const match = computeItemMatch(requirement.label, cvText);
-    const status = requirement.status && requirement.status !== 'not_met' ? requirement.status : match.status;
+    const match = computeRequirementStatus(requirement, evidenceProfile);
     return buildRequirementItem({
       label: requirement.label,
       type: requirement.type || 'soft',
       importance: requirement.importance || 'medium',
-      status,
+      status: match.finalStatus,
       evidence: [...(requirement.evidence || []), ...match.evidence],
       sourceChunks: requirement.sourceChunks || [],
+      notes: `section=${match.matchedSection}; capabilities=${match.matchedCapabilities.join(', ') || 'none'}; ${match.detailNote}`,
     });
   });
 
-/**
- * Purpose: Execute the main responsibility for calculateScoreBreakdown.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
 export const calculateScoreBreakdown = ({ rubric, macroScores, microScores, requirementChecks }) => {
   const macroScore = sumWeightedScores(macroScores);
   const microScore = sumWeightedScores(microScores);
@@ -134,53 +215,47 @@ export const calculateScoreBreakdown = ({ rubric, macroScores, microScores, requ
   return { macroScore, microScore, requirementScore, overallScore };
 };
 
-/**
- * Purpose: Execute the main responsibility for buildLegacyWeightedBreakdown.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
 export const buildLegacyWeightedBreakdown = ({ macroScore, microScore, requirementScore, requirementChecks }) => {
   const hardItems = requirementChecks.filter((item) => item.type === 'hard');
   const softItems = requirementChecks.filter((item) => item.type !== 'hard');
   const metHard = hardItems.filter((item) => item.status === 'met').length;
   const metSoft = softItems.filter((item) => item.status === 'met').length;
-
   return {
     softSkills: { label: 'Soft Skill Requirement', weight: 25, rawRatio: roundScore(microScore / 100, 4), score: clampScore(microScore * 0.25), matchedCount: metSoft, totalCount: softItems.length },
-    technicalSkills: { label: 'Technical Skill Requirement', weight: 35, rawRatio: roundScore(microScore / 100, 4), score: clampScore(microScore * 0.35), matchedCount: metSoft, totalCount: softItems.length },
+    technicalSkills: { label: 'Technical Skill Requirement', weight: 35, rawRatio: roundScore(microScore / 100, 4), score: clampScore(microScore * 0.35), matchedCount: metHard, totalCount: hardItems.length || softItems.length },
     qualificationMatch: { label: 'Qualification / Requirement Match', weight: 20, rawRatio: roundScore(requirementScore / 100, 4), score: clampScore(requirementScore * 0.2), matchedCount: metHard, totalCount: hardItems.length },
     rolesMatch: { label: 'Role / Macro Match', weight: 20, rawRatio: roundScore(macroScore / 100, 4), score: clampScore(macroScore * 0.2), matchedCount: Math.round((macroScore / 100) * 4), totalCount: 4 },
   };
 };
 
-/**
- * Purpose: Execute the main responsibility for buildExplanation.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
-export const buildExplanation = ({ microScores, requirementChecks }) => {
-  const strengths = microScores
-    .filter((item) => item.score >= 80)
-    .slice(0, 4)
-    .map((item) => buildExplanationItem({ label: item.label, evidence: item.evidence, detail: 'Strong matched micro criterion' }));
+export const buildExplanation = ({ microScores, requirementChecks, cvEvidenceProfile = {} }) => {
+  const achievementLabels = new Set((cvEvidenceProfile.achievements || []).map((item) => item.text));
+  const capabilityStrengths = (cvEvidenceProfile.functionalCapabilities || []).slice(0, 3).map((item) => buildExplanationItem({ label: item.replace(/_/g, ' '), detail: 'Transferable capability signal' }));
+  const strengths = [
+    ...microScores
+      .filter((item) => item.score >= 75)
+      .slice(0, 4)
+      .map((item) => buildExplanationItem({ label: item.label, evidence: item.evidence, detail: 'Strong matched criterion' })),
+    ...capabilityStrengths,
+  ].slice(0, 5);
+
   const gaps = requirementChecks
-    .filter((item) => item.status === 'not_met')
-    .slice(0, 4)
-    .map((item) => buildExplanationItem({ label: item.label, evidence: item.evidence, detail: 'Requirement not met' }));
+    .filter((item) => item.status !== 'met')
+    .filter((item) => item.status === 'not_met' || item.importance === 'high' || /missing direct commercial proof|limited direct proof|project-based evidence only/.test(item.notes || ''))
+    .slice(0, 5)
+    .map((item) => buildExplanationItem({ label: item.label, evidence: item.evidence, detail: item.status === 'not_met' ? 'Direct evidence not found' : item.notes || 'Direct proof is limited' }));
+
   const risks = requirementChecks
     .filter((item) => item.type === 'hard' && item.status !== 'met')
+    .concat(
+      requirementChecks.filter((item) => item.status === 'inferred' && /c#|\.net|mvc|professional experience|commercial experience/i.test(item.label))
+    )
     .slice(0, 4)
-    .map((item) => buildExplanationItem({ label: item.label, evidence: item.evidence, detail: 'Hard requirement risk' }));
-  const explanation = buildExplanationObject({
-    strengths,
-    gaps,
-    risks,
-    summary: strengths.length > 0
-      ? `Top matched areas: ${strengths.map((item) => item.label).join(', ')}.`
-      : 'Limited strong matches were found, so the interview should probe fundamentals and evidence depth.',
-  });
+    .map((item) => buildExplanationItem({ label: item.label, evidence: item.evidence, detail: item.status === 'inferred' ? 'Core requirement relies on limited proof' : 'Hard requirement risk' }));
 
+  const summary = strengths.length > 0
+    ? `Top matched areas: ${strengths.map((item) => item.label).join(', ')}. Transferable and project-based evidence were included, but direct proof gaps still matter for core stack requirements.`
+    : 'Limited strong matches were found, so the interview should probe direct stack evidence, transferable experience, and project depth.';
+  const explanation = buildExplanationObject({ strengths, gaps, risks, summary, achievementCount: achievementLabels.size });
   return { strengths, gaps, risks, explanation };
 };

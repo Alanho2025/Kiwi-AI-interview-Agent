@@ -18,5 +18,5 @@ import { apiClient } from './client.js';
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
 export const paraphraseJD = (rawJD) => apiClient('/job-description/paraphrase', { method: 'POST', body: { rawJD } });
-export const matchCV = (cvText, rawJD, jdRubric, settings) => apiClient('/analyze/match', { method: 'POST', body: { cvText, rawJD, jdRubric, settings } });
+export const matchCV = (cvId, rawJD, jdRubric, settings) => apiClient('/analyze/match', { method: 'POST', body: { cvId, rawJD, jdRubric, settings } });
 export const generateInterviewPlan = (payload) => apiClient('/analyze/interview-plan', { method: 'POST', body: payload });

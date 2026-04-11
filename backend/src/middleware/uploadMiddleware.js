@@ -13,15 +13,30 @@ import multer from 'multer';
 import path from 'path';
 
 const storage = multer.memoryStorage();
+const allowedMimeTypes = new Set([
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+]);
+
+const isAllowedExtension = (filename = '') => {
+  const ext = path.extname(filename).toLowerCase();
+  return ext === '.pdf' || ext === '.docx';
+};
+
+const isAllowedMimeType = (mimeType = '') => allowedMimeTypes.has(String(mimeType || '').toLowerCase());
 
 export const uploadMiddleware = multer({
   storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    if (ext !== '.pdf' && ext !== '.docx') {
+    if (!isAllowedExtension(file.originalname)) {
       return cb(new Error('Only PDF and DOCX files are allowed'));
     }
-    cb(null, true);
-  }
+
+    if (!isAllowedMimeType(file.mimetype)) {
+      return cb(new Error('Unsupported file type. Please upload a valid PDF or DOCX file.'));
+    }
+
+    return cb(null, true);
+  },
 }).single('cv');

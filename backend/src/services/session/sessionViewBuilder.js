@@ -24,6 +24,8 @@ import {
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
+const sanitizeQuestionPoolForClient = (questionPool = []) => questionPool.map(({ sourceType, sourceId, matchedRequirementId, matchedSkill, cvEvidenceRefs, generationReason, confidence, planPriority, ...safeItem }) => safeItem);
+
 const mapTranscriptTurns = (transcript) => transcript?.turns?.map((turn) => ({
   role: turn.role,
   text: turn.text,
@@ -45,10 +47,11 @@ export const buildSessionDetails = ({ row, plan, transcript, analysis, report, c
     ...baseSession,
     settings: plan?.settingsSnapshot || baseSession.settings,
     analysisResult: normalizedAnalysis,
-    interviewPlan: plan ? validateInterviewPlan(plan) : null,
+    interviewPlan: plan ? { ...validateInterviewPlan(plan), questionPool: sanitizeQuestionPoolForClient(validateInterviewPlan(plan).questionPool || []) } : null,
     hasReport: Boolean(report?.report),
     reportStatus: report?.latestStatus || null,
-    cvText: cvDocument?.normalizedText || cvDocument?.rawText || '',
+    cvProfile: cvDocument?.cvProfile || null,
+    cvDisplay: cvDocument?.displayProfile || null,
     transcript: mapTranscriptTurns(transcript),
   };
 };

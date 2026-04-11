@@ -10,7 +10,14 @@
  */
 
 import express from 'express';
-import { uploadCV, getRecentCVs, selectCV } from '../../controllers/uploadController.js';
+import {
+  uploadCV,
+  getRecentCVs,
+  selectCV,
+  rebuildCvProfile,
+  deleteCv,
+  exportCv,
+} from '../../controllers/uploadController.js';
 import { uploadMiddleware } from '../../middleware/uploadMiddleware.js';
 
 const router = express.Router();
@@ -18,5 +25,8 @@ const router = express.Router();
 router.post('/cv', uploadMiddleware, uploadCV);
 router.get('/recent-cvs', getRecentCVs);
 router.post('/select-cv', selectCV);
+router.post('/cv/:cvId/rebuild-profile', rebuildCvProfile);
+router.delete('/cv/:cvId', deleteCv);
+router.get('/cv/:cvId/export', exportCv);
 
 export default router;

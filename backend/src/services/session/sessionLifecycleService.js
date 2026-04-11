@@ -44,6 +44,8 @@ export const createSession = async ({
   jdRubric = null,
   settings = {},
   analysisResult = {},
+  matchAnalysisId = null,
+  evidenceRefs = [],
   targetRole,
   totalQuestions = 8,
   candidateName = 'Candidate',
@@ -71,8 +73,8 @@ export const createSession = async ({
   });
 
   await persistParsedSkills({ id, normalizedAnalysis, jdRubric });
-  await persistSessionAnalysis({ id, userId, cvFileId, jdText, jdRubric, normalizedAnalysis });
-  await persistInterviewPlan({ id, userId, normalizedAnalysis, settings, resolvedCandidateName, resolvedTargetRole });
+  await persistSessionAnalysis({ id, userId, cvFileId, jdText, jdRubric, normalizedAnalysis, matchAnalysisId, evidenceRefs });
+  await persistInterviewPlan({ id, userId, normalizedAnalysis, settings, resolvedCandidateName, resolvedTargetRole, matchAnalysisId, evidenceRefs });
   await initializeTranscript({ id, userId });
 
   return getSessionById(id);

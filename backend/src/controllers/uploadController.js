@@ -12,6 +12,9 @@
 import crypto from 'crypto';
 import { formatSuccess } from '../utils/responseFormatter.js';
 import { extractTextFromCV } from '../services/fileService.js';
+import { buildCvProfile } from '../services/cv/cvProfileBuilderService.js';
+import { buildCvDisplayView } from '../services/cv/cvDisplayViewService.js';
+import { rebuildOwnedCvProfile, softDeleteOwnedCv, exportOwnedCvData } from '../services/cv/cvLifecycleService.js';
 import * as authService from '../services/authService.js';
 import { createAuditLog } from '../services/auditService.js';
 import { attachDocumentContent, createUploadedFileRecord, getCvRecordById, getRecentCvRecords } from '../services/fileRepositoryService.js';
@@ -29,6 +32,8 @@ export const uploadCV = asyncHandler(async (req, res) => {
   if (!text) {
     throw badRequest('Text extraction failed', 'Could not extract readable text from the uploaded file');
   }
+
+  const cvProfile = buildCvProfile(text);
 
   const user = await authService.resolveUserFromRequest(req);
   const checksum = crypto.createHash('sha256').update(req.file.buffer).digest('hex');
@@ -49,13 +54,28 @@ export const uploadCV = asyncHandler(async (req, res) => {
     checksum,
   });
 
+  const displayProfile = buildCvDisplayView({
+    fileRecord: {
+      id: fileId,
+      original_filename: req.file.originalname,
+      mime_type: req.file.mimetype,
+      uploaded_at: new Date().toISOString(),
+    },
+    cvProfile,
+  });
+
   await attachDocumentContent({
     fileId,
     userId: user.id,
     documentType: 'cv',
     rawText: text,
     normalizedText: text,
-    redactedText: text,
+    redactedText: displayProfile.summary || '',
+    parseWarnings: cvProfile.warnings || [],
+    parseConfidence: cvProfile.confidence || 0.5,
+    extractedSections: cvProfile.sections || [],
+    cvProfile,
+    displayProfile,
   });
 
   const fileMetadata = await getCvRecordById(fileId, user.id);
@@ -99,4 +119,43 @@ export const selectCV = asyncHandler(async (req, res) => {
 
   logger.info('CV selected', getRequestLogMeta(req, { userId: user.id, cvId }));
   res.json(formatSuccess('CV selected successfully', selectedCV));
+});
+
+
+export const rebuildCvProfile = asyncHandler(async (req, res) => {
+  const user = await authService.resolveUserFromRequest(req);
+  const updatedCv = await rebuildOwnedCvProfile({ cvId: req.params.cvId, userId: user.id });
+  res.json(formatSuccess('CV profile rebuilt successfully', updatedCv));
+});
+
+export const deleteCv = asyncHandler(async (req, res) => {
+  const user = await authService.resolveUserFromRequest(req);
+  const result = await softDeleteOwnedCv({ cvId: req.params.cvId, userId: user.id });
+  await createAuditLog({
+    actorUserId: user.id,
+    targetUserId: user.id,
+    actionType: 'delete_cv',
+    resourceType: 'uploaded_file',
+    resourceId: req.params.cvId,
+    metadata: result,
+    ipAddress: req.ip,
+    userAgent: req.get('user-agent'),
+  });
+  res.json(formatSuccess('CV deleted successfully', result));
+});
+
+export const exportCv = asyncHandler(async (req, res) => {
+  const user = await authService.resolveUserFromRequest(req);
+  const payload = await exportOwnedCvData({ cvId: req.params.cvId, userId: user.id });
+  await createAuditLog({
+    actorUserId: user.id,
+    targetUserId: user.id,
+    actionType: 'export_cv_data',
+    resourceType: 'uploaded_file',
+    resourceId: req.params.cvId,
+    metadata: { exportScope: payload.lifecycle.exportScope },
+    ipAddress: req.ip,
+    userAgent: req.get('user-agent'),
+  });
+  res.json(formatSuccess('CV export prepared successfully', payload));
 });

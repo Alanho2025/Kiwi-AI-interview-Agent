@@ -21,6 +21,29 @@ export const DEFAULT_ANALYZE_SETTINGS = {
 const ALLOWED_SENIORITY = new Set(['Junior/Grad', 'Mid-level', 'Senior']);
 const ALLOWED_FOCUS = new Set(['Technical', 'Behavioral', 'Combined']);
 
+
+const sanitizeSelectedCv = (selectedCV) => {
+  if (!selectedCV || typeof selectedCV !== 'object') {
+    return null;
+  }
+
+  return {
+    id: selectedCV.id || null,
+    name: selectedCV.name || '',
+    size: selectedCV.size || '',
+    updated: selectedCV.updated || '',
+    type: selectedCV.type || '',
+    parseStatus: selectedCV.parseStatus || 'pending',
+    profileStatus: selectedCV.profileStatus || 'pending',
+    candidateName: selectedCV.candidateName || 'Candidate',
+    topSkills: Array.isArray(selectedCV.topSkills) ? selectedCV.topSkills : [],
+    summary: selectedCV.summary || '',
+    warnings: Array.isArray(selectedCV.warnings) ? selectedCV.warnings : [],
+    profile: selectedCV.profile || null,
+    display: selectedCV.display || null,
+  };
+};
+
 /**
  * Purpose: Execute the main responsibility for sanitizeAnalyzeSettings.
  * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
@@ -97,7 +120,7 @@ export const loadAnalyzeDraft = () => {
 
     const parsed = JSON.parse(savedDraft);
     return {
-      selectedCV: parsed.selectedCV || null,
+      selectedCV: sanitizeSelectedCv(parsed.selectedCV),
       rawJD: parsed.rawJD || '',
       structuredJD: parsed.structuredJD || '',
       structuredJDRubric: parsed.structuredJDRubric || null,
@@ -124,5 +147,8 @@ export const loadAnalyzeDraft = () => {
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
 export const persistAnalyzeDraft = (draft) => {
-  window.localStorage.setItem(ANALYZE_DRAFT_KEY, JSON.stringify(draft));
+  window.localStorage.setItem(ANALYZE_DRAFT_KEY, JSON.stringify({
+    ...draft,
+    selectedCV: sanitizeSelectedCv(draft.selectedCV),
+  }));
 };
