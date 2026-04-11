@@ -9,12 +9,8 @@
  * - Prefer composition and small helpers over repeated inline logic.
  */
 
-/**
- * Purpose: Execute the main responsibility for toErrorPayload.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
+const isProduction = process.env.NODE_ENV === 'production';
+
 const toErrorPayload = (error) => {
   if (!error) {
     return undefined;
@@ -26,15 +22,10 @@ const toErrorPayload = (error) => {
     stack: error.stack,
     code: error.code,
     statusCode: error.statusCode,
+    details: error.details,
   };
 };
 
-/**
- * Purpose: Execute the main responsibility for buildLogEntry.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
 const buildLogEntry = (level, message, meta = {}) => {
   const entry = {
     timestamp: new Date().toISOString(),
@@ -50,15 +41,68 @@ const buildLogEntry = (level, message, meta = {}) => {
   return entry;
 };
 
-/**
- * Purpose: Execute the main responsibility for write.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
+const formatValue = (value) => {
+  if (value === null) return 'null';
+  if (value === undefined) return 'undefined';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  return JSON.stringify(value, null, 2);
+};
+
+const flattenForConsole = (prefix, value, lines) => {
+  if (value === null || value === undefined) {
+    lines.push(`${prefix}: ${formatValue(value)}`);
+    return;
+  }
+
+  if (Array.isArray(value)) {
+    if (!value.length) {
+      lines.push(`${prefix}: []`);
+      return;
+    }
+
+    lines.push(`${prefix}:`);
+    value.forEach((item, index) => {
+      flattenForConsole(`${prefix}  [${index}]`, item, lines);
+    });
+    return;
+  }
+
+  if (typeof value === 'object') {
+    const entries = Object.entries(value);
+    if (!entries.length) {
+      lines.push(`${prefix}: {}`);
+      return;
+    }
+
+    lines.push(`${prefix}:`);
+    entries.forEach(([key, nestedValue]) => {
+      flattenForConsole(`${prefix}  ${key}`, nestedValue, lines);
+    });
+    return;
+  }
+
+  lines.push(`${prefix}: ${formatValue(value)}`);
+};
+
+const formatPrettyLog = (payload) => {
+  const header = `[${payload.timestamp}] ${String(payload.level || 'info').toUpperCase()} ${payload.message || ''}`.trim();
+  const lines = [header];
+
+  Object.entries(payload)
+    .filter(([key]) => !['timestamp', 'level', 'message'].includes(key))
+    .forEach(([key, value]) => {
+      flattenForConsole(key, value, lines);
+    });
+
+  return lines.join('\n');
+};
+
 const write = (level, message, meta = {}) => {
   const payload = buildLogEntry(level, message, meta);
-  const serialized = JSON.stringify(payload);
+  const serialized = isProduction
+    ? JSON.stringify(payload)
+    : formatPrettyLog(payload);
 
   if (level === 'error') {
     console.error(serialized);
@@ -79,12 +123,6 @@ export const logger = {
   error: (message, meta) => write('error', message, meta),
 };
 
-/**
- * Purpose: Execute the main responsibility for getRequestLogMeta.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
 export const getRequestLogMeta = (req, extra = {}) => ({
   requestId: req?.requestContext?.requestId,
   userId: req?.user?.id || null,
