@@ -221,7 +221,7 @@ export const persistParsedSkills = async ({ id, normalizedAnalysis, jdRubric }) 
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-const buildSessionAnalysisDocument = ({ id, userId, cvFileId, jdText, rubric, normalizedAnalysis }) => ({
+const buildSessionAnalysisDocument = ({ id, userId, cvFileId, jdText, rubric, normalizedAnalysis, matchAnalysisId, evidenceRefs }) => ({
   sessionId: id,
   userId,
   cvDocumentId: cvFileId,
@@ -247,6 +247,7 @@ const buildSessionAnalysisDocument = ({ id, userId, cvFileId, jdText, rubric, no
   explanation: normalizedAnalysis.explanation || {},
   evidenceMap: normalizedAnalysis.evidenceMap || [],
   sourceSnapshots: normalizedAnalysis.sourceSnapshots || [],
+  retrievalSnapshots: [{ matchAnalysisId, evidenceRefs: evidenceRefs || [] }],
   analysisStatus: 'completed',
   retentionUntil: retentionDate(),
   schemaVersion: normalizedAnalysis.schemaVersion || 'v3',
@@ -258,12 +259,12 @@ const buildSessionAnalysisDocument = ({ id, userId, cvFileId, jdText, rubric, no
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-export const persistSessionAnalysis = async ({ id, userId, cvFileId, jdText, jdRubric, normalizedAnalysis }) => {
+export const persistSessionAnalysis = async ({ id, userId, cvFileId, jdText, jdRubric, normalizedAnalysis, matchAnalysisId = null, evidenceRefs = [] }) => {
   const rubric = normalizedAnalysis.parsedJdProfile || normalizedAnalysis.matchingDetails?.rubric || jdRubric || {};
 
   await SessionAnalysis.findOneAndUpdate(
     { sessionId: id },
-    buildSessionAnalysisDocument({ id, userId, cvFileId, jdText, rubric, normalizedAnalysis }),
+    buildSessionAnalysisDocument({ id, userId, cvFileId, jdText, rubric, normalizedAnalysis, matchAnalysisId, evidenceRefs }),
     { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
   );
 };
@@ -274,7 +275,7 @@ export const persistSessionAnalysis = async ({ id, userId, cvFileId, jdText, jdR
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-export const persistInterviewPlan = async ({ id, userId, normalizedAnalysis, settings, resolvedCandidateName, resolvedTargetRole }) => {
+export const persistInterviewPlan = async ({ id, userId, normalizedAnalysis, settings, resolvedCandidateName, resolvedTargetRole, matchAnalysisId = null, evidenceRefs = [] }) => {
   const validatedPlan = buildInterviewPlanPayload({
     normalizedAnalysis,
     settings,
@@ -288,6 +289,8 @@ export const persistInterviewPlan = async ({ id, userId, normalizedAnalysis, set
       sessionId: id,
       userId,
       ...validatedPlan,
+      strategy: { ...(validatedPlan.strategy || {}), matchAnalysisId },
+      questionPlanSnapshot: { matchAnalysisId, evidenceRefs },
       retentionUntil: retentionDate(),
     },
     { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }

@@ -1,3 +1,5 @@
+import { buildCvProfile as buildStructuredCvProfile } from '../cv/cvProfileBuilderService.js';
+
 /**
  * File responsibility: Service module.
  * Main responsibilities:
@@ -38,12 +40,16 @@ export const extractCandidateName = (cvText = '') => {
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-export const buildCvProfile = (cvText) => ({
-  rawLength: cvText?.length || 0,
-  tokenCount: tokenize(cvText).length,
-  candidateName: extractCandidateName(cvText),
-  evidencePreview: normalizeText(cvText).slice(0, 300),
-});
+export const buildCvProfile = (cvText) => {
+  const profile = buildStructuredCvProfile(cvText);
+  return {
+    ...profile,
+    rawLength: cvText?.length || 0,
+    tokenCount: tokenize(cvText).length,
+    candidateName: profile.candidateName || extractCandidateName(cvText),
+    evidencePreview: normalizeText(cvText).slice(0, 300),
+  };
+};
 
 /**
  * Purpose: Execute the main responsibility for sumWeightedScores.
