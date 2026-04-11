@@ -1,15 +1,44 @@
+/**
+ * File responsibility: Service module.
+ * Main responsibilities:
+ * - Keep HTTP, business logic, persistence, and formatting concerns separated to reduce change impact.
+ * - Main file role: fileRepositoryService should encapsulate domain behaviour behind small callable functions with predictable inputs and outputs.
+ * - Prefer extending behaviour by adding small helpers or sibling modules instead of growing one large file.
+ * Maintenance notes:
+ * - Keep this file focused on one layer of responsibility.
+ * - Prefer composition and small helpers over repeated inline logic.
+ */
+
 import crypto from 'crypto';
 import { query } from '../db/postgres.js';
 import { DocumentContent } from '../db/models/documentContentModel.js';
 
+/**
+ * Purpose: Execute the main responsibility for formatFileSize.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 const formatFileSize = (fileSizeBytes) => {
   const sizeKB = fileSizeBytes / 1024;
   return sizeKB > 1024 ? `${(sizeKB / 1024).toFixed(1)}MB` : `${sizeKB.toFixed(1)}KB`;
 };
 
+/**
+ * Purpose: Execute the main responsibility for formatDisplayDate.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 const formatDisplayDate = (isoDate) =>
   new Date(isoDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
+/**
+ * Purpose: Execute the main responsibility for buildCvResponse.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 const buildCvResponse = (row, document) => ({
   id: row.id,
   name: row.original_filename,
@@ -20,6 +49,12 @@ const buildCvResponse = (row, document) => ({
   isDummyData: row.original_filename.includes('[DUMMY DATA]') || false,
 });
 
+/**
+ * Purpose: Execute the main responsibility for createUploadedFileRecord.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const createUploadedFileRecord = async ({
   userId,
   sessionId = null,
@@ -43,6 +78,12 @@ export const createUploadedFileRecord = async ({
   return id;
 };
 
+/**
+ * Purpose: Execute the main responsibility for attachDocumentContent.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const attachDocumentContent = async ({
   fileId,
   sessionId = null,
@@ -70,6 +111,12 @@ export const attachDocumentContent = async ({
   );
 };
 
+/**
+ * Purpose: Execute the main responsibility for getRecentCvRecords.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const getRecentCvRecords = async (userId, limit = 5) => {
   const result = await query(
     `SELECT *
@@ -87,6 +134,12 @@ export const getRecentCvRecords = async (userId, limit = 5) => {
   return result.rows.map((row) => buildCvResponse(row, documentsByFileId.get(row.id)));
 };
 
+/**
+ * Purpose: Execute the main responsibility for getCvRecordById.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const getCvRecordById = async (fileId, userId) => {
   const result = await query(
     `SELECT *

@@ -1,3 +1,14 @@
+/**
+ * File responsibility: Service module.
+ * Main responsibilities:
+ * - Keep HTTP, business logic, persistence, and formatting concerns separated to reduce change impact.
+ * - Main file role: taxonomyService should encapsulate domain behaviour behind small callable functions with predictable inputs and outputs.
+ * - Prefer extending behaviour by adding small helpers or sibling modules instead of growing one large file.
+ * Maintenance notes:
+ * - Keep this file focused on one layer of responsibility.
+ * - Prefer composition and small helpers over repeated inline logic.
+ */
+
 const TERM_ALIASES = new Map([
   ['power bi', 'power_bi'],
   ['powerbi', 'power_bi'],
@@ -66,6 +77,12 @@ const ROLE_CANONICAL_RULES = [
   { canonical: 'project_manager', family: 'project_management', patterns: [/project manager/i, /program manager/i, /delivery manager/i] },
 ];
 
+/**
+ * Purpose: Execute the main responsibility for slugifyLabel.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const slugifyLabel = (value = '') =>
   value
     .toLowerCase()
@@ -73,18 +90,36 @@ export const slugifyLabel = (value = '') =>
     .replace(/^_+|_+$/g, '')
     .replace(/_+/g, '_');
 
+/**
+ * Purpose: Execute the main responsibility for normalizeTaxonomyLabel.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const normalizeTaxonomyLabel = (value = '') => {
   const cleaned = value.trim().toLowerCase();
   if (!cleaned) return '';
   return TERM_ALIASES.get(cleaned) || slugifyLabel(cleaned);
 };
 
+/**
+ * Purpose: Execute the main responsibility for buildTaxonomyItem.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const buildTaxonomyItem = (label, extra = {}) => ({
   id: normalizeTaxonomyLabel(label),
   label: label?.trim() || '',
   ...extra,
 });
 
+/**
+ * Purpose: Execute the main responsibility for uniqueById.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const uniqueById = (items = []) => {
   const seen = new Set();
   return items.filter((item) => {
@@ -95,12 +130,24 @@ export const uniqueById = (items = []) => {
   });
 };
 
+/**
+ * Purpose: Execute the main responsibility for mergeUniqueLabels.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const mergeUniqueLabels = (...groups) => {
   const flattened = groups.flat().filter(Boolean);
   const mapped = flattened.map((item) => typeof item === 'string' ? buildTaxonomyItem(item) : buildTaxonomyItem(item.label || item.id || '', item));
   return uniqueById(mapped);
 };
 
+/**
+ * Purpose: Execute the main responsibility for canonicalizeRole.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const canonicalizeRole = (title = '', fallbackText = '') => {
   const combined = `${title} ${fallbackText}`.trim();
   for (const rule of ROLE_CANONICAL_RULES) {
@@ -114,6 +161,12 @@ export const canonicalizeRole = (title = '', fallbackText = '') => {
   };
 };
 
+/**
+ * Purpose: Execute the main responsibility for inferRoleLevel.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const inferRoleLevel = (text = '') => {
   if (/intern|apprentice|graduate/i.test(text)) return 'intern';
   if (/junior|entry level|associate/i.test(text)) return 'junior';
@@ -122,6 +175,12 @@ export const inferRoleLevel = (text = '') => {
   return 'mid';
 };
 
+/**
+ * Purpose: Execute the main responsibility for prettifyCanonicalRole.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const prettifyCanonicalRole = (canonical = '') =>
   canonical
     .split('_')

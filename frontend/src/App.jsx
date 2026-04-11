@@ -1,3 +1,14 @@
+/**
+ * File responsibility: Application module.
+ * Main responsibilities:
+ * - Keep presentation, state orchestration, and display helpers separated so React components stay reusable.
+ * - Main file role: App should keep its module boundaries clear and focused.
+ * - Prefer extending behaviour by adding small helpers or sibling modules instead of growing one large file.
+ * Maintenance notes:
+ * - Keep this file focused on one layer of responsibility.
+ * - Prefer composition and small helpers over repeated inline logic.
+ */
+
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AnalyzePage } from './pages/AnalyzePage.jsx';
 import { InterviewPage } from './pages/InterviewPage.jsx';

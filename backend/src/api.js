@@ -1,3 +1,14 @@
+/**
+ * File responsibility: Application composition module.
+ * Main responsibilities:
+ * - Keep HTTP, business logic, persistence, and formatting concerns separated to reduce change impact.
+ * - Main file role: api should keep its module boundaries clear and focused.
+ * - Prefer extending behaviour by adding small helpers or sibling modules instead of growing one large file.
+ * Maintenance notes:
+ * - Keep this file focused on one layer of responsibility.
+ * - Prefer composition and small helpers over repeated inline logic.
+ */
+
 import express from 'express';
 import cors from 'cors';
 import uploadRoutes from './api/routes/uploadRoutes.js';
@@ -11,6 +22,7 @@ import ragRoutes from './api/routes/ragRoutes.js';
 import reportRoutes from './api/routes/reportRoutes.js';
 import healthRoutes from './api/routes/healthRoutes.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import { requestContext } from './middleware/requestContext.js';
 import { optionalAuth, requireAuth } from './middleware/authMiddleware.js';
 import dotenv from 'dotenv';
 
@@ -22,6 +34,7 @@ api.use(cors({
   credentials: true,
 }));
 api.use(express.json());
+api.use(requestContext);
 api.use(optionalAuth);
 
 api.use('/health', healthRoutes);

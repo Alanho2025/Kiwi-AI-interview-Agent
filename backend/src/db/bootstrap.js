@@ -1,7 +1,24 @@
+/**
+ * File responsibility: Database module.
+ * Main responsibilities:
+ * - Keep HTTP, business logic, persistence, and formatting concerns separated to reduce change impact.
+ * - Main file role: bootstrap should define and share database setup or model behaviour in one place.
+ * - Prefer extending behaviour by adding small helpers or sibling modules instead of growing one large file.
+ * Maintenance notes:
+ * - Keep this file focused on one layer of responsibility.
+ * - Prefer composition and small helpers over repeated inline logic.
+ */
+
 import { connectMongo, getLastMongoError } from './mongo.js';
 import { initPostgresSchema } from './initPostgresSchema.js';
 import { connectPostgres } from './postgres.js';
 
+/**
+ * Purpose: Execute the main responsibility for bootstrapPostgres.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const bootstrapPostgres = async () => {
   await connectPostgres();
   await initPostgresSchema();
@@ -9,6 +26,12 @@ export const bootstrapPostgres = async () => {
   return { ok: true };
 };
 
+/**
+ * Purpose: Execute the main responsibility for bootstrapMongo.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const bootstrapMongo = async ({ required = false } = {}) => {
   try {
     await connectMongo();
@@ -31,6 +54,12 @@ export const bootstrapMongo = async ({ required = false } = {}) => {
   }
 };
 
+/**
+ * Purpose: Execute the main responsibility for bootstrapDatabases.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const bootstrapDatabases = async ({ mongoRequired = false } = {}) => {
   const postgres = await bootstrapPostgres();
   const mongo = await bootstrapMongo({ required: mongoRequired });

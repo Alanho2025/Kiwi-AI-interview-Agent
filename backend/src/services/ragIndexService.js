@@ -1,3 +1,14 @@
+/**
+ * File responsibility: Service module.
+ * Main responsibilities:
+ * - Keep HTTP, business logic, persistence, and formatting concerns separated to reduce change impact.
+ * - Main file role: ragIndexService should encapsulate domain behaviour behind small callable functions with predictable inputs and outputs.
+ * - Prefer extending behaviour by adding small helpers or sibling modules instead of growing one large file.
+ * Maintenance notes:
+ * - Keep this file focused on one layer of responsibility.
+ * - Prefer composition and small helpers over repeated inline logic.
+ */
+
 import crypto from 'crypto';
 import { DocumentChunk } from '../db/models/documentChunkModel.js';
 import { embedBatch, normalizeForRetrieval } from './embeddingService.js';
@@ -7,6 +18,12 @@ import { SessionTranscript } from '../db/models/sessionTranscriptModel.js';
 
 const DEFAULT_CHUNK_SIZE = 900;
 
+/**
+ * Purpose: Execute the main responsibility for splitTextIntoChunks.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 const splitTextIntoChunks = (text = '', chunkSize = DEFAULT_CHUNK_SIZE) => {
   const normalized = String(text || '').trim();
   if (!normalized) {
@@ -20,6 +37,12 @@ const splitTextIntoChunks = (text = '', chunkSize = DEFAULT_CHUNK_SIZE) => {
   return chunks;
 };
 
+/**
+ * Purpose: Execute the main responsibility for buildChunkRecord.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 const buildChunkRecord = ({ sourceType, sourceId, documentType, sessionId = null, userId = null, text, chunkIndex, metadata = {} }) => ({
   chunkId: `${sourceType}_${sourceId}_${chunkIndex}_${crypto.createHash('md5').update(text).digest('hex').slice(0, 8)}`,
   sourceType,
@@ -36,6 +59,12 @@ const buildChunkRecord = ({ sourceType, sourceId, documentType, sessionId = null
   schemaVersion: 'v2',
 });
 
+/**
+ * Purpose: Execute the main responsibility for indexTextSource.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const indexTextSource = async ({ sourceType, sourceId, documentType, text, sessionId = null, userId = null, metadata = {} } = {}) => {
   const textChunks = splitTextIntoChunks(text);
   if (!textChunks.length) {
@@ -62,6 +91,12 @@ export const indexTextSource = async ({ sourceType, sourceId, documentType, text
   return records;
 };
 
+/**
+ * Purpose: Execute the main responsibility for indexSessionArtifacts.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const indexSessionArtifacts = async (sessionId) => {
   const [analysis, plan, transcript] = await Promise.all([
     SessionAnalysis.findOne({ sessionId }).lean(),

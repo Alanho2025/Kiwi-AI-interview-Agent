@@ -1,3 +1,14 @@
+/**
+ * File responsibility: Application module.
+ * Main responsibilities:
+ * - Keep HTTP, business logic, persistence, and formatting concerns separated to reduce change impact.
+ * - Main file role: importResumeScoreDetails should keep its module boundaries clear and focused.
+ * - Prefer extending behaviour by adding small helpers or sibling modules instead of growing one large file.
+ * Maintenance notes:
+ * - Keep this file focused on one layer of responsibility.
+ * - Prefer composition and small helpers over repeated inline logic.
+ */
+
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -13,6 +24,12 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const defaultInputDir = path.resolve(__dirname, '../../../../data/resume-score-details-normalized');
 
+/**
+ * Purpose: Execute the main responsibility for readJson.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 const readJson = (filePath) => JSON.parse(fs.readFileSync(filePath, 'utf8'));
 
 const formatPercent = (current, total) => {
@@ -20,6 +37,12 @@ const formatPercent = (current, total) => {
   return `${Math.floor((current / total) * 100)}%`;
 };
 
+/**
+ * Purpose: Execute the main responsibility for renderProgressBar.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 const renderProgressBar = (current, total, label = '', barWidth = 30) => {
   const safeTotal = Math.max(total, 1);
   const percent = current / safeTotal;
@@ -36,6 +59,12 @@ const renderProgressBar = (current, total, label = '', barWidth = 30) => {
   }
 };
 
+/**
+ * Purpose: Execute the main responsibility for upsertMany.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 const upsertMany = async (Model, items, keyField, label = 'Progress') => {
   const total = items.length;
 
@@ -60,6 +89,12 @@ const upsertMany = async (Model, items, keyField, label = 'Progress') => {
   console.log(`${label} completed`);
 };
 
+/**
+ * Purpose: Execute the main responsibility for run.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 const run = async ({ inputDir = defaultInputDir } = {}) => {
   console.log('\nConnecting to MongoDB...');
   await connectMongo();
