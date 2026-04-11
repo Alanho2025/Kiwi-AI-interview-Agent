@@ -10,6 +10,7 @@
  */
 
 import { extractCvSections } from './cvSectionParser.js';
+import { buildCvEvidenceProfile } from './cvEvidenceProfileBuilder.js';
 
 const COMMON_SKILLS = [
   'python', 'java', 'javascript', 'typescript', 'react', 'node', 'express', 'sql', 'postgresql', 'mongodb',
@@ -85,21 +86,29 @@ export const buildCvProfile = (text = '') => {
   const evidenceMap = buildEvidenceMap(sections, skillItems);
   const contact = extractContactInfo(normalizedText);
 
-  return {
+  const profile = {
     schemaVersion: 'cv_profile_v1',
     candidateName: extractCandidateName(normalizedText),
     rawLength: normalizedText.length,
     tokenCount: normalizedText.split(/\s+/).filter(Boolean).length,
     contact,
-    summary: sectionTextByKey(sections, 'summary').slice(0, 500),
+    personalStatement: sectionTextByKey(sections, 'personal_statement').slice(0, 800),
+    summary: (sectionTextByKey(sections, 'summary') || sectionTextByKey(sections, 'personal_statement')).slice(0, 500),
     experience: sectionTextByKey(sections, 'experience').slice(0, 1200),
     education: sectionTextByKey(sections, 'education').slice(0, 800),
     projects: sectionTextByKey(sections, 'projects').slice(0, 1000),
     certifications: sectionTextByKey(sections, 'certifications').slice(0, 500),
+    keyCompetencies: sectionTextByKey(sections, 'key_competencies').slice(0, 1000),
+    volunteer: sectionTextByKey(sections, 'volunteer').slice(0, 600),
     skills: skillItems,
     sections,
     evidenceMap,
     warnings: buildWarnings(sections, skillItems),
     confidence: skillItems.length ? 0.72 : 0.48,
+  };
+
+  return {
+    ...profile,
+    evidenceProfile: buildCvEvidenceProfile(profile, normalizedText),
   };
 };

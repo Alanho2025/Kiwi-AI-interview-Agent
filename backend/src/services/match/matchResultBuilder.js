@@ -1,43 +1,22 @@
-/**
- * File responsibility: Service module.
- * Main responsibilities:
- * - Keep HTTP, business logic, persistence, and formatting concerns separated to reduce change impact.
- * - Main file role: matchResultBuilder should encapsulate domain behaviour behind small callable functions with predictable inputs and outputs.
- * - Prefer extending behaviour by adding small helpers or sibling modules instead of growing one large file.
- * Maintenance notes:
- * - Keep this file focused on one layer of responsibility.
- * - Prefer composition and small helpers over repeated inline logic.
- */
-
 import { buildAnalyzeOutput, deriveDecision, roundScore, clampScore } from '../scoringSchemaService.js';
 import { validateAnalyzeOutput } from '../schemaValidationService.js';
 import { unique } from './matchShared.js';
 import { buildLegacyWeightedBreakdown } from './matchScoringService.js';
 
-/**
- * Purpose: Execute the main responsibility for calculateConfidence.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
-export const calculateConfidence = ({ parsedCvProfile, macroScores, microScores, requirementChecks }) =>
+export const calculateConfidence = ({ parsedCvProfile, macroScores, microScores, requirementChecks, cvEvidenceProfile }) =>
   roundScore(
     Math.min(
       0.95,
-      0.35
-      + Math.min(0.25, ((macroScores.length + microScores.length) / 20) * 0.25)
-      + Math.min(0.2, requirementChecks.filter((item) => item.evidence.length > 0).length * 0.04)
-      + Math.min(0.15, parsedCvProfile.tokenCount / 8000)
+      0.32
+      + Math.min(0.22, ((macroScores.length + microScores.length) / 20) * 0.22)
+      + Math.min(0.18, requirementChecks.filter((item) => item.evidence.length > 0).length * 0.035)
+      + Math.min(0.13, (parsedCvProfile.tokenCount || 0) / 8000)
+      + Math.min(0.1, ((cvEvidenceProfile?.sections?.projects || []).length || 0) * 0.03)
+      + Math.min(0.08, ((cvEvidenceProfile?.achievements || []).length || 0) * 0.02)
     ),
     2
   );
 
-/**
- * Purpose: Execute the main responsibility for buildAnalyzeResult.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
 export const buildAnalyzeResult = ({
   parsedCvProfile,
   rubric,
@@ -50,8 +29,10 @@ export const buildAnalyzeResult = ({
   gaps,
   risks,
   questionPlanHints,
+  transitionProfile = {},
+  cvEvidenceProfile = {},
 }) => {
-  const confidence = calculateConfidence({ parsedCvProfile, macroScores, microScores, requirementChecks });
+  const confidence = calculateConfidence({ parsedCvProfile, macroScores, microScores, requirementChecks, cvEvidenceProfile });
   const decision = deriveDecision({ overallScore: scoreBreakdown.overallScore, confidence, hardGateFailed: risks.length > 0 });
   const interviewFocus = unique([
     ...questionPlanHints.mustProbeSkills.slice(0, 3),
@@ -71,6 +52,22 @@ export const buildAnalyzeResult = ({
     microScore: scoreBreakdown.microScore,
     requirementScore: scoreBreakdown.requirementScore,
     questionPlanHints,
+    cvEvidenceProfile,
+    sectionBreakdown: {
+      projects: (cvEvidenceProfile.sections?.projects || []).length,
+      experienceEntries: (cvEvidenceProfile.sections?.experience || []).length,
+      keyCompetencies: (cvEvidenceProfile.sections?.keyCompetencies || []).length,
+      achievements: (cvEvidenceProfile.achievements || []).length,
+    },
+    capabilityMatches: unique(requirementChecks.flatMap((item) => item.notes ? [item.notes] : [])),
+    achievementSignals: cvEvidenceProfile.achievements || [],
+    transitionProfile,
+    scoreDimensions: {
+      technicalReadiness: transitionProfile.technicalReadiness ?? 0,
+      transferableStrength: transitionProfile.transferableStrength ?? 0,
+      commercialExperience: transitionProfile.commercialExperience ?? 0,
+      growthPotential: transitionProfile.growthPotential ?? 0,
+    },
   };
 
   return validateAnalyzeOutput(
@@ -80,7 +77,10 @@ export const buildAnalyzeResult = ({
       overallScore: scoreBreakdown.overallScore,
       confidence,
       decision,
-      parsedCvProfile,
+      parsedCvProfile: {
+        ...parsedCvProfile,
+        evidenceProfile: cvEvidenceProfile,
+      },
       parsedJdProfile: rubric,
       macroScores,
       microScores,
