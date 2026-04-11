@@ -13,7 +13,14 @@ import { AppHeader } from '../layout/AppHeader.jsx';
 import { formatDuration } from '../../utils/formatters.js';
 
 export function InterviewPageHeader({ session, displayRole, compactRoleLabel, stageLabel, elapsedSeconds, onViewReport }) {
-  const canViewReport = session?.status === 'completed' && Boolean(session?.hasReport);
+  const isCompleted = session?.status === 'completed';
+  const hasReport = Boolean(session?.hasReport);
+  const showReportButton = isCompleted;
+  
+  const buttonText = hasReport ? 'View Report' : 'Generate Report';
+  const buttonClass = hasReport 
+    ? 'rounded-full bg-[#2eb886] text-white px-6 py-3 text-sm font-semibold hover:bg-[#25a06d] shadow-md hover:shadow-lg transition-all duration-200'
+    : 'rounded-full bg-[#3b82f6] text-white px-6 py-3 text-sm font-semibold hover:bg-[#2563eb] shadow-md hover:shadow-lg transition-all duration-200';
 
   return (
     <AppHeader>
@@ -39,9 +46,9 @@ export function InterviewPageHeader({ session, displayRole, compactRoleLabel, st
             <p className="text-xs text-gray-500 uppercase tracking-wider">Progress</p>
             <p className="text-sm font-medium text-gray-900">Question {session?.currentQuestionIndex} of {session?.totalQuestions}</p>
           </div>
-          {canViewReport ? (
-            <button className="rounded-full border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50" onClick={onViewReport}>
-              View report
+          {showReportButton ? (
+            <button className={buttonClass} onClick={onViewReport}>
+              {buttonText}
             </button>
           ) : null}
         </div>

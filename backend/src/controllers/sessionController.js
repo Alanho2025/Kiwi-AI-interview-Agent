@@ -10,7 +10,7 @@
  */
 
 import { formatSuccess } from '../utils/responseFormatter.js';
-import { getSessionById, listSessionsByUserId, updateSession } from '../services/sessionService.js';
+import { getSessionById, listSessionsByUserId, updateSession, softDeleteOwnedSession } from '../services/sessionService.js';
 import { resolveUserFromRequest } from '../services/authService.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { badRequest, notFound } from '../utils/appError.js';
@@ -62,4 +62,17 @@ export const resumeSession = asyncHandler(async (req, res) => {
   const updatedSession = await updateSession(sessionId, session);
   logger.info('Session resumed', getRequestLogMeta(req));
   res.json(formatSuccess('Session resumed', { session: updatedSession }));
+});
+
+export const deleteSession = asyncHandler(async (req, res) => {
+  const { sessionId } = req.params;
+  if (!sessionId) {
+    throw badRequest('Missing sessionId', 'sessionId is required');
+  }
+
+  const user = await resolveUserFromRequest(req);
+  const result = await softDeleteOwnedSession({ sessionId, userId: user.id });
+  
+  logger.info('Session deleted', getRequestLogMeta(req, { sessionId, userId: user.id }));
+  res.json(formatSuccess('Session deleted successfully', result));
 });
