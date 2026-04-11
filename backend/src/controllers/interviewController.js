@@ -31,6 +31,22 @@ import { getOpeningQuestionText, hasAskedOpeningQuestion } from '../services/int
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { logger, getRequestLogMeta } from '../utils/logger.js';
 
+const tryGenerateReportForCompletedSession = async (req, sessionId) => {
+  try {
+    const result = await runTask({ taskType: 'generate_report', sessionId });
+    logger.info('Report generated after interview completion', getRequestLogMeta(req, {
+      sessionId,
+      latestStatus: result?.stored?.latestStatus || null,
+    }));
+    return result;
+  } catch (error) {
+    logger.error('Report generation failed after interview completion', getRequestLogMeta(req, {
+      sessionId,
+      error,
+    }));
+    return null;
+  }
+};
 
 export const startInterview = asyncHandler(async (req, res) => {
   const { sessionId } = req.body;
@@ -95,9 +111,14 @@ export const replyInterview = asyncHandler(async (req, res) => {
       };
 
   const updatedSession = await updateSession(sessionId, sessionPatch);
+  const generatedReport = agentResult.isComplete
+    ? await tryGenerateReportForCompletedSession(req, sessionId)
+    : null;
+
   logger.info('Interview reply processed', getRequestLogMeta(req, {
     isComplete: Boolean(agentResult.isComplete),
     nextQuestionOrder: agentResult.nextQuestionOrder || null,
+    hasReport: Boolean(generatedReport?.stored?.report),
   }));
 
   res.json(formatSuccess('Reply processed', {
@@ -106,6 +127,7 @@ export const replyInterview = asyncHandler(async (req, res) => {
     retrievalSnapshot: agentResult.retrievalSnapshot,
     isComplete: Boolean(agentResult.isComplete),
     completedBecause: agentResult.completedBecause || null,
+    reportStatus: generatedReport?.stored?.latestStatus || null,
     session: updatedSession,
   }));
 });
@@ -146,7 +168,13 @@ export const endInterview = asyncHandler(async (req, res) => {
   const session = await loadSessionOrThrow(sessionId);
   const updatedSession = await completeInterviewSession(session);
   await createInterviewLifecycleAuditLog({ req, session: updatedSession, actionType: 'end_interview' });
+  const generatedReport = await tryGenerateReportForCompletedSession(req, sessionId);
 
-  logger.info('Interview ended', getRequestLogMeta(req));
-  res.json(formatSuccess('Interview ended', { session: updatedSession }));
+  logger.info('Interview ended', getRequestLogMeta(req, {
+    hasReport: Boolean(generatedReport?.stored?.report),
+  }));
+  res.json(formatSuccess('Interview ended', {
+    session: updatedSession,
+    reportStatus: generatedReport?.stored?.latestStatus || null,
+  }));
 });

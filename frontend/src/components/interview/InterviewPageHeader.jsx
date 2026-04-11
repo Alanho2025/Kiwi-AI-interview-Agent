@@ -12,13 +12,9 @@
 import { AppHeader } from '../layout/AppHeader.jsx';
 import { formatDuration } from '../../utils/formatters.js';
 
-/**
- * Purpose: Execute the main responsibility for InterviewPageHeader.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
 export function InterviewPageHeader({ session, displayRole, compactRoleLabel, stageLabel, elapsedSeconds, onViewReport }) {
+  const canViewReport = session?.status === 'completed' && Boolean(session?.hasReport);
+
   return (
     <AppHeader>
       <div className="flex items-center justify-end gap-6 min-w-0">
@@ -43,7 +39,7 @@ export function InterviewPageHeader({ session, displayRole, compactRoleLabel, st
             <p className="text-xs text-gray-500 uppercase tracking-wider">Progress</p>
             <p className="text-sm font-medium text-gray-900">Question {session?.currentQuestionIndex} of {session?.totalQuestions}</p>
           </div>
-          {session?.status === 'completed' ? (
+          {canViewReport ? (
             <button className="rounded-full border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50" onClick={onViewReport}>
               View report
             </button>

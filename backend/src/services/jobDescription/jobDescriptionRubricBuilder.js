@@ -12,7 +12,7 @@
 import { buildJdRubricSchema } from '../scoringSchemaService.js';
 import { buildTaxonomyItem, canonicalizeRole, inferRoleLevel, mergeUniqueLabels } from '../taxonomyService.js';
 import { extractSkillsWithAI } from './jobDescriptionAiService.js';
-import { ROLE_KEYWORDS, toLines, cleanLineLabel, firstMatchingLine } from './jobDescriptionShared.js';
+import { ROLE_KEYWORDS, toLines, cleanLineLabel, firstMatchingLine, unique } from './jobDescriptionShared.js';
 import {
   buildInterviewTargets,
   collectMatchingLines,

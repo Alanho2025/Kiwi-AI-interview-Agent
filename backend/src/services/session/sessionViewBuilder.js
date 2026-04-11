@@ -37,7 +37,7 @@ const mapTranscriptTurns = (transcript) => transcript?.turns?.map((turn) => ({
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-export const buildSessionDetails = ({ row, plan, transcript, analysis, cvDocument }) => {
+export const buildSessionDetails = ({ row, plan, transcript, analysis, report, cvDocument }) => {
   const baseSession = mapSessionRow(row);
   const normalizedAnalysis = normalizeAnalysisResult(analysis);
 
@@ -46,6 +46,8 @@ export const buildSessionDetails = ({ row, plan, transcript, analysis, cvDocumen
     settings: plan?.settingsSnapshot || baseSession.settings,
     analysisResult: normalizedAnalysis,
     interviewPlan: plan ? validateInterviewPlan(plan) : null,
+    hasReport: Boolean(report?.report),
+    reportStatus: report?.latestStatus || null,
     cvText: cvDocument?.normalizedText || cvDocument?.rawText || '',
     transcript: mapTranscriptTurns(transcript),
   };

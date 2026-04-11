@@ -14,6 +14,7 @@ import { query, withTransaction } from '../../db/postgres.js';
 import { DocumentContent } from '../../db/models/documentContentModel.js';
 import { SessionAnalysis } from '../../db/models/sessionAnalysisModel.js';
 import { InterviewPlan } from '../../db/models/interviewPlanModel.js';
+import { SessionReport } from '../../db/models/sessionReportModel.js';
 import { SessionTranscript } from '../../db/models/sessionTranscriptModel.js';
 import { validateAnalyzeOutput } from '../schemaValidationService.js';
 import { buildInterviewPlanPayload, retentionDate } from './sessionShared.js';
@@ -322,14 +323,15 @@ export const initializeTranscript = async ({ id, userId }) => {
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
 export const fetchSessionDependencies = async ({ id, cvFileId }) => {
-  const [plan, transcript, analysis, cvDocument] = await Promise.all([
+  const [plan, transcript, analysis, report, cvDocument] = await Promise.all([
     InterviewPlan.findOne({ sessionId: id }).lean(),
     SessionTranscript.findOne({ sessionId: id }).lean(),
     SessionAnalysis.findOne({ sessionId: id }).lean(),
+    SessionReport.findOne({ sessionId: id }).lean(),
     cvFileId ? DocumentContent.findOne({ fileId: cvFileId }).lean() : Promise.resolve(null),
   ]);
 
-  return { plan, transcript, analysis, cvDocument };
+  return { plan, transcript, analysis, report, cvDocument };
 };
 
 /**
