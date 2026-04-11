@@ -14,6 +14,7 @@ export {
   getSessionById,
   listSessionsByUserId,
   updateSession,
+  softDeleteOwnedSession,
 } from './session/sessionLifecycleService.js';
 
 export { appendTranscriptTurn } from './session/sessionTranscriptService.js';

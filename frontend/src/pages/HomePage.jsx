@@ -19,7 +19,7 @@ import { SessionHistorySection } from '../components/home/SessionHistorySection.
 import { StartSessionCard } from '../components/home/StartSessionCard.jsx';
 import { StatsSection } from '../components/home/StatsSection.jsx';
 import { logoutFromSession } from '../api/authApi.js';
-import { getSessionHistory } from '../api/sessionApi.js';
+import { getSessionHistory, deleteSession } from '../api/sessionApi.js';
 import { clearStoredAuthSession, getStoredAuthSession } from '../utils/authSession.js';
 import {
   buildHomepageStats,
@@ -116,6 +116,18 @@ export default function HomePage() {
     navigate(session.hasReport && session.displayStatus === 'Completed' ? `/report/${session.id}` : `/interview/${session.id}`);
   };
 
+  const handleDeleteSession = async (sessionId) => {
+    try {
+      await deleteSession(sessionId);
+      // Refresh the session history list after deletion
+      const data = await getSessionHistory(20);
+      setSessionHistory(data.sessions || []);
+    } catch (error) {
+      console.error('Failed to delete session:', error);
+      throw error; // Re-throw to let SessionHistorySection handle the error
+    }
+  };
+
   const handleStartInterview = () => {
     navigate('/analysis');
   };
@@ -154,6 +166,7 @@ export default function HomePage() {
             historyLoading={historyLoading}
             sessionHistoryRows={sessionHistoryRows}
             onOpenSession={handleOpenSession}
+            onDeleteSession={handleDeleteSession}
           />
         </div>
 
