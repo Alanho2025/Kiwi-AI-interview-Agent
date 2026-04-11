@@ -1,11 +1,34 @@
+/**
+ * File responsibility: Repository / data access module.
+ * Main responsibilities:
+ * - Keep HTTP, business logic, persistence, and formatting concerns separated to reduce change impact.
+ * - Main file role: sessionRepository should centralise data access queries so schema changes touch the fewest files possible.
+ * - Prefer extending behaviour by adding small helpers or sibling modules instead of growing one large file.
+ * Maintenance notes:
+ * - Keep this file focused on one layer of responsibility.
+ * - Prefer composition and small helpers over repeated inline logic.
+ */
+
 import crypto from 'crypto';
 import { query, withTransaction } from '../db/postgres.js';
 
+/**
+ * Purpose: Execute the main responsibility for clampVarchar.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 const clampVarchar = (value, maxLength = 255, fallback = '') => {
   const text = String(value ?? fallback ?? '').trim() || fallback;
   return text.length > maxLength ? text.slice(0, maxLength) : text;
 };
 
+/**
+ * Purpose: Execute the main responsibility for mapSessionRow.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 const mapSessionRow = (row) => ({
   id: row.id,
   userId: row.user_id,
@@ -32,6 +55,12 @@ const mapSessionRow = (row) => ({
   cvFileId: row.cv_file_id,
 });
 
+/**
+ * Purpose: Execute the main responsibility for createSessionAggregate.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const createSessionAggregate = async ({
   sessionId,
   userId,
@@ -107,6 +136,12 @@ export const createSessionAggregate = async ({
   });
 };
 
+/**
+ * Purpose: Execute the main responsibility for replaceParsedSkills.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const replaceParsedSkills = async ({ sessionId, cvSkills, jdSkills }) => {
   await query('DELETE FROM parsed_skills WHERE session_id = $1', [sessionId]);
 
@@ -129,6 +164,12 @@ export const replaceParsedSkills = async ({ sessionId, cvSkills, jdSkills }) => 
   }
 };
 
+/**
+ * Purpose: Execute the main responsibility for findSessionRowById.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const findSessionRowById = async (id) => {
   const result = await query(
     'SELECT * FROM interview_sessions WHERE id = $1 AND deleted_at IS NULL LIMIT 1',
@@ -138,6 +179,12 @@ export const findSessionRowById = async (id) => {
   return result.rows[0] ? mapSessionRow(result.rows[0]) : null;
 };
 
+/**
+ * Purpose: Execute the main responsibility for updateSessionState.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const updateSessionState = async (id, data) => {
   await query(
     `UPDATE interview_sessions
@@ -163,6 +210,12 @@ export const updateSessionState = async (id, data) => {
   );
 };
 
+/**
+ * Purpose: Execute the main responsibility for upsertInterviewQuestion.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const upsertInterviewQuestion = async ({
   sessionId,
   questionOrder,
@@ -196,6 +249,12 @@ export const upsertInterviewQuestion = async ({
   return latest.rows[0]?.id || id;
 };
 
+/**
+ * Purpose: Execute the main responsibility for findLatestQuestionForSession.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const findLatestQuestionForSession = async (sessionId) => {
   const result = await query(
     `SELECT id, question_order, question_text
@@ -209,6 +268,12 @@ export const findLatestQuestionForSession = async (sessionId) => {
   return result.rows[0] || null;
 };
 
+/**
+ * Purpose: Execute the main responsibility for createInterviewResponseRecord.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const createInterviewResponseRecord = async ({
   sessionId,
   questionId,

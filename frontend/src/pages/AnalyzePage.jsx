@@ -1,3 +1,14 @@
+/**
+ * File responsibility: Page container.
+ * Main responsibilities:
+ * - Keep presentation, state orchestration, and display helpers separated so React components stay reusable.
+ * - Main file role: AnalyzePage should orchestrate the screen and compose child sections without burying domain rules in JSX.
+ * - Prefer extending behaviour by adding small helpers or sibling modules instead of growing one large file.
+ * Maintenance notes:
+ * - Keep this file focused on one layer of responsibility.
+ * - Prefer composition and small helpers over repeated inline logic.
+ */
+
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppHeader } from '../components/layout/AppHeader.jsx';
@@ -6,53 +17,43 @@ import { CVManagementCard } from '../components/analyze/CVManagementCard.jsx';
 import { JobContextCard } from '../components/analyze/JobContextCard.jsx';
 import { NZSettingsCard } from '../components/analyze/NZSettingsCard.jsx';
 import { AnalysisStatusCard } from '../components/analyze/AnalysisStatusCard.jsx';
-import { Button } from '../components/common/Button.jsx';
+import { AnalyzeActionsCard } from '../components/analyze/AnalyzeActionsCard.jsx';
 import { StatusBanner } from '../components/common/StatusBanner.jsx';
 import { uploadCV, getRecentCVs, selectCV } from '../api/uploadApi.js';
 import { paraphraseJD, matchCV, generateInterviewPlan } from '../api/analyzeApi.js';
+import {
+  DEFAULT_ANALYZE_SETTINGS,
+  loadAnalyzeDraft,
+  persistAnalyzeDraft,
+  resolveAnalyzeStep,
+} from '../utils/analyzeDraft.js';
 
-const ANALYZE_DRAFT_KEY = 'kiwi-analyze-draft';
-const HOME_SESSION_DEFAULTS_KEY = 'kiwi-home-session-defaults';
-const DEFAULT_SETTINGS = {
-  seniorityLevel: 'Junior/Grad',
-  enableNZCultureFit: false,
-  focusArea: 'Combined',
-};
-const ALLOWED_SENIORITY = new Set(['Junior/Grad', 'Mid-level', 'Senior']);
-const ALLOWED_FOCUS = new Set(['Technical', 'Behavioral', 'Combined']);
-
-const sanitizeSettings = (input) => ({
-  seniorityLevel: ALLOWED_SENIORITY.has(input?.seniorityLevel)
-    ? input.seniorityLevel
-    : DEFAULT_SETTINGS.seniorityLevel,
-  enableNZCultureFit: Boolean(input?.enableNZCultureFit),
-  focusArea: ALLOWED_FOCUS.has(input?.focusArea)
-    ? input.focusArea
-    : DEFAULT_SETTINGS.focusArea,
-});
+/**
+ * Purpose: Execute the main responsibility for buildStatusMessage.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
+const buildStatusMessage = (type, title, message) => ({ type, title, message });
 
 export function AnalyzePage() {
   const navigate = useNavigate();
-  
+
   const [recentCVs, setRecentCVs] = useState([]);
   const [selectedCV, setSelectedCV] = useState(null);
   const [rawJD, setRawJD] = useState('');
   const [structuredJD, setStructuredJD] = useState('');
   const [structuredJDRubric, setStructuredJDRubric] = useState(null);
   const [summarizedRawJD, setSummarizedRawJD] = useState('');
-  
-  const [settings, setSettings] = useState({
-    seniorityLevel: DEFAULT_SETTINGS.seniorityLevel,
-    enableNZCultureFit: DEFAULT_SETTINGS.enableNZCultureFit,
-    focusArea: DEFAULT_SETTINGS.focusArea
-  });
-  
-  const [analysisStatus, setAnalysisStatus] = useState('idle'); // idle, summarizing, matching, success, error
+  const [settings, setSettings] = useState(DEFAULT_ANALYZE_SETTINGS);
+  const [analysisStatus, setAnalysisStatus] = useState('idle');
   const [analysisResult, setAnalysisResult] = useState(null);
   const [matchRate, setMatchRate] = useState(null);
   const [generatedSessionId, setGeneratedSessionId] = useState(null);
   const [isSummarizingJD, setIsSummarizingJD] = useState(false);
   const [pageStatus, setPageStatus] = useState(null);
+
+  const currentStep = resolveAnalyzeStep(analysisStatus);
 
   const resetAnalysisState = () => {
     setAnalysisStatus('idle');
@@ -61,7 +62,7 @@ export function AnalyzePage() {
     setGeneratedSessionId(null);
   };
 
-  const invalidateJobDescriptionSummary = () => {
+  const clearJDSummary = () => {
     setStructuredJD('');
     setStructuredJDRubric(null);
     setSummarizedRawJD('');
@@ -72,125 +73,84 @@ export function AnalyzePage() {
     resetAnalysisState();
 
     if (value.trim() !== summarizedRawJD.trim()) {
-      invalidateJobDescriptionSummary();
+      clearJDSummary();
     }
   };
 
-  let currentStep = 1;
-  if (analysisStatus === 'matching' || analysisStatus === 'summarizing') {
-    currentStep = 2;
-  } else if (analysisStatus === 'success') {
-    currentStep = 3;
-  }
+  const refreshRecentCVs = async () => {
+    const updatedRecent = await getRecentCVs();
+    setRecentCVs(updatedRecent);
+  };
+
+  const applyStructuredJD = (jdResponse, nextRawJD) => {
+    setStructuredJD(jdResponse.structuredJD);
+    setStructuredJDRubric(jdResponse.structuredJDRubric);
+    setSummarizedRawJD(nextRawJD);
+  };
 
   useEffect(() => {
-    let homeDefaults = DEFAULT_SETTINGS;
-    try {
-      const rawHomeDefaults = window.localStorage.getItem(HOME_SESSION_DEFAULTS_KEY);
-      if (rawHomeDefaults) {
-        homeDefaults = sanitizeSettings(JSON.parse(rawHomeDefaults));
-      }
-    } catch (error) {
-      console.error('Failed to restore homepage session defaults', error);
-    }
+    const restoredDraft = loadAnalyzeDraft();
+    setSelectedCV(restoredDraft.selectedCV);
+    setRawJD(restoredDraft.rawJD);
+    setStructuredJD(restoredDraft.structuredJD);
+    setStructuredJDRubric(restoredDraft.structuredJDRubric);
+    setSummarizedRawJD(restoredDraft.summarizedRawJD);
+    setSettings(restoredDraft.settings);
 
-    const savedDraft = window.localStorage.getItem(ANALYZE_DRAFT_KEY);
-    if (savedDraft) {
-      try {
-        const parsed = JSON.parse(savedDraft);
-        setSelectedCV(parsed.selectedCV || null);
-        setRawJD(parsed.rawJD || '');
-        setStructuredJD(parsed.structuredJD || '');
-        setStructuredJDRubric(parsed.structuredJDRubric || null);
-        setSummarizedRawJD(parsed.summarizedRawJD || '');
-        setSettings(parsed.settings ? sanitizeSettings(parsed.settings) : homeDefaults);
-      } catch (error) {
-        console.error('Failed to restore analyze draft', error);
-        setSettings(homeDefaults);
-      }
-    } else {
-      setSettings(homeDefaults);
-    }
-
-    // Fetch recent CVs on mount
     getRecentCVs().then(setRecentCVs).catch(console.error);
   }, []);
 
   useEffect(() => {
-    window.localStorage.setItem(ANALYZE_DRAFT_KEY, JSON.stringify({
+    persistAnalyzeDraft({
       selectedCV,
       rawJD,
       structuredJD,
       structuredJDRubric,
       summarizedRawJD,
       settings,
-    }));
+    });
   }, [selectedCV, rawJD, structuredJD, structuredJDRubric, summarizedRawJD, settings]);
 
   const handleUpload = async (file) => {
     try {
-      const res = await uploadCV(file);
+      const uploadedCV = await uploadCV(file);
       resetAnalysisState();
-      setSelectedCV(res);
-      setPageStatus({
-        type: 'success',
-        title: 'CV uploaded',
-        message: `${res.name} was parsed and is ready for matching.`,
-      });
-      // Refresh recent CVs
-      const updatedRecent = await getRecentCVs();
-      setRecentCVs(updatedRecent);
+      setSelectedCV(uploadedCV);
+      setPageStatus(buildStatusMessage('success', 'CV uploaded', `${uploadedCV.name} was parsed and is ready for matching.`));
+      await refreshRecentCVs();
       return true;
     } catch (error) {
-      setPageStatus({
-        type: 'error',
-        title: 'Upload failed',
-        message: error.message,
-      });
+      setPageStatus(buildStatusMessage('error', 'Upload failed', error.message));
       return false;
     }
   };
 
   const handleSelectRecent = async (cvId) => {
     try {
-      const res = await selectCV(cvId);
+      const activeCV = await selectCV(cvId);
       resetAnalysisState();
-      setSelectedCV(res);
-      setPageStatus({
-        type: 'info',
-        title: 'CV selected',
-        message: `${res.name} is now the active CV for JD matching.`,
-      });
+      setSelectedCV(activeCV);
+      setPageStatus(buildStatusMessage('info', 'CV selected', `${activeCV.name} is now the active CV for JD matching.`));
     } catch (error) {
-      setPageStatus({
-        type: 'error',
-        title: 'Could not select CV',
-        message: error.message,
-      });
+      setPageStatus(buildStatusMessage('error', 'Could not select CV', error.message));
     }
   };
 
   const handleSummarizeJD = async () => {
-    if (!rawJD.trim()) return;
+    if (!rawJD.trim()) {
+      return;
+    }
+
     setIsSummarizingJD(true);
     setAnalysisStatus('summarizing');
+
     try {
-      const jdRes = await paraphraseJD(rawJD);
-      setStructuredJD(jdRes.structuredJD);
-      setStructuredJDRubric(jdRes.structuredJDRubric);
-      setSummarizedRawJD(rawJD);
+      const jdResponse = await paraphraseJD(rawJD);
+      applyStructuredJD(jdResponse, rawJD);
       setAnalysisStatus('idle');
-      setPageStatus({
-        type: 'success',
-        title: 'JD summary ready',
-        message: 'The current JD summary will be used for CV matching.',
-      });
+      setPageStatus(buildStatusMessage('success', 'JD summary ready', 'The current JD summary will be used for CV matching.'));
     } catch (error) {
-      setPageStatus({
-        type: 'error',
-        title: 'JD summary failed',
-        message: error.message,
-      });
+      setPageStatus(buildStatusMessage('error', 'JD summary failed', error.message));
       setAnalysisStatus('error');
     } finally {
       setIsSummarizingJD(false);
@@ -199,11 +159,7 @@ export function AnalyzePage() {
 
   const handleGeneratePlan = async () => {
     if (!selectedCV || !rawJD) {
-      setPageStatus({
-        type: 'error',
-        title: 'Missing input',
-        message: 'Please provide both a CV and a job description.',
-      });
+      setPageStatus(buildStatusMessage('error', 'Missing input', 'Please provide both a CV and a job description.'));
       return;
     }
 
@@ -212,55 +168,36 @@ export function AnalyzePage() {
     try {
       let finalStructuredJD = structuredJD;
       let finalStructuredJDRubric = structuredJDRubric;
-      const requiresFreshSummary =
-        !finalStructuredJD ||
-        !finalStructuredJDRubric ||
-        rawJD.trim() !== summarizedRawJD.trim();
+      const needsFreshSummary = !finalStructuredJD || !finalStructuredJDRubric || rawJD.trim() !== summarizedRawJD.trim();
 
-      // 1. Paraphrase JD if not already done
-      if (requiresFreshSummary) {
-        const jdRes = await paraphraseJD(rawJD);
-        finalStructuredJD = jdRes.structuredJD;
-        finalStructuredJDRubric = jdRes.structuredJDRubric;
-        setStructuredJD(finalStructuredJD);
-        setStructuredJDRubric(finalStructuredJDRubric);
-        setSummarizedRawJD(rawJD);
+      if (needsFreshSummary) {
+        const jdResponse = await paraphraseJD(rawJD);
+        finalStructuredJD = jdResponse.structuredJD;
+        finalStructuredJDRubric = jdResponse.structuredJDRubric;
+        applyStructuredJD(jdResponse, rawJD);
       }
 
-      // 2. Match CV
-      const matchRes = await matchCV(selectedCV.text, rawJD, finalStructuredJDRubric, settings);
-      setAnalysisResult(matchRes);
-      if (matchRes && matchRes.matchScore) {
-        setMatchRate(matchRes.matchScore);
-      }
+      const matchResponse = await matchCV(selectedCV.text, rawJD, finalStructuredJDRubric, settings);
+      setAnalysisResult(matchResponse);
+      setMatchRate(matchResponse?.matchScore || null);
 
-      // 3. Generate Plan
-      const planRes = await generateInterviewPlan({
+      const planResponse = await generateInterviewPlan({
         cvId: selectedCV.id,
         cvText: selectedCV.text,
         rawJD,
         jdText: finalStructuredJD,
         jdRubric: finalStructuredJDRubric,
         settings,
-        analysisResult: matchRes,
-      });
-      
-      setGeneratedSessionId(planRes.sessionId);
-      setAnalysisStatus('success');
-      setPageStatus({
-        type: 'success',
-        title: 'Match analysis complete',
-        message: 'Review the score breakdown before starting the text interview.',
+        analysisResult: matchResponse,
       });
 
+      setGeneratedSessionId(planResponse.sessionId);
+      setAnalysisStatus('success');
+      setPageStatus(buildStatusMessage('success', 'Match analysis complete', 'Review the score breakdown before starting the text interview.'));
     } catch (error) {
       console.error(error);
       setAnalysisStatus('error');
-      setPageStatus({
-        type: 'error',
-        title: 'Analysis failed',
-        message: error.message,
-      });
+      setPageStatus(buildStatusMessage('error', 'Analysis failed', error.message));
     }
   };
 
@@ -272,17 +209,16 @@ export function AnalyzePage() {
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Left Column */}
           <div className="space-y-8">
-            <CVManagementCard 
-              onUpload={handleUpload} 
-              recentCVs={recentCVs} 
-              onSelectRecent={handleSelectRecent} 
+            <CVManagementCard
+              onUpload={handleUpload}
+              recentCVs={recentCVs}
+              onSelectRecent={handleSelectRecent}
               validationMessage={pageStatus?.type === 'error' && pageStatus.title === 'Upload failed' ? pageStatus.message : null}
             />
-            <JobContextCard 
-              rawJD={rawJD} 
-              setRawJD={handleRawJDChange} 
+            <JobContextCard
+              rawJD={rawJD}
+              setRawJD={handleRawJDChange}
               structuredJD={structuredJD}
               structuredJDRubric={structuredJDRubric}
               onSummarize={handleSummarizeJD}
@@ -290,7 +226,6 @@ export function AnalyzePage() {
             />
           </div>
 
-          {/* Right Column */}
           <div className="space-y-8">
             {pageStatus ? (
               <StatusBanner
@@ -299,42 +234,20 @@ export function AnalyzePage() {
                 message={pageStatus.message}
               />
             ) : null}
-            <NZSettingsCard 
-              settings={settings} 
-              setSettings={setSettings} 
-            />
-            <AnalysisStatusCard 
-              status={analysisStatus} 
+            <NZSettingsCard settings={settings} setSettings={setSettings} />
+            <AnalysisStatusCard
+              status={analysisStatus}
               matchRate={matchRate}
               analysisResult={analysisResult}
             />
-
-            {/* Action Buttons */}
-            <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm flex flex-col gap-4">
-              {analysisStatus === 'success' && generatedSessionId ? (
-                <Button 
-                  variant="primary" 
-                  size="lg" 
-                  className="w-full"
-                  onClick={() => navigate(`/interview/${generatedSessionId}`)}
-                >
-                  Start Text Interview
-                </Button>
-              ) : (
-                <Button 
-                  variant="primary" 
-                  size="lg" 
-                  className="w-full"
-                  onClick={handleGeneratePlan}
-                  disabled={!selectedCV || !rawJD || analysisStatus === 'matching' || analysisStatus === 'summarizing'}
-                >
-                  Generate Match Analysis
-                </Button>
-              )}
-              <p className="text-xs text-gray-500 text-center mt-2">
-                Current scope: CV upload, JD summary, CV to JD match score, and text interview.
-              </p>
-            </div>
+            <AnalyzeActionsCard
+              analysisStatus={analysisStatus}
+              generatedSessionId={generatedSessionId}
+              selectedCV={selectedCV}
+              rawJD={rawJD}
+              onGeneratePlan={handleGeneratePlan}
+              onStartInterview={() => navigate(`/interview/${generatedSessionId}`)}
+            />
           </div>
         </div>
       </main>

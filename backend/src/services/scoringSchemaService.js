@@ -1,3 +1,14 @@
+/**
+ * File responsibility: Service module.
+ * Main responsibilities:
+ * - Keep HTTP, business logic, persistence, and formatting concerns separated to reduce change impact.
+ * - Main file role: scoringSchemaService should encapsulate domain behaviour behind small callable functions with predictable inputs and outputs.
+ * - Prefer extending behaviour by adding small helpers or sibling modules instead of growing one large file.
+ * Maintenance notes:
+ * - Keep this file focused on one layer of responsibility.
+ * - Prefer composition and small helpers over repeated inline logic.
+ */
+
 import { buildTaxonomyItem, mergeUniqueLabels, normalizeTaxonomyLabel, uniqueById } from './taxonomyService.js';
 
 const DEFAULT_MACRO_WEIGHTS = {
@@ -13,6 +24,12 @@ const DEFAULT_OVERALL_WEIGHTS = {
   requirements: 0.2,
 };
 
+/**
+ * Purpose: Execute the main responsibility for requirementStatusToScore.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const requirementStatusToScore = (status = 'not_met') => ({
   met: 1,
   partial: 0.5,
@@ -20,13 +37,31 @@ export const requirementStatusToScore = (status = 'not_met') => ({
   not_met: 0,
 }[status] ?? 0);
 
+/**
+ * Purpose: Execute the main responsibility for roundScore.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const roundScore = (value, digits = 2) => {
   const multiplier = 10 ** digits;
   return Math.round((Number(value) || 0) * multiplier) / multiplier;
 };
 
+/**
+ * Purpose: Execute the main responsibility for clampScore.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const clampScore = (value, min = 0, max = 100) => Math.max(min, Math.min(max, roundScore(value, 2)));
 
+/**
+ * Purpose: Execute the main responsibility for normalizeWeights.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const normalizeWeights = (weightMap = {}, fallback = {}) => {
   const merged = { ...fallback, ...weightMap };
   const entries = Object.entries(merged).filter(([, value]) => Number(value) > 0);
@@ -35,6 +70,12 @@ export const normalizeWeights = (weightMap = {}, fallback = {}) => {
   return Object.fromEntries(entries.map(([key, value]) => [normalizeTaxonomyLabel(key), roundScore(Number(value) / total, 4)]));
 };
 
+/**
+ * Purpose: Execute the main responsibility for buildCriteriaItemsFromWeights.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const buildCriteriaItemsFromWeights = (weightMap = {}, type = 'macro') =>
   uniqueById(
     Object.entries(weightMap).map(([label, value]) =>
@@ -45,6 +86,12 @@ export const buildCriteriaItemsFromWeights = (weightMap = {}, type = 'macro') =>
     )
   );
 
+/**
+ * Purpose: Execute the main responsibility for buildRequirementItem.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const buildRequirementItem = ({
   label,
   type = 'soft',
@@ -66,6 +113,12 @@ export const buildRequirementItem = ({
   notes,
 });
 
+/**
+ * Purpose: Execute the main responsibility for buildScoreItem.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const buildScoreItem = ({
   label,
   score = 0,
@@ -87,6 +140,12 @@ export const buildScoreItem = ({
   detail,
 });
 
+/**
+ * Purpose: Execute the main responsibility for buildExplanationObject.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const buildExplanationObject = ({ strengths = [], gaps = [], risks = [], summary = '' } = {}) => ({
   strengths,
   gaps,
@@ -94,6 +153,12 @@ export const buildExplanationObject = ({ strengths = [], gaps = [], risks = [], 
   summary,
 });
 
+/**
+ * Purpose: Execute the main responsibility for buildExplanationItem.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const buildExplanationItem = ({ label, evidence = [], sourceChunks = [], detail = '' } = {}) => ({
   id: normalizeTaxonomyLabel(label),
   label: label?.trim() || '',
@@ -102,6 +167,12 @@ export const buildExplanationItem = ({ label, evidence = [], sourceChunks = [], 
   detail,
 });
 
+/**
+ * Purpose: Execute the main responsibility for deriveDecision.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const deriveDecision = ({ overallScore = 0, confidence = 0, hardGateFailed = false } = {}) => {
   if (hardGateFailed) {
     return { label: 'not_qualified', reasonCodes: ['hard_requirement_failed'] };
@@ -126,6 +197,12 @@ export const deriveDecision = ({ overallScore = 0, confidence = 0, hardGateFaile
   return { label: 'weak_match', reasonCodes: ['low_overall_score'] };
 };
 
+/**
+ * Purpose: Execute the main responsibility for buildJdRubricSchema.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const buildJdRubricSchema = ({
   title = 'Target Role',
   roleSummary = [],
@@ -204,6 +281,12 @@ export const buildJdRubricSchema = ({
   };
 };
 
+/**
+ * Purpose: Execute the main responsibility for buildAnalyzeOutput.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const buildAnalyzeOutput = ({
   candidateName = 'Candidate',
   jobTitle = 'Target Role',

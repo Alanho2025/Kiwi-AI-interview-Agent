@@ -1,3 +1,14 @@
+/**
+ * File responsibility: Database module.
+ * Main responsibilities:
+ * - Keep HTTP, business logic, persistence, and formatting concerns separated to reduce change impact.
+ * - Main file role: postgres should define and share database setup or model behaviour in one place.
+ * - Prefer extending behaviour by adding small helpers or sibling modules instead of growing one large file.
+ * Maintenance notes:
+ * - Keep this file focused on one layer of responsibility.
+ * - Prefer composition and small helpers over repeated inline logic.
+ */
+
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -12,6 +23,12 @@ dotenv.config({ path: path.join(__dirname, '../../.env') });
 
 let pool;
 
+/**
+ * Purpose: Execute the main responsibility for getConnectionString.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 const getConnectionString = () => process.env.POSTGRES_URL || process.env.POSTGRESQL_URL;
 
 const resolveSslConfig = (connectionString = '') => {
@@ -31,6 +48,12 @@ const resolveSslConfig = (connectionString = '') => {
   return undefined;
 };
 
+/**
+ * Purpose: Execute the main responsibility for createPool.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 const createPool = () => {
   if (pool) {
     return pool;
@@ -56,10 +79,22 @@ const createPool = () => {
   return pool;
 };
 
+/**
+ * Purpose: Execute the main responsibility for shortenSql.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 const shortenSql = (text = '') => String(text).replace(/\s+/g, ' ').trim().slice(0, 180);
 
 export const getPostgresPool = () => createPool();
 
+/**
+ * Purpose: Execute the main responsibility for connectPostgres.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const connectPostgres = async () => {
   const activePool = createPool();
   await activePool.query('SELECT 1');
@@ -67,6 +102,12 @@ export const connectPostgres = async () => {
   return activePool;
 };
 
+/**
+ * Purpose: Execute the main responsibility for checkPostgresHealth.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const checkPostgresHealth = async () => {
   try {
     await createPool().query('SELECT 1');
@@ -79,6 +120,12 @@ export const checkPostgresHealth = async () => {
   }
 };
 
+/**
+ * Purpose: Execute the main responsibility for query.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const query = async (text, params = []) => {
   const activePool = createPool();
 
@@ -93,6 +140,12 @@ export const query = async (text, params = []) => {
   }
 };
 
+/**
+ * Purpose: Execute the main responsibility for withTransaction.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const withTransaction = async (callback) => {
   const client = await createPool().connect();
   try {
@@ -112,6 +165,12 @@ export const withTransaction = async (callback) => {
   }
 };
 
+/**
+ * Purpose: Execute the main responsibility for closePostgres.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const closePostgres = async () => {
   if (pool) {
     await pool.end();

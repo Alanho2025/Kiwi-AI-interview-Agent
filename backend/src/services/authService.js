@@ -1,6 +1,23 @@
+/**
+ * File responsibility: Service module.
+ * Main responsibilities:
+ * - Keep HTTP, business logic, persistence, and formatting concerns separated to reduce change impact.
+ * - Main file role: authService should encapsulate domain behaviour behind small callable functions with predictable inputs and outputs.
+ * - Prefer extending behaviour by adding small helpers or sibling modules instead of growing one large file.
+ * Maintenance notes:
+ * - Keep this file focused on one layer of responsibility.
+ * - Prefer composition and small helpers over repeated inline logic.
+ */
+
 import crypto from 'crypto';
 import { query } from '../db/postgres.js';
 
+/**
+ * Purpose: Execute the main responsibility for mapUser.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 const mapUser = (row) => ({
   id: row.id,
   email: row.email,
@@ -10,6 +27,12 @@ const mapUser = (row) => ({
   account_status: row.account_status,
 });
 
+/**
+ * Purpose: Execute the main responsibility for findOrCreateGoogleUser.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const findOrCreateGoogleUser = async (email, name, googleSub = null) => {
   const normalizedEmail = email.trim().toLowerCase();
   const existing = await query(
@@ -50,6 +73,12 @@ export const findOrCreateGoogleUser = async (email, name, googleSub = null) => {
   };
 };
 
+/**
+ * Purpose: Execute the main responsibility for getUserById.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const getUserById = async (id) => {
   const result = await query(
     'SELECT * FROM users WHERE id = $1 AND deleted_at IS NULL LIMIT 1',
@@ -63,6 +92,12 @@ export const getUserById = async (id) => {
   return mapUser(result.rows[0]);
 };
 
+/**
+ * Purpose: Execute the main responsibility for resolveUserFromRequest.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const resolveUserFromRequest = async (req) => {
   if (req.user?.id) {
     return getUserById(req.user.id);

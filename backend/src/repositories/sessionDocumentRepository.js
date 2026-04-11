@@ -1,7 +1,24 @@
+/**
+ * File responsibility: Repository / data access module.
+ * Main responsibilities:
+ * - Keep HTTP, business logic, persistence, and formatting concerns separated to reduce change impact.
+ * - Main file role: sessionDocumentRepository should centralise data access queries so schema changes touch the fewest files possible.
+ * - Prefer extending behaviour by adding small helpers or sibling modules instead of growing one large file.
+ * Maintenance notes:
+ * - Keep this file focused on one layer of responsibility.
+ * - Prefer composition and small helpers over repeated inline logic.
+ */
+
 import { SessionAnalysis } from '../db/models/sessionAnalysisModel.js';
 import { InterviewPlan } from '../db/models/interviewPlanModel.js';
 import { SessionTranscript } from '../db/models/sessionTranscriptModel.js';
 
+/**
+ * Purpose: Execute the main responsibility for retentionDate.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 const retentionDate = () => new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
 
 export const upsertSessionAnalysis = async ({
@@ -35,6 +52,12 @@ export const upsertSessionAnalysis = async ({
     { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
   );
 
+/**
+ * Purpose: Execute the main responsibility for upsertInterviewPlanDocument.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const upsertInterviewPlanDocument = async ({
   sessionId,
   userId,
@@ -81,6 +104,12 @@ export const upsertInterviewPlanDocument = async ({
     { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
   );
 
+/**
+ * Purpose: Execute the main responsibility for ensureTranscriptDocument.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const ensureTranscriptDocument = async ({ sessionId, userId }) =>
   SessionTranscript.findOneAndUpdate(
     { sessionId },
@@ -96,6 +125,12 @@ export const ensureTranscriptDocument = async ({ sessionId, userId }) =>
     { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
   );
 
+/**
+ * Purpose: Execute the main responsibility for findSessionDocuments.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const findSessionDocuments = async ({ sessionId, cvFileId }) => {
   const [plan, transcript, analysis] = await Promise.all([
     InterviewPlan.findOne({ sessionId }).lean(),
@@ -106,6 +141,12 @@ export const findSessionDocuments = async ({ sessionId, cvFileId }) => {
   return { plan, transcript, analysis, cvFileId };
 };
 
+/**
+ * Purpose: Execute the main responsibility for buildFullTranscript.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 const buildFullTranscript = (turns) => turns.map((turn) => `${turn.role.toUpperCase()}: ${turn.text}`).join('\n\n');
 
 export const appendTranscriptTurnDocument = async (sessionId, turn) => {
@@ -138,6 +179,12 @@ export const appendTranscriptTurnDocument = async (sessionId, turn) => {
   };
 };
 
+/**
+ * Purpose: Execute the main responsibility for updateInterviewPlanSnapshot.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
 export const updateInterviewPlanSnapshot = async ({ sessionId, settings, analysisResult, current }) => {
   await InterviewPlan.findOneAndUpdate(
     { sessionId },
