@@ -23,6 +23,18 @@ export const getGoogleClientConfig = async () =>
   });
 
 /**
+ * Purpose: Execute the main responsibility for getCurrentUser.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
+export const getCurrentUser = async () =>
+  apiClient('/auth/me', {
+    method: 'GET',
+    credentials: 'include',
+  });
+
+/**
  * Purpose: Execute the main responsibility for loginWithGoogle.
  * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.

@@ -35,20 +35,6 @@ const parseCookies = (cookieHeader = '') =>
     }, {});
 
 /**
- * Purpose: Execute the main responsibility for readBearerToken.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
-const readBearerToken = (authorizationHeader = '') => {
-  const [scheme, token] = authorizationHeader.split(' ');
-  if (scheme?.toLowerCase() !== 'bearer' || !token) {
-    return '';
-  }
-  return token.trim();
-};
-
-/**
  * Purpose: Execute the main responsibility for verifyToken.
  * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
@@ -68,7 +54,7 @@ const verifyToken = (token) => {
 export const optionalAuth = (req, _res, next) => {
   try {
     const cookies = parseCookies(req.headers.cookie || '');
-    const token = cookies.auth_token || readBearerToken(req.headers.authorization || '');
+    const token = cookies.auth_token;
 
     if (!token) {
       req.user = null;

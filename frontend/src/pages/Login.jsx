@@ -13,8 +13,7 @@ import React, { useEffect, useState } from 'react';
 import { GoogleLogin } from '@react-oauth/google';
 import { useNavigate } from 'react-router-dom';
 import { Bird } from 'lucide-react';
-import { loginWithGoogle } from '../api/authApi.js';
-import { getStoredAuthSession, setStoredAuthSession } from '../utils/authSession.js';
+import { getCurrentUser, loginWithGoogle } from '../api/authApi.js';
 
 import kiwiMicImg from '../assets/kiwiMicImg.png';
 import kiwiHeadphoneImg from '../assets/kiwiHeadphoneImg.png';
@@ -27,10 +26,24 @@ export default function Login() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    const existingSession = getStoredAuthSession();
-    if (existingSession) {
-      navigate('/home', { replace: true });
-    }
+    let isActive = true;
+
+    const loadCurrentUser = async () => {
+      try {
+        await getCurrentUser();
+        if (isActive) {
+          navigate('/home', { replace: true });
+        }
+      } catch (_error) {
+        // Stay on the login page when there is no active cookie-backed session.
+      }
+    };
+
+    loadCurrentUser();
+
+    return () => {
+      isActive = false;
+    };
   }, [navigate]);
 
   const handleSuccess = async (credentialResponse) => {
@@ -48,19 +61,7 @@ export default function Login() {
     setIsSubmitting(true);
 
     try {
-      const data = await loginWithGoogle(credentialResponse.credential);
-      const authSession = {
-        userId: data.user?.id || '',
-        email: data.user?.email || '',
-        name: data.user?.full_name || '',
-        picture: '',
-        loginProvider: 'google',
-        acceptedPrivacyTerms: true,
-        loggedInAt: new Date().toISOString(),
-        token: data.token || '',
-      };
-
-      setStoredAuthSession(authSession);
+      await loginWithGoogle(credentialResponse.credential);
       navigate('/home', { replace: true });
     } catch (loginError) {
       console.error('Failed to log in with Google', loginError);

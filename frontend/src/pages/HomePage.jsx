@@ -18,9 +18,8 @@ import { RecentActivitySection } from '../components/home/RecentActivitySection.
 import { SessionHistorySection } from '../components/home/SessionHistorySection.jsx';
 import { StartSessionCard } from '../components/home/StartSessionCard.jsx';
 import { StatsSection } from '../components/home/StatsSection.jsx';
-import { logoutFromSession } from '../api/authApi.js';
+import { getCurrentUser, logoutFromSession } from '../api/authApi.js';
 import { getSessionHistory, deleteSession } from '../api/sessionApi.js';
-import { clearStoredAuthSession, getStoredAuthSession } from '../utils/authSession.js';
 import {
   buildHomepageStats,
   buildRecentActivity,
@@ -43,26 +42,45 @@ export default function HomePage() {
   const [settingsSaved, setSettingsSaved] = useState('');
 
   useEffect(() => {
-    const savedSession = getStoredAuthSession();
-    if (!savedSession) {
-      navigate('/login', { replace: true });
-      return;
-    }
+    let isActive = true;
 
-    setUser({
-      name: savedSession.name || 'Guest User',
-      email: savedSession.email || 'guest@kiwi.nz',
-      picture: savedSession.picture || '',
-      loginProvider: savedSession.loginProvider || '',
-    });
-    setIsAvatarBroken(false);
+    const loadHomeState = async () => {
+      try {
+        const data = await getCurrentUser();
+        if (!isActive) {
+          return;
+        }
 
-    try {
-      const rawDefaults = window.localStorage.getItem(HOME_SESSION_DEFAULTS_KEY);
-      setSessionDefaults(parseStoredSessionDefaults(rawDefaults));
-    } catch (error) {
-      console.error('Failed to load homepage session defaults', error);
-    }
+        const currentUser = data.user || {};
+        setUser({
+          name: currentUser.full_name || 'Guest User',
+          email: currentUser.email || 'guest@kiwi.nz',
+          picture: '',
+          loginProvider: 'google',
+        });
+        setIsAvatarBroken(false);
+      } catch (_error) {
+        if (isActive) {
+          navigate('/login', { replace: true });
+        }
+        return;
+      }
+
+      try {
+        const rawDefaults = window.localStorage.getItem(HOME_SESSION_DEFAULTS_KEY);
+        if (isActive) {
+          setSessionDefaults(parseStoredSessionDefaults(rawDefaults));
+        }
+      } catch (error) {
+        console.error('Failed to load homepage session defaults', error);
+      }
+    };
+
+    loadHomeState();
+
+    return () => {
+      isActive = false;
+    };
   }, [navigate]);
 
   useEffect(() => {
@@ -107,7 +125,6 @@ export default function HomePage() {
     } catch (error) {
       console.error('Failed to clear backend session', error);
     } finally {
-      clearStoredAuthSession();
       navigate('/login', { replace: true });
     }
   };
