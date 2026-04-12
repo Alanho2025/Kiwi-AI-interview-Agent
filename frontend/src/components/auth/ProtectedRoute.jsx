@@ -9,8 +9,9 @@
  * - Prefer composition and small helpers over repeated inline logic.
  */
 
+import { useEffect, useState } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
-import { hasStoredAuthSession } from '../../utils/authSession.js';
+import { getCurrentUser } from '../../api/authApi.js';
 
 /**
  * Purpose: Execute the main responsibility for ProtectedRoute.
@@ -20,8 +21,39 @@ import { hasStoredAuthSession } from '../../utils/authSession.js';
  */
 export function ProtectedRoute() {
   const location = useLocation();
+  const [authState, setAuthState] = useState({
+    checked: false,
+    isAuthenticated: false,
+  });
 
-  if (!hasStoredAuthSession()) {
+  useEffect(() => {
+    let isActive = true;
+
+    const checkAuth = async () => {
+      try {
+        await getCurrentUser();
+        if (isActive) {
+          setAuthState({ checked: true, isAuthenticated: true });
+        }
+      } catch (_error) {
+        if (isActive) {
+          setAuthState({ checked: true, isAuthenticated: false });
+        }
+      }
+    };
+
+    checkAuth();
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
+  if (!authState.checked) {
+    return null;
+  }
+
+  if (!authState.isAuthenticated) {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   }
 
