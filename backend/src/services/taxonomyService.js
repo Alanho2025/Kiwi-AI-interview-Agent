@@ -168,10 +168,10 @@ export const canonicalizeRole = (title = '', fallbackText = '') => {
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
 export const inferRoleLevel = (text = '') => {
-  if (/intern|apprentice|graduate/i.test(text)) return 'intern';
-  if (/junior|entry level|associate/i.test(text)) return 'junior';
-  if (/senior|principal|staff/i.test(text)) return 'senior';
-  if (/lead|manager|head of/i.test(text)) return 'lead';
+  if (/\b(?:intern|apprentice|graduate)\b/i.test(text)) return 'intern';
+  if (/\b(?:junior|entry level|entry-level|associate)\b/i.test(text)) return 'junior';
+  if (/\b(?:senior|principal|staff)\b/i.test(text)) return 'senior';
+  if (/\b(?:lead|manager)\b|\bhead of\b/i.test(text)) return 'lead';
   return 'mid';
 };
 

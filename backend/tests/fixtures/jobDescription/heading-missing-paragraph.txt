@@ -1,0 +1,2 @@
+Data Engineer
+Rewired Consulting is hiring a full time Data Engineer in Auckland. You will build governed data pipelines, curated datasets, and semantic models in a regulated environment. We need strong SQL, Snowflake, dbt, and data modelling experience. Familiarity with ADF and semantic layers is preferred. You should communicate clearly with technical and business stakeholders. Apply with your CV and cover letter.

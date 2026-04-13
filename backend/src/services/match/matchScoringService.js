@@ -17,6 +17,7 @@ const toPercent = (value) => clampScore(value * 100);
 const STATUS_ORDER = { not_met: 0, inferred: 1, partial: 2, met: 3 };
 const CORE_STACK_PATTERN = /c#|\.net|mvc|java(script)?|react|vue|angular|html|css|sql|aws|api|node|postgres/i;
 const COMMERCIAL_EXPERIENCE_PATTERN = /\b\d+\+?\s+years?|professional experience|commercial experience/i;
+const DEGREE_PATTERN = /computer science|software engineering|tertiary qualification|degree|bachelor|master/i;
 
 const statusFromCombinedSignal = (status, combinedSignal) => {
   if (combinedSignal >= 1.45) return 'met';
@@ -29,40 +30,40 @@ const statusMax = (statuses = []) => statuses.reduce((best, current) => (STATUS_
 const statusMin = (statuses = []) => statuses.reduce((worst, current) => (STATUS_ORDER[current] < STATUS_ORDER[worst] ? current : worst), 'met');
 
 const splitCompositeRequirement = (label = '') => {
-  const raw = String(label || '').trim();
+  const raw = String(label || '').trim().replace(/[.;]+$/g, '');
   if (!raw) return [];
 
-  const extracted = [];
-  const yearsMatch = raw.match(/\b\d+\+?\s+years? of professional experience/i);
-  if (yearsMatch) extracted.push(yearsMatch[0]);
+  if (/recent tertiary qualification/i.test(raw)) return ['tertiary qualification', 'computer science', 'software engineering'];
+  if (/communicate clearly and learn quickly/i.test(raw)) return ['communication', 'learn quickly'];
+  if (/good communication and ownership/i.test(raw)) return ['communication', 'ownership'];
+  if (/azure or ci\/?cd pipelines/i.test(raw)) return ['azure', 'ci/cd pipelines'];
 
-  const techWithMatch = raw.match(/with\s+(.+)$/i);
-  if (techWithMatch?.[1]) {
-    techWithMatch[1]
-      .split(/,| and /i)
-      .map((item) => item.replace(/[.;]+$/g, '').trim())
-      .filter(Boolean)
-      .forEach((item) => extracted.push(item));
-  }
+  const cleaned = raw
+    .replace(/^foundations in\s+/i, '')
+    .replace(/^strong experience with\s+/i, '')
+    .replace(/^experience with\s+/i, '')
+    .replace(/^exposure to\s+/i, '')
+    .replace(/^ability to\s+/i, '')
+    .replace(/^good\s+/i, '');
 
-  if (!extracted.length && /,| and |\//i.test(raw)) {
-    raw.split(/,| and |\//i)
-      .map((item) => item.replace(/[.;]+$/g, '').trim())
-      .filter((item) => item.length > 2)
-      .forEach((item) => extracted.push(item));
-  }
+  const parts = cleaned
+    .split(/,|\bor\b|\band\b|\//i)
+    .map((item) => item.replace(/[.;]+$/g, '').trim())
+    .filter((item) => item.length > 1);
 
-  return [...new Set(extracted.filter((item) => normalizeText(item) !== normalizeText(raw)))];
+  return [...new Set(parts.filter((item) => normalizeText(item) !== normalizeText(raw)))];
 };
 
 const describeEvidenceQuality = ({ requirementType = 'soft', status = 'not_met', matchedSection = '', matchedCapabilities = [], label = '', evidenceProfile = {} }) => {
   const projectOnly = matchedSection === 'projects';
-  const transferableOnly = matchedCapabilities.length > 0 && !projectOnly && !['experience', 'skills'].includes(matchedSection);
-  const isCommercialRequirement = COMMERCIAL_EXPERIENCE_PATTERN.test(label) || /c#|\.net|mvc/i.test(label);
+  const transferableOnly = matchedCapabilities.length > 0 && !projectOnly && !['experience', 'skills', 'education'].includes(matchedSection);
+  const isCommercialRequirement = COMMERCIAL_EXPERIENCE_PATTERN.test(label);
+  const isDegreeRequirement = DEGREE_PATTERN.test(label);
   const hasCommercialSignals = Boolean((evidenceProfile.sections?.experience || []).length);
 
   if (status === 'met') return 'direct evidence found';
-  if (isCommercialRequirement && projectOnly) return 'project-based evidence only';
+  if (isDegreeRequirement && matchedSection === 'education') return 'education evidence found';
+  if (isCommercialRequirement && projectOnly) return 'project evidence is stronger than commercial delivery proof';
   if (isCommercialRequirement && !hasCommercialSignals) return 'missing direct commercial proof';
   if (transferableOnly) return 'transferable evidence only';
   if (projectOnly) return 'project-based evidence only';
@@ -119,7 +120,7 @@ const computeRequirementStatus = (requirement, evidenceProfile = {}) => {
   else if (partialishCount >= Math.max(1, Math.ceil(childMatches.length / 2))) finalStatus = 'partial';
   else if (statusMax(statuses) !== 'not_met') finalStatus = 'inferred';
 
-  if (COMMERCIAL_EXPERIENCE_PATTERN.test(requirement.label) && childMatches.some((item) => /c#|\.net|mvc/i.test(item.label) && item.status === 'not_met')) {
+  if (COMMERCIAL_EXPERIENCE_PATTERN.test(requirement.label) && childMatches.some((item) => item.status === 'not_met')) {
     finalStatus = finalStatus === 'met' ? 'partial' : statusMin([finalStatus, 'partial']);
   }
 
@@ -228,33 +229,79 @@ export const buildLegacyWeightedBreakdown = ({ macroScore, microScore, requireme
   };
 };
 
+const CAPABILITY_EVIDENCE_PATTERNS = {
+  documentation: /document|runbook|knowledge base|procedure/i,
+  ownership: /owned|owning|responsible|end-to-end/i,
+  automation: /automate|automation|pipeline|ci\/cd/i,
+  stakeholder_collaboration: /stakeholder|communicat|presented|status updates|cross-functional/i,
+  troubleshooting: /troubleshoot|incident|root cause|debug/i,
+};
+
+const buildCapabilityStrengths = (cvEvidenceProfile = {}) => {
+  const capabilityLabels = cvEvidenceProfile.functionalCapabilities || [];
+  const evidenceItems = cvEvidenceProfile.evidenceItems || [];
+  return capabilityLabels
+    .map((capability) => {
+      const pattern = CAPABILITY_EVIDENCE_PATTERNS[capability];
+      if (!pattern) return null;
+      const evidence = evidenceItems.filter((item) => pattern.test(item.text || '')).slice(0, 2).map((item) => item.text);
+      if (!evidence.length) return null;
+      return buildExplanationItem({ label: capability.replace(/_/g, ' '), evidence, detail: 'Grounded transferable capability' });
+    })
+    .filter(Boolean);
+};
+
+const buildStrengths = (microScores = [], requirementChecks = [], cvEvidenceProfile = {}) => {
+  const groundedMicro = microScores
+    .filter((item) => item.score >= 72 && (item.evidence || []).length > 0)
+    .map((item) => buildExplanationItem({ label: item.label, evidence: item.evidence, detail: 'Direct matched evidence found' }));
+  const capabilityStrengths = buildCapabilityStrengths(cvEvidenceProfile);
+  const requirementStrengths = requirementChecks
+    .filter((item) => ['met', 'partial'].includes(item.status) && (item.evidence || []).length > 0)
+    .slice(0, 4)
+    .map((item) => buildExplanationItem({ label: item.label, evidence: item.evidence, detail: item.status === 'met' ? 'Requirement is well supported' : 'Requirement is mostly supported' }));
+  const seen = new Set();
+  return [...groundedMicro.slice(0, 5), ...capabilityStrengths, ...requirementStrengths].filter((item) => {
+    const key = normalizeTaxonomyLabel(item.label);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).slice(0, 8);
+};
+
+const buildGapLabel = (item = {}) => {
+  if (/communication and ownership/i.test(item.label)) return 'Limited direct evidence of communication and ownership';
+  if (/communicate clearly and learn quickly/i.test(item.label)) return 'Limited direct evidence of communication and learning agility';
+  if (/recent tertiary qualification/i.test(item.label)) return 'Qualification evidence needs clearer education grounding';
+  return item.status === 'not_met' ? `Missing evidence for ${item.label}` : `Limited direct evidence for ${item.label}`;
+};
+
+const buildRiskLabel = (item = {}) => {
+  if (/communication and ownership/i.test(item.label)) return 'Readiness risk for communication-heavy ownership work';
+  if (/communicate clearly and learn quickly/i.test(item.label)) return 'Interview should validate communication and learning speed';
+  if (/recent tertiary qualification/i.test(item.label)) return 'Resume should surface the degree evidence more clearly';
+  if (/commercial experience|professional experience/i.test(item.label)) return 'May need ramp-up before owning commercial delivery independently';
+  return `Interview should validate readiness for ${item.label}`;
+};
+
 export const buildExplanation = ({ microScores, requirementChecks, cvEvidenceProfile = {} }) => {
   const achievementLabels = new Set((cvEvidenceProfile.achievements || []).map((item) => item.text));
-  const capabilityStrengths = (cvEvidenceProfile.functionalCapabilities || []).slice(0, 3).map((item) => buildExplanationItem({ label: item.replace(/_/g, ' '), detail: 'Transferable capability signal' }));
-  const strengths = [
-    ...microScores
-      .filter((item) => item.score >= 75)
-      .slice(0, 4)
-      .map((item) => buildExplanationItem({ label: item.label, evidence: item.evidence, detail: 'Strong matched criterion' })),
-    ...capabilityStrengths,
-  ].slice(0, 5);
+  const strengths = buildStrengths(microScores, requirementChecks, cvEvidenceProfile);
 
   const gaps = requirementChecks
     .filter((item) => item.status !== 'met')
-    .filter((item) => item.status === 'not_met' || item.importance === 'high' || /missing direct commercial proof|limited direct proof|project-based evidence only/.test(item.notes || ''))
+    .filter((item) => item.status === 'not_met' || item.importance === 'high' || /missing direct commercial proof|limited direct proof|project-based evidence only|partial direct evidence/.test(item.notes || ''))
     .slice(0, 5)
-    .map((item) => buildExplanationItem({ label: item.label, evidence: item.evidence, detail: item.status === 'not_met' ? 'Direct evidence not found' : item.notes || 'Direct proof is limited' }));
+    .map((item) => buildExplanationItem({ label: buildGapLabel(item), evidence: item.evidence, detail: item.notes || 'Direct proof is limited' }));
 
   const risks = requirementChecks
-    .filter((item) => item.type === 'hard' && item.status !== 'met')
-    .concat(
-      requirementChecks.filter((item) => item.status === 'inferred' && /c#|\.net|mvc|professional experience|commercial experience/i.test(item.label))
-    )
+    .filter((item) => item.type === 'hard' && ['not_met', 'inferred'].includes(item.status))
     .slice(0, 4)
-    .map((item) => buildExplanationItem({ label: item.label, evidence: item.evidence, detail: item.status === 'inferred' ? 'Core requirement relies on limited proof' : 'Hard requirement risk' }));
+    .map((item) => buildExplanationItem({ label: buildRiskLabel(item), evidence: item.evidence, detail: item.status === 'not_met' ? 'This could block independent performance early on' : 'This still needs interview validation' }));
 
+  const hasProjectHeavyGap = requirementChecks.some((item) => /project-based evidence only/.test(item.notes || ''));
   const summary = strengths.length > 0
-    ? `Top matched areas: ${strengths.map((item) => item.label).join(', ')}. Transferable and project-based evidence were included, but direct proof gaps still matter for core stack requirements.`
+    ? `Top matched areas: ${strengths.map((item) => item.label).join(', ')}. ${hasProjectHeavyGap ? 'Project-based evidence is helping, but direct commercial proof still needs validation.' : 'The profile shows useful evidence, but interviewers should still check any direct-proof gaps before treating it as fully job-ready.'}`
     : 'Limited strong matches were found, so the interview should probe direct stack evidence, transferable experience, and project depth.';
   const explanation = buildExplanationObject({ strengths, gaps, risks, summary, achievementCount: achievementLabels.size });
   return { strengths, gaps, risks, explanation };

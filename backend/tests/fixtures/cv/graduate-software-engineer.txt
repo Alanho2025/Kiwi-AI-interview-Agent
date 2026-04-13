@@ -1,0 +1,27 @@
+Alex Chen
+alex.chen@email.com | Auckland, New Zealand | +64 21 555 0123
+
+Summary
+Graduate software developer with hands-on experience building full-stack web apps using C#, .NET, SQL, Git, JavaScript and Azure pipelines. Strong communicator who enjoys Agile teamwork and learning new technologies quickly.
+
+Skills
+C#, .NET, ASP.NET MVC, SQL, Git, JavaScript, HTML, CSS, Azure, CI/CD, Agile, Kanban, Testing, Vitest
+
+Projects
+Inventory Portal Project
+- Built an ASP.NET MVC inventory portal with SQL Server and REST APIs for a university capstone project.
+- Collaborated in a 4-person Agile team using Git and Kanban.
+- Reduced manual review time by 50% by automating validation workflows.
+
+Placement Project
+- Deployed a customer support dashboard to Azure with CI/CD pipelines.
+- Worked closely with stakeholders and presented sprint demos.
+
+Experience
+Software Developer Intern | Kiwi Tech
+- Built internal tools with C# and .NET.
+- Wrote SQL queries and fixed defects in production support.
+- Participated in daily standups, sprint planning, and code reviews.
+
+Education
+Bachelor of Engineering in Software Engineering, University of Auckland

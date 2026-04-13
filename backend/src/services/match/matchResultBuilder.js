@@ -17,6 +17,8 @@ export const calculateConfidence = ({ parsedCvProfile, macroScores, microScores,
     2
   );
 
+const hasHardGateFailure = (requirementChecks = []) => requirementChecks.some((item) => item.type === 'hard' && item.status === 'not_met');
+
 export const buildAnalyzeResult = ({
   parsedCvProfile,
   rubric,
@@ -33,7 +35,7 @@ export const buildAnalyzeResult = ({
   cvEvidenceProfile = {},
 }) => {
   const confidence = calculateConfidence({ parsedCvProfile, macroScores, microScores, requirementChecks, cvEvidenceProfile });
-  const decision = deriveDecision({ overallScore: scoreBreakdown.overallScore, confidence, hardGateFailed: risks.length > 0 });
+  const decision = deriveDecision({ overallScore: scoreBreakdown.overallScore, confidence, hardGateFailed: hasHardGateFailure(requirementChecks) });
   const interviewFocus = unique([
     ...questionPlanHints.mustProbeSkills.slice(0, 3),
     ...questionPlanHints.mustProbeExperience.slice(0, 2),

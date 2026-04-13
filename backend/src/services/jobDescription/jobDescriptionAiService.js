@@ -7,7 +7,18 @@
 import { callDeepSeek } from '../deepseekService.js';
 import { safeJsonParse } from './jobDescriptionShared.js';
 
+const emptyAiSkillBundle = () => ({
+  technicalSkillRequirements: [],
+  softSkillRequirements: [],
+  macroCriteria: [],
+  requirements: [],
+});
+
 export const extractSkillsWithAI = async (rawJD) => {
+  if (process.env.DISABLE_AI_JD_ENHANCEMENT === 'true' || !process.env.DEEPSEEK_API_KEY) {
+    return emptyAiSkillBundle();
+  }
+
   try {
     const prompt = `You are a strict job-description parser for IT roles. Extract only what is explicitly stated.
 Return JSON only with this schema:
@@ -29,6 +40,6 @@ Job description:\n${rawJD.slice(0, 5000)}`;
     };
   } catch (error) {
     console.warn('AI skill extraction failed:', error.message);
-    return { technicalSkillRequirements: [], softSkillRequirements: [], macroCriteria: [], requirements: [] };
+    return emptyAiSkillBundle();
   }
 };
