@@ -1,0 +1,28 @@
+Alan Ho
+alan.ho@example.com | +64 21 555 1234 | Auckland, New Zealand
+
+Summary
+Graduate software developer with project and internship experience building web applications, APIs, and SQL-backed tools. Fast learner with strong communication and Agile teamwork habits.
+
+Skills
+C#, .NET, SQL, Git, Azure, HTML, CSS, JavaScript, REST API, Testing, Vitest, Agile, Kanban
+
+Projects
+Campus Interview Assistant
+- Built a Node and SQL API that matched candidate CVs to job descriptions.
+- Wrote automated tests with Vitest and improved parse reliability.
+Smart Factory Dashboard
+- Built an ASP.NET MVC dashboard to track line issues and document fixes.
+- Connected SQL data and reduced manual review time by 50%.
+
+Experience
+Software Engineering Intern - Bright Apps
+- Built and enhanced internal tools using C#, .NET, SQL, and Git.
+- Worked in an Agile Kanban team and documented production changes.
+System Electrical Engineer - Foxconn
+- Automated failure analysis checks with Python and SQL.
+- Reduced abnormal retest rate from 15% to 5%.
+
+Education
+Master of Information Technology, University of Auckland
+Bachelor of Engineering
