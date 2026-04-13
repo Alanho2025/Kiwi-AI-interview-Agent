@@ -9,9 +9,6 @@
  * - Prefer composition and small helpers over repeated inline logic.
  */
 
-import { getStoredAuthSession } from '../utils/authSession.js';
-import { clearStoredAuthSession } from '../utils/authSession.js';
-
 /**
  * Purpose: Execute the main responsibility for normalizeBaseUrl.
  * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
@@ -36,14 +33,10 @@ export const apiClient = async (endpoint, options = {}) => {
   const baseUrl = normalizeBaseUrl(import.meta.env.VITE_API_BASE_URL);
   const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
   const url = `${baseUrl}${normalizedEndpoint}`;
-  const authSession = getStoredAuthSession();
 
   const defaultHeaders = {};
   if (!(options.body instanceof FormData)) {
     defaultHeaders['Content-Type'] = 'application/json';
-  }
-  if (authSession?.token) {
-    defaultHeaders.Authorization = `Bearer ${authSession.token}`;
   }
 
   const config = {
@@ -66,9 +59,6 @@ export const apiClient = async (endpoint, options = {}) => {
     : { message: await response.text() };
 
   if (!response.ok) {
-    if (response.status === 401) {
-      clearStoredAuthSession();
-    }
     throw new Error(payload.error?.details || payload.message || payload.msg || 'API request failed');
   }
 
