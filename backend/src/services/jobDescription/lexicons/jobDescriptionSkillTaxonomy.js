@@ -24,6 +24,7 @@ export const TECHNICAL_SKILL_FAMILIES = {
     ['MySQL', ['mysql']],
     ['Excel', ['excel']],
     ['Power BI', ['power bi', 'powerbi']],
+    ['Snowflake', ['snowflake']],
     ['Tableau', ['tableau']],
     ['Data Cleaning', ['data cleaning', 'data cleansing']],
     ['Data Transformation', ['data transformation', 'data wrangling']],
@@ -39,6 +40,9 @@ export const TECHNICAL_SKILL_FAMILIES = {
     ['Spark', ['spark', 'apache spark']],
     ['Airflow', ['airflow', 'apache airflow']],
     ['dbt', ['dbt']],
+    ['Data Modelling', ['data modelling', 'data modeling', 'dimensional modelling', 'dimensional modeling', 'dv2', 'data vault 2.0']],
+    ['Semantic Layers', ['semantic layer', 'semantic layers']],
+    ['ADF', ['adf', 'azure data factory']],
   ],
   aiMl: [
     ['Machine Learning', ['machine learning', 'ml']],
@@ -100,7 +104,7 @@ export const TECHNICAL_SKILL_FAMILIES = {
 export const SOFT_SKILL_TAXONOMY = [
   ['Team Player', ['team player']],
   ['Collaboration', ['collaborating', 'collaboration', 'work with others', 'learning from others']],
-  ['Communication', ['communicating clearly', 'communication', 'writing notes', 'asking questions', 'sharing progress']],
+  ['Communication', ['communicating clearly', 'communicate clearly', 'communication', 'writing notes', 'asking questions', 'sharing progress', 'technical and business stakeholders']],
   ['Curiosity', ['curious', 'curiosity', 'understanding the why']],
   ['Proactivity', ['proactive', 'speak up early', 'follow through']],
   ['Customer Mindset', ['customer-minded', 'customer minded', 'real environments', 'works reliably']],

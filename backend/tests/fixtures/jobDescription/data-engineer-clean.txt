@@ -1,0 +1,37 @@
+Data Engineer
+
+Company: Rewired Consulting
+Employment type: Full time
+
+What This Role Does
+- Partner with a leading banking client to deliver data engineering projects across New Zealand and Australia.
+- Build scalable data pipelines, curated datasets, and governed semantic layers for reporting and finance use cases.
+- Work across requirements, design, build, deployment, and handover in a regulated environment.
+
+Core Requirements
+- Strong SQL skills and hands-on experience with Snowflake.
+- Experience with dbt, including testing, documentation, and deployment.
+- Exposure to data modelling, including dimensional modelling or DV2.
+- Ability to work through ambiguity and deliver outcomes under deadlines.
+
+Bonus Requirements
+- Experience building or supporting semantic layers.
+- Familiarity with cloud-based data orchestration tools such as ADF.
+- Strong communication skills across technical and business stakeholders.
+
+Qualifications
+- Proven experience delivering data engineering solutions in production environments.
+- Strong SQL skills and hands-on experience with Snowflake.
+- Experience with dbt, including testing, documentation, and deployment.
+- Exposure to data modelling, including dimensional modelling or DV2.
+- Experience building or supporting semantic layers.
+- Familiarity with cloud-based data orchestration tools such as ADF.
+- Ability to work through ambiguity and deliver outcomes under deadlines.
+- Strong communication skills across technical and business stakeholders.
+
+Benefits
+- Hybrid work options.
+- Professional development budget.
+
+Application Notes
+- Apply with your CV and cover letter.

@@ -1,0 +1,9 @@
+Data Engineer
+
+We are partnering with a leading banking organisation to recruit an experienced Data Engineer.
+Employment type: Full time.
+
+Core Requirements
+- Strong SQL skills.
+- Experience with Snowflake.
+- Strong communication skills.
