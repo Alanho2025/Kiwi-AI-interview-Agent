@@ -42,10 +42,28 @@ const serializeSections = (evidenceProfile = {}) => {
   };
 };
 
+const NOISE_TOKENS = new Set(['and', 'or', 'to', 'in', 'with', 'of', 'the', 'a', 'an', 'ability', 'exposure', 'foundations', 'foundation', 'recent', 'tertiary', 'qualification', 'clear', 'clearly']);
+const LABEL_ALIASES = [
+  { pattern: /communicate clearly/i, expansions: ['communication'] },
+  { pattern: /learn quickly/i, expansions: ['fast learner', 'adaptability'] },
+  { pattern: /software engineering/i, expansions: ['software engineer'] },
+  { pattern: /computer science/i, expansions: ['information technology'] },
+  { pattern: /ci\/?cd pipelines?/i, expansions: ['ci/cd', 'pipeline'] },
+];
+
+const expandLabelTokens = (label = '') => {
+  const base = normalizeText(label);
+  const expanded = [base];
+  for (const rule of LABEL_ALIASES) {
+    if (rule.pattern.test(label)) expanded.push(...rule.expansions.map((item) => normalizeText(item)));
+  }
+  return unique(expanded.flatMap((item) => tokenize(item))).filter((token) => token.length > 1 && !NOISE_TOKENS.has(token));
+};
+
 const directMatchScore = (label, text) => {
   const normalizedLabel = normalizeText(label);
   const normalizedTextValue = normalizeText(text);
-  const labelTokens = unique(tokenize(normalizedLabel));
+  const labelTokens = expandLabelTokens(label);
   const textTokens = tokenSet(normalizedTextValue);
   const direct = normalizedLabel.length > 2 && normalizedTextValue.includes(normalizedLabel);
   const overlap = labelTokens.filter((token) => textTokens.has(token));

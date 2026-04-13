@@ -186,7 +186,7 @@ export const deriveDecision = ({ overallScore = 0, confidence = 0, hardGateFaile
     return { label: 'strong_match', reasonCodes: ['high_overall_score'] };
   }
 
-  if (overallScore >= 65) {
+  if (overallScore >= 60) {
     return { label: 'moderate_match', reasonCodes: ['good_overall_score'] };
   }
 

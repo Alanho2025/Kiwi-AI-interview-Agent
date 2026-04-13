@@ -33,7 +33,8 @@ export const buildAnalyzeResult = ({
   cvEvidenceProfile = {},
 }) => {
   const confidence = calculateConfidence({ parsedCvProfile, macroScores, microScores, requirementChecks, cvEvidenceProfile });
-  const decision = deriveDecision({ overallScore: scoreBreakdown.overallScore, confidence, hardGateFailed: risks.length > 0 });
+  const hardGateFailed = requirementChecks.some((item) => item.type === 'hard' && item.status === 'not_met');
+  const decision = deriveDecision({ overallScore: scoreBreakdown.overallScore, confidence, hardGateFailed });
   const interviewFocus = unique([
     ...questionPlanHints.mustProbeSkills.slice(0, 3),
     ...questionPlanHints.mustProbeExperience.slice(0, 2),

@@ -1,0 +1,21 @@
+Alan Ho
+alan.ho@example.com | Auckland, New Zealand
+
+Professional Summary
+Data-focused professional moving into software and platform roles. Strong SQL, Python, stakeholder communication, and rapid learning.
+
+Technical Skills
+SQL, Python, Git, Power BI, Excel, REST API, Agile
+
+Projects
+Recommendation Platform Prototype
+- Built a recommendation workflow using Node, SQL, and API integration.
+- Added testing and logging to improve reliability.
+
+Experience
+System Electrical Engineer - Foxconn
+- Worked with cross-functional teams and used SQL to support root cause analysis.
+- Proposed process improvements that reduced abnormal retest rate from 15% to 5%.
+
+Education
+Master of Information Technology, University of Auckland

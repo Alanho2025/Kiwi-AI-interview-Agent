@@ -9,7 +9,10 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:jd": "vitest run tests/jobDescription",
-    "eval:jd": "node eval/runners/runJdParseEval.js"
+    "eval:jd": "node eval/runners/runJdParseEval.js",
+    "test:cv": "vitest run tests/cv",
+    "test:match": "vitest run tests/match",
+    "test:cv-match": "vitest run tests/cv tests/match"
   },
   "dependencies": {
     "cors": "^2.8.6",

@@ -1,5 +1,7 @@
+const NUMBER_PATTERN = String.raw`\d+(?:\.\d+)?%?`;
+
 const ACHIEVEMENT_PATTERNS = [
-  { type: 'quantified_impact', regex: /\b(?:reduced|lowered|improved|increased)\b[^\n]{0,120}\b\d+%?\b[^\n]{0,40}\b\d+%?\b/gi },
+  { type: 'quantified_impact', regex: new RegExp(String.raw`\b(?:reduced|lowered|improved|increased)\b[^\n]{0,120}${NUMBER_PATTERN}[^\n]{0,40}${NUMBER_PATTERN}`, 'gi') },
   { type: 'delivery_outcome', regex: /\b(?:deployed|migrated|built)\b[^\n]{0,160}/gi },
   { type: 'efficiency_gain', regex: /\b(?:saved|reducing manual effort|improving analysis speed)\b[^\n]{0,120}/gi },
 ];
