@@ -9,14 +9,9 @@
  * - Prefer composition and small helpers over repeated inline logic.
  */
 
+import { AGENT_ACTION_TYPES } from '../../constants/agentActionTypes.js';
 import { getNextPoolQuestion, hasReachedQuestionLimit } from '../interviewStateService.js';
 
-/**
- * Purpose: Execute the main responsibility for getLastUserAnswer.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
 const getLastUserAnswer = (transcript = []) => [...transcript].reverse().find((turn) => turn.role === 'user')?.text || '';
 const tokenize = (value = '') => String(value || '').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
 
@@ -31,16 +26,10 @@ const buildRoleLockedQuestion = (retrievedItem, fallback = {}) => ({
   sourceId: retrievedItem.sourceId,
 });
 
-/**
- * Purpose: Execute the main responsibility for pickRetrievedQuestion.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
-const pickRetrievedQuestion = (retrievalBundle, selectedQuestion) => {
-  if (!retrievalBundle?.items?.length || !selectedQuestion) return null;
-  const topicTokens = new Set(tokenize(selectedQuestion.topic || ''));
-  const desiredSource = selectedQuestion.stage === 'behavioural' ? 'behavioural_bank' : 'question_bank';
+const pickRetrievedQuestion = (retrievalBundle, selectedQuestion, targetTopic = '') => {
+  if (!retrievalBundle?.items?.length) return null;
+  const topicTokens = new Set(tokenize(targetTopic || selectedQuestion?.topic || ''));
+  const desiredSource = selectedQuestion?.stage === 'behavioural' ? 'behavioural_bank' : 'question_bank';
 
   const sameStage = retrievalBundle.items.find((item) => {
     if (![desiredSource, 'question_bank', 'behavioural_bank'].includes(item.sourceType)) return false;
@@ -55,12 +44,6 @@ const pickRetrievedQuestion = (retrievalBundle, selectedQuestion) => {
     || null;
 };
 
-/**
- * Purpose: Execute the main responsibility for inferEvidenceTypeHint.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
 const inferEvidenceTypeHint = (question = {}) => {
   const stage = String(question.stage || question.type || '').toLowerCase();
   if (stage.includes('technical')) return 'direct_past_experience';
@@ -70,13 +53,47 @@ const inferEvidenceTypeHint = (question = {}) => {
   return 'adjacent_experience';
 };
 
-/**
- * Purpose: Execute the main responsibility for runInterviewerAgent.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
-export const runInterviewerAgent = async ({ session, retrievalBundle = null } = {}) => {
+const buildProbingQuestion = ({ targetTopic = 'project', lastUserAnswer = '' } = {}) => ({
+  type: 'probing_follow_up',
+  stage: 'technical_probe',
+  topic: targetTopic,
+  followUpDepth: 1,
+  text: `Can you walk me through one concrete ${targetTopic} example, what you personally did, and what result it led to?`,
+  reason: lastUserAnswer
+    ? 'A probing question is needed because the latest answer was still broad and short on concrete evidence.'
+    : 'A probing question is needed to collect one concrete example before moving on.',
+  sourceType: 'controller_directed',
+});
+
+const buildValidationQuestion = ({ targetTopic = 'claim' } = {}) => ({
+  type: 'validation_follow_up',
+  stage: 'technical_validation',
+  topic: targetTopic,
+  followUpDepth: 1,
+  text: `You mentioned ${targetTopic}. What exactly did you own, and how did you know it worked well in practice?`,
+  reason: 'This question validates a claim that still needs direct supporting evidence.',
+  sourceType: 'controller_directed',
+});
+
+const buildSwitchTopicQuestion = ({ targetTopic = 'role_fit' } = {}) => ({
+  type: 'coverage_follow_up',
+  stage: 'coverage',
+  topic: targetTopic,
+  followUpDepth: 0,
+  text: `I would like to move to ${targetTopic}. Can you share one example that shows your experience in that area?`,
+  reason: 'The controller switched topic because an important requirement has not been covered yet.',
+  sourceType: 'controller_directed',
+});
+
+export const runInterviewerAgent = async ({
+  session,
+  retrievalBundle = null,
+  actionType = AGENT_ACTION_TYPES.ASK_POOL_QUESTION,
+  decisionContext = null,
+  evidenceBundle = null,
+  targetTopic = null,
+  probeType = null,
+} = {}) => {
   const transcript = session?.transcript || [];
   const lastUserAnswer = getLastUserAnswer(transcript).toLowerCase();
 
@@ -96,16 +113,37 @@ export const runInterviewerAgent = async ({ session, retrievalBundle = null } = 
 
   let selectedQuestion = getNextPoolQuestion(session);
 
-  const retrievedQuestion = pickRetrievedQuestion(retrievalBundle, selectedQuestion);
-  if (selectedQuestion && retrievedQuestion && !['opening', 'wrap_up'].includes(selectedQuestion.stage)) {
-    selectedQuestion = buildRoleLockedQuestion(retrievedQuestion, selectedQuestion);
+  if (actionType === AGENT_ACTION_TYPES.ASK_PROBING_QUESTION) {
+    selectedQuestion = buildProbingQuestion({
+      targetTopic: targetTopic || decisionContext?.currentTopic || evidenceBundle?.validationTargets?.[0] || 'project',
+      lastUserAnswer,
+    });
+  } else if (actionType === AGENT_ACTION_TYPES.ASK_VALIDATION_QUESTION) {
+    selectedQuestion = buildValidationQuestion({ targetTopic: targetTopic || decisionContext?.matchState?.validationTargets?.[0] || 'claim' });
+  } else if (actionType === AGENT_ACTION_TYPES.SWITCH_TOPIC) {
+    selectedQuestion = buildSwitchTopicQuestion({ targetTopic: targetTopic || decisionContext?.coverageState?.missingTopics?.[0] || 'role_fit' });
+  } else if (actionType === AGENT_ACTION_TYPES.WRAP_STAGE) {
+    selectedQuestion = {
+      type: 'wrap_up',
+      stage: 'wrap_up',
+      topic: 'candidate_questions',
+      followUpDepth: 0,
+      text: 'Before we wrap up, what questions would you like to ask about the role or the team?',
+      reason: 'The controller selected the wrap-up stage.',
+      sourceType: 'controller_directed',
+    };
+  } else {
+    const retrievedQuestion = pickRetrievedQuestion(retrievalBundle, selectedQuestion, targetTopic || decisionContext?.currentTopic || '');
+    if (selectedQuestion && retrievedQuestion && !['opening', 'wrap_up'].includes(selectedQuestion.stage) && actionType !== AGENT_ACTION_TYPES.ASK_POOL_QUESTION) {
+      selectedQuestion = buildRoleLockedQuestion(retrievedQuestion, selectedQuestion);
+    }
   }
 
   if (!selectedQuestion) {
     selectedQuestion = {
       type: 'behavioural_follow_up',
       stage: 'behavioural',
-      topic: lastUserAnswer.includes('team') ? 'teamwork' : 'problem_solving',
+      topic: lastUserAnswer.includes('team') ? 'teamwork' : probeType || 'problem_solving',
       followUpDepth: 1,
       text: lastUserAnswer.includes('team')
         ? 'What was your exact role in that team effort, and what result came from it?'
@@ -119,6 +157,7 @@ export const runInterviewerAgent = async ({ session, retrievalBundle = null } = 
     questionType: selectedQuestion.type,
     nextQuestion: selectedQuestion.text,
     rationale: selectedQuestion.reason,
+    rationaleSummary: selectedQuestion.reason,
     stage: selectedQuestion.stage,
     topic: selectedQuestion.topic,
     followUpDepth: selectedQuestion.followUpDepth || 0,

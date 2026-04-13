@@ -33,7 +33,7 @@ api.use(cors({
   origin: true,
   credentials: true,
 }));
-api.use(express.json());
+api.use(express.json({ limit: '2mb' }));
 api.use(requestContext);
 api.use(optionalAuth);
 

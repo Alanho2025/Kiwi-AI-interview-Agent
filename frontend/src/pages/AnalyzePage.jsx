@@ -187,7 +187,6 @@ export function AnalyzePage() {
         jdText: finalStructuredJD,
         jdRubric: finalStructuredJDRubric,
         settings,
-        analysisResult: matchResponse,
         matchAnalysisId: matchResponse.matchAnalysisId || null,
       });
 
