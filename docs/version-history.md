@@ -1,5 +1,81 @@
 # Kiwi AI Interview Agent - Version History
 
+## v1.10.0 - Controller-ready JD/CV/match contracts and retrieval hardening
+
+### Why this version exists
+The Step 1 and Step 2 controller work introduced decision context, action planning, and first-pass controller tests.
+However, the controller was still reading mixed upstream shapes from JD parsing, CV parsing, and match analysis.
+Retrieval also remained too close to a one-shot search helper, which meant weak results could still flow directly into interview and report behaviour.
+
+This version hardens the upstream-to-controller contract layer and upgrades retrieval into a task-aware evidence service.
+It also expands the automated test surface so the controller, contract adapters, and retrieval quality rules can evolve together.
+
+### Main changes
+- Added JD contract alignment modules:
+  - `backend/src/services/jobDescription/jobDescriptionNormalizer.js`
+  - `backend/src/services/jobDescription/jobDescriptionSignals.js`
+  - `backend/src/services/jobDescription/jobDescriptionContractBuilder.js`
+- Added CV contract alignment modules:
+  - `backend/src/services/cv/cvEvidenceNormalizer.js`
+  - `backend/src/services/cv/cvSignalExtractor.js`
+  - `backend/src/services/cv/cvProfileContractBuilder.js`
+- Added match contract alignment modules:
+  - `backend/src/services/match/matchValidationTargetBuilder.js`
+  - `backend/src/services/match/matchExplanationBuilder.js`
+  - `backend/src/services/match/matchAnalysisContractBuilder.js`
+- Reworked controller adapters so `sessionStateService` and `evidenceBundleService` now read from stable contracts instead of mixed raw analysis blobs.
+- Upgraded `decisionContextBuilder` so the controller now consumes:
+  - normalized JD rubric
+  - normalized CV profile
+  - structured match analysis
+  - retrieval objective and corrective retry status
+- Added retrieval hardening modules:
+  - `backend/src/constants/retrievalObjectives.js`
+  - `backend/src/services/retrieval/retrievalSourceRegistry.js`
+  - `backend/src/services/retrieval/retrievalSourceSelector.js`
+  - `backend/src/services/retrieval/retrievalObjectiveBuilder.js`
+  - `backend/src/services/retrieval/retrievalQualityAssessor.js`
+  - `backend/src/services/retrieval/correctiveRetrievalService.js`
+  - `backend/src/services/retrieval/sessionEvidenceRetriever.js`
+  - `backend/src/services/retrieval/globalKnowledgeRetriever.js`
+- Rebuilt `backend/src/services/agents/retrievalAgent.js` so it now:
+  - selects sources from controller objective
+  - separates session and global evidence sources
+  - assesses retrieval quality
+  - performs one corrective retry when needed
+  - returns source quality, evidence summary, and retry metadata
+- Expanded the test surface with new Vitest files:
+  - `backend/tests/aiControl/evidenceBundleService.test.js`
+  - `backend/tests/jobDescription/jobDescriptionContractBuilder.test.js`
+  - `backend/tests/cv/cvProfileContractBuilder.test.js`
+  - `backend/tests/match/matchAnalysisContractBuilder.test.js`
+  - `backend/tests/retrieval/retrievalSourceSelector.test.js`
+  - `backend/tests/retrieval/retrievalObjectiveBuilder.test.js`
+  - `backend/tests/retrieval/retrievalQualityAssessor.test.js`
+- Added AI eval regression scaffolding for this batch:
+  - `backend/eval/README.md`
+  - `backend/eval/cases/phase3_phase4_regression.json`
+
+### Touched modules
+- `backend/src/services/aiControl/sessionStateService.js`
+- `backend/src/services/aiControl/evidenceBundleService.js`
+- `backend/src/services/aiControl/decisionContextBuilder.js`
+- `backend/src/services/agents/retrievalAgent.js`
+- `backend/docs/version-history.md`
+
+### What changed in behaviour
+- The controller now receives one stable JD contract instead of depending on partially raw rubric fields.
+- The controller now receives one stable CV contract with normalized evidence categories.
+- Match analysis now produces explicit validation targets and recruiter-readable explanation blocks.
+- Retrieval is now objective-typed, source-layered, and quality-checked before downstream use.
+- Generic or weak retrieval can trigger one corrective retry instead of flowing straight into follow-up behaviour.
+- Test coverage now grows with the contract and retrieval layers instead of staying limited to controller basics only.
+
+### Open limits after this version
+- Full semantic reranking is still not implemented in retrieval; the corrective pass is still heuristic.
+- AI eval cases are now staged, but the current repo still needs the full runner wiring from your local eval workflow to execute them automatically.
+- Interview and report agents still use the stronger controller context, but they are not yet full Reflexion-style loops with observation-driven replanning after every sub-step.
+
 This file tracks structural and behaviour changes for engineers.
 It is not a release marketing note.
 It explains why a version exists, what changed, which modules were touched, and what still remains open.
