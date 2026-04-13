@@ -14,7 +14,7 @@ import { query } from '../../db/postgres.js';
 import { SessionAnalysis } from '../../db/models/sessionAnalysisModel.js';
 import { InterviewPlan } from '../../db/models/interviewPlanModel.js';
 import { SessionReport } from '../../db/models/sessionReportModel.js';
-import { clampVarchar, fetchSessionRowById } from './sessionShared.js';
+import { clampVarchar, fetchSessionRowById, fetchOwnedSessionRowById } from './sessionShared.js';
 import {
   fetchSessionDependencies,
   initializeTranscript,
@@ -97,6 +97,22 @@ export const getSessionById = async (id) => {
 };
 
 /**
+ * Purpose: Execute the main responsibility for getOwnedSessionById.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
+export const getOwnedSessionById = async (id, userId) => {
+  const row = await fetchOwnedSessionRowById(id, userId);
+  if (!row) {
+    return null;
+  }
+
+  const dependencies = await fetchSessionDependencies({ id, cvFileId: row.cv_file_id });
+  return buildSessionDetails({ row, ...dependencies });
+};
+
+/**
  * Purpose: Execute the main responsibility for listSessionsByUserId.
  * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
@@ -159,7 +175,7 @@ export const updateSession = async (id, data) => {
          summary_text = $7,
          overall_score = $8,
          updated_at = now()
-     WHERE id = $1`,
+     WHERE id = $1 AND deleted_at IS NULL`,
     [
       id,
       data.status ?? current.status,
@@ -182,4 +198,32 @@ export const updateSession = async (id, data) => {
   }
 
   return getSessionById(id);
+};
+
+/**
+ * Purpose: Execute the main responsibility for softDeleteOwnedSession.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
+ * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ */
+export const softDeleteOwnedSession = async ({ sessionId, userId }) => {
+  // First verify session exists and belongs to user
+  const result = await query(
+    `SELECT id FROM interview_sessions WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL`,
+    [sessionId, userId]
+  );
+  
+  if (!result.rows.length) {
+    throw new Error('Session not found or access denied');
+  }
+
+  // Perform soft delete
+  await query(
+    `UPDATE interview_sessions 
+     SET deleted_at = now(), updated_at = now()
+     WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL`,
+    [sessionId, userId]
+  );
+
+  return { deleted: true, sessionId };
 };
