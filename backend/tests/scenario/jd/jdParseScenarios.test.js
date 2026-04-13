@@ -22,6 +22,7 @@ describe('JD parse scenarios', () => {
     const raw = await loadJdFixture('senior-backend-engineer.txt');
     const rubric = await buildStructuredJobDescriptionRubric(raw);
     expect(rubric.roleFamily).toBeTruthy();
-    expect(rubric.sections.technicalSkills.software.length + rubric.sections.technicalSkills.data.length).toBeGreaterThan(0);
+    const groupedSkills = Object.values(rubric.sections.technicalSkills || {}).flat();
+    expect(groupedSkills.length).toBeGreaterThan(0);
   });
 });
