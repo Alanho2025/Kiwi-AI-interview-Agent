@@ -3,28 +3,52 @@ import { normalizeText, tokenize, tokenSet, unique } from './matchShared.js';
 const SECTION_WEIGHTS_BY_KIND = {
   technical: {
     projects: 1.2,
-    skills: 1.1,
+    skills: 1.15,
     experience: 1,
-    personalStatement: 0.6,
-    education: 0.7,
+    personalStatement: 0.7,
+    education: 0.75,
   },
   behavioural: {
     keyCompetencies: 1.2,
-    experience: 1,
+    experience: 1.05,
     volunteer: 0.9,
-    personalStatement: 0.6,
+    personalStatement: 0.85,
+    projects: 0.9,
   },
   role_fit: {
     personalStatement: 1.2,
     projects: 1,
-    education: 0.8,
-    experience: 0.7,
+    education: 1.1,
+    experience: 0.9,
   },
+};
+
+const STOPWORDS = new Set([
+  'a', 'an', 'and', 'or', 'the', 'to', 'of', 'in', 'on', 'for', 'with', 'using', 'used', 'by', 'your', 'their', 'our',
+  'good', 'strong', 'ability', 'recent', 'tertiary', 'qualification', 'requirements', 'requirement', 'core', 'bonus',
+  'what', 'will', 'be', 'is', 'are', 'from', 'as', 'at', 'this', 'that', 'these', 'those', 'into', 'within', 'across',
+  'clear', 'clearly', 'experience', 'foundations', 'support', 'work', 'working', 'build', 'enhance'
+]);
+
+const LABEL_ALIASES = {
+  'cloud infrastructure': ['cloud platform', 'azure infrastructure', 'platform reliability', 'platform', 'cloud environments'],
+  docker: ['container', 'containers', 'containerized', 'containerisation', 'docker-based'],
+  kubernetes: ['k8s', 'kubernetes'],
+  documentation: ['documented', 'runbook', 'runbooks', 'technical documentation', 'knowledge base', 'operational documentation'],
+  deployment: ['deployed', 'deployment', 'deployments', 'release', 'release steps', 'rollout', 'rollout consistency', 'delivery pipeline', 'pipelines'],
+  'ci/cd': ['pipeline', 'pipelines', 'build and release', 'continuous integration', 'continuous delivery'],
+  communication: ['communicator', 'communicate', 'communicated', 'presented', 'status updates', 'stakeholder', 'stakeholders', 'cross-functional'],
+  ownership: ['owned', 'owning', 'took responsibility', 'responsible', 'end-to-end'],
+  troubleshooting: ['troubleshot', 'incident', 'incidents', 'issue resolution', 'root cause', 'debugging'],
+  'learn quickly': ['learning new technologies quickly', 'learning quickly', 'learn new technologies quickly', 'adapted quickly', 'new tools'],
+  'software engineering': ['software developer', 'software development', 'engineering'],
+  'computer science': ['software engineering', 'information technology', 'information systems'],
+  'tertiary qualification': ['bachelor', 'master', 'degree', 'university'],
 };
 
 export const inferMatchKind = (label = '', criterionType = 'micro') => {
   const text = String(label || '').toLowerCase();
-  if (/(communication|team|collaboration|stakeholder|adaptability|documentation|mentor|lead)/i.test(text)) return 'behavioural';
+  if (/(communication|team|collaboration|stakeholder|adaptability|documentation|mentor|lead|ownership|learn quickly)/i.test(text)) return 'behavioural';
   if (criterionType === 'macro' && /(experience|motivation|fit|ownership|delivery)/i.test(text)) return 'role_fit';
   return 'technical';
 };
@@ -42,33 +66,36 @@ const serializeSections = (evidenceProfile = {}) => {
   };
 };
 
-const NOISE_TOKENS = new Set(['and', 'or', 'to', 'in', 'with', 'of', 'the', 'a', 'an', 'ability', 'exposure', 'foundations', 'foundation', 'recent', 'tertiary', 'qualification', 'clear', 'clearly']);
-const LABEL_ALIASES = [
-  { pattern: /communicate clearly/i, expansions: ['communication'] },
-  { pattern: /learn quickly/i, expansions: ['fast learner', 'adaptability'] },
-  { pattern: /software engineering/i, expansions: ['software engineer'] },
-  { pattern: /computer science/i, expansions: ['information technology'] },
-  { pattern: /ci\/?cd pipelines?/i, expansions: ['ci/cd', 'pipeline'] },
-];
-
-const expandLabelTokens = (label = '') => {
-  const base = normalizeText(label);
-  const expanded = [base];
-  for (const rule of LABEL_ALIASES) {
-    if (rule.pattern.test(label)) expanded.push(...rule.expansions.map((item) => normalizeText(item)));
+const expandAliases = (value = '') => {
+  const lowered = normalizeText(value);
+  const additions = [];
+  for (const [label, aliases] of Object.entries(LABEL_ALIASES)) {
+    if (lowered.includes(label) || aliases.some((alias) => lowered.includes(alias))) {
+      additions.push(label, ...aliases);
+    }
   }
-  return unique(expanded.flatMap((item) => tokenize(item))).filter((token) => token.length > 1 && !NOISE_TOKENS.has(token));
+  return unique([lowered, ...additions.map((item) => normalizeText(item))]).join(' ');
+};
+
+const cleanTokens = (text = '') => unique(tokenize(text).filter((token) => token.length > 1 && !STOPWORDS.has(token)));
+
+const detectEducationSignal = (label = '', text = '') => {
+  const normalizedLabel = normalizeText(label);
+  const normalizedTextValue = normalizeText(text);
+  if (!/qualification|computer science|software engineering|degree|bachelor|master/i.test(normalizedLabel)) return false;
+  return /(bachelor|master|degree|university|institute|computer science|software engineering|information technology)/i.test(normalizedTextValue);
 };
 
 const directMatchScore = (label, text) => {
-  const normalizedLabel = normalizeText(label);
-  const normalizedTextValue = normalizeText(text);
-  const labelTokens = expandLabelTokens(label);
-  const textTokens = tokenSet(normalizedTextValue);
-  const direct = normalizedLabel.length > 2 && normalizedTextValue.includes(normalizedLabel);
+  const expandedLabel = expandAliases(label);
+  const expandedText = expandAliases(text);
+  const labelTokens = cleanTokens(expandedLabel);
+  const textTokens = tokenSet(expandedText);
+  const direct = labelTokens.length > 0 && labelTokens.every((token) => textTokens.has(token));
   const overlap = labelTokens.filter((token) => textTokens.has(token));
   const ratio = labelTokens.length ? overlap.length / labelTokens.length : 0;
-  return { direct, overlap, ratio };
+  const phraseBoost = overlap.length >= 2 ? 0.22 : overlap.length === 1 ? 0.08 : 0;
+  return { direct, overlap, ratio, phraseBoost };
 };
 
 export const computeSectionAwareMatch = ({ label, criterionType = 'micro', evidenceProfile = {} }) => {
@@ -83,8 +110,9 @@ export const computeSectionAwareMatch = ({ label, criterionType = 'micro', evide
   for (const [sectionKey, text] of Object.entries(serialized)) {
     if (!text) continue;
     const weight = sectionWeights[sectionKey] ?? 0.5;
-    const { direct, overlap, ratio } = directMatchScore(label, text);
-    const score = ((direct ? 1 : 0) + ratio) * weight;
+    const { direct, overlap, ratio, phraseBoost } = directMatchScore(label, text);
+    const educationBoost = sectionKey === 'education' && detectEducationSignal(label, text) ? 0.95 : 0;
+    const score = ((direct ? 1.05 : 0) + ratio + phraseBoost + educationBoost) * weight;
     if (score > bestScore) {
       bestScore = score;
       bestSection = sectionKey;
@@ -93,15 +121,21 @@ export const computeSectionAwareMatch = ({ label, criterionType = 'micro', evide
   }
 
   let status = 'not_met';
-  if (bestScore >= 1.35) status = 'met';
-  else if (bestScore >= 0.8) status = 'partial';
-  else if (bestScore > 0.2) status = 'inferred';
+  if (bestScore >= 1.25) status = 'met';
+  else if (bestScore >= 0.72) status = 'partial';
+  else if (bestScore > 0.24) status = 'inferred';
+
+  const evidence = bestOverlap.length
+    ? [`Matched in ${bestSection}: ${bestOverlap.join(', ')}`]
+    : bestScore > 0.24
+      ? [`Weak evidence from ${bestSection}`]
+      : [];
 
   return {
     status,
     scoreSignal: bestScore,
     matchedSection: bestSection,
     overlap: bestOverlap,
-    evidence: bestOverlap.length ? [`Matched in ${bestSection}: ${bestOverlap.join(', ')}`] : bestScore > 0.2 ? [`Weak evidence from ${bestSection}`] : [],
+    evidence,
   };
 };
