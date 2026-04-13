@@ -1,0 +1,23 @@
+Jordan Patel
+jordan.patel@email.com | Christchurch, New Zealand | +64 22 555 0144
+
+Summary
+Cloud platform engineer with experience supporting Azure infrastructure, Linux environments, Docker workloads, and incident troubleshooting. Comfortable owning platform reliability work and communicating with engineers and stakeholders.
+
+Skills
+Azure, Docker, Kubernetes, Linux, Networking, Troubleshooting, CI/CD, Git, Documentation
+
+Experience
+Cloud Support Engineer | Northstar Systems
+- Supported Azure environments and container deployments for internal teams.
+- Troubleshot Linux hosts, networking issues, and service incidents.
+- Owned operational documentation and incident follow-up actions.
+- Communicated status updates clearly across engineering and service teams.
+
+Projects
+Platform Reliability Project
+- Migrated deployment workflows to Docker-based pipelines.
+- Improved rollout consistency and reduced manual release steps by 30%.
+
+Education
+Bachelor of Information Technology, Ara Institute

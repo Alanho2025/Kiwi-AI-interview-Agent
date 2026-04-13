@@ -1,0 +1,57 @@
+[
+  {
+    "id": "graduate_software_cv",
+    "fixture": "graduate-software-engineer.txt",
+    "expected": {
+      "candidateName": "Alex Chen",
+      "email": "alex.chen@email.com",
+      "location": "Auckland",
+      "requiredSections": ["summary", "skills", "projects", "experience", "education"],
+      "requiredSkills": ["sql", "git", "javascript", "agile", "testing"],
+      "achievementKeywords": ["50%"],
+      "capabilityKeywords": ["automation", "stakeholder_collaboration"],
+      "absentWarnings": ["No clear experience section", "No dedicated skills section"]
+    }
+  },
+  {
+    "id": "data_transition_cv",
+    "fixture": "data-analyst-transition.txt",
+    "expected": {
+      "candidateName": "Mia Wong",
+      "email": "mia.wong@email.com",
+      "location": "Wellington",
+      "requiredSections": ["summary", "skills", "projects", "experience", "education"],
+      "requiredSkills": ["sql", "excel", "python", "reporting", "testing"],
+      "achievementKeywords": ["35%"],
+      "capabilityKeywords": ["documentation", "stakeholder_collaboration"],
+      "absentWarnings": ["No clear experience section"]
+    }
+  },
+  {
+    "id": "cloud_platform_cv",
+    "fixture": "cloud-platform-engineer.txt",
+    "expected": {
+      "candidateName": "Jordan Patel",
+      "email": "jordan.patel@email.com",
+      "location": "Christchurch",
+      "requiredSections": ["summary", "skills", "projects", "experience", "education"],
+      "requiredSkills": ["docker", "git"],
+      "achievementKeywords": ["30%"],
+      "capabilityKeywords": ["ownership", "documentation"],
+      "absentWarnings": ["No clear experience section"]
+    }
+  },
+  {
+    "id": "frontend_student_cv",
+    "fixture": "frontend-student.txt",
+    "expected": {
+      "candidateName": "Taylor Smith",
+      "email": "Taylor.Smith@email.com",
+      "location": "Auckland",
+      "requiredSections": ["summary", "skills", "projects", "education"],
+      "requiredSkills": ["react", "javascript", "html", "css", "git", "testing"],
+      "capabilityKeywords": ["frontend_development"],
+      "requiredWarnings": ["No clear experience section was detected"]
+    }
+  }
+]
