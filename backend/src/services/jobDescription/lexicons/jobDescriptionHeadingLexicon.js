@@ -2,6 +2,7 @@ export const SECTION_HEADING_RULES = [
   {
     type: 'responsibilities',
     patterns: [
+      /^what this role does$/i,
       /^what you'll be doing$/i,
       /^what you’ll be doing$/i,
       /^what you will be doing$/i,
@@ -20,6 +21,8 @@ export const SECTION_HEADING_RULES = [
   {
     type: 'qualifications',
     patterns: [
+      /^core requirements$/i,
+      /^bonus requirements$/i,
       /^what we're looking for$/i,
       /^what we’re looking for$/i,
       /^what we are looking for$/i,
@@ -51,11 +54,11 @@ export const SECTION_HEADING_RULES = [
   },
   {
     type: 'companyContext',
-    patterns: [/^about us$/i, /^about .+$/i, /^company overview$/i],
+    patterns: [/^job overview$/i, /^about us$/i, /^about .+$/i, /^company overview$/i],
   },
   {
     type: 'applicationInstructions',
-    patterns: [/^how to apply$/i, /^application process$/i, /^apply now$/i, /^next steps$/i],
+    patterns: [/^how to apply$/i, /^application process$/i, /^apply now$/i, /^application notes$/i, /^next steps$/i],
   },
 ];
 

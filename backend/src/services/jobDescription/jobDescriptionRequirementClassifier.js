@@ -3,7 +3,7 @@ import { buildTaxonomyItem } from '../taxonomyService.js';
 const containsAny = (text = '', patterns = []) => patterns.some((pattern) => pattern.test(text));
 
 const NICE_TO_HAVE_PATTERNS = [/\bbonus\b/i, /\bnice to have\b/i, /\bpreferred\b/i, /\bdesirable\b/i, /\bfamiliarity with\b/i];
-const MUST_HAVE_PATTERNS = [/\brecent tertiary qualification\b/i, /\bstrong university results\b/i, /\bhands-on experience\b/i, /\bfoundations in\b/i, /\bexposure to\b/i, /\bcomfortable communicating\b/i, /\bability to\b/i];
+const MUST_HAVE_PATTERNS = [/\bcore\b/i, /\brecent tertiary qualification\b/i, /\bstrong university results\b/i, /\bhands-on experience\b/i, /\bfoundations in\b/i, /\bexposure to\b/i, /\bcomfortable communicating\b/i, /\bability to\b/i];
 
 const createRequirementItem = (item, type, importance = 'medium', evidenceType = 'explicit') => ({
   id: buildTaxonomyItem(item.normalizedText || item.text).id,
@@ -43,12 +43,13 @@ export const classifyJobDescriptionRequirements = (sections = {}) => {
 
   qualificationItems.forEach((item) => {
     const text = item.text || '';
+    const headingText = item.sourceHeading || '';
     qualifications.push(createRequirementItem(item, 'qualification', 'medium'));
-    if (containsAny(text, NICE_TO_HAVE_PATTERNS)) {
+    if (containsAny(headingText, NICE_TO_HAVE_PATTERNS) || containsAny(text, NICE_TO_HAVE_PATTERNS)) {
       niceToHaveRequirements.push(createRequirementItem(item, 'nice_to_have', 'low'));
       return;
     }
-    if (containsAny(text, MUST_HAVE_PATTERNS) || qualificationItems.length <= 8) {
+    if (containsAny(headingText, MUST_HAVE_PATTERNS) || containsAny(text, MUST_HAVE_PATTERNS) || qualificationItems.length <= 8) {
       mustHaveRequirements.push(createRequirementItem(item, 'must_have', 'high'));
     }
   });

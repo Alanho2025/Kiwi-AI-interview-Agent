@@ -1,0 +1,25 @@
+Graduate Software Developer
+
+Company: Daifuku Oceania
+Employment type: Full time
+Location: Auckland
+
+What you'll be doing
+- Build and enhance quality applications using .NET and C#.
+- Work in an Agile/Kanban team and deliver maintainable software.
+- Support SQL-backed features and document your work.
+
+Core Requirements
+- Recent tertiary qualification in Computer Science or Software Engineering.
+- Foundations in C#, .NET, SQL, and Git.
+- Ability to communicate clearly and learn quickly.
+
+Bonus Requirements
+- Exposure to Azure or CI/CD pipelines.
+
+Benefits
+- Mentoring from senior engineers.
+- Professional development support.
+
+Application Notes
+- Apply with your CV and academic transcript.

@@ -1,0 +1,15 @@
+Cloud Platform Engineer
+
+Company: Northstar Systems
+Employment type: Full time
+Location: Wellington
+
+About the role
+- Build and support cloud infrastructure on Azure.
+- Improve deployment, access control, and incident response.
+- Work closely with engineering teams on Docker and Kubernetes platforms.
+
+Requirements
+- Strong experience with Azure, Cloud Infrastructure, Docker, and Kubernetes.
+- Experience with Linux, networking, and troubleshooting.
+- Good communication and ownership.

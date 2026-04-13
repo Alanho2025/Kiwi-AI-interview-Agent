@@ -24,5 +24,10 @@ export const segmentBlockItems = (blockText = '') => {
   const normalized = normalizeInlineWhitespace(blockText);
   if (!normalized) return [];
   if (normalized.includes(';')) return splitOutsideParentheses(normalized, ';');
+  const sentenceParts = normalized
+    .split(/(?<=[.!?])\s+(?=[A-Z])/)
+    .map((item) => normalizeInlineWhitespace(item))
+    .filter(Boolean);
+  if (sentenceParts.length >= 2) return sentenceParts;
   return [normalized];
 };

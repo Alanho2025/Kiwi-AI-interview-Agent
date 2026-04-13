@@ -7,7 +7,9 @@
     "start": "node index.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "test:jd": "vitest run tests/jobDescription",
+    "eval:jd": "node eval/runners/runJdParseEval.js"
   },
   "dependencies": {
     "cors": "^2.8.6",

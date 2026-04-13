@@ -1,0 +1,97 @@
+[
+  {
+    "id": "data_engineer_clean",
+    "fixture": "data-engineer-clean.txt",
+    "expected": {
+      "title": "Data Engineer",
+      "companyName": "Rewired Consulting",
+      "employmentType": "Full time",
+      "roleFamily": "data",
+      "roleLevel": "mid",
+      "responsibilityKeywords": ["data pipelines", "regulated environment"],
+      "mustHaveKeywords": ["Snowflake", "dbt", "data modelling"],
+      "niceToHaveKeywords": ["semantic layers", "ADF"],
+      "benefitKeywords": ["Hybrid work options", "Professional development budget"],
+      "applicationKeywords": ["CV and cover letter"],
+      "dataSkills": ["SQL", "Snowflake", "dbt", "Data Modelling", "Semantic Layers", "ADF"],
+      "softSkills": ["Communication"],
+      "mustNotAppearInMustHave": ["semantic layers", "ADF"]
+    }
+  },
+  {
+    "id": "graduate_software_developer",
+    "fixture": "graduate-software-developer.txt",
+    "expected": {
+      "title": "Graduate Software Developer",
+      "companyName": "Daifuku Oceania",
+      "employmentType": "Full time",
+      "roleFamily": "software_development",
+      "roleLevel": "intern",
+      "mustHaveKeywords": ["C#", ".NET", "SQL", "Git"],
+      "niceToHaveKeywords": ["Azure", "CI/CD"],
+      "benefitKeywords": ["Mentoring", "Professional development"],
+      "applicationKeywords": ["academic transcript"],
+      "dataSkills": ["SQL"],
+      "infrastructureSkills": ["Azure"],
+      "commonEngineeringSkills": ["Agile", "Kanban", "CI/CD"],
+      "softSkills": ["Communication"]
+    }
+  },
+  {
+    "id": "cloud_platform_engineer",
+    "fixture": "cloud-platform-engineer.txt",
+    "expected": {
+      "title": "Cloud Platform Engineer",
+      "companyName": "Northstar Systems",
+      "employmentType": "Full time",
+      "roleFamily": "it_infrastructure",
+      "roleLevel": "mid",
+      "mustHaveKeywords": ["Azure", "Cloud Infrastructure", "Docker", "Kubernetes"],
+      "infrastructureSkills": ["Azure", "Cloud Infrastructure", "Linux", "Networking", "Troubleshooting"],
+      "commonEngineeringSkills": ["Deployment", "Docker", "Kubernetes"],
+      "softSkills": ["Communication", "Ownership"],
+      "mustNotAppearInDataSkills": ["Azure"]
+    }
+  },
+  {
+    "id": "benefit_heavy_precision_guard",
+    "fixture": "benefit-heavy-jd.txt",
+    "expected": {
+      "title": "Data Analyst",
+      "employmentType": "Full time",
+      "roleFamily": "data",
+      "mustHaveKeywords": ["SQL", "reporting"],
+      "benefitKeywords": ["Hybrid work options", "Annual bonus", "Learning budget"],
+      "applicationKeywords": ["Submit your CV"],
+      "dataSkills": ["SQL", "Excel", "Reporting"],
+      "softSkills": ["Communication"],
+      "mustNotAppearInQualifications": ["Annual bonus", "Learning budget", "Submit your CV"]
+    }
+  },
+  {
+    "id": "leading_company_false_positive_guard",
+    "fixture": "data-engineer-leading-company.txt",
+    "expected": {
+      "title": "Data Engineer",
+      "employmentType": "Full time",
+      "roleFamily": "data",
+      "roleLevel": "mid",
+      "mustHaveKeywords": ["SQL", "Snowflake"],
+      "dataSkills": ["SQL", "Snowflake"],
+      "softSkills": ["Communication"]
+    }
+  },
+  {
+    "id": "heading_missing_paragraph",
+    "fixture": "heading-missing-paragraph.txt",
+    "expected": {
+      "title": "Data Engineer",
+      "employmentType": "full time",
+      "roleFamily": "data",
+      "roleLevel": "mid",
+      "dataSkills": ["SQL", "Snowflake", "dbt", "Data Modelling", "Semantic Layers", "ADF"],
+      "softSkills": ["Communication"],
+      "mustNotAppearInBenefits": ["Snowflake", "SQL"]
+    }
+  }
+]
