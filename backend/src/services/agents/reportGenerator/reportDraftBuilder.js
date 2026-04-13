@@ -11,71 +11,50 @@
 
 import { joinLabels } from './reportGeneratorShared.js';
 
-/**
- * Purpose: Execute the main responsibility for buildSummary.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
-export const buildSummary = ({ analysisResult, evidenceSummary, interviewMetrics }) => {
+const ensureArray = (value) => (Array.isArray(value) ? value : []);
+
+export const buildSummary = ({ analysisResult, evidenceSummary, interviewMetrics, reflectionRecords = [] }) => {
   const direct = evidenceSummary.totals.direct_past_experience || 0;
   const adjacent = evidenceSummary.totals.indirect_adjacent_experience || 0;
   const hypothetical = evidenceSummary.totals.hypothetical_understanding || 0;
   const strengths = joinLabels(analysisResult.explanation?.strengths || [], 4);
+  const reflections = ensureArray(reflectionRecords).length;
 
-  return `Decision: ${analysisResult.decision?.label || 'manual_review'}. Top matched areas: ${strengths || 'role fit, communication'}. Direct evidence turns: ${direct}. Adjacent evidence turns: ${adjacent}. Hypothetical turns: ${hypothetical}. Planned questions answered: ${Math.min(interviewMetrics.candidateTurnCount, interviewMetrics.plannedQuestionCount || interviewMetrics.candidateTurnCount)} of ${interviewMetrics.plannedQuestionCount || interviewMetrics.candidateTurnCount}.`;
+  return `Decision: ${analysisResult.decision?.label || 'manual_review'}. Top matched areas: ${strengths || 'role fit, communication'}. Direct evidence turns: ${direct}. Adjacent evidence turns: ${adjacent}. Hypothetical turns: ${hypothetical}. Planned questions answered: ${Math.min(interviewMetrics.candidateTurnCount, interviewMetrics.plannedQuestionCount || interviewMetrics.candidateTurnCount)} of ${interviewMetrics.plannedQuestionCount || interviewMetrics.candidateTurnCount}. Reflection records: ${reflections}.`;
 };
 
-/**
- * Purpose: Execute the main responsibility for buildGapText.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
 export const buildGapText = ({ analysisResult, evidenceSummary, interviewMetrics }) => {
   const gaps = [];
-
-  if ((evidenceSummary.totals.hypothetical_understanding || 0) > 0) {
-    gaps.push('Some answers relied on hypothetical or system-level understanding rather than direct past examples.');
-  }
-
-  if ((evidenceSummary.totals.indirect_adjacent_experience || 0) > 0) {
-    gaps.push('Several answers were adjacent to the asked technology rather than direct role-specific evidence.');
-  }
-
-  if (!interviewMetrics.interviewCompletedByLimit) {
-    gaps.push('The interview did not cleanly finish the planned question set.');
-  }
-
-  if (!gaps.length && (analysisResult.explanation?.gaps || []).length) {
-    return joinLabels(analysisResult.explanation.gaps, 4);
-  }
-
+  if ((evidenceSummary.totals.hypothetical_understanding || 0) > 0) gaps.push('Some answers relied on hypothetical or system-level understanding rather than direct past examples.');
+  if ((evidenceSummary.totals.indirect_adjacent_experience || 0) > 0) gaps.push('Several answers were adjacent to the asked technology rather than direct role-specific evidence.');
+  if (!interviewMetrics.interviewCompletedByLimit) gaps.push('The interview did not cleanly finish the planned question set.');
+  if (!gaps.length && (analysisResult.explanation?.gaps || []).length) return joinLabels(analysisResult.explanation.gaps, 4);
   return gaps.join(' ');
 };
 
-/**
- * Purpose: Execute the main responsibility for buildStrongEvidenceText.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
 export const buildStrongEvidenceText = (evidenceSummary = {}) => {
-  if (!evidenceSummary.strongestExamples?.length) {
-    return 'No high-strength interview examples were captured.';
-  }
-
-  return evidenceSummary.strongestExamples
-    .map((item, index) => `Example ${index + 1}: ${item}`)
-    .join(' | ');
+  if (!evidenceSummary.strongestExamples?.length) return 'No high-strength interview examples were captured.';
+  return evidenceSummary.strongestExamples.map((item, index) => `Example ${index + 1}: ${item}`).join(' | ');
 };
 
-/**
- * Purpose: Execute the main responsibility for buildReportDraft.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
+const buildInteractionFeedback = (evaluatorRecords = []) => {
+  const records = ensureArray(evaluatorRecords);
+  if (!records.length) return 'No interaction diagnostics were captured.';
+  const average = (key) => Number((records.reduce((sum, item) => sum + Number(item[key] || 0), 0) / records.length).toFixed(2));
+  return `Engagement ${average('engagementScore')}, turn-taking ${average('turnTakingScore')}, repair ${average('repairScore')}, appropriateness ${average('appropriatenessScore')}, overall interaction ${average('overallInteractionScore')}.`;
+};
+
+const buildReflectionMemoryText = (reflectionRecords = []) => {
+  const records = ensureArray(reflectionRecords).slice(-3);
+  if (!records.length) return 'No reflection memory was captured yet.';
+  return records.map((item, index) => `Lesson ${index + 1}: ${item.lesson}`).join(' | ');
+};
+
+const buildCoachingMemoryText = (userCoachingMemory = {}) => {
+  if (userCoachingMemory?.latestSummary) return userCoachingMemory.latestSummary;
+  return 'No cross-session coaching memory was available.';
+};
+
 export const buildReportDraft = ({
   session = {},
   analysisResult = {},
@@ -85,8 +64,15 @@ export const buildReportDraft = ({
   evidenceSummary = {},
   interviewMetrics = {},
   candidateFeedback = {},
+  evaluatorRecords = [],
+  trajectoryRecords = [],
+  reflectionRecords = [],
+  userCoachingMemory = {},
 }) => {
   const strongEvidenceText = buildStrongEvidenceText(evidenceSummary);
+  const averageInteractionScore = ensureArray(evaluatorRecords).length
+    ? Number((ensureArray(evaluatorRecords).reduce((sum, item) => sum + Number(item.overallInteractionScore || 0), 0) / ensureArray(evaluatorRecords).length).toFixed(2))
+    : 0;
 
   return {
     schemaVersion: 'v3',
@@ -94,7 +80,7 @@ export const buildReportDraft = ({
     candidateName: analysisResult.candidateName || session.candidateName || 'Candidate',
     jobTitle: analysisResult.jobTitle || session.targetRole || 'Target Role',
     generatedAt: new Date().toISOString(),
-    summary: buildSummary({ analysisResult, evidenceSummary, interviewMetrics }),
+    summary: buildSummary({ analysisResult, evidenceSummary, interviewMetrics, reflectionRecords }),
     sections: [
       {
         id: 'match_overview',
@@ -128,6 +114,21 @@ export const buildReportDraft = ({
         title: 'Evidence examples',
         content: strongEvidenceText,
       },
+      {
+        id: 'interaction_feedback',
+        title: 'Interaction feedback',
+        content: buildInteractionFeedback(evaluatorRecords),
+      },
+      {
+        id: 'reflection_memory',
+        title: 'Reflection memory',
+        content: buildReflectionMemoryText(reflectionRecords),
+      },
+      {
+        id: 'coaching_memory',
+        title: 'Coaching memory',
+        content: buildCoachingMemoryText(userCoachingMemory),
+      },
     ],
     scores: {
       overall: analysisResult.overallScore || 0,
@@ -137,6 +138,10 @@ export const buildReportDraft = ({
       evidenceStrength: evidenceSummary.averageStrength,
       directEvidenceTurns: evidenceSummary.totals.direct_past_experience || 0,
       hypotheticalTurns: evidenceSummary.totals.hypothetical_understanding || 0,
+      averageInteractionScore,
+      trajectoryCount: ensureArray(trajectoryRecords).length,
+      reflectionCount: ensureArray(reflectionRecords).length,
+      evaluatedTurnCount: ensureArray(evaluatorRecords).length,
     },
     recommendations: [
       (evidenceSummary.totals.hypothetical_understanding || 0) > 0
@@ -148,11 +153,7 @@ export const buildReportDraft = ({
     ],
     evidenceReferences: [
       ...(analysisResult.evidenceMap || []).slice(0, 5),
-      ...((retrievalBundle?.items || []).slice(0, 3).map((item) => ({
-        chunkId: item.chunkId,
-        label: item.metadata?.label || item.sourceType,
-        sourceType: item.sourceType,
-      }))),
+      ...((retrievalBundle?.items || []).slice(0, 3).map((item) => ({ chunkId: item.chunkId, label: item.metadata?.label || item.sourceType, sourceType: item.sourceType }))),
     ],
     interviewMetrics,
     evidenceDiagnostics: {

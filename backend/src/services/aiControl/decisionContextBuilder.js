@@ -1,14 +1,23 @@
 import { getAgentMemory } from './agentMemoryService.js';
 import { buildEvidenceBundle } from './evidenceBundleService.js';
+import { buildInterviewEnvironment } from './interviewEnvironmentService.js';
+import { getLatestEvaluatorRecord } from './interviewEvaluatorService.js';
+import { deriveDynamicSlots, getDynamicSlotState } from './dynamicSlotService.js';
+import { deriveAbductiveState } from './abductiveReasoningService.js';
+import { buildSectionState, inferInterviewSection } from './sectionPlannerService.js';
+import { getSessionReflectionMemory } from './reflectionWriterService.js';
+import { getUserCoachingMemory } from './userCoachingMemoryService.js';
 
 const ensureArray = (value) => (Array.isArray(value) ? value : []);
-const tokenize = (value = '') => String(value || '').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+const normalizeText = (value = '') => String(value || '').trim();
+const tokenize = (value = '') => normalizeText(value).toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
 
-const getLastUserAnswer = (transcript = []) => [...transcript].reverse().find((turn) => turn.role === 'user')?.text || '';
+const getLastUserAnswer = (transcript = []) => [...ensureArray(transcript)].reverse().find((turn) => turn.role === 'user')?.text || '';
 
-const inferSpecificityLevel = (latestAnswer = '') => {
-  const tokens = tokenize(latestAnswer);
-  const hasNumbers = /\d/.test(String(latestAnswer || ''));
+const inferSpecificityLevel = (answerText = '', latestEvaluation = null) => {
+  if (latestEvaluation?.specificity) return latestEvaluation.specificity;
+  const tokens = tokenize(answerText);
+  const hasNumbers = /\d/.test(answerText);
   const hasExampleWords = ['project', 'built', 'used', 'led', 'implemented', 'improved', 'deployed'].some((token) => tokens.includes(token));
   if (tokens.length >= 40 && (hasNumbers || hasExampleWords)) return 'high';
   if (tokens.length >= 20) return 'medium';
@@ -40,30 +49,88 @@ const buildCoverageState = ({ session = {}, evidenceBundle = {} } = {}) => {
 export const buildDecisionContext = async ({ taskType, session = {}, retrievalBundle = null } = {}) => {
   const latestAnswer = getLastUserAnswer(session.transcript || []);
   const evidenceBundle = buildEvidenceBundle({ session, retrievalBundle });
-  const agentMemory = await getAgentMemory(session.id);
+  const [agentMemory, latestEvaluation, storedDynamicSlotState, sessionReflectionMemory, userCoachingMemory] = await Promise.all([
+    getAgentMemory(session.id),
+    getLatestEvaluatorRecord(session.id),
+    getDynamicSlotState(session.id),
+    getSessionReflectionMemory(session.id),
+    getUserCoachingMemory(session.userId),
+  ]);
+
+  const environment = buildInterviewEnvironment({ session, retrievalBundle, latestEvaluation });
   const currentStage = inferCurrentStage(session);
   const coverageState = buildCoverageState({ session, evidenceBundle });
-  const targetTopic = coverageState.missingTopics[0]
+  const candidateSpecificity = inferSpecificityLevel(latestAnswer, latestEvaluation);
+  const dynamicSlotState = deriveDynamicSlots({
+    latestAnswer,
+    coverageState,
+    existingState: storedDynamicSlotState,
+  });
+  const shouldPreferEvaluationTopic = Boolean(
+    latestEvaluation?.currentTopic
+    && latestEvaluation?.suggestedNextMode
+    && latestEvaluation?.suggestedNextMode !== 'shift_section',
+  );
+  const currentTopic = (shouldPreferEvaluationTopic ? latestEvaluation?.currentTopic : null)
+    || environment.questionContext.latestQuestionTopic
+    || latestEvaluation?.currentTopic
+    || dynamicSlotState.activeSlotTopics?.[0]
     || evidenceBundle.matchAnalysis?.validationTargets?.[0]
+    || coverageState.missingTopics[0]
     || evidenceBundle.missingEvidence[0]
     || evidenceBundle.matchAnalysis?.questionPlanHints?.priorityTopics?.[0]
     || 'role_fit';
-  const specificityLevel = inferSpecificityLevel(latestAnswer);
+  const abductiveState = deriveAbductiveState({
+    latestAnswer,
+    currentTopic,
+    candidateState: { specificityLevel: candidateSpecificity },
+    dynamicSlotState,
+  });
+  const currentSection = inferInterviewSection({
+    currentStage,
+    currentTopic,
+    coverageState,
+    dynamicSlotState,
+  });
+  const sectionState = buildSectionState({
+    currentSection,
+    coverageState,
+    dynamicSlotState,
+  });
 
   return {
     taskType,
     sessionId: session.id,
     userId: session.userId,
     currentStage,
-    currentObjective: taskType === 'generate_report' ? 'build_grounded_report' : `collect evidence for ${targetTopic}`,
-    currentTopic: targetTopic,
+    currentObjective: taskType === 'generate_report' ? 'build_grounded_report' : `collect evidence for ${currentTopic}`,
+    currentTopic,
+    environment,
+    evaluatorState: latestEvaluation
+      ? {
+          successStatus: latestEvaluation.successStatus,
+          evidenceGainScore: latestEvaluation.evidenceGainScore,
+          misunderstandingFlag: latestEvaluation.misunderstandingFlag,
+          interactionStatus: latestEvaluation.interactionStatus,
+          overallInteractionScore: latestEvaluation.overallInteractionScore || 0,
+          repetitionRisk: latestEvaluation.repetitionRisk,
+          reflectionNeeded: latestEvaluation.reflectionNeeded,
+          suggestedNextMode: latestEvaluation.suggestedNextMode,
+          currentTopic: latestEvaluation.currentTopic,
+        }
+      : null,
     candidateState: {
       answerStyle: latestAnswer ? (latestAnswer.split(/\s+/).length < 18 ? 'brief' : 'expanded') : 'none',
       confidenceSignal: latestAnswer ? 'medium' : 'unknown',
-      specificityLevel,
-      evidenceQuality: specificityLevel === 'high' ? 'strong' : specificityLevel === 'medium' ? 'partial' : 'weak',
+      specificityLevel: candidateSpecificity,
+      evidenceQuality: candidateSpecificity === 'high' ? 'strong' : candidateSpecificity === 'medium' ? 'partial' : 'weak',
     },
     coverageState,
+    dynamicSlotState,
+    abductiveState,
+    sectionState,
+    sessionReflectionMemory,
+    userCoachingMemory,
     matchState: {
       matchedStrengths: ensureArray(evidenceBundle.matchAnalysis?.matchedStrengths),
       missingRequiredSkills: ensureArray(evidenceBundle.matchAnalysis?.missingRequiredSkills),

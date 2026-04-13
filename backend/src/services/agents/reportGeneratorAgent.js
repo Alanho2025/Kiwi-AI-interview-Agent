@@ -14,13 +14,9 @@ import { generateCandidateFeedback } from '../reportCoachingService.js';
 import { analyseCandidateAnswers, buildEvidenceSummary, buildInterviewMetrics } from './reportGenerator/reportEvidenceAnalysis.js';
 import { buildDeterministicCandidateFeedback } from './reportGenerator/reportFeedbackBuilder.js';
 import { buildReportDraft } from './reportGenerator/reportDraftBuilder.js';
+import { SessionAnalysis } from '../../db/models/sessionAnalysisModel.js';
+import { getUserCoachingMemory } from '../aiControl/userCoachingMemoryService.js';
 
-/**
- * Purpose: Execute the main responsibility for runReportGeneratorAgent.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
 export const runReportGeneratorAgent = async ({ session = {}, analysisResult = {}, interviewPlan = {}, retrievalBundle = null } = {}) => {
   const transcript = session.transcript || [];
   const userTurns = transcript.filter((turn) => turn.role === 'user');
@@ -35,6 +31,9 @@ export const runReportGeneratorAgent = async ({ session = {}, analysisResult = {
     interviewMetrics,
     interviewPlan,
   });
+
+  const analysisRecord = session.id ? await SessionAnalysis.findOne({ sessionId: session.id }).lean() : null;
+  const userCoachingMemory = await getUserCoachingMemory(session.userId);
 
   const candidateFeedback = await generateCandidateFeedback({
     session,
@@ -55,6 +54,10 @@ export const runReportGeneratorAgent = async ({ session = {}, analysisResult = {
     evidenceSummary,
     interviewMetrics,
     candidateFeedback,
+    evaluatorRecords: analysisRecord?.evaluatorRecords || [],
+    trajectoryRecords: analysisRecord?.trajectoryRecords || [],
+    reflectionRecords: analysisRecord?.reflectionRecords || [],
+    userCoachingMemory,
   });
 
   return validateReportOutput(draft);
