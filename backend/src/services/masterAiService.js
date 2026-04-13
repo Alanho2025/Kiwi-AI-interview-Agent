@@ -17,12 +17,19 @@ import { indexSessionArtifacts } from './ragIndexService.js';
 import { SessionAnalysis } from '../db/models/sessionAnalysisModel.js';
 import { SessionReport } from '../db/models/sessionReportModel.js';
 import { buildDecisionContext } from './aiControl/decisionContextBuilder.js';
+import { buildInterviewEnvironment } from './aiControl/interviewEnvironmentService.js';
 import { createDecisionRecord } from './aiControl/decisionRecordService.js';
 import { selectNextAction } from './aiControl/actionPlanner.js';
 import { updateAgentMemory } from './aiControl/agentMemoryService.js';
 import { executeInterviewAction } from './aiControl/interviewActionExecutor.js';
+import { evaluateInterviewTurn, persistEvaluatorRecord } from './aiControl/interviewEvaluatorService.js';
+import { buildTrajectoryStep, persistTrajectoryStep } from './aiControl/trajectoryService.js';
 import { executeReportAction } from './aiControl/reportActionExecutor.js';
 import { buildEvidenceBundle } from './aiControl/evidenceBundleService.js';
+import { persistDynamicSlotState } from './aiControl/dynamicSlotService.js';
+import { buildReflectionRecord, shouldWriteReflection, persistReflectionRecord } from './aiControl/reflectionWriterService.js';
+import { persistUserCoachingMemory } from './aiControl/userCoachingMemoryService.js';
+import { rebuildBoundedMemory } from './aiControl/experienceMemoryService.js';
 
 const persistControllerSnapshot = async ({ sessionId, decisionContext = null, evidenceBundle = null } = {}) => {
   await SessionAnalysis.findOneAndUpdate(
@@ -39,6 +46,12 @@ const persistControllerSnapshot = async ({ sessionId, decisionContext = null, ev
               coverageState: decisionContext.coverageState,
               matchState: decisionContext.matchState,
               retrievalState: decisionContext.retrievalState,
+              evaluatorState: decisionContext.evaluatorState,
+              dynamicSlotState: decisionContext.dynamicSlotState,
+              abductiveState: decisionContext.abductiveState,
+              sectionState: decisionContext.sectionState,
+              sessionReflectionMemory: decisionContext.sessionReflectionMemory,
+              userCoachingMemory: decisionContext.userCoachingMemory,
             }
           : {},
       },
@@ -106,12 +119,17 @@ const runInterviewController = async ({ session, payload = {} }) => {
     targetTopic: session.targetRole,
   });
 
+  const environment = buildInterviewEnvironment({ session, retrievalBundle: initialRetrievalBundle });
+  const evaluatorOutput = evaluateInterviewTurn({ environment });
+  await persistEvaluatorRecord({ sessionId: session.id, evaluation: evaluatorOutput });
+
   const evidenceBundle = buildEvidenceBundle({ session, retrievalBundle: initialRetrievalBundle });
   const decisionContext = await buildDecisionContext({
     taskType: 'interview_next_turn',
     session,
     retrievalBundle: initialRetrievalBundle,
   });
+  await persistDynamicSlotState({ sessionId: session.id, dynamicSlots: decisionContext.dynamicSlotState });
 
   await persistControllerSnapshot({ sessionId: session.id, decisionContext, evidenceBundle });
   await createDecisionRecord({
@@ -125,6 +143,19 @@ const runInterviewController = async ({ session, payload = {} }) => {
       reasoningSummary: 'Built controller context from session state, retrieval evidence, transcript, and match analysis.',
       evidenceUsed: ['session.analysisResult', 'session.interviewPlan', 'retrievalBundle', 'transcript'],
       confidence: 0.85,
+    },
+  });
+  await createDecisionRecord({
+    sessionId: session.id,
+    record: {
+      taskType: 'interview_next_turn',
+      agent: 'interview_evaluator',
+      decisionType: AGENT_DECISION_TYPES.BUILD_CONTEXT,
+      currentObjective: decisionContext.currentObjective,
+      selectedAction: evaluatorOutput.suggestedNextMode || null,
+      reasoningSummary: evaluatorOutput.rationale,
+      evidenceUsed: [`topic:${evaluatorOutput.currentTopic}`, `evidence_gain:${evaluatorOutput.evidenceGainScore}`, `interaction:${evaluatorOutput.interactionStatus}`],
+      confidence: evaluatorOutput.evidenceGainScore,
     },
   });
 
@@ -170,6 +201,31 @@ const runInterviewController = async ({ session, payload = {} }) => {
     },
   });
 
+  const trajectoryStep = buildTrajectoryStep({
+    session,
+    environment: decisionContext.environment,
+    decisionContext,
+    selectedAction: plan.selectedAction,
+    actionInput: plan.actionInput,
+    actorOutput: interviewerOutput,
+    evaluatorOutput,
+  });
+  await persistTrajectoryStep({ sessionId: session.id, step: trajectoryStep });
+
+  let reflectionRecord = null;
+  if (shouldWriteReflection({ evaluatorState: evaluatorOutput, decisionContext, trajectoryStep })) {
+    reflectionRecord = buildReflectionRecord({
+      sessionId: session.id,
+      userId: session.userId,
+      evaluatorState: evaluatorOutput,
+      decisionContext,
+      trajectoryStep,
+    });
+    await persistReflectionRecord({ sessionId: session.id, reflectionRecord });
+    await rebuildBoundedMemory({ sessionId: session.id });
+    await persistUserCoachingMemory({ userId: session.userId, reflectionRecord });
+  }
+
   await updateAgentMemory({
     sessionId: session.id,
     latestAnswer: payload.answer || decisionContext.latestAnswer,
@@ -185,6 +241,9 @@ const runInterviewController = async ({ session, payload = {} }) => {
       completedBecause: interviewerOutput?.completedBecause || 'question_limit_reached',
       nextQuestion: null,
       nextQuestionOrder: session.currentQuestionIndex,
+      evaluatorOutput,
+      reactTrace: interviewerOutput?.reactTrace || null,
+      reflectionRecord,
     };
   }
 
@@ -218,6 +277,8 @@ const runInterviewController = async ({ session, payload = {} }) => {
     nextQuestionOrder,
     isComplete: false,
     controllerAction: plan.selectedAction,
+    evaluatorOutput,
+    reactTrace: interviewerOutput.reactTrace || null,
   };
 };
 

@@ -1,0 +1,19 @@
+{
+  "casesRun": 1,
+  "average": 1,
+  "weakestCases": [],
+  "thresholds": {
+    "minAverage": 0,
+    "failBelow": 0
+  },
+  "results": [
+    {
+      "id": "report_missing_interaction_and_reflection",
+      "passed": false,
+      "score": 1,
+      "earned": 4,
+      "possible": 4,
+      "failedChecks": []
+    }
+  ]
+}

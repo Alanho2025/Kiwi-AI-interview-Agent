@@ -1,0 +1,120 @@
+[
+  {
+    "id": "misunderstanding_rephrase",
+    "session": {
+      "id": "eval-session-1",
+      "userId": "user-1",
+      "targetRole": "Backend Developer",
+      "currentQuestionIndex": 2,
+      "totalQuestions": 6,
+      "transcript": [
+        { "role": "ai", "text": "How do you approach system design?", "metadata": { "stage": "technical_core", "topic": "system_design" } },
+        { "role": "user", "text": "Sorry, I am not sure what you mean by that." }
+      ],
+      "analysisResult": {
+        "explanation": { "strengths": ["Node.js"], "gaps": ["System design depth"] },
+        "matchingDetails": { "questionPlanHints": { "priorityTopics": ["system_design", "api_security"] }, "validationTargets": [] },
+        "parsedCvProfile": { "skills": ["Node.js"], "projects": ["API Platform"] },
+        "parsedJdProfile": { "requiredSkills": ["System Design"] }
+      },
+      "interviewPlan": { "questionPool": [
+        { "text": "Please introduce yourself.", "stage": "opening", "topic": "self_intro" },
+        { "text": "How do you approach system design?", "stage": "technical_core", "topic": "system_design" },
+        { "text": "Tell me about API security.", "stage": "technical_core", "topic": "api_security" }
+      ] }
+    },
+    "expected": {
+      "suggestedNextMode": "rephrase",
+      "selectedAction": "REPHRASE_QUESTION"
+    }
+  },
+  {
+    "id": "usable_partial_deepen",
+    "session": {
+      "id": "eval-session-2",
+      "userId": "user-2",
+      "targetRole": "Backend Developer",
+      "currentQuestionIndex": 3,
+      "totalQuestions": 6,
+      "transcript": [
+        { "role": "ai", "text": "Tell me about API security in one project.", "metadata": { "stage": "technical_core", "topic": "api_security" } },
+        { "role": "user", "text": "I implemented JWT auth and rate limiting for our Node API, but I have not explained the trade-offs yet." }
+      ],
+      "analysisResult": {
+        "explanation": { "strengths": ["Node.js"], "gaps": ["Commercial API security depth"] },
+        "matchingDetails": { "questionPlanHints": { "priorityTopics": ["api_security"] }, "validationTargets": [] },
+        "parsedCvProfile": { "skills": ["Node.js", "JWT"], "projects": ["Food Recommendation API"] },
+        "parsedJdProfile": { "requiredSkills": ["API Security"] }
+      },
+      "interviewPlan": { "questionPool": [
+        { "text": "Please introduce yourself.", "stage": "opening", "topic": "self_intro" },
+        { "text": "Tell me about a backend project.", "stage": "technical_core", "topic": "backend_project" },
+        { "text": "Tell me about API security in one project.", "stage": "technical_core", "topic": "api_security" }
+      ] }
+    },
+    "expected": {
+      "suggestedNextMode": "deepen",
+      "selectedAction": "ASK_DEEP_DIVE_QUESTION"
+    }
+  },
+  {
+    "id": "abductive_probe_for_hidden_gap",
+    "session": {
+      "id": "eval-session-3",
+      "userId": "user-3",
+      "targetRole": "Backend Developer",
+      "currentQuestionIndex": 3,
+      "totalQuestions": 6,
+      "transcript": [
+        { "role": "ai", "text": "Tell me about deployment in your recent project.", "metadata": { "stage": "technical_core", "topic": "deployment" } },
+        { "role": "user", "text": "I worked on the product but not in production yet." }
+      ],
+      "analysisResult": {
+        "explanation": { "strengths": ["Node.js"], "gaps": ["Deployment depth"] },
+        "matchingDetails": { "questionPlanHints": { "priorityTopics": ["deployment"] }, "validationTargets": [] },
+        "parsedCvProfile": { "skills": ["Node.js"], "projects": ["Platform API"] },
+        "parsedJdProfile": { "requiredSkills": ["Deployment"] }
+      },
+      "interviewPlan": { "questionPool": [
+        { "text": "Please introduce yourself.", "stage": "opening", "topic": "self_intro" },
+        { "text": "Tell me about a backend project.", "stage": "technical_core", "topic": "backend_project" },
+        { "text": "Tell me about deployment in your recent project.", "stage": "technical_core", "topic": "deployment" }
+      ] }
+    },
+    "expected": {
+      "suggestedNextMode": "probe",
+      "selectedAction": "ASK_ABDUCTIVE_PROBE_QUESTION"
+    }
+  },
+  {
+    "id": "section_shift_after_coverage",
+    "session": {
+      "id": "eval-session-4",
+      "userId": "user-4",
+      "targetRole": "Backend Developer",
+      "currentQuestionIndex": 4,
+      "totalQuestions": 6,
+      "transcript": [
+        { "role": "ai", "text": "Tell me about a project you owned.", "metadata": { "stage": "experience", "topic": "project" } },
+        { "role": "ai", "text": "What result did it lead to?", "metadata": { "stage": "experience", "topic": "ownership" } },
+        { "role": "user", "text": "I led the backend API redesign and reduced latency by 30 percent." }
+      ],
+      "analysisResult": {
+        "explanation": { "strengths": ["Ownership"], "gaps": ["Behavioural depth"] },
+        "matchingDetails": { "questionPlanHints": { "priorityTopics": ["teamwork", "problem_solving"] }, "validationTargets": [] },
+        "parsedCvProfile": { "skills": ["Node.js"], "projects": ["Platform API"] },
+        "parsedJdProfile": { "requiredSkills": ["Teamwork"] }
+      },
+      "interviewPlan": { "questionPool": [
+        { "text": "Please introduce yourself.", "stage": "opening", "topic": "self_intro" },
+        { "text": "Why this role?", "stage": "motivation", "topic": "motivation" },
+        { "text": "Tell me about a project you owned.", "stage": "experience", "topic": "project" },
+        { "text": "Tell me about a teamwork challenge.", "stage": "behavioural", "topic": "teamwork" }
+      ] }
+    },
+    "expected": {
+      "suggestedNextMode": "advance",
+      "selectedAction": "SHIFT_SECTION"
+    }
+  }
+]
