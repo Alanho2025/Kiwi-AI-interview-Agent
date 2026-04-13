@@ -1,0 +1,16 @@
+Taylor Smith
+Taylor.Smith@email.com | Auckland, New Zealand | +64 21 555 0999
+
+About Me
+Frontend-focused student developer with strong React, HTML, CSS, and JavaScript foundations. Enjoys teamwork, UI prototyping, and rapid learning.
+
+Skills
+React, JavaScript, HTML, CSS, Git, Tailwind, Testing
+
+Projects
+Campus Events App
+- Built a React application for student event discovery.
+- Improved usability with responsive UI patterns and accessible components.
+
+Education
+Bachelor of Science, University of Auckland

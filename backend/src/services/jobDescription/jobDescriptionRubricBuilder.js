@@ -98,9 +98,12 @@ const buildMacroCriteria = ({ roleFamily, title, technicalSkills }) => {
 
 
 const extractJobOverview = ({ title, rawJD }) => {
-  const companyMatch = rawJD.match(/join\s+([A-Z][A-Za-z0-9& .'-]+?)\s+as\s+a?n?/i)
+  const explicitCompanyMatch = rawJD.match(/(?:^|\n)company\s*:\s*([^\n]+)/i);
+  const companyMatch = explicitCompanyMatch
+    || rawJD.match(/join\s+([A-Z][A-Za-z0-9& .'-]+?)\s+as\s+a?n?/i)
     || rawJD.match(/why join us\??\s+at\s+([A-Z][A-Za-z0-9& .'-]+)/i)
-    || rawJD.match(/about\s+([A-Z][A-Za-z0-9& .'-]+)/i);
+    || rawJD.match(/about\s+([A-Z][A-Za-z0-9& .'-]{2,})/i);
+  const companyName = companyMatch?.[1]?.trim() || '';
   const locationMatch = rawJD.match(/based in (?:our )?([^\n]+?(?:Auckland|Wellington|Christchurch|Sydney|Melbourne|Brisbane|Perth)[^\n]*)/i)
     || rawJD.match(/location\s*:\s*([^\n]+)/i);
   const contractMatch = title.match(/(\d+\s*(?:month|year)\s*contract)/i) || rawJD.match(/(\d+\s*(?:month|year)\s*contract)/i);
@@ -108,7 +111,7 @@ const extractJobOverview = ({ title, rawJD }) => {
 
   return {
     title,
-    companyName: companyMatch?.[1]?.trim() || '',
+    companyName: /^the role$/i.test(companyName) ? '' : companyName,
     location: locationMatch?.[1]?.trim() || '',
     contractType: contractMatch?.[1]?.trim() || '',
     employmentType: employmentTypeMatch?.[1]?.trim() || '',

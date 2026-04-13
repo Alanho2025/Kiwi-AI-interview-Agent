@@ -1,0 +1,58 @@
+[
+  {
+    "id": "graduate_cv_to_graduate_jd",
+    "cvFixture": "graduate-software-engineer.txt",
+    "jdFixture": "graduate-software-developer.txt",
+    "expected": {
+      "acceptableDecisions": ["moderate_match", "strong_match"],
+      "scoreRange": [60, 100],
+      "matchedRequirementKeywords": ["c#", ".net", "sql", "git", "azure"],
+      "strengthKeywords": ["sql", "git", "azure", "agile"],
+      "summaryKeywords": ["Top matched areas"],
+      "enforceDistinctGapRisk": true,
+      "requireEvidenceForStrengths": true
+    }
+  },
+  {
+    "id": "transition_cv_to_data_engineer_jd",
+    "cvFixture": "data-analyst-transition.txt",
+    "jdFixture": "data-engineer-clean.txt",
+    "expected": {
+      "acceptableDecisions": ["borderline", "weak_match", "not_qualified"],
+      "scoreRange": [25, 70],
+      "matchedRequirementKeywords": ["sql", "ambiguity", "communication"],
+      "gapKeywords": ["snowflake", "dbt", "data modelling"],
+      "riskKeywords": ["production"],
+      "summaryKeywords": ["project-based evidence"],
+      "enforceDistinctGapRisk": true,
+      "requireEvidenceForStrengths": true
+    }
+  },
+  {
+    "id": "cloud_cv_to_cloud_jd",
+    "cvFixture": "cloud-platform-engineer.txt",
+    "jdFixture": "cloud-platform-engineer.txt",
+    "expected": {
+      "acceptableDecisions": ["moderate_match", "strong_match"],
+      "scoreRange": [55, 100],
+      "matchedRequirementKeywords": ["azure", "docker", "linux", "networking", "troubleshooting"],
+      "strengthKeywords": ["docker", "documentation"],
+      "summaryKeywords": ["Top matched areas"],
+      "enforceDistinctGapRisk": true,
+      "requireEvidenceForStrengths": true
+    }
+  },
+  {
+    "id": "frontend_student_to_senior_backend_jd",
+    "cvFixture": "frontend-student.txt",
+    "jdFixture": "senior-backend-engineer.txt",
+    "expected": {
+      "acceptableDecisions": ["weak_match", "not_qualified", "borderline"],
+      "scoreRange": [0, 55],
+      "gapKeywords": ["production backend", "node.js", "aws", "mentoring"],
+      "riskKeywords": ["production backend", "mentoring"],
+      "enforceDistinctGapRisk": true,
+      "requireEvidenceForStrengths": true
+    }
+  }
+]

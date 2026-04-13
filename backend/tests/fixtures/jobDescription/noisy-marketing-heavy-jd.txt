@@ -1,0 +1,15 @@
+Data Engineer
+
+About Rewired Future Growth Collective
+We are a leading, world-class, future-facing, customer-obsessed organisation that loves innovation, excellence, and market energy.
+You will join a leading data team in a leading business with leading opportunities and leadership visibility.
+Our people enjoy coffee, community events, hybrid Fridays, and social clubs.
+
+Core Requirements
+- Strong SQL skills and hands-on experience with Snowflake.
+- Experience with dbt and testing in production data workflows.
+- Strong communication skills.
+
+Benefits
+- Hybrid work options.
+- Team lunches.

@@ -1,0 +1,19 @@
+Senior Backend Engineer
+
+Company: Atlas Platform
+Employment type: Permanent Full time
+Location: Auckland
+
+What This Role Does
+- Design and build scalable backend services and REST APIs.
+- Lead technical delivery for Node.js services in AWS.
+- Improve system reliability, observability, testing, and deployment practices.
+
+Qualifications
+- Proven experience building production backend systems.
+- Strong skills in Node.js, SQL, AWS, Docker, and CI/CD.
+- Strong communication and stakeholder management.
+- Experience mentoring engineers and leading delivery.
+
+Benefits
+- Hybrid work and wellness allowance.

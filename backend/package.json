@@ -7,7 +7,12 @@
     "start": "node index.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "test:jd": "vitest run tests/jobDescription",
+    "eval:jd": "node eval/runners/runJdParseEval.js",
+    "eval:cv": "node eval/runners/runCvParseEval.js",
+    "eval:cv-jd-match": "node eval/runners/runCvJdMatchEval.js",
+    "eval:all": "npm run eval:jd && npm run eval:cv && npm run eval:cv-jd-match"
   },
   "dependencies": {
     "cors": "^2.8.6",

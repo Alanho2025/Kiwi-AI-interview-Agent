@@ -56,6 +56,7 @@ const extractSoftSkills = (texts = [], softSkillSignals = []) => {
 
 export const extractJobDescriptionSkills = ({ sections = {}, requirementGroups = {}, aiSkills = {} }) => {
   const sourceTexts = collectTexts(
+    sections.introduction,
     sections.responsibilities,
     sections.qualifications,
     sections.softSkillPersona,

@@ -1,0 +1,23 @@
+Mia Wong
+mia.wong@email.com | Wellington, New Zealand | +64 27 555 0188
+
+Profile
+Operations analyst transitioning into data engineering. Strong SQL, Excel, reporting, and stakeholder communication skills with experience improving workflow quality in regulated environments.
+
+Technical Skills
+SQL, Excel, Power BI, Python, Reporting, Data Analysis, Documentation, Testing
+
+Experience
+Operations Analyst | HealthOps NZ
+- Built weekly SQL reports for service teams and business stakeholders.
+- Improved analysis speed by automating spreadsheet validation checks.
+- Worked through ambiguity to deliver urgent reporting under tight deadlines.
+- Documented data issues and coordinated fixes with technical teams.
+
+Projects
+Data Warehouse Transition Project
+- Built a reporting prototype using Python and SQL.
+- Improved dashboard refresh quality and reduced manual reconciliation by 35%.
+
+Education
+Bachelor of Commerce, Victoria University of Wellington

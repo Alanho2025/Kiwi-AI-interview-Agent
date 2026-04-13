@@ -1,0 +1,50 @@
+{
+  "casesRun": 4,
+  "average": 0.94,
+  "weakestCases": [],
+  "thresholds": {
+    "minAverage": 0,
+    "failBelow": 0
+  },
+  "results": [
+    {
+      "id": "graduate_software_cv",
+      "fixture": "graduate-software-engineer.txt",
+      "score": 0.95,
+      "earned": 19,
+      "possible": 20,
+      "failedChecks": [
+        "achievement:50%"
+      ]
+    },
+    {
+      "id": "data_transition_cv",
+      "fixture": "data-analyst-transition.txt",
+      "score": 0.89,
+      "earned": 17,
+      "possible": 19,
+      "failedChecks": [
+        "skill:reporting",
+        "achievement:35%"
+      ]
+    },
+    {
+      "id": "cloud_platform_cv",
+      "fixture": "cloud-platform-engineer.txt",
+      "score": 0.94,
+      "earned": 15,
+      "possible": 16,
+      "failedChecks": [
+        "achievement:30%"
+      ]
+    },
+    {
+      "id": "frontend_student_cv",
+      "fixture": "frontend-student.txt",
+      "score": 1,
+      "earned": 17,
+      "possible": 17,
+      "failedChecks": []
+    }
+  ]
+}
