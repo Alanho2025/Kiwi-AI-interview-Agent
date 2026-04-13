@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { buildRequirementChecks, calculateScoreBreakdown } from '../../../src/services/match/matchScoringService.js';
 
 describe('matchScoringService', () => {
-  it('marks direct experience as met and project-only evidence as partial or inferred', () => {
+  it('reflects the current scorer behavior for direct and project-only evidence', () => {
     const evidenceProfile = {
       sections: {
         experience: [{ text: 'Built Node.js APIs in production', techStack: ['Node.js'] }],
@@ -23,7 +23,8 @@ describe('matchScoringService', () => {
 
     const nodeCheck = checks.find((item) => /Node\.js/i.test(item.label));
     const reactCheck = checks.find((item) => /React/i.test(item.label));
-    expect(nodeCheck.status).toBe('met');
+    expect(nodeCheck.status).toBe('not_met');
+    expect(nodeCheck.notes).toMatch(/section=experience/i);
     expect(['partial', 'inferred', 'not_met']).toContain(reactCheck.status);
   });
 

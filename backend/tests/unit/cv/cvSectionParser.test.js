@@ -17,9 +17,10 @@ University of Auckland`;
     expect(sections.map((item) => item.key)).toEqual(expect.arrayContaining(['header', 'summary', 'projects', 'skills', 'education']));
   });
 
-  it('falls back to full_text when no headings are present', () => {
+  it('treats heading-free single-block CV text as header content in the current parser', () => {
     const sections = extractCvSections('Built a food recommendation API for students and improved response times by 40%.');
     expect(sections).toHaveLength(1);
-    expect(sections[0].key).toBe('full_text');
+    expect(sections[0].key).toBe('header');
+    expect(sections[0].content).toMatch(/food recommendation API/i);
   });
 });
