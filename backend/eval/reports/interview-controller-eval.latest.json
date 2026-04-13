@@ -1,0 +1,59 @@
+{
+  "casesRun": 4,
+  "average": 0.75,
+  "weakestCases": [
+    {
+      "id": "section_shift_after_coverage",
+      "score": 0,
+      "failedChecks": [
+        "suggestedNextMode",
+        "selectedAction"
+      ]
+    }
+  ],
+  "thresholds": {
+    "minAverage": 0,
+    "failBelow": 0
+  },
+  "results": [
+    {
+      "id": "misunderstanding_rephrase",
+      "suggestedNextMode": "rephrase",
+      "selectedAction": "REPHRASE_QUESTION",
+      "score": 1,
+      "earned": 2,
+      "possible": 2,
+      "failedChecks": []
+    },
+    {
+      "id": "usable_partial_deepen",
+      "suggestedNextMode": "deepen",
+      "selectedAction": "ASK_DEEP_DIVE_QUESTION",
+      "score": 1,
+      "earned": 2,
+      "possible": 2,
+      "failedChecks": []
+    },
+    {
+      "id": "abductive_probe_for_hidden_gap",
+      "suggestedNextMode": "probe",
+      "selectedAction": "ASK_ABDUCTIVE_PROBE_QUESTION",
+      "score": 1,
+      "earned": 2,
+      "possible": 2,
+      "failedChecks": []
+    },
+    {
+      "id": "section_shift_after_coverage",
+      "suggestedNextMode": "probe",
+      "selectedAction": "ASK_PROBING_QUESTION",
+      "score": 0,
+      "earned": 0,
+      "possible": 2,
+      "failedChecks": [
+        "suggestedNextMode",
+        "selectedAction"
+      ]
+    }
+  ]
+}

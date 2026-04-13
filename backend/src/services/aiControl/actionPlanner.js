@@ -6,10 +6,17 @@ export const selectNextAction = (decisionContext = {}) => {
   const candidateState = decisionContext.candidateState || {};
   const coverageState = decisionContext.coverageState || {};
   const matchState = decisionContext.matchState || {};
+  const evaluatorState = decisionContext.evaluatorState || {};
+  const dynamicSlotState = decisionContext.dynamicSlotState || {};
+  const abductiveState = decisionContext.abductiveState || {};
+  const sectionState = decisionContext.sectionState || {};
   const currentStage = String(decisionContext.currentStage || '').toLowerCase();
-  const targetTopic = coverageState.missingTopics?.[0]
+  const targetTopic = decisionContext.currentTopic
+    || evaluatorState.currentTopic
+    || dynamicSlotState.activeSlotTopics?.[0]
     || matchState.validationTargets?.[0]
-    || decisionContext.currentTopic
+    || abductiveState.probeTopic
+    || coverageState.missingTopics?.[0]
     || 'role_fit';
 
   if (decisionContext.taskType === 'generate_report') {
@@ -30,12 +37,48 @@ export const selectNextAction = (decisionContext = {}) => {
     };
   }
 
-  if (candidateState.specificityLevel === 'low') {
+  if (evaluatorState.suggestedNextMode === 'rephrase' || evaluatorState.misunderstandingFlag) {
+    return {
+      selectedAction: AGENT_ACTION_TYPES.REPHRASE_QUESTION,
+      rationale: 'The evaluator flagged likely misunderstanding, so the safest next step is to rephrase the current topic.',
+      confidence: 0.87,
+      actionInput: { targetTopic: evaluatorState.currentTopic || targetTopic, probeType: 'rephrase', forceEvidence: true },
+    };
+  }
+
+  if (abductiveState.shouldProbe) {
+    return {
+      selectedAction: AGENT_ACTION_TYPES.ASK_ABDUCTIVE_PROBE_QUESTION,
+      rationale: `A hidden gap was inferred (${abductiveState.hiddenGap}), so the controller should probe it directly before moving on.`,
+      confidence: 0.84,
+      actionInput: { targetTopic: abductiveState.probeTopic || targetTopic, probeType: 'abductive_probe', forceEvidence: true },
+    };
+  }
+
+  if (evaluatorState.suggestedNextMode === 'deepen') {
+    return {
+      selectedAction: AGENT_ACTION_TYPES.ASK_DEEP_DIVE_QUESTION,
+      rationale: 'The answer was usable but still partial, so a deeper follow-up should gather stronger evidence on the same topic.',
+      confidence: 0.82,
+      actionInput: { targetTopic, probeType: 'deepen', forceEvidence: true },
+    };
+  }
+
+  if (candidateState.specificityLevel === 'low' || evaluatorState.suggestedNextMode === 'probe') {
     return {
       selectedAction: AGENT_ACTION_TYPES.ASK_PROBING_QUESTION,
       rationale: 'The latest answer was too broad, so a probing question is needed before switching topics.',
       confidence: 0.84,
       actionInput: { targetTopic, probeType: 'specific_example', forceEvidence: true },
+    };
+  }
+
+  if (sectionState.isSectionComplete && sectionState.nextSectionKey && sectionState.nextSectionKey !== sectionState.sectionKey) {
+    return {
+      selectedAction: AGENT_ACTION_TYPES.SHIFT_SECTION,
+      rationale: `The current section ${sectionState.sectionKey} is sufficiently covered, so the controller should shift to ${sectionState.nextSectionKey}.`,
+      confidence: 0.83,
+      actionInput: { targetTopic: sectionState.nextSectionKey, probeType: 'section_shift', forceEvidence: false },
     };
   }
 

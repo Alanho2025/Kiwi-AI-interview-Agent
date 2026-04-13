@@ -12,32 +12,18 @@ describe('runReportQaAgent', () => {
           { id: 'gaps', title: 'Gaps', content: 'Needs more project detail.' },
         ],
         evidenceReferences: [],
-        interviewMetrics: {
-          interviewerQuestionCount: 3,
-          plannedQuestionCount: 4,
-          candidateTurnCount: 3,
-        },
-        evidenceDiagnostics: {
-          averageStrength: 2,
-          totals: { hypothetical_understanding: 1 },
-        },
-        candidateFeedback: {
-          overallTakeaway: '',
-          plainEnglishMetrics: [],
-          coachingAdvice: [],
-          answerRewriteExamples: [],
-        },
+        interviewMetrics: { interviewerQuestionCount: 3, plannedQuestionCount: 4, candidateTurnCount: 3 },
+        evidenceDiagnostics: { averageStrength: 2, totals: { hypothetical_understanding: 1 } },
+        scores: { averageInteractionScore: 0.4, reflectionCount: 1 },
+        candidateFeedback: { overallTakeaway: '', plainEnglishMetrics: [], coachingAdvice: [], answerRewriteExamples: [] },
       },
-      analysisResult: {
-        decision: { label: 'manual_review' },
-        explanation: { strengths: ['Node.js basics'] },
-      },
+      analysisResult: { decision: { label: 'manual_review' }, explanation: { strengths: ['Node.js basics'] } },
       retrievalBundle: { items: [] },
     });
-
     expect(qa.passed).toBe(false);
     expect(qa.qualityFlags).toContain('missing_strength_coverage');
     expect(qa.qualityFlags).toContain('question_count_mismatch');
     expect(qa.qualityFlags).toContain('missing_candidate_feedback');
+    expect(qa.qualityFlags).toContain('missing_interaction_section');
   });
 });
