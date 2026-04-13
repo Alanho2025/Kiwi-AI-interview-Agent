@@ -131,6 +131,8 @@ export const replyInterview = asyncHandler(async (req, res) => {
     isComplete: Boolean(agentResult.isComplete),
     completedBecause: agentResult.completedBecause || null,
     reportStatus: generatedReport?.stored?.latestStatus || null,
+    evaluator: agentResult.evaluatorOutput || null,
+    reactTrace: agentResult.reactTrace || null,
     session: updatedSession,
   }));
 });
