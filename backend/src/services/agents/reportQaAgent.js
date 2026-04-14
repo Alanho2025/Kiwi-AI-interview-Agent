@@ -11,6 +11,12 @@
 
 import { validateReportQaOutput } from '../schemaValidationService.js';
 
+const normalizeComparableText = (value = '') => String(value)
+  .toLowerCase()
+  .replace(/[_-]+/g, ' ')
+  .replace(/\s+/g, ' ')
+  .trim();
+
 const scoreCoverage = (report = {}) => {
   const sections = Array.isArray(report.sections) ? report.sections.length : 0;
   const evidenceRefs = Array.isArray(report.evidenceReferences) ? report.evidenceReferences.length : 0;
@@ -47,9 +53,12 @@ export const runReportQaAgent = async ({ report = {}, analysisResult = {}, retri
   if ((report.scores?.reflectionCount || 0) > 0 && !String(report.sections?.find((section) => section.id === 'reflection_memory')?.content || '').trim()) qualityFlags.push('missing_reflection_content');
   if (typeof report.scores?.averageInteractionScore !== 'number') qualityFlags.push('missing_interaction_metrics');
 
+  const normalizedSummary = normalizeComparableText(report.summary || '');
+  const normalizedDecisionLabel = normalizeComparableText(analysisResult.decision?.label || '');
+
   consistencyChecks.push({
     rule: 'decision_alignment',
-    passed: String(report.summary || '').toLowerCase().includes(String(analysisResult.decision?.label || '').replace('_', ' ')) || !analysisResult.decision?.label,
+    passed: !normalizedDecisionLabel || normalizedSummary.includes(normalizedDecisionLabel),
   });
   consistencyChecks.push({ rule: 'evidence_presence', passed: (report.evidenceReferences || []).length > 0 || (retrievalBundle?.items || []).length > 0 });
   consistencyChecks.push({ rule: 'metrics_present', passed: Boolean(metrics.interviewerQuestionCount || metrics.candidateTurnCount) });
