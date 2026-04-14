@@ -1,0 +1,69 @@
+AI: Hi, thanks for being here today. To start, could you briefly introduce yourself and highlight the experience most relevant to this Senior Web Software Engineer interview?
+
+USER: Hi My name is Alan,
+
+thank you for giving me a chance to have interview here. Currently, I have just graduated from University of Auckland. I am majoring in data and artificial intelligence area. Before I came to here, I was an electrical engineering in Foxconn to deal with business client apple company.
+
+My previous role was specifically dealing with the client needs in the factory and do the problem solving with the testing failure products. During my second school period, I handed on several projects related to web applications and data dashboard. In my free time, I am interested in LGBT culture and attend several AI agent workshop meetup. Thank you.
+
+AI: Staying with self_intro, what trade-off, difficulty, or decision did you handle yourself, and how did you judge whether it worked?
+
+USER: One example was during my previous engineering work and later in my web projects, when I had to decide between moving fast and making the solution more stable.
+
+In one case, I was dealing with product failure issues and client-driven pressure. I could either give a quick workaround to close the issue faster, or spend more time finding the real cause so the same problem would not keep coming back. I decided to spend extra time on root cause analysis first, because I felt a fast fix without enough evidence would create more repeated failures later.
+
+The difficulty was that this choice increased short-term pressure. People wanted a quick answer, but I needed enough data to be confident. I handled that by breaking the issue into smaller checks, comparing failure patterns, and communicating clearly about what was confirmed and what was still being tested.
+
+I judged that it worked in two ways. First, the repeated failure rate went down after the fix was applied. Second, the communication became smoother because I could explain the issue with evidence instead of guesswork. That experience shaped how I work now in software projects as well. I try to balance delivery speed with maintainability, instead of choosing speed only.
+
+AI: Tell me about a time when you had to show Collaboration.
+
+USER: In one of my web application projects, I had to collaborate with teammates who were working on different parts of the system, including frontend, backend, and data-related tasks.
+
+The main challenge was that each person focused on their own area, so it was easy for requirements and implementation details to become inconsistent. For example, one part of the team might expect a certain data structure, while another part was building based on a different assumption. That created delays and rework.
+
+To handle that, I took time to clarify requirements early, confirm data flow and responsibilities, and communicate changes clearly when something was updated. I also tried to keep discussions practical, so instead of only pointing out problems, I would suggest a workable next step that helped the team move forward.
+
+Because of that, the team was able to reduce confusion, fix issues faster, and keep the project moving. This experience taught me that strong collaboration means creating clarity, reducing friction, and helping the team deliver better work together.
+
+AI: Tell me about a time when you had to show Collaboration.
+
+USER: In one of my web application projects, I had to collaborate with teammates who were working on different parts of the system, including frontend, backend, and data-related tasks. The main challenge was that each person focused on their own area, so it was easy for requirements and implementation details to become inconsistent. For example, one part of the team might expect a certain data structure, while another part was building based on a different assumption. That created delays and rework. To handle that, I took time to clarify requirements early, confirm data flow and responsibilities, and communicate changes clearly when something was updated. I also tried to keep discussions practical, so instead of only pointing out problems, I would suggest a workable next step that helped the team move forward. Because of that, the team was able to reduce confusion, fix issues faster, and keep the project moving. This experience taught me that strong collaboration means creating clarity, reducing friction, and helping the team deliver better work together.
+
+AI: You hinted at ownership_boundary. What was the hardest trade-off or gap there, and how did you handle it in practice?
+
+USER: The hardest part was knowing where I should take ownership directly and where I needed to bring in others early.
+
+In one project, I could see that the issue was not only in my own part. It affected the data flow and also depended on how other parts of the system were designed. The trade-off was that if I tried to solve everything myself, I might move faster at first but create wrong assumptions. But if I waited for perfect alignment from everyone, progress would slow down too much.
+
+In practice, I handled that by taking ownership of the parts I could verify myself, such as clarifying the problem, narrowing the possible causes, and proposing a concrete next step. At the same time, I flagged the dependencies early and checked key assumptions with the relevant people instead of silently guessing.
+
+I think that worked because it kept momentum without pretending I owned areas I could not fully validate. It also reduced rework later, because the team aligned earlier on the important decisions.
+
+AI: Before we finish, what questions do you have for me about the role or team?
+
+USER: Yes, thank you.
+
+What would you expect this person to achieve in the first three to six months?
+
+What are the biggest challenges the team is dealing with at the moment?
+
+How does the team usually work together when priorities or technical opinions differ?
+
+AI: What was your exact role in that team effort, and what result came from it?
+
+USER: My role was to act as the link between the data, the technical issue, and the people involved in solving it.
+
+I was not just doing my own task separately. I was responsible for organizing the failure information, checking the evidence, and making sure the discussion stayed focused on the most likely causes. I also helped surface gaps early when teams were working with different assumptions.
+
+The result was that we reduced confusion, aligned faster on the issue, and reached a workable solution more efficiently. For me, that experience showed that collaboration is most valuable when it creates clarity and helps the team move forward with confidence.
+
+AI: You hinted at ownership_boundary. What was the hardest trade-off or gap there, and how did you handle it in practice?
+
+USER: The hardest trade-off was deciding how far to push independently before I needed to involve other people.
+
+In that situation, I could see part of the problem clearly from my side, but the full solution depended on input from other teams. If I moved too far on my own, I risked making the wrong assumptions. But if I waited for complete alignment first, progress would slow down too much.
+
+So in practice, I handled it by owning the parts I could verify myself, such as clarifying the issue, narrowing the likely causes, and proposing a concrete next step. At the same time, I raised dependencies early and checked key assumptions with the relevant people instead of guessing.
+
+I judged that approach worked because we kept moving without creating unnecessary rework. It also helped the team align earlier on the important decisions, rather than discovering conflicts later.

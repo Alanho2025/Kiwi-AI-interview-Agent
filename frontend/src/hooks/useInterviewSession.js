@@ -189,17 +189,12 @@ export function useInterviewSession({ sessionId, navigate }) {
   const viewModel = useMemo(() => {
     const rubric = session?.analysisResult?.parsedJdProfile || session?.analysisResult?.matchingDetails?.rubric || {};
     const currentPlanItem = getCurrentPlanItem(session);
-    const roleMetaLabel = String(rubric.roleCanonical || '')
-      .split('_')
-      .filter(Boolean)
-      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-      .join(' ');
 
     return {
       rubric,
       currentPlanItem,
-      displayRole: rubric.title || session?.targetRole,
-      compactRoleLabel: roleMetaLabel || rubric.title || session?.targetRole || 'Role',
+      displayRole: session?.displayTitle || rubric.title || session?.targetRole,
+      compactRoleLabel: session?.compactRoleLabel || session?.displayTitle || rubric.title || session?.targetRole || 'Role',
       elapsedSeconds: (session?.elapsedSeconds || 0) + (session?.status === 'in_progress' ? timerOffset : 0),
       stageLabel: String(currentPlanItem?.stage || 'opening').replace(/_/g, ' '),
       statusLabel: session?.status === 'in_progress' ? 'Live' : session?.status,

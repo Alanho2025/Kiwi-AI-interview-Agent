@@ -12,87 +12,56 @@
 import { query } from '../../db/postgres.js';
 import { validateAnalyzeOutput, validateInterviewPlan } from '../schemaValidationService.js';
 import { prettifyCanonicalRole } from '../taxonomyService.js';
+import {
+  buildInterviewModeKey,
+  normalizeFocusAreaKey,
+  normalizeSeniorityLevelKey,
+  resolveInterviewBlueprint,
+  resolveInterviewModeConfig,
+} from '../../config/interviewBlueprints.js';
 
-/**
- * Purpose: Execute the main responsibility for buildFullTranscript.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
 export const buildFullTranscript = (turns) => turns.map((turn) => `${turn.role.toUpperCase()}: ${turn.text}`).join('\n\n');
-
 export const retentionDate = () => new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
 
-/**
- * Purpose: Execute the main responsibility for clampVarchar.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
 export const clampVarchar = (value, maxLength = 255, fallback = '') => {
   const text = String(value ?? fallback ?? '').trim() || fallback;
   return text.length > maxLength ? text.slice(0, maxLength) : text;
 };
 
-/**
- * Purpose: Execute the main responsibility for titleCaseWords.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
+const ROLE_ACRONYMS = new Set(['QA', 'NZ', 'API', 'SQL', 'AWS', 'GCP', 'UI', 'UX']);
 export const titleCaseWords = (value = '') => value
   .split(/\s+/)
   .filter(Boolean)
-  .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+  .map((part) => {
+    if (ROLE_ACRONYMS.has(part.toUpperCase())) return part.toUpperCase();
+    if (/^\.?net$/i.test(part)) return '.NET';
+    if (/^[A-Z0-9_/-]{2,}$/.test(part)) return part;
+    return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
+  })
   .join(' ');
 
-/**
- * Purpose: Execute the main responsibility for cleanDisplayTitle.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
 export const cleanDisplayTitle = (value = '') =>
   String(value || '')
     .replace(/\s+/g, ' ')
     .replace(/[.,;:!?-]+\s*$/, '')
     .trim();
 
-/**
- * Purpose: Execute the main responsibility for extractDisplayTitle.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
 export const extractDisplayTitle = (...candidates) => {
   for (const candidate of candidates) {
     const text = String(candidate || '').replace(/\s+/g, ' ').trim();
     if (!text) continue;
 
     const directTitleMatch = text.match(/(?:job\s*title|position|role)\s*:\s*([^\n.]{3,120})/i);
-    if (directTitleMatch?.[1]) {
-      return cleanDisplayTitle(directTitleMatch[1]);
-    }
+    if (directTitleMatch?.[1]) return cleanDisplayTitle(directTitleMatch[1]);
 
     const firstLine = text.split('\n').map((line) => line.trim()).find(Boolean) || '';
-    if (firstLine && firstLine.length <= 120 && !/^(we|our|about)\b/i.test(firstLine)) {
-      return cleanDisplayTitle(firstLine);
-    }
+    if (firstLine && firstLine.length <= 120 && !/^(we|our|about)\b/i.test(firstLine)) return cleanDisplayTitle(firstLine);
 
     const commonRoleMatch = text.match(/\b((?:Junior|Senior|Lead|Principal|Staff|Graduate|Mid-Level|Solutions|Software|Backend|Frontend|Full[-\s]?Stack|Mobile|DevOps|Data|Civil|Platform|QA|Test|Product)?\s*(?:Software Engineer|Solutions Engineer|Backend Engineer|Frontend Engineer|Full Stack Engineer|Mobile Developer|React Native Developer|DevOps Engineer|Data Engineer|Civil Engineer|Platform Engineer|QA Engineer|Test Engineer|Product Manager|Developer))\b/i);
-    if (commonRoleMatch?.[1]) {
-      return cleanDisplayTitle(commonRoleMatch[1]);
-    }
+    if (commonRoleMatch?.[1]) return cleanDisplayTitle(commonRoleMatch[1]);
 
     const sentenceMatch = text.match(/^([^.!?]{8,140}?)(?:[.!?]|$)/);
-    if (sentenceMatch?.[1] && !/^(we|our)\b/i.test(sentenceMatch[1].trim())) {
-      return cleanDisplayTitle(sentenceMatch[1]);
-    }
-
-    const titleLikeMatch = text.match(/\b([A-Z][A-Za-z/&()-]+(?:\s+[A-Z][A-Za-z/&()-]+){1,5})\b/);
-    if (titleLikeMatch?.[1] && !/^(We|Our)\b/.test(titleLikeMatch[1])) {
-      return cleanDisplayTitle(titleLikeMatch[1]);
-    }
+    if (sentenceMatch?.[1] && !/^(we|our)\b/i.test(sentenceMatch[1].trim())) return cleanDisplayTitle(sentenceMatch[1]);
 
     return cleanDisplayTitle(text.slice(0, 80));
   }
@@ -100,12 +69,6 @@ export const extractDisplayTitle = (...candidates) => {
   return 'Interview Session';
 };
 
-/**
- * Purpose: Execute the main responsibility for mapSessionRow.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
 export const mapSessionRow = (row) => ({
   id: row.id,
   userId: row.user_id,
@@ -131,48 +94,206 @@ export const mapSessionRow = (row) => ({
   },
 });
 
-/**
- * Purpose: Execute the main responsibility for buildQuestionPoolFromAnalysis.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
-export const buildQuestionPoolFromAnalysis = (analysisResult) => {
-  const hints = analysisResult?.matchingDetails?.questionPlanHints || {};
-  const rubric = analysisResult?.parsedJdProfile || analysisResult?.matchingDetails?.rubric || {};
-  const roleLabel = prettifyCanonicalRole(hints.roleCanonical || rubric.roleCanonical || '') || analysisResult?.jobTitle || 'the role';
-  const technicalCore = (hints.mustProbeSkills || []).slice(0, 3).flatMap((skill, index) => ([
-    { type: 'technical_core', stage: 'technical_core', topic: skill, followUpDepth: 0, text: `Tell me about a project where you used ${skill} in a ${roleLabel} context.`, reason: 'Role-aligned technical core question generated from JD requirements and matching gaps.', priority: index + 2, basedOnSkills: [skill], sourceType: 'cv_or_jd_skill', matchedRequirementId: `req_${skill}`, matchedSkill: skill, cvEvidenceRefs: [], generationReason: 'Probe a core requirement against the candidate CV and JD match result.', confidence: 0.72, planPriority: index + 2 },
-    { type: 'technical_follow_up', stage: 'technical_core', topic: skill, followUpDepth: 1, text: `What was your exact approach with ${skill}, and how did you know it worked?`, reason: 'Follow-up to keep the conversation on the same technical topic.', priority: index + 20, basedOnSkills: [skill], sourceType: 'follow_up', matchedRequirementId: `req_${skill}`, matchedSkill: skill, cvEvidenceRefs: [], generationReason: 'Ask for concrete evidence on the same topic before moving on.', confidence: 0.68, planPriority: index + 20 },
-  ]));
-  const experienceDeepDive = (hints.mustProbeExperience || []).slice(0, 2).flatMap((topic, index) => ([
-    { type: 'experience_deep_dive', stage: 'experience_deep_dive', topic, followUpDepth: 0, text: `Can you walk me through a specific example that shows ${topic}?`, reason: 'Experience probe generated from JD requirements and CV-JD comparison.', priority: index + 40, basedOnSkills: [topic], sourceType: 'cv_gap_or_partial', matchedRequirementId: `req_${topic}`, matchedSkill: topic, cvEvidenceRefs: [], generationReason: 'Clarify incomplete evidence found during the CV and JD comparison.', confidence: 0.64, planPriority: index + 40 },
-    { type: 'experience_follow_up', stage: 'experience_deep_dive', topic, followUpDepth: 1, text: 'What was your role, what action did you take, and what result came from it?', reason: 'STAR-style follow-up to gather evidence before changing topic.', priority: index + 60, basedOnSkills: [topic], sourceType: 'follow_up', matchedRequirementId: `req_${topic}`, matchedSkill: topic, cvEvidenceRefs: [], generationReason: 'Convert a broad answer into evidence that can be assessed.', confidence: 0.66, planPriority: index + 60 },
-  ]));
-  const behavioural = (hints.mustProbeBehavioural || ['teamwork', 'communication']).slice(0, 2).flatMap((topic, index) => ([
-    { type: 'behavioural', stage: 'behavioural', topic, followUpDepth: 0, text: `Tell me about a time when you had to show ${topic}.`, reason: 'Behavioural probe aligned to the role and NZ interview style.', priority: index + 80, basedOnSkills: [topic], sourceType: 'behavioural_bank', matchedRequirementId: `behaviour_${topic}`, matchedSkill: topic, cvEvidenceRefs: [], generationReason: 'Probe behavioural evidence aligned to the role profile.', confidence: 0.7, planPriority: index + 80 },
-    { type: 'behavioural_follow_up', stage: 'behavioural', topic, followUpDepth: 1, text: 'What was the situation, what did you do, and what was the outcome?', reason: 'STAR follow-up keeps the answer structured and natural.', priority: index + 100, basedOnSkills: [topic], sourceType: 'follow_up', matchedRequirementId: `behaviour_${topic}`, matchedSkill: topic, cvEvidenceRefs: [], generationReason: 'Keep the behavioural answer grounded in one concrete example.', confidence: 0.7, planPriority: index + 100 },
-  ]));
-  return [
-    { type: 'self_intro', stage: 'opening', topic: 'self_introduction', followUpDepth: 0, text: 'Please introduce yourself.', reason: 'default opener', priority: 1, basedOnSkills: [], sourceType: 'opening', matchedRequirementId: 'opening_intro', matchedSkill: 'self_introduction', cvEvidenceRefs: [], generationReason: 'Start with a natural introduction before targeted probing.', confidence: 1, planPriority: 1 },
-    ...technicalCore,
-    ...experienceDeepDive,
-    ...behavioural,
-    { type: 'wrap_up', stage: 'wrap_up', topic: 'candidate_questions', followUpDepth: 0, text: 'Before we finish, what questions do you have for me about the role or team?', reason: 'Close the conversation naturally.', priority: 999, basedOnSkills: [], sourceType: 'closing', matchedRequirementId: 'closing_questions', matchedSkill: 'candidate_questions', cvEvidenceRefs: [], generationReason: 'Finish naturally and give the candidate space for questions.', confidence: 1, planPriority: 999 },
-  ];
+export const buildCanonicalRoleMeta = ({ resolvedTargetRole = '', normalizedAnalysis = null, settings = {} } = {}) => {
+  const parsedJdProfile = normalizedAnalysis?.parsedJdProfile || normalizedAnalysis?.matchingDetails?.rubric || {};
+  const canonicalRole = prettifyCanonicalRole(
+    parsedJdProfile?.roleCanonical || normalizedAnalysis?.matchingDetails?.questionPlanHints?.roleCanonical || ''
+  ) || '';
+  const displayTitle = extractDisplayTitle(
+    resolvedTargetRole,
+    normalizedAnalysis?.jobTitle,
+    parsedJdProfile?.title,
+    parsedJdProfile?.jobTitle,
+    canonicalRole
+  );
+  const seniorityKey = normalizeSeniorityLevelKey(settings?.seniorityLevel || settings?.level || 'junior');
+  const focusAreaKey = normalizeFocusAreaKey(settings?.focusArea || 'combined');
+  return {
+    canonicalRole: cleanDisplayTitle(canonicalRole || displayTitle || resolvedTargetRole || 'Interview Role'),
+    displayTitle: titleCaseWords(cleanDisplayTitle(displayTitle || resolvedTargetRole || canonicalRole || 'Interview Session')),
+    compactRoleLabel: titleCaseWords(cleanDisplayTitle(canonicalRole || displayTitle || resolvedTargetRole || 'Interview Role')),
+    roleFamily: parsedJdProfile?.roleFamily || normalizedAnalysis?.matchingDetails?.rubric?.roleFamily || '',
+    seniorityKey,
+    focusAreaKey,
+    interviewModeKey: buildInterviewModeKey({ seniorityLevel: seniorityKey, focusArea: focusAreaKey }),
+  };
 };
 
-/**
- * Purpose: Execute the main responsibility for normalizeAnalysisResult.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
-export const normalizeAnalysisResult = (analysis) => {
-  if (!analysis) {
-    return null;
+const buildOpeningQuestion = ({ roleLabel = 'the role', companyName = '', level = 'junior' } = {}) => {
+  const companyClause = companyName ? ` with ${companyName}` : '';
+  if (String(level) === 'advanced') {
+    return `Hi, thanks for joining today${companyClause}. To get us started, could you introduce yourself and walk me through the parts of your background that best prepare you for this ${roleLabel} interview?`;
+  }
+  if (String(level) === 'intermediate') {
+    return `Hi, thanks for being here today${companyClause}. To start, could you briefly introduce yourself and highlight the experience most relevant to this ${roleLabel} interview?`;
+  }
+  return `Hi, thanks for joining today${companyClause}. Let’s start with a quick introduction. Could you tell me a bit about yourself and what interested you in this ${roleLabel} interview?`;
+};
+
+const buildWrapUpQuestion = () => ({
+  type: 'wrap_up',
+  category: 'closing',
+  stage: 'wrap_up',
+  topic: 'candidate_questions',
+  followUpDepth: 0,
+  text: 'Before we finish, what questions do you have for me about the role or team?',
+  reason: 'Close the conversation naturally.',
+  priority: 999,
+  basedOnSkills: [],
+  sourceType: 'closing',
+  matchedRequirementId: 'closing_questions',
+  matchedSkill: 'candidate_questions',
+  cvEvidenceRefs: [],
+  generationReason: 'Finish naturally and give the candidate space for questions.',
+  confidence: 1,
+  planPriority: 999,
+});
+
+const buildTechnicalPrompt = ({ skill, level, roleLabel, followUpDepth }) => {
+  if (followUpDepth > 0) {
+    if (level === 'advanced') return `What trade-off, risk, or debugging judgement did you handle yourself around ${skill}, and how did you know your approach worked?`;
+    if (level === 'intermediate') return `What was your exact approach with ${skill}, and how did you judge whether it worked?`;
+    return `What was your exact approach with ${skill}, and what result came from it?`;
+  }
+  if (level === 'advanced') return `Tell me about a production-level example where you made an important design, trade-off, or implementation decision using ${skill} for a ${roleLabel} problem.`;
+  if (level === 'intermediate') return `Tell me about a project where you used ${skill} and explain the key decisions you made.`;
+  return `Tell me about a project where you used ${skill} in a practical way.`;
+};
+
+const buildBehaviouralPrompt = ({ topic, level, followUpDepth }) => {
+  if (followUpDepth > 0) {
+    return level === 'advanced'
+      ? 'What was the situation, what decision did you personally drive, and what changed because of it?'
+      : 'What was the situation, what did you do, and what was the outcome?';
+  }
+  if (level === 'advanced') return `Tell me about a time when you had to show ${topic} in a situation with judgement, ambiguity, or stakeholder pressure.`;
+  if (level === 'intermediate') return `Tell me about a time when you had to show ${topic} in a real work or project situation.`;
+  return `Tell me about a time when you had to show ${topic}.`;
+};
+
+export const buildQuestionPoolFromAnalysis = (analysisResult, settings = {}, options = {}) => {
+  const hints = analysisResult?.matchingDetails?.questionPlanHints || {};
+  const rubric = analysisResult?.parsedJdProfile || analysisResult?.matchingDetails?.rubric || {};
+  const modeConfig = resolveInterviewModeConfig(settings);
+  const roleMeta = buildCanonicalRoleMeta({
+    resolvedTargetRole: options.resolvedTargetRole || analysisResult?.jobTitle || '',
+    normalizedAnalysis: analysisResult,
+    settings,
+  });
+  const roleLabel = roleMeta.displayTitle || 'the role';
+  const companyName = analysisResult?.companyName || rubric?.companyName || '';
+  const technicalSkills = (hints.mustProbeSkills || []).filter(Boolean);
+  const behaviouralTopics = (hints.mustProbeBehavioural || ['teamwork', 'communication', 'ownership']).filter(Boolean);
+
+  const questions = [
+    {
+      type: 'self_intro',
+      category: 'opening',
+      stage: 'opening',
+      topic: 'self_intro',
+      followUpDepth: 0,
+      text: buildOpeningQuestion({ roleLabel, companyName, level: modeConfig.level }),
+      reason: 'Warm interviewer opening with role context.',
+      priority: 1,
+      basedOnSkills: [],
+      sourceType: 'opening',
+      matchedRequirementId: 'opening_intro',
+      matchedSkill: 'self_intro',
+      cvEvidenceRefs: [],
+      generationReason: 'Start with a natural introduction before targeted probing.',
+      confidence: 1,
+      planPriority: 1,
+    },
+  ];
+
+  const technicalQuestionCount = Math.max(0, modeConfig.minTechnicalQuestions);
+  for (let index = 0; index < technicalQuestionCount; index += 1) {
+    const skill = technicalSkills[index] || technicalSkills[0] || 'a relevant technical stack';
+    questions.push({
+      type: 'technical_core',
+      category: 'technical',
+      stage: 'technical',
+      topic: skill,
+      followUpDepth: 0,
+      text: buildTechnicalPrompt({ skill, level: modeConfig.level, roleLabel, followUpDepth: 0 }),
+      reason: 'Role-aligned technical core question generated from JD requirements and matching gaps.',
+      priority: index + 20,
+      basedOnSkills: [skill],
+      sourceType: 'cv_or_jd_skill',
+      matchedRequirementId: `req_${skill}`,
+      matchedSkill: skill,
+      cvEvidenceRefs: [],
+      generationReason: 'Probe a core requirement against the candidate CV and JD match result.',
+      confidence: 0.72,
+      planPriority: index + 20,
+    });
+    questions.push({
+      type: 'technical_follow_up',
+      category: 'technical',
+      stage: 'technical',
+      topic: skill,
+      followUpDepth: 1,
+      text: buildTechnicalPrompt({ skill, level: modeConfig.level, roleLabel, followUpDepth: 1 }),
+      reason: 'Follow-up to keep the conversation on the same technical topic.',
+      priority: index + 40,
+      basedOnSkills: [skill],
+      sourceType: 'follow_up',
+      matchedRequirementId: `req_${skill}`,
+      matchedSkill: skill,
+      cvEvidenceRefs: [],
+      generationReason: 'Ask for concrete evidence on the same topic before moving on.',
+      confidence: 0.68,
+      planPriority: index + 40,
+    });
   }
 
+  const behaviouralQuestionCount = Math.max(0, modeConfig.minBehaviouralQuestions);
+  for (let index = 0; index < behaviouralQuestionCount; index += 1) {
+    const topic = behaviouralTopics[index] || behaviouralTopics[0] || 'teamwork';
+    questions.push({
+      type: 'behavioural',
+      category: 'behavioural',
+      stage: 'behavioural',
+      topic,
+      followUpDepth: 0,
+      text: buildBehaviouralPrompt({ topic, level: modeConfig.level, followUpDepth: 0 }),
+      reason: 'Behavioural probe aligned to the role and NZ interview style.',
+      priority: index + 80,
+      basedOnSkills: [topic],
+      sourceType: 'behavioural_bank',
+      matchedRequirementId: `behaviour_${topic}`,
+      matchedSkill: topic,
+      cvEvidenceRefs: [],
+      generationReason: 'Probe behavioural evidence aligned to the role profile.',
+      confidence: 0.7,
+      planPriority: index + 80,
+    });
+    questions.push({
+      type: 'behavioural_follow_up',
+      category: 'behavioural',
+      stage: 'behavioural',
+      topic,
+      followUpDepth: 1,
+      text: buildBehaviouralPrompt({ topic, level: modeConfig.level, followUpDepth: 1 }),
+      reason: 'STAR follow-up keeps the answer structured and natural.',
+      priority: index + 100,
+      basedOnSkills: [topic],
+      sourceType: 'follow_up',
+      matchedRequirementId: `behaviour_${topic}`,
+      matchedSkill: topic,
+      cvEvidenceRefs: [],
+      generationReason: 'Keep the behavioural answer grounded in one concrete example.',
+      confidence: 0.7,
+      planPriority: index + 100,
+    });
+  }
+
+  questions.push(buildWrapUpQuestion());
+  return questions;
+};
+
+export const normalizeAnalysisResult = (analysis) => {
+  if (!analysis) return null;
   return validateAnalyzeOutput({
     ...analysis.matchSummary,
     ...analysis.toObject?.(),
@@ -180,12 +301,6 @@ export const normalizeAnalysisResult = (analysis) => {
   });
 };
 
-/**
- * Purpose: Execute the main responsibility for buildInterviewPlanPayload.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
 export const buildInterviewPlanPayload = ({
   normalizedAnalysis,
   settings = {},
@@ -204,29 +319,18 @@ export const buildInterviewPlanPayload = ({
   gaps: normalizedAnalysis.gaps || [],
   interviewFocus: normalizedAnalysis.interviewFocus || [],
   planPreview: normalizedAnalysis.planPreview || '',
-  strategy: { opening: 1, followUp: 3, technical: 2, behavioural: 2 },
-  questionPool: buildQuestionPoolFromAnalysis(normalizedAnalysis),
+  strategy: resolveInterviewBlueprint(settings?.seniorityLevel || settings?.level || 'junior').strategy,
+  interviewModeKey: buildInterviewModeKey(settings),
+  questionPool: buildQuestionPoolFromAnalysis(normalizedAnalysis, settings, { resolvedTargetRole }),
   fallbackRules: { short_answer: 'ask_probe', time_low: 'end_early' },
   settingsSnapshot: settings,
 });
 
-/**
- * Purpose: Execute the main responsibility for fetchSessionRowById.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
 export const fetchSessionRowById = async (id) => {
   const result = await query('SELECT * FROM interview_sessions WHERE id = $1 AND deleted_at IS NULL LIMIT 1', [id]);
   return result.rows[0] || null;
 };
 
-/**
- * Purpose: Execute the main responsibility for fetchOwnedSessionRowById.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
 export const fetchOwnedSessionRowById = async (id, userId) => {
   const result = await query('SELECT * FROM interview_sessions WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL LIMIT 1', [id, userId]);
   return result.rows[0] || null;

@@ -14,6 +14,7 @@ import { query } from '../../db/postgres.js';
 import { SessionAnalysis } from '../../db/models/sessionAnalysisModel.js';
 import { InterviewPlan } from '../../db/models/interviewPlanModel.js';
 import { SessionReport } from '../../db/models/sessionReportModel.js';
+import { resolveInterviewModeConfig } from '../../config/interviewBlueprints.js';
 import { clampVarchar, fetchSessionRowById, fetchOwnedSessionRowById } from './sessionShared.js';
 import {
   fetchSessionDependencies,
@@ -30,12 +31,6 @@ import {
   buildSessionPlanUpdatePayload,
 } from './sessionViewBuilder.js';
 
-/**
- * Purpose: Execute the main responsibility for createSession.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
 export const createSession = async ({
   userId,
   cvFileId = null,
@@ -56,6 +51,8 @@ export const createSession = async ({
   const resolvedCandidateName = clampVarchar(normalizedAnalysis.candidateName || candidateName || 'Candidate');
   const resolvedSeniorityLevel = clampVarchar(settings.seniorityLevel || 'Junior/Grad');
   const resolvedFocusArea = clampVarchar(settings.focusArea || 'Combined');
+  const modeConfig = resolveInterviewModeConfig({ seniorityLevel: resolvedSeniorityLevel, focusArea: resolvedFocusArea });
+  const resolvedSettings = { ...settings, seniorityLevel: resolvedSeniorityLevel, focusArea: resolvedFocusArea };
 
   await persistSessionSetup({
     id,
@@ -68,56 +65,32 @@ export const createSession = async ({
     resolvedCandidateName,
     resolvedSeniorityLevel,
     resolvedFocusArea,
-    settings,
-    totalQuestions,
+    settings: resolvedSettings,
+    totalQuestions: modeConfig.totalQuestions || totalQuestions,
   });
 
   await persistParsedSkills({ id, normalizedAnalysis, jdRubric });
   await persistSessionAnalysis({ id, userId, cvFileId, jdText, jdRubric, normalizedAnalysis, matchAnalysisId, evidenceRefs });
-  await persistInterviewPlan({ id, userId, normalizedAnalysis, settings, resolvedCandidateName, resolvedTargetRole, matchAnalysisId, evidenceRefs });
+  await persistInterviewPlan({ id, userId, normalizedAnalysis, settings: resolvedSettings, resolvedCandidateName, resolvedTargetRole, matchAnalysisId, evidenceRefs });
   await initializeTranscript({ id, userId });
 
   return getSessionById(id);
 };
 
-/**
- * Purpose: Execute the main responsibility for getSessionById.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
 export const getSessionById = async (id) => {
   const row = await fetchSessionRowById(id);
-  if (!row) {
-    return null;
-  }
-
+  if (!row) return null;
   const dependencies = await fetchSessionDependencies({ id, cvFileId: row.cv_file_id });
   return buildSessionDetails({ row, ...dependencies });
 };
 
-/**
- * Purpose: Execute the main responsibility for getOwnedSessionById.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
 export const getOwnedSessionById = async (id, userId) => {
   const row = await fetchOwnedSessionRowById(id, userId);
-  if (!row) {
-    return null;
-  }
-
+  if (!row) return null;
   const dependencies = await fetchSessionDependencies({ id, cvFileId: row.cv_file_id });
   return buildSessionDetails({ row, ...dependencies });
 };
 
-/**
- * Purpose: Execute the main responsibility for listSessionsByUserId.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
 export const listSessionsByUserId = async (userId, limit = 20) => {
   const safeLimit = Math.min(Math.max(Number(limit) || 20, 1), 50);
   const result = await query(
@@ -130,9 +103,7 @@ export const listSessionsByUserId = async (userId, limit = 20) => {
   );
 
   const rows = result.rows || [];
-  if (!rows.length) {
-    return [];
-  }
+  if (!rows.length) return [];
 
   const sessionIds = rows.map((row) => row.id);
   const [reports, plans, analyses] = await Promise.all([
@@ -141,89 +112,104 @@ export const listSessionsByUserId = async (userId, limit = 20) => {
     SessionAnalysis.find({ sessionId: { $in: sessionIds } }).lean(),
   ]);
 
-  const reportMap = new Map(reports.map((item) => [item.sessionId, item]));
-  const planMap = new Map(plans.map((item) => [item.sessionId, item]));
-  const analysisMap = new Map(analyses.map((item) => [item.sessionId, item]));
-
   return rows.map((row) => buildSessionListItem({
     row,
-    plan: planMap.get(row.id),
-    report: reportMap.get(row.id),
-    analysis: analysisMap.get(row.id),
+    plan: plans.find((item) => item.sessionId === row.id),
+    report: reports.find((item) => item.sessionId === row.id),
+    analysis: analyses.find((item) => item.sessionId === row.id),
   }));
 };
 
-/**
- * Purpose: Execute the main responsibility for updateSession.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
-export const updateSession = async (id, data) => {
-  const current = await getSessionById(id);
-  if (!current) {
-    return null;
+const normalizeSessionUpdateArgs = (id, userIdOrData, maybeData) => {
+  if (maybeData === undefined && userIdOrData && typeof userIdOrData === 'object' && !Array.isArray(userIdOrData)) {
+    return { id, userId: null, data: userIdOrData };
   }
 
-  await query(
-    `UPDATE interview_sessions
-     SET status = $2,
-         current_question_index = $3,
-         elapsed_seconds = $4,
-         last_resumed_at = $5,
-         ended_at = $6,
-         summary_text = $7,
-         overall_score = $8,
-         updated_at = now()
-     WHERE id = $1 AND deleted_at IS NULL`,
-    [
-      id,
-      data.status ?? current.status,
-      data.currentQuestionIndex ?? current.currentQuestionIndex,
-      data.elapsedSeconds ?? current.elapsedSeconds,
-      data.lastResumedAt ?? current.lastResumedAt,
-      data.endedAt ?? current.endedAt,
-      data.summaryText ?? current.summaryText,
-      data.overallScore ?? current.overallScore,
-    ]
-  );
-
-  const planPayload = buildSessionPlanUpdatePayload({ current, data });
-  if (planPayload) {
-    await InterviewPlan.findOneAndUpdate(
-      { sessionId: id },
-      planPayload,
-      { returnDocument: 'after' }
-    );
-  }
-
-  return getSessionById(id);
+  return {
+    id,
+    userId: userIdOrData ?? null,
+    data: maybeData && typeof maybeData === 'object' ? maybeData : {},
+  };
 };
 
-/**
- * Purpose: Execute the main responsibility for softDeleteOwnedSession.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
-export const softDeleteOwnedSession = async ({ sessionId, userId }) => {
-  // First verify session exists and belongs to user
+const updateInterviewSessionRow = async ({ id, userId = null, data = {} }) => {
+  const assignments = [];
+  const values = [];
+  let index = 1;
+
+  const assign = (column, value) => {
+    assignments.push(`${column} = $${index}`);
+    values.push(value);
+    index += 1;
+  };
+
+  if (Object.prototype.hasOwnProperty.call(data, 'status')) assign('status', data.status);
+  if (Object.prototype.hasOwnProperty.call(data, 'mode')) assign('mode', data.mode);
+  if (Object.prototype.hasOwnProperty.call(data, 'targetRole')) assign('target_role', data.targetRole);
+  if (Object.prototype.hasOwnProperty.call(data, 'candidateName')) assign('candidate_name', data.candidateName);
+  if (Object.prototype.hasOwnProperty.call(data, 'totalQuestions')) assign('total_questions', data.totalQuestions);
+  if (Object.prototype.hasOwnProperty.call(data, 'currentQuestionIndex')) assign('current_question_index', data.currentQuestionIndex);
+  if (Object.prototype.hasOwnProperty.call(data, 'elapsedSeconds')) assign('elapsed_seconds', data.elapsedSeconds);
+  if (Object.prototype.hasOwnProperty.call(data, 'lastResumedAt')) assign('last_resumed_at', data.lastResumedAt);
+  if (Object.prototype.hasOwnProperty.call(data, 'startedAt')) assign('started_at', data.startedAt);
+  if (Object.prototype.hasOwnProperty.call(data, 'endedAt')) assign('ended_at', data.endedAt);
+  if (Object.prototype.hasOwnProperty.call(data, 'durationSeconds')) assign('duration_seconds', data.durationSeconds);
+  if (Object.prototype.hasOwnProperty.call(data, 'overallScore')) assign('overall_score', data.overallScore);
+  if (Object.prototype.hasOwnProperty.call(data, 'summaryText')) assign('summary_text', data.summaryText);
+
+  if (!assignments.length) {
+    return;
+  }
+
+  assignments.push('updated_at = NOW()');
+  values.push(String(id));
+  const idIndex = index;
+  index += 1;
+
+  let sql = `UPDATE interview_sessions SET ${assignments.join(', ')} WHERE id = $${idIndex}`;
+  if (userId) {
+    values.push(String(userId));
+    sql += ` AND user_id = $${index}`;
+    index += 1;
+  }
+  sql += ' AND deleted_at IS NULL';
+
+  await query(sql, values);
+};
+
+export const updateSessionById = async (id, userId, data = {}) => {
+  const normalized = normalizeSessionUpdateArgs(id, userId, data);
+  const existing = normalized.userId
+    ? await getOwnedSessionById(normalized.id, normalized.userId)
+    : await getSessionById(normalized.id);
+  if (!existing) return null;
+
+  await updateInterviewSessionRow(normalized);
+
+  const planUpdate = buildSessionPlanUpdatePayload({ current: existing, data: normalized.data });
+  if (planUpdate) {
+    await InterviewPlan.findOneAndUpdate({ sessionId: normalized.id }, planUpdate, { upsert: true, new: true });
+  }
+
+  return normalized.userId
+    ? getOwnedSessionById(normalized.id, normalized.userId)
+    : getSessionById(normalized.id);
+};
+
+export const softDeleteSessionById = async (idOrPayload, userId) => {
+  const sessionId = typeof idOrPayload === 'object' && idOrPayload !== null ? idOrPayload.sessionId : idOrPayload;
+  const resolvedUserId = typeof idOrPayload === 'object' && idOrPayload !== null ? idOrPayload.userId : userId;
   const result = await query(
-    `SELECT id FROM interview_sessions WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL`,
-    [sessionId, userId]
+    `UPDATE interview_sessions
+     SET deleted_at = NOW(), updated_at = NOW()
+     WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL
+     RETURNING id`,
+    [String(sessionId), String(resolvedUserId)]
   );
-  
-  if (!result.rows.length) {
-    throw new Error('Session not found or access denied');
-  }
-
-  // Perform soft delete
-  await query(
-    `UPDATE interview_sessions 
-     SET deleted_at = now(), updated_at = now()
-     WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL`,
-    [sessionId, userId]
-  );
-
-  return { deleted: true, sessionId };
+  return Boolean(result.rows[0]?.id);
 };
+
+export const updateSession = updateSessionById;
+
+export const softDeleteOwnedSession = softDeleteSessionById;
+

@@ -128,6 +128,7 @@ const runInterviewController = async ({ session, payload = {} }) => {
     taskType: 'interview_next_turn',
     session,
     retrievalBundle: initialRetrievalBundle,
+    latestEvaluation: evaluatorOutput,
   });
   await persistDynamicSlotState({ sessionId: session.id, dynamicSlots: decisionContext.dynamicSlotState });
 
@@ -269,6 +270,9 @@ const runInterviewController = async ({ session, payload = {} }) => {
       evidenceTypeHint: interviewerOutput.evidenceTypeHint || null,
       controllerAction: plan.selectedAction,
       rationaleSummary: interviewerOutput.rationaleSummary || interviewerOutput.rationale,
+      followUpDepth: interviewerOutput.followUpDepth || 0,
+      questionCategory: interviewerOutput.questionCategory || null,
+      questionType: interviewerOutput.questionType || 'follow_up',
     },
   });
 
