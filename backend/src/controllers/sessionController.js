@@ -30,7 +30,7 @@ export const saveSession = asyncHandler(async (req, res) => {
     throw notFound('Session not found or access denied', 'Invalid session ID or you do not have permission to update this session');
   }
 
-  const updatedSession = await updateSession(sessionId, data);
+  const updatedSession = await updateSession(sessionId, user.id, data);
   if (!updatedSession) {
     throw notFound('Session not found', 'Invalid session ID');
   }
@@ -69,7 +69,10 @@ export const resumeSession = asyncHandler(async (req, res) => {
   }
 
   session.status = 'in_progress';
-  const updatedSession = await updateSession(sessionId, session);
+  const updatedSession = await updateSession(sessionId, user.id, {
+    status: 'in_progress',
+    lastResumedAt: new Date().toISOString(),
+  });
   logger.info('Session resumed', getRequestLogMeta(req, { sessionId, userId: user.id }));
   res.json(formatSuccess('Session resumed', { session: updatedSession }));
 });

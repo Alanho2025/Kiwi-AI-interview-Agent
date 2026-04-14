@@ -158,11 +158,14 @@ export const runInterviewerAgent = async ({
   evidenceBundle = null,
   targetTopic = null,
   probeType = null,
+  freshOnly = false,
+  category = null,
 } = {}) => {
   const transcript = session?.transcript || [];
   const lastUserAnswer = getLastUserAnswer(transcript).toLowerCase();
   const environment = decisionContext?.environment || null;
   const evaluatorState = decisionContext?.evaluatorState || null;
+  const focusArea = String(decisionContext?.interviewStructure?.focusAreaKey || session?.settings?.focusArea || 'combined').trim().toLowerCase().replace('behavioural', 'behavioral');
 
   if (hasReachedQuestionLimit(session)) {
     const reactTrace = buildReactTrace({
@@ -186,16 +189,21 @@ export const runInterviewerAgent = async ({
     };
   }
 
-  let selectedQuestion = getNextPoolQuestion(session);
+  const lockedCategory = focusArea === 'technical' ? 'technical' : focusArea === 'behavioral' ? 'behavioural' : category;
+  let selectedQuestion = getNextPoolQuestion(session, { freshOnly, category: lockedCategory });
 
   if (actionType === AGENT_ACTION_TYPES.ASK_PROBING_QUESTION) {
     selectedQuestion = buildProbingQuestion({ targetTopic: targetTopic || decisionContext?.currentTopic || evidenceBundle?.validationTargets?.[0] || 'project' });
   } else if (actionType === AGENT_ACTION_TYPES.REPHRASE_QUESTION) {
     selectedQuestion = buildRephrasedQuestion({ targetTopic: targetTopic || decisionContext?.currentTopic || 'project', environment });
   } else if (actionType === AGENT_ACTION_TYPES.ASK_DEEP_DIVE_QUESTION) {
-    selectedQuestion = buildDeepDiveQuestion({ targetTopic: targetTopic || decisionContext?.currentTopic || 'project' });
+    selectedQuestion = focusArea === 'behavioral'
+      ? buildProbingQuestion({ targetTopic: targetTopic || decisionContext?.currentTopic || 'behavioural_example' })
+      : buildDeepDiveQuestion({ targetTopic: targetTopic || decisionContext?.currentTopic || 'project' });
   } else if (actionType === AGENT_ACTION_TYPES.ASK_VALIDATION_QUESTION) {
-    selectedQuestion = buildValidationQuestion({ targetTopic: targetTopic || decisionContext?.matchState?.validationTargets?.[0] || 'claim' });
+    selectedQuestion = focusArea === 'behavioral'
+      ? buildProbingQuestion({ targetTopic: targetTopic || decisionContext?.currentTopic || 'behavioural_example' })
+      : buildValidationQuestion({ targetTopic: targetTopic || decisionContext?.matchState?.validationTargets?.[0] || 'claim' });
   } else if (actionType === AGENT_ACTION_TYPES.SWITCH_TOPIC) {
     selectedQuestion = buildSwitchTopicQuestion({ targetTopic: targetTopic || decisionContext?.coverageState?.missingTopics?.[0] || 'role_fit' });
   } else if (actionType === AGENT_ACTION_TYPES.ASK_ABDUCTIVE_PROBE_QUESTION) {
@@ -217,6 +225,13 @@ export const runInterviewerAgent = async ({
     if (selectedQuestion && retrievedQuestion && !['opening', 'wrap_up'].includes(selectedQuestion.stage) && actionType !== AGENT_ACTION_TYPES.ASK_POOL_QUESTION) {
       selectedQuestion = buildRoleLockedQuestion(retrievedQuestion, selectedQuestion);
     }
+  }
+
+  if (focusArea === 'technical' && selectedQuestion && selectedQuestion.category === 'behavioural') {
+    selectedQuestion = getNextPoolQuestion(session, { freshOnly: true, category: 'technical' });
+  }
+  if (focusArea === 'behavioral' && selectedQuestion && selectedQuestion.category === 'technical') {
+    selectedQuestion = getNextPoolQuestion(session, { freshOnly: true, category: 'behavioural' });
   }
 
   if (!selectedQuestion) {
@@ -244,6 +259,7 @@ export const runInterviewerAgent = async ({
     topic: selectedQuestion.topic,
     followUpDepth: selectedQuestion.followUpDepth || 0,
     sourceType: selectedQuestion.sourceType || 'agent_generated',
+    questionCategory: selectedQuestion.category || (String(selectedQuestion.stage || '').includes('behaviour') ? 'behavioural' : String(selectedQuestion.stage || '').includes('technical') ? 'technical' : String(selectedQuestion.stage || '').includes('opening') ? 'opening' : 'experience'),
     evidenceTypeHint: inferEvidenceTypeHint(selectedQuestion),
     retrievalSnapshot: retrievalBundle,
     isComplete: false,

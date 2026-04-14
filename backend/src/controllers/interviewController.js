@@ -76,10 +76,17 @@ export const startInterview = asyncHandler(async (req, res) => {
       text: openingQuestion,
       timestamp: new Date().toISOString(),
       questionId,
+      metadata: {
+        stage: 'opening',
+        topic: 'self_intro',
+        followUpDepth: 0,
+        questionCategory: 'opening',
+        questionType: 'self_intro',
+      },
     });
   }
 
-  const updatedSession = await updateSession(sessionId, nextState);
+  const updatedSession = await updateSession(sessionId, user.id, nextState);
   await createInterviewLifecycleAuditLog({ req, session: updatedSession, actionType: 'start_interview' });
 
   logger.info('Interview started', getRequestLogMeta(req));
@@ -113,7 +120,7 @@ export const replyInterview = asyncHandler(async (req, res) => {
         currentQuestionIndex: agentResult.nextQuestionOrder,
       };
 
-  const updatedSession = await updateSession(sessionId, sessionPatch);
+  const updatedSession = await updateSession(sessionId, user.id, sessionPatch);
   const generatedReport = agentResult.isComplete
     ? await tryGenerateReportForCompletedSession(req, sessionId)
     : null;

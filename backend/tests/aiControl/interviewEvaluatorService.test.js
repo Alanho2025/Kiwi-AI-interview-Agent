@@ -26,7 +26,7 @@ describe('evaluateInterviewTurn', () => {
     });
     expect(evaluation.successStatus).toBe('usable');
     expect(evaluation.evidenceGainScore).toBeGreaterThanOrEqual(0.62);
-    expect(evaluation.suggestedNextMode).toBe('deepen');
+    expect(evaluation.suggestedNextMode).toBe('advance');
     expect(evaluation.overallInteractionScore).toBeGreaterThan(0.6);
   });
 });

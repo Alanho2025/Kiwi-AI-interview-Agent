@@ -19,12 +19,18 @@ import { TipCard } from './TipCard.jsx';
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-const buildFocusDescription = ({ currentPlanItem, enableNZCultureFit }) => {
+const buildFocusDescription = ({ currentPlanItem, enableNZCultureFit, focusArea }) => {
+  const focusKey = String(focusArea || 'Combined').toLowerCase();
+  const modeMessage = focusKey === 'technical'
+    ? 'This interview stays in technical mode, so explain tools, decisions, trade-offs, and results clearly.'
+    : focusKey === 'behavioral'
+      ? 'This interview stays in behavioural mode, so use STAR and keep each example concrete.'
+      : 'This interview will cover both behavioural and technical evidence, so keep examples concrete.';
   if (!currentPlanItem) {
-    return `${enableNZCultureFit ? 'Use teamwork and communication examples when they are relevant. ' : ''}Use STAR for behavioural examples.`;
+    return `${enableNZCultureFit ? 'Use teamwork and communication examples when they are relevant. ' : ''}${modeMessage}`;
   }
 
-  return `Stage: ${(currentPlanItem.stage || 'opening').replace(/_/g, ' ')}. Topic: ${currentPlanItem.topic || 'role fit'}. Keep your answer on this topic before moving on. ${enableNZCultureFit ? 'Use teamwork and communication examples when they are relevant. ' : ''}Use STAR for behavioural examples.`;
+  return `Stage: ${(currentPlanItem.stage || 'opening').replace(/_/g, ' ')}. Topic: ${currentPlanItem.topic || 'role fit'}. ${modeMessage} ${enableNZCultureFit ? 'Use teamwork and communication examples when they are relevant. ' : ''}`;
 };
 
 /**
@@ -46,6 +52,7 @@ export function InterviewSidebar({ session, currentPlanItem }) {
         description={buildFocusDescription({
           currentPlanItem,
           enableNZCultureFit: session?.settings?.enableNZCultureFit,
+          focusArea: session?.settings?.focusArea,
         })}
       />
       <SessionInfoCard totalQuestions={session?.totalQuestions} seniorityLevel={session?.settings?.seniorityLevel} />

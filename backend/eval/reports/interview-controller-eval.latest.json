@@ -1,16 +1,7 @@
 {
   "casesRun": 4,
-  "average": 0.75,
-  "weakestCases": [
-    {
-      "id": "section_shift_after_coverage",
-      "score": 0,
-      "failedChecks": [
-        "suggestedNextMode",
-        "selectedAction"
-      ]
-    }
-  ],
+  "average": 1,
+  "weakestCases": [],
   "thresholds": {
     "minAverage": 0,
     "failBelow": 0
@@ -45,15 +36,12 @@
     },
     {
       "id": "section_shift_after_coverage",
-      "suggestedNextMode": "probe",
-      "selectedAction": "ASK_PROBING_QUESTION",
-      "score": 0,
-      "earned": 0,
+      "suggestedNextMode": "advance",
+      "selectedAction": "SHIFT_SECTION",
+      "score": 1,
+      "earned": 2,
       "possible": 2,
-      "failedChecks": [
-        "suggestedNextMode",
-        "selectedAction"
-      ]
+      "failedChecks": []
     }
   ]
 }
