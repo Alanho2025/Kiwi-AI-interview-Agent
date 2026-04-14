@@ -7,6 +7,7 @@ import { deriveAbductiveState } from './abductiveReasoningService.js';
 import { buildSectionState, inferInterviewSection } from './sectionPlannerService.js';
 import { getSessionReflectionMemory } from './reflectionWriterService.js';
 import { getUserCoachingMemory } from './userCoachingMemoryService.js';
+import { buildInterviewTurnPolicy } from '../interview/interviewTurnPolicy.js';
 
 const ensureArray = (value) => (Array.isArray(value) ? value : []);
 const normalizeText = (value = '') => String(value || '').trim();
@@ -46,40 +47,41 @@ const buildCoverageState = ({ session = {}, evidenceBundle = {} } = {}) => {
   };
 };
 
-export const buildDecisionContext = async ({ taskType, session = {}, retrievalBundle = null } = {}) => {
+export const buildDecisionContext = async ({ taskType, session = {}, retrievalBundle = null, latestEvaluation = null } = {}) => {
   const latestAnswer = getLastUserAnswer(session.transcript || []);
   const evidenceBundle = buildEvidenceBundle({ session, retrievalBundle });
-  const [agentMemory, latestEvaluation, storedDynamicSlotState, sessionReflectionMemory, userCoachingMemory] = await Promise.all([
+  const [agentMemory, resolvedLatestEvaluation, storedDynamicSlotState, sessionReflectionMemory, userCoachingMemory] = await Promise.all([
     getAgentMemory(session.id),
-    getLatestEvaluatorRecord(session.id),
+    latestEvaluation || getLatestEvaluatorRecord(session.id),
     getDynamicSlotState(session.id),
     getSessionReflectionMemory(session.id),
     getUserCoachingMemory(session.userId),
   ]);
 
-  const environment = buildInterviewEnvironment({ session, retrievalBundle, latestEvaluation });
+  const environment = buildInterviewEnvironment({ session, retrievalBundle, latestEvaluation: resolvedLatestEvaluation });
   const currentStage = inferCurrentStage(session);
   const coverageState = buildCoverageState({ session, evidenceBundle });
-  const candidateSpecificity = inferSpecificityLevel(latestAnswer, latestEvaluation);
+  const candidateSpecificity = inferSpecificityLevel(latestAnswer, resolvedLatestEvaluation);
   const dynamicSlotState = deriveDynamicSlots({
     latestAnswer,
     coverageState,
     existingState: storedDynamicSlotState,
   });
   const shouldPreferEvaluationTopic = Boolean(
-    latestEvaluation?.currentTopic
-    && latestEvaluation?.suggestedNextMode
-    && latestEvaluation?.suggestedNextMode !== 'shift_section',
+    resolvedLatestEvaluation?.currentTopic
+    && resolvedLatestEvaluation?.suggestedNextMode
+    && resolvedLatestEvaluation?.suggestedNextMode !== 'shift_section',
   );
-  const currentTopic = (shouldPreferEvaluationTopic ? latestEvaluation?.currentTopic : null)
+  const currentTopic = (shouldPreferEvaluationTopic ? resolvedLatestEvaluation?.currentTopic : null)
     || environment.questionContext.latestQuestionTopic
-    || latestEvaluation?.currentTopic
+    || resolvedLatestEvaluation?.currentTopic
     || dynamicSlotState.activeSlotTopics?.[0]
     || evidenceBundle.matchAnalysis?.validationTargets?.[0]
     || coverageState.missingTopics[0]
     || evidenceBundle.missingEvidence[0]
     || evidenceBundle.matchAnalysis?.questionPlanHints?.priorityTopics?.[0]
     || 'role_fit';
+  const interviewStructure = buildInterviewTurnPolicy(session, { currentTopic, evaluatorState: resolvedLatestEvaluation });
   const abductiveState = deriveAbductiveState({
     latestAnswer,
     currentTopic,
@@ -91,11 +93,13 @@ export const buildDecisionContext = async ({ taskType, session = {}, retrievalBu
     currentTopic,
     coverageState,
     dynamicSlotState,
+    interviewStructure,
   });
   const sectionState = buildSectionState({
     currentSection,
     coverageState,
     dynamicSlotState,
+    interviewStructure,
   });
 
   return {
@@ -106,17 +110,19 @@ export const buildDecisionContext = async ({ taskType, session = {}, retrievalBu
     currentObjective: taskType === 'generate_report' ? 'build_grounded_report' : `collect evidence for ${currentTopic}`,
     currentTopic,
     environment,
-    evaluatorState: latestEvaluation
+    evaluatorState: resolvedLatestEvaluation
       ? {
-          successStatus: latestEvaluation.successStatus,
-          evidenceGainScore: latestEvaluation.evidenceGainScore,
-          misunderstandingFlag: latestEvaluation.misunderstandingFlag,
-          interactionStatus: latestEvaluation.interactionStatus,
-          overallInteractionScore: latestEvaluation.overallInteractionScore || 0,
-          repetitionRisk: latestEvaluation.repetitionRisk,
-          reflectionNeeded: latestEvaluation.reflectionNeeded,
-          suggestedNextMode: latestEvaluation.suggestedNextMode,
-          currentTopic: latestEvaluation.currentTopic,
+          successStatus: resolvedLatestEvaluation.successStatus,
+          evidenceGainScore: resolvedLatestEvaluation.evidenceGainScore,
+          misunderstandingFlag: resolvedLatestEvaluation.misunderstandingFlag,
+          interactionStatus: resolvedLatestEvaluation.interactionStatus,
+          overallInteractionScore: resolvedLatestEvaluation.overallInteractionScore || 0,
+          repetitionRisk: resolvedLatestEvaluation.repetitionRisk,
+          reflectionNeeded: resolvedLatestEvaluation.reflectionNeeded,
+          suggestedNextMode: resolvedLatestEvaluation.suggestedNextMode,
+          currentTopic: resolvedLatestEvaluation.currentTopic,
+          gapClosure: resolvedLatestEvaluation.gapClosure || null,
+          closeCurrentIntent: Boolean(resolvedLatestEvaluation.closeCurrentIntent),
         }
       : null,
     candidateState: {
@@ -129,6 +135,7 @@ export const buildDecisionContext = async ({ taskType, session = {}, retrievalBu
     dynamicSlotState,
     abductiveState,
     sectionState,
+    interviewStructure,
     sessionReflectionMemory,
     userCoachingMemory,
     matchState: {

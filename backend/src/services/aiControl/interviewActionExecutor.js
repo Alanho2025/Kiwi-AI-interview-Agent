@@ -28,5 +28,7 @@ export const executeInterviewAction = async ({
     retrievalBundle: retrievalBundle || null,
     targetTopic: actionInput.targetTopic,
     probeType: actionInput.probeType,
+    freshOnly: Boolean(actionInput.freshOnly),
+    category: actionInput.category || null,
   });
 };

@@ -18,7 +18,7 @@ export const DEFAULT_ANALYZE_SETTINGS = {
   focusArea: 'Combined',
 };
 
-const ALLOWED_SENIORITY = new Set(['Junior/Grad', 'Mid-level', 'Senior']);
+const ALLOWED_SENIORITY = new Set(['Junior/Grad', 'Intermediate', 'Advanced']);
 const ALLOWED_FOCUS = new Set(['Technical', 'Behavioral', 'Combined']);
 
 

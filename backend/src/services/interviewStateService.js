@@ -1,3 +1,5 @@
+import { buildInterviewStructure, getQuestionCategory } from './interview/interviewTurnPolicy.js';
+
 /**
  * File responsibility: Service module.
  * Main responsibilities:
@@ -25,7 +27,7 @@ export const getQuestionPool = (session = {}) => session?.interviewPlan?.questio
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-export const getOpeningQuestionText = (session = {}) => normalizeText(getQuestionPool(session)?.[0]?.text || 'Please introduce yourself.');
+export const getOpeningQuestionText = (session = {}) => normalizeText(getQuestionPool(session)?.[0]?.text || 'Hi, thanks for joining today. Could you briefly introduce yourself and your background?');
 
 /**
  * Purpose: Execute the main responsibility for hasAskedOpeningQuestion.
@@ -82,13 +84,27 @@ export const getCurrentPoolQuestion = (session = {}) => {
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-export const getNextPoolQuestion = (session = {}) => {
+export const getNextPoolQuestion = (session = {}, options = {}) => {
   if (hasReachedQuestionLimit(session)) {
     return null;
   }
   const questionPool = getQuestionPool(session);
-  const currentIndex = getResolvedCurrentQuestionIndex(session);
-  return questionPool[currentIndex] || null;
+  const structure = buildInterviewStructure(session);
+  const recentTexts = structure.askedQuestionTexts.slice(-2);
+  const startIndex = Math.max(0, getResolvedCurrentQuestionIndex(session));
+  const desiredCategory = String(options.category || '').trim().toLowerCase();
+  const requireFresh = Boolean(options.freshOnly);
+  for (let index = startIndex; index < questionPool.length; index += 1) {
+    const candidate = questionPool[index];
+    if (!candidate) continue;
+    const candidateCategory = getQuestionCategory(candidate);
+    const candidateText = normalizeText(candidate.text);
+    if (recentTexts.includes(candidateText)) continue;
+    if (desiredCategory && candidateCategory !== desiredCategory) continue;
+    if (requireFresh && Number(candidate.followUpDepth || 0) > 0) continue;
+    return candidate;
+  }
+  return questionPool[startIndex] || null;
 };
 
 /**

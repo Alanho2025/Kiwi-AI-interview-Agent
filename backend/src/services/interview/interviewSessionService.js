@@ -124,8 +124,9 @@ export const saveInterviewAnswer = async (sessionId, answerText) => {
  */
 export const pauseInterviewSession = async (session) => {
   const pausedSession = applyElapsedSeconds(session);
-  return updateSession(session.id, {
-    ...pausedSession,
+  return updateSession(session.id, session.userId, {
+    elapsedSeconds: pausedSession.elapsedSeconds,
+    lastResumedAt: null,
     status: 'paused',
   });
 };
@@ -137,8 +138,7 @@ export const pauseInterviewSession = async (session) => {
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
 export const resumeInterviewSession = async (session) => {
-  return updateSession(session.id, {
-    ...session,
+  return updateSession(session.id, session.userId, {
     status: 'in_progress',
     lastResumedAt: new Date().toISOString(),
   });
@@ -152,8 +152,10 @@ export const resumeInterviewSession = async (session) => {
  */
 export const completeInterviewSession = async (session) => {
   const completedSession = applyElapsedSeconds(session);
-  return updateSession(session.id, {
-    ...completedSession,
+  return updateSession(session.id, session.userId, {
+    elapsedSeconds: completedSession.elapsedSeconds,
+    lastResumedAt: null,
     status: 'completed',
+    endedAt: new Date().toISOString(),
   });
 };

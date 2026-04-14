@@ -14,9 +14,13 @@ const classifySpecificity = (answerText = '') => {
   const tokens = tokenize(answerText);
   const hasNumbers = /\d/.test(answerText);
   const strongVerbs = ['built', 'designed', 'implemented', 'led', 'improved', 'reduced', 'deployed', 'owned', 'measured'];
+  const outcomeSignals = ['result', 'impact', 'latency', 'uptime', 'throughput', 'percent'];
   const hasStrongVerb = strongVerbs.some((verb) => tokens.includes(verb));
-  if (tokens.length >= 35 && (hasNumbers || hasStrongVerb)) return 'high';
+  const hasOutcomeSignal = outcomeSignals.some((signal) => tokens.includes(signal));
+  const hasCompactEvidence = tokens.length >= 10 && hasStrongVerb && (hasNumbers || hasOutcomeSignal);
+  if ((tokens.length >= 35 && (hasNumbers || hasStrongVerb)) || hasCompactEvidence) return 'high';
   if (tokens.length >= 18 && (hasNumbers || hasStrongVerb || tokens.length >= 24)) return 'medium';
+  if (tokens.length >= 10 && (hasStrongVerb || hasNumbers)) return 'medium';
   return 'low';
 };
 
@@ -36,8 +40,11 @@ const computeEvidenceGainScore = ({ answerText = '', topic = '', requiredSkills 
   const topicTokens = tokenize(topic);
   const overlap = countOverlap(answerTokens, [...topicTokens, ...requiredSkills.flatMap((item) => tokenize(item))]);
   const specificity = classifySpecificity(answerText);
+  const hasNumbers = /\d/.test(answerText);
+  const strongVerbs = ['built', 'designed', 'implemented', 'led', 'improved', 'reduced', 'deployed', 'owned', 'measured'];
+  const compactEvidenceBonus = answerTokens.length >= 10 && strongVerbs.some((verb) => answerTokens.includes(verb)) && hasNumbers ? 0.08 : 0;
   const base = specificity === 'high' ? 0.85 : specificity === 'medium' ? 0.62 : 0.35;
-  return Math.max(0, Math.min(1, Number((base + Math.min(0.15, overlap * 0.03)).toFixed(2))));
+  return Math.max(0, Math.min(1, Number((base + compactEvidenceBonus + Math.min(0.15, overlap * 0.03)).toFixed(2))));
 };
 
 const scoreEngagement = ({ answerText = '', misunderstandingFlag = false } = {}) => {
@@ -83,8 +90,23 @@ const detectRepetitionRisk = ({ previousTopics = [], currentTopic = '' } = {}) =
   return Boolean(currentTopic) && recentTopics.filter((topic) => topic === currentTopic).length >= 2;
 };
 
-const suggestNextMode = ({ misunderstandingFlag = false, evidenceGainScore = 0, repetitionRisk = false } = {}) => {
+
+const detectGapClosure = ({ answerText = '', topic = '' } = {}) => {
+  const tokens = tokenize(answerText);
+  const normalized = normalizeText(answerText).toLowerCase();
+  const hardestTradeoff = ['trade', 'difficulty', 'challenge', 'problem', 'decision', 'pressure', 'gap'].some((token) => tokens.includes(token));
+  const handlingApproach = ['i', 'my', 'we'].some((token) => tokens.includes(token))
+    && ['used', 'checked', 'grouped', 'validated', 'compared', 'built', 'implemented', 'handled', 'separated', 'updated'].some((token) => tokens.includes(token));
+  const successJudgement = ['result', 'outcome', 'reduced', 'improved', 'worked', 'judge', 'validated', 'reproduced', 'consistent'].some((token) => tokens.includes(token))
+    || normalized.includes('how i knew')
+    || /(first|second)/.test(normalized);
+  const closeCurrentIntent = Boolean(topic) && hardestTradeoff && handlingApproach && successJudgement;
+  return { hardestTradeoff, handlingApproach, successJudgement, closeCurrentIntent };
+};
+
+const suggestNextMode = ({ misunderstandingFlag = false, evidenceGainScore = 0, repetitionRisk = false, closeCurrentIntent = false } = {}) => {
   if (misunderstandingFlag) return 'rephrase';
+  if (closeCurrentIntent) return 'advance';
   if (repetitionRisk && evidenceGainScore < 0.55) return 'switch';
   if (evidenceGainScore < 0.45) return 'probe';
   if (evidenceGainScore < 0.7) return 'deepen';
@@ -105,7 +127,8 @@ export const evaluateInterviewTurn = ({ environment = {}, decisionContext = null
   const overallInteractionScore = Number(((engagementScore + turnTakingScore + repairScore + appropriatenessScore) / 4).toFixed(2));
   const interactionStatus = classifyInteractionStatus({ overallInteractionScore, misunderstandingFlag, turnTakingScore });
   const repetitionRisk = detectRepetitionRisk({ previousTopics: environment?.questionContext?.previousQuestionTopics || [], currentTopic });
-  const suggestedNextMode = suggestNextMode({ misunderstandingFlag, evidenceGainScore, repetitionRisk });
+  const gapClosure = detectGapClosure({ answerText, topic: currentTopic });
+  const suggestedNextMode = suggestNextMode({ misunderstandingFlag, evidenceGainScore, repetitionRisk, closeCurrentIntent: gapClosure.closeCurrentIntent });
   const reflectionNeeded = misunderstandingFlag || (evidenceGainScore < 0.45 && repetitionRisk) || overallInteractionScore < 0.5;
 
   return {
@@ -124,6 +147,8 @@ export const evaluateInterviewTurn = ({ environment = {}, decisionContext = null
     interactionStatus,
     repetitionRisk,
     reflectionNeeded,
+    gapClosure,
+    closeCurrentIntent: gapClosure.closeCurrentIntent,
     suggestedNextMode,
     successStatus: evidenceGainScore >= 0.55 && !misunderstandingFlag ? 'usable' : 'weak',
     rationale: misunderstandingFlag

@@ -10,6 +10,7 @@ export const selectNextAction = (decisionContext = {}) => {
   const dynamicSlotState = decisionContext.dynamicSlotState || {};
   const abductiveState = decisionContext.abductiveState || {};
   const sectionState = decisionContext.sectionState || {};
+  const interviewStructure = decisionContext.interviewStructure || {};
   const currentStage = String(decisionContext.currentStage || '').toLowerCase();
   const targetTopic = decisionContext.currentTopic
     || evaluatorState.currentTopic
@@ -25,6 +26,36 @@ export const selectNextAction = (decisionContext = {}) => {
       rationale: 'The current task is report generation, so the next action is to build a grounded draft.',
       confidence: 0.9,
       actionInput: { targetTopic: 'report', probeType: null, forceEvidence: true },
+    };
+  }
+
+  if (interviewStructure.mustBeFreshQuestion) {
+    return {
+      selectedAction: AGENT_ACTION_TYPES.ASK_POOL_QUESTION,
+      rationale: `Turn ${interviewStructure.nextTurnIndex} is a fresh-question anchor, so the controller must open a new topic instead of extending the previous chain.`,
+      confidence: 0.92,
+      actionInput: {
+        targetTopic: interviewStructure.requiredCategory || interviewStructure.forceCategory || targetTopic,
+        probeType: 'fresh_anchor',
+        forceEvidence: false,
+        freshOnly: true,
+        category: interviewStructure.requiredCategory || interviewStructure.forceCategory || null,
+      },
+    };
+  }
+
+  if (evaluatorState.closeCurrentIntent || interviewStructure.currentTopicState?.exhausted) {
+    return {
+      selectedAction: AGENT_ACTION_TYPES.ASK_POOL_QUESTION,
+      rationale: 'The current topic is already sufficiently covered or has reached the follow-up limit, so the controller should move to the next fresh question.',
+      confidence: 0.9,
+      actionInput: {
+        targetTopic: interviewStructure.forceCategory || coverageState.missingTopics?.[0] || targetTopic,
+        probeType: 'close_topic',
+        forceEvidence: false,
+        freshOnly: true,
+        category: interviewStructure.forceCategory || null,
+      },
     };
   }
 
@@ -64,6 +95,18 @@ export const selectNextAction = (decisionContext = {}) => {
     };
   }
 
+  if (sectionState.isSectionComplete
+    && sectionState.nextSectionKey
+    && sectionState.nextSectionKey !== sectionState.sectionKey
+    && evaluatorState.suggestedNextMode === 'advance') {
+    return {
+      selectedAction: AGENT_ACTION_TYPES.SHIFT_SECTION,
+      rationale: `The current section ${sectionState.sectionKey} is sufficiently covered, and the evaluator signalled advance, so the controller should shift to ${sectionState.nextSectionKey}.`,
+      confidence: 0.85,
+      actionInput: { targetTopic: sectionState.nextSectionKey, probeType: 'section_shift', forceEvidence: false },
+    };
+  }
+
   if (candidateState.specificityLevel === 'low' || evaluatorState.suggestedNextMode === 'probe') {
     return {
       selectedAction: AGENT_ACTION_TYPES.ASK_PROBING_QUESTION,
@@ -96,7 +139,7 @@ export const selectNextAction = (decisionContext = {}) => {
       selectedAction: AGENT_ACTION_TYPES.SWITCH_TOPIC,
       rationale: 'A required topic has not been covered yet, so the controller should switch to it.',
       confidence: 0.8,
-      actionInput: { targetTopic: coverageState.missingTopics[0], probeType: 'coverage', forceEvidence: false },
+      actionInput: { targetTopic: coverageState.missingTopics[0], probeType: 'coverage', forceEvidence: false, freshOnly: true, category: interviewStructure.forceCategory || null },
     };
   }
 
@@ -113,6 +156,6 @@ export const selectNextAction = (decisionContext = {}) => {
     selectedAction: AGENT_ACTION_TYPES.ASK_POOL_QUESTION,
     rationale: 'No stronger condition was triggered, so the safest next step is the next planned pool question.',
     confidence: 0.7,
-    actionInput: { targetTopic, probeType: null, forceEvidence: false },
+    actionInput: { targetTopic, probeType: null, forceEvidence: false, freshOnly: false, category: interviewStructure.forceCategory || null },
   };
 };

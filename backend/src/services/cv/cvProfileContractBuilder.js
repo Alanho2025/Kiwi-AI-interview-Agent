@@ -34,7 +34,14 @@ export const buildNormalizedCvProfile = (parsedCv = {}, session = {}) => {
     achievements: ensureArray(parsedCv.achievements).map((item) => typeof item === 'string' ? item : item?.summary || item?.text || '').filter(Boolean),
     workHistory: normalizeWorkHistory(parsedCv.workHistory || parsedCv.experience || parsedCv.sections?.experience),
     education: ensureArray(parsedCv.education),
-    evidenceProfile: normalizeCvEvidence(parsedCv),
+    evidenceProfile: normalizeCvEvidence({
+      ...parsedCv,
+      projects: normalizeProjects(parsedCv.projects),
+      workHistory: normalizeWorkHistory(parsedCv.workHistory || parsedCv.experience || parsedCv.sections?.experience),
+      achievements: ensureArray(parsedCv.achievements).map((item) => typeof item === 'string' ? item : item?.summary || item?.text || '').filter(Boolean),
+      skills: unique(signals.skills),
+      capabilities: unique([...ensureArray(parsedCv.capabilities), ...signals.capabilities]),
+    }),
     sourceMeta: {
       schemaVersion: parsedCv.schemaVersion || 'cv_profile_v1',
       rawLength: parsedCv.rawLength || 0,

@@ -11,6 +11,7 @@
 
 import { validateAnalyzeOutput, validateInterviewPlan } from '../schemaValidationService.js';
 import {
+  buildCanonicalRoleMeta,
   buildInterviewPlanPayload,
   extractDisplayTitle,
   mapSessionRow,
@@ -18,14 +19,7 @@ import {
   titleCaseWords,
 } from './sessionShared.js';
 
-/**
- * Purpose: Execute the main responsibility for mapTranscriptTurns.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
 const sanitizeQuestionPoolForClient = (questionPool = []) => questionPool.map(({ sourceType, sourceId, matchedRequirementId, matchedSkill, cvEvidenceRefs, generationReason, confidence, planPriority, ...safeItem }) => safeItem);
-
 const mapTranscriptTurns = (transcript) => transcript?.turns?.map((turn) => ({
   role: turn.role,
   text: turn.text,
@@ -33,18 +27,22 @@ const mapTranscriptTurns = (transcript) => transcript?.turns?.map((turn) => ({
   questionId: turn.questionId,
 })) || [];
 
-/**
- * Purpose: Execute the main responsibility for buildSessionDetails.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
 export const buildSessionDetails = ({ row, plan, transcript, analysis, report, cvDocument }) => {
   const baseSession = mapSessionRow(row);
   const normalizedAnalysis = normalizeAnalysisResult(analysis);
+  const roleMeta = buildCanonicalRoleMeta({
+    resolvedTargetRole: row.target_role,
+    normalizedAnalysis,
+    settings: plan?.settingsSnapshot || baseSession.settings,
+  });
 
   return {
     ...baseSession,
+    displayTitle: roleMeta.displayTitle,
+    compactRoleLabel: roleMeta.compactRoleLabel,
+    canonicalRole: roleMeta.canonicalRole,
+    roleFamily: roleMeta.roleFamily,
+    interviewModeKey: roleMeta.interviewModeKey,
     settings: plan?.settingsSnapshot || baseSession.settings,
     analysisResult: normalizedAnalysis,
     interviewPlan: plan ? { ...validateInterviewPlan(plan), questionPool: sanitizeQuestionPoolForClient(validateInterviewPlan(plan).questionPool || []) } : null,
@@ -56,20 +54,21 @@ export const buildSessionDetails = ({ row, plan, transcript, analysis, report, c
   };
 };
 
-/**
- * Purpose: Execute the main responsibility for buildSessionListItem.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
 export const buildSessionListItem = ({ row, plan, report, analysis }) => {
-  const matchSummary = analysis?.matchSummary || {};
-  const roleLabel = row.target_role || matchSummary.jobTitle || plan?.jobTitle || 'Interview Session';
+  const normalizedAnalysis = normalizeAnalysisResult(analysis);
+  const matchSummary = normalizedAnalysis?.matchSummary || {};
+  const roleMeta = buildCanonicalRoleMeta({
+    resolvedTargetRole: row.target_role || plan?.jobTitle || matchSummary.jobTitle || '',
+    normalizedAnalysis,
+    settings: plan?.settingsSnapshot || { seniorityLevel: row.seniority_level, focusArea: row.focus_area },
+  });
+  const roleLabel = roleMeta.compactRoleLabel || row.target_role || matchSummary.jobTitle || plan?.jobTitle || 'Interview Session';
   const displayTitle = extractDisplayTitle(
+    roleMeta.displayTitle,
     matchSummary.jobTitle,
     plan?.jobTitle,
-    analysis?.parsedJdProfile?.title,
-    analysis?.parsedJdProfile?.jobTitle,
+    normalizedAnalysis?.parsedJdProfile?.title,
+    normalizedAnalysis?.parsedJdProfile?.jobTitle,
     roleLabel
   );
   const reportOverallScore = report?.report?.scores?.overall;
@@ -93,26 +92,20 @@ export const buildSessionListItem = ({ row, plan, report, analysis }) => {
     totalQuestions: row.total_questions,
     currentQuestionIndex: row.current_question_index,
     durationSeconds: row.duration_seconds ?? row.elapsed_seconds ?? 0,
-    planPreview: plan?.planPreview || matchSummary.planPreview || analysis?.explanation?.summary || '',
+    planPreview: plan?.planPreview || matchSummary.planPreview || normalizedAnalysis?.explanation?.summary || '',
     scoreBand: report?.report?.candidateFeedback?.scoreBand || '',
     reportStatus: report?.latestStatus || null,
     hasReport: Boolean(report?.report),
     matchScore: matchSummary.matchScore ?? null,
-    displayTitle: titleCaseWords(displayTitle),
+    displayTitle: roleMeta.displayTitle || titleCaseWords(displayTitle),
+    compactRoleLabel: roleMeta.compactRoleLabel || roleLabel,
+    interviewModeKey: roleMeta.interviewModeKey,
   };
 };
 
-/**
- * Purpose: Execute the main responsibility for buildSessionPlanUpdatePayload.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
 export const buildSessionPlanUpdatePayload = ({ current, data }) => {
   const normalizedAnalysis = data.analysisResult ? validateAnalyzeOutput(data.analysisResult) : current.analysisResult;
-  if (!data.settings && !normalizedAnalysis) {
-    return null;
-  }
+  if (!data.settings && !normalizedAnalysis) return null;
 
   return validateInterviewPlan({
     ...(data.settings ? { settingsSnapshot: data.settings } : {}),
@@ -133,7 +126,7 @@ export const buildSessionPlanUpdatePayload = ({ current, data }) => {
             normalizedAnalysis,
             settings: data.settings || current.settings || {},
             resolvedCandidateName: normalizedAnalysis.candidateName || current.candidateName,
-            resolvedTargetRole: normalizedAnalysis.jobTitle || current.targetRole,
+            resolvedTargetRole: current.displayTitle || normalizedAnalysis.jobTitle || current.targetRole,
           }).questionPool,
         }
       : {}),
