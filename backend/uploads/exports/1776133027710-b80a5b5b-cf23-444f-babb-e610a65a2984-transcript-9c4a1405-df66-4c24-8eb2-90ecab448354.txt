@@ -1,0 +1,25 @@
+AI: Please introduce yourself.
+
+USER: Hi My name is Alan,
+
+thank you for giving me a chance to have interview here. Currently, I have just graduated from University of Auckland. I am majoring in data and artificial intelligence area. Before I came to here, I was an electrical engineering in Foxconn to deal with business client apple company.
+
+My previous role was specifically dealing with the client needs in the factory and do the problem solving with the testing failure products. During my second school period, I handed on several projects related to web applications and data dashboard. In my free time, I am interested in LGBT culture and attend several AI agent workshop meetup. Thank you.
+
+AI: Staying with self_intro, what trade-off, difficulty, or decision did you handle yourself, and how did you judge whether it worked?
+
+USER: One example was during my previous role at Foxconn. I had to handle product testing failures for a client project, and the main difficulty was balancing speed and accuracy. The production side wanted a fast response, but if I moved too quickly without checking the root cause, it could create bigger problems later.
+
+What I did was first organize the failure data, look for repeated patterns, and separate urgent issues from less critical ones. Then I worked with related teams to confirm whether the problem came from the testing process, the product itself, or a client requirement. I decided to focus on the issues with the highest impact first, instead of trying to solve everything at once.
+
+I judged whether it worked by looking at whether we could identify the real cause clearly, reduce repeated failures, and give the client a more reliable update. For me, it worked when the problem was not only fixed for that moment, but also less likely to happen again.
+
+AI: You hinted at deployment_depth. What was the hardest trade-off or gap there, and how did you handle it in practice?
+
+USER: I think the hardest part was balancing speed and stability. When building a project, it is tempting to keep adding features because that feels like visible progress. But in deployment, I found that too much change at once can create more risk, especially when the frontend, backend, and database are all connected.
+
+In practice, I handled that by slowing down a bit and making the structure clearer first. I separated responsibilities more carefully, checked the system flow step by step, and tested after each important change. That helped me find problems earlier, such as config issues, connection issues, or cases where one update affected another part of the system.
+
+For me, the main lesson was that deployment is not just a technical step at the end. It is also about maintainability and reliability. I knew my approach was working when debugging became easier and the system behaved more consistently after changes.
+
+AI: Staying with self_intro, what trade-off, difficulty, or decision did you handle yourself, and how did you judge whether it worked?
