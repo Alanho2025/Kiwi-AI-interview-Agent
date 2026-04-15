@@ -44,7 +44,8 @@ export function ReportPage() {
           onExport={handleExport}
         />
 
-        <ReportHeroCard
+        <div id="report-printable-area" className="space-y-6">
+          <ReportHeroCard
           report={viewModel.report}
           qa={viewModel.qa}
           candidateFeedback={viewModel.candidateFeedback}
@@ -62,6 +63,7 @@ export function ReportPage() {
           evidenceDiagnostics={viewModel.evidenceDiagnostics}
           qaDiagnostics={viewModel.qaDiagnostics}
         />
+        </div>
       </main>
     </div>
   );

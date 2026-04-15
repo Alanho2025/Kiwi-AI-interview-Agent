@@ -53,133 +53,62 @@ export const downloadReportFile = ({ content, sessionId, format = 'json' }) => {
  * Inputs: Report object from MongoDB.
  * Returns: PDF blob.
  */
-export const generateReportPDF = (report) => {
-  const doc = new jsPDF();
-  const r = report.report || {};
-  const qa = report.qaResult || {};
-  
-  let yPos = 20;
-  const lineHeight = 7;
-  const pageHeight = doc.internal.pageSize.height;
-  const margin = 20;
-  
-  const addText = (text, fontSize = 10, isBold = false) => {
-    if (yPos > pageHeight - margin) {
-      doc.addPage();
-      yPos = margin;
-    }
-    doc.setFontSize(fontSize);
-    doc.setFont('helvetica', isBold ? 'bold' : 'normal');
+export const generateReportPDF = async (report) => {
+  try {
+    // Use dynamic import so the app doesn't crash if html2canvas isn't installed yet
+    const html2canvasModule = await import('html2canvas');
+    const html2canvas = html2canvasModule.default ? html2canvasModule.default : html2canvasModule;
     
-    const lines = doc.splitTextToSize(text, 170);
-    lines.forEach(line => {
-      if (yPos > pageHeight - margin) {
-        doc.addPage();
-        yPos = margin;
-      }
-      doc.text(line, margin, yPos);
-      yPos += lineHeight;
-    });
-  };
-  
-  const addSection = (title, content) => {
-    yPos += 3;
-    addText(title, 12, true);
-    yPos += 2;
-    if (content) {
-      addText(content, 10, false);
+    const element = document.getElementById('report-printable-area');
+    if (!element) {
+      throw new Error('Report content not found in DOM');
     }
-  };
-  
-  // Title
-  doc.setFontSize(16);
-  doc.setFont('helvetica', 'bold');
-  doc.text('KIWI AI INTERVIEW AGENT', margin, yPos);
-  yPos += lineHeight;
-  doc.text('INTERVIEW REPORT', margin, yPos);
-  yPos += lineHeight + 5;
-  
-  // Metadata
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`Generated: ${r.generatedAt ? new Date(r.generatedAt).toLocaleString() : new Date().toLocaleString()}`, margin, yPos);
-  yPos += lineHeight;
-  doc.text(`Session ID: ${report.sessionId}`, margin, yPos);
-  yPos += lineHeight;
-  doc.text(`Status: ${report.latestStatus || 'unknown'}`, margin, yPos);
-  yPos += lineHeight + 5;
-  
-  // Candidate & Role
-  if (r.candidateName || r.jobTitle) {
-    addSection('CANDIDATE & ROLE', '');
-    if (r.candidateName) addText(`Candidate: ${r.candidateName}`);
-    if (r.jobTitle) addText(`Target Role: ${r.jobTitle}`);
-  }
-  
-  // Summary
-  if (r.summary) {
-    addSection('EXECUTIVE SUMMARY', r.summary);
-  }
-  
-  // Scores
-  if (r.scores) {
-    addSection('SCORES', '');
-    if (r.scores.overall !== undefined) addText(`Overall Score: ${r.scores.overall.toFixed(2)}/100`);
-    if (r.scores.macro !== undefined) addText(`Macro Score: ${r.scores.macro.toFixed(2)}/100`);
-    if (r.scores.micro !== undefined) addText(`Micro Score: ${r.scores.micro.toFixed(2)}/100`);
-    if (r.scores.requirements !== undefined) addText(`Requirements Score: ${r.scores.requirements.toFixed(2)}/100`);
-    if (r.scores.evidenceStrength !== undefined) addText(`Evidence Strength: ${r.scores.evidenceStrength}/4`);
-  }
-  
-  // Sections
-  if (r.sections && r.sections.length > 0) {
-    addSection('DETAILED ANALYSIS', '');
-    r.sections.forEach((section, i) => {
-      yPos += 2;
-      addText(`${i + 1}. ${section.title || 'Section'}`, 11, true);
-      if (section.content) {
-        addText(section.content);
-      }
+
+    // Temporarily ensure white background
+    const originalBg = element.style.backgroundColor;
+    element.style.backgroundColor = '#ffffff';
+
+    const canvas = await html2canvas(element, {
+      scale: 2, 
+      useCORS: true,
+      logging: false,
+      windowWidth: 1000 // Force a desktop-like width for the screenshot
     });
-  }
-  
-  // Recommendations
-  if (r.recommendations && r.recommendations.length > 0) {
-    addSection('RECOMMENDATIONS', '');
-    r.recommendations.forEach((rec, i) => {
-      addText(`${i + 1}. ${rec}`);
+
+    const imgData = canvas.toDataURL('image/jpeg', 0.95);
+    
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'pt',
+      format: 'a4'
     });
-  }
-  
-  // Interview Metrics
-  if (r.interviewMetrics) {
-    addSection('INTERVIEW METRICS', '');
-    const m = r.interviewMetrics;
-    if (m.candidateTurnCount !== undefined) addText(`Candidate Turns: ${m.candidateTurnCount}`);
-    if (m.interviewerQuestionCount !== undefined) addText(`Interviewer Questions: ${m.interviewerQuestionCount}`);
-    if (m.plannedQuestionCount !== undefined) addText(`Planned Questions: ${m.plannedQuestionCount}`);
-  }
-  
-  // Evidence Diagnostics
-  if (r.evidenceDiagnostics) {
-    addSection('EVIDENCE DIAGNOSTICS', '');
-    const ed = r.evidenceDiagnostics;
-    if (ed.averageStrength !== undefined) addText(`Average Strength: ${ed.averageStrength}/4`);
-    if (ed.totals) {
-      addText('Evidence Type Breakdown:');
-      if (ed.totals.direct_past_experience !== undefined) addText(`  - Direct Past Experience: ${ed.totals.direct_past_experience}`);
-      if (ed.totals.hypothetical_understanding !== undefined) addText(`  - Hypothetical Understanding: ${ed.totals.hypothetical_understanding}`);
-      if (ed.totals.generic_filler !== undefined) addText(`  - Generic Filler: ${ed.totals.generic_filler}`);
+
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+    const pageHeightPt = pdf.internal.pageSize.getHeight();
+
+    let heightLeft = pdfHeight;
+    let position = 0;
+    
+    // Page 1
+    pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, pdfHeight);
+    heightLeft -= pageHeightPt;
+
+    // Remaining pages
+    while (heightLeft > 0) {
+      // Move the image up by the page height to show the next chunk
+      position -= pageHeightPt;
+      pdf.addPage();
+      pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, pdfHeight);
+      heightLeft -= pageHeightPt;
     }
+
+    // Restore background color
+    element.style.backgroundColor = originalBg;
+
+    return pdf.output('blob');
+  } catch (error) {
+    console.error('Failed to generate PDF:', error);
+    throw new Error('Could not generate PDF from the webpage. Please make sure html2canvas is installed.');
   }
-  
-  // QA Results
-  if (qa && Object.keys(qa).length > 0) {
-    addSection('QUALITY ASSURANCE', '');
-    if (qa.coverage !== undefined) addText(`Coverage: ${qa.coverage}%`);
-    if (qa.quality !== undefined) addText(`Quality: ${qa.quality}%`);
-    if (qa.completeness !== undefined) addText(`Completeness: ${qa.completeness}%`);
-  }
-  
-  return doc.output('blob');
 };
