@@ -11,7 +11,7 @@
 
 import { AGENT_ACTION_TYPES } from '../../constants/agentActionTypes.js';
 import { getNextPoolQuestion, hasReachedQuestionLimit } from '../interviewStateService.js';
-
+import { buildInterviewDisplayTurn } from '../interview/interviewDisplayTurnBuilder.js';
 const normalizeText = (value = '') => String(value || '').trim();
 const tokenize = (value = '') => normalizeText(value).toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
 const getLastUserAnswer = (transcript = []) => [...transcript].reverse().find((turn) => turn.role === 'user')?.text || '';
@@ -43,6 +43,104 @@ const pickRetrievedQuestion = (retrievalBundle, selectedQuestion, targetTopic = 
     || null;
 };
 
+
+const normalizeKey = (value = '') => String(value || '').trim().toLowerCase();
+
+const buildQuestionRootKey = (question = {}) => {
+  const topic = normalizeKey(question.topic || '');
+  const category = normalizeKey(question.category || (String(question.stage || '').includes('behaviour') ? 'behavioural' : String(question.stage || '').includes('technical') ? 'technical' : 'experience'));
+  const type = normalizeKey(question.type || '');
+  return [topic || 'topic', category || 'category', type || 'type'].join(':');
+};
+
+const isDuplicateRootQuestion = (question = null, decisionContext = {}) => {
+  if (!question || Number(question.followUpDepth || 0) > 0) return false;
+  const rootKey = buildQuestionRootKey(question);
+  return (decisionContext?.interviewStructure?.askedRootQuestionKeys || []).some((item) => normalizeKey(item) === rootKey);
+};
+
+const pickPriorityTechnicalTopic = ({ session = {}, decisionContext = {}, targetTopic = '' } = {}) => {
+  const sources = [
+    targetTopic,
+    ...(decisionContext?.matchState?.validationTargets || []),
+    ...(decisionContext?.retrievalState?.priorityTopics || []),
+    ...(session?.analysisResult?.matchingDetails?.questionPlanHints?.priorityTopics || []),
+    ...(session?.analysisResult?.matchingDetails?.topMatchedSkills || []),
+    ...((session?.analysisResult?.planPreview?.topMatchedAreas) || []),
+  ];
+  const ignored = new Set(['technical', 'implementation', 'project', 'role_fit', 'claim', 'experience', 'candidate_questions']);
+  for (const item of sources) {
+    const clean = normalizeText(item);
+    if (!clean) continue;
+    const lowered = clean.toLowerCase();
+    if (ignored.has(lowered)) continue;
+    return clean;
+  }
+  return normalizeText(targetTopic) || 'implementation';
+};
+
+const buildMatchedTechnicalQuestion = ({ topic = 'implementation' } = {}) => {
+  const normalizedTopic = normalizeText(topic) || 'implementation';
+  const lower = normalizedTopic.toLowerCase();
+  const skillAwareText = lower.includes('react')
+    ? `Let us move to the technical side. Tell me about one React feature or frontend flow you implemented yourself. What decisions did you make, and how did you know it worked?`
+    : lower.includes('postgres') || lower.includes('sql') || lower.includes('database')
+      ? `Let us move to the technical side. Tell me about one database or SQL task you handled yourself. What query, schema, or trade-off did you work through, and what result came from it?`
+      : lower.includes('aws') || lower.includes('cloud') || lower.includes('deploy')
+        ? `Let us move to the technical side. Tell me about one cloud or deployment task you handled yourself using ${normalizedTopic}. What part did you own, and what did you have to troubleshoot?`
+        : lower.includes('debug') || lower.includes('troubleshoot')
+          ? `Let us move to the technical side. Tell me about one debugging or troubleshooting example from your work. What was the issue, what did you check first, and how did you fix it?`
+          : lower.includes('automation')
+            ? `Let us move to the technical side. Tell me about one automation task you built or improved. What did you implement yourself, and how did it change the workflow?`
+            : `Let us move to the technical side. Tell me about one concrete example where you used ${normalizedTopic}. What did you implement yourself, what trade-off did you handle, and what was the result?`;
+
+  return {
+    type: 'technical_recovery_follow_up',
+    stage: 'technical',
+    topic: normalizedTopic,
+    category: 'technical',
+    followUpDepth: 0,
+    text: skillAwareText,
+    reason: `The interview still needs grounded technical evidence, so the controller is using a role-matched technical topic (${normalizedTopic}).`,
+    sourceType: 'controller_directed',
+  };
+};
+
+const buildClosingQuestion = ({ session = {}, decisionContext = {} } = {}) => {
+  const technicalCount = Number(decisionContext?.interviewStructure?.categoryCounts?.technical || 0);
+  const behaviouralCount = Number(decisionContext?.interviewStructure?.categoryCounts?.behavioural || 0);
+  const focusArea = String(decisionContext?.interviewStructure?.focusAreaKey || session?.settings?.focusArea || 'combined').toLowerCase();
+  if (focusArea === 'technical' || (focusArea === 'combined' && technicalCount <= behaviouralCount)) {
+    const topic = pickPriorityTechnicalTopic({ session, decisionContext, targetTopic: 'implementation' });
+    return {
+      type: 'closing_technical_check',
+      stage: 'closing',
+      topic,
+      category: 'closing',
+      followUpDepth: 0,
+      text: `Before we wrap up, I want one final technical example. Thinking about ${topic}, what did you own yourself, what was the hardest part, and what result came from it?`,
+      reason: 'The session is at its final planned turn, so the interviewer is using a clear closing question that still checks concrete technical ownership.',
+      sourceType: 'controller_directed',
+    };
+  }
+
+  return {
+    type: 'closing_candidate_questions',
+    stage: 'closing',
+    topic: 'candidate_questions',
+    category: 'closing',
+    followUpDepth: 0,
+    text: 'Before we finish, what questions do you have for me about the role or team?',
+    reason: 'The session is at its final planned turn, so the interviewer is closing with a standard final question.',
+    sourceType: 'controller_directed',
+  };
+};
+
+const buildTechnicalRecoveryQuestion = ({ targetTopic = 'implementation', session = {}, decisionContext = {} } = {}) => {
+  const selectedTopic = pickPriorityTechnicalTopic({ session, decisionContext, targetTopic });
+  return buildMatchedTechnicalQuestion({ topic: selectedTopic });
+};
+
 const inferEvidenceTypeHint = (question = {}) => {
   const stage = String(question.stage || question.type || '').toLowerCase();
   if (stage.includes('technical')) return 'direct_past_experience';
@@ -56,6 +154,7 @@ const buildProbingQuestion = ({ targetTopic = 'project' } = {}) => ({
   type: 'probing_follow_up',
   stage: 'technical_probe',
   topic: targetTopic,
+  category: 'technical',
   followUpDepth: 1,
   text: `Can you walk me through one concrete ${targetTopic} example, what you personally did, and what result it led to?`,
   reason: 'A probing question is needed to collect one concrete example before moving on.',
@@ -66,6 +165,7 @@ const buildRephrasedQuestion = ({ targetTopic = 'project', environment = {} } = 
   type: 'rephrased_follow_up',
   stage: environment?.questionContext?.latestQuestionStage || 'clarification',
   topic: targetTopic,
+  category: String(environment?.questionContext?.latestQuestionStage || '').includes('behaviour') ? 'behavioural' : 'technical',
   followUpDepth: 1,
   text: `Let me rephrase that more clearly. For ${targetTopic}, please pick one real example and tell me your role, what you did, and the outcome.`,
   reason: 'The evaluator detected likely misunderstanding, so the interviewer should restate the question with a tighter structure.',
@@ -76,6 +176,7 @@ const buildDeepDiveQuestion = ({ targetTopic = 'project' } = {}) => ({
   type: 'deep_dive_follow_up',
   stage: 'technical_probe',
   topic: targetTopic,
+  category: 'technical',
   followUpDepth: 2,
   text: `Staying with ${targetTopic}, what trade-off, difficulty, or decision did you handle yourself, and how did you judge whether it worked?`,
   reason: 'The latest answer was usable but still partial, so a deeper question should capture decision quality and ownership.',
@@ -86,6 +187,7 @@ const buildValidationQuestion = ({ targetTopic = 'claim' } = {}) => ({
   type: 'validation_follow_up',
   stage: 'technical_validation',
   topic: targetTopic,
+  category: 'technical',
   followUpDepth: 1,
   text: `You mentioned ${targetTopic}. What exactly did you own, and how did you know it worked well in practice?`,
   reason: 'This question validates a claim that still needs direct supporting evidence.',
@@ -96,6 +198,7 @@ const buildSwitchTopicQuestion = ({ targetTopic = 'role_fit' } = {}) => ({
   type: 'coverage_follow_up',
   stage: 'coverage',
   topic: targetTopic,
+  category: 'experience',
   followUpDepth: 0,
   text: `I would like to move to ${targetTopic}. Can you share one example that shows your experience in that area?`,
   reason: 'The controller switched topic because an important requirement has not been covered yet.',
@@ -106,6 +209,7 @@ const buildAbductiveProbeQuestion = ({ targetTopic = 'decision_tradeoff', hidden
   type: 'abductive_probe_follow_up',
   stage: 'technical_probe',
   topic: targetTopic,
+  category: 'technical',
   followUpDepth: 2,
   text: `You hinted at ${hiddenGap || targetTopic}. What was the hardest trade-off or gap there, and how did you handle it in practice?`,
   reason: 'The controller inferred a hidden gap that should be tested before moving on.',
@@ -116,6 +220,7 @@ const buildSectionShiftQuestion = ({ nextSectionKey = 'motivation' } = {}) => ({
   type: 'section_shift_follow_up',
   stage: nextSectionKey,
   topic: nextSectionKey,
+  category: nextSectionKey === 'technical' ? 'technical' : nextSectionKey === 'behavioural' ? 'behavioural' : nextSectionKey === 'closing' ? 'closing' : 'experience',
   followUpDepth: 0,
   text: nextSectionKey === 'motivation'
     ? 'Let us shift to motivation. What makes this role a strong fit for you now?'
@@ -209,17 +314,13 @@ export const runInterviewerAgent = async ({
   } else if (actionType === AGENT_ACTION_TYPES.ASK_ABDUCTIVE_PROBE_QUESTION) {
     selectedQuestion = buildAbductiveProbeQuestion({ targetTopic: targetTopic || decisionContext?.abductiveState?.probeTopic || 'decision_tradeoff', hiddenGap: decisionContext?.abductiveState?.hiddenGap || '' });
   } else if (actionType === AGENT_ACTION_TYPES.SHIFT_SECTION) {
-    selectedQuestion = buildSectionShiftQuestion({ nextSectionKey: targetTopic || decisionContext?.sectionState?.nextSectionKey || 'motivation' });
+    if ((category || decisionContext?.interviewStructure?.forceCategory) === 'technical' || probeType === 'technical_recovery' || targetTopic === 'technical') {
+      selectedQuestion = getNextPoolQuestion(session, { freshOnly: true, category: 'technical' }) || buildTechnicalRecoveryQuestion({ targetTopic: decisionContext?.matchState?.validationTargets?.[0] || 'implementation', session, decisionContext });
+    } else {
+      selectedQuestion = buildSectionShiftQuestion({ nextSectionKey: targetTopic || decisionContext?.sectionState?.nextSectionKey || 'motivation' });
+    }
   } else if (actionType === AGENT_ACTION_TYPES.WRAP_STAGE) {
-    selectedQuestion = {
-      type: 'wrap_up',
-      stage: 'wrap_up',
-      topic: 'candidate_questions',
-      followUpDepth: 0,
-      text: 'Before we wrap up, what questions would you like to ask about the role or the team?',
-      reason: 'The controller selected the wrap-up stage.',
-      sourceType: 'controller_directed',
-    };
+    selectedQuestion = buildClosingQuestion({ session, decisionContext });
   } else {
     const retrievedQuestion = pickRetrievedQuestion(retrievalBundle, selectedQuestion, targetTopic || decisionContext?.currentTopic || '');
     if (selectedQuestion && retrievedQuestion && !['opening', 'wrap_up'].includes(selectedQuestion.stage) && actionType !== AGENT_ACTION_TYPES.ASK_POOL_QUESTION) {
@@ -227,11 +328,19 @@ export const runInterviewerAgent = async ({
     }
   }
 
+  if (isDuplicateRootQuestion(selectedQuestion, decisionContext)) {
+    selectedQuestion = null;
+  }
+
   if (focusArea === 'technical' && selectedQuestion && selectedQuestion.category === 'behavioural') {
     selectedQuestion = getNextPoolQuestion(session, { freshOnly: true, category: 'technical' });
   }
   if (focusArea === 'behavioral' && selectedQuestion && selectedQuestion.category === 'technical') {
     selectedQuestion = getNextPoolQuestion(session, { freshOnly: true, category: 'behavioural' });
+  }
+
+  if (!selectedQuestion && (lockedCategory === 'technical' || category === 'technical' || decisionContext?.interviewStructure?.forceCategory === 'technical')) {
+    selectedQuestion = buildTechnicalRecoveryQuestion({ targetTopic: targetTopic || decisionContext?.matchState?.validationTargets?.[0] || 'implementation', session, decisionContext });
   }
 
   if (!selectedQuestion) {
@@ -249,10 +358,21 @@ export const runInterviewerAgent = async ({
   }
 
   const reactTrace = buildReactTrace({ selectedAction: actionType, decisionContext, selectedQuestion, environment, evaluatorState });
+  const displayTurn = buildInterviewDisplayTurn({
+    question: selectedQuestion.text,
+    actionType,
+    questionCategory: selectedQuestion.category || (String(selectedQuestion.stage || '').includes('behaviour') ? 'behavioural' : String(selectedQuestion.stage || '').includes('technical') ? 'technical' : 'experience'),
+    stage: selectedQuestion.stage,
+    targetTopic: selectedQuestion.topic,
+    suggestedNextMode: evaluatorState?.suggestedNextMode,
+    shouldCloseSoon: Boolean(decisionContext?.interviewStructure?.shouldCloseSoon),
+  });
 
   return {
     questionType: selectedQuestion.type,
     nextQuestion: selectedQuestion.text,
+    interviewerTurn: displayTurn,
+    displayText: displayTurn.displayText,
     rationale: selectedQuestion.reason,
     rationaleSummary: selectedQuestion.reason,
     stage: selectedQuestion.stage,

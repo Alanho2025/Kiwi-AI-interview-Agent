@@ -133,6 +133,7 @@ export const replyInterview = asyncHandler(async (req, res) => {
 
   res.json(formatSuccess('Reply processed', {
     nextQuestion: agentResult.nextQuestion,
+    interviewerTurn: agentResult.interviewerTurn || null,
     rationale: agentResult.rationale,
     retrievalSnapshot: agentResult.retrievalSnapshot,
     isComplete: Boolean(agentResult.isComplete),
@@ -151,7 +152,14 @@ export const repeatQuestion = asyncHandler(async (req, res) => {
 
   const session = await loadOwnedSessionOrThrow({ sessionId, userId: user.id });
   const lastAiMessage = session.transcript.filter((message) => message.role === 'ai').pop();
-  res.json(formatSuccess('Question repeated', { question: lastAiMessage?.text }));
+  const preamble = String(lastAiMessage?.metadata?.preamble || '').trim();
+  const question = String(lastAiMessage?.text || '').trim();
+  res.json(formatSuccess('Question repeated', {
+    question,
+    displayText: preamble && question ? `${preamble}
+
+${question}` : question,
+  }));
 });
 
 export const pauseInterview = asyncHandler(async (req, res) => {
