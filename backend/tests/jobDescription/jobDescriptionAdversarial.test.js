@@ -44,4 +44,13 @@ describe('JD parse adversarial handling', () => {
     expect(dataSkills).not.toContain('Hybrid work options');
     expect(rubric.sections.mustHaveRequirements.some((item) => /hybrid work/i.test(item))).toBe(false);
   });
+
+  it('keeps noisy marketing text out of company and skills', async () => {
+    const rubric = await buildStructuredJobDescriptionRubric(await loadJdFixture('noisy-marketing-heavy-jd.txt'));
+    const dataSkills = rubric.sections.technicalSkills.data.map((item) => item.label);
+
+    expect(rubric.jobOverview.companyName).not.toMatch(/what this role does|leading opportunities/i);
+    expect(dataSkills).toEqual(expect.arrayContaining(['SQL', 'Snowflake', 'dbt']));
+    expect(dataSkills.some((item) => /hybrid|coffee|social club/i.test(item))).toBe(false);
+  });
 });

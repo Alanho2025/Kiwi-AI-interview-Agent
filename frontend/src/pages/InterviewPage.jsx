@@ -68,8 +68,11 @@ export function InterviewPage() {
     <div className="min-h-screen bg-[#f9fafb] flex flex-col h-screen overflow-hidden">
       <InterviewPageHeader
         session={session}
-        displayRole={viewModel.displayRole}
-        compactRoleLabel={viewModel.compactRoleLabel}
+        title={viewModel.title}
+        roleFamilyLabel={viewModel.roleFamilyLabel}
+        exactRoleTitle={viewModel.exactRoleTitle}
+        modeLabel={viewModel.modeLabel}
+        levelLabel={viewModel.levelLabel}
         stageLabel={viewModel.stageLabel}
         elapsedSeconds={viewModel.elapsedSeconds}
         onViewReport={() => navigate(`/report/${sessionId}`)}
@@ -80,7 +83,7 @@ export function InterviewPage() {
           <InterviewStatusBanner status={pageStatus} onConfirmEnd={handleConfirmEnd} onCancelEnd={dismissStatus} />
         </div>
 
-        <InterviewSidebar session={session} currentPlanItem={viewModel.currentPlanItem} />
+        <InterviewSidebar session={session} currentPlanItem={viewModel.currentPlanItem} promiseLabel={viewModel.promiseLabel} levelLabel={viewModel.levelLabel} modeLabel={viewModel.modeLabel} currentFocusLabel={viewModel.currentFocusLabel} matchedAreas={viewModel.matchedAreas} />
 
         <div className="col-span-6 flex flex-col h-full pb-6 min-h-0">
           <InterviewChatPanel

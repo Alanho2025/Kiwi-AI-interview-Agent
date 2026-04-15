@@ -34,7 +34,7 @@ for (const item of dataset) {
     score: score.score,
     earned: score.earned,
     possible: score.possible,
-    failedChecks: score.checks.filter((check) => !check.passed).map((check) => check.label),
+    failedChecks: (score.checks || []).filter((check) => !check.passed).map((check) => check.label) || score.failedChecks || [],
   });
 }
 

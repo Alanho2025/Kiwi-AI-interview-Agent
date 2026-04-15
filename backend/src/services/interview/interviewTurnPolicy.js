@@ -2,6 +2,12 @@ import { resolveInterviewModeConfig } from '../../config/interviewBlueprints.js'
 
 const ensureArray = (value) => (Array.isArray(value) ? value : []);
 const normalizeText = (value = '') => String(value || '').trim().toLowerCase();
+const buildRootQuestionKey = (question = {}) => {
+  const topic = normalizeText(question.topic || question.metadata?.topic || '');
+  const category = normalizeText(getQuestionCategory({ category: question.questionCategory || question.category || question.metadata?.questionCategory, stage: question.stage || question.metadata?.stage, type: question.type || question.metadata?.questionType }));
+  const type = normalizeText(question.type || question.metadata?.questionType || '');
+  return [topic || 'topic', category || 'category', type || 'type'].join(':');
+};
 
 export const getQuestionCategory = (question = {}) => {
   const explicit = String(question.category || '').trim().toLowerCase();
@@ -27,6 +33,8 @@ export const buildInterviewStructure = (session = {}) => {
     topic: turn.metadata?.topic || '',
     followUpDepth: Number(turn.metadata?.followUpDepth || 0),
     questionCategory: getQuestionCategory({ category: turn.metadata?.questionCategory, stage: turn.metadata?.stage, type: turn.metadata?.questionType }),
+    questionType: turn.metadata?.questionType || '',
+    stage: turn.metadata?.stage || '',
   }));
   const categoryCounts = askedQuestions.reduce((acc, item) => {
     const key = item.questionCategory || 'other';
@@ -44,6 +52,10 @@ export const buildInterviewStructure = (session = {}) => {
     return acc;
   }, {});
   const askedQuestionTexts = askedQuestions.map((item) => normalizeText(item.text)).filter(Boolean);
+  const askedRootQuestionKeys = askedQuestions
+    .filter((item) => item.followUpDepth <= 0)
+    .map((item) => buildRootQuestionKey(item))
+    .filter(Boolean);
   const nextTurnIndex = askedQuestions.length + 1;
   const mustBeFreshQuestion = blueprint.freshTurnAnchors.includes(nextTurnIndex);
   return {
@@ -54,6 +66,7 @@ export const buildInterviewStructure = (session = {}) => {
     askedQuestionTexts,
     categoryCounts,
     topicProgress,
+    askedRootQuestionKeys,
   };
 };
 
@@ -64,6 +77,7 @@ export const buildInterviewTurnPolicy = (session = {}, decisionContext = {}) => 
   const currentTopicState = topicProgress[targetTopic] || null;
   const technicalCount = categoryCounts.technical || 0;
   const behaviouralCount = categoryCounts.behavioural || 0;
+  const totalQuestions = blueprint.totalQuestions || 8;
 
   let requiredCategory = null;
   let forceCategory = null;
@@ -79,17 +93,26 @@ export const buildInterviewTurnPolicy = (session = {}, decisionContext = {}) => 
       forceCategory = 'behavioural';
     }
   } else {
+    const needsTechnical = technicalCount < blueprint.minTechnicalQuestions;
+    const needsBehavioural = behaviouralCount < blueprint.minBehaviouralQuestions;
+    const remainingQuestions = Math.max(0, totalQuestions - nextTurnIndex + 1);
+    const missingTechnical = Math.max(0, blueprint.minTechnicalQuestions - technicalCount);
+    const missingBehavioural = Math.max(0, blueprint.minBehaviouralQuestions - behaviouralCount);
+
+    const technicalUrgent = needsTechnical && (nextTurnIndex >= 4 || missingTechnical >= remainingQuestions);
+    const behaviouralUrgent = needsBehavioural && (nextTurnIndex >= 6 || missingBehavioural >= remainingQuestions);
+
     requiredCategory = mustBeFreshQuestion
-      ? (nextTurnIndex >= 7 && behaviouralCount < blueprint.minBehaviouralQuestions
-        ? 'behavioural'
-        : nextTurnIndex >= 4 && technicalCount < blueprint.minTechnicalQuestions
-          ? 'technical'
+      ? (technicalUrgent
+        ? 'technical'
+        : behaviouralUrgent
+          ? 'behavioural'
           : null)
       : null;
-    forceCategory = nextTurnIndex >= 7 && behaviouralCount < blueprint.minBehaviouralQuestions
-      ? 'behavioural'
-      : nextTurnIndex >= 6 && technicalCount < blueprint.minTechnicalQuestions
-        ? 'technical'
+    forceCategory = technicalUrgent
+      ? 'technical'
+      : behaviouralUrgent
+        ? 'behavioural'
         : null;
   }
 
@@ -102,6 +125,7 @@ export const buildInterviewTurnPolicy = (session = {}, decisionContext = {}) => 
     forceCategory,
     focusAreaKey: blueprint.focusAreaKey,
     interviewModeKey: blueprint.interviewModeKey,
-    shouldCloseSoon: nextTurnIndex >= blueprint.totalQuestions,
+    shouldCloseSoon: nextTurnIndex >= Math.max(blueprint.totalQuestions - 1, 1),
+    isFinalPlannedTurn: nextTurnIndex >= blueprint.totalQuestions,
   };
 };

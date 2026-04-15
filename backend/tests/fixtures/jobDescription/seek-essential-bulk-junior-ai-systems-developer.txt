@@ -1,0 +1,48 @@
+Junior AI & Systems Developer
+Essential Bulk Liquids Limited
+View all jobs
+Takanini, Auckland
+Developers/Programmers (Information & Communication Technology)
+Full time
+$50,000 – $60,000 per year
+Posted 19d ago•High application volume
+
+Position Description: Junior AI & Systems Developer
+Reports to: Lead AI Engineer
+Location: Takanini
+
+Purpose of the Role
+To support the Lead AI Engineer in building and maintaining Traffic Safe NZ’s
+next-generation AI platforms while ensuring the team’s day-to-day technology
+runs smoothly. You will be the "engine room" of the digital team—helping code
+agentic workflows one hour and resolving a colleague's technical hardware or
+software issue the next.
+
+Key Responsibilities
+AI Development Support: Assist in building and testing RAG (RetrievalAugmented Generation) pipelines and agentic workflows using Python and
+TypeScript.
+Systems Integration: Help connect our AI solutions with existing APIs,
+databases, and workflow tools like n8n or Make.
+Internal Tech Support: Act as the first point of contact for staff computer
+issues, including hardware setup, software troubleshooting, and basic
+network support.
+
+JD example
+
+3
+
+
+Data & Evals: Assist in running "evals" to test the accuracy and safety of
+our AI models.
+Documentation: Maintain clear documentation for both our custom AI
+systems and internal IT processes.
+
+About You
+The Tech Stack: You have a solid foundation in Python and/or JavaScript.
+You’re excited about LLMs and automation.
+Problem Solver: You enjoy the "detective work" of fixing a bug in code or a
+glitch in a colleague's laptop.
+Communication: You can explain technical fixes to non-technical staff with
+patience and clarity.
+Adaptable: You are comfortable switching gears quickly between highlevel dev work and immediate support tasks.
+JD example 3

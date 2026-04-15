@@ -29,6 +29,32 @@ export const selectNextAction = (decisionContext = {}) => {
     };
   }
 
+
+  const isFinalPlannedTurn = Boolean(interviewStructure.isFinalPlannedTurn);
+  if (isFinalPlannedTurn && !evaluatorState.misunderstandingFlag) {
+    return {
+      selectedAction: AGENT_ACTION_TYPES.WRAP_STAGE,
+      rationale: 'The interview is on the final planned turn, so the controller should use a clear closing question instead of opening another chain.',
+      confidence: 0.93,
+      actionInput: { targetTopic: 'candidate_questions', probeType: 'close_interview', forceEvidence: false },
+    };
+  }
+
+  const requiresTechnicalRecovery = interviewStructure.focusAreaKey === 'combined'
+    && interviewStructure.forceCategory === 'technical'
+    && !interviewStructure.mustBeFreshQuestion
+    && !evaluatorState.misunderstandingFlag
+    && evaluatorState.suggestedNextMode !== 'rephrase';
+
+  if (requiresTechnicalRecovery) {
+    return {
+      selectedAction: AGENT_ACTION_TYPES.SHIFT_SECTION,
+      rationale: 'The combined interview is behind on technical coverage, so the controller should shift into a technical question instead of extending the current behavioural chain.',
+      confidence: 0.89,
+      actionInput: { targetTopic: 'technical', probeType: 'technical_recovery', forceEvidence: false, freshOnly: true, category: 'technical' },
+    };
+  }
+
   if (interviewStructure.mustBeFreshQuestion) {
     return {
       selectedAction: AGENT_ACTION_TYPES.ASK_POOL_QUESTION,
