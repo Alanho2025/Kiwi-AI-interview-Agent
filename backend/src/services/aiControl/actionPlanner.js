@@ -29,6 +29,21 @@ export const selectNextAction = (decisionContext = {}) => {
     };
   }
 
+  const requiresTechnicalRecovery = interviewStructure.focusAreaKey === 'combined'
+    && interviewStructure.forceCategory === 'technical'
+    && !interviewStructure.mustBeFreshQuestion
+    && !evaluatorState.misunderstandingFlag
+    && evaluatorState.suggestedNextMode !== 'rephrase';
+
+  if (requiresTechnicalRecovery) {
+    return {
+      selectedAction: AGENT_ACTION_TYPES.SHIFT_SECTION,
+      rationale: 'The combined interview is behind on technical coverage, so the controller should shift into a technical question instead of extending the current behavioural chain.',
+      confidence: 0.89,
+      actionInput: { targetTopic: 'technical', probeType: 'technical_recovery', forceEvidence: false, freshOnly: true, category: 'technical' },
+    };
+  }
+
   if (interviewStructure.mustBeFreshQuestion) {
     return {
       selectedAction: AGENT_ACTION_TYPES.ASK_POOL_QUESTION,

@@ -43,6 +43,38 @@ const pickRetrievedQuestion = (retrievalBundle, selectedQuestion, targetTopic = 
     || null;
 };
 
+
+const normalizeKey = (value = '') => String(value || '').trim().toLowerCase();
+
+const buildQuestionRootKey = (question = {}) => {
+  const topic = normalizeKey(question.topic || '');
+  const category = normalizeKey(question.category || (String(question.stage || '').includes('behaviour') ? 'behavioural' : String(question.stage || '').includes('technical') ? 'technical' : 'experience'));
+  const type = normalizeKey(question.type || '');
+  return [topic || 'topic', category || 'category', type || 'type'].join(':');
+};
+
+const isDuplicateRootQuestion = (question = null, decisionContext = {}) => {
+  if (!question || Number(question.followUpDepth || 0) > 0) return false;
+  const rootKey = buildQuestionRootKey(question);
+  return (decisionContext?.interviewStructure?.askedRootQuestionKeys || []).some((item) => normalizeKey(item) === rootKey);
+};
+
+const buildTechnicalRecoveryQuestion = ({ targetTopic = 'implementation', session = {} } = {}) => {
+  const priorityTopics = session?.analysisResult?.matchingDetails?.topMatchedSkills || session?.analysisResult?.planPreview?.topMatchedAreas || [];
+  const joined = Array.isArray(priorityTopics) ? priorityTopics.join(', ') : String(priorityTopics || '');
+  const topicHint = joined || targetTopic || 'implementation';
+  return {
+    type: 'technical_recovery_follow_up',
+    stage: 'technical',
+    topic: targetTopic || 'implementation',
+    category: 'technical',
+    followUpDepth: 0,
+    text: `Let us move to the technical side. Can you give me one concrete example where you implemented or debugged something using ${topicHint}, and explain what you owned yourself?`,
+    reason: 'The combined interview still needs technical evidence, so the controller is recovering technical coverage with a concrete implementation question.',
+    sourceType: 'controller_directed',
+  };
+};
+
 const inferEvidenceTypeHint = (question = {}) => {
   const stage = String(question.stage || question.type || '').toLowerCase();
   if (stage.includes('technical')) return 'direct_past_experience';
@@ -209,7 +241,11 @@ export const runInterviewerAgent = async ({
   } else if (actionType === AGENT_ACTION_TYPES.ASK_ABDUCTIVE_PROBE_QUESTION) {
     selectedQuestion = buildAbductiveProbeQuestion({ targetTopic: targetTopic || decisionContext?.abductiveState?.probeTopic || 'decision_tradeoff', hiddenGap: decisionContext?.abductiveState?.hiddenGap || '' });
   } else if (actionType === AGENT_ACTION_TYPES.SHIFT_SECTION) {
-    selectedQuestion = buildSectionShiftQuestion({ nextSectionKey: targetTopic || decisionContext?.sectionState?.nextSectionKey || 'motivation' });
+    if ((category || decisionContext?.interviewStructure?.forceCategory) === 'technical' || probeType === 'technical_recovery' || targetTopic === 'technical') {
+      selectedQuestion = getNextPoolQuestion(session, { freshOnly: true, category: 'technical' }) || buildTechnicalRecoveryQuestion({ targetTopic: decisionContext?.matchState?.validationTargets?.[0] || 'implementation', session });
+    } else {
+      selectedQuestion = buildSectionShiftQuestion({ nextSectionKey: targetTopic || decisionContext?.sectionState?.nextSectionKey || 'motivation' });
+    }
   } else if (actionType === AGENT_ACTION_TYPES.WRAP_STAGE) {
     selectedQuestion = {
       type: 'wrap_up',
@@ -227,11 +263,19 @@ export const runInterviewerAgent = async ({
     }
   }
 
+  if (isDuplicateRootQuestion(selectedQuestion, decisionContext)) {
+    selectedQuestion = null;
+  }
+
   if (focusArea === 'technical' && selectedQuestion && selectedQuestion.category === 'behavioural') {
     selectedQuestion = getNextPoolQuestion(session, { freshOnly: true, category: 'technical' });
   }
   if (focusArea === 'behavioral' && selectedQuestion && selectedQuestion.category === 'technical') {
     selectedQuestion = getNextPoolQuestion(session, { freshOnly: true, category: 'behavioural' });
+  }
+
+  if (!selectedQuestion && (lockedCategory === 'technical' || category === 'technical' || decisionContext?.interviewStructure?.forceCategory === 'technical')) {
+    selectedQuestion = buildTechnicalRecoveryQuestion({ targetTopic: targetTopic || decisionContext?.matchState?.validationTargets?.[0] || 'implementation', session });
   }
 
   if (!selectedQuestion) {
@@ -249,10 +293,21 @@ export const runInterviewerAgent = async ({
   }
 
   const reactTrace = buildReactTrace({ selectedAction: actionType, decisionContext, selectedQuestion, environment, evaluatorState });
+  const displayTurn = buildInterviewDisplayTurn({
+    question: selectedQuestion.text,
+    actionType,
+    questionCategory: selectedQuestion.category || (String(selectedQuestion.stage || '').includes('behaviour') ? 'behavioural' : String(selectedQuestion.stage || '').includes('technical') ? 'technical' : 'experience'),
+    stage: selectedQuestion.stage,
+    targetTopic: selectedQuestion.topic,
+    suggestedNextMode: evaluatorState?.suggestedNextMode,
+    shouldCloseSoon: Boolean(decisionContext?.interviewStructure?.shouldCloseSoon),
+  });
 
   return {
     questionType: selectedQuestion.type,
     nextQuestion: selectedQuestion.text,
+    interviewerTurn: displayTurn,
+    displayText: displayTurn.displayText,
     rationale: selectedQuestion.reason,
     rationaleSummary: selectedQuestion.reason,
     stage: selectedQuestion.stage,

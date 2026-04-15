@@ -16,6 +16,8 @@ import { TextArea } from '../common/TextArea.jsx';
 import { Bird, Send } from 'lucide-react';
 import { cn } from '../../utils/formatters.js';
 
+const INTERVIEWER_NAME = 'KiwiCoach';
+
 /**
  * Purpose: Execute the main responsibility for InterviewChatPanel.
  * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
@@ -63,7 +65,7 @@ export function InterviewChatPanel({ transcript, onReply, onPause, onRepeat, onE
                 {msg.role === 'ai' ? <Bird className="w-5 h-5" /> : <span className="text-sm font-medium">{initials}</span>}
               </div>
               <div className={cn(
-                "p-4 rounded-2xl text-sm shadow-sm",
+                "p-4 rounded-2xl text-sm shadow-sm whitespace-pre-line",
                 msg.role === 'ai' ? "bg-white text-gray-900 rounded-tl-none border border-gray-100" : "bg-[#2eb886] text-white rounded-tr-none"
               )}>
                 {msg.text}
@@ -91,7 +93,7 @@ export function InterviewChatPanel({ transcript, onReply, onPause, onRepeat, onE
           ) : (
             <>
               <p className="text-xs font-medium text-gray-500 mb-2 uppercase tracking-wider">
-                {(!isLastMessageAi || isSubmitting) ? 'Aroha is thinking...' : 'Current Question'}
+                {(!isLastMessageAi || isSubmitting) ? `${INTERVIEWER_NAME} is thinking...` : 'Current Question'}
               </p>
               {(!isLastMessageAi || isSubmitting) ? (
                 <div className="flex items-center gap-2 text-gray-400">
@@ -100,7 +102,7 @@ export function InterviewChatPanel({ transcript, onReply, onPause, onRepeat, onE
                   <div className="w-2 h-2 bg-gray-300 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                 </div>
               ) : (
-                <p className="text-lg font-medium text-gray-900">{currentQuestion?.text}</p>
+                <p className="text-lg font-medium text-gray-900 whitespace-pre-line">{currentQuestion?.text}</p>
               )}
             </>
           )}
@@ -112,7 +114,7 @@ export function InterviewChatPanel({ transcript, onReply, onPause, onRepeat, onE
             <TextArea 
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
-              placeholder={isCompleted ? "Interview completed" : (isPaused ? "Interview paused..." : (isSubmitting ? "Aroha is thinking..." : "Type your answer here..."))}
+              placeholder={isCompleted ? "Interview completed" : (isPaused ? "Interview paused..." : (isSubmitting ? `${INTERVIEWER_NAME} is thinking...` : "Type your answer here..."))}
               rows={3}
               className="pr-12"
               onKeyDown={(e) => {

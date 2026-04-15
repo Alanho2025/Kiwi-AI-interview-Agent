@@ -13,6 +13,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { endInterview, pauseInterview, repeatQuestion, replyInterview, resumeInterview, startInterview } from '../api/interviewApi.js';
 import { exportTranscript } from '../api/exportApi.js';
 import { getSession } from '../api/sessionApi.js';
+import { buildInterviewDisplayModel } from '../utils/buildInterviewDisplayModel.js';
 
 /**
  * Purpose: Execute the main responsibility for buildStatus.
@@ -22,9 +23,9 @@ import { getSession } from '../api/sessionApi.js';
  */
 const buildStatus = (type, title, message) => ({ type, title, message });
 
-const appendTranscriptMessage = (transcript = [], role, text) => [
+const appendTranscriptMessage = (transcript = [], role, text, metadata = {}) => [
   ...transcript,
-  { role, text, timestamp: new Date().toISOString() },
+  { role, text, metadata, timestamp: new Date().toISOString() },
 ];
 
 /**
@@ -187,16 +188,13 @@ export function useInterviewSession({ sessionId, navigate }) {
   const dismissStatus = useCallback(() => setPageStatus(null), []);
 
   const viewModel = useMemo(() => {
-    const rubric = session?.analysisResult?.parsedJdProfile || session?.analysisResult?.matchingDetails?.rubric || {};
     const currentPlanItem = getCurrentPlanItem(session);
+    const displayModel = buildInterviewDisplayModel(session, currentPlanItem);
 
     return {
-      rubric,
       currentPlanItem,
-      displayRole: session?.displayTitle || rubric.title || session?.targetRole,
-      compactRoleLabel: session?.compactRoleLabel || session?.displayTitle || rubric.title || session?.targetRole || 'Role',
+      ...displayModel,
       elapsedSeconds: (session?.elapsedSeconds || 0) + (session?.status === 'in_progress' ? timerOffset : 0),
-      stageLabel: String(currentPlanItem?.stage || 'opening').replace(/_/g, ' '),
       statusLabel: session?.status === 'in_progress' ? 'Live' : session?.status,
     };
   }, [session, timerOffset]);

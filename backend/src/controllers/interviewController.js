@@ -133,6 +133,7 @@ export const replyInterview = asyncHandler(async (req, res) => {
 
   res.json(formatSuccess('Reply processed', {
     nextQuestion: agentResult.nextQuestion,
+    interviewerTurn: agentResult.interviewerTurn || null,
     rationale: agentResult.rationale,
     retrievalSnapshot: agentResult.retrievalSnapshot,
     isComplete: Boolean(agentResult.isComplete),

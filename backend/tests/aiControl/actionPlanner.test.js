@@ -58,6 +58,23 @@ describe('selectNextAction', () => {
     expect(plan.selectedAction).toBe(AGENT_ACTION_TYPES.ASK_DEEP_DIVE_QUESTION);
   });
 
+
+  it('forces a technical section shift when combined mode is behind on technical coverage', () => {
+    const plan = selectNextAction({
+      taskType: 'interview_next_turn',
+      currentStage: 'behavioural',
+      currentTopic: 'teamwork',
+      candidateState: { specificityLevel: 'medium' },
+      evaluatorState: { misunderstandingFlag: false, suggestedNextMode: 'deepen' },
+      interviewStructure: { focusAreaKey: 'combined', forceCategory: 'technical', mustBeFreshQuestion: false },
+      sectionState: { sectionKey: 'behavioural', isSectionComplete: false, nextSectionKey: 'technical' },
+      coverageState: { missingTopics: [], coveredTopics: ['teamwork'], weakAreas: [] },
+      matchState: { validationTargets: [] },
+    });
+    expect(plan.selectedAction).toBe(AGENT_ACTION_TYPES.SHIFT_SECTION);
+    expect(plan.actionInput.category).toBe('technical');
+  });
+
   it('shifts section when the current section is complete and no stronger follow-up is needed', () => {
     const plan = selectNextAction({
       taskType: 'interview_next_turn',
