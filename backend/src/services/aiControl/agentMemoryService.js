@@ -6,6 +6,8 @@ const DEFAULT_AGENT_MEMORY = {
   failedStrategies: [],
   successfulStrategies: [],
   evidenceGaps: [],
+  projectUsage: {}, // Tracks { [projectName]: count }
+  latestFrictionLevel: 'low',
   lastUpdatedAt: null,
 };
 
@@ -69,12 +71,20 @@ export const updateAgentMemory = async ({
     ? uniqueStrings([...currentMemory.failedStrategies, selectedAction]).slice(-8)
     : currentMemory.failedStrategies;
 
+  const nextProjectUsage = { ...(currentMemory.projectUsage || {}) };
+  const mentionedEntities = decisionContext?.evaluatorState?.mentionedEntities || [];
+  mentionedEntities.forEach((entity) => {
+    nextProjectUsage[entity] = (nextProjectUsage[entity] || 0) + 1;
+  });
+
   const nextMemory = {
     recentPatterns,
     topicHistory,
     failedStrategies,
     successfulStrategies,
     evidenceGaps,
+    projectUsage: nextProjectUsage,
+    latestFrictionLevel: decisionContext?.evaluatorState?.frictionState?.frictionLevel || 'low',
     lastUpdatedAt: new Date().toISOString(),
   };
 
