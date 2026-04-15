@@ -35,6 +35,15 @@ const detectMisunderstanding = (answerText = '', topic = '') => {
   return answerTokens.length <= 8 && countOverlap(answerTokens, topicTokens) === 0;
 };
 
+const detectCandidateQuestion = (answerText = '') => {
+  const normalized = normalizeText(answerText).toLowerCase();
+  if (!normalized) return false;
+  if (normalized.includes('?')) return true;
+  const questionWords = ['what ', 'how ', 'can you ', 'do you ', 'could you ', 'why ', 'is there ', 'are there '];
+  if (questionWords.some(w => normalized.startsWith(w) || normalized.includes(` ${w}`))) return true;
+  return false;
+};
+
 const computeEvidenceGainScore = ({ answerText = '', topic = '', requiredSkills = [] } = {}) => {
   const answerTokens = tokenize(answerText);
   const topicTokens = tokenize(topic);
@@ -119,6 +128,7 @@ export const evaluateInterviewTurn = ({ environment = {}, decisionContext = null
   const requiredSkills = environment?.roleContext?.requiredSkills || [];
   const specificity = classifySpecificity(answerText);
   const misunderstandingFlag = detectMisunderstanding(answerText, currentTopic);
+  const hasCandidateQuestion = detectCandidateQuestion(answerText);
   const evidenceGainScore = computeEvidenceGainScore({ answerText, topic: currentTopic, requiredSkills });
   const engagementScore = scoreEngagement({ answerText, misunderstandingFlag });
   const turnTakingScore = scoreTurnTaking({ answerText });
@@ -139,6 +149,7 @@ export const evaluateInterviewTurn = ({ environment = {}, decisionContext = null
     specificity,
     evidenceGainScore,
     misunderstandingFlag,
+    hasCandidateQuestion,
     engagementScore,
     turnTakingScore,
     repairScore,

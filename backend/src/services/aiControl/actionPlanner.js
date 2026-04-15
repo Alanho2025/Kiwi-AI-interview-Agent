@@ -85,6 +85,15 @@ export const selectNextAction = (decisionContext = {}) => {
     };
   }
 
+  if (currentStage.includes('wrap') && evaluatorState.hasCandidateQuestion) {
+    return {
+      selectedAction: AGENT_ACTION_TYPES.ANSWER_CANDIDATE_QUESTION,
+      rationale: 'The candidate asked a question during the wrap-up stage, so the controller should answer it dynamically.',
+      confidence: 0.95,
+      actionInput: { targetTopic: 'candidate_questions', probeType: 'answer_question', forceEvidence: false },
+    };
+  }
+
   if (currentStage.includes('wrap')) {
     return {
       selectedAction: AGENT_ACTION_TYPES.WRAP_STAGE,

@@ -11,7 +11,7 @@
 
 import { AGENT_ACTION_TYPES } from '../../constants/agentActionTypes.js';
 import { getNextPoolQuestion, hasReachedQuestionLimit } from '../interviewStateService.js';
-import { buildInterviewDisplayTurn } from '../interview/interviewDisplayTurnBuilder.js';
+import { callDeepSeek } from '../deepseekService.js';
 const normalizeText = (value = '') => String(value || '').trim();
 const tokenize = (value = '') => normalizeText(value).toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
 const getLastUserAnswer = (transcript = []) => [...transcript].reverse().find((turn) => turn.role === 'user')?.text || '';
@@ -255,6 +255,44 @@ const buildReactTrace = ({ selectedAction, decisionContext, selectedQuestion, en
   };
 };
 
+const generateConversationalTurn = async ({ baseQuestion, actionType, lastUserAnswer, decisionContext, retrievalBundle }) => {
+  const systemInstruction = `You are a professional, empathetic AI interviewer conducting an interview.
+Your goal is to output the EXACT words you will say next to the candidate.
+DO NOT output any internal tags, XML, or json. Output ONLY the conversational text.
+Your response MUST be natural, acknowledging what the candidate just said briefly (if applicable), and then naturally transitioning into the required next question or response.`;
+
+  const retrievedTexts = (retrievalBundle?.items || [])
+    .map(i => i.text || i.metadata?.question || i.metadata?.skillTags?.join(', '))
+    .filter(Boolean)
+    .slice(0, 3)
+    .join('\n- ');
+  
+  const reflections = decisionContext?.sessionReflectionMemory || [];
+  const reflectionText = reflections.length > 0 
+    ? `\nPerformance Reflections to obey:\n${reflections.slice(-2).map(r => r.lesson || r.summary).join('\n')}` 
+    : '';
+
+  const prompt = `Here is the interview context:
+Candidate's last answer:
+"${lastUserAnswer || '(Interview is just starting)'}"
+
+Intent of your next turn: [${actionType}] targeting the topic: "${baseQuestion.topic}".
+Base Question / Goal: "${baseQuestion.text}"
+${reflectionText}
+${retrievedTexts ? `\nReference Context from Knowledge Base:\n- ${retrievedTexts}` : ''}
+
+INSTRUCTIONS:
+1. Briefly acknowledge or validate the candidate's last answer naturally.
+2. Advance the interview based on the "Base Question / Goal".
+3. Use the "Reference Context" for inspiration to make your response professional and deep, OR to accurately answer the candidate's question if they asked one.
+4. Keep the tone conversational, avoid sounding like a robot reading a template.
+5. NEVER leak internal engineering variables (e.g. 'targetTopic', 'decision_tradeoff', 'role_fit') to the user. Phrase it naturally.
+
+Generate your verbal response now:`;
+
+  return await callDeepSeek(prompt, systemInstruction);
+};
+
 export const runInterviewerAgent = async ({
   session,
   retrievalBundle = null,
@@ -319,6 +357,17 @@ export const runInterviewerAgent = async ({
     } else {
       selectedQuestion = buildSectionShiftQuestion({ nextSectionKey: targetTopic || decisionContext?.sectionState?.nextSectionKey || 'motivation' });
     }
+  } else if (actionType === AGENT_ACTION_TYPES.ANSWER_CANDIDATE_QUESTION) {
+    selectedQuestion = {
+      type: 'answer_candidate_question',
+      stage: 'closing',
+      topic: 'candidate_questions',
+      category: 'closing',
+      followUpDepth: 0,
+      text: 'Answer the candidate\'s question thoughtfully based on your knowledge of the role, and then ask if they have any other questions.',
+      reason: 'The candidate asked a question during wrap up.',
+      sourceType: 'controller_directed',
+    };
   } else if (actionType === AGENT_ACTION_TYPES.WRAP_STAGE) {
     selectedQuestion = buildClosingQuestion({ session, decisionContext });
   } else {
@@ -358,15 +407,26 @@ export const runInterviewerAgent = async ({
   }
 
   const reactTrace = buildReactTrace({ selectedAction: actionType, decisionContext, selectedQuestion, environment, evaluatorState });
-  const displayTurn = buildInterviewDisplayTurn({
+  
+  let generatedText = selectedQuestion.text;
+  try {
+    generatedText = await generateConversationalTurn({ 
+      baseQuestion: selectedQuestion, 
+      actionType, 
+      lastUserAnswer: environment?.latestAnswer?.text || lastUserAnswer, 
+      decisionContext, 
+      retrievalBundle 
+    });
+  } catch (error) {
+    console.warn('Failed to generate conversational turn via LLM, falling back to base template', error);
+  }
+
+  const displayTurn = {
+    feedbackMode: 'conversational_llm',
+    preamble: '',
     question: selectedQuestion.text,
-    actionType,
-    questionCategory: selectedQuestion.category || (String(selectedQuestion.stage || '').includes('behaviour') ? 'behavioural' : String(selectedQuestion.stage || '').includes('technical') ? 'technical' : 'experience'),
-    stage: selectedQuestion.stage,
-    targetTopic: selectedQuestion.topic,
-    suggestedNextMode: evaluatorState?.suggestedNextMode,
-    shouldCloseSoon: Boolean(decisionContext?.interviewStructure?.shouldCloseSoon),
-  });
+    displayText: generatedText,
+  };
 
   return {
     questionType: selectedQuestion.type,
