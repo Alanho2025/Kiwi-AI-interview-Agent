@@ -1,0 +1,301 @@
+{
+  "casesRun": 10,
+  "average": 0.8,
+  "criticalAverage": 0.84,
+  "weakestCases": [
+    {
+      "id": "seek_first_software_full_stack",
+      "score": 0.89,
+      "criticalScore": 1,
+      "failedChecks": [
+        "benefits"
+      ]
+    },
+    {
+      "id": "seek_flowingly_full_stack_ai_workflow",
+      "score": 0.55,
+      "criticalScore": 0.42,
+      "failedChecks": [
+        "title",
+        "roleFamily",
+        "roleLevel",
+        "skills",
+        "requirements",
+        "application"
+      ]
+    },
+    {
+      "id": "seek_randstad_data_analyst",
+      "score": 0.67,
+      "criticalScore": 0.79,
+      "failedChecks": [
+        "skills",
+        "requirements",
+        "benefits"
+      ]
+    },
+    {
+      "id": "seek_rwa_ai_software_product_developer",
+      "score": 0.81,
+      "criticalScore": 0.83,
+      "failedChecks": [
+        "roleFamily"
+      ]
+    },
+    {
+      "id": "seek_ahwoo_senior_frontend",
+      "score": 0.5,
+      "criticalScore": 0.69,
+      "failedChecks": [
+        "skills",
+        "requirements",
+        "application"
+      ]
+    },
+    {
+      "id": "seek_customer_radar_ai_enabled_software_engineer",
+      "score": 0.83,
+      "criticalScore": 0.88,
+      "failedChecks": [
+        "skills",
+        "requirements"
+      ]
+    },
+    {
+      "id": "seek_counties_energy_data_ai_engineer",
+      "score": 0.86,
+      "criticalScore": 0.8,
+      "failedChecks": [
+        "roleLevel",
+        "skills"
+      ]
+    }
+  ],
+  "thresholds": {
+    "minAverage": 0,
+    "failBelow": 0,
+    "minCriticalAverage": 0,
+    "criticalFailBelow": 0
+  },
+  "results": [
+    {
+      "id": "seek_first_software_full_stack",
+      "fixture": "seek-first-software-full-stack-web-developer.txt",
+      "score": 0.89,
+      "criticalScore": 1,
+      "earned": 0.85,
+      "possible": 0.95,
+      "fieldScores": {
+        "title": 1,
+        "companyName": 1,
+        "employmentType": 1,
+        "roleFamily": 1,
+        "roleLevel": 1,
+        "skills": 1,
+        "requirements": 1,
+        "benefits": 0
+      },
+      "failedChecks": [
+        "benefits"
+      ]
+    },
+    {
+      "id": "seek_essential_bulk_junior_ai_systems",
+      "fixture": "seek-essential-bulk-junior-ai-systems-developer.txt",
+      "score": 0.98,
+      "criticalScore": 0.99,
+      "earned": 0.98,
+      "possible": 1,
+      "fieldScores": {
+        "title": 1,
+        "companyName": 1,
+        "employmentType": 1,
+        "roleFamily": 1,
+        "roleLevel": 1,
+        "skills": 0.92,
+        "requirements": 1,
+        "noiseControl": 1
+      },
+      "failedChecks": [
+        "skills"
+      ]
+    },
+    {
+      "id": "seek_flowingly_full_stack_ai_workflow",
+      "fixture": "seek-flowingly-full-stack-ai-workflow.txt",
+      "score": 0.55,
+      "criticalScore": 0.42,
+      "earned": 0.55,
+      "possible": 1,
+      "fieldScores": {
+        "title": 0,
+        "companyName": 1,
+        "employmentType": 1,
+        "roleFamily": 0,
+        "roleLevel": 0,
+        "skills": 0.92,
+        "requirements": 0.6,
+        "application": 0.5,
+        "noiseControl": 1
+      },
+      "failedChecks": [
+        "title",
+        "roleFamily",
+        "roleLevel",
+        "skills",
+        "requirements",
+        "application"
+      ]
+    },
+    {
+      "id": "seek_randstad_data_analyst",
+      "fixture": "seek-randstad-data-analyst.txt",
+      "score": 0.67,
+      "criticalScore": 0.79,
+      "earned": 0.67,
+      "possible": 1,
+      "fieldScores": {
+        "title": 1,
+        "companyName": 1,
+        "employmentType": 1,
+        "roleFamily": 1,
+        "roleLevel": 1,
+        "skills": 0.71,
+        "requirements": 0,
+        "benefits": 0.5
+      },
+      "failedChecks": [
+        "skills",
+        "requirements",
+        "benefits"
+      ]
+    },
+    {
+      "id": "seek_rwa_ai_software_product_developer",
+      "fixture": "seek-rwa-ai-software-product-developer.txt",
+      "score": 0.81,
+      "criticalScore": 0.83,
+      "earned": 0.77,
+      "possible": 0.95,
+      "fieldScores": {
+        "title": 1,
+        "companyName": 1,
+        "employmentType": 1,
+        "roleFamily": 0,
+        "roleLevel": 1,
+        "skills": 1,
+        "requirements": 1
+      },
+      "failedChecks": [
+        "roleFamily"
+      ]
+    },
+    {
+      "id": "seek_ahwoo_senior_frontend",
+      "fixture": "seek-ahwoo-senior-frontend-developer.txt",
+      "score": 0.5,
+      "criticalScore": 0.69,
+      "earned": 0.48,
+      "possible": 0.96,
+      "fieldScores": {
+        "title": 1,
+        "companyName": 1,
+        "employmentType": 1,
+        "roleFamily": 1,
+        "roleLevel": 1,
+        "skills": 0.13,
+        "requirements": 0,
+        "application": 0
+      },
+      "failedChecks": [
+        "skills",
+        "requirements",
+        "application"
+      ]
+    },
+    {
+      "id": "seek_customer_radar_ai_enabled_software_engineer",
+      "fixture": "seek-customer-radar-ai-enabled-software-engineer.txt",
+      "score": 0.83,
+      "criticalScore": 0.88,
+      "earned": 0.79,
+      "possible": 0.95,
+      "fieldScores": {
+        "title": 1,
+        "companyName": 1,
+        "employmentType": 1,
+        "roleFamily": 1,
+        "roleLevel": 1,
+        "skills": 0.71,
+        "requirements": 0.57,
+        "application": 1
+      },
+      "failedChecks": [
+        "skills",
+        "requirements"
+      ]
+    },
+    {
+      "id": "seek_counties_energy_data_ai_engineer",
+      "fixture": "seek-counties-energy-data-ai-engineer.txt",
+      "score": 0.86,
+      "criticalScore": 0.8,
+      "earned": 0.82,
+      "possible": 0.95,
+      "fieldScores": {
+        "title": 1,
+        "companyName": 1,
+        "employmentType": 1,
+        "roleFamily": 1,
+        "roleLevel": 0,
+        "skills": 0.8,
+        "requirements": 1,
+        "application": 1
+      },
+      "failedChecks": [
+        "roleLevel",
+        "skills"
+      ]
+    },
+    {
+      "id": "seek_serato_senior_web_software_engineer",
+      "fixture": "seek-serato-senior-web-software-engineer.txt",
+      "score": 0.94,
+      "criticalScore": 0.96,
+      "earned": 0.94,
+      "possible": 1,
+      "fieldScores": {
+        "title": 1,
+        "companyName": 1,
+        "employmentType": 1,
+        "roleFamily": 1,
+        "roleLevel": 1,
+        "skills": 0.9,
+        "requirements": 0.83,
+        "noiseControl": 1
+      },
+      "failedChecks": [
+        "skills",
+        "requirements"
+      ]
+    },
+    {
+      "id": "seek_kiwirail_graduate_programme",
+      "fixture": "seek-kiwirail-graduate-programme.txt",
+      "score": 1,
+      "criticalScore": 1,
+      "earned": 0.9,
+      "possible": 0.9,
+      "fieldScores": {
+        "title": 1,
+        "companyName": 1,
+        "employmentType": 1,
+        "roleFamily": 1,
+        "roleLevel": 1,
+        "requirements": 1,
+        "application": 1
+      },
+      "failedChecks": []
+    }
+  ]
+}

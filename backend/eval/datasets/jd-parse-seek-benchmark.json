@@ -1,0 +1,221 @@
+[
+  {
+    "id": "seek_first_software_full_stack",
+    "fixture": "seek-first-software-full-stack-web-developer.txt",
+    "expected": {
+      "title": "Full Stack Web Developer",
+      "companyName": "First Software",
+      "employmentType": "Full time",
+      "roleFamily": "software_development",
+      "roleLevel": "senior",
+      "skills": {
+        "softwareDevelopment": ["C#", ".NET", "JavaScript", "Vue", "HTML", "CSS", "Shopify", "eCommerce"],
+        "data": ["SQL"]
+      },
+      "requirements": {
+        "mustHaveKeywords": ["4+ years", ".NET MVC", "responsive UI", "design patterns"],
+        "niceToHaveKeywords": ["Shopify experience"]
+      },
+      "benefitKeywords": ["Long service leave", "learning and development", "social club"]
+    },
+    "weights": {"title": 0.12, "companyName": 0.08, "employmentType": 0.05, "roleFamily": 0.12, "roleLevel": 0.08, "skills": 0.22, "requirements": 0.18, "benefits": 0.10, "noiseControl": 0.05}
+  },
+  {
+    "id": "seek_essential_bulk_junior_ai_systems",
+    "fixture": "seek-essential-bulk-junior-ai-systems-developer.txt",
+    "expected": {
+      "title": "Junior AI & Systems Developer",
+      "companyName": "Essential Bulk Liquids Limited",
+      "employmentType": "Full time",
+      "roleFamily": "ai_ml",
+      "roleLevel": "junior",
+      "skills": {
+        "softwareDevelopment": ["Python", "TypeScript", "JavaScript"],
+        "aiMl": ["RAG", "Agentic Workflows", "LLM", "Model Evaluation"],
+        "itInfrastructure": ["n8n", "Make", "Hardware Support", "Software Troubleshooting", "Networking"],
+        "commonEngineering": ["Documentation"]
+      },
+      "requirements": {
+        "mustHaveKeywords": ["agentic workflows", "APIs", "databases", "technical fixes"],
+        "niceToHaveKeywords": []
+      },
+      "guards": {"mustNotAppearInBenefits": ["RAG", "TypeScript"]}
+    },
+    "weights": {"title": 0.12, "companyName": 0.08, "employmentType": 0.05, "roleFamily": 0.12, "roleLevel": 0.08, "skills": 0.28, "requirements": 0.22, "noiseControl": 0.05}
+  },
+  {
+    "id": "seek_flowingly_full_stack_ai_workflow",
+    "fixture": "seek-flowingly-full-stack-ai-workflow.txt",
+    "expected": {
+      "title": "Full Stack Developers (AI & Workflow Automation Focus)",
+      "companyName": "Flowingly Limited",
+      "employmentType": "Full time",
+      "roleFamily": "software_development",
+      "roleLevel": "senior",
+      "skills": {
+        "softwareDevelopment": ["Git", "SQL", "C#", ".NET Web API", "HTML", "CSS", "JavaScript", "TypeScript", "React"],
+        "aiMl": ["AI APIs"],
+        "itInfrastructure": ["AWS", "Azure"]
+      },
+      "requirements": {
+        "mustHaveKeywords": ["5+ years", "software architecture", "design patterns"],
+        "niceToHaveKeywords": ["OpenAI", "Azure OpenAI"]
+      },
+      "applicationKeywords": ["right to work in New Zealand", "How many years' experience do you have as a full stack developer"],
+      "guards": {"mustNotAppearInMustHave": ["right to work in New Zealand"]}
+    },
+    "weights": {"title": 0.12, "companyName": 0.08, "employmentType": 0.05, "roleFamily": 0.12, "roleLevel": 0.08, "skills": 0.25, "requirements": 0.20, "application": 0.05, "noiseControl": 0.05}
+  },
+  {
+    "id": "seek_randstad_data_analyst",
+    "fixture": "seek-randstad-data-analyst.txt",
+    "expected": {
+      "title": "Data Analyst",
+      "companyName": "Randstad Digital",
+      "employmentType": "Full time",
+      "roleFamily": "data",
+      "roleLevel": "mid",
+      "skills": {
+        "softwareDevelopment": ["Python"],
+        "data": ["SQL", "Excel", "Statistics", "Geospatial Analytics", "Dashboarding", "Reporting"]
+      },
+      "requirements": {
+        "mustHaveKeywords": ["3 years", "customer insights", "statistical methodologies", "BSc/BA"],
+        "niceToHaveKeywords": ["ArcGIS"]
+      },
+      "benefitKeywords": ["AI-powered analytics platform", "advanced geospatial modeling"]
+    },
+    "weights": {"title": 0.12, "companyName": 0.08, "employmentType": 0.05, "roleFamily": 0.12, "roleLevel": 0.08, "skills": 0.24, "requirements": 0.21, "benefits": 0.10}
+  },
+  {
+    "id": "seek_rwa_ai_software_product_developer",
+    "fixture": "seek-rwa-ai-software-product-developer.txt",
+    "expected": {
+      "title": "AI Software Product Developer - Auckland",
+      "companyName": "RWA People",
+      "employmentType": "Full time",
+      "roleFamily": "product",
+      "roleLevel": "mid",
+      "skills": {
+        "aiMl": ["Automation"],
+        "softwareDevelopment": [],
+        "commonEngineering": []
+      },
+      "requirements": {
+        "mustHaveKeywords": ["product exposure", "product-led", "SaaS", "commercial mindset"],
+        "niceToHaveKeywords": []
+      }
+    },
+    "weights": {"title": 0.14, "companyName": 0.09, "employmentType": 0.05, "roleFamily": 0.18, "roleLevel": 0.06, "skills": 0.12, "requirements": 0.31, "noiseControl": 0.05}
+  },
+  {
+    "id": "seek_ahwoo_senior_frontend",
+    "fixture": "seek-ahwoo-senior-frontend-developer.txt",
+    "expected": {
+      "title": "SENIOR FRONTEND DEVELOPER (React)",
+      "companyName": "Ahwoo Limited",
+      "employmentType": "Full time",
+      "roleFamily": "software_development",
+      "roleLevel": "senior",
+      "skills": {
+        "softwareDevelopment": ["React", "Figma", "GitHub Actions", "Docker", "Storybook", "PHP", "C#"],
+        "commonEngineering": ["Docker"]
+      },
+      "requirements": {
+        "mustHaveKeywords": ["responsive", "user-facing", "modern frameworks"],
+        "niceToHaveKeywords": ["Storybook", "full-stack development"]
+      },
+      "applicationKeywords": ["reference checks"]
+    },
+    "weights": {"title": 0.12, "companyName": 0.08, "employmentType": 0.05, "roleFamily": 0.12, "roleLevel": 0.08, "skills": 0.26, "requirements": 0.20, "application": 0.05, "noiseControl": 0.04}
+  },
+  {
+    "id": "seek_customer_radar_ai_enabled_software_engineer",
+    "fixture": "seek-customer-radar-ai-enabled-software-engineer.txt",
+    "expected": {
+      "title": "AI-Enabled Software Engineer",
+      "companyName": "Customer Radar Limited",
+      "employmentType": "Full time",
+      "roleFamily": "ai_ml",
+      "roleLevel": "mid",
+      "skills": {
+        "softwareDevelopment": ["Java", "REST APIs"],
+        "aiMl": ["Automation"],
+        "itInfrastructure": ["AWS"],
+        "commonEngineering": ["Testing", "Debugging", "Documentation"]
+      },
+      "requirements": {
+        "mustHaveKeywords": ["AI tools", "integrations", "multiple data sources", "ownership"],
+        "niceToHaveKeywords": ["surveys", "customer feedback", "review data"]
+      },
+      "applicationKeywords": ["TDD", "expected annual base salary"]
+    },
+    "weights": {"title": 0.12, "companyName": 0.08, "employmentType": 0.05, "roleFamily": 0.12, "roleLevel": 0.07, "skills": 0.24, "requirements": 0.22, "application": 0.05, "noiseControl": 0.05}
+  },
+  {
+    "id": "seek_counties_energy_data_ai_engineer",
+    "fixture": "seek-counties-energy-data-ai-engineer.txt",
+    "expected": {
+      "title": "Data and AI Engineer",
+      "companyName": "Counties Energy Ltd",
+      "employmentType": "Full time",
+      "roleFamily": "ai_ml",
+      "roleLevel": "mid",
+      "skills": {
+        "softwareDevelopment": ["Python"],
+        "data": ["Excel", "Power Query", "SQL", "Power BI", "Jupyter", "NumPy", "SciPy", "Keras", "PyTorch", "Snowflake", "Graph Datasets", "Big Data Pipelines"],
+        "aiMl": ["PyTorch", "Keras"]
+      },
+      "requirements": {
+        "mustHaveKeywords": ["2 years", "data centric roles", "tertiary qualification"],
+        "niceToHaveKeywords": ["energy sector"]
+      },
+      "applicationKeywords": ["medical check", "drug test", "right to work"]
+    },
+    "weights": {"title": 0.12, "companyName": 0.08, "employmentType": 0.05, "roleFamily": 0.12, "roleLevel": 0.08, "skills": 0.27, "requirements": 0.18, "application": 0.05, "noiseControl": 0.05}
+  },
+  {
+    "id": "seek_serato_senior_web_software_engineer",
+    "fixture": "seek-serato-senior-web-software-engineer.txt",
+    "expected": {
+      "title": "Senior Web Software Engineer",
+      "companyName": "Serato Limited",
+      "employmentType": "Full time",
+      "roleFamily": "software_development",
+      "roleLevel": "senior",
+      "skills": {
+        "softwareDevelopment": ["PHP", "HTML", "JavaScript", "TypeScript", "React", "Vue", "Angular", "REST APIs", "OAuth"],
+        "data": ["SQL"],
+        "itInfrastructure": ["AWS"],
+        "commonEngineering": ["GitHub Actions", "CI/CD", "Testing", "AWS CDK", "Datadog", "CloudWatch", "Microservices", "Serverless", "Docker"]
+      },
+      "requirements": {
+        "mustHaveKeywords": ["7+ years", "mentor", "architectural decisions", "scalable"],
+        "niceToHaveKeywords": ["OWASP Top 10", "payment processing"]
+      },
+      "guards": {"mustNotAppearInBenefits": ["OAuth", "SQL"]}
+    },
+    "weights": {"title": 0.12, "companyName": 0.08, "employmentType": 0.05, "roleFamily": 0.12, "roleLevel": 0.08, "skills": 0.27, "requirements": 0.22, "noiseControl": 0.06}
+  },
+  {
+    "id": "seek_kiwirail_graduate_programme",
+    "fixture": "seek-kiwirail-graduate-programme.txt",
+    "expected": {
+      "title": "Graduate Programme - Across New Zealand",
+      "companyName": "KiwiRail",
+      "employmentType": "Full time",
+      "roleFamily": "general",
+      "roleLevel": "graduate",
+      "skills": {
+        "softwareDevelopment": [],
+        "data": []
+      },
+      "requirements": {
+        "mustHaveKeywords": ["bachelor's degree", "communication", "teamwork", "analytical", "safety"],
+        "niceToHaveKeywords": []
+      },
+      "applicationKeywords": ["cover letter", "academic transcript", "medical and drug screening", "permanent residency"]
+    },
+    "weights": {"title": 0.15, "companyName": 0.10, "employmentType": 0.05, "roleFamily": 0.12, "roleLevel": 0.10, "skills": 0.05, "requirements": 0.28, "application": 0.10, "noiseControl": 0.05}
+  }
+]

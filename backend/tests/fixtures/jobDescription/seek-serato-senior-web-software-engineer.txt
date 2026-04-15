@@ -1,0 +1,130 @@
+Senior Web Software Engineer
+Serato Limited
+
+JD example
+
+18
+
+
+View all jobs
+Ponsonby, Auckland
+Web Development & Production (Information & Communication Technology)
+Full time
+Add expected salary to your profile for insights
+Posted 5d ago•Medium application volume
+How you match
+5 skills and credentials match your profile
+JavaScript Programming
+SQL Query Language
+Git Version Control System
+AWS
++1 more⁠
+
+About Serato
+Serato is a world leader in audio software for professional DJs and musicians.
+Our products are used by world-renowned artists such as Disclosure,
+Timbaland, Metro Boomin, Snoop Dogg, and DJ Snake. With a 25-year history
+of innovation and pushing the boundaries of technology in the music industry,
+we continue to be a leader in DJ and music production software.
+We're a team of passionate individuals based in central Auckland. We are
+looking for a highly skilled and motivated Senior Web Software Engineer to join
+our talented web development team. In this role, you will be a key technical
+contributor, instrumental in the architecture, design, and implementation of our
+web applications and services. You'll leverage your deep expertise in modern
+web technologies to build reliable, performant, and scalable platforms that
+serve our global community of artists.
+
+What You'll Do
+As a Senior Web Software Engineer, you'll be a hands-on technical expert
+responsible for building and enhancing our web platforms. Your key
+responsibilities will include:
+
+JD example
+
+19
+
+
+System Design & Architecture: Take a leading role in the design and
+implementation of scalable and highly available web applications. You'll
+contribute to key architectural decisions, ensuring the integrity and
+efficiency of our systems.
+Feature Development & Ownership: Take ownership of complex features
+from concept through to deployment. Write clean, high-quality, and robust
+code to build new features and enhancements for our users.
+API Development: Design, build, and maintain robust and scalable Restful
+APIs that support a variety of internal and external services.
+Technical Mentorship: Mentor and guide fellow developers, fostering a
+culture of technical excellence, collaboration, and continuous improvement
+through code reviews, pair programming, and knowledge sharing.
+Operational Excellence: Champion best practices for performance,
+security, and reliability across our web platforms. Proactively identify and
+address performance bottlenecks and security vulnerabilities.
+Upholding Technical Standards: Contribute to and uphold best practices
+for code quality, testing, and continuous integration/continuous delivery
+(CI/CD) to maintain a high standard of development across the team.
+Cross-Functional Collaboration: Work closely with product managers,
+designers, QA, and other engineering teams to align on goals, define
+technical requirements, and ensure smooth project delivery.
+
+What You'll Bring
+We are looking for a candidate with deep technical expertise and a
+collaborative spirit.
+Bachelor's degree in Computer Science, Engineering, or a related field (or
+equivalent practical experience).
+7+ years of professional experience in web development, with a proven
+track record of mentoring other engineers and taking the lead on complex
+technical projects.
+Extensive hands-on experience with PHP, HTML5, JavaScript,
+and TypeScript.
+Proven expertise with modern front-end frameworks, e.g., Vue.js, React,
+or Angular.
+
+JD example
+
+20
+
+
+Solid experience in designing and consuming Restful APIs.
+Deep understanding of SQL databases and schema design.
+Proven experience with source control management (e.g., Git) and CI/CD
+tools (e.g., GitHub Actions).
+Strong knowledge of authorization mechanisms like OAuth or similar.
+Excellent problem-solving, troubleshooting, and strategic thinking skills.
+Exceptional communication and collaboration skills, with a proven ability to
+mentor other engineers.
+A proactive, quality-focused mindset and a passion for building exceptional
+products.
+
+Bonus Points For:
+Application Security: You've implemented security best practices, are
+familiar with common web vulnerabilities (e.g., OWASP Top 10), and have
+experience with security testing or code reviews.
+Test Automation: You have a history of implementing and maintaining
+automated tests (e.g., unit, integration, end-to-end) to ensure code quality
+and prevent regressions.
+Infrastructure-as-Code (IaC): Familiarity with AWS CDK or other IaC tools.
+Cloud Architecture: Experience with microservices
+architecture and serverless technologies.
+Observability: Experience with monitoring and logging tools (e.g.,
+Datadog, CloudWatch).
+Containers: Experience with AWS containers or other cloud container
+services.
+Analytics: Experience with Google Analytics or other analytics platforms.
+E-commerce: Familiarity with payment processing platforms.
+
+Why Work at Serato?
+At Serato, our culture is highly prized. We are looking for someone who will
+integrate well with our team, sharing our values of having fun while working
+hard and continually improving. If you have the experience, love web
+
+JD example
+
+21
+
+
+development and music, and want to be part of a high-performing team at a
+company with a great culture, this could be the perfect role for you.
+All applicants must be legally entitled to work in New Zealand (NZ
+citizenship, permanent residency, or a current work permit) and be willing to
+work from our office in Auckland.
+JD example 10

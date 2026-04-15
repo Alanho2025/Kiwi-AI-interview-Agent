@@ -1,0 +1,62 @@
+SENIOR FRONTEND DEVELOPER (React)
+Ahwoo Limited
+View all jobs
+Auckland CBD, Auckland
+Developers/Programmers (Information & Communication Technology)
+Full time
+Add expected salary to your profile for insights
+Posted 12d ago•High application volume
+JD example
+
+10
+
+
+How you match
+Matches based on your career historyFull Stack Development
+Show all⁠
+
+SENIOR FRONTEND DEVELOPER (React)
+Auckland | Product & Design
+A bit about us…
+Ahwoo is a game distribution platform built on a simple idea: developers and
+players deserve better. The industry has been stagnant for a while, and we're
+here to change that by giving developers a fairer deal and helping players find
+games worth playing.
+About the role…
+As a Frontend Developer, you'll help build the user-facing side of Ahwoo.com,
+working closely with our product, design, and engineering teams. This isn't a
+pure engineering role. We need someone who can look at a design and
+implement it faithfully, with an eye for the details that matter.
+A day in the life…
+Translating high-fidelity Figma designs into responsive, high-performance
+web interfaces.
+Building and maintaining user-facing features using React.
+Integrating APIs across our platform.
+To get this all done, we’d like you to have:
+Solid professional experience with React or similar modern frameworks.
+A strong eye for design and the ability to contribute to the UX/UI of the
+platform.
+Proficiency with modern development workflows like GitHub
+Actions and Docker
+We’d love it if you also have:
+A portfolio showcasing creative technologies work or complex web
+projects.
+
+JD example
+
+11
+
+
+Familiarity using Storybook to build UI separately from the entire
+application.
+Experience with GitHub Actions or other automation tools.
+Exposure to C#, PHP, or interest in full-stack development.
+Experience with web integrations or modding communities.
+If this role excites you but you don't tick every box, apply anyway. We think
+diverse teams build better products and welcome applications from people
+regardless of gender, sexual orientation, ethnicity, disability, or any other
+aspect of your culture or identity.
+Hit Apply and if you’re the right fit we’ll be in touch to schedule a chat. Our
+recruitment process usually involves an online chat, a visit to our office, and
+reference checks.
+JD example 7

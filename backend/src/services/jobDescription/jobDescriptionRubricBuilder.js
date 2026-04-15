@@ -17,6 +17,8 @@ import { detectJobDescriptionRoleFamily } from './jobDescriptionRoleFamilyDetect
 import { buildJobDescriptionInterviewTargets } from './jobDescriptionInterviewTargetBuilder.js';
 import { buildJobDescriptionDiagnostics } from './jobDescriptionAnalysisDiagnostics.js';
 import { validateJobDescriptionRubric } from './jobDescriptionSchemaValidator.js';
+import { extractJobDescriptionHeader } from './jobDescriptionHeaderExtractor.js';
+import { buildFieldEvidence } from './jobDescriptionEvidenceBuilder.js';
 import { ROLE_KEYWORDS, cleanLineLabel, firstMatchingLine, unique } from './jobDescriptionShared.js';
 
 const buildRoleSummary = ({ sections, responsibilities, diagnostics }) => {
@@ -66,7 +68,7 @@ const buildRequirementList = ({ mustHaveRequirements, niceToHaveRequirements, qu
     importance: 'low',
     notes: item.sourceHeading || '',
   }));
-  const qualificationRequirements = qualifications.slice(0, 4).map((item) => buildRequirementItem({
+  const qualificationRequirements = qualifications.slice(0, 6).map((item) => buildRequirementItem({
     label: item.label,
     type: 'soft',
     importance: 'medium',
@@ -96,28 +98,6 @@ const buildMacroCriteria = ({ roleFamily, title, technicalSkills }) => {
   return mergeUniqueLabels(entries);
 };
 
-
-const extractJobOverview = ({ title, rawJD }) => {
-  const explicitCompanyMatch = rawJD.match(/(?:^|\n)company\s*:\s*([^\n]+)/i);
-  const companyMatch = explicitCompanyMatch
-    || rawJD.match(/join\s+([A-Z][A-Za-z0-9& .'-]+?)\s+as\s+a?n?/i)
-    || rawJD.match(/why join us\??\s+at\s+([A-Z][A-Za-z0-9& .'-]+)/i)
-    || rawJD.match(/about\s+([A-Z][A-Za-z0-9& .'-]{2,})/i);
-  const companyName = companyMatch?.[1]?.trim() || '';
-  const locationMatch = rawJD.match(/based in (?:our )?([^\n]+?(?:Auckland|Wellington|Christchurch|Sydney|Melbourne|Brisbane|Perth)[^\n]*)/i)
-    || rawJD.match(/location\s*:\s*([^\n]+)/i);
-  const contractMatch = title.match(/(\d+\s*(?:month|year)\s*contract)/i) || rawJD.match(/(\d+\s*(?:month|year)\s*contract)/i);
-  const employmentTypeMatch = rawJD.match(/\b(full[- ]?time|part[- ]?time|contract|permanent|fixed term)\b/i);
-
-  return {
-    title,
-    companyName: /^the role$/i.test(companyName) ? '' : companyName,
-    location: locationMatch?.[1]?.trim() || '',
-    contractType: contractMatch?.[1]?.trim() || '',
-    employmentType: employmentTypeMatch?.[1]?.trim() || '',
-  };
-};
-
 const buildSectionView = ({ sections, requirementGroups, technicalSkills, softSkills }) => ({
   introduction: (sections.introduction || []).map((item) => item.text),
   responsibilities: (requirementGroups.responsibilities || []).map((item) => item.label),
@@ -131,11 +111,17 @@ const buildSectionView = ({ sections, requirementGroups, technicalSkills, softSk
   applicationInstructions: (sections.applicationInstructions || []).map((item) => item.text),
 });
 
+const extractTitle = (normalized) => (
+  firstMatchingLine(normalized.lines.slice(0, 12), ROLE_KEYWORDS)
+  || cleanLineLabel(firstMatchingLine(normalized.lines, /job title|role title|position title/i))
+  || normalized.lines.find((line) => /developer|engineer|analyst|programme|program/i.test(line))
+  || 'Target Role'
+);
+
 export const buildStructuredJobDescriptionRubric = async (rawJD = '') => {
   const normalized = normalizeJobDescriptionText(rawJD);
-  const title = firstMatchingLine(normalized.lines.slice(0, 10), ROLE_KEYWORDS)
-    || cleanLineLabel(firstMatchingLine(normalized.lines, /job title|role title|position title/i))
-    || 'Target Role';
+  const fallbackTitle = extractTitle(normalized);
+  const header = extractJobDescriptionHeader({ rawJD, fallbackTitle });
 
   const aiSkills = await extractSkillsWithAI(rawJD);
   const detectedHeadings = detectJobDescriptionHeadings(normalized.blocks);
@@ -143,12 +129,12 @@ export const buildStructuredJobDescriptionRubric = async (rawJD = '') => {
   const requirementGroups = classifyJobDescriptionRequirements(sections);
   const extractedSkills = extractJobDescriptionSkills({ sections, requirementGroups, aiSkills });
   const roleFamily = detectJobDescriptionRoleFamily({
-    title,
+    title: header.title,
     text: normalized.normalizedText,
     groupedTechnicalSkills: extractedSkills.technicalSkills,
   });
-  const roleInfo = canonicalizeRole(title, rawJD);
-  const roleLevel = inferRoleLevel(rawJD);
+  const roleInfo = canonicalizeRole(header.title, rawJD);
+  const roleLevel = inferRoleLevel(`${header.title}\n${rawJD}`);
   const diagnostics = buildJobDescriptionDiagnostics({
     sections,
     requirementGroups,
@@ -161,12 +147,12 @@ export const buildStructuredJobDescriptionRubric = async (rawJD = '') => {
     groupedTechnicalSkills: extractedSkills.technicalSkills,
     softSkills: extractedSkills.softSkills,
     requirementGroups,
-    title,
+    title: header.title,
   });
 
   const technicalSkillRequirements = flattenTechnicalGroups(extractedSkills.technicalSkills);
   const softSkillRequirements = extractedSkills.softSkills.map((item) => item.label || item.name);
-  const macroCriteria = buildMacroCriteria({ roleFamily, title, technicalSkills: extractedSkills.technicalSkills });
+  const macroCriteria = buildMacroCriteria({ roleFamily, title: header.title, technicalSkills: extractedSkills.technicalSkills });
   const microCriteria = buildMicroCriteria({ technicalSkills: extractedSkills.technicalSkills, softSkills: extractedSkills.softSkills });
   const requirements = buildRequirementList(requirementGroups);
   const keywords = unique([
@@ -174,10 +160,21 @@ export const buildStructuredJobDescriptionRubric = async (rawJD = '') => {
     ...softSkillRequirements,
     ...(sections.benefits || []).slice(0, 3).map((item) => item.text),
     roleInfo.roleCanonical,
-  ]).slice(0, 20);
+  ]).slice(0, 24);
+
+  const fieldEvidence = buildFieldEvidence({
+    rawJD,
+    values: {
+      title: header.title,
+      companyName: header.companyName,
+      location: header.location,
+      employmentType: header.employmentType,
+      roleFamily: roleFamily.primary,
+    },
+  });
 
   const rubric = buildJdRubricSchema({
-    title,
+    title: header.title,
     roleSummary: buildRoleSummary({ sections, responsibilities: requirementGroups.responsibilities, diagnostics }),
     responsibilities: requirementGroups.responsibilities.map((item) => item.label),
     qualifications: requirementGroups.qualifications.map((item) => item.label),
@@ -199,15 +196,26 @@ export const buildStructuredJobDescriptionRubric = async (rawJD = '') => {
     roleLevel,
     interviewTargets,
     metadata: {
-      confidence: diagnostics.confidence,
+      confidence: diagnostics.parserSelfConfidence,
+      parserSelfConfidence: diagnostics.parserSelfConfidence,
+      extractionCoverage: diagnostics.extractionCoverage,
+      ambiguityScore: diagnostics.ambiguityScore,
       sourceLength: rawJD.length,
       headingCount: detectedHeadings.length,
+      fieldEvidence,
     },
   });
 
   return validateJobDescriptionRubric({
     ...rubric,
-    jobOverview: extractJobOverview({ title, rawJD, sections }),
+    jobOverview: {
+      title: header.title,
+      companyName: header.companyName,
+      location: header.location,
+      contractType: header.contractType,
+      employmentType: header.employmentType,
+      salaryText: header.salaryText,
+    },
     sections: buildSectionView({ sections, requirementGroups, technicalSkills: extractedSkills.technicalSkills, softSkills: extractedSkills.softSkills }),
     diagnostics,
     roleFamilyDetail: roleFamily,
