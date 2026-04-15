@@ -44,6 +44,30 @@ const detectCandidateQuestion = (answerText = '') => {
   return false;
 };
 
+const detectFrictionSignals = (answerText = '') => {
+  const tokens = tokenize(answerText);
+  const frictionKeywords = [
+    'conflict', 'disagreed', 'opposed', 'failed', 'limited', 'bottleneck', 'deadline',
+    'compromise', 'tradeoff', 'trade-off', 'technical debt', 'regret', 'refuse', 'mistake',
+    'wrong', 'broke', 'error', 'incident', 'unsuccessful', 'late', 'rejected'
+  ];
+  const found = frictionKeywords.filter(keyword => answerText.toLowerCase().includes(keyword));
+  return {
+    frictionDetected: found.length > 0,
+    frictionLevel: found.length >= 3 ? 'high' : found.length >= 1 ? 'medium' : 'low',
+    frictionKeywords: found
+  };
+};
+
+const extractMentionedEntities = (answerText = '') => {
+  // Simple regex for capitalized phrases that might be project names or companies
+  const candidates = answerText.match(/\b[A-Z][a-zA-Z0-9]{2,}(?:\s+[A-Z][a-zA-Z0-9]{1,})*\b/g) || [];
+  const filters = ['I', 'The', 'And', 'What', 'How', 'You', 'They', 'We', 'Our', 'My', 'When', 'Then', 'To', 'In', 'A', 'An'];
+  return [...new Set(candidates)]
+    .filter(name => !filters.includes(name))
+    .filter(name => name.length > 2);
+};
+
 const computeEvidenceGainScore = ({ answerText = '', topic = '', requiredSkills = [] } = {}) => {
   const answerTokens = tokenize(answerText);
   const topicTokens = tokenize(topic);
@@ -139,6 +163,8 @@ export const evaluateInterviewTurn = ({ environment = {}, decisionContext = null
   const repetitionRisk = detectRepetitionRisk({ previousTopics: environment?.questionContext?.previousQuestionTopics || [], currentTopic });
   const gapClosure = detectGapClosure({ answerText, topic: currentTopic });
   const suggestedNextMode = suggestNextMode({ misunderstandingFlag, evidenceGainScore, repetitionRisk, closeCurrentIntent: gapClosure.closeCurrentIntent });
+  const frictionState = detectFrictionSignals(answerText);
+  const mentionedEntities = extractMentionedEntities(answerText);
   const reflectionNeeded = misunderstandingFlag || (evidenceGainScore < 0.45 && repetitionRisk) || overallInteractionScore < 0.5;
 
   return {
@@ -150,6 +176,8 @@ export const evaluateInterviewTurn = ({ environment = {}, decisionContext = null
     evidenceGainScore,
     misunderstandingFlag,
     hasCandidateQuestion,
+    frictionState,
+    mentionedEntities,
     engagementScore,
     turnTakingScore,
     repairScore,
