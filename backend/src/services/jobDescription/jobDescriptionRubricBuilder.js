@@ -6,7 +6,7 @@
  */
 
 import { buildJdRubricSchema, buildRequirementItem } from '../scoringSchemaService.js';
-import { canonicalizeRole, inferRoleLevel, mergeUniqueLabels } from '../taxonomyService.js';
+import { canonicalizeRole, mergeUniqueLabels } from '../taxonomyService.js';
 import { extractSkillsWithAI } from './jobDescriptionAiService.js';
 import { normalizeJobDescriptionText } from './jobDescriptionTextNormalizer.js';
 import { detectJobDescriptionHeadings } from './jobDescriptionHeadingDetector.js';
@@ -14,15 +14,21 @@ import { collectJobDescriptionSections } from './jobDescriptionSectionCollector.
 import { classifyJobDescriptionRequirements } from './jobDescriptionRequirementClassifier.js';
 import { extractJobDescriptionSkills } from './jobDescriptionSkillExtractor.js';
 import { detectJobDescriptionRoleFamily } from './jobDescriptionRoleFamilyDetector.js';
+import { resolveRoleLevel } from './extractors/roleLevelResolver.js';
 import { buildJobDescriptionInterviewTargets } from './jobDescriptionInterviewTargetBuilder.js';
 import { buildJobDescriptionDiagnostics } from './jobDescriptionAnalysisDiagnostics.js';
 import { validateJobDescriptionRubric } from './jobDescriptionSchemaValidator.js';
 import { extractJobDescriptionHeader } from './jobDescriptionHeaderExtractor.js';
 import { buildFieldEvidence } from './jobDescriptionEvidenceBuilder.js';
 import { ROLE_KEYWORDS, cleanLineLabel, firstMatchingLine, unique } from './jobDescriptionShared.js';
+import { normalizeResponsibilityPoints } from './normalizers/normalizeResponsibility.js';
+import { normalizeRequirementPoints } from './normalizers/normalizeRequirement.js';
+import { normalizeBenefitPoints } from './normalizers/normalizeBenefit.js';
+import { normalizeSoftSkillPoints } from './normalizers/normalizeSoftSkill.js';
+import { normalizeApplicationInstructionPoints } from './normalizers/normalizeApplicationInstruction.js';
 
-const buildRoleSummary = ({ sections, responsibilities, diagnostics }) => {
-  if (responsibilities.length > 0) return responsibilities.map((item) => item.label || item.text).slice(0, 6);
+const buildRoleSummary = ({ normalizedSections = {}, sections, diagnostics }) => {
+  if ((normalizedSections.responsibilities || []).length > 0) return normalizedSections.responsibilities.slice(0, 6);
   if (sections.introduction?.length > 0) return sections.introduction.slice(0, 2).map((item) => item.text);
   return diagnostics.warnings.slice(0, 1);
 };
@@ -98,7 +104,7 @@ const buildMacroCriteria = ({ roleFamily, title, technicalSkills }) => {
   return mergeUniqueLabels(entries);
 };
 
-const buildSectionView = ({ sections, requirementGroups, technicalSkills, softSkills }) => ({
+const buildRawSectionView = ({ sections, requirementGroups, technicalSkills, softSkills }) => ({
   introduction: (sections.introduction || []).map((item) => item.text),
   responsibilities: (requirementGroups.responsibilities || []).map((item) => item.label),
   qualifications: (requirementGroups.qualifications || []).map((item) => item.label),
@@ -111,17 +117,77 @@ const buildSectionView = ({ sections, requirementGroups, technicalSkills, softSk
   applicationInstructions: (sections.applicationInstructions || []).map((item) => item.text),
 });
 
-const extractTitle = (normalized) => (
-  firstMatchingLine(normalized.lines.slice(0, 12), ROLE_KEYWORDS)
-  || cleanLineLabel(firstMatchingLine(normalized.lines, /job title|role title|position title/i))
-  || normalized.lines.find((line) => /developer|engineer|analyst|programme|program/i.test(line))
-  || 'Target Role'
-);
+const mergeEvidenceMaps = (...maps) => maps.reduce((accumulator, current) => {
+  Object.entries(current || {}).forEach(([label, evidence]) => {
+    accumulator[label] = unique([...(accumulator[label] || []), ...(evidence || [])]);
+  });
+  return accumulator;
+}, {});
+
+const normalizeSectionView = ({ sections, requirementGroups, technicalSkills, softSkills }) => {
+  const responsibilityEvidence = {};
+  const mustHaveEvidence = {};
+  const niceToHaveEvidence = {};
+  const qualificationEvidence = {};
+  const benefitEvidence = {};
+  const applicationEvidence = {};
+  const softSkillEvidence = {};
+
+  const normalizedResponsibilities = unique((requirementGroups.responsibilities || []).flatMap((item) => normalizeResponsibilityPoints(item, responsibilityEvidence)));
+  const normalizedMustHave = unique((requirementGroups.mustHaveRequirements || []).flatMap((item) => normalizeRequirementPoints(item, mustHaveEvidence)));
+  const normalizedNiceToHave = unique((requirementGroups.niceToHaveRequirements || []).flatMap((item) => normalizeRequirementPoints(item, niceToHaveEvidence)));
+  const normalizedQualifications = unique((requirementGroups.qualifications || []).flatMap((item) => normalizeRequirementPoints(item, qualificationEvidence)));
+  const normalizedBenefits = unique((sections.benefits || []).flatMap((item) => normalizeBenefitPoints(item, benefitEvidence)));
+  const normalizedApplications = unique((sections.applicationInstructions || []).flatMap((item) => normalizeApplicationInstructionPoints(item, applicationEvidence)));
+  const normalizedSoftSkills = unique([
+    ...softSkills.map((item) => item.label || item.name),
+    ...normalizeSoftSkillPoints(softSkills, softSkillEvidence),
+    ...normalizeSoftSkillPoints(requirementGroups.softSkillSignals || [], softSkillEvidence),
+  ]);
+
+  return {
+    normalized: {
+      introduction: (sections.introduction || []).map((item) => item.text),
+      responsibilities: normalizedResponsibilities,
+      qualifications: normalizedQualifications,
+      mustHaveRequirements: normalizedMustHave,
+      niceToHaveRequirements: normalizedNiceToHave,
+      technicalSkills,
+      softSkills: normalizedSoftSkills,
+      benefits: normalizedBenefits,
+      companyContext: (sections.companyContext || []).map((item) => item.text),
+      applicationInstructions: normalizedApplications,
+    },
+    evidenceMap: mergeEvidenceMaps(
+      responsibilityEvidence,
+      mustHaveEvidence,
+      niceToHaveEvidence,
+      qualificationEvidence,
+      benefitEvidence,
+      applicationEvidence,
+      softSkillEvidence,
+    ),
+  };
+};
+
+const extractTitle = (normalized) => {
+  const candidates = (normalized.lines || []).slice(0, 8);
+  for (const line of candidates) {
+    const text = String(line || '').replace(/\s+/g, ' ').trim();
+    const splitIndex = text.search(/\b(?:company|employment type|job type|location|salary|contract type)\s*:|\b(?:what this role does|key responsibilities|responsibilities|core requirements|bonus requirements|qualifications|benefits|application notes|about the role|what you\'ll do|what you\'ll bring)\b/i);
+    const head = splitIndex > 0 ? text.slice(0, splitIndex).trim() : text;
+    const matched = head.match(/^([a-z0-9&/()+,.' -]{1,100}?\b(?:engineer|developer|manager|designer|analyst|architect|consultant|specialist|intern|scientist|administrator|programme|program)\b(?:\s*\([^)]{1,40}\))?)/i);
+    const value = (matched?.[1] || '').replace(/[.:;,-]+$/g, '').trim();
+    if (value && value.split(' ').length <= 12) return value.split(/\s+/).map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()).join(' ');
+  }
+  return cleanLineLabel(firstMatchingLine(normalized.lines, /job title|role title|position title/i))
+    || 'Target Role';
+};
 
 export const buildStructuredJobDescriptionRubric = async (rawJD = '') => {
   const normalized = normalizeJobDescriptionText(rawJD);
   const fallbackTitle = extractTitle(normalized);
-  const header = extractJobDescriptionHeader({ rawJD, fallbackTitle });
+  const header = extractJobDescriptionHeader({ rawJD, fallbackTitle, normalized });
 
   const aiSkills = await extractSkillsWithAI(rawJD);
   const detectedHeadings = detectJobDescriptionHeadings(normalized.blocks);
@@ -130,17 +196,24 @@ export const buildStructuredJobDescriptionRubric = async (rawJD = '') => {
   const extractedSkills = extractJobDescriptionSkills({ sections, requirementGroups, aiSkills });
   const roleFamily = detectJobDescriptionRoleFamily({
     title: header.title,
-    text: normalized.normalizedText,
+    flatText: normalized.flatText,
     groupedTechnicalSkills: extractedSkills.technicalSkills,
   });
   const roleInfo = canonicalizeRole(header.title, rawJD);
-  const roleLevel = inferRoleLevel(`${header.title}\n${rawJD}`);
+  const roleLevelDetail = resolveRoleLevel({ title: header.title, flatText: normalized.flatText });
+  const roleLevel = roleLevelDetail.value;
   const diagnostics = buildJobDescriptionDiagnostics({
     sections,
     requirementGroups,
     technicalSkills: extractedSkills.technicalSkills,
     softSkills: extractedSkills.softSkills,
     aiSkills,
+  });
+  const { normalized: normalizedSections, evidenceMap } = normalizeSectionView({
+    sections,
+    requirementGroups,
+    technicalSkills: extractedSkills.technicalSkills,
+    softSkills: extractedSkills.softSkills,
   });
   const interviewTargets = buildJobDescriptionInterviewTargets({
     roleFamily: roleFamily.primary,
@@ -158,7 +231,8 @@ export const buildStructuredJobDescriptionRubric = async (rawJD = '') => {
   const keywords = unique([
     ...technicalSkillRequirements,
     ...softSkillRequirements,
-    ...(sections.benefits || []).slice(0, 3).map((item) => item.text),
+    ...(normalizedSections.benefits || []).slice(0, 4),
+    ...(normalizedSections.mustHaveRequirements || []).slice(0, 8),
     roleInfo.roleCanonical,
   ]).slice(0, 24);
 
@@ -175,9 +249,9 @@ export const buildStructuredJobDescriptionRubric = async (rawJD = '') => {
 
   const rubric = buildJdRubricSchema({
     title: header.title,
-    roleSummary: buildRoleSummary({ sections, responsibilities: requirementGroups.responsibilities, diagnostics }),
-    responsibilities: requirementGroups.responsibilities.map((item) => item.label),
-    qualifications: requirementGroups.qualifications.map((item) => item.label),
+    roleSummary: buildRoleSummary({ normalizedSections, sections, diagnostics }),
+    responsibilities: normalizedSections.responsibilities,
+    qualifications: normalizedSections.qualifications,
     keywords,
     macroCriteria,
     microCriteria,
@@ -189,20 +263,22 @@ export const buildStructuredJobDescriptionRubric = async (rawJD = '') => {
     },
     technicalSkillRequirements,
     softSkillRequirements,
-    mustHaveRequirements: requirementGroups.mustHaveRequirements.map((item) => item.label),
-    niceToHaveExperience: requirementGroups.niceToHaveRequirements.map((item) => item.label),
+    mustHaveRequirements: normalizedSections.mustHaveRequirements,
+    niceToHaveExperience: normalizedSections.niceToHaveRequirements,
     roleCanonical: roleInfo.roleCanonical,
     roleFamily: roleFamily.primary || roleInfo.roleFamily,
     roleLevel,
     interviewTargets,
     metadata: {
       confidence: diagnostics.parserSelfConfidence,
+      fieldConfidence: header.fieldConfidence,
       parserSelfConfidence: diagnostics.parserSelfConfidence,
       extractionCoverage: diagnostics.extractionCoverage,
       ambiguityScore: diagnostics.ambiguityScore,
       sourceLength: rawJD.length,
       headingCount: detectedHeadings.length,
       fieldEvidence,
+      normalizedEvidenceMap: evidenceMap,
     },
   });
 
@@ -216,8 +292,14 @@ export const buildStructuredJobDescriptionRubric = async (rawJD = '') => {
       employmentType: header.employmentType,
       salaryText: header.salaryText,
     },
-    sections: buildSectionView({ sections, requirementGroups, technicalSkills: extractedSkills.technicalSkills, softSkills: extractedSkills.softSkills }),
-    diagnostics,
+    sections: normalizedSections,
+    rawSections: buildRawSectionView({ sections, requirementGroups, technicalSkills: extractedSkills.technicalSkills, softSkills: extractedSkills.softSkills }),
+    normalized: normalizedSections,
+    evidenceMap,
+    diagnostics: {
+      ...diagnostics,
+      roleLevelEvidence: roleLevelDetail.evidence,
+    },
     roleFamilyDetail: roleFamily,
   });
 };

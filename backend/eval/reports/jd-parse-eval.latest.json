@@ -1,6 +1,6 @@
 {
   "casesRun": 6,
-  "average": 0.98,
+  "average": 1,
   "weakestCases": [],
   "thresholds": {
     "minAverage": 0,
@@ -11,53 +11,49 @@
       "id": "data_engineer_clean",
       "fixture": "data-engineer-clean.txt",
       "score": 1,
-      "earned": 1.04,
-      "possible": 1.04,
+      "earned": 24,
+      "possible": 24,
       "failedChecks": []
     },
     {
       "id": "graduate_software_developer",
       "fixture": "graduate-software-developer.txt",
       "score": 1,
-      "earned": 0.99,
-      "possible": 0.99,
+      "earned": 20,
+      "possible": 20,
       "failedChecks": []
     },
     {
       "id": "cloud_platform_engineer",
       "fixture": "cloud-platform-engineer.txt",
       "score": 1,
-      "earned": 0.86,
-      "possible": 0.86,
+      "earned": 20,
+      "possible": 20,
       "failedChecks": []
     },
     {
       "id": "benefit_heavy_precision_guard",
       "fixture": "benefit-heavy-jd.txt",
       "score": 1,
-      "earned": 0.88,
-      "possible": 0.88,
+      "earned": 16,
+      "possible": 16,
       "failedChecks": []
     },
     {
       "id": "leading_company_false_positive_guard",
       "fixture": "data-engineer-leading-company.txt",
-      "score": 0.95,
-      "earned": 0.74,
-      "possible": 0.78,
-      "failedChecks": [
-        "employmentType"
-      ]
+      "score": 1,
+      "earned": 9,
+      "possible": 9,
+      "failedChecks": []
     },
     {
       "id": "heading_missing_paragraph",
       "fixture": "heading-missing-paragraph.txt",
-      "score": 0.94,
-      "earned": 0.59,
-      "possible": 0.63,
-      "failedChecks": [
-        "employmentType"
-      ]
+      "score": 1,
+      "earned": 13,
+      "possible": 13,
+      "failedChecks": []
     }
   ]
 }

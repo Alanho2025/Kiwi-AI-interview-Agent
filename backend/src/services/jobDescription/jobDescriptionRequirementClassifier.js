@@ -4,6 +4,38 @@ const containsAny = (text = '', patterns = []) => patterns.some((pattern) => pat
 const NICE_TO_HAVE_PATTERNS = [/\bbonus\b/i, /\bnice to have\b/i, /\bpreferred\b/i, /\bdesirable\b/i, /\badvantage(?:ous)?\b/i, /\bfamiliarity with\b/i, /\bwould be advantageous\b/i];
 const MUST_HAVE_PATTERNS = [/\bmust\b/i, /\bstrong\b/i, /\bexperience\b/i, /\bability to\b/i, /\bproficiency\b/i, /\bsolid foundation\b/i, /\bminimum\b/i, /\bdegree\b/i];
 const APPLICATION_PATTERNS = [/right to work/i, /expected salary/i, /notice are you required/i, /medical check/i, /drug screening/i, /apply online/i];
+const FALLBACK_REQUIREMENT_PATTERNS = [
+  /\b\d+\+?\s*years?\b/i,
+  /\bbachelor'?s\b/i,
+  /\bdegree\b/i,
+  /\bqualification\b/i,
+  /\bexperience\b/i,
+  /\bproficiency\b/i,
+  /\bstrong\b/i,
+  /\bsolid foundation\b/i,
+  /\bability to\b/i,
+  /\bknowledge of\b/i,
+  /\bfamiliarity with\b/i,
+  /\bpython\b/i,
+  /\bsql\b/i,
+  /\breact\b/i,
+  /\btypescript\b/i,
+  /\bjavascript\b/i,
+  /\bc#\b/i,
+  /\.net\b/i,
+  /\baws\b/i,
+  /\bazure\b/i,
+  /\bsnowflake\b/i,
+  /\bdbt\b/i,
+  /\bpower\s?bi\b/i,
+  /\bpower query\b/i,
+  /\bexcel\b/i,
+  /\brest(?:ful)? api/i,
+  /\boauth\b/i,
+  /\bcommunication skills?\b/i,
+  /\bproblem[- ]solving\b/i,
+  /\bstakeholder\b/i,
+];
 
 const createRequirementItem = (item, type, importance = 'medium', evidenceType = 'explicit') => ({
   id: buildTaxonomyItem(item.normalizedText || item.text).id,
@@ -29,6 +61,26 @@ const uniqueByText = (items = []) => {
     seen.add(key);
     return true;
   });
+};
+
+const collectFallbackRequirementItems = (sections = {}) => {
+  const candidates = [
+    ...(sections.introduction || []),
+    ...(sections.companyContext || []),
+    ...(sections.responsibilities || []),
+  ];
+
+  return uniqueByText(
+    candidates
+      .filter((item) => {
+        const text = item?.text || '';
+        const headingText = item?.sourceHeading || '';
+        if (!text.trim()) return false;
+        if (containsAny(text, APPLICATION_PATTERNS) || containsAny(headingText, APPLICATION_PATTERNS)) return false;
+        return containsAny(text, FALLBACK_REQUIREMENT_PATTERNS) || containsAny(headingText, FALLBACK_REQUIREMENT_PATTERNS);
+      })
+      .map((item) => createRequirementItem(item, 'must_have', 'low', 'fallback')),
+  );
 };
 
 export const classifyJobDescriptionRequirements = (sections = {}) => {
@@ -68,6 +120,16 @@ export const classifyJobDescriptionRequirements = (sections = {}) => {
       mustHaveRequirements.push(createRequirementItem(item, 'must_have', 'high'));
     }
   });
+
+  if (mustHaveRequirements.length < 2) {
+    collectFallbackRequirementItems(sections).forEach((item) => {
+      const text = item.text || '';
+      const headingText = item.sourceHeading || '';
+      if (containsAny(text, APPLICATION_PATTERNS) || containsAny(headingText, APPLICATION_PATTERNS)) return;
+      mustHaveRequirements.push(item);
+      qualifications.push(createRequirementItem(item, 'qualification', 'low', 'fallback'));
+    });
+  }
 
   return {
     responsibilities,

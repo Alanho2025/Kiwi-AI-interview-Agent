@@ -35,28 +35,24 @@ describe('buildStructuredJobDescriptionRubric', () => {
 
     expect(rubric.sections.responsibilities).toEqual(
       expect.arrayContaining([
-        expect.stringMatching(/data pipelines/i),
-        expect.stringMatching(/regulated environment/i),
+        'Data Pipelines',
+        'Regulated Delivery',
       ]),
     );
     expect(rubric.sections.mustHaveRequirements).toEqual(
-      expect.arrayContaining([
-        expect.stringMatching(/Snowflake/i),
-        expect.stringMatching(/dbt/i),
-        expect.stringMatching(/data modelling/i),
-      ]),
+      expect.arrayContaining(['SQL', 'Snowflake', 'dbt', 'Data Modelling']),
     );
     expect(rubric.sections.niceToHaveRequirements).toEqual(
-      expect.arrayContaining([
-        expect.stringMatching(/semantic layers/i),
-        expect.stringMatching(/ADF/i),
-      ]),
+      expect.arrayContaining(['Semantic Layers', 'ADF']),
     );
     expect(rubric.sections.benefits).toEqual(
-      expect.arrayContaining(['Hybrid work options.', 'Professional development budget.']),
+      expect.arrayContaining(['Hybrid Work', 'Learning Budget']),
     );
     expect(rubric.sections.applicationInstructions).toEqual(
-      expect.arrayContaining(['Apply with your CV and cover letter.']),
+      expect.arrayContaining(['Apply with CV', 'Cover Letter Required']),
+    );
+    expect(rubric.rawSections.benefits).toEqual(
+      expect.arrayContaining(['Hybrid work options.', 'Professional development budget.']),
     );
 
     expect(rubric.sections.technicalSkills.data.map((item) => item.label)).toEqual(
