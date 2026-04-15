@@ -55,3 +55,18 @@ describe('interviewTurnPolicy', () => {
     expect(policy.forceCategory).toBe('technical');
   });
 });
+
+
+  it('marks the final planned turn so the controller can close cleanly', () => {
+    const policy = buildInterviewTurnPolicy(buildSession([
+      { topic: 'self_intro', followUpDepth: 0, questionCategory: 'opening' },
+      { topic: 'project', followUpDepth: 0, questionCategory: 'experience' },
+      { topic: 'project', followUpDepth: 1, questionCategory: 'technical' },
+      { topic: 'teamwork', followUpDepth: 0, questionCategory: 'behavioural' },
+      { topic: 'teamwork', followUpDepth: 1, questionCategory: 'behavioural' },
+      { topic: 'sql', followUpDepth: 0, questionCategory: 'technical' },
+      { topic: 'motivation', followUpDepth: 0, questionCategory: 'experience' },
+    ], 'Junior', 'Combined'));
+    expect(policy.isFinalPlannedTurn).toBe(true);
+    expect(policy.shouldCloseSoon).toBe(true);
+  });

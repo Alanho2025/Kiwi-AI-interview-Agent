@@ -47,3 +47,27 @@ describe('runInterviewerAgent', () => {
     expect(result.reactTrace.actionName).toBe(AGENT_ACTION_TYPES.ASK_ABDUCTIVE_PROBE_QUESTION);
   });
 });
+
+
+  it('builds a matched technical question when recovering coverage in combined mode', async () => {
+    const result = await runInterviewerAgent({
+      session: {
+        ...baseSession,
+        analysisResult: {
+          matchingDetails: { topMatchedSkills: ['React', 'PostgreSQL'], questionPlanHints: { priorityTopics: ['AWS'] } },
+        },
+        settings: { focusArea: 'Combined' },
+      },
+      actionType: AGENT_ACTION_TYPES.SHIFT_SECTION,
+      category: 'technical',
+      probeType: 'technical_recovery',
+      decisionContext: {
+        currentStage: 'behavioural',
+        currentTopic: 'teamwork',
+        interviewStructure: { forceCategory: 'technical', focusAreaKey: 'combined', shouldCloseSoon: false },
+        matchState: { validationTargets: [] },
+      },
+    });
+    expect(result.nextQuestion.toLowerCase()).toMatch(/react|postgresql|aws/);
+    expect(result.questionCategory).toBe('technical');
+  });

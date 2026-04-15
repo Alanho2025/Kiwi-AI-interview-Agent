@@ -155,7 +155,18 @@ export function useInterviewSession({ sessionId, navigate }) {
         if (lastMessage?.role === 'ai' && lastMessage.text === data.question) {
           return prev;
         }
-        return { ...prev, transcript: appendTranscriptMessage(prev.transcript, 'ai', data.question) };
+        return {
+          ...prev,
+          transcript: appendTranscriptMessage(prev.transcript, 'ai', data.question, {
+            preamble: data.displayText && data.displayText !== data.question
+              ? data.displayText.replace(`${data.question}`, '').trim()
+              : '',
+          }).map((turn, index, turns) => (
+            index === turns.length - 1 && turn.role === 'ai'
+              ? { ...turn, displayText: data.displayText || data.question }
+              : turn
+          )),
+        };
       });
     } catch (error) {
       setPageStatus(buildStatus('error', 'Repeat failed', error.message || 'Could not repeat the last question.'));

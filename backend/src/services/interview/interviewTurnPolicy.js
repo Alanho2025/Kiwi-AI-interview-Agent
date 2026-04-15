@@ -77,6 +77,7 @@ export const buildInterviewTurnPolicy = (session = {}, decisionContext = {}) => 
   const currentTopicState = topicProgress[targetTopic] || null;
   const technicalCount = categoryCounts.technical || 0;
   const behaviouralCount = categoryCounts.behavioural || 0;
+  const totalQuestions = blueprint.totalQuestions || 8;
 
   let requiredCategory = null;
   let forceCategory = null;
@@ -94,16 +95,23 @@ export const buildInterviewTurnPolicy = (session = {}, decisionContext = {}) => 
   } else {
     const needsTechnical = technicalCount < blueprint.minTechnicalQuestions;
     const needsBehavioural = behaviouralCount < blueprint.minBehaviouralQuestions;
+    const remainingQuestions = Math.max(0, totalQuestions - nextTurnIndex + 1);
+    const missingTechnical = Math.max(0, blueprint.minTechnicalQuestions - technicalCount);
+    const missingBehavioural = Math.max(0, blueprint.minBehaviouralQuestions - behaviouralCount);
+
+    const technicalUrgent = needsTechnical && (nextTurnIndex >= 4 || missingTechnical >= remainingQuestions);
+    const behaviouralUrgent = needsBehavioural && (nextTurnIndex >= 6 || missingBehavioural >= remainingQuestions);
+
     requiredCategory = mustBeFreshQuestion
-      ? (nextTurnIndex >= 4 && needsTechnical
+      ? (technicalUrgent
         ? 'technical'
-        : nextTurnIndex >= 7 && needsBehavioural
+        : behaviouralUrgent
           ? 'behavioural'
           : null)
       : null;
-    forceCategory = nextTurnIndex >= 4 && needsTechnical
+    forceCategory = technicalUrgent
       ? 'technical'
-      : nextTurnIndex >= 7 && needsBehavioural
+      : behaviouralUrgent
         ? 'behavioural'
         : null;
   }
@@ -117,6 +125,7 @@ export const buildInterviewTurnPolicy = (session = {}, decisionContext = {}) => 
     forceCategory,
     focusAreaKey: blueprint.focusAreaKey,
     interviewModeKey: blueprint.interviewModeKey,
-    shouldCloseSoon: nextTurnIndex >= blueprint.totalQuestions,
+    shouldCloseSoon: nextTurnIndex >= Math.max(blueprint.totalQuestions - 1, 1),
+    isFinalPlannedTurn: nextTurnIndex >= blueprint.totalQuestions,
   };
 };

@@ -29,6 +29,17 @@ export const selectNextAction = (decisionContext = {}) => {
     };
   }
 
+
+  const isFinalPlannedTurn = Boolean(interviewStructure.isFinalPlannedTurn);
+  if (isFinalPlannedTurn && !evaluatorState.misunderstandingFlag) {
+    return {
+      selectedAction: AGENT_ACTION_TYPES.WRAP_STAGE,
+      rationale: 'The interview is on the final planned turn, so the controller should use a clear closing question instead of opening another chain.',
+      confidence: 0.93,
+      actionInput: { targetTopic: 'candidate_questions', probeType: 'close_interview', forceEvidence: false },
+    };
+  }
+
   const requiresTechnicalRecovery = interviewStructure.focusAreaKey === 'combined'
     && interviewStructure.forceCategory === 'technical'
     && !interviewStructure.mustBeFreshQuestion

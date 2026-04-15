@@ -70,6 +70,8 @@ export function InterviewPage() {
         session={session}
         title={viewModel.title}
         roleFamilyLabel={viewModel.roleFamilyLabel}
+        exactRoleTitle={viewModel.exactRoleTitle}
+        modeLabel={viewModel.modeLabel}
         levelLabel={viewModel.levelLabel}
         stageLabel={viewModel.stageLabel}
         elapsedSeconds={viewModel.elapsedSeconds}
@@ -81,7 +83,7 @@ export function InterviewPage() {
           <InterviewStatusBanner status={pageStatus} onConfirmEnd={handleConfirmEnd} onCancelEnd={dismissStatus} />
         </div>
 
-        <InterviewSidebar session={session} currentPlanItem={viewModel.currentPlanItem} promiseLabel={viewModel.promiseLabel} levelLabel={viewModel.levelLabel} matchedAreas={viewModel.matchedAreas} />
+        <InterviewSidebar session={session} currentPlanItem={viewModel.currentPlanItem} promiseLabel={viewModel.promiseLabel} levelLabel={viewModel.levelLabel} modeLabel={viewModel.modeLabel} currentFocusLabel={viewModel.currentFocusLabel} matchedAreas={viewModel.matchedAreas} />
 
         <div className="col-span-6 flex flex-col h-full pb-6 min-h-0">
           <InterviewChatPanel

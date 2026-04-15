@@ -1,0 +1,56 @@
+AI: Hi, thanks for joining today. Let’s start with a quick introduction. Could you tell me a bit about yourself and what interested you in this Software Engineer (agentic) interview?
+
+USER: Hi My name is Alan,
+
+thank you for giving me a chance to have interview here. Currently, I have just graduated from University of Auckland. I am majoring in data and artificial intelligence area. Before I came to here, I was an electrical engineering in Foxconn to deal with business client apple company.
+
+My previous role was specifically dealing with the client needs in the factory and do the problem solving with the testing failure products. During my second school period, I handed on several projects related to web applications and data dashboard. In my free time, I am interested in LGBT culture and attend several AI agent workshop meetup. Thank you.
+
+AI: Staying with self_intro, what trade-off, difficulty, or decision did you handle yourself, and how did you judge whether it worked?
+
+USER: One decision I handled myself was how to balance speed and structure when building an interview-related project. At the beginning, I found that if I tried to make everything perfect from day one, progress became very slow. But if I moved too fast, the code became messy and harder to improve later.
+So I made a trade-off. I decided to first build a simple working version of the flow, then review the weak parts and improve them step by step. For example, I focused on getting the main interview flow working first, then I refined the question logic, follow-up behavior, and evaluation structure later.
+The difficulty was judging how much was enough for each stage. I did not want to overbuild too early, but I also did not want a weak foundation. I judged whether it worked by checking two things. First, whether the feature could run end to end without breaking. Second, whether I could still modify it easily when new requirements came in. When I saw that I could add improvements without rewriting everything, I knew that decision was working.
+
+AI: Tell me about a project where you used TypeScript in a practical way.
+
+USER: That helps. I want to test the technical part more directly now.
+
+Tell me about a project where you used TypeScript in a practical way.
+
+AI: Tell me about a time when you had to show Collaboration.
+
+USER: One time I showed collaboration was during a team project at university, where we were building a web-based application. My role was mainly focused on the data and AI-related parts, but to make the whole system work, I had to work closely with teammates who were responsible for the frontend and backend.
+A challenge was that each of us was focused on different parts, so sometimes we had different assumptions about how the features should work. For example, I might think about the logic from the AI side, while my teammate was more concerned about user interaction or system integration. If we did not align early, it could easily create rework later.
+To handle that, I made sure to communicate my progress clearly, explain technical decisions in a simple way, and check with my teammates before finalising parts that would affect their work. I also tried to be flexible. When there were changes in project direction, I adjusted my own part so it could fit the team鈥檚 overall goal, instead of only focusing on my own tasks.
+As a result, we were able to connect our different parts into one working system and avoid bigger issues near the deadline. This experience taught me that collaboration is not just dividing the work. It is also about making sure everyone stays aligned, understands each other, and moves toward the same outcome.
+
+AI: You hinted at ownership_boundary. What was the hardest trade-off or gap there, and how did you handle it in practice?
+
+USER: One concrete example was during a team project where I was mainly responsible for the data and AI side, while my teammates handled more of the frontend and backend integration. The hardest trade-off was deciding how far I should push changes beyond my own area.
+At one point, I could see that some interview flow logic would affect both the AI response quality and the frontend user experience. If I only focused on my own part, my work would be technically correct but the full user flow might still feel weak. But if I changed too much outside my area, I could create confusion or step into work that belonged to my teammates.
+In practice, I handled that by first making my own scope very clear. I identified what I fully owned, such as the response logic, evaluation rules, and interview behavior design. Then, when I saw issues that crossed into other parts, I did not directly take over. Instead, I raised the issue early, explained the impact, and suggested a specific solution that we could agree on as a team.
+The way I judged it was by asking two questions. First, did the final solution improve the overall flow, not just my own module? Second, could the team still work clearly without duplicated ownership? I think it worked because we kept progress moving, reduced rework, and the final system fit together better instead of becoming disconnected pieces.
+
+AI: Tell me about a time when you had to show Communication.
+
+USER: One time I showed communication was during a team project where we were building a web-based system. My role focused more on the data and AI side, but I still needed to work closely with teammates handling the frontend and backend.
+A challenge was that we sometimes looked at the same problem from different angles. For example, I might focus more on logic and response quality, while my teammates were more concerned about integration and user experience. If I explained things in a way that was too technical, it could create confusion or slow down decisions.
+So I tried to communicate in a clearer and more practical way. I explained what I was building, why it mattered, and how it would affect the rest of the system. I also checked understanding early instead of assuming everyone saw it the same way. When there were changes, I made sure to raise them early so the team could adjust before they became bigger issues.
+As a result, we were able to stay more aligned and reduce rework during integration. That experience taught me that good communication is not only about sharing information. It is also about making sure other people can understand it, respond to it, and use it to move the work forward.
+
+AI: Before we finish, what questions do you have for me about the role or team?
+
+USER: Yes, I have a few questions, thank you.
+First, I would like to know what success looks like in this role during the first three to six months. I think that would help me understand what the team values most.
+Second, I am interested in how the team usually works together across different functions. For example, how do engineers collaborate with product, design, or other stakeholders when priorities change?
+Third, I would like to ask what kind of support the team gives to someone who is still growing in the role, especially in terms of learning, feedback, and ownership.
+Finally, I would be interested to know what the biggest challenges or priorities are for the team right now.
+
+AI: Before we finish, what questions do you have for me about the role or team?
+
+USER: Yes, I have a few questions, thank you.
+First, I would like to know what success looks like in this role during the first three to six months. I think that would help me understand what the team values most.
+Second, I am interested in how the team usually works together across different functions. For example, how do engineers collaborate with product, design, or other stakeholders when priorities change?
+Third, I would like to ask what kind of support the team gives to someone who is still growing in the role, especially in terms of learning, feedback, and ownership.
+Finally, I would be interested to know what the biggest challenges or priorities are for the team right now.

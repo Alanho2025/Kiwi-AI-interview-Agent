@@ -34,6 +34,11 @@ const FEEDBACK_VARIANTS = {
     'Before we wrap up, I want to finish with one last point.',
     'That gives me enough context. Let me close with one final question.'
   ],
+  close: [
+    'Thanks, that gives me enough to close properly.',
+    'That helps. I can finish with one final check.',
+    'Good, I have enough context now to close this out.'
+  ],
 };
 
 const normalizeMode = (value = '') => String(value || '').trim().toLowerCase();
@@ -50,7 +55,7 @@ const resolveFeedbackMode = ({ actionType = '', questionCategory = '', stage = '
   const normalizedStage = normalizeMode(stage);
   const normalizedSuggestedMode = normalizeMode(suggestedNextMode);
 
-  if (shouldCloseSoon || normalizedAction.includes('wrap') || normalizedStage.includes('wrap')) return 'wrap';
+  if (shouldCloseSoon || normalizedAction.includes('wrap') || normalizedStage.includes('wrap')) return normalizedCategory === 'closing' || normalizedStage.includes('closing') ? 'close' : 'wrap';
   if (normalizedAction.includes('rephrase') || normalizedSuggestedMode === 'rephrase') return 'rephrase';
   if (normalizedAction.includes('shift')) return normalizedCategory === 'technical' || normalizedStage.includes('technical') ? 'technical_shift' : 'shift_section';
   if (normalizedAction.includes('validation')) return 'validation';

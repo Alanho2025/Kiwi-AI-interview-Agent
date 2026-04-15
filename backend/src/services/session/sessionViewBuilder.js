@@ -20,11 +20,22 @@ import {
 } from './sessionShared.js';
 
 const sanitizeQuestionPoolForClient = (questionPool = []) => questionPool.map(({ sourceType, sourceId, matchedRequirementId, matchedSkill, cvEvidenceRefs, generationReason, confidence, planPriority, ...safeItem }) => safeItem);
+const buildTranscriptDisplayText = (turn = {}) => {
+  const preamble = String(turn?.metadata?.preamble || '').trim();
+  const text = String(turn?.text || '').trim();
+  if (turn?.role === 'ai' && preamble && text) return `${preamble}
+
+${text}`;
+  return text;
+};
+
 const mapTranscriptTurns = (transcript) => transcript?.turns?.map((turn) => ({
   role: turn.role,
   text: turn.text,
+  displayText: buildTranscriptDisplayText(turn),
   timestamp: new Date(turn.timestamp).toISOString(),
   questionId: turn.questionId,
+  metadata: turn.metadata || {},
 })) || [];
 
 export const buildSessionDetails = ({ row, plan, transcript, analysis, report, cvDocument }) => {
