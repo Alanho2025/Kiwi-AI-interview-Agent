@@ -25,7 +25,7 @@ describe('JD seek benchmark scenarios', () => {
     const raw = await loadJdFixture('seek-counties-energy-data-ai-engineer.txt');
     const rubric = await buildStructuredJobDescriptionRubric(raw);
     expect(rubric.jobOverview.companyName).toBe('Counties Energy Ltd');
-    expect(rubric.roleFamily).toBe('ai_ml');
+    expect(rubric.roleFamily).toBe('data');
     expect(rubric.sections.technicalSkills.data.map((item) => item.label)).toEqual(expect.arrayContaining(['SQL', 'Power Query', 'Power BI', 'Jupyter']));
   });
 

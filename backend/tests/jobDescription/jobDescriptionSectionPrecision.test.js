@@ -41,7 +41,8 @@ describe('JD parse section precision', () => {
     expect(qualifications).not.toContain('annual bonus');
     expect(qualifications).not.toContain('learning budget');
     expect(qualifications).not.toContain('submit your cv');
-    expect(rubric.sections.benefits).toEqual(expect.arrayContaining(['Hybrid work options.', 'Annual bonus.', 'Learning budget.']));
-    expect(rubric.sections.applicationInstructions).toEqual(expect.arrayContaining(['Submit your CV.']));
+    expect(rubric.sections.benefits).toEqual(expect.arrayContaining(['Hybrid Work', 'Annual Bonus', 'Learning Budget']));
+    expect(rubric.sections.applicationInstructions).toEqual(expect.arrayContaining(['Apply with CV']));
+    expect(rubric.rawSections.applicationInstructions).toEqual(expect.arrayContaining(['Submit your CV.']));
   });
 });

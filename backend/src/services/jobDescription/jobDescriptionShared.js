@@ -9,7 +9,7 @@
  * - Prefer composition and small helpers over repeated inline logic.
  */
 
-export const ROLE_KEYWORDS = /engineer|developer|manager|designer|analyst|architect|consultant|specialist|intern|scientist|administrator/i;
+export const ROLE_KEYWORDS = /engineer|developer|manager|designer|analyst|architect|consultant|specialist|intern|scientist|administrator|programme|program/i;
 export const TECH_SKILL_PATTERN = /\b(react|node\.?js|typescript|javascript|python|java|aws|azure|gcp|docker|kubernetes|sql|testing|api|graphql|tailwind|html|css|excel|power bi|tableau|data analysis|machine learning|deep learning|hadoop|spark|statistics|pandas|numpy|tensorflow|pytorch)\b/gi;
 export const SOFT_SKILL_PATTERN = /\b(communication|stakeholder management|stakeholder communication|teamwork|collaboration|leadership|problem solving|adaptability|accountability|ownership|willingness to learn|learning mindset|attention to detail|time management|customer service)\b/gi;
 export const MACRO_CRITERIA_HINTS = [

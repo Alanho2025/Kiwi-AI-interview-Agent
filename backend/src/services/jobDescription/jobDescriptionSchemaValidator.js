@@ -15,5 +15,12 @@ export const validateJobDescriptionRubric = (rubric = {}) => ({
   sections: ensureObject(rubric.sections, {
     introduction: [], responsibilities: [], qualifications: [], mustHaveRequirements: [], niceToHaveRequirements: [], technicalSkills: {}, softSkills: [], benefits: [], companyContext: [], applicationInstructions: [],
   }),
+  rawSections: ensureObject(rubric.rawSections, {
+    introduction: [], responsibilities: [], qualifications: [], mustHaveRequirements: [], niceToHaveRequirements: [], technicalSkills: {}, softSkills: [], benefits: [], companyContext: [], applicationInstructions: [],
+  }),
+  normalized: ensureObject(rubric.normalized, {
+    introduction: [], responsibilities: [], qualifications: [], mustHaveRequirements: [], niceToHaveRequirements: [], technicalSkills: {}, softSkills: [], benefits: [], companyContext: [], applicationInstructions: [],
+  }),
+  evidenceMap: ensureObject(rubric.evidenceMap),
   diagnostics: ensureObject(rubric.diagnostics, { warnings: [] }),
 });
