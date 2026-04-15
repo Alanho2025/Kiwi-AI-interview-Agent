@@ -254,7 +254,7 @@ const runInterviewController = async ({ session, payload = {} }) => {
     questionOrder: nextQuestionOrder,
     questionType: interviewerOutput.questionType || 'follow_up',
     sourceType: interviewerOutput.sourceType || 'agent_generated',
-    questionText: interviewerOutput.nextQuestion,
+    questionText: interviewerOutput.displayText || interviewerOutput.nextQuestion,
     basedOnCv: true,
     basedOnJd: true,
   });
@@ -270,6 +270,7 @@ const runInterviewController = async ({ session, payload = {} }) => {
       evidenceTypeHint: interviewerOutput.evidenceTypeHint || null,
       controllerAction: plan.selectedAction,
       rationaleSummary: interviewerOutput.rationaleSummary || interviewerOutput.rationale,
+      preamble: interviewerOutput.interviewerTurn?.preamble || '',
       followUpDepth: interviewerOutput.followUpDepth || 0,
       questionCategory: interviewerOutput.questionCategory || null,
       questionType: interviewerOutput.questionType || 'follow_up',
@@ -282,6 +283,7 @@ const runInterviewController = async ({ session, payload = {} }) => {
     isComplete: false,
     controllerAction: plan.selectedAction,
     evaluatorOutput,
+    interviewerTurn: interviewerOutput.interviewerTurn || null,
     reactTrace: interviewerOutput.reactTrace || null,
   };
 };

@@ -12,7 +12,7 @@
 import { AppHeader } from '../layout/AppHeader.jsx';
 import { formatDuration } from '../../utils/formatters.js';
 
-export function InterviewPageHeader({ session, displayRole, compactRoleLabel, stageLabel, elapsedSeconds, onViewReport }) {
+export function InterviewPageHeader({ session, title, roleFamilyLabel, levelLabel, stageLabel, elapsedSeconds, onViewReport }) {
   const isCompleted = session?.status === 'completed';
   const hasReport = Boolean(session?.hasReport);
   const showReportButton = isCompleted;
@@ -28,13 +28,13 @@ export function InterviewPageHeader({ session, displayRole, compactRoleLabel, st
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-sm text-gray-500">Role</span>
           <span className="px-3 py-1 bg-[#e6f7f0] text-[#2eb886] text-sm font-medium rounded-full max-w-[220px] truncate">
-            {compactRoleLabel}
+            {roleFamilyLabel}
           </span>
         </div>
         <div className="min-w-0 flex-1 max-w-[420px]">
-          <div className="text-lg font-semibold text-gray-900 truncate">{displayRole} Interview</div>
+          <div className="text-lg font-semibold text-gray-900 truncate">{title}</div>
           <div className="text-xs text-gray-500 mt-1 truncate">
-            {(session?.analysisResult?.parsedJdProfile?.roleLevel || session?.settings?.seniorityLevel || 'mid')} • {stageLabel}
+            {levelLabel} • {stageLabel}
           </div>
         </div>
         <div className="flex items-center gap-6 shrink-0">

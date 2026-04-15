@@ -18,6 +18,14 @@ import { buildInterviewStructure, getQuestionCategory } from './interview/interv
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
 const normalizeText = (value = '') => String(value || '').trim();
+const normalizeKey = (value = '') => normalizeText(value).toLowerCase();
+
+const buildQuestionRootKey = (question = {}) => {
+  const topic = normalizeKey(question.topic || question.metadata?.topic || '');
+  const category = normalizeKey(getQuestionCategory(question));
+  const type = normalizeKey(question.type || question.metadata?.questionType || '');
+  return [topic || 'topic', category || 'category', type || 'type'].join(':');
+};
 
 export const getQuestionPool = (session = {}) => session?.interviewPlan?.questionPool || [];
 
@@ -90,21 +98,27 @@ export const getNextPoolQuestion = (session = {}, options = {}) => {
   }
   const questionPool = getQuestionPool(session);
   const structure = buildInterviewStructure(session);
-  const recentTexts = structure.askedQuestionTexts.slice(-2);
+  const recentTexts = structure.askedQuestionTexts.slice(-3).map((item) => normalizeKey(item));
+  const askedRootQuestionKeys = new Set((structure.askedRootQuestionKeys || []).map((item) => normalizeKey(item)));
   const startIndex = Math.max(0, getResolvedCurrentQuestionIndex(session));
   const desiredCategory = String(options.category || '').trim().toLowerCase();
   const requireFresh = Boolean(options.freshOnly);
+  const avoidRootRepeat = options.avoidRootRepeat !== false;
   for (let index = startIndex; index < questionPool.length; index += 1) {
     const candidate = questionPool[index];
     if (!candidate) continue;
     const candidateCategory = getQuestionCategory(candidate);
-    const candidateText = normalizeText(candidate.text);
+    const candidateText = normalizeKey(candidate.text);
+    const candidateFollowUpDepth = Number(candidate.followUpDepth || 0);
+    const candidateRootKey = buildQuestionRootKey(candidate);
     if (recentTexts.includes(candidateText)) continue;
     if (desiredCategory && candidateCategory !== desiredCategory) continue;
-    if (requireFresh && Number(candidate.followUpDepth || 0) > 0) continue;
+    if (requireFresh && candidateFollowUpDepth > 0) continue;
+    if (avoidRootRepeat && candidateFollowUpDepth <= 0 && askedRootQuestionKeys.has(candidateRootKey)) continue;
     return candidate;
   }
-  return questionPool[startIndex] || null;
+  if (requireFresh) return null;
+  return null;
 };
 
 /**

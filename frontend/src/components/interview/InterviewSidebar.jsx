@@ -19,13 +19,8 @@ import { TipCard } from './TipCard.jsx';
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-const buildFocusDescription = ({ currentPlanItem, enableNZCultureFit, focusArea }) => {
-  const focusKey = String(focusArea || 'Combined').toLowerCase();
-  const modeMessage = focusKey === 'technical'
-    ? 'This interview stays in technical mode, so explain tools, decisions, trade-offs, and results clearly.'
-    : focusKey === 'behavioral'
-      ? 'This interview stays in behavioural mode, so use STAR and keep each example concrete.'
-      : 'This interview will cover both behavioural and technical evidence, so keep examples concrete.';
+const buildFocusDescription = ({ currentPlanItem, enableNZCultureFit, promiseLabel }) => {
+  const modeMessage = promiseLabel || 'Keep your examples concrete and role-specific.';
   if (!currentPlanItem) {
     return `${enableNZCultureFit ? 'Use teamwork and communication examples when they are relevant. ' : ''}${modeMessage}`;
   }
@@ -39,7 +34,7 @@ const buildFocusDescription = ({ currentPlanItem, enableNZCultureFit, focusArea 
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-export function InterviewSidebar({ session, currentPlanItem }) {
+export function InterviewSidebar({ session, currentPlanItem, promiseLabel, levelLabel, matchedAreas = [] }) {
   return (
     <div className="col-span-3 flex flex-col gap-6 overflow-y-auto pr-2 pb-6 min-h-0">
       <CandidateCard
@@ -52,10 +47,10 @@ export function InterviewSidebar({ session, currentPlanItem }) {
         description={buildFocusDescription({
           currentPlanItem,
           enableNZCultureFit: session?.settings?.enableNZCultureFit,
-          focusArea: session?.settings?.focusArea,
+          promiseLabel,
         })}
       />
-      <SessionInfoCard totalQuestions={session?.totalQuestions} seniorityLevel={session?.settings?.seniorityLevel} />
+      <SessionInfoCard totalQuestions={session?.totalQuestions} levelLabel={levelLabel} focusArea={session?.settings?.focusArea} matchedAreas={matchedAreas} />
     </div>
   );
 }

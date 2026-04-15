@@ -49,7 +49,7 @@ export const resolveInterviewModeConfig = ({ seniorityLevel = 'junior', focusAre
   const normalizedFocusArea = normalizeFocusAreaKey(focusArea);
   const technicalTarget = blueprint.level === 'advanced' ? 3 : 2;
   const behaviouralTarget = 2;
-  const combinedTechnicalTarget = blueprint.level === 'junior' ? 1 : 2;
+  const combinedTechnicalTarget = blueprint.level === 'advanced' ? 3 : 2;
   return {
     ...blueprint,
     seniorityKey: blueprint.level,
