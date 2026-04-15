@@ -50,6 +50,7 @@ export const resolveInterviewModeConfig = ({ seniorityLevel = 'junior', focusAre
   const technicalTarget = blueprint.level === 'advanced' ? 3 : 2;
   const behaviouralTarget = 2;
   const combinedTechnicalTarget = blueprint.level === 'advanced' ? 3 : 2;
+  const combinedBehaviouralTarget = 2;
   return {
     ...blueprint,
     seniorityKey: blueprint.level,
@@ -61,7 +62,7 @@ export const resolveInterviewModeConfig = ({ seniorityLevel = 'junior', focusAre
         ? ['opening', 'behavioural', 'wrap_up']
         : ['opening', 'technical', 'behavioural', 'wrap_up'],
     minTechnicalQuestions: normalizedFocusArea === 'behavioral' ? 0 : normalizedFocusArea === 'combined' ? combinedTechnicalTarget : technicalTarget,
-    minBehaviouralQuestions: normalizedFocusArea === 'technical' ? 0 : normalizedFocusArea === 'combined' ? 1 : behaviouralTarget,
+    minBehaviouralQuestions: normalizedFocusArea === 'technical' ? 0 : normalizedFocusArea === 'combined' ? combinedBehaviouralTarget : behaviouralTarget,
   };
 };
 

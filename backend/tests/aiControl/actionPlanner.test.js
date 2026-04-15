@@ -89,3 +89,18 @@ describe('selectNextAction', () => {
     expect(plan.selectedAction).toBe(AGENT_ACTION_TYPES.SHIFT_SECTION);
   });
 });
+
+
+  it('uses a wrap action on the final planned turn', () => {
+    const plan = selectNextAction({
+      taskType: 'interview_next_turn',
+      currentStage: 'technical_core',
+      currentTopic: 'postgresql',
+      candidateState: { specificityLevel: 'high' },
+      evaluatorState: { misunderstandingFlag: false, suggestedNextMode: 'advance' },
+      interviewStructure: { isFinalPlannedTurn: true, focusAreaKey: 'combined' },
+      coverageState: { missingTopics: [], coveredTopics: ['postgresql'], weakAreas: [] },
+      matchState: { validationTargets: [] },
+    });
+    expect(plan.selectedAction).toBe(AGENT_ACTION_TYPES.WRAP_STAGE);
+  });

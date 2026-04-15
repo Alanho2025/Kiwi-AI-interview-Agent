@@ -68,7 +68,7 @@ export function InterviewChatPanel({ transcript, onReply, onPause, onRepeat, onE
                 "p-4 rounded-2xl text-sm shadow-sm whitespace-pre-line",
                 msg.role === 'ai' ? "bg-white text-gray-900 rounded-tl-none border border-gray-100" : "bg-[#2eb886] text-white rounded-tr-none"
               )}>
-                {msg.text}
+                {msg.displayText || msg.text}
               </div>
             </div>
           ))}
@@ -102,7 +102,7 @@ export function InterviewChatPanel({ transcript, onReply, onPause, onRepeat, onE
                   <div className="w-2 h-2 bg-gray-300 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                 </div>
               ) : (
-                <p className="text-lg font-medium text-gray-900 whitespace-pre-line">{currentQuestion?.text}</p>
+                <p className="text-lg font-medium text-gray-900 whitespace-pre-line">{currentQuestion?.displayText || currentQuestion?.text}</p>
               )}
             </>
           )}
