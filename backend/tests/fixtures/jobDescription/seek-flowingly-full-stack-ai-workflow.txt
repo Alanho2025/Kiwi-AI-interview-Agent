@@ -1,0 +1,93 @@
+Full Stack Developers (AI & Workflow
+Automation Focus)
+Flowingly Limited
+View all jobs
+Auckland CBD, Auckland (Remote)
+Developers/Programmers (Information & Communication Technology)
+Full time
+Add expected salary to your profile for insights
+Posted 6d ago•Medium application volume
+How you match
+5 skills and credentials match your profile
+Git Version Control System
+SQL Query Language
+
+JD example
+
+4
+
+
+CSS
+JavaScript Programming
++1 more⁠
+Flowingly is a leader in AI-powered workflow automation and process
+improvement software. We're expanding rapidly and looking for Full Stack
+Developers to help us build the future of intuitive, intelligent business solutions.
+If you’re passionate about developing cutting-edge AI-driven features and
+thrive in fast-paced, high-growth environments, we want to hear from you.
+About Flowingly
+At Flowingly, we empower organizations around the world to streamline
+operations through no-code process mapping, automation, and now,
+embedded AI solutions. Our mission is simple: make powerful workflow
+automation accessible to every business user – not just IT.
+We foster innovation, collaboration, and excellence, and we’re passionate about
+shaping the future of work through intuitive technology.
+The Role
+As a Full Stack Developer, you will:
+Build & Innovate: Develop scalable front-end and back-end solutions that
+power our AI and automation features.
+Shape the Future: Help drive the evolution of Flowingly’s AI capabilities,
+from smarter workflows to predictive insights.
+Code Excellence: Write, review, and maintain high-quality, standardsdriven code to ensure performance, security, and reliability.
+Problem Solve: Approach complex challenges with creativity and a
+solution-focused mindset.
+What We’re Looking For
+We’re looking for someone who is:
+Experienced: 5+ years of experience in software development, with
+expertise in GIT, SQL, C#, .NET Web API, HTML/CSS, JavaScript (JS),
+TypeScript (TS), and strong React/TS proficiency.
+AI-Curious: Previous experience integrating AI APIs (e.g., OpenAI, Azure
+OpenAI) or a strong interest in AI innovation is highly valued.
+
+JD example
+
+5
+
+
+Skilled: Strong knowledge of software architecture, design patterns, and
+modern cloud technologies (AWS, Azure).
+Collaborative: Excellent communication skills to work across teams, time
+zones, and cultures.
+Organised: Able to juggle priorities and deliver projects on time.
+Innovative: Eager to keep learning and stay ahead of emerging tech trends,
+especially in AI and automation.
+Why Join Flowingly?
+Shape the Future: Play a key role in embedding AI into real-world business
+processes.
+Global Reach: Work on a platform used by organizations across Australia,
+New Zealand, and beyond.
+Career Growth: Opportunity to grow with a fast-scaling SaaS company.
+Flexible Work: Hybrid or remote working options to suit your lifestyle.
+Dynamic Culture: A collaborative, open-minded team where your voice and
+ideas matter.
+Competitive Package: Attractive salary, bonuses, and benefits for the right
+candidate.
+
+Employer questions
+
+Your application will include the following questions:
+Have you worked in a role which requires JavaScript development
+experience?
+Which of the following statements best describes your right to work in New
+Zealand?
+How many years' experience do you have as a full stack developer?
+Which of the following programming languages are you experienced in?
+Have you worked in a role which requires C# development experience?
+How many years' experience do you have in a software development role?
+
+JD example
+
+6
+
+
+JD example 4

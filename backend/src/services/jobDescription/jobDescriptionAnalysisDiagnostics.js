@@ -25,15 +25,20 @@ export const buildJobDescriptionDiagnostics = ({ sections = {}, requirementGroup
   };
 
   const coverageCount = Object.values(sectionCoverage).filter(Boolean).length;
-  const confidence = Math.max(0.45, Math.min(0.96, 0.45 + coverageCount * 0.08 + Math.min(0.16, extractedCounts.technicalSkills * 0.01)));
+  const extractionCoverage = Number((coverageCount / Object.keys(sectionCoverage).length).toFixed(2));
+  const ambiguityScore = Number(Math.max(0, Math.min(1, 1 - ((warnings.length * 0.12) + ((sections.applicationInstructions || []).length > 6 ? 0.1 : 0)))).toFixed(2));
+  const parserSelfConfidence = Number(Math.max(0.45, Math.min(0.98, 0.5 + coverageCount * 0.07 + Math.min(0.2, extractedCounts.technicalSkills * 0.012) - Math.min(0.15, warnings.length * 0.03))).toFixed(2));
 
   return {
     analysisMode: warnings.some((item) => item.includes('AI enhancement')) ? 'heuristic_only' : 'hybrid',
-    confidence: Number(confidence.toFixed(2)),
+    confidence: parserSelfConfidence,
+    parserSelfConfidence,
+    extractionCoverage,
+    ambiguityScore,
     warnings,
     sectionCoverage,
     extractedCounts,
     missingSections: Object.entries(sectionCoverage).filter(([, present]) => !present).map(([key]) => key),
-    parserVersion: 'jd-parser-v2',
+    parserVersion: 'jd-parser-v3',
   };
 };

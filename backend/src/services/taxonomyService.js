@@ -66,11 +66,11 @@ const TERM_ALIASES = new Map([
 const ROLE_CANONICAL_RULES = [
   { canonical: 'data_scientist', family: 'data_science', patterns: [/data scientist/i, /content science/i] },
   { canonical: 'data_analyst', family: 'analytics', patterns: [/data analyst/i, /business intelligence/i, /analytics?/i] },
-  { canonical: 'machine_learning_engineer', family: 'data_science', patterns: [/machine learning engineer/i, /ml engineer/i, /ai engineer/i] },
-  { canonical: 'software_engineer', family: 'software_engineering', patterns: [/software engineer/i, /software developer/i, /programmer/i] },
+  { canonical: 'machine_learning_engineer', family: 'ai_ml', patterns: [/machine learning engineer/i, /ml engineer/i, /ai engineer/i, /ai-enabled/i, /data and ai engineer/i] },
+  { canonical: 'software_engineer', family: 'software_development', patterns: [/software engineer/i, /software developer/i, /programmer/i, /web software engineer/i] },
   { canonical: 'frontend_engineer', family: 'frontend', patterns: [/front[ -]?end/i, /ui engineer/i, /react developer/i] },
   { canonical: 'backend_engineer', family: 'backend', patterns: [/back[ -]?end/i, /api developer/i, /server[- ]side/i] },
-  { canonical: 'full_stack_engineer', family: 'software_engineering', patterns: [/full[ -]?stack/i] },
+  { canonical: 'full_stack_engineer', family: 'software_development', patterns: [/full[ -]?stack/i] },
   { canonical: 'devops_engineer', family: 'devops', patterns: [/devops/i, /site reliability/i, /sre/i, /platform engineer/i] },
   { canonical: 'accessibility_specialist', family: 'frontend', patterns: [/accessibility specialist/i, /web accessibility/i] },
   { canonical: 'big_data_administrator', family: 'data_engineering', patterns: [/big data/i, /data warehousing/i, /data engineer/i] },
@@ -168,10 +168,24 @@ export const canonicalizeRole = (title = '', fallbackText = '') => {
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
 export const inferRoleLevel = (text = '') => {
-  if (/\b(?:intern|apprentice|graduate)\b/i.test(text)) return 'intern';
-  if (/\b(?:junior|entry level|entry-level|associate)\b/i.test(text)) return 'junior';
-  if (/\b(?:senior|principal|staff)\b/i.test(text)) return 'senior';
-  if (/\b(?:lead|manager)\b|\bhead of\b/i.test(text)) return 'lead';
+  const combined = String(text || '');
+  const head = combined.split(/\n/).slice(0, 8).join(' ');
+  if (/graduate programme/i.test(head)) return 'graduate';
+  if (/\bgraduate\b/i.test(head) && !/post graduate/i.test(head)) return 'graduate';
+  if (/\b(?:intern|apprentice)\b/i.test(head)) return 'intern';
+  if (/\b(?:junior|entry level|entry-level|associate)\b/i.test(head)) return 'junior';
+  if (/\b(?:principal|staff)\b/i.test(head)) return 'staff_plus';
+  if (/\b(?:senior)\b/i.test(head)) return 'senior';
+  if (/\b(?:lead)\b|\bhead of\b/i.test(head)) return 'lead';
+  if (/\bmanager\b/i.test(head)) return 'leadership';
+  if (/\bgraduate\b/i.test(combined) && !/post graduate/i.test(combined)) return 'graduate';
+  if (/\b(?:intern|apprentice)\b/i.test(combined)) return 'intern';
+  if (/\b(?:junior|entry level|entry-level|associate)\b/i.test(combined)) return 'junior';
+  if (/\b(?:principal|staff)\b/i.test(combined)) return 'staff_plus';
+  if (/\b(?:senior)\b/i.test(combined) || /\b[5-9]\+ years?\b/i.test(combined)) return 'senior';
+  if (/\b(?:lead)\b|\bhead of\b/i.test(combined)) return 'lead';
+  if (/\bmanager\b/i.test(combined)) return 'leadership';
+  if (/\b(?:intermediate|mid)\b/i.test(combined) || /\b[234]\+ years?\b/i.test(combined)) return 'mid';
   return 'mid';
 };
 

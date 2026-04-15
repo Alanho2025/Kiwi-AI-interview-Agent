@@ -41,7 +41,10 @@
     "test:system": "npm run test:ai-control && npm run test:report",
     "test:all": "npm run test:unit && npm run test:scenario && npm run test:integration",
     "eval:match": "node eval/runners/runCvJdMatchEval.js",
-    "eval:all": "npm run eval:cv && npm run eval:jd && npm run eval:match && npm run eval:interview && npm run eval:report"
+    "eval:all": "npm run eval:cv && npm run eval:jd && npm run eval:match && npm run eval:interview && npm run eval:report",
+    "test:jd:seek": "vitest run tests/scenario/jd/jdSeekDatasetScenarios.test.js tests/jobDescription/jobDescriptionSeekPrecisionGuards.test.js tests/jobDescription/jobDescriptionConfidenceCalibration.test.js",
+    "eval:jd:seek": "node eval/runners/runJdParseSeekBenchmark.js --min-average 0.9 --fail-below 0.9 --min-critical-average 0.9 --critical-fail-below 0.9",
+    "quality:jd:seek": "npm run test:jd:seek && npm run eval:jd:seek"
   },
   "dependencies": {
     "cors": "^2.8.6",

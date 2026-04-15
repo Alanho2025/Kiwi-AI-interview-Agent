@@ -1,0 +1,105 @@
+AI-Enabled Software Engineer
+Customer Radar Limited
+View all jobs
+Auckland CBD, Auckland (Hybrid)
+Engineering - Software (Information & Communication Technology)
+Full time
+Add expected salary to your profile for insights
+Posted 14d ago•High application volume
+How you match
+1 skill or credential matches your profile
+AWS
+Show all⁠
+We’re looking for a software engineer who fully embraces AI as a core part of
+how they function and build software.
+This is a hands-on role, focused on developing and evolving a modern SaaS
+platform. You’ll take ownership across architecture, delivery, and product
+JD example
+
+12
+
+
+collaboration, using AI to accelerate development, improve systems, and unlock
+new capabilities.
+You’ll work across the stack, connect data and systems, and continuously
+improve how things are done, both in the product and how the team operates.
+You may have worked in a bigger team and are looking for the opportunity and
+flexibility to showcase your talent. We’re a small, collaborative team, and in this
+role you'll have a big impact. We work closely together, share ideas openly, and
+work to move quickly and build well, supporting and growing clients across
+New Zealand, Australia, USA, and Canada.
+
+What You’ll Do
+Build and evolve the core platform with a focus on quality, scalability, and
+speed
+Use AI tools as a core part of your development workflow (coding, testing,
+debugging, documentation)
+Design and build integrations across systems (APIs, data sources, thirdparty platforms)
+Enable data to flow through the product as insights, actions, and
+engagement loops
+Identify opportunities to automate workflows and reduce manual effort
+Continuously improve how software is built through better tools, processes,
+and AI usage
+
+What We’re Looking For
+Someone with a curiosity mindset and focus on getting things done
+Strong software engineering fundamentals (full-stack or backend) with
+experience in Java and AWS hosted solutions
+Actively uses AI in their development workflow and is excited to go deeper
+Experience working with APIs, integrations, and multiple data sources
+Comfort working across systems and solving practical, real-world problems
+Ability to take ownership while also collaborating closely with others
+
+JD example
+
+13
+
+
+Mindset & Approach
+AI engaged - you naturally reach for AI to improve how you work
+Curious and exploratory - you enjoy testing ideas and discovering better
+ways
+Practical problem solver - you focus on real outcomes, not just theory
+Collaborative - you bring your ideas and expertise to the team
+
+Why This Role
+You’ll work on solving problems that have a real impact on the users
+You’ll have the freedom to bring your experience and curiosity as well as
+apply AI in ways that change how things are done
+You’ll be big part of a small, supportive team that works closely together
+You’ll help shape both the product and how the team operates over time
+
+About You
+You’re an experienced software engineer who likes building systems and
+features that users love. You understand APIs, integrations, and data, and how
+to make them work well together.
+You’re already using AI in your day-to-day work and constantly pushing it
+further. You look for smarter, faster ways to build, automate, and improve things
+around you.
+You’re curious by default. When something feels manual or inefficient, you help
+fix it.
+You’re motivated by building technology that genuinely makes a difference to
+its users and want to join us on our mission to empower companies to capture,
+manage, and amplify their reputation in an increasingly digital world.
+You’re comfortable taking ownership, but you also value being part of a team
+that works closely and moves quickly.
+You’ve worked with data and insights before, and if you’re familiar with surveys,
+customer feedback, or review data, even better (but not essential).
+Above all, you want to build things that have real impact on the users.
+
+JD example
+
+14
+
+
+Employer questions
+
+Your application will include the following questions:
+Which of the following statements best describes your right to work in New
+Zealand?
+How many years' experience do you have as a software engineer?
+Which of the following programming languages are you experienced in?
+Do you have experience with Test Driven Development (TDD)?
+What's your expected annual base salary?
+How much notice are you required to give your current employer?
+JD example 8

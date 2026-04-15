@@ -1,0 +1,89 @@
+Data Analyst
+Randstad Digital
+View all jobs
+Auckland CBD, Auckland
+Database Development & Administration (Information & Communication
+Technology)
+Full time
+Add expected salary to your profile for insights
+Posted 3d ago
+How you match
+2 skills and credentials match your profile
+Python Programming
+SQL Query Language
+Show all⁠
+
+Data Analyst
+Love turning raw data into sharp business insights?
+We are looking for a Data Analyst with a strong technical foundation in Python
+and SQL to join a specialist team in central Auckland. This role is for someone
+who enjoys the intersection of statistical methodology and data analytics,
+moving beyond basic reporting to execute complex analyses and maintain
+robust data workflows.
+You'll join a team that values habitual curiosity and high-quality technical
+output, using analytical scripts to translate datasets into clear, actionable
+narratives. While there is a specialized geospatial component, the core of this
+role is about technical ownership, automation, and applying statistical thinking
+to drive business decisions. This is an ideal next step for an experienced
+analyst who thrives on blending mathematical rigour with creative storytelling.
+You will:
+
+JD example
+
+7
+
+
+Deliver High-Quality Products: Work collaboratively to support the delivery
+of customer data insights and geospatial analytics on time and to customer
+requirements.
+Deep Dive into Data: Analyze datasets to identify trends and patterns using
+statistical methods and modeling to support critical business decisions.
+Code & Automate: Use Python and SQL to assist in producing analytics
+outputs, with a focus on turning manual processes into scalable, automated
+workflows.
+Visualize & Storytell: Assist in creating templated and bespoke reports,
+dashboards, and visualizations that turn complex data into actionable
+narratives.
+Maintain Data Integrity: Help maintain best-practice data quality, security,
+and the currency of essential datasets like census and spatial data.
+Collaborate Regionally: Work with internal teams to ensure analytics
+outputs are accurate, timely, and aligned with broader business goals.
+
+What's in it for you?
+Collaborative Culture: Join a team that values being curious, being
+awesome (not average) and puts "Passion in Play".
+Innovation-Led Environment: Exposure to leading-edge projects, including
+the building of an AI-powered analytics platform and advanced geospatial
+modeling.
+Growth & Impact: A role where you can build deep expertise in data
+analytics and geospatial methods while seeing your insights drive real
+value.
+
+You'll bring:
+Experience: At least 3 years in a data analysis role, preferably with
+exposure to customer insights or geospatial intelligence.
+Technical Literacy: Proficiency in Python, SQL, and Excel, with the ability to
+write and maintain analytical scripts.
+Mathematical Mindset: A solid understanding of statistical methodologies
+
+JD example
+
+8
+
+
+Communication Skills: The ability to explain findings and recommended
+actions effectively to both technical and non-technical stakeholders.
+Education: A BSc/BA in Computer Science, Statistics, Data Management, or
+a related field.
+
+Bonus points for:
+Experience with Esri (ArcGIS suite) or similar mapping applications.
+A proactive, problem-solving mindset and a willingness to contribute ideas
+to improve standard products.
+Ready to bring data to life and shape insights that matter?
+Contact Amaan on 0220607986 or Email
+on amaan.kazmi@randstaddigital.co.nz to find out more or apply.
+At Randstad, we are passionate about providing equal employment
+opportunities and embracing diversity to the benefit of all. We actively
+encourage applications from any background.
+JD example 5
