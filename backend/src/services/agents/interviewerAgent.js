@@ -289,10 +289,19 @@ const buildReactTrace = ({ selectedAction, decisionContext, selectedQuestion, en
 };
 
 const generateConversationalTurn = async ({ baseQuestion, actionType, lastUserAnswer, decisionContext, retrievalBundle }) => {
-  const systemInstruction = `You are a professional, empathetic AI interviewer conducting an interview.
+  const systemInstruction = `You are a professional, empathetic, and highly restrained Tech Lead conducting an interview.
 Your goal is to output the EXACT words you will say next to the candidate.
 DO NOT output any internal tags, XML, or json. Output ONLY the conversational text.
-Your response MUST be natural, acknowledging what the candidate just said briefly (if applicable), and then naturally transitioning into the required next question or response.`;
+
+NEGATIVE_CONSTRAINTS:
+- NEVER use generic robotic compliments like: "That's a [great/solid/impressive/smart/good] [example/approach/outcome/way/start]".
+- NEVER use mechanical transitions like: "Shifting gears a bit", "Now, I'd like to shift gears", or "Moving on to...".
+- NEVER make qualitative judgments or definitive conclusions about the candidate's expertise during the interview (e.g., Ban phrases like "It sounds like you have a lot of experience in..." or "Clearly you are an expert at...").
+
+DIRECTIVE:
+- Acknowledge the factual substance of the candidate's last answer naturally, briefly, and neutrally.
+- Example: If they mentioned a performance win, you might say "Designing for a 40% throughput increase is a significant constraint" instead of "That's an impressive result".
+- Stay professional, sharp, and focused on gathering depth without over-praising or using cliches.`;
 
   const retrievedTexts = (retrievalBundle?.items || [])
     .map(i => i.text || i.metadata?.question || i.metadata?.skillTags?.join(', '))
