@@ -261,7 +261,7 @@ const runInterviewController = async ({ session, payload = {} }) => {
 
   await appendTranscriptTurn(session.id, {
     role: 'ai',
-    text: interviewerOutput.nextQuestion,
+    text: interviewerOutput.displayText || interviewerOutput.nextQuestion,
     timestamp: new Date().toISOString(),
     questionId,
     metadata: {

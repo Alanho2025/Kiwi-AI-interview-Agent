@@ -11,6 +11,7 @@ export const selectNextAction = (decisionContext = {}) => {
   const abductiveState = decisionContext.abductiveState || {};
   const sectionState = decisionContext.sectionState || {};
   const interviewStructure = decisionContext.interviewStructure || {};
+  const agentMemory = decisionContext.agentMemory || {};
   const currentStage = String(decisionContext.currentStage || '').toLowerCase();
   const targetTopic = decisionContext.currentTopic
     || evaluatorState.currentTopic
@@ -85,6 +86,15 @@ export const selectNextAction = (decisionContext = {}) => {
     };
   }
 
+  if (currentStage.includes('wrap') && evaluatorState.hasCandidateQuestion) {
+    return {
+      selectedAction: AGENT_ACTION_TYPES.ANSWER_CANDIDATE_QUESTION,
+      rationale: 'The candidate asked a question during the wrap-up stage, so the controller should answer it dynamically.',
+      confidence: 0.95,
+      actionInput: { targetTopic: 'candidate_questions', probeType: 'answer_question', forceEvidence: false },
+    };
+  }
+
   if (currentStage.includes('wrap')) {
     return {
       selectedAction: AGENT_ACTION_TYPES.WRAP_STAGE,
@@ -102,6 +112,34 @@ export const selectNextAction = (decisionContext = {}) => {
       actionInput: { targetTopic: evaluatorState.currentTopic || targetTopic, probeType: 'rephrase', forceEvidence: true },
     };
   }
+
+  // --- STRATEGIC INTENTS ---
+  const projectUsage = agentMemory.projectUsage || {};
+  const overusedProject = Object.keys(projectUsage).find((project) => projectUsage[project] >= 2);
+  if (overusedProject && !evaluatorState.misunderstandingFlag && evaluatorState.suggestedNextMode !== 'rephrase') {
+    return {
+      selectedAction: AGENT_ACTION_TYPES.FORCE_SHIFT_PROJECT,
+      rationale: `The candidate has mentioned "${overusedProject}" ${projectUsage[overusedProject]} times. To ensure CV breadth, the controller must force a shift to a different project or company.`,
+      confidence: 0.91,
+      actionInput: { targetTopic, probeType: 'shift_context', forbiddenProject: overusedProject, forceEvidence: true },
+    };
+  }
+
+  const isTooPerfect = evaluatorState.successStatus === 'usable'
+    && evaluatorState.evidenceGainScore >= 0.65
+    && (evaluatorState.frictionState?.frictionLevel === 'low' || !evaluatorState.frictionState?.frictionDetected);
+
+  if (isTooPerfect && !isFinalPlannedTurn) {
+    // If the answer is strong but "happy path", introduce stress or look for friction
+    const useFriction = Math.random() > 0.5;
+    return {
+      selectedAction: useFriction ? AGENT_ACTION_TYPES.PROBE_FRICTION : AGENT_ACTION_TYPES.PROBE_STRESS,
+      rationale: isTooPerfect ? 'The answer was very smooth but lacked real-world friction/stress. Probing boundaries now.' : 'Deepening the conversation.',
+      confidence: 0.88,
+      actionInput: { targetTopic, probeType: useFriction ? 'failure_analysis' : 'constraint_test', forceEvidence: true },
+    };
+  }
+  // -------------------------
 
   if (abductiveState.shouldProbe) {
     return {

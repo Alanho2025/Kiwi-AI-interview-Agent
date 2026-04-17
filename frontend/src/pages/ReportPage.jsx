@@ -29,7 +29,7 @@ import { buildReportViewModel } from '../utils/reportView/index.js';
  */
 export function ReportPage() {
   const { sessionId } = useParams();
-  const { reportData, status, loading, handleGenerate, handleQa } = useReportData(sessionId);
+  const { reportData, status, loading, handleGenerate, handleQa, handleExport } = useReportData(sessionId);
   const viewModel = buildReportViewModel(reportData);
 
   return (
@@ -37,9 +37,15 @@ export function ReportPage() {
       <AppHeader />
       <main className="mx-auto max-w-6xl space-y-6 px-6 py-8">
         <StatusBanner {...status} />
-        <ReportActionBar loading={loading} onGenerate={handleGenerate} onRunQa={handleQa} />
+        <ReportActionBar 
+          loading={loading} 
+          onGenerate={handleGenerate} 
+          onRunQa={handleQa} 
+          onExport={handleExport}
+        />
 
-        <ReportHeroCard
+        <div id="report-printable-area" className="space-y-6">
+          <ReportHeroCard
           report={viewModel.report}
           qa={viewModel.qa}
           candidateFeedback={viewModel.candidateFeedback}
@@ -57,6 +63,7 @@ export function ReportPage() {
           evidenceDiagnostics={viewModel.evidenceDiagnostics}
           qaDiagnostics={viewModel.qaDiagnostics}
         />
+        </div>
       </main>
     </div>
   );

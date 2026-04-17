@@ -54,14 +54,14 @@ export const extractDisplayTitle = (...candidates) => {
     const directTitleMatch = text.match(/(?:job\s*title|position|role)\s*:\s*([^\n.]{3,120})/i);
     if (directTitleMatch?.[1]) return cleanDisplayTitle(directTitleMatch[1]);
 
-    const firstLine = text.split('\n').map((line) => line.trim()).find(Boolean) || '';
-    if (firstLine && firstLine.length <= 120 && !/^(we|our|about)\b/i.test(firstLine)) return cleanDisplayTitle(firstLine);
-
-    const commonRoleMatch = text.match(/\b((?:Junior|Senior|Lead|Principal|Staff|Graduate|Mid-Level|Solutions|Software|Backend|Frontend|Full[-\s]?Stack|Mobile|DevOps|Data|Civil|Platform|QA|Test|Product)?\s*(?:Software Engineer|Solutions Engineer|Backend Engineer|Frontend Engineer|Full Stack Engineer|Mobile Developer|React Native Developer|DevOps Engineer|Data Engineer|Civil Engineer|Platform Engineer|QA Engineer|Test Engineer|Product Manager|Developer))\b/i);
+    const commonRoleMatch = text.match(/\b((?:Junior|Senior|Lead|Principal|Staff|Graduate|Mid-Level|Solutions|Software|Backend|Frontend|Full[-\s]?Stack|Mobile|DevOps|Data|Civil|Platform|QA|Test|Product|AI|Machine Learning|Cloud)?\s*(?:Software Engineer|Solutions Engineer|Backend Engineer|Frontend Engineer|Full Stack Engineer|Mobile Developer|React Native Developer|DevOps Engineer|Data Engineer|Data \w+ AI Engineer|Data & AI Engineer|AI Engineer|Civil Engineer|Platform Engineer|QA Engineer|Test Engineer|Product Manager|Developer|Data Scientist|Machine Learning Engineer|Cloud Engineer))\b/i);
     if (commonRoleMatch?.[1]) return cleanDisplayTitle(commonRoleMatch[1]);
 
+    const firstLine = text.split('\n').map((line) => line.trim()).find(Boolean) || '';
+    if (firstLine && firstLine.length <= 120 && !/^(we|our|about|in\b)\b/i.test(firstLine)) return cleanDisplayTitle(firstLine);
+
     const sentenceMatch = text.match(/^([^.!?]{8,140}?)(?:[.!?]|$)/);
-    if (sentenceMatch?.[1] && !/^(we|our)\b/i.test(sentenceMatch[1].trim())) return cleanDisplayTitle(sentenceMatch[1]);
+    if (sentenceMatch?.[1] && !/^(we|our|in\b)\b/i.test(sentenceMatch[1].trim())) return cleanDisplayTitle(sentenceMatch[1]);
 
     return cleanDisplayTitle(text.slice(0, 80));
   }
