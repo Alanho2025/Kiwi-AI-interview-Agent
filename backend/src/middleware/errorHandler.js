@@ -19,7 +19,8 @@ import { logger, getRequestLogMeta } from '../utils/logger.js';
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
 export const errorHandler = (err, req, res, _next) => {
-  const isFileTypeError = err.message === 'Only PDF and DOCX files are allowed';
+  const isFileTypeError = err.message === 'Only PDF and DOCX files are allowed'
+    || err.message === 'Only WAV audio files are allowed for voice smoke tests';
   const isFileSizeError = err.code === 'LIMIT_FILE_SIZE';
 
   const statusCode = isFileTypeError

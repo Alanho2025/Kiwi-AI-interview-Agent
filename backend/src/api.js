@@ -21,6 +21,7 @@ import authRoutes from './api/routes/authRoutes.js';
 import ragRoutes from './api/routes/ragRoutes.js';
 import reportRoutes from './api/routes/reportRoutes.js';
 import healthRoutes from './api/routes/healthRoutes.js';
+import voiceRoutes from './api/routes/voiceRoutes.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { requestContext } from './middleware/requestContext.js';
 import { optionalAuth, requireAuth } from './middleware/authMiddleware.js';
@@ -47,6 +48,7 @@ api.use('/session', requireAuth, sessionRoutes);
 api.use('/export', requireAuth, exportRoutes);
 api.use('/rag', requireAuth, ragRoutes);
 api.use('/report', requireAuth, reportRoutes);
+api.use('/voice', voiceRoutes);
 
 api.use(errorHandler);
 
