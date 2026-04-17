@@ -11,7 +11,7 @@
 
 import { AGENT_ACTION_TYPES } from '../../constants/agentActionTypes.js';
 import { getNextPoolQuestion, hasReachedQuestionLimit } from '../interviewStateService.js';
-import { buildInterviewDisplayTurn } from '../interview/interviewDisplayTurnBuilder.js';
+import { callDeepSeek } from '../deepseekService.js';
 const normalizeText = (value = '') => String(value || '').trim();
 const tokenize = (value = '') => normalizeText(value).toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
 const getLastUserAnswer = (transcript = []) => [...transcript].reverse().find((turn) => turn.role === 'user')?.text || '';
@@ -235,6 +235,39 @@ const buildSectionShiftQuestion = ({ nextSectionKey = 'motivation' } = {}) => ({
   sourceType: 'controller_directed',
 });
 
+const buildForceShiftProjectQuestion = ({ targetTopic = 'experience', forbiddenProject = '' } = {}) => ({
+  type: 'force_shift_project_follow_up',
+  stage: 'experience_breadth',
+  topic: targetTopic,
+  category: 'experience',
+  followUpDepth: 1,
+  text: `I've heard a good deal about your work on "${forbiddenProject}". To help me see the full breadth of your experience, could you share a different example from your CV for ${targetTopic}?`,
+  reason: `The candidate has overused the "${forbiddenProject}" example, so the interviewer is forcing a context switch to ensure CV coverage.`,
+  sourceType: 'controller_directed',
+});
+
+const buildProbeStressQuestion = ({ targetTopic = 'technical_depth' } = {}) => ({
+  type: 'probe_stress_follow_up',
+  stage: 'technical_stress',
+  topic: targetTopic,
+  category: 'technical',
+  followUpDepth: 2,
+  text: `That solution works well in a standard scenario. But what if you faced a major constraint—like 10x the traffic or a 50% cut in timeline? How would your approach for ${targetTopic} change?`,
+  reason: 'The candidate provided a stable answer, so the interviewer is applying a stress constraint to test boundaries.',
+  sourceType: 'controller_directed',
+});
+
+const buildProbeFrictionQuestion = ({ targetTopic = 'ownership' } = {}) => ({
+  type: 'probe_friction_follow_up',
+  stage: 'friction_analysis',
+  topic: targetTopic,
+  category: 'behavioural',
+  followUpDepth: 2,
+  text: `Every successful project has its friction points. In that example for ${targetTopic}, what was the hardest trade-off you had to make, or a time when a stakeholder strongly disagreed with your direction?`,
+  reason: 'The candidate gave a "happy path" answer, so the interviewer is probing for real-world friction and conflict resolution.',
+  sourceType: 'controller_directed',
+});
+
 const buildReactTrace = ({ selectedAction, decisionContext, selectedQuestion, environment, evaluatorState }) => {
   const targetTopic = selectedQuestion?.topic || decisionContext?.currentTopic || environment?.questionContext?.latestQuestionTopic || 'role_fit';
   const thoughtParts = [
@@ -253,6 +286,60 @@ const buildReactTrace = ({ selectedAction, decisionContext, selectedQuestion, en
       ? `Latest answer length was ${environment.latestAnswer.tokenCount} tokens with interaction status ${evaluatorState?.interactionStatus || 'unknown'}.`
       : 'No user answer has been observed yet in the current controller step.',
   };
+};
+
+const generateConversationalTurn = async ({ baseQuestion, actionType, lastUserAnswer, decisionContext, retrievalBundle }) => {
+  const systemInstruction = `You are a professional, empathetic, and highly restrained Tech Lead conducting an interview.
+Your goal is to output the EXACT words you will say next to the candidate.
+DO NOT output any internal tags, XML, or json. Output ONLY the conversational text.
+
+NEGATIVE_CONSTRAINTS:
+- NEVER use generic robotic compliments like: "That's a [great/solid/impressive/smart/good] [example/approach/outcome/way/start]".
+- NEVER use mechanical transitions like: "Shifting gears a bit", "Now, I'd like to shift gears", or "Moving on to...".
+- NEVER make qualitative judgments or definitive conclusions about the candidate's expertise during the interview (e.g., Ban phrases like "It sounds like you have a lot of experience in..." or "Clearly you are an expert at...").
+
+DIRECTIVE:
+- Acknowledge the factual substance of the candidate's last answer naturally, briefly, and neutrally.
+- Example: If they mentioned a performance win, you might say "Designing for a 40% throughput increase is a significant constraint" instead of "That's an impressive result".
+- Stay professional, sharp, and focused on gathering depth without over-praising or using cliches.`;
+
+  const retrievedTexts = (retrievalBundle?.items || [])
+    .map(i => i.text || i.metadata?.question || i.metadata?.skillTags?.join(', '))
+    .filter(Boolean)
+    .slice(0, 3)
+    .join('\n- ');
+  
+  const reflections = decisionContext?.sessionReflectionMemory || [];
+  const reflectionText = reflections.length > 0 
+    ? `\nPerformance Reflections to obey:\n${reflections.slice(-2).map(r => r.lesson || r.summary).join('\n')}` 
+    : '';
+
+  const prompt = `Here is the interview context:
+Candidate's last answer:
+"${lastUserAnswer || '(Interview is just starting)'}"
+
+Strategic Intent of your next turn: [${actionType}]
+Target Topic: "${baseQuestion.topic}"
+Base Goal: "${baseQuestion.text}"
+${reflectionText}
+${retrievedTexts ? `\nReference Context from Knowledge Base:\n- ${retrievedTexts}` : ''}
+
+INSTRUCTIONS FOR [${actionType}]:
+${actionType === 'FORCE_SHIFT_PROJECT' ? "- ACKNOWLEDGE their previous project/experience briefly.\n- STATE that you want to see their breadth and explicitly ask for a DIFFERENT example from their CV.\n- Be professional and encouraging but firm about the shift." : ""}
+${actionType === 'PROBE_STRESS' ? "- COMPLIMENT their current solution/answer briefly.\n- APPLY a 'What if' constraint (e.g. scale, time, budget, resource failure).\n- ASK how their strategy would adapt to this friction." : ""}
+${actionType === 'PROBE_FRICTION' ? "- ACKNOWLEDGE the success of their example.\n- ASK about the 'hidden' difficulty: a trade-off, a disagreement, or a moment where things didn't go as planned.\n- Focus on their decision-making under pressure or conflict." : ""}
+${actionType === 'REPHRASE_QUESTION' ? "- Admit the previous question might have been unclear.\n- Break down the requirement into simpler parts." : ""}
+- For all other types: Briefly acknowledge the candidate's last answer naturally, then advance to the "Base Goal".
+
+GENERAL GUIDELINES:
+1. Advance the interview based on the "Base Goal".
+2. Use the "Reference Context" for inspiration to make your response professional and deep.
+3. Keep the tone conversational, avoid sounding like a robot reading a template.
+4. NEVER leak internal engineering variables (e.g. 'targetTopic', 'decision_tradeoff', 'role_fit') to the user. Phrase it naturally.
+
+Generate your verbal response now:`;
+
+  return await callDeepSeek(prompt, systemInstruction);
 };
 
 export const runInterviewerAgent = async ({
@@ -319,6 +406,23 @@ export const runInterviewerAgent = async ({
     } else {
       selectedQuestion = buildSectionShiftQuestion({ nextSectionKey: targetTopic || decisionContext?.sectionState?.nextSectionKey || 'motivation' });
     }
+  } else if (actionType === AGENT_ACTION_TYPES.FORCE_SHIFT_PROJECT) {
+    selectedQuestion = buildForceShiftProjectQuestion({ targetTopic: targetTopic || 'experience', forbiddenProject: decisionContext?.latestDecision?.actionInput?.forbiddenProject || 'the previous project' });
+  } else if (actionType === AGENT_ACTION_TYPES.PROBE_STRESS) {
+    selectedQuestion = buildProbeStressQuestion({ targetTopic: targetTopic || 'technical_depth' });
+  } else if (actionType === AGENT_ACTION_TYPES.PROBE_FRICTION) {
+    selectedQuestion = buildProbeFrictionQuestion({ targetTopic: targetTopic || 'ownership' });
+  } else if (actionType === AGENT_ACTION_TYPES.ANSWER_CANDIDATE_QUESTION) {
+    selectedQuestion = {
+      type: 'answer_candidate_question',
+      stage: 'closing',
+      topic: 'candidate_questions',
+      category: 'closing',
+      followUpDepth: 0,
+      text: 'Answer the candidate\'s question thoughtfully based on your knowledge of the role, and then ask if they have any other questions.',
+      reason: 'The candidate asked a question during wrap up.',
+      sourceType: 'controller_directed',
+    };
   } else if (actionType === AGENT_ACTION_TYPES.WRAP_STAGE) {
     selectedQuestion = buildClosingQuestion({ session, decisionContext });
   } else {
@@ -358,15 +462,26 @@ export const runInterviewerAgent = async ({
   }
 
   const reactTrace = buildReactTrace({ selectedAction: actionType, decisionContext, selectedQuestion, environment, evaluatorState });
-  const displayTurn = buildInterviewDisplayTurn({
+  
+  let generatedText = selectedQuestion.text;
+  try {
+    generatedText = await generateConversationalTurn({ 
+      baseQuestion: selectedQuestion, 
+      actionType, 
+      lastUserAnswer: environment?.latestAnswer?.text || lastUserAnswer, 
+      decisionContext, 
+      retrievalBundle 
+    });
+  } catch (error) {
+    console.warn('Failed to generate conversational turn via LLM, falling back to base template', error);
+  }
+
+  const displayTurn = {
+    feedbackMode: 'conversational_llm',
+    preamble: '',
     question: selectedQuestion.text,
-    actionType,
-    questionCategory: selectedQuestion.category || (String(selectedQuestion.stage || '').includes('behaviour') ? 'behavioural' : String(selectedQuestion.stage || '').includes('technical') ? 'technical' : 'experience'),
-    stage: selectedQuestion.stage,
-    targetTopic: selectedQuestion.topic,
-    suggestedNextMode: evaluatorState?.suggestedNextMode,
-    shouldCloseSoon: Boolean(decisionContext?.interviewStructure?.shouldCloseSoon),
-  });
+    displayText: generatedText,
+  };
 
   return {
     questionType: selectedQuestion.type,
