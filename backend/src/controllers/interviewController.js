@@ -31,6 +31,7 @@ import { getOpeningQuestionText, hasAskedOpeningQuestion } from '../services/int
 import { resolveUserFromRequest } from '../services/authService.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { logger, getRequestLogMeta } from '../utils/logger.js';
+import { processVoiceReply } from '../services/voice/voiceOrchestrationService.js';
 
 const tryGenerateReportForCompletedSession = async (req, sessionId) => {
   try {
@@ -142,6 +143,52 @@ export const replyInterview = asyncHandler(async (req, res) => {
     evaluator: agentResult.evaluatorOutput || null,
     reactTrace: agentResult.reactTrace || null,
     session: updatedSession,
+  }));
+});
+
+
+export const replyInterviewWithVoice = asyncHandler(async (req, res) => {
+  const { sessionId } = req.body;
+  requireSessionId(sessionId);
+  const user = await resolveUserFromRequest(req);
+
+  const session = await loadOwnedSessionOrThrow({ sessionId, userId: user.id });
+  ensureInterviewInProgress(session);
+
+  const result = await processVoiceReply({
+    req,
+    session,
+    userId: user.id,
+    file: req.file,
+    language: String(req.body?.language || '').trim() || undefined,
+    voiceName: String(req.body?.voiceName || '').trim() || undefined,
+    tryGenerateReportForCompletedSession,
+  });
+
+  logger.info('Interview voice reply processed', getRequestLogMeta(req, {
+    isComplete: Boolean(result.agentResult.isComplete),
+    nextQuestionOrder: result.agentResult.nextQuestionOrder || null,
+    hasAssistantAudio: Boolean(result.assistantAudio?.storageKey),
+  }));
+
+  res.json(formatSuccess('Voice reply processed', {
+    nextQuestion: result.agentResult.nextQuestion,
+    interviewerTurn: result.agentResult.interviewerTurn || null,
+    rationale: result.agentResult.rationale,
+    retrievalSnapshot: result.agentResult.retrievalSnapshot,
+    isComplete: Boolean(result.agentResult.isComplete),
+    completedBecause: result.agentResult.completedBecause || null,
+    reportStatus: result.generatedReport?.stored?.latestStatus || null,
+    evaluator: result.agentResult.evaluatorOutput || null,
+    reactTrace: result.agentResult.reactTrace || null,
+    transcription: {
+      text: result.transcription.text,
+      language: result.transcription.language,
+      provider: result.transcription.provider,
+      confidence: result.transcription.confidence,
+    },
+    assistantAudio: result.assistantAudio,
+    session: result.updatedSession,
   }));
 });
 

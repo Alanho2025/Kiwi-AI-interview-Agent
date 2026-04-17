@@ -12,15 +12,53 @@
 import { AppHeader } from '../layout/AppHeader.jsx';
 import { formatDuration } from '../../utils/formatters.js';
 
-export function InterviewPageHeader({ session, title, roleFamilyLabel, exactRoleTitle, modeLabel, levelLabel, stageLabel, elapsedSeconds, onViewReport }) {
+const buildPrimaryTitle = ({ isVoiceMode, title }) => {
+  if (isVoiceMode) return 'Mock Interview';
+  return title;
+};
+
+export function InterviewPageHeader({ session, title, roleFamilyLabel, exactRoleTitle, modeLabel, levelLabel, stageLabel, elapsedSeconds, isVoiceMode = false, onViewReport }) {
   const isCompleted = session?.status === 'completed';
   const hasReport = Boolean(session?.hasReport);
   const showReportButton = isCompleted;
-  
+
   const buttonText = hasReport ? 'View Report' : 'Generate Report';
-  const buttonClass = hasReport 
+  const buttonClass = hasReport
     ? 'rounded-full bg-[#2eb886] text-white px-6 py-3 text-sm font-semibold hover:bg-[#25a06d] shadow-md hover:shadow-lg transition-all duration-200'
     : 'rounded-full bg-[#3b82f6] text-white px-6 py-3 text-sm font-semibold hover:bg-[#2563eb] shadow-md hover:shadow-lg transition-all duration-200';
+
+  if (isVoiceMode) {
+    return (
+      <AppHeader>
+        <div className="flex items-center justify-between gap-6 min-w-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="text-sm text-gray-500">Target Role</span>
+            <span className="px-4 py-2 bg-[#e6f7f0] text-[#2eb886] text-sm font-medium rounded-full max-w-[260px] truncate">
+              {exactRoleTitle || roleFamilyLabel}
+            </span>
+          </div>
+          <div className="min-w-0 flex-1 text-center">
+            <div className="text-[28px] font-semibold text-gray-900 truncate">{buildPrimaryTitle({ isVoiceMode, title })}</div>
+          </div>
+          <div className="flex items-center gap-8 shrink-0">
+            <div className="text-right">
+              <p className="text-xs text-gray-500 uppercase tracking-wider">Timer</p>
+              <p className="text-[28px] font-mono font-medium text-gray-900">{formatDuration(elapsedSeconds)}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-gray-500 uppercase tracking-wider">Progress</p>
+              <p className="text-sm font-medium text-gray-900">Question {session?.currentQuestionIndex} of {session?.totalQuestions}</p>
+            </div>
+            {showReportButton ? (
+              <button className={buttonClass} onClick={onViewReport}>
+                {buttonText}
+              </button>
+            ) : null}
+          </div>
+        </div>
+      </AppHeader>
+    );
+  }
 
   return (
     <AppHeader>

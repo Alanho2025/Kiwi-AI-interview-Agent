@@ -48,7 +48,7 @@ const extractTargetRole = ({ jdText = '', jdRubric = null, analysisResult = null
 };
 
 export const generateInterviewPlan = asyncHandler(async (req, res) => {
-  const { cvId, rawJD, jdText, jdRubric, settings, analysisResult, matchAnalysisId } = req.body;
+  const { cvId, rawJD, jdText, jdRubric, settings, analysisResult, matchAnalysisId, mode } = req.body;
   const user = await authService.resolveUserFromRequest(req);
 
   const persistedAnalysis = matchAnalysisId
@@ -67,6 +67,7 @@ export const generateInterviewPlan = asyncHandler(async (req, res) => {
     matchAnalysisId: matchAnalysisId || null,
     evidenceRefs: persistedAnalysis?.evidenceRefs || resolvedAnalysis?.evidenceRefs || [],
     targetRole: extractTargetRole({ jdText, jdRubric, analysisResult: resolvedAnalysis }) || null,
+    mode,
     totalQuestions: 8,
     currentQuestionIndex: 1,
     candidateName: resolvedAnalysis?.candidateName || 'Candidate',
@@ -79,7 +80,7 @@ export const generateInterviewPlan = asyncHandler(async (req, res) => {
     actionType: 'create_interview_session',
     resourceType: 'interview_session',
     resourceId: session.id,
-    metadata: { cvId: cvId || null, targetRole: session.targetRole, matchAnalysisId: matchAnalysisId || null },
+    metadata: { cvId: cvId || null, targetRole: session.targetRole, matchAnalysisId: matchAnalysisId || null, mode: session.mode || mode || 'text' },
     ipAddress: req.ip,
     userAgent: req.get('user-agent'),
   });

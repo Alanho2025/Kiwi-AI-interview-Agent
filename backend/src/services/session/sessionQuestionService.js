@@ -78,13 +78,25 @@ export const getLatestQuestionForSession = async (sessionId) => {
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-export const createInterviewResponse = async ({ sessionId, questionId, transcriptText, responseMode = 'text' }) => {
+export const createInterviewResponse = async ({
+  sessionId,
+  questionId,
+  transcriptText,
+  responseMode = 'text',
+  audioDurationSeconds = null,
+  audioStorageKey = null,
+  asrProvider = null,
+  asrLanguage = null,
+  asrConfidence = null,
+  providerPayload = null,
+}) => {
   await query(
     `INSERT INTO interview_responses (
       id, session_id, question_id, response_mode, transcript_text,
-      redacted_transcript_text, contains_sensitive_data,
+      redacted_transcript_text, contains_sensitive_data, audio_duration_seconds,
+      audio_storage_key, asr_provider, asr_language, asr_confidence, provider_payload,
       response_started_at, response_ended_at, word_count, created_at
-    ) VALUES ($1,$2,$3,$4,$5,$6,true,now(),now(),$7,now())`,
+    ) VALUES ($1,$2,$3,$4,$5,$6,true,$7,$8,$9,$10,$11,$12,now(),now(),$13,now())`,
     [
       crypto.randomUUID(),
       sessionId,
@@ -92,6 +104,12 @@ export const createInterviewResponse = async ({ sessionId, questionId, transcrip
       responseMode,
       transcriptText,
       transcriptText,
+      audioDurationSeconds,
+      audioStorageKey,
+      asrProvider,
+      asrLanguage,
+      asrConfidence,
+      providerPayload ? JSON.stringify(providerPayload) : null,
       countWords(transcriptText),
     ]
   );

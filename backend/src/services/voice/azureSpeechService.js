@@ -4,9 +4,6 @@
  * - Keep Azure Speech REST concerns isolated from controllers and routes.
  * - Expose small functions for speech synthesis and short-audio transcription.
  * - Keep request formatting, token exchange, and response parsing in one place.
- * Maintenance notes:
- * - This adapter currently targets smoke testing, not full streaming production.
- * - Short-audio REST is limited by Azure to short clips and final results only.
  */
 
 import { AppError, badRequest } from '../../utils/appError.js';
@@ -32,11 +29,7 @@ const getSpeechConfig = () => {
     });
   }
 
-  return {
-    key,
-    region,
-    endpoint,
-  };
+  return { key, region, endpoint };
 };
 
 const escapeXml = (value = '') => String(value)
@@ -104,11 +97,7 @@ const getTtsUrl = () => {
 
 const getSttUrl = ({ language, format = 'simple', profanity = 'masked' }) => {
   const { region } = getSpeechConfig();
-  const query = new URLSearchParams({
-    language,
-    format,
-    profanity,
-  });
+  const query = new URLSearchParams({ language, format, profanity });
   return `https://${region}.stt.speech.microsoft.com/speech/recognition/conversation/cognitiveservices/v1?${query.toString()}`;
 };
 
@@ -122,7 +111,7 @@ const validateAudioFile = ({ buffer, mimetype, originalname }) => {
   const isWav = name.endsWith('.wav') || type.includes('audio/wav') || type.includes('audio/x-wav');
 
   if (!isWav) {
-    throw badRequest('Unsupported audio file', 'For this smoke test, upload a mono 16 kHz WAV file');
+    throw badRequest('Unsupported audio file', 'For this phase, upload a mono 16 kHz WAV file');
   }
 };
 
@@ -140,7 +129,7 @@ export const synthesizeSpeech = async ({ text, voiceName = DEFAULT_TTS_VOICE, ou
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/ssml+xml',
       'X-Microsoft-OutputFormat': outputFormat,
-      'User-Agent': 'KiwiAgentVoiceSmokeTest',
+      'User-Agent': 'KiwiAgentVoiceSession',
     },
     body: ssml,
   });
@@ -203,6 +192,7 @@ export const transcribeShortAudio = async ({ buffer, mimetype, originalname, lan
     text,
     language,
     provider: 'azure-speech-rest',
+    confidence: Number.isFinite(primaryResult?.Confidence) ? Number(primaryResult.Confidence) : null,
     raw: parsed,
   };
 };

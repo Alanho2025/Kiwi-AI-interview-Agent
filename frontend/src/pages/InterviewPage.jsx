@@ -12,10 +12,12 @@
 import { useNavigate, useParams } from 'react-router-dom';
 import { InterviewChatPanel } from '../components/interview/InterviewChatPanel.jsx';
 import { InterviewPageHeader } from '../components/interview/InterviewPageHeader.jsx';
+import { VoiceInterviewPanel } from '../components/interview/VoiceInterviewPanel.jsx';
 import { InterviewRightRail } from '../components/interview/InterviewRightRail.jsx';
 import { InterviewSidebar } from '../components/interview/InterviewSidebar.jsx';
 import { InterviewStatusBanner } from '../components/interview/InterviewStatusBanner.jsx';
 import { useInterviewSession } from '../hooks/useInterviewSession.js';
+import { useVoiceInterviewSession } from '../hooks/useVoiceInterviewSession.js';
 
 /**
  * Purpose: Execute the main responsibility for LoadingState.
@@ -53,6 +55,7 @@ export function InterviewPage() {
     pageStatus,
     dismissStatus,
     handleReply,
+    handleVoiceReply,
     handlePauseToggle,
     handleRepeat,
     handleEnd,
@@ -60,6 +63,18 @@ export function InterviewPage() {
     handleExport,
     viewModel,
   } = useInterviewSession({ sessionId, navigate });
+
+  const isVoiceMode = String(session?.mode || '').toLowerCase() === 'voice';
+  const voiceShell = useVoiceInterviewSession({
+    session,
+    onPause: handlePauseToggle,
+    onRepeat: handleRepeat,
+    onEnd: handleEnd,
+    isPaused: session?.status === 'paused',
+    isCompleted: session?.status === 'completed',
+    isSubmitting,
+    onSubmitVoiceReply: handleVoiceReply,
+  });
 
   if (loading) return <LoadingState />;
   if (!session) return <EmptyState />;
@@ -75,6 +90,7 @@ export function InterviewPage() {
         levelLabel={viewModel.levelLabel}
         stageLabel={viewModel.stageLabel}
         elapsedSeconds={viewModel.elapsedSeconds}
+        isVoiceMode={isVoiceMode}
         onViewReport={() => navigate(`/report/${sessionId}`)}
       />
 
@@ -83,29 +99,50 @@ export function InterviewPage() {
           <InterviewStatusBanner status={pageStatus} onConfirmEnd={handleConfirmEnd} onCancelEnd={dismissStatus} />
         </div>
 
-        <InterviewSidebar session={session} currentPlanItem={viewModel.currentPlanItem} promiseLabel={viewModel.promiseLabel} levelLabel={viewModel.levelLabel} modeLabel={viewModel.modeLabel} currentFocusLabel={viewModel.currentFocusLabel} matchedAreas={viewModel.matchedAreas} />
+        {isVoiceMode ? (
+          <div className="col-span-12 flex min-h-0 flex-col">
+            <VoiceInterviewPanel
+              session={session}
+              elapsedSeconds={viewModel.elapsedSeconds}
+              exactRoleTitle={viewModel.exactRoleTitle}
+              viewModel={viewModel}
+              onPause={handlePauseToggle}
+              onRepeat={handleRepeat}
+              onEnd={handleEnd}
+              onExport={handleExport}
+              onSubmitBackup={handleReply}
+              isPaused={session.status === 'paused'}
+              isCompleted={session.status === 'completed'}
+              isSubmitting={isSubmitting}
+              candidateName={session.candidateName}
+              voiceShell={voiceShell}
+            />
+          </div>
+        ) : (<>
+          <InterviewSidebar session={session} currentPlanItem={viewModel.currentPlanItem} promiseLabel={viewModel.promiseLabel} levelLabel={viewModel.levelLabel} modeLabel={viewModel.modeLabel} currentFocusLabel={viewModel.currentFocusLabel} matchedAreas={viewModel.matchedAreas} />
 
-        <div className="col-span-6 flex flex-col h-full pb-6 min-h-0">
-          <InterviewChatPanel
+          <div className="col-span-6 flex flex-col h-full pb-6 min-h-0">
+            <InterviewChatPanel
+              transcript={session.transcript}
+              onReply={handleReply}
+              onPause={handlePauseToggle}
+              onRepeat={handleRepeat}
+              onEnd={handleEnd}
+              isPaused={session.status === 'paused'}
+              isCompleted={session.status === 'completed'}
+              isSubmitting={isSubmitting}
+              candidateName={session.candidateName}
+            />
+          </div>
+
+          <InterviewRightRail
             transcript={session.transcript}
-            onReply={handleReply}
-            onPause={handlePauseToggle}
-            onRepeat={handleRepeat}
-            onEnd={handleEnd}
-            isPaused={session.status === 'paused'}
-            isCompleted={session.status === 'completed'}
-            isSubmitting={isSubmitting}
             candidateName={session.candidateName}
+            onExport={handleExport}
+            onSubmitBackup={handleReply}
+            backupDisabled={isSubmitting || session.status === 'paused' || session.status === 'completed'}
           />
-        </div>
-
-        <InterviewRightRail
-          transcript={session.transcript}
-          candidateName={session.candidateName}
-          onExport={handleExport}
-          onSubmitBackup={handleReply}
-          backupDisabled={isSubmitting || session.status === 'paused' || session.status === 'completed'}
-        />
+        </>)}
       </main>
     </div>
   );

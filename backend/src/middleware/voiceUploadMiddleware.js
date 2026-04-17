@@ -1,7 +1,7 @@
 /**
  * File responsibility: Voice upload middleware.
  * Main responsibilities:
- * - Accept short audio uploads for speech smoke tests.
+ * - Accept short WAV uploads for session-aware voice turns.
  * - Keep file validation separate from controller logic.
  */
 
@@ -17,14 +17,14 @@ const allowedMimeTypes = new Set([
 
 export const voiceUploadMiddleware = multer({
   storage,
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const filename = String(file.originalname || '').toLowerCase();
     const mimetype = String(file.mimetype || '').toLowerCase();
     const isWav = filename.endsWith('.wav') || allowedMimeTypes.has(mimetype);
 
     if (!isWav) {
-      return cb(new Error('Only WAV audio files are allowed for voice smoke tests'));
+      return cb(new Error('Only WAV audio files are allowed for the voice interview flow'));
     }
 
     return cb(null, true);

@@ -19,7 +19,7 @@ import { focusOptions, seniorityOptions } from '../../utils/sessionDisplay.js';
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-export function StartSessionCard({ summary, showSessionSettings, sessionDefaults, settingsSaved, onOpenInterview, onToggleSettings, onChangeDefaults, onSaveDefaults, onResetDefaults }) {
+export function StartSessionCard({ summary, showSessionSettings, sessionDefaults, settingsSaved, onOpenTextInterview, onOpenVoiceInterview, onToggleSettings, onChangeDefaults, onSaveDefaults, onResetDefaults }) {
   return (
     <div className="relative overflow-hidden rounded-3xl border border-gray-100 bg-white p-8 shadow-[0_2px_10px_rgb(0,0,0,0.02)]">
       <div className="relative z-10 flex flex-col items-center justify-between gap-8 md:flex-row">
@@ -40,9 +40,15 @@ export function StartSessionCard({ summary, showSessionSettings, sessionDefaults
           <div className="flex flex-wrap gap-3">
             <button
               className="rounded-full bg-emerald-500 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-600"
-              onClick={onOpenInterview}
+              onClick={onOpenTextInterview}
             >
-              Start Interview
+              Text Start
+            </button>
+            <button
+              className="rounded-full bg-sky-500 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-600"
+              onClick={onOpenVoiceInterview}
+            >
+              Voice Start
             </button>
             <button
               className="inline-flex items-center gap-2 rounded-full border border-gray-300 px-5 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
@@ -62,7 +68,7 @@ export function StartSessionCard({ summary, showSessionSettings, sessionDefaults
             <div className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-emerald-600">Ready</div>
           </div>
           <div className="space-y-3 text-sm text-gray-600">
-            <div className="flex justify-between"><span>Mode</span><span className="font-semibold text-gray-900">Voice + Text</span></div>
+            <div className="flex justify-between"><span>Mode</span><span className="font-semibold text-gray-900">Choose at start</span></div>
             <div className="flex justify-between"><span>Flow</span><span className="font-semibold text-gray-900">Guided Interview</span></div>
             <div className="flex justify-between"><span>Checks</span><span className="font-semibold text-gray-900">Clarity + Role Fit</span></div>
             <div className="flex justify-between"><span>Estimate</span><span className="font-semibold text-gray-900">8 mins</span></div>
