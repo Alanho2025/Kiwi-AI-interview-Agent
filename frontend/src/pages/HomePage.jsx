@@ -145,8 +145,8 @@ export default function HomePage() {
     }
   };
 
-  const handleStartInterview = () => {
-    navigate('/analysis');
+  const handleStartInterview = (sessionMode) => {
+    navigate('/analysis', { state: { sessionMode } });
   };
 
   const stats = buildHomepageStats(sessionHistory, historyLoading);
@@ -172,7 +172,8 @@ export default function HomePage() {
             showSessionSettings={showSessionSettings}
             sessionDefaults={sessionDefaults}
             settingsSaved={settingsSaved}
-            onOpenInterview={handleStartInterview}
+            onOpenTextInterview={() => handleStartInterview('text')}
+            onOpenVoiceInterview={() => handleStartInterview('voice')}
             onToggleSettings={() => setShowSessionSettings((current) => !current)}
             onChangeDefaults={handleSessionDefaultsChange}
             onSaveDefaults={handleSaveSessionDefaults}
