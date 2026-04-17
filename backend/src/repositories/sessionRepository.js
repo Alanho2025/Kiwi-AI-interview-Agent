@@ -72,6 +72,7 @@ export const createSessionAggregate = async ({
   targetRole,
   totalQuestions = 8,
   candidateName = 'Candidate',
+  mode = 'text',
 }) => {
   const resolvedTargetRole = clampVarchar(targetRole || 'Target Role');
   const resolvedCandidateName = clampVarchar(candidateName || 'Candidate');
@@ -84,10 +85,11 @@ export const createSessionAggregate = async ({
         id, user_id, status, mode, target_role, candidate_name, seniority_level, focus_area,
         enable_nz_culture_fit, current_question_index, total_questions, elapsed_seconds,
         created_at, updated_at
-      ) VALUES ($1,$2,'ready','voice',$3,$4,$5,$6,$7,1,$8,0,now(),now())`,
+      ) VALUES ($1,$2,'ready',$3,$4,$5,$6,$7,$8,1,$9,0,now(),now())`,
       [
         sessionId,
         userId,
+        mode === 'voice' ? 'voice' : 'text',
         resolvedTargetRole,
         resolvedCandidateName,
         resolvedSeniorityLevel,

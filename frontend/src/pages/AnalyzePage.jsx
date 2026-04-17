@@ -10,7 +10,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { AppHeader } from '../components/layout/AppHeader.jsx';
 import { StepProgress } from '../components/layout/StepProgress.jsx';
 import { CVManagementCard } from '../components/analyze/CVManagementCard.jsx';
@@ -22,10 +22,12 @@ import { StatusBanner } from '../components/common/StatusBanner.jsx';
 import { uploadCV, getRecentCVs, selectCV } from '../api/uploadApi.js';
 import { paraphraseJD, matchCV, generateInterviewPlan } from '../api/analyzeApi.js';
 import {
+  DEFAULT_ANALYZE_MODE,
   DEFAULT_ANALYZE_SETTINGS,
   loadAnalyzeDraft,
   persistAnalyzeDraft,
   resolveAnalyzeStep,
+  sanitizeAnalyzeMode,
 } from '../utils/analyzeDraft.js';
 
 /**
@@ -38,6 +40,7 @@ const buildStatusMessage = (type, title, message) => ({ type, title, message });
 
 export function AnalyzePage() {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [recentCVs, setRecentCVs] = useState([]);
   const [selectedCV, setSelectedCV] = useState(null);
@@ -46,6 +49,7 @@ export function AnalyzePage() {
   const [structuredJDRubric, setStructuredJDRubric] = useState(null);
   const [summarizedRawJD, setSummarizedRawJD] = useState('');
   const [settings, setSettings] = useState(DEFAULT_ANALYZE_SETTINGS);
+  const [sessionMode, setSessionMode] = useState(DEFAULT_ANALYZE_MODE);
   const [analysisStatus, setAnalysisStatus] = useState('idle');
   const [analysisResult, setAnalysisResult] = useState(null);
   const [matchRate, setMatchRate] = useState(null);
@@ -96,9 +100,10 @@ export function AnalyzePage() {
     setStructuredJDRubric(restoredDraft.structuredJDRubric);
     setSummarizedRawJD(restoredDraft.summarizedRawJD);
     setSettings(restoredDraft.settings);
+    setSessionMode(sanitizeAnalyzeMode(location.state?.sessionMode || restoredDraft.sessionMode));
 
     getRecentCVs().then(setRecentCVs).catch(console.error);
-  }, []);
+  }, [location.state]);
 
   useEffect(() => {
     persistAnalyzeDraft({
@@ -108,8 +113,9 @@ export function AnalyzePage() {
       structuredJDRubric,
       summarizedRawJD,
       settings,
+      sessionMode,
     });
-  }, [selectedCV, rawJD, structuredJD, structuredJDRubric, summarizedRawJD, settings]);
+  }, [selectedCV, rawJD, structuredJD, structuredJDRubric, summarizedRawJD, settings, sessionMode]);
 
   const handleUpload = async (file) => {
     try {
@@ -187,12 +193,14 @@ export function AnalyzePage() {
         jdText: finalStructuredJD,
         jdRubric: finalStructuredJDRubric,
         settings,
+        mode: sessionMode,
         matchAnalysisId: matchResponse.matchAnalysisId || null,
       });
 
       setGeneratedSessionId(planResponse.sessionId);
       setAnalysisStatus('success');
-      setPageStatus(buildStatusMessage('success', 'Match analysis complete', 'Review the score breakdown before starting the text interview.'));
+      const modeLabel = sessionMode === 'voice' ? 'voice' : 'text';
+      setPageStatus(buildStatusMessage('success', 'Match analysis complete', `Review the score breakdown before continuing to the ${modeLabel} interview session.`));
     } catch (error) {
       console.error(error);
       setAnalysisStatus('error');
@@ -246,6 +254,7 @@ export function AnalyzePage() {
               rawJD={rawJD}
               onGeneratePlan={handleGeneratePlan}
               onStartInterview={() => navigate(`/interview/${generatedSessionId}`)}
+              sessionMode={sessionMode}
             />
           </div>
         </div>

@@ -18,7 +18,7 @@ export {
   softDeleteOwnedSession,
 } from './session/sessionLifecycleService.js';
 
-export { appendTranscriptTurn } from './session/sessionTranscriptService.js';
+export { appendTranscriptTurn, updateLatestTranscriptTurnMetadata } from './session/sessionTranscriptService.js';
 
 export {
   createInterviewQuestion,

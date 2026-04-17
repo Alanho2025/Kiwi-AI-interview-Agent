@@ -35,15 +35,17 @@ const insertInterviewSession = async ({
   resolvedFocusArea,
   settings,
   totalQuestions,
+  sessionMode = 'text',
 }) => client.query(
   `INSERT INTO interview_sessions (
     id, user_id, status, mode, target_role, candidate_name, seniority_level, focus_area,
     enable_nz_culture_fit, current_question_index, total_questions, elapsed_seconds,
     created_at, updated_at
-  ) VALUES ($1,$2,'ready','voice',$3,$4,$5,$6,$7,1,$8,0,now(),now())`,
+  ) VALUES ($1,$2,'ready',$3,$4,$5,$6,$7,$8,1,$9,0,now(),now())`,
   [
     id,
     userId,
+    sessionMode === 'voice' ? 'voice' : 'text',
     resolvedTargetRole,
     resolvedCandidateName,
     resolvedSeniorityLevel,
@@ -135,6 +137,7 @@ export const persistSessionSetup = async ({
   resolvedFocusArea,
   settings,
   totalQuestions,
+  sessionMode = 'text',
 }) => withTransaction(async (client) => {
   await insertInterviewSession({
     client,
@@ -146,6 +149,7 @@ export const persistSessionSetup = async ({
     resolvedFocusArea,
     settings,
     totalQuestions,
+    sessionMode,
   });
   await linkSessionCvFile({ client, id, cvFileId });
   await insertJobDescriptionInput({ client, id, rawJD });

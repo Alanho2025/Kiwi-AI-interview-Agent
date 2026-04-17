@@ -24,6 +24,7 @@ export function AnalyzeActionsCard({
   rawJD,
   onGeneratePlan,
   onStartInterview,
+  sessionMode = 'text',
 }) {
   const isGenerating = analysisStatus === 'matching' || analysisStatus === 'summarizing';
   const canGenerate = Boolean(selectedCV && rawJD && !isGenerating);
@@ -37,7 +38,7 @@ export function AnalyzeActionsCard({
           className="w-full"
           onClick={onStartInterview}
         >
-          Start Text Interview
+          {sessionMode === 'voice' ? 'Continue to Voice Session' : 'Start Text Interview'}
         </Button>
       ) : (
         <Button
@@ -51,7 +52,7 @@ export function AnalyzeActionsCard({
         </Button>
       )}
       <p className="text-xs text-gray-500 text-center mt-2">
-        Current scope: CV upload, JD summary, CV to JD match score, and text interview.
+        Current scope: CV upload, JD summary, CV to JD match score, and session mode setup.
       </p>
     </div>
   );
