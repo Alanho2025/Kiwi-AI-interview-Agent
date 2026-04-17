@@ -29,3 +29,12 @@ export const repeatQuestion = (sessionId) => apiClient('/interview/repeat', { me
 export const pauseInterview = (sessionId) => apiClient('/interview/pause', { method: 'POST', body: { sessionId } });
 export const resumeInterview = (sessionId) => apiClient('/interview/resume', { method: 'POST', body: { sessionId } });
 export const endInterview = (sessionId) => apiClient('/interview/end', { method: 'POST', body: { sessionId } });
+
+export const replyInterviewWithVoice = ({ sessionId, audioFile, language = 'en-NZ', voiceName = 'en-NZ-MollyNeural' }) => {
+  const formData = new FormData();
+  formData.append('sessionId', sessionId);
+  formData.append('audio', audioFile);
+  formData.append('language', language);
+  formData.append('voiceName', voiceName);
+  return apiClient('/interview/voice-reply', { method: 'POST', body: formData });
+};

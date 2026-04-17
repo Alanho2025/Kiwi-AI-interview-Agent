@@ -97,6 +97,34 @@ export const applyElapsedSeconds = (session) => {
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
+export const saveInterviewAnswerWithDetails = async ({
+  sessionId,
+  questionId,
+  transcriptText,
+  responseMode = 'text',
+  audioDurationSeconds = null,
+  audioStorageKey = null,
+  asrProvider = null,
+  asrLanguage = null,
+  asrConfidence = null,
+  providerPayload = null,
+}) => {
+  if (questionId) {
+    await createInterviewResponse({
+      sessionId,
+      questionId,
+      transcriptText,
+      responseMode,
+      audioDurationSeconds,
+      audioStorageKey,
+      asrProvider,
+      asrLanguage,
+      asrConfidence,
+      providerPayload,
+    });
+  }
+};
+
 export const saveInterviewAnswer = async (sessionId, answerText) => {
   const timestamp = new Date().toISOString();
   const latestQuestion = await getLatestQuestionForSession(sessionId);
@@ -105,15 +133,15 @@ export const saveInterviewAnswer = async (sessionId, answerText) => {
     role: 'user',
     text: answerText,
     timestamp,
+    metadata: { inputMode: 'text' },
   });
 
-  if (latestQuestion?.id) {
-    await createInterviewResponse({
-      sessionId,
-      questionId: latestQuestion.id,
-      transcriptText: answerText,
-    });
-  }
+  await saveInterviewAnswerWithDetails({
+    sessionId,
+    questionId: latestQuestion?.id,
+    transcriptText: answerText,
+    responseMode: 'text',
+  });
 };
 
 /**

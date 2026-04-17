@@ -31,6 +31,8 @@ import {
   buildSessionPlanUpdatePayload,
 } from './sessionViewBuilder.js';
 
+const normalizeSessionMode = (value) => (value === 'voice' ? 'voice' : 'text');
+
 export const createSession = async ({
   userId,
   cvFileId = null,
@@ -44,6 +46,7 @@ export const createSession = async ({
   targetRole,
   totalQuestions = 8,
   candidateName = 'Candidate',
+  mode = 'text',
 }) => {
   const id = crypto.randomUUID();
   const normalizedAnalysis = normalizeAnalysisPayload(analysisResult);
@@ -51,6 +54,7 @@ export const createSession = async ({
   const resolvedCandidateName = clampVarchar(normalizedAnalysis.candidateName || candidateName || 'Candidate');
   const resolvedSeniorityLevel = clampVarchar(settings.seniorityLevel || 'Junior/Grad');
   const resolvedFocusArea = clampVarchar(settings.focusArea || 'Combined');
+  const resolvedMode = normalizeSessionMode(mode);
   const modeConfig = resolveInterviewModeConfig({ seniorityLevel: resolvedSeniorityLevel, focusArea: resolvedFocusArea });
   const resolvedSettings = { ...settings, seniorityLevel: resolvedSeniorityLevel, focusArea: resolvedFocusArea };
 
@@ -67,6 +71,7 @@ export const createSession = async ({
     resolvedFocusArea,
     settings: resolvedSettings,
     totalQuestions: modeConfig.totalQuestions || totalQuestions,
+    sessionMode: resolvedMode,
   });
 
   await persistParsedSkills({ id, normalizedAnalysis, jdRubric });

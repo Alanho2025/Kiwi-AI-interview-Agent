@@ -12,6 +12,12 @@
 import { Briefcase, Clock, FileText, Mic, Star } from 'lucide-react';
 
 export const HOME_SESSION_DEFAULTS_KEY = 'kiwi-home-session-defaults';
+export const SESSION_MODE_OPTIONS = Object.freeze({
+  text: 'text',
+  voice: 'voice',
+});
+
+export const isSupportedSessionMode = (value) => value === SESSION_MODE_OPTIONS.text || value === SESSION_MODE_OPTIONS.voice;
 
 export const DEFAULT_SESSION_SETTINGS = {
   seniorityLevel: 'Junior/Grad',

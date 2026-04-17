@@ -62,3 +62,40 @@ export const appendTranscriptTurn = async (sessionId, turn) => {
 
   return mapSavedTranscriptTurn(nextTurn);
 };
+
+
+/**
+ * Purpose: Merge metadata into the most recent transcript turn for a given role.
+ */
+export const updateLatestTranscriptTurnMetadata = async (sessionId, role, metadataPatch = {}) => {
+  const transcript = await SessionTranscript.findOne({ sessionId });
+  if (!transcript) {
+    return null;
+  }
+
+  const turnIndex = [...transcript.turns].map((turn, index) => ({ turn, index })).reverse().find(({ turn }) => turn.role === role)?.index;
+  if (typeof turnIndex !== 'number') {
+    return null;
+  }
+
+  const existingTurn = transcript.turns[turnIndex];
+  transcript.turns[turnIndex] = {
+    ...existingTurn.toObject?.() || existingTurn,
+    metadata: {
+      ...(existingTurn.metadata || {}),
+      ...(metadataPatch || {}),
+    },
+  };
+  transcript.fullTranscript = buildFullTranscript(transcript.turns);
+  transcript.redactedTranscript = transcript.fullTranscript;
+  await transcript.save();
+
+  const savedTurn = transcript.turns[turnIndex];
+  return {
+    role: savedTurn.role,
+    text: savedTurn.text,
+    timestamp: savedTurn.timestamp.toISOString(),
+    questionId: savedTurn.questionId,
+    metadata: savedTurn.metadata || {},
+  };
+};

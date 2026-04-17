@@ -10,7 +10,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { endInterview, pauseInterview, repeatQuestion, replyInterview, resumeInterview, startInterview } from '../api/interviewApi.js';
+import { endInterview, pauseInterview, repeatQuestion, replyInterview, replyInterviewWithVoice, resumeInterview, startInterview } from '../api/interviewApi.js';
 import { exportTranscript } from '../api/exportApi.js';
 import { getSession } from '../api/sessionApi.js';
 import { buildInterviewDisplayModel } from '../utils/buildInterviewDisplayModel.js';
@@ -129,6 +129,34 @@ export function useInterviewSession({ sessionId, navigate }) {
     }
   }, [isSubmitting, session, sessionId]);
 
+
+  const handleVoiceReply = useCallback(async ({ audioFile, language, voiceName }) => {
+    if (isSubmitting || !audioFile) return null;
+
+    setIsSubmitting(true);
+
+    try {
+      const data = await replyInterviewWithVoice({
+        sessionId,
+        audioFile,
+        language,
+        voiceName,
+      });
+      setSession(data.session);
+
+      if (data.session?.status === 'completed') {
+        setPageStatus(buildStatus('success', 'Interview completed', 'The planned question set is finished. You can now review the report.'));
+      }
+
+      return data;
+    } catch (error) {
+      setPageStatus(buildStatus('error', 'Voice reply failed', error.message || 'Could not process the voice reply.'));
+      throw error;
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [isSubmitting, sessionId]);
+
   const handlePauseToggle = useCallback(async () => {
     if (session?.status === 'completed') return;
 
@@ -218,6 +246,7 @@ export function useInterviewSession({ sessionId, navigate }) {
     setPageStatus,
     dismissStatus,
     handleReply,
+    handleVoiceReply,
     handlePauseToggle,
     handleRepeat,
     handleEnd,

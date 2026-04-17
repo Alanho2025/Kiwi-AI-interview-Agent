@@ -12,6 +12,8 @@
 export const ANALYZE_DRAFT_KEY = 'kiwi-analyze-draft';
 export const HOME_SESSION_DEFAULTS_KEY = 'kiwi-home-session-defaults';
 
+export const DEFAULT_ANALYZE_MODE = 'text';
+
 export const DEFAULT_ANALYZE_SETTINGS = {
   seniorityLevel: 'Junior/Grad',
   enableNZCultureFit: false,
@@ -20,7 +22,9 @@ export const DEFAULT_ANALYZE_SETTINGS = {
 
 const ALLOWED_SENIORITY = new Set(['Junior/Grad', 'Intermediate', 'Advanced']);
 const ALLOWED_FOCUS = new Set(['Technical', 'Behavioral', 'Combined']);
+const ALLOWED_SESSION_MODES = new Set(['text', 'voice']);
 
+export const sanitizeAnalyzeMode = (value) => (ALLOWED_SESSION_MODES.has(value) ? value : DEFAULT_ANALYZE_MODE);
 
 const sanitizeSelectedCv = (selectedCV) => {
   if (!selectedCV || typeof selectedCV !== 'object') {
@@ -115,6 +119,7 @@ export const loadAnalyzeDraft = () => {
         structuredJDRubric: null,
         summarizedRawJD: '',
         settings: homeDefaults,
+        sessionMode: DEFAULT_ANALYZE_MODE,
       };
     }
 
@@ -126,6 +131,7 @@ export const loadAnalyzeDraft = () => {
       structuredJDRubric: parsed.structuredJDRubric || null,
       summarizedRawJD: parsed.summarizedRawJD || '',
       settings: parsed.settings ? sanitizeAnalyzeSettings(parsed.settings) : homeDefaults,
+      sessionMode: sanitizeAnalyzeMode(parsed.sessionMode),
     };
   } catch (error) {
     console.error('Failed to restore analyze draft', error);
@@ -136,6 +142,7 @@ export const loadAnalyzeDraft = () => {
       structuredJDRubric: null,
       summarizedRawJD: '',
       settings: homeDefaults,
+      sessionMode: DEFAULT_ANALYZE_MODE,
     };
   }
 };
