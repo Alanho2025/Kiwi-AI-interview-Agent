@@ -46,8 +46,6 @@ describe('runInterviewerAgent', () => {
     expect(result.nextQuestion).toContain('deployment_depth');
     expect(result.reactTrace.actionName).toBe(AGENT_ACTION_TYPES.ASK_ABDUCTIVE_PROBE_QUESTION);
   });
-});
-
 
   it('builds a matched technical question when recovering coverage in combined mode', async () => {
     const result = await runInterviewerAgent({
@@ -71,3 +69,4 @@ describe('runInterviewerAgent', () => {
     expect(result.nextQuestion.toLowerCase()).toMatch(/react|postgresql|aws/);
     expect(result.questionCategory).toBe('technical');
   });
+});

@@ -10,7 +10,7 @@ describe('ownership guards', () => {
     expect(source).toMatch(/loadOwnedSessionOrThrow/);
     expect(source).not.toMatch(/loadSessionOrThrow/);
     const ownedLoadUsages = source.match(/loadOwnedSessionOrThrow\(\{ sessionId, userId: user\.id \}\)/g) || [];
-    expect(ownedLoadUsages.length).toBe(6);
+    expect(ownedLoadUsages.length).toBe(8);
   });
 
   it('interview session service loads sessions through ownership-aware lookup', async () => {
@@ -20,12 +20,13 @@ describe('ownership guards', () => {
     expect(source).not.toMatch(/getSessionById/);
   });
 
-  it('report controller validates ownership before generate, qa, and get', async () => {
+  it('report controller validates ownership before generate, qa, get, and export', async () => {
     const source = await readSource('src/controllers/reportController.js');
     const ownershipChecks = source.match(/getOwnedSessionById\(sessionId, user\.id\)/g) || [];
-    expect(ownershipChecks.length).toBe(3);
+    expect(ownershipChecks.length).toBe(4);
     expect(source).toMatch(/generate this report/);
     expect(source).toMatch(/QA this report/);
     expect(source).toMatch(/view this report/);
+    expect(source).toMatch(/export this report/);
   });
 });

@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "node index.js",
     "start": "node index.js",
-    "test": "vitest run",
+    "test": "vitest run --passWithNoTests=false",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:jd": "npm run test:unit:jd && npm run test:scenario:jd && vitest run tests/integration/jdParseFlow.test.js",
@@ -39,12 +39,16 @@
     "test:parsers": "npm run test:unit:cv && npm run test:unit:jd && npm run test:scenario:cv && npm run test:scenario:jd",
     "test:core": "npm run test:parsers && npm run test:match && npm run test:retrieval",
     "test:system": "npm run test:ai-control && npm run test:report",
-    "test:all": "npm run test:unit && npm run test:scenario && npm run test:integration",
+    "test:all": "node tests/helpers/runVitestGroups.js tests/unit tests/scenario tests/integration",
     "eval:match": "node eval/runners/runCvJdMatchEval.js",
     "eval:all": "npm run eval:cv && npm run eval:jd && npm run eval:match && npm run eval:interview && npm run eval:report",
     "test:jd:seek": "vitest run tests/scenario/jd/jdSeekDatasetScenarios.test.js tests/jobDescription/jobDescriptionSeekPrecisionGuards.test.js tests/jobDescription/jobDescriptionConfidenceCalibration.test.js",
     "eval:jd:seek": "node eval/runners/runJdParseSeekBenchmark.js --min-average 0.9 --fail-below 0.9 --min-critical-average 0.9 --critical-fail-below 0.9",
-    "quality:jd:seek": "npm run test:jd:seek && npm run eval:jd:seek"
+    "quality:jd:seek": "npm run test:jd:seek && npm run eval:jd:seek",
+    "test:unit:voice": "vitest run tests/unit/voice tests/unit/middleware/voiceUploadMiddleware.test.js tests/unit/api/realtimeVoiceSocket.test.js --passWithNoTests=false",
+    "test:integration:voice": "vitest run tests/integration/voiceReplyFlow.test.js tests/integration/realtimeVoiceSocketFlow.test.js --passWithNoTests=false",
+    "test:voice": "node tests/helpers/runVitestGroups.js tests/unit/voice tests/unit/middleware/voiceUploadMiddleware.test.js tests/unit/api/realtimeVoiceSocket.test.js tests/integration/voiceReplyFlow.test.js tests/integration/realtimeVoiceSocketFlow.test.js",
+    "test:voice:latency": "vitest run tests/unit/voice --passWithNoTests=false"
   },
   "dependencies": {
     "cors": "^2.8.6",
@@ -57,7 +61,9 @@
     "mongoose": "^9.4.1",
     "multer": "^2.1.1",
     "pdf-parse": "^2.4.5",
-    "pg": "^8.20.0"
+    "pg": "^8.20.0",
+    "microsoft-cognitiveservices-speech-sdk": "^1.44.0",
+    "ws": "^8.18.3"
   },
   "devDependencies": {
     "vitest": "^3.2.4"

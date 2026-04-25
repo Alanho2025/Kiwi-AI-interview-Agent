@@ -17,7 +17,12 @@ const APPLICATION_MAPPINGS = [
 export const normalizeApplicationInstructionPoints = (item, evidenceMap = {}) => {
   const text = typeof item === 'string' ? item : item?.label || item?.text || '';
   const mapped = collectMappedPoints(text, APPLICATION_MAPPINGS, evidenceMap);
-  if (mapped.length > 0) return mapped;
+  if (mapped.length > 0) {
+    if (/right to work in new zealand/i.test(text)) {
+      return [text, ...mapped];
+    }
+    return mapped;
+  }
   const fallback = /apply/i.test(text) ? fallbackPoint(text, 5) : '';
   if (fallback) {
     evidenceMap[fallback] = [...new Set([...(evidenceMap[fallback] || []), text])];
