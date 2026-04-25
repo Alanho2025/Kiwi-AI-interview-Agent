@@ -79,6 +79,24 @@ export function useVoiceInterviewSession({
 
   const speechSocket = useRealtimeSpeechSocket();
   const realtimeMic = useRealtimeMicStream({ onAudioChunk: speechSocket.sendAudioChunk });
+  const {
+    socketState,
+    partialTranscript,
+    finalTranscript,
+    socketError,
+    latency,
+    connect: connectSpeechSocket,
+    closeSocket,
+    sendStop,
+    resetTranscript,
+  } = speechSocket;
+  const {
+    isStreaming: isRealtimeStreaming,
+    levelHistory: realtimeLevelHistory,
+    durationMs: realtimeDurationMs,
+    startStream,
+    stopStream,
+  } = realtimeMic;
 
   const [voiceState, setVoiceState] = useState('idle');
   const [voiceStatus, setVoiceStatus] = useState(null);
@@ -95,6 +113,7 @@ export function useVoiceInterviewSession({
   const [isProcessingTurn, setIsProcessingTurn] = useState(false);
   const audioRef = useRef(null);
   const lastSpokenQuestionRef = useRef('');
+  const hasSpokenGreetingRef = useRef(false);
 
   const activeSessionId = resolveSessionId(session, sessionId);
   const currentQuestion = useMemo(() => getLatestTurnByRole(session?.transcript || [], 'ai'), [session?.transcript]);
@@ -109,7 +128,7 @@ export function useVoiceInterviewSession({
   }, [enabled, voiceMode]);
 
   const speakCurrentQuestion = useCallback(({ isReplay = false } = {}) => {
-    if (!enabled || realtimeMic.isStreaming || isBatchRecording || isProcessingTurn) return false;
+    if (!enabled || isRealtimeStreaming || isBatchRecording || isProcessingTurn) return false;
     const questionText = String(currentQuestion?.displayText || currentQuestion?.text || '').trim();
     if (!questionText) return false;
 
@@ -118,16 +137,17 @@ export function useVoiceInterviewSession({
       onStart: () => {
         setVoiceState('speaking');
         setVoiceStatus(buildVoiceStatus('info', isReplay ? 'Replaying question audio' : 'KiwiCoach is speaking', isReplay ? 'Replaying the current interview question.' : 'Listen to the question, then tap the microphone to answer.'));
+        if (!isReplay) hasSpokenGreetingRef.current = true;
       },
       onEnd: () => {
-        if (!isProcessingTurn && !realtimeMic.isStreaming && !isBatchRecording) setReadyState();
+        if (!isProcessingTurn && !isRealtimeStreaming && !isBatchRecording) setReadyState();
       },
       onError: () => {
         setVoiceState('ready');
         setVoiceStatus(buildVoiceStatus('info', 'Question audio unavailable', 'Your browser blocked automatic question audio. Use Repeat Question to try again.'));
       },
     });
-  }, [enabled, currentQuestion, realtimeMic.isStreaming, isBatchRecording, isProcessingTurn, setReadyState]);
+  }, [enabled, currentQuestion, isRealtimeStreaming, isBatchRecording, isProcessingTurn, setReadyState]);
 
   const handleRequestPermission = useCallback(async () => {
     if (!enabled) return;
@@ -195,22 +215,22 @@ export function useVoiceInterviewSession({
     setVoiceStatus(buildVoiceStatus('info', 'Listening with real-time captions', 'Speak naturally. Captions will update while you answer. Tap again when you are done.'));
 
     try {
-      await speechSocket.connect({ sessionId: activeSessionId, language: DEFAULT_LANGUAGE, sampleRate: 16000 });
-      await realtimeMic.startStream();
+      await connectSpeechSocket({ sessionId: activeSessionId, language: DEFAULT_LANGUAGE, sampleRate: 16000 });
+      await startStream();
     } catch (error) {
-      await realtimeMic.stopStream();
-      speechSocket.closeSocket();
+      await stopStream();
+      closeSocket();
       setVoiceState('error');
       setVoiceStatus(buildVoiceStatus('error', 'Real-time voice failed', error.message || 'Could not start real-time speech recognition. Use Batch mode if needed.'));
     }
-  }, [enabled, activeSessionId, requestPermission, realtimeMic, speechSocket]);
+  }, [enabled, activeSessionId, requestPermission, connectSpeechSocket, startStream, stopStream, closeSocket]);
 
   const stopRealtimeRecording = useCallback(async () => {
     setVoiceState('transcribing');
     setVoiceStatus(buildVoiceStatus('info', 'Finalising live transcript', 'Waiting for the final calibrated transcript from Azure Speech.'));
-    await realtimeMic.stopStream();
-    speechSocket.sendStop();
-  }, [realtimeMic, speechSocket]);
+    await stopStream();
+    sendStop();
+  }, [stopStream, sendStop]);
 
   const handleToggleRecording = useCallback(async () => {
     if (!enabled || isCompleted || isPaused || isSubmitting || isProcessingTurn) return;
@@ -222,7 +242,7 @@ export function useVoiceInterviewSession({
     }
 
     if (voiceMode === 'realtime') {
-      if (realtimeMic.isStreaming) {
+      if (isRealtimeStreaming) {
         await stopRealtimeRecording();
         return;
       }
@@ -258,7 +278,7 @@ export function useVoiceInterviewSession({
       setVoiceState('error');
       setVoiceStatus(buildVoiceStatus('error', 'Recording failed', error.message || 'Could not start microphone recording.'));
     }
-  }, [enabled, isCompleted, isPaused, isSubmitting, isProcessingTurn, isSupported, voiceMode, realtimeMic.isStreaming, stopRealtimeRecording, startRealtimeRecording, isBatchRecording, stopRecording, submitVoiceFile, requestPermission, startRecording]);
+  }, [enabled, isCompleted, isPaused, isSubmitting, isProcessingTurn, isSupported, voiceMode, isRealtimeStreaming, stopRealtimeRecording, startRealtimeRecording, isBatchRecording, stopRecording, submitVoiceFile, requestPermission, startRecording]);
 
   const handleUseRealtimeTranscript = useCallback(async () => {
     const answerText = String(editableTranscript || pendingTranscript?.displayText || '').trim();
@@ -287,9 +307,9 @@ export function useVoiceInterviewSession({
     setEditableTranscript('');
     setTranscriptionPreview('');
     setLastAsrConfidence(null);
-    speechSocket.resetTranscript();
+    resetTranscript();
     setReadyState();
-  }, [speechSocket, setReadyState]);
+  }, [resetTranscript, setReadyState]);
 
   const handleReplayAssistantAudio = useCallback(() => {
     if (!enabled) return false;
@@ -306,8 +326,8 @@ export function useVoiceInterviewSession({
   const handleResetShell = useCallback(async () => {
     window?.speechSynthesis?.cancel?.();
     await clearResources();
-    await realtimeMic.stopStream();
-    speechSocket.closeSocket();
+    await stopStream();
+    closeSocket();
     setManualAudioFile(null);
     setTranscriptionPreview('');
     setPendingTranscript(null);
@@ -319,7 +339,7 @@ export function useVoiceInterviewSession({
     }
     setVoiceState('idle');
     setVoiceStatus(null);
-  }, [clearResources, realtimeMic, speechSocket, permissionState, setReadyState]);
+  }, [clearResources, stopStream, closeSocket, permissionState, setReadyState]);
 
   const handleAudioFileSelect = useCallback((event) => {
     const nextFile = event.target.files?.[0] || null;
@@ -335,10 +355,11 @@ export function useVoiceInterviewSession({
   useEffect(() => {
     if (enabled) return undefined;
     window?.speechSynthesis?.cancel?.();
-    speechSocket.closeSocket();
-    realtimeMic.stopStream();
+    closeSocket();
+    stopStream();
+    hasSpokenGreetingRef.current = false;
     return undefined;
-  }, [enabled, realtimeMic, speechSocket]);
+  }, [enabled, closeSocket, stopStream]);
 
   useEffect(() => {
     if (permissionState === 'granted' && voiceState === 'idle') setReadyState();
@@ -346,13 +367,13 @@ export function useVoiceInterviewSession({
   }, [permissionState, voiceState, setReadyState]);
 
   useEffect(() => {
-    if (!speechSocket.partialTranscript) return;
-    setTranscriptionPreview(speechSocket.partialTranscript);
-  }, [speechSocket.partialTranscript]);
+    if (!partialTranscript) return;
+    setTranscriptionPreview(partialTranscript);
+  }, [partialTranscript]);
 
   useEffect(() => {
-    if (!speechSocket.finalTranscript) return;
-    const finalTurn = speechSocket.finalTranscript;
+    if (!finalTranscript) return;
+    const finalTurn = finalTranscript;
     const displayText = String(finalTurn.displayText || finalTurn.normalizedText || finalTurn.rawText || '').trim();
     setPendingTranscript({ ...finalTurn, displayText });
     setEditableTranscript(displayText);
@@ -361,13 +382,13 @@ export function useVoiceInterviewSession({
     setVoiceState('confirming_transcript');
     const confidenceLabel = finalTurn.confidenceStatus === 'high' ? 'high confidence' : `${finalTurn.confidenceStatus || 'unknown'} confidence`;
     setVoiceStatus(buildVoiceStatus(finalTurn.confidenceStatus === 'low' ? 'error' : 'success', 'Transcript ready to confirm', `Please check this ${confidenceLabel} transcript before it goes to the interview engine.`));
-  }, [speechSocket.finalTranscript]);
+  }, [finalTranscript]);
 
   useEffect(() => {
-    if (!speechSocket.socketError) return;
+    if (!socketError) return;
     setVoiceState('error');
-    setVoiceStatus(buildVoiceStatus('error', 'Real-time caption failed', speechSocket.socketError));
-  }, [speechSocket.socketError]);
+    setVoiceStatus(buildVoiceStatus('error', 'Real-time caption failed', socketError));
+  }, [socketError]);
 
   useEffect(() => {
     if (!lastAssistantAudio?.base64 || !lastAssistantAudio?.contentType) return undefined;
@@ -383,11 +404,11 @@ export function useVoiceInterviewSession({
     if (!assistantAudioUrl || !audioRef.current) return undefined;
     const audioElement = audioRef.current;
     const handleEnded = () => {
-      if (!isProcessingTurn && !realtimeMic.isStreaming && !isBatchRecording) setReadyState();
+      if (!isProcessingTurn && !isRealtimeStreaming && !isBatchRecording) setReadyState();
     };
     audioElement.onended = handleEnded;
     return () => { audioElement.onended = null; };
-  }, [assistantAudioUrl, isProcessingTurn, realtimeMic.isStreaming, isBatchRecording, setReadyState]);
+  }, [assistantAudioUrl, isProcessingTurn, isRealtimeStreaming, isBatchRecording, setReadyState]);
 
   useEffect(() => {
     if (!enabled) {
@@ -396,13 +417,13 @@ export function useVoiceInterviewSession({
     }
 
     const questionText = String(currentQuestion?.displayText || currentQuestion?.text || '').trim();
-    if (!questionText || assistantAudioUrl || realtimeMic.isStreaming || isBatchRecording || isProcessingTurn) return undefined;
-    if (lastSpokenQuestionRef.current === questionText) return undefined;
+    if (!questionText || assistantAudioUrl || isRealtimeStreaming || isBatchRecording || isProcessingTurn) return undefined;
+    if (lastSpokenQuestionRef.current === questionText && hasSpokenGreetingRef.current) return undefined;
 
     lastSpokenQuestionRef.current = questionText;
     const timerId = window.setTimeout(() => speakCurrentQuestion({ isReplay: false }), 250);
     return () => window.clearTimeout(timerId);
-  }, [enabled, assistantAudioUrl, currentQuestion, isProcessingTurn, realtimeMic.isStreaming, isBatchRecording, speakCurrentQuestion]);
+  }, [enabled, assistantAudioUrl, currentQuestion, isProcessingTurn, isRealtimeStreaming, isBatchRecording, speakCurrentQuestion]);
 
   useEffect(() => {
     if (!recordingError) return;
@@ -413,9 +434,15 @@ export function useVoiceInterviewSession({
   useEffect(() => () => {
     window?.speechSynthesis?.cancel?.();
     clearResources();
-    realtimeMic.stopStream();
-    speechSocket.closeSocket();
-  }, [clearResources, realtimeMic, speechSocket]);
+    stopStream();
+    closeSocket();
+  }, [clearResources, stopStream, closeSocket]);
+
+  useEffect(() => {
+    if (!enabled) return;
+    hasSpokenGreetingRef.current = false;
+    lastSpokenQuestionRef.current = '';
+  }, [enabled, activeSessionId]);
 
   const stateLabel = useMemo(() => {
     switch (voiceState) {
@@ -433,10 +460,10 @@ export function useVoiceInterviewSession({
 
   const transcript = session?.transcript || [];
   const liveTranscript = useMemo(() => transcript.slice(-8), [transcript]);
-  const isRecording = voiceMode === 'realtime' ? realtimeMic.isStreaming : isBatchRecording;
+  const isRecording = voiceMode === 'realtime' ? isRealtimeStreaming : isBatchRecording;
   const canUseVoice = enabled && !isPaused && !isCompleted && !isSubmitting && !isProcessingTurn;
-  const activeLevelHistory = voiceMode === 'realtime' ? realtimeMic.levelHistory : batchLevelHistory;
-  const activeDurationMs = voiceMode === 'realtime' ? realtimeMic.durationMs : recordingDurationMs;
+  const activeLevelHistory = voiceMode === 'realtime' ? realtimeLevelHistory : batchLevelHistory;
+  const activeDurationMs = voiceMode === 'realtime' ? realtimeDurationMs : recordingDurationMs;
 
   return {
     currentQuestion,
@@ -451,8 +478,8 @@ export function useVoiceInterviewSession({
     voiceStatus,
     voiceMode,
     setVoiceMode,
-    realtimeStatus: speechSocket.socketState,
-    realtimeLatency: speechSocket.latency,
+    realtimeStatus: socketState,
+    realtimeLatency: latency,
     pendingTranscript,
     editableTranscript,
     setEditableTranscript,

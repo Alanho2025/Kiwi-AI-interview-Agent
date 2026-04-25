@@ -6,7 +6,7 @@
  * - Convert backend transcript events into React state.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 const DEFAULT_LANGUAGE = 'en-NZ';
 const DEFAULT_SAMPLE_RATE = 16000;
@@ -126,7 +126,7 @@ export function useRealtimeSpeechSocket() {
 
   useEffect(() => () => closeSocket(), [closeSocket]);
 
-  return {
+  return useMemo(() => ({
     socketState,
     partialTranscript,
     finalTranscript,
@@ -137,5 +137,16 @@ export function useRealtimeSpeechSocket() {
     sendAudioChunk,
     sendStop,
     resetTranscript,
-  };
+  }), [
+    socketState,
+    partialTranscript,
+    finalTranscript,
+    socketError,
+    latency,
+    connect,
+    closeSocket,
+    sendAudioChunk,
+    sendStop,
+    resetTranscript,
+  ]);
 }

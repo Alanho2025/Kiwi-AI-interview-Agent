@@ -6,7 +6,7 @@
  * - Expose audio levels and duration for a responsive voice UI.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 const TARGET_SAMPLE_RATE = 16000;
 const MAX_LEVEL_HISTORY = 48;
@@ -55,11 +55,16 @@ export function useRealtimeMicStream({ onAudioChunk }) {
   const streamRef = useRef(null);
   const startedAtRef = useRef(null);
   const timerRef = useRef(null);
+  const onAudioChunkRef = useRef(onAudioChunk);
 
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamError, setStreamError] = useState(null);
   const [levelHistory, setLevelHistory] = useState([]);
   const [durationMs, setDurationMs] = useState(0);
+
+  useEffect(() => {
+    onAudioChunkRef.current = onAudioChunk;
+  }, [onAudioChunk]);
 
   const stopStream = useCallback(async () => {
     if (timerRef.current) clearInterval(timerRef.current);
@@ -100,7 +105,7 @@ export function useRealtimeMicStream({ onAudioChunk }) {
       const input = event.inputBuffer.getChannelData(0);
       const downsampled = downsampleBuffer(input, audioContext.sampleRate, TARGET_SAMPLE_RATE);
       const chunk = floatTo16BitPcm(downsampled);
-      onAudioChunk?.(chunk);
+      onAudioChunkRef.current?.(chunk);
       const level = calculateRmsLevel(Array.from(input));
       setLevelHistory((current) => [...current.slice(-(MAX_LEVEL_HISTORY - 1)), level]);
     };
@@ -117,18 +122,18 @@ export function useRealtimeMicStream({ onAudioChunk }) {
       setDurationMs(Math.round(performance.now() - startedAtRef.current));
     }, 250);
     setIsStreaming(true);
-  }, [onAudioChunk]);
+  }, []);
 
   useEffect(() => () => {
     stopStream();
   }, [stopStream]);
 
-  return {
+  return useMemo(() => ({
     isStreaming,
     streamError,
     levelHistory,
     durationMs,
     startStream,
     stopStream,
-  };
+  }), [isStreaming, streamError, levelHistory, durationMs, startStream, stopStream]);
 }
