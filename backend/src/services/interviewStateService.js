@@ -93,16 +93,17 @@ export const getCurrentPoolQuestion = (session = {}) => {
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
 export const getNextPoolQuestion = (session = {}, options = {}) => {
-  if (hasReachedQuestionLimit(session)) {
+  const desiredCategory = String(options.category || '').trim().toLowerCase();
+  const requireFresh = Boolean(options.freshOnly);
+  const isRecoverySearch = Boolean(desiredCategory || requireFresh);
+  if (hasReachedQuestionLimit(session) && !isRecoverySearch) {
     return null;
   }
   const questionPool = getQuestionPool(session);
   const structure = buildInterviewStructure(session);
   const recentTexts = structure.askedQuestionTexts.slice(-3).map((item) => normalizeKey(item));
   const askedRootQuestionKeys = new Set((structure.askedRootQuestionKeys || []).map((item) => normalizeKey(item)));
-  const startIndex = Math.max(0, getResolvedCurrentQuestionIndex(session));
-  const desiredCategory = String(options.category || '').trim().toLowerCase();
-  const requireFresh = Boolean(options.freshOnly);
+  const startIndex = isRecoverySearch ? 0 : Math.max(0, getResolvedCurrentQuestionIndex(session));
   const avoidRootRepeat = options.avoidRootRepeat !== false;
   for (let index = startIndex; index < questionPool.length; index += 1) {
     const candidate = questionPool[index];
