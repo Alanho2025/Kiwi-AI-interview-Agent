@@ -13,7 +13,7 @@ import { AGENT_DECISION_TYPES } from '../constants/agentDecisionTypes.js';
 import { agentRegistry } from './agentRegistryService.js';
 import { getSessionById, appendTranscriptTurn, createInterviewQuestion } from './sessionService.js';
 import { getNextQuestionOrder, hasReachedQuestionLimit } from './interviewStateService.js';
-import { indexSessionArtifacts } from './ragIndexService.js';
+import { indexSessionArtifacts, ensureSessionArtifactsIndexed } from './ragIndexService.js';
 import { SessionAnalysis } from '../db/models/sessionAnalysisModel.js';
 import { SessionReport } from '../db/models/sessionReportModel.js';
 import { buildDecisionContext } from './aiControl/decisionContextBuilder.js';
@@ -30,6 +30,7 @@ import { persistDynamicSlotState } from './aiControl/dynamicSlotService.js';
 import { buildReflectionRecord, shouldWriteReflection, persistReflectionRecord } from './aiControl/reflectionWriterService.js';
 import { persistUserCoachingMemory } from './aiControl/userCoachingMemoryService.js';
 import { rebuildBoundedMemory } from './aiControl/experienceMemoryService.js';
+import { enqueueBackgroundJob } from '../jobs/backgroundJobQueue.js';
 
 const persistControllerSnapshot = async ({ sessionId, decisionContext = null, evidenceBundle = null } = {}) => {
   await SessionAnalysis.findOneAndUpdate(
@@ -109,7 +110,7 @@ const runInterviewController = async ({ session, payload = {} }) => {
     };
   }
 
-  await indexSessionArtifacts(session.id);
+  await ensureSessionArtifactsIndexed(session.id);
   const initialRetrievalBundle = await agentRegistry.retrieval({
     query: buildDefaultRetrievalQuery({ session, payload, mode: 'interview' }),
     sessionId: session.id,
@@ -121,7 +122,7 @@ const runInterviewController = async ({ session, payload = {} }) => {
 
   const environment = buildInterviewEnvironment({ session, retrievalBundle: initialRetrievalBundle });
   const evaluatorOutput = evaluateInterviewTurn({ environment });
-  await persistEvaluatorRecord({ sessionId: session.id, evaluation: evaluatorOutput });
+  enqueueBackgroundJob('persist-evaluator-record', () => persistEvaluatorRecord({ sessionId: session.id, evaluation: evaluatorOutput }), { sessionId: session.id });
 
   const evidenceBundle = buildEvidenceBundle({ session, retrievalBundle: initialRetrievalBundle });
   const decisionContext = await buildDecisionContext({
@@ -130,38 +131,39 @@ const runInterviewController = async ({ session, payload = {} }) => {
     retrievalBundle: initialRetrievalBundle,
     latestEvaluation: evaluatorOutput,
   });
-  await persistDynamicSlotState({ sessionId: session.id, dynamicSlots: decisionContext.dynamicSlotState });
-
-  await persistControllerSnapshot({ sessionId: session.id, decisionContext, evidenceBundle });
-  await createDecisionRecord({
-    sessionId: session.id,
-    record: {
-      taskType: 'interview_next_turn',
-      agent: 'master_controller',
-      decisionType: AGENT_DECISION_TYPES.BUILD_CONTEXT,
-      currentObjective: decisionContext.currentObjective,
-      selectedAction: null,
-      reasoningSummary: 'Built controller context from session state, retrieval evidence, transcript, and match analysis.',
-      evidenceUsed: ['session.analysisResult', 'session.interviewPlan', 'retrievalBundle', 'transcript'],
-      confidence: 0.85,
-    },
-  });
-  await createDecisionRecord({
-    sessionId: session.id,
-    record: {
-      taskType: 'interview_next_turn',
-      agent: 'interview_evaluator',
-      decisionType: AGENT_DECISION_TYPES.BUILD_CONTEXT,
-      currentObjective: decisionContext.currentObjective,
-      selectedAction: evaluatorOutput.suggestedNextMode || null,
-      reasoningSummary: evaluatorOutput.rationale,
-      evidenceUsed: [`topic:${evaluatorOutput.currentTopic}`, `evidence_gain:${evaluatorOutput.evidenceGainScore}`, `interaction:${evaluatorOutput.interactionStatus}`],
-      confidence: evaluatorOutput.evidenceGainScore,
-    },
-  });
+  enqueueBackgroundJob('persist-controller-context', async () => {
+    await persistDynamicSlotState({ sessionId: session.id, dynamicSlots: decisionContext.dynamicSlotState });
+    await persistControllerSnapshot({ sessionId: session.id, decisionContext, evidenceBundle });
+    await createDecisionRecord({
+      sessionId: session.id,
+      record: {
+        taskType: 'interview_next_turn',
+        agent: 'master_controller',
+        decisionType: AGENT_DECISION_TYPES.BUILD_CONTEXT,
+        currentObjective: decisionContext.currentObjective,
+        selectedAction: null,
+        reasoningSummary: 'Built controller context from session state, retrieval evidence, transcript, and match analysis.',
+        evidenceUsed: ['session.analysisResult', 'session.interviewPlan', 'retrievalBundle', 'transcript'],
+        confidence: 0.85,
+      },
+    });
+    await createDecisionRecord({
+      sessionId: session.id,
+      record: {
+        taskType: 'interview_next_turn',
+        agent: 'interview_evaluator',
+        decisionType: AGENT_DECISION_TYPES.BUILD_CONTEXT,
+        currentObjective: decisionContext.currentObjective,
+        selectedAction: evaluatorOutput.suggestedNextMode || null,
+        reasoningSummary: evaluatorOutput.rationale,
+        evidenceUsed: [`topic:${evaluatorOutput.currentTopic}`, `evidence_gain:${evaluatorOutput.evidenceGainScore}`, `interaction:${evaluatorOutput.interactionStatus}`],
+        confidence: evaluatorOutput.evidenceGainScore,
+      },
+    });
+  }, { sessionId: session.id });
 
   const plan = selectNextAction(decisionContext);
-  await createDecisionRecord({
+  enqueueBackgroundJob('persist-action-selection-record', () => createDecisionRecord({
     sessionId: session.id,
     record: {
       taskType: 'interview_next_turn',
@@ -177,7 +179,7 @@ const runInterviewController = async ({ session, payload = {} }) => {
       ],
       confidence: plan.confidence,
     },
-  });
+  }), { sessionId: session.id });
 
   const interviewerOutput = await executeInterviewAction({
     selectedAction: plan.selectedAction,
@@ -187,7 +189,7 @@ const runInterviewController = async ({ session, payload = {} }) => {
     session,
   });
 
-  await createDecisionRecord({
+  enqueueBackgroundJob('persist-action-execution-record', () => createDecisionRecord({
     sessionId: session.id,
     record: {
       taskType: 'interview_next_turn',
@@ -200,7 +202,7 @@ const runInterviewController = async ({ session, payload = {} }) => {
       confidence: plan.confidence,
       actionInput: plan.actionInput,
     },
-  });
+  }), { sessionId: session.id });
 
   const trajectoryStep = buildTrajectoryStep({
     session,
@@ -211,7 +213,7 @@ const runInterviewController = async ({ session, payload = {} }) => {
     actorOutput: interviewerOutput,
     evaluatorOutput,
   });
-  await persistTrajectoryStep({ sessionId: session.id, step: trajectoryStep });
+  enqueueBackgroundJob('persist-trajectory-step', () => persistTrajectoryStep({ sessionId: session.id, step: trajectoryStep }), { sessionId: session.id });
 
   let reflectionRecord = null;
   if (shouldWriteReflection({ evaluatorState: evaluatorOutput, decisionContext, trajectoryStep })) {
@@ -222,18 +224,20 @@ const runInterviewController = async ({ session, payload = {} }) => {
       decisionContext,
       trajectoryStep,
     });
-    await persistReflectionRecord({ sessionId: session.id, reflectionRecord });
-    await rebuildBoundedMemory({ sessionId: session.id });
-    await persistUserCoachingMemory({ userId: session.userId, reflectionRecord });
+    enqueueBackgroundJob('persist-reflection-memory', async () => {
+      await persistReflectionRecord({ sessionId: session.id, reflectionRecord });
+      await rebuildBoundedMemory({ sessionId: session.id });
+      await persistUserCoachingMemory({ userId: session.userId, reflectionRecord });
+    }, { sessionId: session.id, userId: session.userId });
   }
 
-  await updateAgentMemory({
+  enqueueBackgroundJob('update-agent-memory', () => updateAgentMemory({
     sessionId: session.id,
     latestAnswer: payload.answer || decisionContext.latestAnswer,
     decisionContext,
     latestDecision: plan,
     outcome: interviewerOutput,
-  });
+  }), { sessionId: session.id });
 
   if (interviewerOutput?.isComplete || !interviewerOutput?.nextQuestion) {
     return {

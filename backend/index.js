@@ -10,10 +10,12 @@
  */
 
 import express from 'express';
+import http from 'http';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import api from './src/api.js';
+import { attachRealtimeVoiceSocketServer } from './src/api/realtimeVoiceSocket.js';
 import { bootstrapDatabases } from './src/db/bootstrap.js';
 import { logger } from './src/utils/logger.js';
 
@@ -40,7 +42,10 @@ async function startServer() {
     app.locals.startupStatus = startup;
     app.use('/api', api);
 
-    app.listen(PORT, '0.0.0.0', () => {
+    const server = http.createServer(app);
+    attachRealtimeVoiceSocketServer(server);
+
+    server.listen(PORT, '0.0.0.0', () => {
       logger.info('API server started', { port: PORT, url: `http://localhost:${PORT}` });
       if (!startup.mongo?.ok) {
         logger.warn('Running in degraded mode because Mongo is unavailable', { port: PORT });

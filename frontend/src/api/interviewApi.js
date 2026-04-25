@@ -30,11 +30,35 @@ export const pauseInterview = (sessionId) => apiClient('/interview/pause', { met
 export const resumeInterview = (sessionId) => apiClient('/interview/resume', { method: 'POST', body: { sessionId } });
 export const endInterview = (sessionId) => apiClient('/interview/end', { method: 'POST', body: { sessionId } });
 
-export const replyInterviewWithVoice = ({ sessionId, audioFile, language = 'en-NZ', voiceName = 'en-NZ-MollyNeural' }) => {
+export const replyInterviewWithVoice = ({ sessionId, audioFile, language = 'en-NZ', voiceName = 'en-NZ-MollyNeural', durationMs = null }) => {
   const formData = new FormData();
   formData.append('sessionId', sessionId);
   formData.append('audio', audioFile);
   formData.append('language', language);
   formData.append('voiceName', voiceName);
+  if (durationMs != null) formData.append('durationMs', String(durationMs));
   return apiClient('/interview/voice-reply', { method: 'POST', body: formData });
 };
+
+export const replyInterviewWithRealtimeVoice = ({
+  sessionId,
+  transcriptText,
+  language = 'en-NZ',
+  voiceName = 'en-NZ-MollyNeural',
+  asrConfidence = null,
+  asrSource = 'azure_realtime',
+  inputMode = 'realtime_voice',
+  vad = null,
+}) => apiClient('/interview/realtime-voice-turn', {
+  method: 'POST',
+  body: {
+    sessionId,
+    transcriptText,
+    language,
+    voiceName,
+    asrConfidence,
+    asrSource,
+    inputMode,
+    vad,
+  },
+});

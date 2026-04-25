@@ -32,6 +32,8 @@ import { resolveUserFromRequest } from '../services/authService.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { logger, getRequestLogMeta } from '../utils/logger.js';
 import { processVoiceReply } from '../services/voice/voiceOrchestrationService.js';
+import { processRealtimeVoiceTurn } from '../services/voice/realtimeVoiceTurnService.js';
+import { withSessionTurnLock } from '../utils/sessionTurnLock.js';
 
 const tryGenerateReportForCompletedSession = async (req, sessionId) => {
   try {
@@ -102,29 +104,38 @@ export const replyInterview = asyncHandler(async (req, res) => {
   const session = await loadOwnedSessionOrThrow({ sessionId, userId: user.id });
   ensureInterviewInProgress(session);
 
-  const normalizedAnswer = normalizeInterviewAnswer(answer);
-  await saveInterviewAnswer(sessionId, normalizedAnswer);
+  const { agentResult, updatedSession, generatedReport } = await withSessionTurnLock(sessionId, async () => {
+    const cleanAnswer = normalizeInterviewAnswer(answer);
+    await saveInterviewAnswer(sessionId, cleanAnswer);
 
-  const agentResult = await runTask({
-    taskType: 'interview_next_turn',
-    sessionId,
-    payload: { answer: normalizedAnswer },
+    const nextTurnResult = await runTask({
+      taskType: 'interview_next_turn',
+      sessionId,
+      payload: { answer: cleanAnswer },
+    });
+
+    const sessionPatch = nextTurnResult.isComplete
+      ? {
+          status: 'completed',
+          endedAt: new Date().toISOString(),
+          lastResumedAt: null,
+        }
+      : {
+          currentQuestionIndex: nextTurnResult.nextQuestionOrder,
+        };
+
+    const nextSession = await updateSession(sessionId, user.id, sessionPatch);
+    const report = nextTurnResult.isComplete
+      ? await tryGenerateReportForCompletedSession(req, sessionId)
+      : null;
+
+    return {
+      normalizedAnswer: cleanAnswer,
+      agentResult: nextTurnResult,
+      updatedSession: nextSession,
+      generatedReport: report,
+    };
   });
-
-  const sessionPatch = agentResult.isComplete
-    ? {
-        status: 'completed',
-        endedAt: new Date().toISOString(),
-        lastResumedAt: null,
-      }
-    : {
-        currentQuestionIndex: agentResult.nextQuestionOrder,
-      };
-
-  const updatedSession = await updateSession(sessionId, user.id, sessionPatch);
-  const generatedReport = agentResult.isComplete
-    ? await tryGenerateReportForCompletedSession(req, sessionId)
-    : null;
 
   logger.info('Interview reply processed', getRequestLogMeta(req, {
     isComplete: Boolean(agentResult.isComplete),
@@ -155,15 +166,16 @@ export const replyInterviewWithVoice = asyncHandler(async (req, res) => {
   const session = await loadOwnedSessionOrThrow({ sessionId, userId: user.id });
   ensureInterviewInProgress(session);
 
-  const result = await processVoiceReply({
+  const result = await withSessionTurnLock(sessionId, () => processVoiceReply({
     req,
     session,
     userId: user.id,
     file: req.file,
     language: String(req.body?.language || '').trim() || undefined,
     voiceName: String(req.body?.voiceName || '').trim() || undefined,
+    durationMs: req.body?.durationMs || null,
     tryGenerateReportForCompletedSession,
-  });
+  }));
 
   logger.info('Interview voice reply processed', getRequestLogMeta(req, {
     isComplete: Boolean(result.agentResult.isComplete),
@@ -188,6 +200,52 @@ export const replyInterviewWithVoice = asyncHandler(async (req, res) => {
       confidence: result.transcription.confidence,
     },
     assistantAudio: result.assistantAudio,
+    session: result.updatedSession,
+  }));
+});
+
+export const replyInterviewWithRealtimeVoice = asyncHandler(async (req, res) => {
+  const { sessionId, transcriptText } = req.body;
+  requireSessionId(sessionId);
+  const user = await resolveUserFromRequest(req);
+
+  const session = await loadOwnedSessionOrThrow({ sessionId, userId: user.id });
+  ensureInterviewInProgress(session);
+
+  const result = await withSessionTurnLock(sessionId, () => processRealtimeVoiceTurn({
+    req,
+    session,
+    userId: user.id,
+    transcriptText,
+    language: String(req.body?.language || '').trim() || undefined,
+    asrConfidence: req.body?.asrConfidence ?? null,
+    asrSource: String(req.body?.asrSource || '').trim() || undefined,
+    voiceName: String(req.body?.voiceName || '').trim() || undefined,
+    inputMode: String(req.body?.inputMode || '').trim() || undefined,
+    vad: req.body?.vad || null,
+    tryGenerateReportForCompletedSession,
+  }));
+
+  logger.info('Interview realtime voice reply processed', getRequestLogMeta(req, {
+    isComplete: Boolean(result.agentResult.isComplete),
+    nextQuestionOrder: result.agentResult.nextQuestionOrder || null,
+    hasAssistantAudio: Boolean(result.assistantAudio?.base64),
+    latency: result.latency,
+  }));
+
+  res.json(formatSuccess('Realtime voice reply processed', {
+    nextQuestion: result.agentResult.nextQuestion,
+    interviewerTurn: result.agentResult.interviewerTurn || null,
+    rationale: result.agentResult.rationale,
+    retrievalSnapshot: result.agentResult.retrievalSnapshot,
+    isComplete: Boolean(result.agentResult.isComplete),
+    completedBecause: result.agentResult.completedBecause || null,
+    reportStatus: result.generatedReport?.stored?.latestStatus || null,
+    evaluator: result.agentResult.evaluatorOutput || null,
+    reactTrace: result.agentResult.reactTrace || null,
+    transcription: result.transcription,
+    assistantAudio: result.assistantAudio,
+    latency: result.latency,
     session: result.updatedSession,
   }));
 });

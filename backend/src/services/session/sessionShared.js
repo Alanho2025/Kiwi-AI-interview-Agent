@@ -99,8 +99,8 @@ export const buildCanonicalRoleMeta = ({ resolvedTargetRole = '', normalizedAnal
   const canonicalRole = prettifyCanonicalRole(
     parsedJdProfile?.roleCanonical || normalizedAnalysis?.matchingDetails?.questionPlanHints?.roleCanonical || ''
   ) || '';
-  const displayTitle = extractDisplayTitle(
-    resolvedTargetRole,
+  const explicitResolvedTitle = cleanDisplayTitle(resolvedTargetRole);
+  const displayTitle = explicitResolvedTitle || extractDisplayTitle(
     normalizedAnalysis?.jobTitle,
     parsedJdProfile?.title,
     parsedJdProfile?.jobTitle,
@@ -109,9 +109,9 @@ export const buildCanonicalRoleMeta = ({ resolvedTargetRole = '', normalizedAnal
   const seniorityKey = normalizeSeniorityLevelKey(settings?.seniorityLevel || settings?.level || 'junior');
   const focusAreaKey = normalizeFocusAreaKey(settings?.focusArea || 'combined');
   return {
-    canonicalRole: cleanDisplayTitle(canonicalRole || displayTitle || resolvedTargetRole || 'Interview Role'),
-    displayTitle: titleCaseWords(cleanDisplayTitle(displayTitle || resolvedTargetRole || canonicalRole || 'Interview Session')),
-    compactRoleLabel: titleCaseWords(cleanDisplayTitle(canonicalRole || displayTitle || resolvedTargetRole || 'Interview Role')),
+    canonicalRole: cleanDisplayTitle(canonicalRole || displayTitle || explicitResolvedTitle || 'Interview Role'),
+    displayTitle: titleCaseWords(cleanDisplayTitle(displayTitle || explicitResolvedTitle || canonicalRole || 'Interview Session')),
+    compactRoleLabel: titleCaseWords(cleanDisplayTitle(displayTitle || explicitResolvedTitle || canonicalRole || 'Interview Role')),
     roleFamily: parsedJdProfile?.roleFamily || normalizedAnalysis?.matchingDetails?.rubric?.roleFamily || '',
     seniorityKey,
     focusAreaKey,
