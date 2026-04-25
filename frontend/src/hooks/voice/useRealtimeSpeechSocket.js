@@ -34,12 +34,16 @@ export function useRealtimeSpeechSocket() {
   const [socketError, setSocketError] = useState(null);
   const [latency, setLatency] = useState({});
   const startedAtRef = useRef(null);
+  const lastPartialTranscriptRef = useRef('');
+  const lastFinalTranscriptRef = useRef(null);
 
   const resetTranscript = useCallback(() => {
     setPartialTranscript('');
     setFinalTranscript(null);
     setSocketError(null);
     setLatency({});
+    lastPartialTranscriptRef.current = '';
+    lastFinalTranscriptRef.current = null;
   }, []);
 
   const closeSocket = useCallback(() => {
@@ -77,11 +81,13 @@ export function useRealtimeSpeechSocket() {
         return;
       }
       if (payload.type === 'partial_transcript') {
+        lastPartialTranscriptRef.current = payload.text || '';
         setPartialTranscript(payload.text || '');
         setLatency((current) => current.firstPartialMs ? current : ({ ...current, firstPartialMs: Math.round(performance.now() - startedAtRef.current) }));
         return;
       }
       if (payload.type === 'final_transcript') {
+        lastFinalTranscriptRef.current = payload;
         setFinalTranscript(payload);
         setPartialTranscript('');
         setLatency((current) => ({ ...current, finalTranscriptMs: Math.round(performance.now() - startedAtRef.current) }));
@@ -124,6 +130,30 @@ export function useRealtimeSpeechSocket() {
     socket.send(JSON.stringify({ type: 'stop' }));
   }, []);
 
+  const getBestAvailableTranscript = useCallback(() => {
+    const finalTurn = lastFinalTranscriptRef.current;
+    if (finalTurn) {
+      const displayText = String(finalTurn.displayText || finalTurn.normalizedText || finalTurn.rawText || '').trim();
+      if (displayText) return { ...finalTurn, displayText, source: 'final' };
+    }
+
+    const partialText = String(lastPartialTranscriptRef.current || '').trim();
+    if (partialText) {
+      return {
+        type: 'final_transcript',
+        displayText: partialText,
+        normalizedText: partialText,
+        rawText: partialText,
+        confidence: null,
+        confidenceStatus: 'partial_fallback',
+        source: 'partial_fallback',
+        fallback: true,
+      };
+    }
+
+    return null;
+  }, []);
+
   useEffect(() => () => closeSocket(), [closeSocket]);
 
   return useMemo(() => ({
@@ -136,6 +166,7 @@ export function useRealtimeSpeechSocket() {
     closeSocket,
     sendAudioChunk,
     sendStop,
+    getBestAvailableTranscript,
     resetTranscript,
   }), [
     socketState,
@@ -147,6 +178,7 @@ export function useRealtimeSpeechSocket() {
     closeSocket,
     sendAudioChunk,
     sendStop,
+    getBestAvailableTranscript,
     resetTranscript,
   ]);
 }

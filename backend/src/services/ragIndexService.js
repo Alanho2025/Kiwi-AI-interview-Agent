@@ -160,3 +160,28 @@ export const indexSessionArtifacts = async (sessionId) => {
 
   return indexed;
 };
+
+export const ensureSessionArtifactsIndexed = async (sessionId) => {
+  const existing = await SessionAnalysis.findOne({ sessionId }).select('ragIndexStatus').lean();
+  const indexedAt = existing?.ragIndexStatus?.indexedAt;
+  if (indexedAt) {
+    return { skipped: true, indexedAt, records: [] };
+  }
+
+  const records = await indexSessionArtifacts(sessionId);
+  await SessionAnalysis.findOneAndUpdate(
+    { sessionId },
+    {
+      $set: {
+        ragIndexStatus: {
+          indexedAt: new Date(),
+          recordCount: records.length,
+          mode: 'initial_full_index',
+        },
+      },
+    },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+
+  return { skipped: false, indexedAt: new Date(), records };
+};

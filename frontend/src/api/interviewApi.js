@@ -39,3 +39,22 @@ export const replyInterviewWithVoice = ({ sessionId, audioFile, language = 'en-N
   if (durationMs != null) formData.append('durationMs', String(durationMs));
   return apiClient('/interview/voice-reply', { method: 'POST', body: formData });
 };
+
+export const replyInterviewWithRealtimeVoice = ({
+  sessionId,
+  transcriptText,
+  language = 'en-NZ',
+  voiceName = 'en-NZ-MollyNeural',
+  asrConfidence = null,
+  asrSource = 'azure_realtime',
+}) => apiClient('/interview/realtime-voice-turn', {
+  method: 'POST',
+  body: {
+    sessionId,
+    transcriptText,
+    language,
+    voiceName,
+    asrConfidence,
+    asrSource,
+  },
+});
