@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 
+const getPermissionErrorMessage = (permissionError) => {
+  const errorName = String(permissionError?.name || '').trim();
+  if (errorName === 'NotAllowedError' || errorName === 'SecurityError') {
+    return 'Microphone permission was denied. Allow microphone access and try again.';
+  }
+  return permissionError?.message || 'Microphone access was blocked.';
+};
+
 export function useMicrophonePermission() {
   const [permissionState, setPermissionState] = useState('prompt');
   const [isRequesting, setIsRequesting] = useState(false);
@@ -41,7 +49,7 @@ export function useMicrophonePermission() {
       setPermissionState('granted');
       return { ok: true };
     } catch (permissionError) {
-      const message = permissionError?.message || 'Microphone access was blocked.';
+      const message = getPermissionErrorMessage(permissionError);
       setPermissionState('denied');
       setError(message);
       return { ok: false, error: message };

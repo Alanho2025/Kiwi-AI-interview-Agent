@@ -74,7 +74,7 @@ describe('VoiceInterviewPanel', () => {
       />
     );
 
-    expect(screen.getByLabelText('Start recording')).toBeDisabled();
+    expect(screen.getByLabelText('Start voice interview')).toBeDisabled();
   });
 
   it('shows transcript confirmation controls for final realtime transcript', () => {

@@ -94,6 +94,7 @@ describe('voice interview session helpers', () => {
 describe('useVoiceInterviewSession', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useRealTimers();
     realtimeMicMock.isStreaming = false;
     speechSocketMock.finalTranscript = null;
     speechSocketMock.partialTranscript = '';
@@ -138,6 +139,7 @@ describe('useVoiceInterviewSession', () => {
   });
 
   it('starts realtime recording only after permission and socket connection succeed', async () => {
+    vi.useFakeTimers();
     const { result } = renderHook(() => useVoiceInterviewSession({
       enabled: true,
       session: buildSession(),
@@ -150,6 +152,9 @@ describe('useVoiceInterviewSession', () => {
     await act(async () => {
       await result.current.handleToggleRecording();
     });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(350);
+    });
 
     expect(permissionMock.requestPermission).toHaveBeenCalled();
     expect(speechSocketMock.connect).toHaveBeenCalledWith({
@@ -161,6 +166,7 @@ describe('useVoiceInterviewSession', () => {
   });
 
   it('sets a safe error state instead of opening realtime voice without sessionId', async () => {
+    vi.useFakeTimers();
     const { result } = renderHook(() => useVoiceInterviewSession({
       enabled: true,
       session: buildSession({ id: '' }),
@@ -173,14 +179,17 @@ describe('useVoiceInterviewSession', () => {
     await act(async () => {
       await result.current.handleToggleRecording();
     });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(350);
+    });
 
     expect(speechSocketMock.connect).not.toHaveBeenCalled();
     expect(result.current.voiceState).toBe('error');
     expect(result.current.voiceStatus.title).toBe('Session missing');
   });
 
-  it('submits confirmed realtime transcript through the text interview flow', async () => {
-    const onSubmitTextReply = vi.fn().mockResolvedValue({});
+  it('auto-submits final realtime transcript through the realtime voice flow', async () => {
+    const onSubmitRealtimeVoiceTurn = vi.fn().mockResolvedValue({ assistantAudio: null, latency: {} });
     speechSocketMock.finalTranscript = {
       type: 'final_transcript',
       displayText: 'I used STAR method in a project.',
@@ -195,18 +204,16 @@ describe('useVoiceInterviewSession', () => {
       isPaused: false,
       isCompleted: false,
       isSubmitting: false,
-      onSubmitTextReply,
+      onSubmitRealtimeVoiceTurn,
     }));
 
     await act(async () => {});
 
     expect(result.current.editableTranscript).toBe('I used STAR method in a project.');
-
-    await act(async () => {
-      await result.current.handleUseRealtimeTranscript();
-    });
-
-    expect(onSubmitTextReply).toHaveBeenCalledWith('I used STAR method in a project.');
-    expect(result.current.voiceStatus.title).toBe('Transcript submitted');
+    expect(onSubmitRealtimeVoiceTurn).toHaveBeenCalledWith(expect.objectContaining({
+      transcriptText: 'I used STAR method in a project.',
+      inputMode: 'realtime_voice_vad',
+    }));
+    expect(result.current.voiceStatus.title).toBe('Next question ready');
   });
 });
