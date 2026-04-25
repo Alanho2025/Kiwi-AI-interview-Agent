@@ -5,6 +5,7 @@ import { useRealtimeMicStream } from './voice/useRealtimeMicStream.js';
 import { useRealtimeSpeechSocket } from './voice/useRealtimeSpeechSocket.js';
 import { useVoiceActivityDetection } from './voice/useVoiceActivityDetection.js';
 import { createVoiceLatencyTrace } from '../utils/voiceLatencyTrace.js';
+import { buildVoiceLatencyConsoleSummary } from '../utils/voiceLatencySummary.js';
 
 const DEFAULT_VOICE_NAME = 'en-NZ-MollyNeural';
 const DEFAULT_LANGUAGE = 'en-NZ';
@@ -311,6 +312,10 @@ export function useVoiceInterviewSession({
         backendLatency: result?.latency || null,
         trace: voiceTraceRef.current?.toJSON?.() || null,
       });
+      console.log('[voice-latency-summary]', buildVoiceLatencyConsoleSummary({
+        trace: voiceTraceRef.current?.toJSON?.() || null,
+        backendLatency: result?.latency || null,
+      }));
 
       setPendingTranscript({ ...turn, displayText: answerText });
       setEditableTranscript(answerText);
