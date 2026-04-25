@@ -81,8 +81,8 @@ export function useRealtimeSpeechSocket() {
         return;
       }
       if (payload.type === 'partial_transcript') {
-        lastPartialTranscriptRef.current = payload.text || '';
-        setPartialTranscript(payload.text || '');
+        lastPartialTranscriptRef.current = payload.text || payload.displayText || payload.normalizedText || payload.rawText || '';
+        setPartialTranscript(payload.text || payload.displayText || payload.normalizedText || payload.rawText || '');
         setLatency((current) => current.firstPartialMs ? current : ({ ...current, firstPartialMs: Math.round(performance.now() - startedAtRef.current) }));
         return;
       }
@@ -133,7 +133,7 @@ export function useRealtimeSpeechSocket() {
   const getBestAvailableTranscript = useCallback(() => {
     const finalTurn = lastFinalTranscriptRef.current;
     if (finalTurn) {
-      const displayText = String(finalTurn.displayText || finalTurn.normalizedText || finalTurn.rawText || '').trim();
+      const displayText = String(finalTurn.displayText || finalTurn.normalizedText || finalTurn.rawText || finalTurn.text || '').trim();
       if (displayText) return { ...finalTurn, displayText, source: 'final' };
     }
 

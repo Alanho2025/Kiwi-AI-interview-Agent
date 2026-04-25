@@ -39,6 +39,8 @@ export function VoiceInterviewPanel({
     voiceMode,
     setVoiceMode,
     realtimeStatus,
+    vadState,
+    isAutoLoopActive,
     pendingTranscript,
     editableTranscript,
     setEditableTranscript,
@@ -63,7 +65,7 @@ export function VoiceInterviewPanel({
   const waveBars = useMemo(() => buildWaveBars(levelHistory), [levelHistory]);
   const currentQuestionText = currentQuestion?.displayText || currentQuestion?.text || '';
   const backupDisabled = isSubmitting || isPaused || isCompleted || isProcessingTurn;
-  const statusBadgeLabel = isRecording ? 'Listening...' : stateLabel;
+  const statusBadgeLabel = isAutoLoopActive && !isRecording ? stateLabel : (isRecording ? 'Listening...' : stateLabel);
   const hasLiveCaption = Boolean(transcriptionPreview || pendingTranscript);
 
   return (
@@ -102,18 +104,18 @@ export function VoiceInterviewPanel({
                 onClick={handleToggleRecording}
                 disabled={!canUseVoice}
                 className={cn('relative z-10 flex h-[112px] w-[112px] items-center justify-center rounded-full text-white shadow-lg transition-all duration-200', canUseVoice ? 'bg-[#2eb886] hover:bg-[#24a673]' : 'cursor-not-allowed bg-gray-300')}
-                aria-label={isRecording ? 'Stop recording' : 'Start recording'}
+                aria-label={isAutoLoopActive || isRecording ? 'Pause voice interview' : 'Start voice interview'}
               >
-                {isRecording ? <Square className="h-8 w-8" /> : <Mic className="h-8 w-8" />}
+                {isAutoLoopActive || isRecording ? <Square className="h-8 w-8" /> : <Mic className="h-8 w-8" />}
               </button>
             </div>
 
             <div className="text-center">
               <p className="text-base font-medium text-gray-600">
-                {isRecording ? `Microphone is active - ${recordingDurationLabel}` : 'Tap the microphone to answer the current question'}
+                {isAutoLoopActive ? (isRecording ? 'Listening automatically - ' + recordingDurationLabel : 'Auto voice interview is running') : 'Start Voice Interview to begin the hands-free loop'}
               </p>
               <p className="mt-1 text-sm text-gray-400">
-                Voice mode: {voiceMode === 'realtime' ? 'Real-time captions beta' : 'Batch WAV fallback'}
+                Voice mode: {voiceMode === 'realtime' ? ('Full auto VAD' + (vadState ? ' · ' + vadState : '')) : 'Batch WAV fallback'}
               </p>
             </div>
 
@@ -189,7 +191,7 @@ export function VoiceInterviewPanel({
             <>
               <p className="mb-2 text-xs font-medium uppercase tracking-wider text-gray-500">Voice-only question mode</p>
               <p className="text-lg font-medium leading-7 text-gray-900 pr-2">
-                {currentQuestionText ? 'Listen to KiwiCoach, then answer with the microphone.' : 'Waiting for the interviewer voice.'}
+                {currentQuestionText ? 'Listen to KiwiCoach. The microphone opens automatically after each question.' : 'Waiting for the interviewer voice.'}
               </p>
             </>
           )}
@@ -215,8 +217,8 @@ export function VoiceInterviewPanel({
               </Button>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button variant={voiceMode === 'realtime' ? 'primary' : 'secondary'} size="sm" onClick={() => setVoiceMode('realtime')} disabled={isRecording || isProcessingTurn}>Realtime</Button>
-              <Button variant={voiceMode === 'batch' ? 'primary' : 'secondary'} size="sm" onClick={() => setVoiceMode('batch')} disabled={isRecording || isProcessingTurn}>Batch</Button>
+              <Button variant={voiceMode === 'realtime' ? 'primary' : 'secondary'} size="sm" onClick={() => setVoiceMode('realtime')} disabled={isRecording || isProcessingTurn || isAutoLoopActive}>Auto VAD</Button>
+              <Button variant={voiceMode === 'batch' ? 'primary' : 'secondary'} size="sm" onClick={() => setVoiceMode('batch')} disabled={isRecording || isProcessingTurn || isAutoLoopActive}>Batch</Button>
               <Button variant="secondary" size="sm" onClick={handleRequestPermission}><Mic className="mr-2 h-4 w-4" />Enable Mic</Button>
               <Button variant="secondary" size="sm" onClick={handleReplayAssistantAudio}><Volume2 className="mr-2 h-4 w-4" />Replay</Button>
               <Button variant="secondary" size="sm" onClick={handleResetShell}><MicOff className="mr-2 h-4 w-4" />Reset</Button>

@@ -47,7 +47,8 @@
     "quality:jd:seek": "npm run test:jd:seek && npm run eval:jd:seek",
     "test:unit:voice": "vitest run tests/unit/voice tests/unit/middleware/voiceUploadMiddleware.test.js tests/unit/api/realtimeVoiceSocket.test.js --passWithNoTests=false",
     "test:integration:voice": "vitest run tests/integration/voiceReplyFlow.test.js tests/integration/realtimeVoiceSocketFlow.test.js --passWithNoTests=false",
-    "test:voice": "node tests/helpers/runVitestGroups.js tests/unit/voice tests/unit/middleware/voiceUploadMiddleware.test.js tests/unit/api/realtimeVoiceSocket.test.js tests/integration/voiceReplyFlow.test.js tests/integration/realtimeVoiceSocketFlow.test.js"
+    "test:voice": "node tests/helpers/runVitestGroups.js tests/unit/voice tests/unit/middleware/voiceUploadMiddleware.test.js tests/unit/api/realtimeVoiceSocket.test.js tests/integration/voiceReplyFlow.test.js tests/integration/realtimeVoiceSocketFlow.test.js",
+    "test:voice:latency": "vitest run tests/unit/voice --passWithNoTests=false"
   },
   "dependencies": {
     "cors": "^2.8.6",

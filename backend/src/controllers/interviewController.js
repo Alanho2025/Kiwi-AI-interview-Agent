@@ -221,6 +221,8 @@ export const replyInterviewWithRealtimeVoice = asyncHandler(async (req, res) => 
     asrConfidence: req.body?.asrConfidence ?? null,
     asrSource: String(req.body?.asrSource || '').trim() || undefined,
     voiceName: String(req.body?.voiceName || '').trim() || undefined,
+    inputMode: String(req.body?.inputMode || '').trim() || undefined,
+    vad: req.body?.vad || null,
     tryGenerateReportForCompletedSession,
   }));
 
