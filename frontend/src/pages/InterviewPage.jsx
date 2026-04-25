@@ -34,6 +34,7 @@ export function InterviewPage() {
     dismissStatus,
     handleReply,
     handleVoiceReply,
+    handleRealtimeVoiceTurn,
     handlePauseToggle,
     handleRepeat,
     handleEnd,
@@ -53,6 +54,7 @@ export function InterviewPage() {
     isCompleted: session?.status === 'completed',
     isSubmitting,
     onSubmitVoiceReply: handleVoiceReply,
+    onSubmitRealtimeVoiceTurn: handleRealtimeVoiceTurn,
     onSubmitTextReply: handleReply,
     sessionId,
   });

@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import { CirclePause, FileAudio, Mic, MicOff, RefreshCcw, Square, Volume2, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '../common/Button.jsx';
-import { TextArea } from '../common/TextArea.jsx';
 import { cn } from '../../utils/formatters.js';
 
 const buildWaveBars = (levels = []) => {
@@ -55,8 +54,6 @@ export function VoiceInterviewPanel({
     manualAudioFile,
     handleRequestPermission,
     handleToggleRecording,
-    handleUseRealtimeTranscript,
-    handleRecordAgain,
     handleReplayAssistantAudio,
     handleResetShell,
     handleAudioFileSelect,
@@ -64,11 +61,10 @@ export function VoiceInterviewPanel({
   } = voiceShell;
 
   const waveBars = useMemo(() => buildWaveBars(levelHistory), [levelHistory]);
-  const currentQuestionText = currentQuestion?.displayText || currentQuestion?.text || 'The interviewer question will appear here once the session starts.';
+  const currentQuestionText = currentQuestion?.displayText || currentQuestion?.text || '';
   const backupDisabled = isSubmitting || isPaused || isCompleted || isProcessingTurn;
   const statusBadgeLabel = isRecording ? 'Listening...' : stateLabel;
   const hasLiveCaption = Boolean(transcriptionPreview || pendingTranscript);
-  const canSubmitTranscript = Boolean(editableTranscript?.trim()) && !backupDisabled;
 
   return (
     <div className="flex h-full min-h-0 flex-col space-y-4">
@@ -159,25 +155,17 @@ export function VoiceInterviewPanel({
                   {pendingTranscript ? (
                     <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <p className="text-sm font-semibold text-emerald-800">Check transcript before sending</p>
+                        <p className="text-sm font-semibold text-emerald-800">Auto-submitted transcript</p>
                         <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-emerald-700">
                           {pendingTranscript.confidenceStatus || 'unknown'} confidence
                         </span>
                       </div>
-                      <TextArea
-                        value={editableTranscript}
-                        onChange={(event) => setEditableTranscript(event.target.value)}
-                        rows={4}
-                        className="mt-3 bg-white"
-                        disabled={isSubmitting || isProcessingTurn}
-                      />
+                      <p className="mt-3 whitespace-pre-line rounded-xl bg-white p-3 text-sm leading-6 text-gray-600">
+                        {editableTranscript || pendingTranscript.displayText}
+                      </p>
                       {pendingTranscript.changed ? (
                         <p className="mt-2 text-xs text-emerald-700">Calibrated from: “{pendingTranscript.rawText}”</p>
                       ) : null}
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        <Button onClick={handleUseRealtimeTranscript} disabled={!canSubmitTranscript}>Use this answer</Button>
-                        <Button variant="secondary" onClick={handleRecordAgain} disabled={backupDisabled}>Record again</Button>
-                      </div>
                     </div>
                   ) : null}
                 </div>
@@ -199,8 +187,10 @@ export function VoiceInterviewPanel({
             </div>
           ) : (
             <>
-              <p className="mb-2 text-xs font-medium uppercase tracking-wider text-gray-500">Current Question</p>
-              <p className="max-h-32 overflow-y-auto whitespace-pre-line text-lg font-medium leading-7 text-gray-900 pr-2">{currentQuestionText}</p>
+              <p className="mb-2 text-xs font-medium uppercase tracking-wider text-gray-500">Voice-only question mode</p>
+              <p className="text-lg font-medium leading-7 text-gray-900 pr-2">
+                {currentQuestionText ? 'Listen to KiwiCoach, then answer with the microphone.' : 'Waiting for the interviewer voice.'}
+              </p>
             </>
           )}
         </div>

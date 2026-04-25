@@ -10,7 +10,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { endInterview, pauseInterview, repeatQuestion, replyInterview, replyInterviewWithVoice, resumeInterview, startInterview } from '../api/interviewApi.js';
+import { endInterview, pauseInterview, repeatQuestion, replyInterview, replyInterviewWithVoice, replyInterviewWithRealtimeVoice, resumeInterview, startInterview } from '../api/interviewApi.js';
 import { exportTranscript } from '../api/exportApi.js';
 import { getSession } from '../api/sessionApi.js';
 import { buildInterviewDisplayModel } from '../utils/buildInterviewDisplayModel.js';
@@ -158,6 +158,36 @@ export function useInterviewSession({ sessionId, navigate }) {
     }
   }, [isSubmitting, sessionId]);
 
+  const handleRealtimeVoiceTurn = useCallback(async ({ transcriptText, language, voiceName, asrConfidence, asrSource }) => {
+    const cleanTranscript = String(transcriptText || '').trim();
+    if (isSubmitting || !cleanTranscript) return null;
+
+    setIsSubmitting(true);
+
+    try {
+      const data = await replyInterviewWithRealtimeVoice({
+        sessionId,
+        transcriptText: cleanTranscript,
+        language,
+        voiceName,
+        asrConfidence,
+        asrSource,
+      });
+      setSession(data.session);
+
+      if (data.session?.status === 'completed') {
+        setPageStatus(buildStatus('success', 'Interview completed', 'The planned question set is finished. You can now review the report.'));
+      }
+
+      return data;
+    } catch (error) {
+      setPageStatus(buildStatus('error', 'Realtime voice reply failed', error.message || 'Could not process the realtime voice reply.'));
+      throw error;
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [isSubmitting, sessionId]);
+
   const handlePauseToggle = useCallback(async () => {
     if (session?.status === 'completed') return;
 
@@ -248,6 +278,7 @@ export function useInterviewSession({ sessionId, navigate }) {
     dismissStatus,
     handleReply,
     handleVoiceReply,
+    handleRealtimeVoiceTurn,
     handlePauseToggle,
     handleRepeat,
     handleEnd,

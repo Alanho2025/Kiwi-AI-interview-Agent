@@ -46,6 +46,7 @@ const SessionAnalysisSchema = new mongoose.Schema(
     agentMemory: { type: mongoose.Schema.Types.Mixed, default: {} },
     evidenceBundleSnapshot: { type: mongoose.Schema.Types.Mixed, default: {} },
     controllerState: { type: mongoose.Schema.Types.Mixed, default: {} },
+    ragIndexStatus: { type: mongoose.Schema.Types.Mixed, default: {} },
     analysisStatus: { type: String, default: 'completed' },
     promptVersion: { type: String, default: 'v3' },
     redactionStatus: { type: String, default: 'not_redacted' },
