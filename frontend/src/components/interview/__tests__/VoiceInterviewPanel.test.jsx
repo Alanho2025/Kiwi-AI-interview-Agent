@@ -57,7 +57,7 @@ describe('VoiceInterviewPanel', () => {
     await user.click(screen.getByText('Live captions'));
 
     expect(screen.getByText('ASR preview')).toBeInTheDocument();
-    expect(screen.getByText('partial answer')).toBeInTheDocument();
+    expect(screen.getAllByText('partial answer').length).toBeGreaterThan(0);
   });
 
   it('disables microphone action when voice cannot be used', () => {

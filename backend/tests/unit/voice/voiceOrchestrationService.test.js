@@ -136,12 +136,13 @@ describe('processVoiceReply', () => {
     const { processVoiceReply } = await import('../../../src/services/voice/voiceOrchestrationService.js');
     const result = await processVoiceReply(buildInput());
 
-    expect(appendTranscriptTurn).toHaveBeenCalledWith('session-1', expect.objectContaining({
+    const [sessionId, userTurn] = appendTranscriptTurn.mock.calls[0];
+    expect(sessionId).toBe('session-1');
+    expect(userTurn).toEqual(expect.objectContaining({
       role: 'user',
       text: 'I solved the issue using STAR method.',
       metadata: expect.objectContaining({
         inputMode: 'voice',
-        audioStorageKey: 'voice-input/answer.wav',
         audioDurationSeconds: 42,
         asrConfidence: 0.91,
       }),

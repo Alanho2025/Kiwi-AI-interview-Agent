@@ -5,11 +5,20 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  test: {
+    environment: 'jsdom',
+    setupFiles: './src/tests/setupTests.js',
+    environmentOptions: {
+      jsdom: {
+        url: 'http://localhost:5173/',
+      },
+    },
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),
     },
-    dedupe: ['react', 'react-dom'],   // 新增：强制使用同一个 React 副本
+    dedupe: ['react', 'react-dom'],
   },
   server: {
     hmr: process.env.DISABLE_HMR !== 'true',

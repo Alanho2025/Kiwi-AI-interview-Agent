@@ -55,7 +55,9 @@ export function useMicrophonePermission() {
       return { ok: true };
     } catch (requestError) {
       const nextState = requestError?.name === 'NotAllowedError' ? 'denied' : 'unknown';
-      const message = requestError?.message || 'Could not access the microphone on this device.';
+      const message = requestError?.name === 'NotAllowedError'
+        ? 'Microphone permission was denied.'
+        : (requestError?.message || 'Could not access the microphone on this device.');
       setPermissionState(nextState);
       setError(message);
       return { ok: false, error: message };
