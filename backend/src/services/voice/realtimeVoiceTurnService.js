@@ -16,6 +16,7 @@ import { saveInterviewAnswerWithDetails } from '../interview/interviewSessionSer
 import { enqueueBackgroundJob } from '../../jobs/backgroundJobQueue.js';
 import { createLatencyTrace } from '../../utils/latencyTrace.js';
 import { logger } from '../../utils/logger.js';
+import { buildRealtimeVoiceLatencySummary } from '../../utils/realtimeVoiceLatencySummary.js';
 
 const toBase64 = (buffer) => Buffer.from(buffer).toString('base64');
 
@@ -163,6 +164,11 @@ export const processRealtimeVoiceTurn = async ({
 
   const latency = trace.toJSON();
   logger.info('Realtime voice turn latency', latency);
+  logger.info('Realtime voice turn latency summary', {
+    sessionId: session.id,
+    userId,
+    summary: buildRealtimeVoiceLatencySummary(latency),
+  });
 
   return {
     updatedSession,

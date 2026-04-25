@@ -107,6 +107,8 @@ describe('useVoiceInterviewSession', () => {
       utterance.onstart?.();
       utterance.onend?.();
     });
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'info').mockImplementation(() => {});
   });
 
   it('does not allow voice controls when disabled, paused, completed, or submitting', () => {
@@ -189,7 +191,19 @@ describe('useVoiceInterviewSession', () => {
   });
 
   it('auto-submits final realtime transcript through the realtime voice flow', async () => {
-    const onSubmitRealtimeVoiceTurn = vi.fn().mockResolvedValue({ assistantAudio: null, latency: {} });
+    const onSubmitRealtimeVoiceTurn = vi.fn().mockResolvedValue({
+      assistantAudio: null,
+      latency: {
+        totalMs: 1080,
+        steps: [
+          { step: 'load_latest_question', durationMs: 14 },
+          { step: 'save_realtime_user_turn', durationMs: 26 },
+          { step: 'adaptive_next_question', durationMs: 700 },
+          { step: 'update_session_state', durationMs: 40 },
+          { step: 'tts_synthesis', durationMs: 300 },
+        ],
+      },
+    });
     speechSocketMock.finalTranscript = {
       type: 'final_transcript',
       displayText: 'I used STAR method in a project.',
@@ -214,6 +228,18 @@ describe('useVoiceInterviewSession', () => {
       transcriptText: 'I used STAR method in a project.',
       inputMode: 'realtime_voice_vad',
     }));
+    expect(console.log).toHaveBeenCalledWith('[voice-latency-summary]', {
+      clientStopToSubmit: 'n/a',
+      clientSubmitToResponse: 'n/a',
+      clientStopToNextAudio: 'n/a',
+      clientAudioGap: 'n/a',
+      backendTotal: '1080 ms',
+      backendLoadQuestion: '14 ms',
+      backendSaveTurn: '26 ms',
+      backendAdaptiveNextQuestion: '700 ms',
+      backendUpdateSession: '40 ms',
+      backendTts: '300 ms',
+    });
     expect(result.current.voiceStatus.title).toBe('Next question ready');
   });
 });
