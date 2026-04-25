@@ -162,6 +162,7 @@ export const replyInterviewWithVoice = asyncHandler(async (req, res) => {
     file: req.file,
     language: String(req.body?.language || '').trim() || undefined,
     voiceName: String(req.body?.voiceName || '').trim() || undefined,
+    durationMs: req.body?.durationMs || null,
     tryGenerateReportForCompletedSession,
   });
 

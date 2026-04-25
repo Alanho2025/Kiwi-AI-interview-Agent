@@ -130,7 +130,7 @@ export function useInterviewSession({ sessionId, navigate }) {
   }, [isSubmitting, session, sessionId]);
 
 
-  const handleVoiceReply = useCallback(async ({ audioFile, language, voiceName }) => {
+  const handleVoiceReply = useCallback(async ({ audioFile, language, voiceName, durationMs }) => {
     if (isSubmitting || !audioFile) return null;
 
     setIsSubmitting(true);
@@ -141,6 +141,7 @@ export function useInterviewSession({ sessionId, navigate }) {
         audioFile,
         language,
         voiceName,
+        durationMs,
       });
       setSession(data.session);
 
