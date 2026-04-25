@@ -1,12 +1,8 @@
 /**
  * File responsibility: Page container.
  * Main responsibilities:
- * - Keep presentation, state orchestration, and display helpers separated so React components stay reusable.
- * - Main file role: InterviewPage should orchestrate the screen and compose child sections without burying domain rules in JSX.
- * - Prefer extending behaviour by adding small helpers or sibling modules instead of growing one large file.
- * Maintenance notes:
- * - Keep this file focused on one layer of responsibility.
- * - Prefer composition and small helpers over repeated inline logic.
+ * - Keep the text and voice interview layouts aligned.
+ * - Let voice mode replace only the centre interaction panel while the sidebar and right rail stay shared.
  */
 
 import { useNavigate, useParams } from 'react-router-dom';
@@ -19,32 +15,14 @@ import { InterviewStatusBanner } from '../components/interview/InterviewStatusBa
 import { useInterviewSession } from '../hooks/useInterviewSession.js';
 import { useVoiceInterviewSession } from '../hooks/useVoiceInterviewSession.js';
 
-/**
- * Purpose: Execute the main responsibility for LoadingState.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
 const LoadingState = () => (
   <div className="min-h-screen flex items-center justify-center">Loading session...</div>
 );
 
-/**
- * Purpose: Execute the main responsibility for EmptyState.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
 const EmptyState = () => (
   <div className="min-h-screen flex items-center justify-center">Session not found.</div>
 );
 
-/**
- * Purpose: Execute the main responsibility for InterviewPage.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
 export function InterviewPage() {
   const { sessionId } = useParams();
   const navigate = useNavigate();
@@ -66,6 +44,7 @@ export function InterviewPage() {
 
   const isVoiceMode = String(session?.mode || '').toLowerCase() === 'voice';
   const voiceShell = useVoiceInterviewSession({
+    enabled: isVoiceMode,
     session,
     onPause: handlePauseToggle,
     onRepeat: handleRepeat,
@@ -74,10 +53,14 @@ export function InterviewPage() {
     isCompleted: session?.status === 'completed',
     isSubmitting,
     onSubmitVoiceReply: handleVoiceReply,
+    onSubmitTextReply: handleReply,
+    sessionId,
   });
 
   if (loading) return <LoadingState />;
   if (!session) return <EmptyState />;
+
+  const sharedBackupDisabled = isSubmitting || session.status === 'paused' || session.status === 'completed';
 
   return (
     <div className="min-h-screen bg-[#f9fafb] flex flex-col h-screen overflow-hidden">
@@ -99,29 +82,30 @@ export function InterviewPage() {
           <InterviewStatusBanner status={pageStatus} onConfirmEnd={handleConfirmEnd} onCancelEnd={dismissStatus} />
         </div>
 
-        {isVoiceMode ? (
-          <div className="col-span-12 flex min-h-0 flex-col">
+        <InterviewSidebar
+          session={session}
+          currentPlanItem={viewModel.currentPlanItem}
+          promiseLabel={viewModel.promiseLabel}
+          levelLabel={viewModel.levelLabel}
+          modeLabel={viewModel.modeLabel}
+          currentFocusLabel={viewModel.currentFocusLabel}
+          matchedAreas={viewModel.matchedAreas}
+        />
+
+        <div className="col-span-6 flex flex-col h-full pb-6 min-h-0">
+          {isVoiceMode ? (
             <VoiceInterviewPanel
               session={session}
-              elapsedSeconds={viewModel.elapsedSeconds}
-              exactRoleTitle={viewModel.exactRoleTitle}
-              viewModel={viewModel}
               onPause={handlePauseToggle}
               onRepeat={handleRepeat}
               onEnd={handleEnd}
-              onExport={handleExport}
               onSubmitBackup={handleReply}
               isPaused={session.status === 'paused'}
               isCompleted={session.status === 'completed'}
               isSubmitting={isSubmitting}
-              candidateName={session.candidateName}
               voiceShell={voiceShell}
             />
-          </div>
-        ) : (<>
-          <InterviewSidebar session={session} currentPlanItem={viewModel.currentPlanItem} promiseLabel={viewModel.promiseLabel} levelLabel={viewModel.levelLabel} modeLabel={viewModel.modeLabel} currentFocusLabel={viewModel.currentFocusLabel} matchedAreas={viewModel.matchedAreas} />
-
-          <div className="col-span-6 flex flex-col h-full pb-6 min-h-0">
+          ) : (
             <InterviewChatPanel
               transcript={session.transcript}
               onReply={handleReply}
@@ -133,16 +117,16 @@ export function InterviewPage() {
               isSubmitting={isSubmitting}
               candidateName={session.candidateName}
             />
-          </div>
+          )}
+        </div>
 
-          <InterviewRightRail
-            transcript={session.transcript}
-            candidateName={session.candidateName}
-            onExport={handleExport}
-            onSubmitBackup={handleReply}
-            backupDisabled={isSubmitting || session.status === 'paused' || session.status === 'completed'}
-          />
-        </>)}
+        <InterviewRightRail
+          transcript={session.transcript}
+          candidateName={session.candidateName}
+          onExport={handleExport}
+          onSubmitBackup={handleReply}
+          backupDisabled={sharedBackupDisabled}
+        />
       </main>
     </div>
   );

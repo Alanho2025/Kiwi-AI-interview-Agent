@@ -1,25 +1,64 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMicrophonePermission } from './useMicrophonePermission.js';
 import { useDirectWavRecorder } from './useDirectWavRecorder.js';
+import { useRealtimeMicStream } from './voice/useRealtimeMicStream.js';
+import { useRealtimeSpeechSocket } from './voice/useRealtimeSpeechSocket.js';
 
 const DEFAULT_VOICE_NAME = 'en-NZ-MollyNeural';
 const DEFAULT_LANGUAGE = 'en-NZ';
-const buildVoiceStatus = (type, title, message) => ({ type, title, message });
 const READY_STATES = new Set(['ready', 'speaking']);
 
-const formatDurationLabel = (valueMs = 0) => {
+const buildVoiceStatus = (type, title, message) => ({ type, title, message });
+
+export const formatDurationLabel = (valueMs = 0) => {
   const totalSeconds = Math.max(0, Math.round(valueMs / 1000));
   const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
   const seconds = String(totalSeconds % 60).padStart(2, '0');
   return `${minutes}:${seconds}`;
 };
 
-const getLatestTurnByRole = (transcript = [], role) => {
+export const getLatestTurnByRole = (transcript = [], role) => {
   const filteredTurns = transcript.filter((message) => message.role === role);
   return filteredTurns[filteredTurns.length - 1] || null;
 };
 
-export function useVoiceInterviewSession({ session, onPause, onRepeat, onEnd, isPaused, isCompleted, isSubmitting, onSubmitVoiceReply }) {
+export const resolveSessionId = (session, explicitSessionId) => explicitSessionId || session?.id || session?._id || session?.sessionId || '';
+
+const speakWithBrowserVoice = ({ text, onStart, onEnd, onError }) => {
+  const questionText = String(text || '').trim();
+  if (!questionText || typeof window === 'undefined' || !window.speechSynthesis) return false;
+
+  try {
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(questionText);
+    utterance.lang = DEFAULT_LANGUAGE;
+    const voices = window.speechSynthesis.getVoices?.() || [];
+    const preferredVoice = voices.find((voice) => voice.lang === 'en-NZ') || voices.find((voice) => voice.lang?.startsWith('en-'));
+    if (preferredVoice) utterance.voice = preferredVoice;
+    utterance.onstart = () => onStart?.();
+    utterance.onend = () => onEnd?.();
+    utterance.onerror = () => onError?.();
+    window.speechSynthesis.speak(utterance);
+    return true;
+  } catch {
+    onError?.();
+    return false;
+  }
+};
+
+export function useVoiceInterviewSession({
+  enabled = true,
+  session,
+  sessionId,
+  onPause,
+  onRepeat,
+  onEnd,
+  isPaused,
+  isCompleted,
+  isSubmitting,
+  onSubmitVoiceReply,
+  onSubmitTextReply,
+}) {
   const {
     permissionState,
     isRequesting,
@@ -27,19 +66,26 @@ export function useVoiceInterviewSession({ session, onPause, onRepeat, onEnd, is
     requestPermission,
     isSupported,
   } = useMicrophonePermission();
+
   const {
-    isRecording,
+    isRecording: isBatchRecording,
     recordingError,
-    levelHistory,
+    levelHistory: batchLevelHistory,
     recordingDurationMs,
     startRecording,
     stopRecording,
     clearResources,
   } = useDirectWavRecorder();
 
+  const speechSocket = useRealtimeSpeechSocket();
+  const realtimeMic = useRealtimeMicStream({ onAudioChunk: speechSocket.sendAudioChunk });
+
   const [voiceState, setVoiceState] = useState('idle');
   const [voiceStatus, setVoiceStatus] = useState(null);
+  const [voiceMode, setVoiceMode] = useState('realtime');
   const [transcriptionPreview, setTranscriptionPreview] = useState('');
+  const [pendingTranscript, setPendingTranscript] = useState(null);
+  const [editableTranscript, setEditableTranscript] = useState('');
   const [lastAssistantAudio, setLastAssistantAudio] = useState(null);
   const [assistantAudioUrl, setAssistantAudioUrl] = useState('');
   const [lastAsrConfidence, setLastAsrConfidence] = useState(null);
@@ -48,17 +94,43 @@ export function useVoiceInterviewSession({ session, onPause, onRepeat, onEnd, is
   const [manualAudioFile, setManualAudioFile] = useState(null);
   const [isProcessingTurn, setIsProcessingTurn] = useState(false);
   const audioRef = useRef(null);
-  const lastBrowserSpokenQuestionRef = useRef('');
+  const lastSpokenQuestionRef = useRef('');
 
+  const activeSessionId = resolveSessionId(session, sessionId);
   const currentQuestion = useMemo(() => getLatestTurnByRole(session?.transcript || [], 'ai'), [session?.transcript]);
   const latestUserTurn = useMemo(() => getLatestTurnByRole(session?.transcript || [], 'user'), [session?.transcript]);
 
   const setReadyState = useCallback(() => {
+    if (!enabled) return;
     setVoiceState('ready');
-    setVoiceStatus(buildVoiceStatus('success', 'Voice ready', 'You can tap the microphone to answer the current question.'));
-  }, []);
+    setVoiceStatus(buildVoiceStatus('success', 'Voice ready', voiceMode === 'realtime'
+      ? 'Real-time captions are ready. Tap the microphone to stream your answer.'
+      : 'Batch voice fallback is ready. Tap the microphone to record your answer.'));
+  }, [enabled, voiceMode]);
+
+  const speakCurrentQuestion = useCallback(({ isReplay = false } = {}) => {
+    if (!enabled || realtimeMic.isStreaming || isBatchRecording || isProcessingTurn) return false;
+    const questionText = String(currentQuestion?.displayText || currentQuestion?.text || '').trim();
+    if (!questionText) return false;
+
+    return speakWithBrowserVoice({
+      text: questionText,
+      onStart: () => {
+        setVoiceState('speaking');
+        setVoiceStatus(buildVoiceStatus('info', isReplay ? 'Replaying question audio' : 'KiwiCoach is speaking', isReplay ? 'Replaying the current interview question.' : 'Listen to the question, then tap the microphone to answer.'));
+      },
+      onEnd: () => {
+        if (!isProcessingTurn && !realtimeMic.isStreaming && !isBatchRecording) setReadyState();
+      },
+      onError: () => {
+        setVoiceState('ready');
+        setVoiceStatus(buildVoiceStatus('info', 'Question audio unavailable', 'Your browser blocked automatic question audio. Use Repeat Question to try again.'));
+      },
+    });
+  }, [enabled, currentQuestion, realtimeMic.isStreaming, isBatchRecording, isProcessingTurn, setReadyState]);
 
   const handleRequestPermission = useCallback(async () => {
+    if (!enabled) return;
     setVoiceState('requesting_permission');
     setVoiceStatus(buildVoiceStatus('info', 'Requesting microphone access', 'Allow microphone access so the interview can listen to your answer.'));
     const result = await requestPermission();
@@ -73,24 +145,17 @@ export function useVoiceInterviewSession({ session, onPause, onRepeat, onEnd, is
     }
     setVoiceState('permission_denied');
     setVoiceStatus(buildVoiceStatus('error', 'Microphone blocked', result.error || 'Microphone access is required for direct voice conversation.'));
-  }, [permissionState, requestPermission, setReadyState]);
+  }, [enabled, permissionState, requestPermission, setReadyState]);
 
   const submitVoiceFile = useCallback(async (audioFile, durationMs = null) => {
-    if (!audioFile || !onSubmitVoiceReply || isSubmitting || isCompleted || isPaused) {
-      return;
-    }
+    if (!enabled || !audioFile || !onSubmitVoiceReply || isSubmitting || isCompleted || isPaused) return;
 
     setIsProcessingTurn(true);
     setVoiceState('transcribing');
     setVoiceStatus(buildVoiceStatus('info', 'Processing your answer', 'Azure Speech is transcribing your voice reply and sending it to the interview engine.'));
 
     try {
-      const result = await onSubmitVoiceReply({
-        audioFile,
-        language: DEFAULT_LANGUAGE,
-        voiceName: DEFAULT_VOICE_NAME,
-        durationMs,
-      });
+      const result = await onSubmitVoiceReply({ audioFile, language: DEFAULT_LANGUAGE, voiceName: DEFAULT_VOICE_NAME, durationMs });
       const transcriptionText = String(result?.transcription?.text || '').trim();
       setTranscriptionPreview(transcriptionText);
       setLastAssistantAudio(result?.assistantAudio || null);
@@ -104,12 +169,51 @@ export function useVoiceInterviewSession({ session, onPause, onRepeat, onEnd, is
       setIsProcessingTurn(false);
       setManualAudioFile(null);
     }
-  }, [onSubmitVoiceReply, isSubmitting, isCompleted, isPaused]);
+  }, [enabled, onSubmitVoiceReply, isSubmitting, isCompleted, isPaused]);
 
-  const handleToggleRecording = useCallback(async () => {
-    if (isCompleted || isPaused || isSubmitting || isProcessingTurn) {
+  const startRealtimeRecording = useCallback(async () => {
+    if (!enabled) return;
+    if (!activeSessionId) {
+      setVoiceState('error');
+      setVoiceStatus(buildVoiceStatus('error', 'Session missing', 'Could not start real-time voice because the session ID is missing.'));
       return;
     }
+
+    const permissionResult = await requestPermission();
+    if (!permissionResult.ok) {
+      setVoiceState('permission_denied');
+      setVoiceStatus(buildVoiceStatus('error', 'Microphone blocked', permissionResult.error || 'Allow microphone access to begin the real-time voice interview.'));
+      return;
+    }
+
+    window?.speechSynthesis?.cancel?.();
+    setPendingTranscript(null);
+    setEditableTranscript('');
+    setTranscriptionPreview('');
+    setLastAsrConfidence(null);
+    setVoiceState('recording');
+    setVoiceStatus(buildVoiceStatus('info', 'Listening with real-time captions', 'Speak naturally. Captions will update while you answer. Tap again when you are done.'));
+
+    try {
+      await speechSocket.connect({ sessionId: activeSessionId, language: DEFAULT_LANGUAGE, sampleRate: 16000 });
+      await realtimeMic.startStream();
+    } catch (error) {
+      await realtimeMic.stopStream();
+      speechSocket.closeSocket();
+      setVoiceState('error');
+      setVoiceStatus(buildVoiceStatus('error', 'Real-time voice failed', error.message || 'Could not start real-time speech recognition. Use Batch mode if needed.'));
+    }
+  }, [enabled, activeSessionId, requestPermission, realtimeMic, speechSocket]);
+
+  const stopRealtimeRecording = useCallback(async () => {
+    setVoiceState('transcribing');
+    setVoiceStatus(buildVoiceStatus('info', 'Finalising live transcript', 'Waiting for the final calibrated transcript from Azure Speech.'));
+    await realtimeMic.stopStream();
+    speechSocket.sendStop();
+  }, [realtimeMic, speechSocket]);
+
+  const handleToggleRecording = useCallback(async () => {
+    if (!enabled || isCompleted || isPaused || isSubmitting || isProcessingTurn) return;
 
     if (!isSupported) {
       setVoiceState('error');
@@ -117,13 +221,21 @@ export function useVoiceInterviewSession({ session, onPause, onRepeat, onEnd, is
       return;
     }
 
-    if (isRecording) {
+    if (voiceMode === 'realtime') {
+      if (realtimeMic.isStreaming) {
+        await stopRealtimeRecording();
+        return;
+      }
+      await startRealtimeRecording();
+      return;
+    }
+
+    if (isBatchRecording) {
       setVoiceState('transcribing');
       setVoiceStatus(buildVoiceStatus('info', 'Finalising recording', 'Uploading your answer and preparing the next interviewer turn.'));
       const result = await stopRecording();
-      if (result?.file) {
-        await submitVoiceFile(result.file, result.durationMs);
-      } else {
+      if (result?.file) await submitVoiceFile(result.file, result.durationMs);
+      else {
         setVoiceState('error');
         setVoiceStatus(buildVoiceStatus('error', 'Recording missing', 'No microphone audio was captured for this turn.'));
       }
@@ -138,6 +250,7 @@ export function useVoiceInterviewSession({ session, onPause, onRepeat, onEnd, is
     }
 
     try {
+      window?.speechSynthesis?.cancel?.();
       await startRecording();
       setVoiceState('recording');
       setVoiceStatus(buildVoiceStatus('info', 'Listening...', 'Speak naturally. Tap the microphone again when you are done with this answer.'));
@@ -145,22 +258,60 @@ export function useVoiceInterviewSession({ session, onPause, onRepeat, onEnd, is
       setVoiceState('error');
       setVoiceStatus(buildVoiceStatus('error', 'Recording failed', error.message || 'Could not start microphone recording.'));
     }
-  }, [isCompleted, isPaused, isSubmitting, isProcessingTurn, isSupported, isRecording, stopRecording, submitVoiceFile, requestPermission, startRecording]);
+  }, [enabled, isCompleted, isPaused, isSubmitting, isProcessingTurn, isSupported, voiceMode, realtimeMic.isStreaming, stopRealtimeRecording, startRealtimeRecording, isBatchRecording, stopRecording, submitVoiceFile, requestPermission, startRecording]);
+
+  const handleUseRealtimeTranscript = useCallback(async () => {
+    const answerText = String(editableTranscript || pendingTranscript?.displayText || '').trim();
+    if (!enabled || !answerText || !onSubmitTextReply || isSubmitting || isCompleted || isPaused) return;
+
+    setIsProcessingTurn(true);
+    setVoiceState('transcribing');
+    setVoiceStatus(buildVoiceStatus('info', 'Submitting confirmed transcript', 'Sending the calibrated transcript to the existing DeepSeek interview flow.'));
+    try {
+      await onSubmitTextReply(answerText);
+      setPendingTranscript(null);
+      setEditableTranscript('');
+      setTranscriptionPreview(answerText);
+      setVoiceState('ready');
+      setVoiceStatus(buildVoiceStatus('success', 'Transcript submitted', 'The next interviewer question is ready.'));
+    } catch (error) {
+      setVoiceState('error');
+      setVoiceStatus(buildVoiceStatus('error', 'Transcript submit failed', error.message || 'Could not submit the confirmed transcript.'));
+    } finally {
+      setIsProcessingTurn(false);
+    }
+  }, [enabled, editableTranscript, pendingTranscript, onSubmitTextReply, isSubmitting, isCompleted, isPaused]);
+
+  const handleRecordAgain = useCallback(() => {
+    setPendingTranscript(null);
+    setEditableTranscript('');
+    setTranscriptionPreview('');
+    setLastAsrConfidence(null);
+    speechSocket.resetTranscript();
+    setReadyState();
+  }, [speechSocket, setReadyState]);
 
   const handleReplayAssistantAudio = useCallback(() => {
-    if (!assistantAudioUrl) return;
-    setVoiceState('speaking');
-    setVoiceStatus(buildVoiceStatus('info', 'Playing question audio', 'Replaying the latest assistant question.'));
-    audioRef.current?.play?.().catch(() => {
-      setVoiceState('error');
-      setVoiceStatus(buildVoiceStatus('error', 'Playback failed', 'The assistant audio could not be replayed on this device.'));
-    });
-  }, [assistantAudioUrl]);
+    if (!enabled) return false;
+    if (assistantAudioUrl && audioRef.current) {
+      setVoiceState('speaking');
+      setVoiceStatus(buildVoiceStatus('info', 'Playing question audio', 'Replaying the latest assistant question.'));
+      audioRef.current.currentTime = 0;
+      audioRef.current.play?.().catch(() => speakCurrentQuestion({ isReplay: true }));
+      return true;
+    }
+    return speakCurrentQuestion({ isReplay: true });
+  }, [enabled, assistantAudioUrl, speakCurrentQuestion]);
 
   const handleResetShell = useCallback(async () => {
+    window?.speechSynthesis?.cancel?.();
     await clearResources();
+    await realtimeMic.stopStream();
+    speechSocket.closeSocket();
     setManualAudioFile(null);
     setTranscriptionPreview('');
+    setPendingTranscript(null);
+    setEditableTranscript('');
     setLastAsrConfidence(null);
     if (permissionState === 'granted') {
       setReadyState();
@@ -168,14 +319,12 @@ export function useVoiceInterviewSession({ session, onPause, onRepeat, onEnd, is
     }
     setVoiceState('idle');
     setVoiceStatus(null);
-  }, [clearResources, permissionState, setReadyState]);
+  }, [clearResources, realtimeMic, speechSocket, permissionState, setReadyState]);
 
   const handleAudioFileSelect = useCallback((event) => {
     const nextFile = event.target.files?.[0] || null;
     setManualAudioFile(nextFile);
-    if (nextFile) {
-      setVoiceStatus(buildVoiceStatus('info', 'Backup WAV ready', `${nextFile.name} can be submitted as a fallback voice turn.`));
-    }
+    if (nextFile) setVoiceStatus(buildVoiceStatus('info', 'Backup WAV ready', `${nextFile.name} can be submitted as a fallback voice turn.`));
   }, []);
 
   const handleSubmitSelectedAudio = useCallback(async () => {
@@ -184,79 +333,76 @@ export function useVoiceInterviewSession({ session, onPause, onRepeat, onEnd, is
   }, [manualAudioFile, submitVoiceFile]);
 
   useEffect(() => {
-    if (permissionState === 'granted' && voiceState === 'idle') {
-      setReadyState();
-    }
-    if (permissionState === 'denied' && READY_STATES.has(voiceState)) {
-      setVoiceState('permission_denied');
-    }
+    if (enabled) return undefined;
+    window?.speechSynthesis?.cancel?.();
+    speechSocket.closeSocket();
+    realtimeMic.stopStream();
+    return undefined;
+  }, [enabled, realtimeMic, speechSocket]);
+
+  useEffect(() => {
+    if (permissionState === 'granted' && voiceState === 'idle') setReadyState();
+    if (permissionState === 'denied' && READY_STATES.has(voiceState)) setVoiceState('permission_denied');
   }, [permissionState, voiceState, setReadyState]);
 
   useEffect(() => {
-    if (!lastAssistantAudio?.base64 || !lastAssistantAudio?.contentType) {
-      return undefined;
-    }
+    if (!speechSocket.partialTranscript) return;
+    setTranscriptionPreview(speechSocket.partialTranscript);
+  }, [speechSocket.partialTranscript]);
 
+  useEffect(() => {
+    if (!speechSocket.finalTranscript) return;
+    const finalTurn = speechSocket.finalTranscript;
+    const displayText = String(finalTurn.displayText || finalTurn.normalizedText || finalTurn.rawText || '').trim();
+    setPendingTranscript({ ...finalTurn, displayText });
+    setEditableTranscript(displayText);
+    setTranscriptionPreview(displayText);
+    setLastAsrConfidence(finalTurn.confidence ?? null);
+    setVoiceState('confirming_transcript');
+    const confidenceLabel = finalTurn.confidenceStatus === 'high' ? 'high confidence' : `${finalTurn.confidenceStatus || 'unknown'} confidence`;
+    setVoiceStatus(buildVoiceStatus(finalTurn.confidenceStatus === 'low' ? 'error' : 'success', 'Transcript ready to confirm', `Please check this ${confidenceLabel} transcript before it goes to the interview engine.`));
+  }, [speechSocket.finalTranscript]);
+
+  useEffect(() => {
+    if (!speechSocket.socketError) return;
+    setVoiceState('error');
+    setVoiceStatus(buildVoiceStatus('error', 'Real-time caption failed', speechSocket.socketError));
+  }, [speechSocket.socketError]);
+
+  useEffect(() => {
+    if (!lastAssistantAudio?.base64 || !lastAssistantAudio?.contentType) return undefined;
     const binary = atob(lastAssistantAudio.base64);
     const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
     const blob = new Blob([bytes], { type: lastAssistantAudio.contentType });
     const nextUrl = URL.createObjectURL(blob);
     setAssistantAudioUrl(nextUrl);
-
-    return () => {
-      URL.revokeObjectURL(nextUrl);
-    };
+    return () => URL.revokeObjectURL(nextUrl);
   }, [lastAssistantAudio]);
 
-
   useEffect(() => {
-    const questionText = String(currentQuestion?.displayText || currentQuestion?.text || '').trim();
-    if (!questionText || assistantAudioUrl || isRecording || isProcessingTurn) {
-      return undefined;
-    }
-    if (!window?.speechSynthesis) {
-      return undefined;
-    }
-    if (lastBrowserSpokenQuestionRef.current === questionText) {
-      return undefined;
-    }
-
-    const utterance = new SpeechSynthesisUtterance(questionText);
-    utterance.lang = DEFAULT_LANGUAGE;
-    const availableVoices = window.speechSynthesis.getVoices?.() || [];
-    const preferredVoice = availableVoices.find((voice) => voice.lang === 'en-NZ') || availableVoices.find((voice) => voice.lang?.startsWith('en-'));
-    if (preferredVoice) {
-      utterance.voice = preferredVoice;
-    }
-    lastBrowserSpokenQuestionRef.current = questionText;
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(utterance);
-
-    return () => {
-      window.speechSynthesis.cancel();
-    };
-  }, [assistantAudioUrl, currentQuestion, isProcessingTurn, isRecording]);
-
-  useEffect(() => {
-    if (!assistantAudioUrl || !audioRef.current) {
-      return undefined;
-    }
-
+    if (!assistantAudioUrl || !audioRef.current) return undefined;
     const audioElement = audioRef.current;
     const handleEnded = () => {
-      if (!isProcessingTurn && !isRecording) {
-        setVoiceState('ready');
-        setVoiceStatus(buildVoiceStatus('success', 'Ready for the next answer', 'You can answer the next question whenever you are ready.'));
-      }
+      if (!isProcessingTurn && !realtimeMic.isStreaming && !isBatchRecording) setReadyState();
     };
-
     audioElement.onended = handleEnded;
-    audioElement.play?.().catch(() => null);
+    return () => { audioElement.onended = null; };
+  }, [assistantAudioUrl, isProcessingTurn, realtimeMic.isStreaming, isBatchRecording, setReadyState]);
 
-    return () => {
-      audioElement.onended = null;
-    };
-  }, [assistantAudioUrl, isProcessingTurn, isRecording]);
+  useEffect(() => {
+    if (!enabled) {
+      window?.speechSynthesis?.cancel?.();
+      return undefined;
+    }
+
+    const questionText = String(currentQuestion?.displayText || currentQuestion?.text || '').trim();
+    if (!questionText || assistantAudioUrl || realtimeMic.isStreaming || isBatchRecording || isProcessingTurn) return undefined;
+    if (lastSpokenQuestionRef.current === questionText) return undefined;
+
+    lastSpokenQuestionRef.current = questionText;
+    const timerId = window.setTimeout(() => speakCurrentQuestion({ isReplay: false }), 250);
+    return () => window.clearTimeout(timerId);
+  }, [enabled, assistantAudioUrl, currentQuestion, isProcessingTurn, realtimeMic.isStreaming, isBatchRecording, speakCurrentQuestion]);
 
   useEffect(() => {
     if (!recordingError) return;
@@ -265,25 +411,32 @@ export function useVoiceInterviewSession({ session, onPause, onRepeat, onEnd, is
   }, [recordingError]);
 
   useEffect(() => () => {
+    window?.speechSynthesis?.cancel?.();
     clearResources();
-  }, [clearResources]);
+    realtimeMic.stopStream();
+    speechSocket.closeSocket();
+  }, [clearResources, realtimeMic, speechSocket]);
 
   const stateLabel = useMemo(() => {
     switch (voiceState) {
       case 'requesting_permission': return 'Requesting mic access';
       case 'permission_denied': return 'Microphone blocked';
-      case 'ready': return 'Ready to listen';
-      case 'recording': return 'Listening...';
+      case 'ready': return voiceMode === 'realtime' ? 'Realtime captions ready' : 'Batch fallback ready';
+      case 'recording': return voiceMode === 'realtime' ? 'Streaming speech...' : 'Listening...';
       case 'transcribing': return 'Processing answer';
+      case 'confirming_transcript': return 'Confirm transcript';
       case 'speaking': return 'KiwiCoach speaking';
       case 'error': return 'Voice error';
       default: return 'Idle';
     }
-  }, [voiceState]);
+  }, [voiceState, voiceMode]);
 
   const transcript = session?.transcript || [];
   const liveTranscript = useMemo(() => transcript.slice(-8), [transcript]);
-  const canUseVoice = !isPaused && !isCompleted && !isSubmitting && !isProcessingTurn;
+  const isRecording = voiceMode === 'realtime' ? realtimeMic.isStreaming : isBatchRecording;
+  const canUseVoice = enabled && !isPaused && !isCompleted && !isSubmitting && !isProcessingTurn;
+  const activeLevelHistory = voiceMode === 'realtime' ? realtimeMic.levelHistory : batchLevelHistory;
+  const activeDurationMs = voiceMode === 'realtime' ? realtimeMic.durationMs : recordingDurationMs;
 
   return {
     currentQuestion,
@@ -296,12 +449,19 @@ export function useVoiceInterviewSession({ session, onPause, onRepeat, onEnd, is
     stateLabel,
     voiceState,
     voiceStatus,
+    voiceMode,
+    setVoiceMode,
+    realtimeStatus: speechSocket.socketState,
+    realtimeLatency: speechSocket.latency,
+    pendingTranscript,
+    editableTranscript,
+    setEditableTranscript,
     isRecording,
     isProcessingTurn,
     canUseVoice,
-    levelHistory,
-    recordingDurationMs,
-    recordingDurationLabel: formatDurationLabel(recordingDurationMs),
+    levelHistory: activeLevelHistory,
+    recordingDurationMs: activeDurationMs,
+    recordingDurationLabel: formatDurationLabel(activeDurationMs),
     transcriptionPreview,
     assistantAudioUrl,
     audioRef,
@@ -311,6 +471,8 @@ export function useVoiceInterviewSession({ session, onPause, onRepeat, onEnd, is
     isBackupExpanded,
     handleRequestPermission,
     handleToggleRecording,
+    handleUseRealtimeTranscript,
+    handleRecordAgain,
     handleReplayAssistantAudio,
     handleResetShell,
     handleAudioFileSelect,
