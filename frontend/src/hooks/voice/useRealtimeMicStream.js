@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from 'react';
 
 const TARGET_SAMPLE_RATE = 16000;
 
-const downsampleBuffer = (buffer, sourceRate, targetRate = TARGET_SAMPLE_RATE) => {
+export const downsampleBuffer = (buffer, sourceRate, targetRate = TARGET_SAMPLE_RATE) => {
   if (targetRate === sourceRate) return buffer;
   const ratio = sourceRate / targetRate;
   const newLength = Math.round(buffer.length / ratio);
@@ -24,13 +24,20 @@ const downsampleBuffer = (buffer, sourceRate, targetRate = TARGET_SAMPLE_RATE) =
   return result;
 };
 
-const floatTo16BitPcm = (floatBuffer) => {
+export const floatTo16BitPcm = (floatBuffer) => {
   const output = new Int16Array(floatBuffer.length);
   for (let i = 0; i < floatBuffer.length; i += 1) {
     const sample = Math.max(-1, Math.min(1, floatBuffer[i]));
     output[i] = sample < 0 ? sample * 0x8000 : sample * 0x7fff;
   }
   return output.buffer;
+};
+
+export const calculateRmsLevel = (samples) => {
+  if (!samples?.length) return 0;
+  let sum = 0;
+  for (let i = 0; i < samples.length; i += 1) sum += samples[i] * samples[i];
+  return Math.sqrt(sum / samples.length);
 };
 
 export function useRealtimeMicStream({ onAudioChunk }) {
@@ -78,9 +85,7 @@ export function useRealtimeMicStream({ onAudioChunk }) {
       const input = event.inputBuffer.getChannelData(0);
       const downsampled = downsampleBuffer(input, audioContext.sampleRate, TARGET_SAMPLE_RATE);
       onAudioChunk?.(floatTo16BitPcm(downsampled));
-      let sum = 0;
-      for (let i = 0; i < input.length; i += 1) sum += input[i] * input[i];
-      const rms = Math.sqrt(sum / input.length);
+      const rms = calculateRmsLevel(input);
       setLevelHistory((history) => [...history.slice(-41), Math.min(1, rms * 18)]);
     };
 

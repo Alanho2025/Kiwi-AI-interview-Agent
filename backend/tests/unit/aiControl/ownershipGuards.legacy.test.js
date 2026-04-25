@@ -10,7 +10,7 @@ describe('ownership guards', () => {
     expect(source).toMatch(/loadOwnedSessionOrThrow/);
     expect(source).not.toMatch(/loadSessionOrThrow/);
     const ownedLoadUsages = source.match(/loadOwnedSessionOrThrow\(\{ sessionId, userId: user\.id \}\)/g) || [];
-    expect(ownedLoadUsages.length).toBe(7);
+    expect(ownedLoadUsages.length).toBe(8);
   });
 
   it('interview session service loads sessions through ownership-aware lookup', async () => {
