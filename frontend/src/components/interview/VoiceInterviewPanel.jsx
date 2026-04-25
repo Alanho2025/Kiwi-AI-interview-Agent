@@ -252,7 +252,7 @@ export function VoiceInterviewPanel({
         </div>
       </div>
 
-      <audio ref={audioRef} controls src={assistantAudioUrl} className="hidden" />
+      <audio ref={audioRef} controls src={assistantAudioUrl || undefined} className="hidden" />
     </div>
   );
 }
