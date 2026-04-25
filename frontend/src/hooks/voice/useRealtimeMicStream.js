@@ -1,139 +1,112 @@
-/**
- * File responsibility: Browser microphone streaming hook.
- * Main responsibilities:
- * - Capture microphone audio as small PCM chunks for WebSocket STT.
- * - Keep audio transport independent from interview and UI logic.
- * - Expose audio levels and duration for a responsive voice UI.
- */
-
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 
 const TARGET_SAMPLE_RATE = 16000;
-const MAX_LEVEL_HISTORY = 48;
 
-export const downsampleBuffer = (buffer, inputSampleRate, outputSampleRate) => {
-  if (outputSampleRate === inputSampleRate) return buffer;
-  const ratio = inputSampleRate / outputSampleRate;
+const downsampleBuffer = (buffer, sourceRate, targetRate = TARGET_SAMPLE_RATE) => {
+  if (targetRate === sourceRate) return buffer;
+  const ratio = sourceRate / targetRate;
   const newLength = Math.round(buffer.length / ratio);
   const result = new Float32Array(newLength);
   let offsetResult = 0;
   let offsetBuffer = 0;
   while (offsetResult < result.length) {
     const nextOffsetBuffer = Math.round((offsetResult + 1) * ratio);
-    let accumulator = 0;
+    let accum = 0;
     let count = 0;
     for (let i = offsetBuffer; i < nextOffsetBuffer && i < buffer.length; i += 1) {
-      accumulator += buffer[i];
+      accum += buffer[i];
       count += 1;
     }
-    result[offsetResult] = count ? accumulator / count : 0;
+    result[offsetResult] = count ? accum / count : 0;
     offsetResult += 1;
     offsetBuffer = nextOffsetBuffer;
   }
   return result;
 };
 
-export const floatTo16BitPcm = (samples) => {
-  const output = new Int16Array(samples.length);
-  for (let i = 0; i < samples.length; i += 1) {
-    const sample = Math.max(-1, Math.min(1, samples[i]));
+const floatTo16BitPcm = (floatBuffer) => {
+  const output = new Int16Array(floatBuffer.length);
+  for (let i = 0; i < floatBuffer.length; i += 1) {
+    const sample = Math.max(-1, Math.min(1, floatBuffer[i]));
     output[i] = sample < 0 ? sample * 0x8000 : sample * 0x7fff;
   }
   return output.buffer;
 };
 
-export const calculateRmsLevel = (samples) => {
-  if (!samples.length) return 0;
-  const sum = samples.reduce((total, sample) => total + sample * sample, 0);
-  return Math.min(1, Math.sqrt(sum / samples.length) * 4);
-};
-
 export function useRealtimeMicStream({ onAudioChunk }) {
-  const audioContextRef = useRef(null);
-  const processorRef = useRef(null);
-  const sourceRef = useRef(null);
   const streamRef = useRef(null);
-  const startedAtRef = useRef(null);
-  const timerRef = useRef(null);
-  const onAudioChunkRef = useRef(onAudioChunk);
-
+  const audioContextRef = useRef(null);
+  const sourceRef = useRef(null);
+  const processorRef = useRef(null);
+  const startedAtRef = useRef(0);
+  const durationTimerRef = useRef(null);
   const [isStreaming, setIsStreaming] = useState(false);
-  const [streamError, setStreamError] = useState(null);
   const [levelHistory, setLevelHistory] = useState([]);
   const [durationMs, setDurationMs] = useState(0);
-
-  useEffect(() => {
-    onAudioChunkRef.current = onAudioChunk;
-  }, [onAudioChunk]);
+  const [mediaStream, setMediaStream] = useState(null);
 
   const stopStream = useCallback(async () => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    timerRef.current = null;
-
-    try { processorRef.current?.disconnect?.(); } catch {}
-    try { sourceRef.current?.disconnect?.(); } catch {}
+    if (durationTimerRef.current) window.clearInterval(durationTimerRef.current);
+    durationTimerRef.current = null;
+    try { processorRef.current?.disconnect(); } catch {}
+    try { sourceRef.current?.disconnect(); } catch {}
     try { await audioContextRef.current?.close?.(); } catch {}
-    try { streamRef.current?.getTracks?.().forEach((track) => track.stop()); } catch {}
-
+    streamRef.current?.getTracks?.().forEach((track) => track.stop());
     processorRef.current = null;
     sourceRef.current = null;
     audioContextRef.current = null;
     streamRef.current = null;
+    setMediaStream(null);
     setIsStreaming(false);
   }, []);
 
   const startStream = useCallback(async () => {
-    setStreamError(null);
-    setLevelHistory([]);
-    setDurationMs(0);
-
-    const mediaStream = await navigator.mediaDevices.getUserMedia({
+    await stopStream();
+    const stream = await navigator.mediaDevices.getUserMedia({
       audio: {
         echoCancellation: true,
         noiseSuppression: true,
         autoGainControl: true,
-        channelCount: 1,
       },
     });
-
-    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-    const audioContext = new AudioContextClass();
-    const source = audioContext.createMediaStreamSource(mediaStream);
+    const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+    const audioContext = new AudioContextCtor();
+    const source = audioContext.createMediaStreamSource(stream);
     const processor = audioContext.createScriptProcessor(4096, 1, 1);
 
     processor.onaudioprocess = (event) => {
       const input = event.inputBuffer.getChannelData(0);
       const downsampled = downsampleBuffer(input, audioContext.sampleRate, TARGET_SAMPLE_RATE);
-      const chunk = floatTo16BitPcm(downsampled);
-      onAudioChunkRef.current?.(chunk);
-      const level = calculateRmsLevel(Array.from(input));
-      setLevelHistory((current) => [...current.slice(-(MAX_LEVEL_HISTORY - 1)), level]);
+      onAudioChunk?.(floatTo16BitPcm(downsampled));
+      let sum = 0;
+      for (let i = 0; i < input.length; i += 1) sum += input[i] * input[i];
+      const rms = Math.sqrt(sum / input.length);
+      setLevelHistory((history) => [...history.slice(-41), Math.min(1, rms * 18)]);
     };
 
     source.connect(processor);
     processor.connect(audioContext.destination);
-
-    streamRef.current = mediaStream;
+    streamRef.current = stream;
     audioContextRef.current = audioContext;
     sourceRef.current = source;
     processorRef.current = processor;
     startedAtRef.current = performance.now();
-    timerRef.current = setInterval(() => {
+    setDurationMs(0);
+    setLevelHistory([]);
+    setMediaStream(stream);
+    setIsStreaming(true);
+    durationTimerRef.current = window.setInterval(() => {
       setDurationMs(Math.round(performance.now() - startedAtRef.current));
     }, 250);
-    setIsStreaming(true);
-  }, []);
+    return stream;
+  }, [onAudioChunk, stopStream]);
 
-  useEffect(() => () => {
-    stopStream();
-  }, [stopStream]);
-
-  return useMemo(() => ({
+  return {
     isStreaming,
-    streamError,
     levelHistory,
     durationMs,
+    mediaStream,
     startStream,
     stopStream,
-  }), [isStreaming, streamError, levelHistory, durationMs, startStream, stopStream]);
+  };
 }

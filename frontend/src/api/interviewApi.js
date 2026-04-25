@@ -47,6 +47,8 @@ export const replyInterviewWithRealtimeVoice = ({
   voiceName = 'en-NZ-MollyNeural',
   asrConfidence = null,
   asrSource = 'azure_realtime',
+  inputMode = 'realtime_voice',
+  vad = null,
 }) => apiClient('/interview/realtime-voice-turn', {
   method: 'POST',
   body: {
@@ -56,5 +58,7 @@ export const replyInterviewWithRealtimeVoice = ({
     voiceName,
     asrConfidence,
     asrSource,
+    inputMode,
+    vad,
   },
 });

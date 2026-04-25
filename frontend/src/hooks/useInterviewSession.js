@@ -158,7 +158,7 @@ export function useInterviewSession({ sessionId, navigate }) {
     }
   }, [isSubmitting, sessionId]);
 
-  const handleRealtimeVoiceTurn = useCallback(async ({ transcriptText, language, voiceName, asrConfidence, asrSource }) => {
+  const handleRealtimeVoiceTurn = useCallback(async ({ transcriptText, language, voiceName, asrConfidence, asrSource, inputMode, vad }) => {
     const cleanTranscript = String(transcriptText || '').trim();
     if (isSubmitting || !cleanTranscript) return null;
 
@@ -172,6 +172,8 @@ export function useInterviewSession({ sessionId, navigate }) {
         voiceName,
         asrConfidence,
         asrSource,
+        inputMode,
+        vad,
       });
       setSession(data.session);
 

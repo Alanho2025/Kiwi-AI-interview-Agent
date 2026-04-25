@@ -49,6 +49,8 @@ export const processRealtimeVoiceTurn = async ({
   asrConfidence = null,
   asrSource = 'azure_realtime',
   voiceName,
+  inputMode = 'realtime_voice',
+  vad = null,
   tryGenerateReportForCompletedSession,
   req = null,
 }) => {
@@ -70,7 +72,8 @@ export const processRealtimeVoiceTurn = async ({
       text: normalizedAnswer,
       timestamp: new Date().toISOString(),
       metadata: {
-        inputMode: 'realtime_voice',
+        inputMode,
+        vad,
         asrProvider: asrSource,
         asrLanguage: language,
         asrConfidence,
@@ -83,10 +86,12 @@ export const processRealtimeVoiceTurn = async ({
       questionId: latestQuestion?.id,
       transcriptText: normalizedAnswer,
       responseMode: 'voice',
+      vad,
+      inputMode,
       asrProvider: asrSource,
       asrLanguage: language,
       asrConfidence,
-      providerPayload: { source: asrSource, realtime: true },
+      providerPayload: { source: asrSource, realtime: true, inputMode, vad },
     });
   });
 
@@ -95,7 +100,8 @@ export const processRealtimeVoiceTurn = async ({
     sessionId: session.id,
     payload: {
       answer: normalizedAnswer,
-      inputMode: 'realtime_voice',
+      inputMode,
+      vad,
     },
   }));
 

@@ -3,11 +3,16 @@ import { useMicrophonePermission } from './useMicrophonePermission.js';
 import { useDirectWavRecorder } from './useDirectWavRecorder.js';
 import { useRealtimeMicStream } from './voice/useRealtimeMicStream.js';
 import { useRealtimeSpeechSocket } from './voice/useRealtimeSpeechSocket.js';
+import { useVoiceActivityDetection } from './voice/useVoiceActivityDetection.js';
+import { createVoiceLatencyTrace } from '../utils/voiceLatencyTrace.js';
 
 const DEFAULT_VOICE_NAME = 'en-NZ-MollyNeural';
 const DEFAULT_LANGUAGE = 'en-NZ';
-const READY_STATES = new Set(['ready', 'speaking']);
+const READY_STATES = new Set(['ready', 'speaking', 'ai_speaking', 'listening']);
 const FINAL_TRANSCRIPT_TIMEOUT_MS = 1200;
+const MIC_ARM_DELAY_MS = 350;
+const VAD_WARMUP_IGNORE_MS = 500;
+const MIN_TRANSCRIPT_CHARS = 2;
 
 const buildVoiceStatus = (type, title, message) => ({ type, title, message });
 
@@ -97,6 +102,7 @@ export function useVoiceInterviewSession({
     isStreaming: isRealtimeStreaming,
     levelHistory: realtimeLevelHistory,
     durationMs: realtimeDurationMs,
+    mediaStream: realtimeMediaStream,
     startStream,
     stopStream,
   } = realtimeMic;
@@ -114,12 +120,21 @@ export function useVoiceInterviewSession({
   const [isBackupExpanded, setIsBackupExpanded] = useState(false);
   const [manualAudioFile, setManualAudioFile] = useState(null);
   const [isProcessingTurn, setIsProcessingTurn] = useState(false);
+  const [isAutoLoopActive, setIsAutoLoopActive] = useState(false);
+
   const audioRef = useRef(null);
   const lastSpokenQuestionRef = useRef('');
   const hasSpokenGreetingRef = useRef(false);
   const finalTranscriptTimerRef = useRef(null);
   const realtimeTurnSubmittedRef = useRef(false);
   const realtimeStopAtRef = useRef(null);
+  const autoLoopActiveRef = useRef(false);
+  const autoStopInFlightRef = useRef(false);
+  const vadMetricsRef = useRef(null);
+  const voiceTraceRef = useRef(null);
+  const noSpeechPromptedRef = useRef(false);
+  const startAutoListeningRef = useRef(null);
+  const stopRealtimeRecordingRef = useRef(null);
 
   const activeSessionId = resolveSessionId(session, sessionId);
   const currentQuestion = useMemo(() => getLatestTurnByRole(session?.transcript || [], 'ai'), [session?.transcript]);
@@ -129,9 +144,83 @@ export function useVoiceInterviewSession({
     if (!enabled) return;
     setVoiceState('ready');
     setVoiceStatus(buildVoiceStatus('success', 'Voice ready', voiceMode === 'realtime'
-      ? 'Real-time captions are ready. Tap the microphone to stream your answer.'
+      ? 'Auto VAD is ready. Start once, then KiwiCoach will listen and stop automatically.'
       : 'Batch voice fallback is ready. Tap the microphone to record your answer.'));
   }, [enabled, voiceMode]);
+
+  const clearFinalTranscriptTimer = useCallback(() => {
+    if (!finalTranscriptTimerRef.current) return;
+    window.clearTimeout(finalTranscriptTimerRef.current);
+    finalTranscriptTimerRef.current = null;
+  }, []);
+
+  const requestRepeatByVoice = useCallback(() => {
+    setVoiceState('ai_speaking');
+    setVoiceStatus(buildVoiceStatus('info', 'Please answer again', 'KiwiCoach did not catch a clear answer and will ask you to repeat.'));
+    speakWithBrowserVoice({
+      text: "Sorry, I didn't catch that clearly. Could you answer again briefly?",
+      onStart: () => voiceTraceRef.current?.mark('clarification_audio_start'),
+      onEnd: () => {
+        voiceTraceRef.current?.mark('clarification_audio_end');
+        if (autoLoopActiveRef.current && !isPaused && !isCompleted) {
+          window.setTimeout(() => startAutoListeningRef.current?.(), MIC_ARM_DELAY_MS);
+        }
+      },
+      onError: () => startAutoListeningRef.current?.(),
+    });
+  }, [isPaused, isCompleted]);
+
+  const handleVadSpeechStart = useCallback((metrics = {}) => {
+    vadMetricsRef.current = { ...(vadMetricsRef.current || {}), ...metrics };
+    voiceTraceRef.current?.mark('vad_speech_start', metrics);
+    setVoiceState('user_speaking');
+    setVoiceStatus(buildVoiceStatus('info', 'Listening', 'Keep answering naturally. KiwiCoach will stop when you finish speaking.'));
+  }, []);
+
+  const handleVadSpeechEnd = useCallback(async (metrics = {}) => {
+    if (autoStopInFlightRef.current || realtimeTurnSubmittedRef.current) return;
+    autoStopInFlightRef.current = true;
+    vadMetricsRef.current = { ...(vadMetricsRef.current || {}), ...metrics };
+    voiceTraceRef.current?.mark('vad_speech_end', metrics);
+    setVoiceState('detecting_silence');
+    setVoiceStatus(buildVoiceStatus('info', 'Answer captured', 'KiwiCoach detected a pause and is finalising your spoken answer.'));
+    await stopRealtimeRecordingRef.current?.('vad_speech_end');
+  }, []);
+
+  const handleNoSpeechTimeout = useCallback(() => {
+    if (!autoLoopActiveRef.current || noSpeechPromptedRef.current) return;
+    noSpeechPromptedRef.current = true;
+    voiceTraceRef.current?.mark('vad_no_speech_timeout');
+    setVoiceStatus(buildVoiceStatus('info', 'Take your time', 'You can start answering when you are ready.'));
+    speakWithBrowserVoice({
+      text: 'Take your time. You can start when you are ready.',
+      onStart: () => setVoiceState('ai_speaking'),
+      onEnd: () => {
+        if (autoLoopActiveRef.current && !isPaused && !isCompleted) {
+          window.setTimeout(() => startAutoListeningRef.current?.(), MIC_ARM_DELAY_MS);
+        }
+      },
+      onError: () => startAutoListeningRef.current?.(),
+    });
+  }, [isPaused, isCompleted]);
+
+  const handleMaxAnswerTimeout = useCallback(async (metrics = {}) => {
+    if (autoStopInFlightRef.current || realtimeTurnSubmittedRef.current) return;
+    autoStopInFlightRef.current = true;
+    vadMetricsRef.current = { ...(vadMetricsRef.current || {}), ...metrics, maxAnswerTimeout: true };
+    voiceTraceRef.current?.mark('vad_max_answer_timeout', metrics);
+    await stopRealtimeRecordingRef.current?.('vad_max_answer_timeout');
+  }, []);
+
+  const vad = useVoiceActivityDetection({
+    stream: realtimeMediaStream,
+    enabled,
+    onSpeechStart: handleVadSpeechStart,
+    onSpeechEnd: handleVadSpeechEnd,
+    onNoSpeechTimeout: handleNoSpeechTimeout,
+    onMaxAnswerTimeout: handleMaxAnswerTimeout,
+  });
+  const { startVad, stopVad, vadState, vadMetrics } = vad;
 
   const speakCurrentQuestion = useCallback(({ isReplay = false } = {}) => {
     if (!enabled || isRealtimeStreaming || isBatchRecording || isProcessingTurn) return false;
@@ -141,19 +230,30 @@ export function useVoiceInterviewSession({
     return speakWithBrowserVoice({
       text: questionText,
       onStart: () => {
-        setVoiceState('speaking');
-        setVoiceStatus(buildVoiceStatus('info', isReplay ? 'Replaying question audio' : 'KiwiCoach is speaking', isReplay ? 'Replaying the current interview question.' : 'Listen to the question, then tap the microphone to answer.'));
+        setVoiceState('ai_speaking');
+        stopVad?.();
+        setVoiceStatus(buildVoiceStatus('info', isReplay ? 'Replaying question audio' : 'KiwiCoach is speaking', isReplay ? 'Replaying the current interview question.' : 'Listen to the question. The microphone will open automatically after KiwiCoach finishes.'));
+        voiceTraceRef.current?.mark(isReplay ? 'assistant_replay_start' : 'assistant_browser_audio_start');
         if (!isReplay) hasSpokenGreetingRef.current = true;
       },
       onEnd: () => {
+        voiceTraceRef.current?.mark(isReplay ? 'assistant_replay_end' : 'assistant_browser_audio_end');
+        if (autoLoopActiveRef.current && !isProcessingTurn && !isBatchRecording && !isPaused && !isCompleted) {
+          window.setTimeout(() => startAutoListeningRef.current?.(), MIC_ARM_DELAY_MS);
+          return;
+        }
         if (!isProcessingTurn && !isRealtimeStreaming && !isBatchRecording) setReadyState();
       },
       onError: () => {
+        if (autoLoopActiveRef.current) {
+          startAutoListeningRef.current?.();
+          return;
+        }
         setVoiceState('ready');
         setVoiceStatus(buildVoiceStatus('info', 'Question audio unavailable', 'Your browser blocked automatic question audio. Use Repeat Question to try again.'));
       },
     });
-  }, [enabled, currentQuestion, isRealtimeStreaming, isBatchRecording, isProcessingTurn, setReadyState]);
+  }, [enabled, currentQuestion, isRealtimeStreaming, isBatchRecording, isProcessingTurn, isPaused, isCompleted, setReadyState, stopVad]);
 
   const handleRequestPermission = useCallback(async () => {
     if (!enabled) return;
@@ -173,23 +273,18 @@ export function useVoiceInterviewSession({
     setVoiceStatus(buildVoiceStatus('error', 'Microphone blocked', result.error || 'Microphone access is required for direct voice conversation.'));
   }, [enabled, permissionState, requestPermission, setReadyState]);
 
-  const clearFinalTranscriptTimer = useCallback(() => {
-    if (!finalTranscriptTimerRef.current) return;
-    window.clearTimeout(finalTranscriptTimerRef.current);
-    finalTranscriptTimerRef.current = null;
-  }, []);
-
   const autoSubmitRealtimeTranscript = useCallback(async (turn, reason = 'final') => {
     const answerText = String(turn?.displayText || turn?.normalizedText || turn?.rawText || '').trim();
-    if (!enabled || !answerText || !onSubmitRealtimeVoiceTurn || isSubmitting || isCompleted || isPaused) return;
+    if (!enabled || !answerText || answerText.length < MIN_TRANSCRIPT_CHARS || !onSubmitRealtimeVoiceTurn || isSubmitting || isCompleted || isPaused) return;
     if (realtimeTurnSubmittedRef.current) return;
 
     realtimeTurnSubmittedRef.current = true;
     clearFinalTranscriptTimer();
     setIsProcessingTurn(true);
-    setVoiceState('generating_next_question');
+    setVoiceState('auto_submitting_answer');
     setVoiceStatus(buildVoiceStatus('info', 'Preparing next question', 'KiwiCoach is using your answer to decide the next spoken question.'));
 
+    voiceTraceRef.current?.mark('auto_submit_start', { reason });
     const submitStartedAt = performance.now();
     try {
       const result = await onSubmitRealtimeVoiceTurn({
@@ -198,15 +293,23 @@ export function useVoiceInterviewSession({
         voiceName: DEFAULT_VOICE_NAME,
         asrConfidence: turn?.confidence ?? null,
         asrSource: turn?.source === 'partial_fallback' ? 'azure_realtime_partial_fallback' : 'azure_realtime',
+        inputMode: 'realtime_voice_vad',
+        vad: {
+          ...(vadMetricsRef.current || {}),
+          usedPartialFallback: Boolean(turn?.usedPartialFallback || turn?.fallback),
+          finaliseReason: reason,
+        },
       });
 
       const submitMs = Math.round(performance.now() - submitStartedAt);
+      voiceTraceRef.current?.mark('auto_submit_response', { submitMs });
       console.info('[voice-latency]', {
         event: 'realtime_voice_turn_completed',
         reason,
         submitMs,
         stopToSubmitStartMs: realtimeStopAtRef.current ? Math.round(submitStartedAt - realtimeStopAtRef.current) : null,
         backendLatency: result?.latency || null,
+        trace: voiceTraceRef.current?.toJSON?.() || null,
       });
 
       setPendingTranscript({ ...turn, displayText: answerText });
@@ -214,12 +317,14 @@ export function useVoiceInterviewSession({
       setTranscriptionPreview(answerText);
       setLastAsrConfidence(turn?.confidence ?? null);
       setLastAssistantAudio(result?.assistantAudio || null);
-      setVoiceState(result?.assistantAudio?.base64 ? 'speaking' : 'ready');
+      autoStopInFlightRef.current = false;
+      setVoiceState(result?.assistantAudio?.base64 ? 'ai_speaking' : 'ready');
       setVoiceStatus(buildVoiceStatus('success', 'Next question ready', result?.assistantAudio?.base64
         ? 'KiwiCoach is speaking the next adaptive question.'
         : 'The next adaptive question is ready. Use replay if your browser blocks audio.'));
     } catch (error) {
       realtimeTurnSubmittedRef.current = false;
+      autoStopInFlightRef.current = false;
       setVoiceState('error');
       setVoiceStatus(buildVoiceStatus('error', 'Realtime voice turn failed', error.message || 'Could not prepare the next spoken question.'));
     } finally {
@@ -236,11 +341,16 @@ export function useVoiceInterviewSession({
         return;
       }
 
+      realtimeTurnSubmittedRef.current = false;
+      autoStopInFlightRef.current = false;
+      if (autoLoopActiveRef.current) {
+        requestRepeatByVoice();
+        return;
+      }
       setVoiceState('error');
       setVoiceStatus(buildVoiceStatus('error', 'Could not hear the answer clearly', 'Please record your answer again.'));
-      realtimeTurnSubmittedRef.current = false;
     }, FINAL_TRANSCRIPT_TIMEOUT_MS);
-  }, [autoSubmitRealtimeTranscript, clearFinalTranscriptTimer, getBestAvailableTranscript]);
+  }, [autoSubmitRealtimeTranscript, clearFinalTranscriptTimer, getBestAvailableTranscript, requestRepeatByVoice]);
 
   const submitVoiceFile = useCallback(async (audioFile, durationMs = null) => {
     if (!enabled || !audioFile || !onSubmitVoiceReply || isSubmitting || isCompleted || isPaused) return;
@@ -255,7 +365,7 @@ export function useVoiceInterviewSession({
       setTranscriptionPreview(transcriptionText);
       setLastAssistantAudio(result?.assistantAudio || null);
       setLastAsrConfidence(result?.transcription?.confidence ?? null);
-      setVoiceState(result?.assistantAudio?.base64 ? 'speaking' : 'ready');
+      setVoiceState(result?.assistantAudio?.base64 ? 'ai_speaking' : 'ready');
       setVoiceStatus(buildVoiceStatus('success', 'Voice turn complete', 'Your spoken reply was transcribed and the next interviewer question is ready.'));
     } catch (error) {
       setVoiceState('error');
@@ -266,7 +376,7 @@ export function useVoiceInterviewSession({
     }
   }, [enabled, onSubmitVoiceReply, isSubmitting, isCompleted, isPaused]);
 
-  const startRealtimeRecording = useCallback(async () => {
+  const startRealtimeRecording = useCallback(async ({ autoLoop = false } = {}) => {
     if (!enabled) return;
     if (!activeSessionId) {
       setVoiceState('error');
@@ -281,39 +391,72 @@ export function useVoiceInterviewSession({
       return;
     }
 
-    window?.speechSynthesis?.cancel?.();
+    if (!autoLoop) window?.speechSynthesis?.cancel?.();
     clearFinalTranscriptTimer();
     realtimeTurnSubmittedRef.current = false;
+    autoStopInFlightRef.current = false;
     realtimeStopAtRef.current = null;
+    vadMetricsRef.current = null;
     setPendingTranscript(null);
     setEditableTranscript('');
     setTranscriptionPreview('');
     setLastAsrConfidence(null);
-    setVoiceState('recording');
-    setVoiceStatus(buildVoiceStatus('info', 'Listening with real-time captions', 'Speak naturally. Captions will update while you answer. Tap again when you are done.'));
+    setVoiceState(autoLoop ? 'arming_mic' : 'recording');
+    setVoiceStatus(buildVoiceStatus('info', autoLoop ? 'Opening microphone' : 'Listening with real-time captions', autoLoop ? 'KiwiCoach is ready to hear your answer.' : 'Speak naturally. Captions will update while you answer. Tap again when you are done.'));
 
     try {
+      voiceTraceRef.current?.mark('mic_arm_start');
       await connectSpeechSocket({ sessionId: activeSessionId, language: DEFAULT_LANGUAGE, sampleRate: 16000 });
-      await startStream();
+      const stream = await startStream();
+      if (autoLoop) {
+        noSpeechPromptedRef.current = false;
+        await startVad({ stream, ignoreFirstMs: VAD_WARMUP_IGNORE_MS });
+        voiceTraceRef.current?.mark('mic_ready');
+        setVoiceState('listening');
+        setVoiceStatus(buildVoiceStatus('info', 'Listening', 'Answer naturally. KiwiCoach will stop recording when you pause.'));
+      }
     } catch (error) {
       await stopStream();
       closeSocket();
       setVoiceState('error');
       setVoiceStatus(buildVoiceStatus('error', 'Real-time voice failed', error.message || 'Could not start real-time speech recognition. Use Batch mode if needed.'));
     }
-  }, [enabled, activeSessionId, requestPermission, connectSpeechSocket, startStream, stopStream, closeSocket, clearFinalTranscriptTimer]);
+  }, [enabled, activeSessionId, requestPermission, connectSpeechSocket, startStream, stopStream, closeSocket, clearFinalTranscriptTimer, startVad]);
 
-  const stopRealtimeRecording = useCallback(async () => {
+  useEffect(() => {
+    startAutoListeningRef.current = () => startRealtimeRecording({ autoLoop: true });
+  }, [startRealtimeRecording]);
+
+  const stopRealtimeRecording = useCallback(async (reason = 'manual_stop') => {
     realtimeStopAtRef.current = performance.now();
+    voiceTraceRef.current?.mark('stt_stop_sent', { reason });
+    stopVad?.();
     setVoiceState('finalising_transcript');
     setVoiceStatus(buildVoiceStatus('info', 'Finalising live transcript', 'Waiting briefly for Azure Speech final text before auto-submit.'));
     await stopStream();
     sendStop();
     startFinalTranscriptDeadline();
-  }, [stopStream, sendStop, startFinalTranscriptDeadline]);
+  }, [stopStream, sendStop, startFinalTranscriptDeadline, stopVad]);
+
+  useEffect(() => {
+    stopRealtimeRecordingRef.current = stopRealtimeRecording;
+  }, [stopRealtimeRecording]);
+
+  const stopAutoLoop = useCallback(async () => {
+    autoLoopActiveRef.current = false;
+    setIsAutoLoopActive(false);
+    stopVad?.();
+    clearFinalTranscriptTimer();
+    window?.speechSynthesis?.cancel?.();
+    await stopStream();
+    closeSocket();
+    setVoiceState('ready');
+    setVoiceStatus(buildVoiceStatus('info', 'Voice interview paused', 'Press Start Voice Interview to continue.'));
+  }, [clearFinalTranscriptTimer, closeSocket, stopStream, stopVad]);
 
   const handleToggleRecording = useCallback(async () => {
-    if (!enabled || isCompleted || isPaused || isSubmitting || isProcessingTurn) return;
+    if (!enabled || isCompleted || isPaused) return;
+    if ((isSubmitting || isProcessingTurn) && !isAutoLoopActive) return;
 
     if (!isSupported) {
       setVoiceState('error');
@@ -322,11 +465,19 @@ export function useVoiceInterviewSession({
     }
 
     if (voiceMode === 'realtime') {
-      if (isRealtimeStreaming) {
-        await stopRealtimeRecording();
+      if (isAutoLoopActive || isRealtimeStreaming) {
+        await stopAutoLoop();
         return;
       }
-      await startRealtimeRecording();
+
+      autoLoopActiveRef.current = true;
+      setIsAutoLoopActive(true);
+      voiceTraceRef.current = createVoiceLatencyTrace({ sessionId: activeSessionId, mode: 'realtime_voice_vad' });
+      voiceTraceRef.current.mark('voice_loop_start');
+      setVoiceState('starting');
+      setVoiceStatus(buildVoiceStatus('info', 'Starting voice interview', 'KiwiCoach will speak, then the microphone will open automatically.'));
+      const spoke = speakCurrentQuestion({ isReplay: false });
+      if (!spoke) await startRealtimeRecording({ autoLoop: true });
       return;
     }
 
@@ -358,7 +509,7 @@ export function useVoiceInterviewSession({
       setVoiceState('error');
       setVoiceStatus(buildVoiceStatus('error', 'Recording failed', error.message || 'Could not start microphone recording.'));
     }
-  }, [enabled, isCompleted, isPaused, isSubmitting, isProcessingTurn, isSupported, voiceMode, isRealtimeStreaming, stopRealtimeRecording, startRealtimeRecording, isBatchRecording, stopRecording, submitVoiceFile, requestPermission, startRecording]);
+  }, [enabled, isCompleted, isPaused, isSubmitting, isProcessingTurn, isAutoLoopActive, isSupported, voiceMode, isRealtimeStreaming, stopAutoLoop, activeSessionId, speakCurrentQuestion, startRealtimeRecording, isBatchRecording, stopRecording, submitVoiceFile, requestPermission, startRecording]);
 
   const handleUseRealtimeTranscript = useCallback(async () => {
     const answerText = String(editableTranscript || pendingTranscript?.displayText || '').trim();
@@ -394,19 +545,23 @@ export function useVoiceInterviewSession({
   const handleReplayAssistantAudio = useCallback(() => {
     if (!enabled) return false;
     if (assistantAudioUrl && audioRef.current) {
-      setVoiceState('speaking');
+      setVoiceState('ai_speaking');
+      stopVad?.();
       setVoiceStatus(buildVoiceStatus('info', 'Playing question audio', 'Replaying the latest assistant question.'));
       audioRef.current.currentTime = 0;
       audioRef.current.play?.().catch(() => speakCurrentQuestion({ isReplay: true }));
       return true;
     }
     return speakCurrentQuestion({ isReplay: true });
-  }, [enabled, assistantAudioUrl, speakCurrentQuestion]);
+  }, [enabled, assistantAudioUrl, speakCurrentQuestion, stopVad]);
 
   const handleResetShell = useCallback(async () => {
     window?.speechSynthesis?.cancel?.();
     await clearResources();
     await stopStream();
+    stopVad?.();
+    autoLoopActiveRef.current = false;
+    setIsAutoLoopActive(false);
     closeSocket();
     clearFinalTranscriptTimer();
     setManualAudioFile(null);
@@ -420,7 +575,7 @@ export function useVoiceInterviewSession({
     }
     setVoiceState('idle');
     setVoiceStatus(null);
-  }, [clearResources, stopStream, closeSocket, clearFinalTranscriptTimer, permissionState, setReadyState]);
+  }, [clearResources, stopStream, closeSocket, clearFinalTranscriptTimer, permissionState, setReadyState, stopVad]);
 
   const handleAudioFileSelect = useCallback((event) => {
     const nextFile = event.target.files?.[0] || null;
@@ -437,11 +592,14 @@ export function useVoiceInterviewSession({
     if (enabled) return undefined;
     window?.speechSynthesis?.cancel?.();
     closeSocket();
+    stopVad?.();
+    autoLoopActiveRef.current = false;
+    setIsAutoLoopActive(false);
     clearFinalTranscriptTimer();
     stopStream();
     hasSpokenGreetingRef.current = false;
     return undefined;
-  }, [enabled, closeSocket, stopStream, clearFinalTranscriptTimer]);
+  }, [enabled, closeSocket, stopStream, clearFinalTranscriptTimer, stopVad]);
 
   useEffect(() => {
     if (permissionState === 'granted' && voiceState === 'idle') setReadyState();
@@ -456,7 +614,7 @@ export function useVoiceInterviewSession({
   useEffect(() => {
     if (!finalTranscript) return;
     const finalTurn = finalTranscript;
-    const displayText = String(finalTurn.displayText || finalTurn.normalizedText || finalTurn.rawText || '').trim();
+    const displayText = String(finalTurn.displayText || finalTurn.normalizedText || finalTurn.rawText || finalTurn.text || '').trim();
     if (!displayText) return;
     autoSubmitRealtimeTranscript({ ...finalTurn, displayText, source: 'final' }, 'final');
   }, [finalTranscript, autoSubmitRealtimeTranscript]);
@@ -482,12 +640,18 @@ export function useVoiceInterviewSession({
     const audioElement = audioRef.current;
     const playStartedAt = performance.now();
     const handleEnded = () => {
+      voiceTraceRef.current?.mark('assistant_audio_play_end');
+      if (autoLoopActiveRef.current && !isProcessingTurn && !isBatchRecording && !isPaused && !isCompleted) {
+        window.setTimeout(() => startAutoListeningRef.current?.(), MIC_ARM_DELAY_MS);
+        return;
+      }
       if (!isProcessingTurn && !isRealtimeStreaming && !isBatchRecording) setReadyState();
     };
     audioElement.onended = handleEnded;
     audioElement.currentTime = 0;
     audioElement.play?.()
       .then(() => {
+        voiceTraceRef.current?.mark('assistant_audio_play_start');
         console.info('[voice-latency]', {
           event: 'assistant_audio_play_started',
           audioPlayStartMs: Math.round(performance.now() - playStartedAt),
@@ -495,14 +659,10 @@ export function useVoiceInterviewSession({
       })
       .catch(() => speakCurrentQuestion({ isReplay: false }));
     return () => { audioElement.onended = null; };
-  }, [assistantAudioUrl, isProcessingTurn, isRealtimeStreaming, isBatchRecording, setReadyState, speakCurrentQuestion]);
+  }, [assistantAudioUrl, isProcessingTurn, isRealtimeStreaming, isBatchRecording, isPaused, isCompleted, setReadyState, speakCurrentQuestion]);
 
   useEffect(() => {
-    if (!enabled) {
-      window?.speechSynthesis?.cancel?.();
-      return undefined;
-    }
-
+    if (!enabled || isAutoLoopActive) return undefined;
     const questionText = String(currentQuestion?.displayText || currentQuestion?.text || '').trim();
     if (!questionText || assistantAudioUrl || isRealtimeStreaming || isBatchRecording || isProcessingTurn) return undefined;
     if (lastSpokenQuestionRef.current === questionText && hasSpokenGreetingRef.current) return undefined;
@@ -510,7 +670,7 @@ export function useVoiceInterviewSession({
     lastSpokenQuestionRef.current = questionText;
     const timerId = window.setTimeout(() => speakCurrentQuestion({ isReplay: false }), 250);
     return () => window.clearTimeout(timerId);
-  }, [enabled, assistantAudioUrl, currentQuestion, isProcessingTurn, isRealtimeStreaming, isBatchRecording, speakCurrentQuestion]);
+  }, [enabled, isAutoLoopActive, assistantAudioUrl, currentQuestion, isProcessingTurn, isRealtimeStreaming, isBatchRecording, speakCurrentQuestion]);
 
   useEffect(() => {
     if (!recordingError) return;
@@ -522,9 +682,10 @@ export function useVoiceInterviewSession({
     window?.speechSynthesis?.cancel?.();
     clearResources();
     stopStream();
+    stopVad?.();
     closeSocket();
     clearFinalTranscriptTimer();
-  }, [clearResources, stopStream, closeSocket, clearFinalTranscriptTimer]);
+  }, [clearResources, stopStream, closeSocket, clearFinalTranscriptTimer, stopVad]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -536,12 +697,18 @@ export function useVoiceInterviewSession({
     switch (voiceState) {
       case 'requesting_permission': return 'Requesting mic access';
       case 'permission_denied': return 'Microphone blocked';
-      case 'ready': return voiceMode === 'realtime' ? 'Realtime captions ready' : 'Batch fallback ready';
+      case 'ready': return voiceMode === 'realtime' ? 'Auto voice ready' : 'Batch fallback ready';
       case 'recording': return voiceMode === 'realtime' ? 'Streaming speech...' : 'Listening...';
+      case 'starting': return 'Starting voice loop';
+      case 'ai_speaking': return 'KiwiCoach speaking';
+      case 'arming_mic': return 'Opening microphone';
+      case 'listening': return 'Listening';
+      case 'user_speaking': return 'Answering';
+      case 'detecting_silence': return 'Detecting pause';
+      case 'auto_submitting_answer': return 'Submitting answer';
       case 'transcribing': return 'Processing answer';
       case 'finalising_transcript': return 'Finalising speech';
       case 'generating_next_question': return 'Preparing next question';
-      case 'confirming_transcript': return 'Transcript debug';
       case 'speaking': return 'KiwiCoach speaking';
       case 'error': return 'Voice error';
       default: return 'Idle';
@@ -550,8 +717,10 @@ export function useVoiceInterviewSession({
 
   const transcript = session?.transcript || [];
   const liveTranscript = useMemo(() => transcript.slice(-8), [transcript]);
-  const isRecording = voiceMode === 'realtime' ? isRealtimeStreaming : isBatchRecording;
-  const canUseVoice = enabled && !isPaused && !isCompleted && !isSubmitting && !isProcessingTurn;
+  const isRecording = voiceMode === 'realtime'
+    ? (isRealtimeStreaming || ['listening', 'user_speaking', 'detecting_silence'].includes(voiceState))
+    : isBatchRecording;
+  const canUseVoice = enabled && !isPaused && !isCompleted && (!isSubmitting || isAutoLoopActive) && (!isProcessingTurn || isAutoLoopActive);
   const activeLevelHistory = voiceMode === 'realtime' ? realtimeLevelHistory : batchLevelHistory;
   const activeDurationMs = voiceMode === 'realtime' ? realtimeDurationMs : recordingDurationMs;
 
@@ -570,6 +739,9 @@ export function useVoiceInterviewSession({
     setVoiceMode,
     realtimeStatus: socketState,
     realtimeLatency: latency,
+    vadState,
+    vadMetrics,
+    isAutoLoopActive,
     pendingTranscript,
     editableTranscript,
     setEditableTranscript,

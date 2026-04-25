@@ -1,76 +1,60 @@
 import { useCallback, useEffect, useState } from 'react';
 
-const SUPPORTED_PERMISSION_STATES = new Set(['granted', 'denied', 'prompt']);
-
-const normalizePermissionState = (value) => {
-  if (SUPPORTED_PERMISSION_STATES.has(value)) return value;
-  return 'unknown';
-};
-
 export function useMicrophonePermission() {
-  const [permissionState, setPermissionState] = useState('unknown');
+  const [permissionState, setPermissionState] = useState('prompt');
   const [isRequesting, setIsRequesting] = useState(false);
   const [error, setError] = useState(null);
 
+  const isSupported = typeof navigator !== 'undefined' && Boolean(navigator.mediaDevices?.getUserMedia);
+
   useEffect(() => {
-    let permissionStatus;
+    let cancelled = false;
+    if (!isSupported || !navigator.permissions?.query) {
+      if (!isSupported) setPermissionState('unsupported');
+      return undefined;
+    }
 
-    const syncPermission = async () => {
-      if (!navigator?.permissions?.query) return;
-      try {
-        permissionStatus = await navigator.permissions.query({ name: 'microphone' });
-        setPermissionState(normalizePermissionState(permissionStatus.state));
-        permissionStatus.onchange = () => {
-          setPermissionState(normalizePermissionState(permissionStatus.state));
-        };
-      } catch {
-        // Safari and some mobile browsers may not support this permission query.
-      }
-    };
+    navigator.permissions.query({ name: 'microphone' }).then((status) => {
+      if (cancelled) return;
+      setPermissionState(status.state || 'prompt');
+      status.onchange = () => setPermissionState(status.state || 'prompt');
+    }).catch(() => {
+      if (!cancelled) setPermissionState('prompt');
+    });
 
-    syncPermission();
-
-    return () => {
-      if (permissionStatus) {
-        permissionStatus.onchange = null;
-      }
-    };
-  }, []);
+    return () => { cancelled = true; };
+  }, [isSupported]);
 
   const requestPermission = useCallback(async () => {
-    if (!navigator?.mediaDevices?.getUserMedia) {
-      const message = 'This browser does not support microphone access for voice practice.';
-      setError(message);
+    if (!isSupported) {
+      const message = 'This browser does not support microphone access.';
       setPermissionState('unsupported');
+      setError(message);
       return { ok: false, error: message };
     }
 
     setIsRequesting(true);
     setError(null);
-
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       stream.getTracks().forEach((track) => track.stop());
       setPermissionState('granted');
       return { ok: true };
-    } catch (requestError) {
-      const nextState = requestError?.name === 'NotAllowedError' ? 'denied' : 'unknown';
-      const message = requestError?.name === 'NotAllowedError'
-        ? 'Microphone permission was denied.'
-        : (requestError?.message || 'Could not access the microphone on this device.');
-      setPermissionState(nextState);
+    } catch (permissionError) {
+      const message = permissionError?.message || 'Microphone access was blocked.';
+      setPermissionState('denied');
       setError(message);
       return { ok: false, error: message };
     } finally {
       setIsRequesting(false);
     }
-  }, []);
+  }, [isSupported]);
 
   return {
     permissionState,
     isRequesting,
     error,
     requestPermission,
-    isSupported: permissionState !== 'unsupported',
+    isSupported,
   };
 }
