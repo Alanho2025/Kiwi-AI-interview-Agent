@@ -251,6 +251,77 @@ export const replyInterviewWithRealtimeVoice = asyncHandler(async (req, res) => 
   }));
 });
 
+export const replyInterviewWithRealtimeVoiceStream = asyncHandler(async (req, res) => {
+  const { sessionId, transcriptText } = req.body;
+  requireSessionId(sessionId);
+  const user = await resolveUserFromRequest(req);
+
+  const session = await loadOwnedSessionOrThrow({ sessionId, userId: user.id });
+  ensureInterviewInProgress(session);
+
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+  });
+
+  const voiceName = String(req.body?.voiceName || '').trim() || undefined;
+
+  const onSentence = async (text, index) => {
+    try {
+      const synthesis = await synthesizeSpeech({ text, voiceName });
+      const payload = {
+        type: 'audio',
+        base64: synthesis.audioBuffer.toString('base64'),
+        index,
+        text,
+      };
+      res.write(`data: ${JSON.stringify(payload)}\n\n`);
+    } catch (err) {
+      logger.error('Failed to synthesize sentence stream', { error: err });
+    }
+  };
+
+  const result = await withSessionTurnLock(sessionId, () => processRealtimeVoiceTurn({
+    req,
+    session,
+    userId: user.id,
+    transcriptText,
+    language: String(req.body?.language || '').trim() || undefined,
+    asrConfidence: req.body?.asrConfidence ?? null,
+    asrSource: String(req.body?.asrSource || '').trim() || undefined,
+    voiceName,
+    inputMode: String(req.body?.inputMode || '').trim() || undefined,
+    vad: req.body?.vad || null,
+    tryGenerateReportForCompletedSession,
+    onSentence,
+  }));
+
+  logger.info('Interview realtime voice stream reply processed', getRequestLogMeta(req, {
+    isComplete: Boolean(result.agentResult.isComplete),
+    latency: result.latency,
+  }));
+
+  res.write(`data: ${JSON.stringify({
+    type: 'done',
+    result: {
+      nextQuestion: result.agentResult.nextQuestion,
+      interviewerTurn: result.agentResult.interviewerTurn || null,
+      rationale: result.agentResult.rationale,
+      retrievalSnapshot: result.agentResult.retrievalSnapshot,
+      isComplete: Boolean(result.agentResult.isComplete),
+      completedBecause: result.agentResult.completedBecause || null,
+      reportStatus: result.generatedReport?.stored?.latestStatus || null,
+      evaluator: result.agentResult.evaluatorOutput || null,
+      reactTrace: result.agentResult.reactTrace || null,
+      transcription: result.transcription,
+      latency: result.latency,
+      session: result.updatedSession,
+    }
+  })}\n\n`);
+  res.end();
+});
+
 export const repeatQuestion = asyncHandler(async (req, res) => {
   const { sessionId } = req.body;
   requireSessionId(sessionId);
