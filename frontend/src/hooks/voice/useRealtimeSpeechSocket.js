@@ -26,7 +26,7 @@ export const buildSocketUrl = ({ sessionId, language = DEFAULT_LANGUAGE, sampleR
   return baseUrl.toString();
 };
 
-export function useRealtimeSpeechSocket() {
+export function useRealtimeSpeechSocket({ onLatencyEvent } = {}) {
   const socketRef = useRef(null);
   const [socketState, setSocketState] = useState('idle');
   const [partialTranscript, setPartialTranscript] = useState('');
@@ -36,6 +36,8 @@ export function useRealtimeSpeechSocket() {
   const startedAtRef = useRef(null);
   const lastPartialTranscriptRef = useRef('');
   const lastFinalTranscriptRef = useRef(null);
+  const callbacksRef = useRef({ onLatencyEvent });
+  callbacksRef.current = { onLatencyEvent };
 
   const resetTranscript = useCallback(() => {
     setPartialTranscript('');
@@ -70,7 +72,9 @@ export function useRealtimeSpeechSocket() {
 
     socket.onopen = () => {
       setSocketState('open');
-      setLatency((current) => ({ ...current, socketOpenMs: Math.round(performance.now() - startedAtRef.current) }));
+      const socketOpenMs = Math.round(performance.now() - startedAtRef.current);
+      setLatency((current) => ({ ...current, socketOpenMs }));
+      callbacksRef.current.onLatencyEvent?.('stt_socket_open', { socketOpenMs });
       resolve(socket);
     };
 
@@ -78,12 +82,15 @@ export function useRealtimeSpeechSocket() {
       const payload = JSON.parse(String(event.data || '{}'));
       if (payload.type === 'ready') {
         setSocketState('ready');
+        callbacksRef.current.onLatencyEvent?.('stt_socket_ready', { payload });
         return;
       }
       if (payload.type === 'partial_transcript') {
-        lastPartialTranscriptRef.current = payload.text || payload.displayText || payload.normalizedText || payload.rawText || '';
-        setPartialTranscript(payload.text || payload.displayText || payload.normalizedText || payload.rawText || '');
+        const partialText = payload.text || payload.displayText || payload.normalizedText || payload.rawText || '';
+        lastPartialTranscriptRef.current = partialText;
+        setPartialTranscript(partialText);
         setLatency((current) => current.firstPartialMs ? current : ({ ...current, firstPartialMs: Math.round(performance.now() - startedAtRef.current) }));
+        callbacksRef.current.onLatencyEvent?.('partial_transcript_received', { textLength: String(partialText).length });
         return;
       }
       if (payload.type === 'final_transcript') {
@@ -105,7 +112,15 @@ export function useRealtimeSpeechSocket() {
           setFinalTranscript(accumulatedPayload);
         }
         setPartialTranscript('');
-        setLatency((current) => ({ ...current, finalTranscriptMs: Math.round(performance.now() - startedAtRef.current) }));
+        const finalTranscriptMs = Math.round(performance.now() - startedAtRef.current);
+        setLatency((current) => ({ ...current, finalTranscriptMs }));
+        callbacksRef.current.onLatencyEvent?.('final_transcript_received', {
+          finalTranscriptMs,
+          confidence: payload.confidence ?? null,
+          confidenceStatus: payload.confidenceStatus ?? null,
+          source: payload.source || 'azure_realtime',
+          textLength: String(textToAppend || '').length,
+        });
         return;
       }
       if (payload.type === 'speech_error') {
