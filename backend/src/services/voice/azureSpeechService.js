@@ -81,17 +81,7 @@ const issueAccessToken = async () => {
 };
 
 const getTtsUrl = () => {
-  const { region, endpoint } = getSpeechConfig();
-
-  if (endpoint) {
-    try {
-      const parsed = new URL(endpoint);
-      return `${parsed.origin}/cognitiveservices/v1`;
-    } catch {
-      // fall back to region host when endpoint is malformed
-    }
-  }
-
+  const { region } = getSpeechConfig();
   return `https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`;
 };
 
