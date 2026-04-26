@@ -10,7 +10,7 @@
  */
 
 import express from 'express';
-import { startInterview, replyInterview, replyInterviewWithVoice, replyInterviewWithRealtimeVoice, repeatQuestion, pauseInterview, resumeInterview, endInterview } from '../../controllers/interviewController.js';
+import { startInterview, replyInterview, replyInterviewWithVoice, replyInterviewWithRealtimeVoice, repeatQuestion, pauseInterview, resumeInterview, endInterview, synthesizeInterviewText } from '../../controllers/interviewController.js';
 import { voiceUploadMiddleware } from '../../middleware/voiceUploadMiddleware.js';
 
 const router = express.Router();
@@ -23,5 +23,6 @@ router.post('/repeat', repeatQuestion);
 router.post('/pause', pauseInterview);
 router.post('/resume', resumeInterview);
 router.post('/end', endInterview);
+router.post('/synthesize', synthesizeInterviewText);
 
 export default router;

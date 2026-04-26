@@ -62,3 +62,5 @@ export const replyInterviewWithRealtimeVoice = ({
     vad,
   },
 });
+
+export const synthesizeInterviewText = (sessionId, text, voiceName = 'en-NZ-MollyNeural') => apiClient('/interview/synthesize', { method: 'POST', body: { sessionId, text, voiceName } });
