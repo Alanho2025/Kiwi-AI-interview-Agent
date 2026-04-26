@@ -49,6 +49,8 @@ export const replyInterviewWithRealtimeVoice = ({
   asrSource = 'azure_realtime',
   inputMode = 'realtime_voice',
   vad = null,
+  traceId = null,
+  clientTurnStartedAt = null,
 }) => apiClient('/interview/realtime-voice-turn', {
   method: 'POST',
   body: {
@@ -60,6 +62,8 @@ export const replyInterviewWithRealtimeVoice = ({
     asrSource,
     inputMode,
     vad,
+    traceId,
+    clientTurnStartedAt,
   },
 });
 
@@ -94,7 +98,7 @@ export const replyInterviewWithRealtimeVoiceStream = async (params, onAudioChunk
         try {
           const data = JSON.parse(trimmed.slice(6));
           if (data.type === 'audio' && onAudioChunk) {
-            onAudioChunk(data.base64, data.index);
+            onAudioChunk(data.base64, data.index, data.timing || {}, data);
           } else if (data.type === 'done') {
             finalResult = data.result;
           }
