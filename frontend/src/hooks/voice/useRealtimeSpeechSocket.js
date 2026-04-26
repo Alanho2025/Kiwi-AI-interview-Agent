@@ -87,8 +87,23 @@ export function useRealtimeSpeechSocket() {
         return;
       }
       if (payload.type === 'final_transcript') {
-        lastFinalTranscriptRef.current = payload;
-        setFinalTranscript(payload);
+        const textToAppend = payload.displayText || payload.normalizedText || payload.text || payload.rawText || '';
+        if (textToAppend) {
+          const previousFinal = lastFinalTranscriptRef.current;
+          const accumulatedText = previousFinal?.displayText
+            ? `${previousFinal.displayText} ${textToAppend}`
+            : textToAppend;
+
+          const accumulatedPayload = {
+            ...payload,
+            displayText: accumulatedText,
+            normalizedText: accumulatedText,
+            rawText: accumulatedText,
+          };
+
+          lastFinalTranscriptRef.current = accumulatedPayload;
+          setFinalTranscript(accumulatedPayload);
+        }
         setPartialTranscript('');
         setLatency((current) => ({ ...current, finalTranscriptMs: Math.round(performance.now() - startedAtRef.current) }));
         return;

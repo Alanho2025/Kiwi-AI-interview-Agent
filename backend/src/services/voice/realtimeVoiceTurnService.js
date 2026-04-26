@@ -112,7 +112,7 @@ export const processRealtimeVoiceTurn = async ({
     buildSessionPatch(agentResult)
   ));
 
-  const assistantText = String(agentResult.interviewerTurn?.text || agentResult.nextQuestion || '').trim();
+  const assistantText = String(agentResult.displayText || agentResult.interviewerTurn?.displayText || agentResult.nextQuestion || '').trim();
   let assistantAudio = null;
 
   if (assistantText) {

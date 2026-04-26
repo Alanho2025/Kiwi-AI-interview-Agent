@@ -117,6 +117,7 @@ export function useVoiceInterviewSession({
   const noSpeechPromptedRef = useRef(false);
   const startAutoListeningRef = useRef(null);
   const stopRealtimeRecordingRef = useRef(null);
+  const audioStateRef = useRef({ isProcessingTurn: false, isRealtimeStreaming: false, isBatchRecording: false, isPaused: false, isCompleted: false });
 
   const activeSessionId = resolveSessionId(session, sessionId);
   const currentQuestion = useMemo(() => getLatestTurnByRole(session?.transcript || [], 'ai'), [session?.transcript]);
@@ -534,7 +535,11 @@ export function useVoiceInterviewSession({
       stopVad?.();
       setVoiceStatus(buildVoiceStatus('info', 'Playing question audio', 'Replaying the latest assistant question.'));
       audioRef.current.currentTime = 0;
-      audioRef.current.play?.().catch(() => speakCurrentQuestion({ isReplay: true }));
+      audioRef.current.play?.().catch((error) => {
+        console.warn('Replay audio blocked:', error);
+        setVoiceState('ready');
+        setVoiceStatus(buildVoiceStatus('info', 'Audio blocked', 'Browser blocked audio playback.'));
+      });
       return true;
     }
     return speakCurrentQuestion({ isReplay: true });
@@ -597,12 +602,13 @@ export function useVoiceInterviewSession({
   }, [partialTranscript]);
 
   useEffect(() => {
-    if (!finalTranscript) return;
-    const finalTurn = finalTranscript;
-    const displayText = String(finalTurn.displayText || finalTurn.normalizedText || finalTurn.rawText || finalTurn.text || '').trim();
-    if (!displayText) return;
-    autoSubmitRealtimeTranscript({ ...finalTurn, displayText, source: 'final' }, 'final');
-  }, [finalTranscript, autoSubmitRealtimeTranscript]);
+    if (socketState === 'stopped') {
+      const finalTurn = getBestAvailableTranscript?.();
+      if (finalTurn?.displayText) {
+        autoSubmitRealtimeTranscript(finalTurn, 'socket_stopped');
+      }
+    }
+  }, [socketState, getBestAvailableTranscript, autoSubmitRealtimeTranscript]);
 
   useEffect(() => {
     if (!socketError) return;
@@ -621,16 +627,21 @@ export function useVoiceInterviewSession({
   }, [lastAssistantAudio]);
 
   useEffect(() => {
+    audioStateRef.current = { isProcessingTurn, isRealtimeStreaming, isBatchRecording, isPaused, isCompleted };
+  }, [isProcessingTurn, isRealtimeStreaming, isBatchRecording, isPaused, isCompleted]);
+
+  useEffect(() => {
     if (!assistantAudioUrl || !audioRef.current) return undefined;
     const audioElement = audioRef.current;
     const playStartedAt = performance.now();
     const handleEnded = () => {
       voiceTraceRef.current?.mark('assistant_audio_play_end');
-      if (autoLoopActiveRef.current && !isProcessingTurn && !isBatchRecording && !isPaused && !isCompleted) {
+      const { isProcessingTurn: processing, isBatchRecording: batching, isPaused: paused, isCompleted: completed, isRealtimeStreaming: streaming } = audioStateRef.current;
+      if (autoLoopActiveRef.current && !processing && !batching && !paused && !completed) {
         window.setTimeout(() => startAutoListeningRef.current?.(), MIC_ARM_DELAY_MS);
         return;
       }
-      if (!isProcessingTurn && !isRealtimeStreaming && !isBatchRecording) setReadyState();
+      if (!processing && !streaming && !batching) setReadyState();
     };
     audioElement.onended = handleEnded;
     audioElement.currentTime = 0;
@@ -642,9 +653,20 @@ export function useVoiceInterviewSession({
           audioPlayStartMs: Math.round(performance.now() - playStartedAt),
         });
       })
-      .catch(() => speakCurrentQuestion({ isReplay: false }));
+      .catch((error) => {
+        console.warn('Browser blocked audio autoplay:', error);
+        const { isProcessingTurn: processing, isBatchRecording: batching, isPaused: paused, isCompleted: completed, isRealtimeStreaming: streaming } = audioStateRef.current;
+        if (autoLoopActiveRef.current && !processing && !batching && !paused && !completed) {
+          window.setTimeout(() => startAutoListeningRef.current?.(), MIC_ARM_DELAY_MS);
+          return;
+        }
+        if (!processing && !streaming && !batching) {
+          setVoiceState('ready');
+          setVoiceStatus(buildVoiceStatus('info', 'Audio blocked', 'Browser blocked automatic audio. Click Repeat Question to listen.'));
+        }
+      });
     return () => { audioElement.onended = null; };
-  }, [assistantAudioUrl, isProcessingTurn, isRealtimeStreaming, isBatchRecording, isPaused, isCompleted, setReadyState, speakCurrentQuestion]);
+  }, [assistantAudioUrl, setReadyState]);
 
   useEffect(() => {
     if (!enabled || isAutoLoopActive) return undefined;
