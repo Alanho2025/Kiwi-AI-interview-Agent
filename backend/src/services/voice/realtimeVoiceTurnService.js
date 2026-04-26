@@ -52,6 +52,8 @@ export const processRealtimeVoiceTurn = async ({
   voiceName,
   inputMode = 'realtime_voice',
   vad = null,
+  clientTraceId = null,
+  clientTurnStartedAt = null,
   tryGenerateReportForCompletedSession,
   req = null,
   onSentence = null,
@@ -64,7 +66,23 @@ export const processRealtimeVoiceTurn = async ({
   const trace = createLatencyTrace('realtime_voice_turn', {
     sessionId: session.id,
     userId,
+    clientTraceId,
+    clientTurnStartedAt,
   });
+  trace.mark('backend_request_received');
+
+  let firstSentenceMarked = false;
+  const timedOnSentence = onSentence
+    ? async (text, index) => {
+        const textChars = String(text || '').length;
+        if (!firstSentenceMarked) {
+          firstSentenceMarked = true;
+          trace.mark('first_sentence_ready', { index, textChars });
+        }
+        await trace.measure('stream_sentence_tts_' + index, () => onSentence(text, index), { index, textChars });
+        if (index === 0) trace.mark('first_audio_sent', { index, textChars });
+      }
+    : null;
 
   const latestQuestion = await trace.measure('load_latest_question', () => getLatestQuestionForSession(session.id));
 
@@ -105,7 +123,7 @@ export const processRealtimeVoiceTurn = async ({
       inputMode,
       vad,
     },
-    onSentence,
+    onSentence: timedOnSentence,
   }));
 
   const updatedSession = await trace.measure('update_session_state', () => updateSession(
@@ -187,6 +205,7 @@ export const processRealtimeVoiceTurn = async ({
     ? await trace.measure('generate_completion_report', () => tryGenerateReportForCompletedSession(req, session.id))
     : null;
 
+  trace.mark('backend_done');
   const latency = trace.toJSON();
   logger.info('Realtime voice turn latency', latency);
   logger.info('Realtime voice turn latency summary', {
