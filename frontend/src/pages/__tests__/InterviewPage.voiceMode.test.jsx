@@ -68,7 +68,6 @@ const baseResponse = {
 describe('InterviewPage voice/text mode separation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    window.speechSynthesis.speak = vi.fn();
     useVoiceInterviewSessionMock.mockReturnValue({
       currentQuestion: { text: 'Question' },
       canUseVoice: true,
@@ -86,7 +85,6 @@ describe('InterviewPage voice/text mode separation', () => {
     expect(screen.getByTestId('text-panel')).toBeInTheDocument();
     expect(screen.queryByTestId('voice-panel')).not.toBeInTheDocument();
     expect(useVoiceInterviewSessionMock).toHaveBeenCalledWith(expect.objectContaining({ enabled: false }));
-    expect(window.speechSynthesis.speak).not.toHaveBeenCalled();
   });
 
   it('renders voice panel only for voice sessions', () => {

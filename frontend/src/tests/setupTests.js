@@ -18,28 +18,6 @@ if (!globalThis.URL.revokeObjectURL) {
 if (!globalThis.atob) {
   globalThis.atob = (value) => Buffer.from(value, 'base64').toString('binary');
 }
-if (!globalThis.SpeechSynthesisUtterance) {
-  globalThis.SpeechSynthesisUtterance = class SpeechSynthesisUtterance {
-    constructor(text) {
-      this.text = text;
-      this.lang = '';
-      this.voice = null;
-      this.onstart = null;
-      this.onend = null;
-      this.onerror = null;
-    }
-  };
-}
-if (!window.speechSynthesis) {
-  window.speechSynthesis = {
-    cancel: vi.fn(),
-    speak: vi.fn((utterance) => {
-      utterance.onstart?.();
-      utterance.onend?.();
-    }),
-    getVoices: vi.fn(() => [{ lang: 'en-NZ', name: 'Test NZ Voice' }]),
-  };
-}
 
 afterEach(() => {
   cleanup();

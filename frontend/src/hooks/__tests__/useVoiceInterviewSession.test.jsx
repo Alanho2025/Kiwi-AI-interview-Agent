@@ -102,11 +102,6 @@ describe('useVoiceInterviewSession', () => {
     permissionMock.permissionState = 'granted';
     permissionMock.isSupported = true;
     permissionMock.requestPermission = vi.fn().mockResolvedValue({ ok: true });
-    window.speechSynthesis.cancel = vi.fn();
-    window.speechSynthesis.speak = vi.fn((utterance) => {
-      utterance.onstart?.();
-      utterance.onend?.();
-    });
     vi.spyOn(console, 'log').mockImplementation(() => {});
     vi.spyOn(console, 'info').mockImplementation(() => {});
   });

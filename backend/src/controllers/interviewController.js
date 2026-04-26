@@ -33,6 +33,7 @@ import { asyncHandler } from '../middleware/asyncHandler.js';
 import { logger, getRequestLogMeta } from '../utils/logger.js';
 import { processVoiceReply } from '../services/voice/voiceOrchestrationService.js';
 import { processRealtimeVoiceTurn } from '../services/voice/realtimeVoiceTurnService.js';
+import { synthesizeSpeech } from '../services/voice/azureSpeechService.js';
 import { withSessionTurnLock } from '../utils/sessionTurnLock.js';
 
 const tryGenerateReportForCompletedSession = async (req, sessionId) => {
@@ -305,5 +306,36 @@ export const endInterview = asyncHandler(async (req, res) => {
   res.json(formatSuccess('Interview ended', {
     session: updatedSession,
     reportStatus: generatedReport?.stored?.latestStatus || null,
+  }));
+});
+
+export const synthesizeInterviewText = asyncHandler(async (req, res) => {
+  const { sessionId, text, voiceName } = req.body;
+  requireSessionId(sessionId);
+  const user = await resolveUserFromRequest(req);
+
+  const session = await loadOwnedSessionOrThrow({ sessionId, userId: user.id });
+  ensureInterviewInProgress(session);
+
+  const cleanText = String(text || '').trim();
+  if (!cleanText) {
+    return res.status(400).json(formatError('Text is required', 'VALIDATION_ERROR', 'Text to synthesize cannot be empty'));
+  }
+
+  const result = await synthesizeSpeech({ 
+    text: cleanText, 
+    voiceName: String(voiceName || '').trim() || undefined 
+  });
+  
+  logger.info('Synthesized text to speech', getRequestLogMeta(req, {
+    textLength: cleanText.length,
+    voiceName: result.voiceName,
+  }));
+
+  res.json(formatSuccess('Text synthesized', {
+    assistantAudio: {
+      base64: result.audioBuffer.toString('base64'),
+      contentType: result.contentType,
+    }
   }));
 });
