@@ -11,7 +11,7 @@
 
 import { AGENT_ACTION_TYPES } from '../../constants/agentActionTypes.js';
 import { getNextPoolQuestion, hasReachedQuestionLimit } from '../interviewStateService.js';
-import { callDeepSeek } from '../deepseekService.js';
+import { callDeepSeek, callDeepSeekStream } from '../deepseekService.js';
 const normalizeText = (value = '') => String(value || '').trim();
 const tokenize = (value = '') => normalizeText(value).toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
 const getLastUserAnswer = (transcript = []) => [...transcript].reverse().find((turn) => turn.role === 'user')?.text || '';
@@ -288,7 +288,7 @@ const buildReactTrace = ({ selectedAction, decisionContext, selectedQuestion, en
   };
 };
 
-const generateConversationalTurn = async ({ baseQuestion, actionType, lastUserAnswer, decisionContext, retrievalBundle }) => {
+const generateConversationalTurn = async ({ baseQuestion, actionType, lastUserAnswer, decisionContext, retrievalBundle, onSentence }) => {
   const systemInstruction = `You are a professional, empathetic, and highly restrained Tech Lead conducting an interview.
 Your goal is to output the EXACT words you will say next to the candidate.
 DO NOT output any internal tags, XML, or json. Output ONLY the conversational text.
@@ -339,7 +339,30 @@ GENERAL GUIDELINES:
 
 Generate your verbal response now:`;
 
-  return await callDeepSeek(prompt, systemInstruction);
+  if (!onSentence) {
+    return await callDeepSeek(prompt, systemInstruction);
+  }
+
+  const stream = callDeepSeekStream(prompt, systemInstruction);
+  let fullText = '';
+  let currentSentence = '';
+  let sentenceIndex = 0;
+
+  for await (const chunk of stream) {
+    fullText += chunk;
+    currentSentence += chunk;
+    
+    if (/[.!?。！？]\s+$/.test(currentSentence) || (currentSentence.length > 50 && /[,，]\s+$/.test(currentSentence))) {
+      await onSentence(currentSentence.trim(), sentenceIndex++);
+      currentSentence = '';
+    }
+  }
+
+  if (currentSentence.trim()) {
+    await onSentence(currentSentence.trim(), sentenceIndex++);
+  }
+
+  return fullText;
 };
 
 export const runInterviewerAgent = async ({
@@ -352,6 +375,7 @@ export const runInterviewerAgent = async ({
   probeType = null,
   freshOnly = false,
   category = null,
+  onSentence = null,
 } = {}) => {
   const transcript = session?.transcript || [];
   const lastUserAnswer = getLastUserAnswer(transcript).toLowerCase();
@@ -470,7 +494,8 @@ export const runInterviewerAgent = async ({
       actionType, 
       lastUserAnswer: environment?.latestAnswer?.text || lastUserAnswer, 
       decisionContext, 
-      retrievalBundle 
+      retrievalBundle,
+      onSentence,
     });
   } catch (error) {
     console.warn('Failed to generate conversational turn via LLM, falling back to base template', error);

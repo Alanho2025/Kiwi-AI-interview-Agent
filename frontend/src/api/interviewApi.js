@@ -9,7 +9,7 @@
  * - Prefer composition and small helpers over repeated inline logic.
  */
 
-import { apiClient } from './client.js';
+import { apiClient, apiClientStream } from './client.js';
 
 /**
  * Purpose: Execute the main responsibility for startInterview.
@@ -62,3 +62,47 @@ export const replyInterviewWithRealtimeVoice = ({
     vad,
   },
 });
+
+export const synthesizeInterviewText = (sessionId, text, voiceName = 'en-NZ-MollyNeural') => apiClient('/interview/synthesize', { method: 'POST', body: { sessionId, text, voiceName } });
+
+export const replyInterviewWithRealtimeVoiceStream = async (params, onAudioChunk) => {
+  const token = localStorage.getItem('kiwi_auth_token') || localStorage.getItem('authToken');
+  const response = await apiClientStream('/interview/realtime-voice-turn-stream', {
+    method: 'POST',
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: params,
+  });
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder('utf-8');
+  let buffer = '';
+  let finalResult = null;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+    
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (trimmed.startsWith('data: ')) {
+        try {
+          const data = JSON.parse(trimmed.slice(6));
+          if (data.type === 'audio' && onAudioChunk) {
+            onAudioChunk(data.base64, data.index);
+          } else if (data.type === 'done') {
+            finalResult = data.result;
+          }
+        } catch (e) {
+          console.error('Failed to parse SSE data', e);
+        }
+      }
+    }
+  }
+  return finalResult;
+};

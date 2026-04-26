@@ -98,7 +98,7 @@ const buildDefaultRetrievalQuery = ({ session = {}, payload = {}, mode = 'interv
   return `${session.targetRole || ''} ${roleCanonical} ${interviewFocus} ${answerSlice}`.trim();
 };
 
-const runInterviewController = async ({ session, payload = {} }) => {
+const runInterviewController = async ({ session, payload = {}, onSentence = null }) => {
   if (hasReachedQuestionLimit(session)) {
     return {
       isComplete: true,
@@ -187,6 +187,7 @@ const runInterviewController = async ({ session, payload = {} }) => {
     actionInput: plan.actionInput,
     agentRegistry,
     session,
+    onSentence,
   });
 
   enqueueBackgroundJob('persist-action-execution-record', () => createDecisionRecord({
@@ -374,7 +375,7 @@ const runReportController = async ({ session }) => {
   return { report: executionResult.report, qaResult: executionResult.qaResult, stored, controllerAction: plan.selectedAction };
 };
 
-export const runTask = async ({ taskType, sessionId, payload = {} } = {}) => {
+export const runTask = async ({ taskType, sessionId, payload = {}, onSentence = null } = {}) => {
   if (!taskType) {
     throw new Error('taskType is required');
   }
@@ -384,7 +385,7 @@ export const runTask = async ({ taskType, sessionId, payload = {} } = {}) => {
     if (!session) {
       throw new Error('Session not found');
     }
-    return runInterviewController({ session, payload });
+    return runInterviewController({ session, payload, onSentence });
   }
 
   if (taskType === 'generate_report') {

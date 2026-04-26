@@ -54,6 +54,7 @@ export const processRealtimeVoiceTurn = async ({
   vad = null,
   tryGenerateReportForCompletedSession,
   req = null,
+  onSentence = null,
 }) => {
   const normalizedAnswer = String(transcriptText || '').trim();
   if (!normalizedAnswer) {
@@ -104,6 +105,7 @@ export const processRealtimeVoiceTurn = async ({
       inputMode,
       vad,
     },
+    onSentence,
   }));
 
   const updatedSession = await trace.measure('update_session_state', () => updateSession(
@@ -112,49 +114,72 @@ export const processRealtimeVoiceTurn = async ({
     buildSessionPatch(agentResult)
   ));
 
-  const assistantText = String(agentResult.interviewerTurn?.text || agentResult.nextQuestion || '').trim();
+  const assistantText = String(agentResult.displayText || agentResult.interviewerTurn?.displayText || agentResult.nextQuestion || '').trim();
   let assistantAudio = null;
 
   if (assistantText) {
-    try {
-      const synthesis = await trace.measure('tts_synthesis', () => synthesizeSpeech({ text: assistantText, voiceName }));
+    if (onSentence) {
       const aiTurns = updatedSession?.transcript?.filter((turn) => turn.role === 'ai') || [];
       const latestAiTurn = aiTurns[aiTurns.length - 1] || null;
       const questionId = latestAiTurn?.questionId || null;
-
-      assistantAudio = {
-        provider: synthesis.provider,
-        contentType: synthesis.contentType,
-        voiceName: synthesis.voiceName,
-        outputFormat: synthesis.outputFormat,
-        storageKey: null,
-        base64: toBase64(synthesis.audioBuffer),
-      };
-
       enqueueBackgroundJob('archive-realtime-assistant-audio', async () => {
-        const savedOutputAudio = await saveBufferToLocalStorage({
-          buffer: synthesis.audioBuffer,
-          originalFilename: 'assistant-realtime-reply.mp3',
-          folder: 'voice-output',
-        });
-        await updateLatestTranscriptTurnMetadata(
+        try {
+          const synthesis = await synthesizeSpeech({ text: assistantText, voiceName });
+          const savedOutputAudio = await saveBufferToLocalStorage({
+            buffer: synthesis.audioBuffer,
+            originalFilename: 'assistant-realtime-reply.mp3',
+            folder: 'voice-output',
+          });
+          await updateLatestTranscriptTurnMetadata(
+            session.id,
+            'ai',
+            buildAssistantMetadata({ synthesis, storage: savedOutputAudio, questionId })
+          );
+        } catch (error) {
+          logger.error('Background realtime assistant TTS archive failed', { sessionId: session.id, error });
+        }
+      }, { sessionId: session.id, questionId });
+    } else {
+      try {
+        const synthesis = await trace.measure('tts_synthesis', () => synthesizeSpeech({ text: assistantText, voiceName }));
+        const aiTurns = updatedSession?.transcript?.filter((turn) => turn.role === 'ai') || [];
+        const latestAiTurn = aiTurns[aiTurns.length - 1] || null;
+        const questionId = latestAiTurn?.questionId || null;
+
+        assistantAudio = {
+          provider: synthesis.provider,
+          contentType: synthesis.contentType,
+          voiceName: synthesis.voiceName,
+          outputFormat: synthesis.outputFormat,
+          storageKey: null,
+          base64: toBase64(synthesis.audioBuffer),
+        };
+
+        enqueueBackgroundJob('archive-realtime-assistant-audio', async () => {
+          const savedOutputAudio = await saveBufferToLocalStorage({
+            buffer: synthesis.audioBuffer,
+            originalFilename: 'assistant-realtime-reply.mp3',
+            folder: 'voice-output',
+          });
+          await updateLatestTranscriptTurnMetadata(
+            session.id,
+            'ai',
+            buildAssistantMetadata({ synthesis, storage: savedOutputAudio, questionId })
+          );
+        }, { sessionId: session.id, questionId });
+      } catch (error) {
+        logger.error('Realtime assistant TTS failed', { sessionId: session.id, error });
+        enqueueBackgroundJob('mark-realtime-tts-failed', () => updateLatestTranscriptTurnMetadata(
           session.id,
           'ai',
-          buildAssistantMetadata({ synthesis, storage: savedOutputAudio, questionId })
-        );
-      }, { sessionId: session.id, questionId });
-    } catch (error) {
-      logger.error('Realtime assistant TTS failed', { sessionId: session.id, error });
-      enqueueBackgroundJob('mark-realtime-tts-failed', () => updateLatestTranscriptTurnMetadata(
-        session.id,
-        'ai',
-        {
-          voice: {
-            synthesisFailed: true,
-            reason: error?.message || 'Assistant speech synthesis failed',
-          },
-        }
-      ), { sessionId: session.id });
+          {
+            voice: {
+              synthesisFailed: true,
+              reason: error?.message || 'Assistant speech synthesis failed',
+            },
+          }
+        ), { sessionId: session.id });
+      }
     }
   }
 

@@ -49,3 +49,64 @@ export const callDeepSeek = async (prompt, systemInstruction = '') => {
     throw error;
   }
 };
+
+/**
+ * Purpose: Execute the main responsibility for callDeepSeekStream.
+ * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
+ * Returns: Returns an async generator yielding text chunks as they arrive from the DeepSeek stream.
+ */
+export const callDeepSeekStream = async function* (prompt, systemInstruction = '') {
+  const apiKey = process.env.DEEPSEEK_API_KEY;
+  if (!apiKey) {
+    console.warn('DEEPSEEK_API_KEY is missing. Using mock response.');
+    yield "This is a mock streaming response from DeepSeek. ";
+    yield "Please set your DEEPSEEK_API_KEY in the .env file.";
+    return;
+  }
+
+  const response = await fetch('https://api.deepseek.com/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model: 'deepseek-chat',
+      stream: true,
+      messages: [
+        { role: 'system', content: systemInstruction || 'You are a helpful assistant.' },
+        { role: 'user', content: prompt }
+      ]
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(`DeepSeek API error: ${response.statusText}`);
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder('utf-8');
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+    
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (trimmed.startsWith('data: ') && trimmed !== 'data: [DONE]') {
+        try {
+          const data = JSON.parse(trimmed.slice(6));
+          const chunk = data.choices?.[0]?.delta?.content || '';
+          if (chunk) yield chunk;
+        } catch (e) {
+          // ignore incomplete JSON chunks
+        }
+      }
+    }
+  }
+};

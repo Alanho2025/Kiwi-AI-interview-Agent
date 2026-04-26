@@ -15,7 +15,7 @@
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-const normalizeBaseUrl = (value) => {
+export const normalizeBaseUrl = (value) => {
   if (!value) {
     return '/api';
   }
@@ -74,3 +74,34 @@ export const apiClient = async (endpoint, options = {}) => {
  */
 export const apiGet = (endpoint, options = {}) => apiClient(endpoint, { method: 'GET', ...options });
 export const apiPost = (endpoint, body, options = {}) => apiClient(endpoint, { method: 'POST', body, ...options });
+
+export const apiClientStream = async (endpoint, options = {}) => {
+  const baseUrl = normalizeBaseUrl(import.meta.env.VITE_API_BASE_URL);
+  const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  const url = `${baseUrl}${normalizedEndpoint}`;
+
+  const defaultHeaders = {};
+  if (!(options.body instanceof FormData)) {
+    defaultHeaders['Content-Type'] = 'application/json';
+  }
+
+  const config = {
+    credentials: 'include',
+    ...options,
+    headers: {
+      ...defaultHeaders,
+      ...options.headers,
+    },
+  };
+
+  if (config.body && typeof config.body === 'object' && !(config.body instanceof FormData)) {
+    config.body = JSON.stringify(config.body);
+  }
+
+  const response = await fetch(url, config);
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Stream request failed: ${response.status} ${text}`);
+  }
+  return response;
+};
