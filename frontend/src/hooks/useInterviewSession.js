@@ -10,7 +10,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { endInterview, pauseInterview, repeatQuestion, replyInterview, replyInterviewWithVoice, replyInterviewWithRealtimeVoice, resumeInterview, startInterview } from '../api/interviewApi.js';
+import { endInterview, pauseInterview, repeatQuestion, replyInterview, replyInterviewWithVoice, replyInterviewWithRealtimeVoice, replyInterviewWithRealtimeVoiceStream, resumeInterview, startInterview } from '../api/interviewApi.js';
 import { exportTranscript } from '../api/exportApi.js';
 import { getSession } from '../api/sessionApi.js';
 import { buildInterviewDisplayModel } from '../utils/buildInterviewDisplayModel.js';
@@ -158,14 +158,15 @@ export function useInterviewSession({ sessionId, navigate }) {
     }
   }, [isSubmitting, sessionId]);
 
-  const handleRealtimeVoiceTurn = useCallback(async ({ transcriptText, language, voiceName, asrConfidence, asrSource, inputMode, vad }) => {
+  const handleRealtimeVoiceTurn = useCallback(async ({ transcriptText, language, voiceName, asrConfidence, asrSource, inputMode, vad, onAudioChunk }) => {
     const cleanTranscript = String(transcriptText || '').trim();
     if (isSubmitting || !cleanTranscript) return null;
 
     setIsSubmitting(true);
 
     try {
-      const data = await replyInterviewWithRealtimeVoice({
+      let data;
+      const params = {
         sessionId,
         transcriptText: cleanTranscript,
         language,
@@ -174,7 +175,14 @@ export function useInterviewSession({ sessionId, navigate }) {
         asrSource,
         inputMode,
         vad,
-      });
+      };
+
+      if (onAudioChunk) {
+        data = await replyInterviewWithRealtimeVoiceStream(params, onAudioChunk);
+      } else {
+        data = await replyInterviewWithRealtimeVoice(params);
+      }
+      
       setSession(data.session);
 
       if (data.session?.status === 'completed') {
