@@ -29,4 +29,5 @@ export const buildDeterministicCandidateFeedback = ({ analysisResult, explanatio
   answerRewriteExamples: buildAnswerRewriteExamples({ evidenceSummary }),
   communicationProfile: { summary: '', keyTraits: [], fillerWords: '' },
   quoteAnalyses: [],
+  turnBreakdowns: [],
 });

@@ -99,6 +99,17 @@ const normalizeQuoteAnalysis = (item = {}, fallback = {}) => ({
   rewrite: ensureString(item.rewrite, fallback.rewrite || ''),
 });
 
+const normalizeTurnBreakdown = (item = {}, fallback = {}) => ({
+  question: ensureString(item.question, fallback.question || ''),
+  answer: ensureString(item.answer, fallback.answer || ''),
+  feedback: ensureString(item.feedback, fallback.feedback || ''),
+  scores: {
+    business: Number.isFinite(Number(item.scores?.business)) ? Number(item.scores.business) : Number(fallback.scores?.business || 0),
+    logic: Number.isFinite(Number(item.scores?.logic)) ? Number(item.scores.logic) : Number(fallback.scores?.logic || 0),
+    evidence: Number.isFinite(Number(item.scores?.evidence)) ? Number(item.scores.evidence) : Number(fallback.scores?.evidence || 0),
+  },
+});
+
 const normalizeCommunicationTrait = (item = {}, fallback = {}) => ({
   label: ensureString(item.label, fallback.label || ''),
   description: ensureString(item.description, fallback.description || ''),
@@ -141,6 +152,9 @@ const normalizeCandidateFeedback = (candidateFeedback = {}, fallback = {}) => ({
   quoteAnalyses: ensureArray(candidateFeedback.quoteAnalyses)
     .map((item, index) => normalizeQuoteAnalysis(item, ensureArray(fallback.quoteAnalyses)[index] || {}))
     .filter((item) => item.quote && item.critique),
+  turnBreakdowns: ensureArray(candidateFeedback.turnBreakdowns)
+    .map((item, index) => normalizeTurnBreakdown(item, ensureArray(fallback.turnBreakdowns)[index] || {}))
+    .filter((item) => item.question && item.feedback),
 });
 
 /**
@@ -200,6 +214,14 @@ Required JSON shape:
   ],
   "quoteAnalyses": [
     { "quote": "string", "context": "string", "critique": "string", "rewrite": "string" }
+  ],
+  "turnBreakdowns": [
+    { 
+      "question": "string", 
+      "answer": "string", 
+      "feedback": "string", 
+      "scores": { "business": 5, "logic": 5, "evidence": 5 } 
+    }
   ]
 }
 
@@ -217,6 +239,7 @@ Rules:
 - Rewrite examples must sound realistic and tied to the role focus.
 - quoteAnalyses MUST extract exact, verbatim quotes from the candidate's transcript to show them exactly what they said, explain why it was weak/strong, and how to improve it. Include at least 2-3 quote analyses.
 - communicationProfile MUST analyze their communication style, tone, conciseness, and use of filler words (if any) based on the transcript.
+- turnBreakdowns MUST provide a turn-by-turn analysis of each major question asked. Summarize the question and answer, provide constructive feedback, and score (0-10) for business understanding, logic/structure, and evidence strength.
 `;
 };
 
