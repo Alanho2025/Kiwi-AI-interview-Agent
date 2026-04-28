@@ -99,6 +99,19 @@ const normalizeQuoteAnalysis = (item = {}, fallback = {}) => ({
   rewrite: ensureString(item.rewrite, fallback.rewrite || ''),
 });
 
+const normalizeCommunicationTrait = (item = {}, fallback = {}) => ({
+  label: ensureString(item.label, fallback.label || ''),
+  description: ensureString(item.description, fallback.description || ''),
+});
+
+const normalizeCommunicationProfile = (profile = {}, fallback = {}) => ({
+  summary: ensureString(profile.summary, fallback.summary || ''),
+  keyTraits: ensureArray(profile.keyTraits)
+    .map((item, index) => normalizeCommunicationTrait(item, ensureArray(fallback.keyTraits)[index] || {}))
+    .filter((item) => item.label && item.description),
+  fillerWords: ensureString(profile.fillerWords, fallback.fillerWords || ''),
+});
+
 /**
  * Purpose: Execute the main responsibility for normalizeCandidateFeedback.
  * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
@@ -109,6 +122,7 @@ const normalizeCandidateFeedback = (candidateFeedback = {}, fallback = {}) => ({
   overallTakeaway: ensureString(candidateFeedback.overallTakeaway, fallback.overallTakeaway || ''),
   scoreBand: ensureString(candidateFeedback.scoreBand, fallback.scoreBand || ''),
   generationSource: ensureString(candidateFeedback.generationSource, fallback.generationSource || 'fallback'),
+  communicationProfile: normalizeCommunicationProfile(candidateFeedback.communicationProfile, fallback.communicationProfile || {}),
   plainEnglishMetrics: ensureArray(candidateFeedback.plainEnglishMetrics)
     .map((item, index) => normalizeMetric(item, ensureArray(fallback.plainEnglishMetrics)[index] || {}))
     .filter((item) => item.label && item.interpretation),
@@ -165,6 +179,13 @@ Required JSON shape:
   "plainEnglishMetrics": [
     { "id": "string", "label": "string", "value": number, "interpretation": "string" }
   ],
+  "communicationProfile": {
+    "summary": "string",
+    "keyTraits": [
+      { "label": "string", "description": "string" }
+    ],
+    "fillerWords": "string"
+  },
   "strengthHighlights": [
     { "title": "string", "explanation": "string" }
   ],
@@ -195,6 +216,7 @@ Rules:
 - If evidence strength is low, explain that answers need context, action, and outcome.
 - Rewrite examples must sound realistic and tied to the role focus.
 - quoteAnalyses MUST extract exact, verbatim quotes from the candidate's transcript to show them exactly what they said, explain why it was weak/strong, and how to improve it. Include at least 2-3 quote analyses.
+- communicationProfile MUST analyze their communication style, tone, conciseness, and use of filler words (if any) based on the transcript.
 `;
 };
 
