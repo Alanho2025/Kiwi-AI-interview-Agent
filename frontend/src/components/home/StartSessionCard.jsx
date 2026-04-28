@@ -12,6 +12,7 @@
 import React from 'react';
 import { Mic, Settings } from 'lucide-react';
 import { focusOptions, seniorityOptions } from '../../utils/sessionDisplay.js';
+import { VoiceDeviceCheckPanel } from './VoiceDeviceCheckPanel.jsx';
 
 /**
  * Purpose: Execute the main responsibility for StartSessionCard.
@@ -19,7 +20,7 @@ import { focusOptions, seniorityOptions } from '../../utils/sessionDisplay.js';
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-export function StartSessionCard({ summary, showSessionSettings, sessionDefaults, settingsSaved, onOpenTextInterview, onOpenVoiceInterview, onToggleSettings, onChangeDefaults, onSaveDefaults, onResetDefaults }) {
+export function StartSessionCard({ summary, showSessionSettings, sessionDefaults, settingsSaved, voiceStartWarning, onOpenTextInterview, onOpenVoiceInterview, onToggleSettings, onChangeDefaults, onSaveDefaults, onResetDefaults }) {
   return (
     <div className="relative overflow-hidden rounded-3xl border border-gray-100 bg-white p-8 shadow-[0_2px_10px_rgb(0,0,0,0.02)]">
       <div className="relative z-10 flex flex-col items-center justify-between gap-8 md:flex-row">
@@ -57,6 +58,11 @@ export function StartSessionCard({ summary, showSessionSettings, sessionDefaults
               <Settings size={16} /> Session Settings
             </button>
           </div>
+          {voiceStartWarning ? (
+            <p className="mt-3 rounded-2xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm font-medium text-yellow-800">
+              {voiceStartWarning}
+            </p>
+          ) : null}
         </div>
 
         <div className="relative z-10 w-full max-w-sm rounded-3xl border border-gray-100 bg-gray-50 p-6 shadow-inner">
@@ -120,6 +126,13 @@ export function StartSessionCard({ summary, showSessionSettings, sessionDefaults
               Enable NZ culture fit prompts
             </label>
           </div>
+          <div className="mt-5">
+            <VoiceDeviceCheckPanel
+              value={sessionDefaults.voiceDeviceCheck}
+              onChange={(voiceDeviceCheck) => onChangeDefaults('voiceDeviceCheck', voiceDeviceCheck)}
+            />
+          </div>
+
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <button className="rounded-full bg-emerald-500 px-5 py-2 text-sm font-semibold text-white transition hover:bg-emerald-600" onClick={onSaveDefaults}>
               Save defaults
