@@ -137,6 +137,7 @@ const normalizeCandidateFeedbackItem = (item = {}) => ({
   context: ensureString(item.context),
   critique: ensureString(item.critique),
   rewrite: ensureString(item.rewrite),
+  description: ensureString(item.description),
 });
 
 /**
@@ -165,6 +166,13 @@ export const validateReportOutput = (report = {}) => ({
         overallTakeaway: ensureString(report.candidateFeedback.overallTakeaway),
         scoreBand: ensureString(report.candidateFeedback.scoreBand),
         generationSource: ensureString(report.candidateFeedback.generationSource),
+        communicationProfile: isObject(report.candidateFeedback.communicationProfile)
+          ? {
+              summary: ensureString(report.candidateFeedback.communicationProfile.summary),
+              keyTraits: ensureArray(report.candidateFeedback.communicationProfile.keyTraits).map(normalizeCandidateFeedbackItem),
+              fillerWords: ensureString(report.candidateFeedback.communicationProfile.fillerWords),
+            }
+          : { summary: '', keyTraits: [], fillerWords: '' },
         plainEnglishMetrics: ensureArray(report.candidateFeedback.plainEnglishMetrics).map(normalizeCandidateFeedbackItem),
         strengthHighlights: ensureArray(report.candidateFeedback.strengthHighlights).map(normalizeCandidateFeedbackItem),
         improvementPriorities: ensureArray(report.candidateFeedback.improvementPriorities).map(normalizeCandidateFeedbackItem),
@@ -176,6 +184,7 @@ export const validateReportOutput = (report = {}) => ({
         overallTakeaway: '',
         scoreBand: '',
         generationSource: '',
+        communicationProfile: { summary: '', keyTraits: [], fillerWords: '' },
         plainEnglishMetrics: [],
         strengthHighlights: [],
         improvementPriorities: [],

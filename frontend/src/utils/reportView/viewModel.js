@@ -52,6 +52,7 @@ export const buildReportViewModel = (reportData) => {
     answerRewriteTips: (candidateFeedback.answerRewriteExamples || []).length
       ? candidateFeedback.answerRewriteExamples
       : buildFallbackAnswerRewriteTips({ report, evidenceDiagnostics }),
+    communicationProfile: candidateFeedback.communicationProfile || null,
     quoteAnalyses: candidateFeedback.quoteAnalyses || [],
   };
 };

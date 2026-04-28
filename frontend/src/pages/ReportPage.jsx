@@ -15,6 +15,7 @@ import { StatusBanner } from '../components/common/StatusBanner.jsx';
 import { AnswerRewriteSection } from '../components/report/AnswerRewriteSection.jsx';
 import { CoachingSection } from '../components/report/CoachingSection.jsx';
 import { QuoteAnalysisSection } from '../components/report/QuoteAnalysisSection.jsx';
+import { CommunicationProfileSection } from '../components/report/CommunicationProfileSection.jsx';
 import { InsightsSection } from '../components/report/InsightsSection.jsx';
 import { ReportActionBar } from '../components/report/ReportActionBar.jsx';
 import { ReportDetailSections } from '../components/report/ReportDetailSections.jsx';
@@ -55,6 +56,7 @@ export function ReportPage() {
           generationSource={viewModel.generationSource}
         />
         <InsightsSection dataInsights={viewModel.dataInsights} strengthHighlights={viewModel.strengthHighlights} />
+        <CommunicationProfileSection profile={viewModel.communicationProfile} />
         <CoachingSection improvementPriorities={viewModel.improvementPriorities} coachingAdvice={viewModel.coachingAdvice} />
         <QuoteAnalysisSection quoteAnalyses={viewModel.quoteAnalyses} />
         <AnswerRewriteSection answerRewriteTips={viewModel.answerRewriteTips} />
