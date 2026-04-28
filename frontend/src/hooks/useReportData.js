@@ -216,9 +216,8 @@ export function useReportData(sessionId) {
       // For PDF, we don't need to call the backend API
       if (format === 'pdf') {
         if (reportData) {
-          const pdfBlob = await generateReportPDF(reportData);
-          downloadReportFile({ content: pdfBlob, sessionId, format: 'pdf' });
-          setStatus(buildStatus('success', 'Report exported', 'Report downloaded as PDF file.'));
+          await generateReportPDF(reportData);
+          setStatus(buildStatus('success', 'Report ready', 'Please use the print dialog to save as PDF.'));
         } else {
           setStatus(buildStatus('error', 'Export failed', 'No report data available to export.'));
         }
