@@ -80,7 +80,10 @@ export const processRealtimeVoiceTurn = async ({
           trace.mark('first_sentence_ready', { index, textChars });
         }
         await trace.measure('stream_sentence_tts_' + index, () => onSentence(text, index), { index, textChars });
-        if (index === 0) trace.mark('first_audio_sent', { index, textChars });
+        if (index === 0) {
+          trace.mark('adaptive.tts_first_audio', { index, textChars });
+          trace.mark('first_audio_sent', { index, textChars });
+        }
       }
     : null;
 
@@ -124,6 +127,7 @@ export const processRealtimeVoiceTurn = async ({
       vad,
     },
     onSentence: timedOnSentence,
+    latencyTrace: trace,
   }));
 
   const updatedSession = await trace.measure('update_session_state', () => updateSession(
