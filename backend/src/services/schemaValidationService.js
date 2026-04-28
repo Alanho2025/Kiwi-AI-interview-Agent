@@ -140,6 +140,19 @@ const normalizeCandidateFeedbackItem = (item = {}) => ({
   description: ensureString(item.description),
 });
 
+const normalizeTurnBreakdown = (item = {}) => ({
+  question: ensureString(item.question),
+  answer: ensureString(item.answer),
+  feedback: ensureString(item.feedback),
+  scores: isObject(item.scores) 
+    ? {
+        business: ensureNumber(item.scores.business, 0),
+        logic: ensureNumber(item.scores.logic, 0),
+        evidence: ensureNumber(item.scores.evidence, 0),
+      }
+    : { business: 0, logic: 0, evidence: 0 },
+});
+
 /**
  * Purpose: Execute the main responsibility for validateReportOutput.
  * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
@@ -179,6 +192,7 @@ export const validateReportOutput = (report = {}) => ({
         coachingAdvice: ensureArray(report.candidateFeedback.coachingAdvice).map(normalizeCandidateFeedbackItem),
         answerRewriteExamples: ensureArray(report.candidateFeedback.answerRewriteExamples).map(normalizeCandidateFeedbackItem),
         quoteAnalyses: ensureArray(report.candidateFeedback.quoteAnalyses).map(normalizeCandidateFeedbackItem),
+        turnBreakdowns: ensureArray(report.candidateFeedback.turnBreakdowns).map(normalizeTurnBreakdown),
       }
     : {
         overallTakeaway: '',
@@ -191,6 +205,7 @@ export const validateReportOutput = (report = {}) => ({
         coachingAdvice: [],
         answerRewriteExamples: [],
         quoteAnalyses: [],
+        turnBreakdowns: [],
       },
 });
 

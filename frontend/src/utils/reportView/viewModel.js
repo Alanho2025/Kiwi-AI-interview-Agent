@@ -54,5 +54,6 @@ export const buildReportViewModel = (reportData) => {
       : buildFallbackAnswerRewriteTips({ report, evidenceDiagnostics }),
     communicationProfile: candidateFeedback.communicationProfile || null,
     quoteAnalyses: candidateFeedback.quoteAnalyses || [],
+    turnBreakdowns: candidateFeedback.turnBreakdowns || [],
   };
 };
