@@ -40,8 +40,15 @@ export const DEFAULT_SESSION_SETTINGS = {
 };
 
 const ALLOWED_DEVICE_STATUSES = new Set(['idle', 'checking', 'ok', 'blocked', 'missing', 'error']);
+const DEVICE_CHECK_EXPIRY_MS = 30 * 60 * 1000; // 30 minutes
 
 const sanitizeDeviceStatus = (value) => (ALLOWED_DEVICE_STATUSES.has(value) ? value : 'idle');
+
+const isDeviceCheckExpired = (checkedAt) => {
+  if (!checkedAt) return true;
+  const elapsed = Date.now() - new Date(checkedAt).getTime();
+  return Number.isNaN(elapsed) || elapsed > DEVICE_CHECK_EXPIRY_MS;
+};
 
 export const sanitizeVoiceDeviceCheck = (input) => ({
   mic: {
@@ -246,10 +253,17 @@ export const parseStoredSessionDefaults = (rawDefaults) => {
   if (!rawDefaults) return DEFAULT_SESSION_SETTINGS;
 
   const parsedDefaults = JSON.parse(rawDefaults);
+  const savedCheck = sanitizeVoiceDeviceCheck(parsedDefaults.voiceDeviceCheck);
+
+  // Reset device check to idle if it was checked more than 30 minutes ago
+  const voiceDeviceCheck = isDeviceCheckExpired(savedCheck.checkedAt)
+    ? DEFAULT_VOICE_DEVICE_CHECK
+    : savedCheck;
+
   return {
     seniorityLevel: parsedDefaults.seniorityLevel || DEFAULT_SESSION_SETTINGS.seniorityLevel,
     enableNZCultureFit: Boolean(parsedDefaults.enableNZCultureFit),
     focusArea: parsedDefaults.focusArea || DEFAULT_SESSION_SETTINGS.focusArea,
-    voiceDeviceCheck: sanitizeVoiceDeviceCheck(parsedDefaults.voiceDeviceCheck),
+    voiceDeviceCheck,
   };
 };
