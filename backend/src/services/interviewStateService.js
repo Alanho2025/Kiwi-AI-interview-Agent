@@ -103,7 +103,7 @@ export const getNextPoolQuestion = (session = {}, options = {}) => {
   const structure = buildInterviewStructure(session);
   const recentTexts = structure.askedQuestionTexts.slice(-3).map((item) => normalizeKey(item));
   const askedRootQuestionKeys = new Set((structure.askedRootQuestionKeys || []).map((item) => normalizeKey(item)));
-  const startIndex = isRecoverySearch ? 0 : Math.max(0, getResolvedCurrentQuestionIndex(session));
+  const startIndex = isRecoverySearch ? 1 : Math.max(1, getResolvedCurrentQuestionIndex(session));
   const avoidRootRepeat = options.avoidRootRepeat !== false;
   for (let index = startIndex; index < questionPool.length; index += 1) {
     const candidate = questionPool[index];
