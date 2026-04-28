@@ -802,15 +802,18 @@ export function useVoiceInterviewSession({
   }, [assistantAudioUrl, publishLatencySummary]);
 
   useEffect(() => {
-    if (!enabled || isAutoLoopActive) return undefined;
+    if (!enabled || isAutoLoopActive || assistantAudioUrl || isRealtimeStreaming || isBatchRecording || isProcessingTurn) return undefined;
     const questionText = String(currentQuestion?.displayText || currentQuestion?.text || '').trim();
-    if (!questionText || assistantAudioUrl || isRealtimeStreaming || isBatchRecording || isProcessingTurn) return undefined;
-    if (lastSpokenQuestionRef.current === questionText && hasSpokenGreetingRef.current) return undefined;
+    if (!questionText) return undefined;
 
-    lastSpokenQuestionRef.current = questionText;
-    const timerId = window.setTimeout(() => speakCurrentQuestion({ isReplay: false }), 250);
-    return () => window.clearTimeout(timerId);
-  }, [enabled, isAutoLoopActive, assistantAudioUrl, currentQuestion, isProcessingTurn, isRealtimeStreaming, isBatchRecording, speakCurrentQuestion]);
+    setVoiceState((current) => (READY_STATES.has(current) ? current : 'ready'));
+    setVoiceStatus((current) => current || buildVoiceStatus(
+      'info',
+      'Voice interview ready',
+      'Press Start Voice Interview when you are ready. KiwiCoach will speak once, then open the microphone.'
+    ));
+    return undefined;
+  }, [enabled, isAutoLoopActive, assistantAudioUrl, currentQuestion, isProcessingTurn, isRealtimeStreaming, isBatchRecording]);
 
   useEffect(() => {
     if (!recordingError) return;

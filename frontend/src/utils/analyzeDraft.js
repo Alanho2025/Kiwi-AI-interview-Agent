@@ -14,17 +14,47 @@ export const HOME_SESSION_DEFAULTS_KEY = 'kiwi-home-session-defaults';
 
 export const DEFAULT_ANALYZE_MODE = 'text';
 
+export const DEFAULT_VOICE_DEVICE_CHECK = {
+  mic: {
+    status: 'idle',
+    deviceLabel: '',
+    error: '',
+  },
+  speaker: {
+    status: 'idle',
+    error: '',
+  },
+  checkedAt: '',
+};
+
 export const DEFAULT_ANALYZE_SETTINGS = {
   seniorityLevel: 'Junior/Grad',
   enableNZCultureFit: false,
   focusArea: 'Combined',
+  voiceDeviceCheck: DEFAULT_VOICE_DEVICE_CHECK,
 };
 
 const ALLOWED_SENIORITY = new Set(['Junior/Grad', 'Intermediate', 'Advanced']);
 const ALLOWED_FOCUS = new Set(['Technical', 'Behavioral', 'Combined']);
 const ALLOWED_SESSION_MODES = new Set(['text', 'voice']);
+const ALLOWED_DEVICE_STATUSES = new Set(['idle', 'checking', 'ok', 'blocked', 'missing', 'error']);
 
 export const sanitizeAnalyzeMode = (value) => (ALLOWED_SESSION_MODES.has(value) ? value : DEFAULT_ANALYZE_MODE);
+
+const sanitizeDeviceStatus = (value) => (ALLOWED_DEVICE_STATUSES.has(value) ? value : 'idle');
+
+export const sanitizeVoiceDeviceCheck = (input) => ({
+  mic: {
+    status: sanitizeDeviceStatus(input?.mic?.status),
+    deviceLabel: typeof input?.mic?.deviceLabel === 'string' ? input.mic.deviceLabel : '',
+    error: typeof input?.mic?.error === 'string' ? input.mic.error : '',
+  },
+  speaker: {
+    status: sanitizeDeviceStatus(input?.speaker?.status),
+    error: typeof input?.speaker?.error === 'string' ? input.speaker.error : '',
+  },
+  checkedAt: typeof input?.checkedAt === 'string' ? input.checkedAt : '',
+});
 
 const sanitizeSelectedCv = (selectedCV) => {
   if (!selectedCV || typeof selectedCV !== 'object') {
@@ -62,6 +92,7 @@ export const sanitizeAnalyzeSettings = (input) => ({
   focusArea: ALLOWED_FOCUS.has(input?.focusArea)
     ? input.focusArea
     : DEFAULT_ANALYZE_SETTINGS.focusArea,
+  voiceDeviceCheck: sanitizeVoiceDeviceCheck(input?.voiceDeviceCheck),
 });
 
 /**
@@ -93,10 +124,10 @@ export const loadHomeSessionDefaults = () => {
     const rawHomeDefaults = window.localStorage.getItem(HOME_SESSION_DEFAULTS_KEY);
     return rawHomeDefaults
       ? sanitizeAnalyzeSettings(JSON.parse(rawHomeDefaults))
-      : DEFAULT_ANALYZE_SETTINGS;
+      : sanitizeAnalyzeSettings(DEFAULT_ANALYZE_SETTINGS);
   } catch (error) {
     console.error('Failed to restore homepage session defaults', error);
-    return DEFAULT_ANALYZE_SETTINGS;
+    return sanitizeAnalyzeSettings(DEFAULT_ANALYZE_SETTINGS);
   }
 };
 
@@ -124,13 +155,18 @@ export const loadAnalyzeDraft = () => {
     }
 
     const parsed = JSON.parse(savedDraft);
+    const draftSettings = parsed.settings ? sanitizeAnalyzeSettings(parsed.settings) : homeDefaults;
+
     return {
       selectedCV: sanitizeSelectedCv(parsed.selectedCV),
       rawJD: parsed.rawJD || '',
       structuredJD: parsed.structuredJD || '',
       structuredJDRubric: parsed.structuredJDRubric || null,
       summarizedRawJD: parsed.summarizedRawJD || '',
-      settings: parsed.settings ? sanitizeAnalyzeSettings(parsed.settings) : homeDefaults,
+      settings: {
+        ...draftSettings,
+        voiceDeviceCheck: homeDefaults.voiceDeviceCheck,
+      },
       sessionMode: sanitizeAnalyzeMode(parsed.sessionMode),
     };
   } catch (error) {
@@ -156,6 +192,7 @@ export const loadAnalyzeDraft = () => {
 export const persistAnalyzeDraft = (draft) => {
   window.localStorage.setItem(ANALYZE_DRAFT_KEY, JSON.stringify({
     ...draft,
+    settings: sanitizeAnalyzeSettings(draft.settings),
     selectedCV: sanitizeSelectedCv(draft.selectedCV),
   }));
 };
