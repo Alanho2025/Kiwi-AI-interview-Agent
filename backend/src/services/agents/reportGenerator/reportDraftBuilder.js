@@ -55,6 +55,51 @@ const buildCoachingMemoryText = (userCoachingMemory = {}) => {
   return 'No cross-session coaching memory was available.';
 };
 
+/**
+ * Compute an interview performance score (0-100) from evidence analysis and AI turn scores.
+ * Factors:
+ *   1. Evidence strength average (0-4 scale → 0-100)        — 40% weight
+ *   2. Direct experience ratio (direct turns / total turns)  — 30% weight
+ *   3. AI turn breakdown average (0-10 scale → 0-100)        — 30% weight (if available)
+ * When AI turn breakdowns are not available, weights redistribute to 55% / 45%.
+ */
+const computeInterviewPerformanceScore = (evidenceSummary = {}, candidateFeedback = {}) => {
+  const strength = Number(evidenceSummary.averageStrength || 0);
+  const strengthScore = Math.min(100, (strength / 4) * 100);
+
+  const totals = evidenceSummary.totals || {};
+  const directTurns = (totals.direct_past_experience || 0) + (totals.indirect_adjacent_experience || 0);
+  const hypotheticalTurns = totals.hypothetical_understanding || 0;
+  const genericTurns = totals.generic_filler || 0;
+  const totalTurns = directTurns + hypotheticalTurns + genericTurns;
+  const directRatioScore = totalTurns > 0
+    ? Math.min(100, (directTurns / totalTurns) * 100)
+    : 0;
+
+  const turnBreakdowns = ensureArray(candidateFeedback.turnBreakdowns);
+  const turnScores = turnBreakdowns
+    .map((turn) => {
+      const s = turn.scores || {};
+      const avg = ((Number(s.business) || 0) + (Number(s.logic) || 0) + (Number(s.evidence) || 0)) / 3;
+      return avg;
+    })
+    .filter((v) => v > 0);
+
+  if (turnScores.length > 0) {
+    const avgTurnScore = turnScores.reduce((sum, v) => sum + v, 0) / turnScores.length;
+    const turnScoreNormalized = Math.min(100, (avgTurnScore / 10) * 100);
+    return Math.round(strengthScore * 0.4 + directRatioScore * 0.3 + turnScoreNormalized * 0.3);
+  }
+
+  return Math.round(strengthScore * 0.55 + directRatioScore * 0.45);
+};
+
+const computeBlendedOverallScore = (cvJdScore = 0, interviewScore = 0) => {
+  const cvWeight = 0.5;
+  const interviewWeight = 0.5;
+  return Number(((cvJdScore * cvWeight) + (interviewScore * interviewWeight)).toFixed(1));
+};
+
 export const buildReportDraft = ({
   session = {},
   analysisResult = {},
@@ -131,7 +176,12 @@ export const buildReportDraft = ({
       },
     ],
     scores: {
-      overall: analysisResult.overallScore || 0,
+      overall: computeBlendedOverallScore(
+        analysisResult.overallScore || 0,
+        computeInterviewPerformanceScore(evidenceSummary, candidateFeedback),
+      ),
+      cvJdMatch: analysisResult.overallScore || 0,
+      interviewPerformance: computeInterviewPerformanceScore(evidenceSummary, candidateFeedback),
       macro: analysisResult.scoreBreakdown?.macro || 0,
       micro: analysisResult.scoreBreakdown?.micro || 0,
       requirements: analysisResult.scoreBreakdown?.requirements || 0,
