@@ -288,7 +288,7 @@ const buildReactTrace = ({ selectedAction, decisionContext, selectedQuestion, en
   };
 };
 
-const generateConversationalTurn = async ({ baseQuestion, actionType, lastUserAnswer, decisionContext, retrievalBundle, onSentence }) => {
+const generateConversationalTurn = async ({ baseQuestion, actionType, lastUserAnswer, decisionContext, retrievalBundle, onSentence, latencyTrace = null }) => {
   const systemInstruction = `You are a professional, empathetic, and highly restrained Tech Lead conducting an interview.
 Your goal is to output the EXACT words you will say next to the candidate.
 DO NOT output any internal tags, XML, or json. Output ONLY the conversational text.
@@ -347,8 +347,13 @@ Generate your verbal response now:`;
   let fullText = '';
   let currentSentence = '';
   let sentenceIndex = 0;
+  let firstChunkMarked = false;
 
   for await (const chunk of stream) {
+    if (!firstChunkMarked) {
+      firstChunkMarked = true;
+      latencyTrace?.mark?.('adaptive.llm_first_token', { chunkChars: String(chunk || '').length });
+    }
     fullText += chunk;
     currentSentence += chunk;
     
@@ -376,6 +381,7 @@ export const runInterviewerAgent = async ({
   freshOnly = false,
   category = null,
   onSentence = null,
+  latencyTrace = null,
 } = {}) => {
   const transcript = session?.transcript || [];
   const lastUserAnswer = getLastUserAnswer(transcript).toLowerCase();
@@ -496,6 +502,7 @@ export const runInterviewerAgent = async ({
       decisionContext, 
       retrievalBundle,
       onSentence,
+      latencyTrace,
     });
   } catch (error) {
     console.warn('Failed to generate conversational turn via LLM, falling back to base template', error);
