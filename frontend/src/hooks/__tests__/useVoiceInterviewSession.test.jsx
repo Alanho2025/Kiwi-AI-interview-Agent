@@ -223,13 +223,18 @@ describe('useVoiceInterviewSession', () => {
       transcriptText: 'I used STAR method in a project.',
       inputMode: 'realtime_voice_vad',
     }));
-    expect(console.log).toHaveBeenCalledWith('[voice-latency-summary:backend-complete]', expect.objectContaining({
-      phase: 'backend-complete',
-      clientVadToPlayback: 'n/a',
-      clientSubmitToFirstAudioChunk: 'n/a',
+    expect(console.log).toHaveBeenCalledWith('[voice-latency-summary]', {
+      clientStopToSubmit: 'n/a',
+      clientSubmitToResponse: 'n/a',
+      clientStopToNextAudio: 'n/a',
+      clientAudioGap: 'n/a',
       backendTotal: '1080 ms',
+      backendLoadQuestion: '14 ms',
+      backendSaveTurn: '26 ms',
       backendAdaptiveNextQuestion: '700 ms',
-    }));
+      backendUpdateSession: '40 ms',
+      backendTts: '300 ms',
+    });
     expect(result.current.voiceStatus.title).toBe('Next question ready');
   });
 });

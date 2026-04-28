@@ -9,7 +9,6 @@
  * - Prefer composition and small helpers over repeated inline logic.
  */
 
-import { performance } from 'node:perf_hooks';
 import { formatSuccess } from '../utils/responseFormatter.js';
 import {
   appendTranscriptTurn,
@@ -225,8 +224,6 @@ export const replyInterviewWithRealtimeVoice = asyncHandler(async (req, res) => 
     voiceName: String(req.body?.voiceName || '').trim() || undefined,
     inputMode: String(req.body?.inputMode || '').trim() || undefined,
     vad: req.body?.vad || null,
-    clientTraceId: req.body?.traceId || null,
-    clientTurnStartedAt: req.body?.clientTurnStartedAt || null,
     tryGenerateReportForCompletedSession,
   }));
 
@@ -271,27 +268,17 @@ export const replyInterviewWithRealtimeVoiceStream = asyncHandler(async (req, re
   const voiceName = String(req.body?.voiceName || '').trim() || undefined;
 
   const onSentence = async (text, index) => {
-    const sentenceTtsStartMs = performance.now();
     try {
       const synthesis = await synthesizeSpeech({ text, voiceName });
-      const sentenceTtsMs = Math.round(performance.now() - sentenceTtsStartMs);
       const payload = {
         type: 'audio',
         base64: synthesis.audioBuffer.toString('base64'),
         index,
         text,
-        timing: {
-          sentenceTtsMs,
-          serverSentAt: Date.now(),
-          textChars: String(text || '').length,
-          audioBytes: synthesis.audioBuffer.length,
-          contentType: synthesis.contentType,
-          voiceName: synthesis.voiceName,
-        },
       };
       res.write(`data: ${JSON.stringify(payload)}\n\n`);
     } catch (err) {
-      logger.error('Failed to synthesize sentence stream', { error: err, index });
+      logger.error('Failed to synthesize sentence stream', { error: err });
     }
   };
 
@@ -306,8 +293,6 @@ export const replyInterviewWithRealtimeVoiceStream = asyncHandler(async (req, re
     voiceName,
     inputMode: String(req.body?.inputMode || '').trim() || undefined,
     vad: req.body?.vad || null,
-    clientTraceId: req.body?.traceId || null,
-    clientTurnStartedAt: req.body?.clientTurnStartedAt || null,
     tryGenerateReportForCompletedSession,
     onSentence,
   }));

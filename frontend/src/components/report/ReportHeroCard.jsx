@@ -39,16 +39,21 @@ export function ReportHeroCard({ report, qa, candidateFeedback, takeaway, scoreB
             </div>
           </div>
 
-          <div className="grid w-full gap-3 sm:grid-cols-2 lg:max-w-sm">
-            <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-gray-100">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Overall score</p>
+          <div className="grid w-full gap-3 sm:grid-cols-3 lg:max-w-lg">
+            <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-emerald-100">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-600">Overall</p>
               <p className="mt-2 text-3xl font-semibold text-gray-900">{formatNumber(report.scores?.overall)}</p>
-              <p className="mt-1 text-sm text-gray-600">A snapshot of your current role fit.</p>
+              <p className="mt-1 text-xs text-gray-500">Blended score</p>
             </div>
             <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-gray-100">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Evidence strength</p>
-              <p className="mt-2 text-3xl font-semibold text-gray-900">{formatNumber(report.scores?.evidenceStrength)}</p>
-              <p className="mt-1 text-sm text-gray-600">How concrete and convincing your answers sounded.</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">CV-JD Match</p>
+              <p className="mt-2 text-3xl font-semibold text-gray-900">{formatNumber(report.scores?.cvJdMatch ?? report.scores?.overall)}</p>
+              <p className="mt-1 text-xs text-gray-500">Resume fit (50%)</p>
+            </div>
+            <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-sky-100">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-600">Interview</p>
+              <p className="mt-2 text-3xl font-semibold text-gray-900">{formatNumber(report.scores?.interviewPerformance ?? report.scores?.evidenceStrength)}</p>
+              <p className="mt-1 text-xs text-gray-500">Answer quality (50%)</p>
             </div>
           </div>
         </div>

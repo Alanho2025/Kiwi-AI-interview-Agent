@@ -7,7 +7,6 @@ export const executeInterviewAction = async ({
   agentRegistry,
   session,
   onSentence = null,
-  latencyTrace = null,
 } = {}) => {
   let retrievalBundle = decisionContext?.retrievalState?.latestSources?.length ? null : null;
 
@@ -33,6 +32,5 @@ export const executeInterviewAction = async ({
     freshOnly: Boolean(actionInput.freshOnly),
     category: actionInput.category || null,
     onSentence,
-    latencyTrace,
   });
 };
