@@ -19,11 +19,42 @@ export const SESSION_MODE_OPTIONS = Object.freeze({
 
 export const isSupportedSessionMode = (value) => value === SESSION_MODE_OPTIONS.text || value === SESSION_MODE_OPTIONS.voice;
 
+export const DEFAULT_VOICE_DEVICE_CHECK = {
+  mic: {
+    status: 'idle',
+    deviceLabel: '',
+    error: '',
+  },
+  speaker: {
+    status: 'idle',
+    error: '',
+  },
+  checkedAt: '',
+};
+
 export const DEFAULT_SESSION_SETTINGS = {
   seniorityLevel: 'Junior/Grad',
   enableNZCultureFit: false,
   focusArea: 'Combined',
+  voiceDeviceCheck: DEFAULT_VOICE_DEVICE_CHECK,
 };
+
+const ALLOWED_DEVICE_STATUSES = new Set(['idle', 'checking', 'ok', 'blocked', 'missing', 'error']);
+
+const sanitizeDeviceStatus = (value) => (ALLOWED_DEVICE_STATUSES.has(value) ? value : 'idle');
+
+export const sanitizeVoiceDeviceCheck = (input) => ({
+  mic: {
+    status: sanitizeDeviceStatus(input?.mic?.status),
+    deviceLabel: typeof input?.mic?.deviceLabel === 'string' ? input.mic.deviceLabel : '',
+    error: typeof input?.mic?.error === 'string' ? input.mic.error : '',
+  },
+  speaker: {
+    status: sanitizeDeviceStatus(input?.speaker?.status),
+    error: typeof input?.speaker?.error === 'string' ? input.speaker.error : '',
+  },
+  checkedAt: typeof input?.checkedAt === 'string' ? input.checkedAt : '',
+});
 
 export const seniorityOptions = ['Junior/Grad', 'Mid-level', 'Senior'];
 export const focusOptions = ['Technical', 'Behavioral', 'Combined'];
@@ -219,5 +250,6 @@ export const parseStoredSessionDefaults = (rawDefaults) => {
     seniorityLevel: parsedDefaults.seniorityLevel || DEFAULT_SESSION_SETTINGS.seniorityLevel,
     enableNZCultureFit: Boolean(parsedDefaults.enableNZCultureFit),
     focusArea: parsedDefaults.focusArea || DEFAULT_SESSION_SETTINGS.focusArea,
+    voiceDeviceCheck: sanitizeVoiceDeviceCheck(parsedDefaults.voiceDeviceCheck),
   };
 };
