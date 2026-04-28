@@ -92,6 +92,37 @@ const normalizeRewrite = (item = {}, fallback = {}) => ({
   better: ensureString(item.better, fallback.better || ''),
 });
 
+const normalizeQuoteAnalysis = (item = {}, fallback = {}) => ({
+  quote: ensureString(item.quote, fallback.quote || ''),
+  context: ensureString(item.context, fallback.context || ''),
+  critique: ensureString(item.critique, fallback.critique || ''),
+  rewrite: ensureString(item.rewrite, fallback.rewrite || ''),
+});
+
+const normalizeTurnBreakdown = (item = {}, fallback = {}) => ({
+  question: ensureString(item.question, fallback.question || ''),
+  answer: ensureString(item.answer, fallback.answer || ''),
+  feedback: ensureString(item.feedback, fallback.feedback || ''),
+  scores: {
+    business: Number.isFinite(Number(item.scores?.business)) ? Number(item.scores.business) : Number(fallback.scores?.business || 0),
+    logic: Number.isFinite(Number(item.scores?.logic)) ? Number(item.scores.logic) : Number(fallback.scores?.logic || 0),
+    evidence: Number.isFinite(Number(item.scores?.evidence)) ? Number(item.scores.evidence) : Number(fallback.scores?.evidence || 0),
+  },
+});
+
+const normalizeCommunicationTrait = (item = {}, fallback = {}) => ({
+  label: ensureString(item.label, fallback.label || ''),
+  description: ensureString(item.description, fallback.description || ''),
+});
+
+const normalizeCommunicationProfile = (profile = {}, fallback = {}) => ({
+  summary: ensureString(profile.summary, fallback.summary || ''),
+  keyTraits: ensureArray(profile.keyTraits)
+    .map((item, index) => normalizeCommunicationTrait(item, ensureArray(fallback.keyTraits)[index] || {}))
+    .filter((item) => item.label && item.description),
+  fillerWords: ensureString(profile.fillerWords, fallback.fillerWords || ''),
+});
+
 /**
  * Purpose: Execute the main responsibility for normalizeCandidateFeedback.
  * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
@@ -102,6 +133,7 @@ const normalizeCandidateFeedback = (candidateFeedback = {}, fallback = {}) => ({
   overallTakeaway: ensureString(candidateFeedback.overallTakeaway, fallback.overallTakeaway || ''),
   scoreBand: ensureString(candidateFeedback.scoreBand, fallback.scoreBand || ''),
   generationSource: ensureString(candidateFeedback.generationSource, fallback.generationSource || 'fallback'),
+  communicationProfile: normalizeCommunicationProfile(candidateFeedback.communicationProfile, fallback.communicationProfile || {}),
   plainEnglishMetrics: ensureArray(candidateFeedback.plainEnglishMetrics)
     .map((item, index) => normalizeMetric(item, ensureArray(fallback.plainEnglishMetrics)[index] || {}))
     .filter((item) => item.label && item.interpretation),
@@ -117,6 +149,12 @@ const normalizeCandidateFeedback = (candidateFeedback = {}, fallback = {}) => ({
   answerRewriteExamples: ensureArray(candidateFeedback.answerRewriteExamples)
     .map((item, index) => normalizeRewrite(item, ensureArray(fallback.answerRewriteExamples)[index] || {}))
     .filter((item) => item.weak && item.better),
+  quoteAnalyses: ensureArray(candidateFeedback.quoteAnalyses)
+    .map((item, index) => normalizeQuoteAnalysis(item, ensureArray(fallback.quoteAnalyses)[index] || {}))
+    .filter((item) => item.quote && item.critique),
+  turnBreakdowns: ensureArray(candidateFeedback.turnBreakdowns)
+    .map((item, index) => normalizeTurnBreakdown(item, ensureArray(fallback.turnBreakdowns)[index] || {}))
+    .filter((item) => item.question && item.feedback),
 });
 
 /**
@@ -135,9 +173,9 @@ const buildPrompt = ({ session, analysisResult, interviewPlan, evidenceSummary, 
     strengths: (analysisResult.explanation?.strengths || []).map((item) => item.label),
     gaps: (analysisResult.explanation?.gaps || []).map((item) => item.label),
     interviewFocus: interviewPlan.interviewFocus || [],
-    evidenceSummary,
     interviewMetrics,
     strongestExamples,
+    transcript: session.transcript || [],
   };
 
   return `You are writing grounded interview coaching for a candidate.
@@ -155,6 +193,13 @@ Required JSON shape:
   "plainEnglishMetrics": [
     { "id": "string", "label": "string", "value": number, "interpretation": "string" }
   ],
+  "communicationProfile": {
+    "summary": "string",
+    "keyTraits": [
+      { "label": "string", "description": "string" }
+    ],
+    "fillerWords": "string"
+  },
   "strengthHighlights": [
     { "title": "string", "explanation": "string" }
   ],
@@ -166,6 +211,17 @@ Required JSON shape:
   ],
   "answerRewriteExamples": [
     { "weak": "string", "better": "string" }
+  ],
+  "quoteAnalyses": [
+    { "quote": "string", "context": "string", "critique": "string", "rewrite": "string" }
+  ],
+  "turnBreakdowns": [
+    { 
+      "question": "string", 
+      "answer": "string", 
+      "feedback": "string", 
+      "scores": { "business": 5, "logic": 5, "evidence": 5 } 
+    }
   ]
 }
 
@@ -181,6 +237,9 @@ Rules:
 - If hypothetical answers appeared, coaching should explicitly push the candidate toward real past examples.
 - If evidence strength is low, explain that answers need context, action, and outcome.
 - Rewrite examples must sound realistic and tied to the role focus.
+- quoteAnalyses MUST extract exact, verbatim quotes from the candidate's transcript to show them exactly what they said, explain why it was weak/strong, and how to improve it. Include at least 2-3 quote analyses.
+- communicationProfile MUST analyze their communication style, tone, conciseness, and use of filler words (if any) based on the transcript.
+- turnBreakdowns MUST provide a turn-by-turn analysis of each major question asked. Summarize the question and answer, provide constructive feedback, and score (0-10) for business understanding, logic/structure, and evidence strength.
 `;
 };
 

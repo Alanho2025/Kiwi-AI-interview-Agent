@@ -20,19 +20,6 @@ const buildConfidenceLabel = (pendingTranscript, lastAsrConfidence) => {
   return 'Waiting for final transcript';
 };
 
-const latencyRows = (summary = null) => {
-  if (!summary) return [];
-  return [
-    ["VAD to playback", summary.clientVadToPlayback],
-    ["Submit to first audio", summary.clientSubmitToFirstAudioChunk],
-    ["STT finalisation", summary.clientSttFinalisation],
-    ["Audio chunk to play", summary.clientFirstAudioChunkToPlay],
-    ["Backend total", summary.backendTotal],
-    ["Adaptive question", summary.backendAdaptiveNextQuestion],
-    ["Backend first sentence", summary.backendFirstSentenceReady],
-  ].filter(([, value]) => value && value !== "n/a");
-};
-
 export function VoiceInterviewPanel({
   onPause,
   onRepeat,
@@ -53,7 +40,6 @@ export function VoiceInterviewPanel({
     setVoiceMode,
     realtimeStatus,
     vadState,
-    latestLatencySummary,
     isAutoLoopActive,
     pendingTranscript,
     editableTranscript,
@@ -81,7 +67,6 @@ export function VoiceInterviewPanel({
   const backupDisabled = isSubmitting || isPaused || isCompleted || isProcessingTurn;
   const statusBadgeLabel = isAutoLoopActive && !isRecording ? stateLabel : (isRecording ? 'Listening...' : stateLabel);
   const hasLiveCaption = Boolean(transcriptionPreview || pendingTranscript);
-  const visibleLatencyRows = latencyRows(latestLatencySummary);
 
   return (
     <div className="flex h-full min-h-0 flex-col space-y-4">
@@ -143,23 +128,6 @@ export function VoiceInterviewPanel({
                 />
               ))}
             </div>
-
-            {visibleLatencyRows.length ? (
-              <div className="w-full rounded-2xl border border-sky-100 bg-sky-50/70 p-4 text-sm shadow-sm">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="font-semibold text-sky-900">Latest latency evidence</p>
-                  <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-sky-700">Measured</span>
-                </div>
-                <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                  {visibleLatencyRows.map(([label, value]) => (
-                    <div key={label} className="flex items-center justify-between gap-3 rounded-xl bg-white px-3 py-2">
-                      <span className="text-gray-500">{label}</span>
-                      <span className="font-semibold text-gray-900">{value}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : null}
 
             <div className="w-full rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
               <button

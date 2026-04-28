@@ -10,7 +10,6 @@
  */
 
 import { apiPost, apiGet } from './client.js';
-import { jsPDF } from 'jspdf';
 
 /**
  * Purpose: Execute the main responsibility for generateReport.
@@ -55,60 +54,62 @@ export const downloadReportFile = ({ content, sessionId, format = 'json' }) => {
  */
 export const generateReportPDF = async (report) => {
   try {
-    // Use dynamic import so the app doesn't crash if html2canvas isn't installed yet
-    const html2canvasModule = await import('html2canvas');
-    const html2canvas = html2canvasModule.default ? html2canvasModule.default : html2canvasModule;
-    
     const element = document.getElementById('report-printable-area');
     if (!element) {
       throw new Error('Report content not found in DOM');
     }
 
-    // Temporarily ensure white background
-    const originalBg = element.style.backgroundColor;
-    element.style.backgroundColor = '#ffffff';
-
-    const canvas = await html2canvas(element, {
-      scale: 2, 
-      useCORS: true,
-      logging: false,
-      windowWidth: 1000 // Force a desktop-like width for the screenshot
-    });
-
-    const imgData = canvas.toDataURL('image/jpeg', 0.95);
-    
-    const pdf = new jsPDF({
-      orientation: 'portrait',
-      unit: 'pt',
-      format: 'a4'
-    });
-
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-    const pageHeightPt = pdf.internal.pageSize.getHeight();
-
-    let heightLeft = pdfHeight;
-    let position = 0;
-    
-    // Page 1
-    pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, pdfHeight);
-    heightLeft -= pageHeightPt;
-
-    // Remaining pages
-    while (heightLeft > 0) {
-      // Move the image up by the page height to show the next chunk
-      position -= pageHeightPt;
-      pdf.addPage();
-      pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, pdfHeight);
-      heightLeft -= pageHeightPt;
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      throw new Error('Please allow popups to generate PDF');
     }
 
-    // Restore background color
-    element.style.backgroundColor = originalBg;
+    const styleElements = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
+      .map(el => el.outerHTML)
+      .join('\\n');
 
-    return pdf.output('blob');
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Interview Report - ${report.candidateName || 'Candidate'}</title>
+          ${styleElements}
+          <style>
+            @media print {
+              body { 
+                padding: 0; 
+                margin: 0;
+                background-color: white !important;
+                -webkit-print-color-adjust: exact;
+                color-adjust: exact;
+              }
+              .no-print { display: none !important; }
+              @page { margin: 1cm; }
+            }
+            body {
+              padding: 20px;
+            }
+          </style>
+        </head>
+        <body>
+          ${element.outerHTML}
+          <script>
+            // Wait for styles to load before printing
+            window.onload = () => {
+              setTimeout(() => {
+                window.print();
+                window.close();
+              }, 250);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+
+    return null;
   } catch (error) {
-    console.error('Failed to generate PDF:', error);
-    throw new Error('Could not generate PDF from the webpage. Please make sure html2canvas is installed.');
+    console.error('Failed to trigger print dialog:', error);
+    throw new Error('Could not open print dialog. ' + error.message);
   }
 };

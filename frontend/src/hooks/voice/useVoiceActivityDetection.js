@@ -17,8 +17,6 @@ export function useVoiceActivityDetection({
   enabled = true,
   onSpeechStart,
   onSpeechEnd,
-  onPauseCandidate,
-  onPauseResume,
   onNoSpeechTimeout,
   onMaxAnswerTimeout,
   onVadFrame,
@@ -32,9 +30,9 @@ export function useVoiceActivityDetection({
   const sourceRef = useRef(null);
   const intervalRef = useRef(null);
   const machineRef = useRef(createVoiceActivityStateMachine(mergedConfig));
-  const callbacksRef = useRef({ onSpeechStart, onSpeechEnd, onPauseCandidate, onPauseResume, onNoSpeechTimeout, onMaxAnswerTimeout, onVadFrame });
+  const callbacksRef = useRef({ onSpeechStart, onSpeechEnd, onNoSpeechTimeout, onMaxAnswerTimeout, onVadFrame });
 
-  callbacksRef.current = { onSpeechStart, onSpeechEnd, onPauseCandidate, onPauseResume, onNoSpeechTimeout, onMaxAnswerTimeout, onVadFrame };
+  callbacksRef.current = { onSpeechStart, onSpeechEnd, onNoSpeechTimeout, onMaxAnswerTimeout, onVadFrame };
 
   const stopVad = useCallback(() => {
     if (intervalRef.current) window.clearInterval(intervalRef.current);
@@ -87,16 +85,6 @@ export function useVoiceActivityDetection({
         callbacksRef.current.onSpeechStart?.(result.metrics || {});
       }
 
-      if (result.event === 'pause_candidate_start') {
-        setVadMetrics((current) => ({ ...(current || {}), ...(result.metrics || {}) }));
-        callbacksRef.current.onPauseCandidate?.(result.metrics || {});
-      }
-
-      if (result.event === 'pause_resumed') {
-        setVadMetrics((current) => ({ ...(current || {}), ...(result.metrics || {}) }));
-        callbacksRef.current.onPauseResume?.(result.metrics || {});
-      }
-
       if (result.event === 'speech_end') {
         setIsSpeechDetected(false);
         setVadMetrics((current) => ({ ...(current || {}), ...(result.metrics || {}) }));
@@ -113,7 +101,7 @@ export function useVoiceActivityDetection({
     }, mergedConfig.frameIntervalMs);
 
     return true;
-  }, [enabled, mergedConfig.frameIntervalMs, mergedConfig.speechThreshold, mergedConfig.silenceThreshold, mergedConfig.minSpeechMs, mergedConfig.pauseCandidateMs, mergedConfig.pauseConfirmMs, mergedConfig.silenceToStopMs, mergedConfig.maxAnswerMs, mergedConfig.preSpeechGraceMs, mergedConfig.warmupIgnoreMs, stopVad, stream]);
+  }, [enabled, mergedConfig.frameIntervalMs, mergedConfig.speechThreshold, mergedConfig.silenceThreshold, mergedConfig.minSpeechMs, mergedConfig.silenceToStopMs, mergedConfig.maxAnswerMs, mergedConfig.preSpeechGraceMs, mergedConfig.warmupIgnoreMs, stopVad, stream]);
 
   const resetVad = useCallback(() => {
     stopVad();

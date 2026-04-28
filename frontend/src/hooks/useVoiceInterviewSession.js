@@ -66,9 +66,7 @@ export function useVoiceInterviewSession({
     clearResources,
   } = useDirectWavRecorder();
 
-  const speechSocket = useRealtimeSpeechSocket({
-    onLatencyEvent: (name, extra = {}) => voiceTraceRef.current?.mark(name, extra),
-  });
+  const speechSocket = useRealtimeSpeechSocket();
   const realtimeMic = useRealtimeMicStream({ onAudioChunk: speechSocket.sendAudioChunk });
   const {
     socketState,
@@ -105,8 +103,6 @@ export function useVoiceInterviewSession({
   const [manualAudioFile, setManualAudioFile] = useState(null);
   const [isProcessingTurn, setIsProcessingTurn] = useState(false);
   const [isAutoLoopActive, setIsAutoLoopActive] = useState(false);
-  const [latestLatencyTrace, setLatestLatencyTrace] = useState(null);
-  const [latestLatencySummary, setLatestLatencySummary] = useState(null);
 
   const audioRef = useRef(null);
   const lastSpokenQuestionRef = useRef('');
@@ -118,7 +114,6 @@ export function useVoiceInterviewSession({
   const autoStopInFlightRef = useRef(false);
   const vadMetricsRef = useRef(null);
   const voiceTraceRef = useRef(null);
-  const backendLatencyRef = useRef(null);
   const noSpeechPromptedRef = useRef(false);
   const startAutoListeningRef = useRef(null);
   const stopRealtimeRecordingRef = useRef(null);
@@ -129,35 +124,6 @@ export function useVoiceInterviewSession({
   const activeSessionId = resolveSessionId(session, sessionId);
   const currentQuestion = useMemo(() => getLatestTurnByRole(session?.transcript || [], 'ai'), [session?.transcript]);
   const latestUserTurn = useMemo(() => getLatestTurnByRole(session?.transcript || [], 'user'), [session?.transcript]);
-
-  const publishLatencySummary = useCallback((phase, backendLatency = backendLatencyRef.current) => {
-    const traceJson = voiceTraceRef.current?.toJSON?.() || null;
-    if (!traceJson && !backendLatency) return null;
-
-    const summary = buildVoiceLatencyConsoleSummary({
-      trace: traceJson,
-      backendLatency,
-      phase,
-    });
-
-    setLatestLatencyTrace(traceJson);
-    setLatestLatencySummary(summary);
-    console.log('[voice-latency-summary:' + phase + ']', summary);
-    return summary;
-  }, []);
-
-  const startNewVoiceTurnTrace = useCallback((reason = 'new_turn') => {
-    const trace = createVoiceLatencyTrace({
-      sessionId: activeSessionId,
-      mode: 'realtime_voice_vad',
-      reason,
-      startedAtIso: new Date().toISOString(),
-    });
-    trace.mark('turn_trace_start', { reason });
-    voiceTraceRef.current = trace;
-    backendLatencyRef.current = null;
-    return trace;
-  }, [activeSessionId]);
 
   const setReadyState = useCallback(() => {
     if (!enabled) return;
@@ -195,28 +161,13 @@ export function useVoiceInterviewSession({
     setVoiceStatus(buildVoiceStatus('info', 'Listening', 'Keep answering naturally. KiwiCoach will stop when you finish speaking.'));
   }, []);
 
-  const handleVadPauseCandidate = useCallback((metrics = {}) => {
-    vadMetricsRef.current = { ...(vadMetricsRef.current || {}), ...metrics };
-    voiceTraceRef.current?.mark('pause_candidate_start', metrics);
-    setVoiceState('pause_detected');
-    setVoiceStatus(buildVoiceStatus('info', 'Pause detected', 'Keep speaking if you have more to add. KiwiCoach will finalise only after a longer pause.'));
-  }, []);
-
-  const handleVadPauseResume = useCallback((metrics = {}) => {
-    vadMetricsRef.current = { ...(vadMetricsRef.current || {}), ...metrics };
-    voiceTraceRef.current?.mark('pause_resumed', metrics);
-    setVoiceState('user_speaking');
-    setVoiceStatus(buildVoiceStatus('info', 'Listening', 'Good, keep going. KiwiCoach is still listening.'));
-  }, []);
-
   const handleVadSpeechEnd = useCallback(async (metrics = {}) => {
     if (autoStopInFlightRef.current || realtimeTurnSubmittedRef.current) return;
     autoStopInFlightRef.current = true;
     vadMetricsRef.current = { ...(vadMetricsRef.current || {}), ...metrics };
-    voiceTraceRef.current?.mark('pause_confirmed', metrics);
     voiceTraceRef.current?.mark('vad_speech_end', metrics);
-    setVoiceState('finalising_transcript');
-    setVoiceStatus(buildVoiceStatus('info', 'Answer captured', 'KiwiCoach confirmed the pause and is finalising your spoken answer.'));
+    setVoiceState('detecting_silence');
+    setVoiceStatus(buildVoiceStatus('info', 'Answer captured', 'KiwiCoach detected a pause and is finalising your spoken answer.'));
     await stopRealtimeRecordingRef.current?.('vad_speech_end');
   }, []);
 
@@ -250,8 +201,6 @@ export function useVoiceInterviewSession({
     enabled,
     onSpeechStart: handleVadSpeechStart,
     onSpeechEnd: handleVadSpeechEnd,
-    onPauseCandidate: handleVadPauseCandidate,
-    onPauseResume: handleVadPauseResume,
     onNoSpeechTimeout: handleNoSpeechTimeout,
     onMaxAnswerTimeout: handleMaxAnswerTimeout,
   });
@@ -321,14 +270,6 @@ export function useVoiceInterviewSession({
     setVoiceState('auto_submitting_answer');
     setVoiceStatus(buildVoiceStatus('info', 'Preparing next question', 'KiwiCoach is using your answer to decide the next spoken question.'));
 
-    if (turn?.usedPartialFallback || turn?.fallback || reason === 'timeout_fallback') {
-      voiceTraceRef.current?.mark('final_transcript_received', {
-        source: 'partial_fallback',
-        usedPartialFallback: true,
-        reason,
-      });
-    }
-    const tracePayload = voiceTraceRef.current?.toJSON?.() || null;
     voiceTraceRef.current?.mark('auto_submit_start', { reason });
     const submitStartedAt = performance.now();
     try {
@@ -339,28 +280,12 @@ export function useVoiceInterviewSession({
         asrConfidence: turn?.confidence ?? null,
         asrSource: turn?.source === 'partial_fallback' ? 'azure_realtime_partial_fallback' : 'azure_realtime',
         inputMode: 'realtime_voice_vad',
-        traceId: tracePayload?.traceId || voiceTraceRef.current?.traceId || null,
-        clientTurnStartedAt: tracePayload?.startedAtIso || null,
         vad: {
           ...(vadMetricsRef.current || {}),
           usedPartialFallback: Boolean(turn?.usedPartialFallback || turn?.fallback),
           finaliseReason: reason,
         },
-        onAudioChunk: (base64, index, meta = {}) => {
-          if (index === 0) {
-            voiceTraceRef.current?.mark('sse_first_event_received', { index });
-            voiceTraceRef.current?.mark('first_audio_chunk_received', {
-              index,
-              audioBytes: meta.audioBytes ?? Math.round((String(base64 || '').length * 3) / 4),
-              serverSentAt: meta.serverSentAt ?? null,
-              sentenceTtsMs: meta.sentenceTtsMs ?? null,
-            });
-            publishLatencySummary('first-audio');
-          }
-          voiceTraceRef.current?.mark('audio_chunk_received', {
-            index,
-            audioBytes: meta.audioBytes ?? Math.round((String(base64 || '').length * 3) / 4),
-          });
+        onAudioChunk: (base64, index) => {
           setVoiceState('ai_speaking');
           setVoiceStatus(buildVoiceStatus('success', 'KiwiCoach is speaking', 'Streaming response...'));
           audioQueueRef.current.push({ base64, index });
@@ -372,18 +297,19 @@ export function useVoiceInterviewSession({
       });
 
       const submitMs = Math.round(performance.now() - submitStartedAt);
-      backendLatencyRef.current = result?.latency || null;
       voiceTraceRef.current?.mark('auto_submit_response', { submitMs });
-      const traceJson = voiceTraceRef.current?.toJSON?.() || null;
       console.info('[voice-latency]', {
         event: 'realtime_voice_turn_completed',
         reason,
         submitMs,
         stopToSubmitStartMs: realtimeStopAtRef.current ? Math.round(submitStartedAt - realtimeStopAtRef.current) : null,
-        backendLatency: backendLatencyRef.current,
-        trace: traceJson,
+        backendLatency: result?.latency || null,
+        trace: voiceTraceRef.current?.toJSON?.() || null,
       });
-      publishLatencySummary('backend-complete', backendLatencyRef.current);
+      console.log('[voice-latency-summary]', buildVoiceLatencyConsoleSummary({
+        trace: voiceTraceRef.current?.toJSON?.() || null,
+        backendLatency: result?.latency || null,
+      }));
 
       setPendingTranscript({ ...turn, displayText: answerText });
       setEditableTranscript(answerText);
@@ -408,7 +334,7 @@ export function useVoiceInterviewSession({
     } finally {
       setIsProcessingTurn(false);
     }
-  }, [enabled, onSubmitRealtimeVoiceTurn, isSubmitting, isCompleted, isPaused, clearFinalTranscriptTimer, publishLatencySummary]);
+  }, [enabled, onSubmitRealtimeVoiceTurn, isSubmitting, isCompleted, isPaused, clearFinalTranscriptTimer]);
 
   const startFinalTranscriptDeadline = useCallback(() => {
     clearFinalTranscriptTimer();
@@ -483,22 +409,15 @@ export function useVoiceInterviewSession({
     setVoiceStatus(buildVoiceStatus('info', autoLoop ? 'Opening microphone' : 'Listening with real-time captions', autoLoop ? 'KiwiCoach is ready to hear your answer.' : 'Speak naturally. Captions will update while you answer. Tap again when you are done.'));
 
     try {
-      const trace = autoLoop ? startNewVoiceTurnTrace('mic_arm') : (voiceTraceRef.current || startNewVoiceTurnTrace('manual_realtime'));
-      trace.mark('mic_arm_start');
+      voiceTraceRef.current?.mark('mic_arm_start');
       await connectSpeechSocket({ sessionId: activeSessionId, language: DEFAULT_LANGUAGE, sampleRate: 16000 });
       const stream = await startStream();
       if (autoLoop) {
         noSpeechPromptedRef.current = false;
         await startVad({ stream, ignoreFirstMs: VAD_WARMUP_IGNORE_MS });
-        const vadConfig = vad?.config || {};
-        trace.mark('vad_config', {
-          pauseCandidateMs: vadConfig.pauseCandidateMs,
-          pauseConfirmMs: vadConfig.pauseConfirmMs,
-          silenceToStopMs: vadConfig.silenceToStopMs,
-        });
-        trace.mark('mic_ready');
+        voiceTraceRef.current?.mark('mic_ready');
         setVoiceState('listening');
-        setVoiceStatus(buildVoiceStatus('info', 'Listening', 'Answer naturally. Short pauses are okay; KiwiCoach waits before finalising.'));
+        setVoiceStatus(buildVoiceStatus('info', 'Listening', 'Answer naturally. KiwiCoach will stop recording when you pause.'));
       }
     } catch (error) {
       await stopStream();
@@ -506,7 +425,7 @@ export function useVoiceInterviewSession({
       setVoiceState('error');
       setVoiceStatus(buildVoiceStatus('error', 'Real-time voice failed', error.message || 'Could not start real-time speech recognition. Use Batch mode if needed.'));
     }
-  }, [enabled, activeSessionId, requestPermission, connectSpeechSocket, startStream, stopStream, closeSocket, clearFinalTranscriptTimer, startVad, startNewVoiceTurnTrace, vad]);
+  }, [enabled, activeSessionId, requestPermission, connectSpeechSocket, startStream, stopStream, closeSocket, clearFinalTranscriptTimer, startVad]);
 
   useEffect(() => {
     startAutoListeningRef.current = () => startRealtimeRecording({ autoLoop: true });
@@ -559,6 +478,8 @@ export function useVoiceInterviewSession({
 
       autoLoopActiveRef.current = true;
       setIsAutoLoopActive(true);
+      voiceTraceRef.current = createVoiceLatencyTrace({ sessionId: activeSessionId, mode: 'realtime_voice_vad' });
+      voiceTraceRef.current.mark('voice_loop_start');
       setVoiceState('starting');
       setVoiceStatus(buildVoiceStatus('info', 'Starting voice interview', 'KiwiCoach will speak, then the microphone will open automatically.'));
       const spoke = speakCurrentQuestion({ isReplay: false });
@@ -769,7 +690,6 @@ export function useVoiceInterviewSession({
     const playStartedAt = performance.now();
     const handleEnded = () => {
       voiceTraceRef.current?.mark('assistant_audio_play_end');
-      publishLatencySummary('turn-complete');
       if (audioElement.src) URL.revokeObjectURL(audioElement.src);
       playNextAudioChunkRef.current?.();
     };
@@ -778,7 +698,6 @@ export function useVoiceInterviewSession({
     audioElement.play?.()
       .then(() => {
         voiceTraceRef.current?.mark('assistant_audio_play_start');
-        publishLatencySummary('playback-start');
         console.info('[voice-latency]', {
           event: 'assistant_audio_play_started',
           audioPlayStartMs: Math.round(performance.now() - playStartedAt),
@@ -799,7 +718,7 @@ export function useVoiceInterviewSession({
         }
       });
     return () => { audioElement.onended = null; };
-  }, [assistantAudioUrl, publishLatencySummary]);
+  }, [assistantAudioUrl]);
 
   useEffect(() => {
     if (!enabled || isAutoLoopActive || assistantAudioUrl || isRealtimeStreaming || isBatchRecording || isProcessingTurn) return undefined;
@@ -847,9 +766,7 @@ export function useVoiceInterviewSession({
       case 'arming_mic': return 'Opening microphone';
       case 'listening': return 'Listening';
       case 'user_speaking': return 'Answering';
-      case 'detecting_silence': return 'Checking pause';
-      case 'pause_detected': return 'Pause detected';
-      case 'pause_confirmed': return 'Pause confirmed';
+      case 'detecting_silence': return 'Detecting pause';
       case 'auto_submitting_answer': return 'Submitting answer';
       case 'transcribing': return 'Processing answer';
       case 'finalising_transcript': return 'Finalising speech';
@@ -863,7 +780,7 @@ export function useVoiceInterviewSession({
   const transcript = session?.transcript || [];
   const liveTranscript = useMemo(() => transcript.slice(-8), [transcript]);
   const isRecording = voiceMode === 'realtime'
-    ? (isRealtimeStreaming || ['listening', 'user_speaking', 'detecting_silence', 'pause_detected', 'pause_confirmed'].includes(voiceState))
+    ? (isRealtimeStreaming || ['listening', 'user_speaking', 'detecting_silence'].includes(voiceState))
     : isBatchRecording;
   const canUseVoice = enabled && !isPaused && !isCompleted && (!isSubmitting || isAutoLoopActive) && (!isProcessingTurn || isAutoLoopActive);
   const activeLevelHistory = voiceMode === 'realtime' ? realtimeLevelHistory : batchLevelHistory;
@@ -886,8 +803,6 @@ export function useVoiceInterviewSession({
     realtimeLatency: latency,
     vadState,
     vadMetrics,
-    latestLatencyTrace,
-    latestLatencySummary,
     isAutoLoopActive,
     pendingTranscript,
     editableTranscript,

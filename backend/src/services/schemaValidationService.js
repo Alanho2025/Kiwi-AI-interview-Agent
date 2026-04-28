@@ -133,6 +133,24 @@ const normalizeCandidateFeedbackItem = (item = {}) => ({
   example: ensureString(item.example),
   weak: ensureString(item.weak),
   better: ensureString(item.better),
+  quote: ensureString(item.quote),
+  context: ensureString(item.context),
+  critique: ensureString(item.critique),
+  rewrite: ensureString(item.rewrite),
+  description: ensureString(item.description),
+});
+
+const normalizeTurnBreakdown = (item = {}) => ({
+  question: ensureString(item.question),
+  answer: ensureString(item.answer),
+  feedback: ensureString(item.feedback),
+  scores: isObject(item.scores) 
+    ? {
+        business: ensureNumber(item.scores.business, 0),
+        logic: ensureNumber(item.scores.logic, 0),
+        evidence: ensureNumber(item.scores.evidence, 0),
+      }
+    : { business: 0, logic: 0, evidence: 0 },
 });
 
 /**
@@ -161,21 +179,33 @@ export const validateReportOutput = (report = {}) => ({
         overallTakeaway: ensureString(report.candidateFeedback.overallTakeaway),
         scoreBand: ensureString(report.candidateFeedback.scoreBand),
         generationSource: ensureString(report.candidateFeedback.generationSource),
+        communicationProfile: isObject(report.candidateFeedback.communicationProfile)
+          ? {
+              summary: ensureString(report.candidateFeedback.communicationProfile.summary),
+              keyTraits: ensureArray(report.candidateFeedback.communicationProfile.keyTraits).map(normalizeCandidateFeedbackItem),
+              fillerWords: ensureString(report.candidateFeedback.communicationProfile.fillerWords),
+            }
+          : { summary: '', keyTraits: [], fillerWords: '' },
         plainEnglishMetrics: ensureArray(report.candidateFeedback.plainEnglishMetrics).map(normalizeCandidateFeedbackItem),
         strengthHighlights: ensureArray(report.candidateFeedback.strengthHighlights).map(normalizeCandidateFeedbackItem),
         improvementPriorities: ensureArray(report.candidateFeedback.improvementPriorities).map(normalizeCandidateFeedbackItem),
         coachingAdvice: ensureArray(report.candidateFeedback.coachingAdvice).map(normalizeCandidateFeedbackItem),
         answerRewriteExamples: ensureArray(report.candidateFeedback.answerRewriteExamples).map(normalizeCandidateFeedbackItem),
+        quoteAnalyses: ensureArray(report.candidateFeedback.quoteAnalyses).map(normalizeCandidateFeedbackItem),
+        turnBreakdowns: ensureArray(report.candidateFeedback.turnBreakdowns).map(normalizeTurnBreakdown),
       }
     : {
         overallTakeaway: '',
         scoreBand: '',
         generationSource: '',
+        communicationProfile: { summary: '', keyTraits: [], fillerWords: '' },
         plainEnglishMetrics: [],
         strengthHighlights: [],
         improvementPriorities: [],
         coachingAdvice: [],
         answerRewriteExamples: [],
+        quoteAnalyses: [],
+        turnBreakdowns: [],
       },
 });
 
