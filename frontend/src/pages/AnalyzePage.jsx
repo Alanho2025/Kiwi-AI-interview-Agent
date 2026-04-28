@@ -28,6 +28,7 @@ import {
   persistAnalyzeDraft,
   resolveAnalyzeStep,
   sanitizeAnalyzeMode,
+  sanitizeAnalyzeSettings,
 } from '../utils/analyzeDraft.js';
 
 /**
@@ -99,7 +100,10 @@ export function AnalyzePage() {
     setStructuredJD(restoredDraft.structuredJD);
     setStructuredJDRubric(restoredDraft.structuredJDRubric);
     setSummarizedRawJD(restoredDraft.summarizedRawJD);
-    setSettings(restoredDraft.settings);
+    const homeSessionSettings = location.state?.sessionDefaults
+      ? sanitizeAnalyzeSettings(location.state.sessionDefaults)
+      : null;
+    setSettings(homeSessionSettings || restoredDraft.settings);
     setSessionMode(sanitizeAnalyzeMode(location.state?.sessionMode || restoredDraft.sessionMode));
 
     getRecentCVs().then(setRecentCVs).catch(console.error);
@@ -161,6 +165,19 @@ export function AnalyzePage() {
     } finally {
       setIsSummarizingJD(false);
     }
+  };
+
+  const handleStartInterview = () => {
+    if (sessionMode === 'voice' && settings.voiceDeviceCheck?.mic?.status !== 'ok') {
+      setPageStatus(buildStatusMessage(
+        'error',
+        'Microphone check required',
+        'Run the microphone check from Start New Session > Session Settings before starting the voice session.'
+      ));
+      return;
+    }
+
+    navigate(`/interview/${generatedSessionId}`);
   };
 
   const handleGeneratePlan = async () => {
@@ -253,7 +270,7 @@ export function AnalyzePage() {
               selectedCV={selectedCV}
               rawJD={rawJD}
               onGeneratePlan={handleGeneratePlan}
-              onStartInterview={() => navigate(`/interview/${generatedSessionId}`)}
+              onStartInterview={handleStartInterview}
               sessionMode={sessionMode}
             />
           </div>

@@ -40,6 +40,7 @@ export default function HomePage() {
   const [showSessionSettings, setShowSessionSettings] = useState(false);
   const [sessionDefaults, setSessionDefaults] = useState(DEFAULT_SESSION_SETTINGS);
   const [settingsSaved, setSettingsSaved] = useState('');
+  const [voiceStartWarning, setVoiceStartWarning] = useState('');
 
   useEffect(() => {
     let isActive = true;
@@ -116,7 +117,14 @@ export default function HomePage() {
   };
 
   const handleSessionDefaultsChange = (field, value) => {
-    setSessionDefaults((current) => ({ ...current, [field]: value }));
+    setVoiceStartWarning('');
+    setSessionDefaults((current) => {
+      const nextDefaults = { ...current, [field]: value };
+      if (field === 'voiceDeviceCheck') {
+        window.localStorage.setItem(HOME_SESSION_DEFAULTS_KEY, JSON.stringify(nextDefaults));
+      }
+      return nextDefaults;
+    });
   };
 
   const handleSignOut = async () => {
@@ -146,7 +154,14 @@ export default function HomePage() {
   };
 
   const handleStartInterview = (sessionMode) => {
-    navigate('/analysis', { state: { sessionMode } });
+    if (sessionMode === 'voice' && sessionDefaults.voiceDeviceCheck?.mic?.status !== 'ok') {
+      setShowSessionSettings(true);
+      setVoiceStartWarning('Run the microphone check in Session Settings before starting a voice interview.');
+      return;
+    }
+
+    window.localStorage.setItem(HOME_SESSION_DEFAULTS_KEY, JSON.stringify(sessionDefaults));
+    navigate('/analysis', { state: { sessionMode, sessionDefaults } });
   };
 
   const stats = buildHomepageStats(sessionHistory, historyLoading);
@@ -172,6 +187,7 @@ export default function HomePage() {
             showSessionSettings={showSessionSettings}
             sessionDefaults={sessionDefaults}
             settingsSaved={settingsSaved}
+            voiceStartWarning={voiceStartWarning}
             onOpenTextInterview={() => handleStartInterview('text')}
             onOpenVoiceInterview={() => handleStartInterview('voice')}
             onToggleSettings={() => setShowSessionSettings((current) => !current)}
