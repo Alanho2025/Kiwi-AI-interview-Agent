@@ -92,6 +92,13 @@ const normalizeRewrite = (item = {}, fallback = {}) => ({
   better: ensureString(item.better, fallback.better || ''),
 });
 
+const normalizeQuoteAnalysis = (item = {}, fallback = {}) => ({
+  quote: ensureString(item.quote, fallback.quote || ''),
+  context: ensureString(item.context, fallback.context || ''),
+  critique: ensureString(item.critique, fallback.critique || ''),
+  rewrite: ensureString(item.rewrite, fallback.rewrite || ''),
+});
+
 /**
  * Purpose: Execute the main responsibility for normalizeCandidateFeedback.
  * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
@@ -117,6 +124,9 @@ const normalizeCandidateFeedback = (candidateFeedback = {}, fallback = {}) => ({
   answerRewriteExamples: ensureArray(candidateFeedback.answerRewriteExamples)
     .map((item, index) => normalizeRewrite(item, ensureArray(fallback.answerRewriteExamples)[index] || {}))
     .filter((item) => item.weak && item.better),
+  quoteAnalyses: ensureArray(candidateFeedback.quoteAnalyses)
+    .map((item, index) => normalizeQuoteAnalysis(item, ensureArray(fallback.quoteAnalyses)[index] || {}))
+    .filter((item) => item.quote && item.critique),
 });
 
 /**
@@ -135,9 +145,9 @@ const buildPrompt = ({ session, analysisResult, interviewPlan, evidenceSummary, 
     strengths: (analysisResult.explanation?.strengths || []).map((item) => item.label),
     gaps: (analysisResult.explanation?.gaps || []).map((item) => item.label),
     interviewFocus: interviewPlan.interviewFocus || [],
-    evidenceSummary,
     interviewMetrics,
     strongestExamples,
+    transcript: session.transcript || [],
   };
 
   return `You are writing grounded interview coaching for a candidate.
@@ -166,6 +176,9 @@ Required JSON shape:
   ],
   "answerRewriteExamples": [
     { "weak": "string", "better": "string" }
+  ],
+  "quoteAnalyses": [
+    { "quote": "string", "context": "string", "critique": "string", "rewrite": "string" }
   ]
 }
 
@@ -181,6 +194,7 @@ Rules:
 - If hypothetical answers appeared, coaching should explicitly push the candidate toward real past examples.
 - If evidence strength is low, explain that answers need context, action, and outcome.
 - Rewrite examples must sound realistic and tied to the role focus.
+- quoteAnalyses MUST extract exact, verbatim quotes from the candidate's transcript to show them exactly what they said, explain why it was weak/strong, and how to improve it. Include at least 2-3 quote analyses.
 `;
 };
 

@@ -27,4 +27,5 @@ export const buildDeterministicCandidateFeedback = ({ analysisResult, explanatio
   improvementPriorities: buildImprovementPriorities({ analysisResult, evidenceSummary, interviewMetrics }),
   coachingAdvice: buildCoachingAdvice({ evidenceSummary, interviewPlan }),
   answerRewriteExamples: buildAnswerRewriteExamples({ evidenceSummary }),
+  quoteAnalyses: [],
 });

@@ -133,6 +133,10 @@ const normalizeCandidateFeedbackItem = (item = {}) => ({
   example: ensureString(item.example),
   weak: ensureString(item.weak),
   better: ensureString(item.better),
+  quote: ensureString(item.quote),
+  context: ensureString(item.context),
+  critique: ensureString(item.critique),
+  rewrite: ensureString(item.rewrite),
 });
 
 /**
@@ -166,6 +170,7 @@ export const validateReportOutput = (report = {}) => ({
         improvementPriorities: ensureArray(report.candidateFeedback.improvementPriorities).map(normalizeCandidateFeedbackItem),
         coachingAdvice: ensureArray(report.candidateFeedback.coachingAdvice).map(normalizeCandidateFeedbackItem),
         answerRewriteExamples: ensureArray(report.candidateFeedback.answerRewriteExamples).map(normalizeCandidateFeedbackItem),
+        quoteAnalyses: ensureArray(report.candidateFeedback.quoteAnalyses).map(normalizeCandidateFeedbackItem),
       }
     : {
         overallTakeaway: '',
@@ -176,6 +181,7 @@ export const validateReportOutput = (report = {}) => ({
         improvementPriorities: [],
         coachingAdvice: [],
         answerRewriteExamples: [],
+        quoteAnalyses: [],
       },
 });
 
