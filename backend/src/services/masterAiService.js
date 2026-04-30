@@ -88,6 +88,26 @@ const persistReportArtifact = async ({ sessionId, report, qaResult }) => {
   );
 };
 
+
+const measureAdaptiveStep = async (trace, stepName, fn) => {
+  if (!trace?.measure) return fn();
+  trace.mark?.(`${stepName}_start`);
+  try {
+    return await trace.measure(stepName, fn);
+  } finally {
+    trace.mark?.(`${stepName}_end`);
+  }
+};
+
+const buildInterviewRetrievalInput = ({ session, payload = {}, objective = 'bootstrap_interview_context' } = {}) => ({
+  query: buildDefaultRetrievalQuery({ session, payload, mode: 'interview' }),
+  sessionId: session.id,
+  sourceTypes: ['question_bank', 'behavioural_bank', 'interview_plan', 'jd_rubric', 'cv_profile', 'transcript'],
+  topK: objective === 'warm_adaptive_session' ? 3 : 5,
+  objective,
+  targetTopic: session.targetRole,
+});
+
 const buildDefaultRetrievalQuery = ({ session = {}, payload = {}, mode = 'interview' } = {}) => {
   const roleCanonical = session.analysisResult?.matchingDetails?.questionPlanHints?.roleCanonical || '';
   const interviewFocus = (session.analysisResult?.interviewFocus || []).join(' ');
@@ -98,7 +118,7 @@ const buildDefaultRetrievalQuery = ({ session = {}, payload = {}, mode = 'interv
   return `${session.targetRole || ''} ${roleCanonical} ${interviewFocus} ${answerSlice}`.trim();
 };
 
-const runInterviewController = async ({ session, payload = {}, onSentence = null }) => {
+const runInterviewController = async ({ session, payload = {}, onSentence = null, trace = null }) => {
   if (hasReachedQuestionLimit(session)) {
     return {
       isComplete: true,
@@ -110,27 +130,22 @@ const runInterviewController = async ({ session, payload = {}, onSentence = null
     };
   }
 
-  await ensureSessionArtifactsIndexed(session.id);
-  const initialRetrievalBundle = await agentRegistry.retrieval({
-    query: buildDefaultRetrievalQuery({ session, payload, mode: 'interview' }),
-    sessionId: session.id,
-    sourceTypes: ['question_bank', 'behavioural_bank', 'interview_plan', 'jd_rubric', 'cv_profile', 'transcript'],
-    topK: 5,
-    objective: 'bootstrap_interview_context',
-    targetTopic: session.targetRole,
-  });
+  await measureAdaptiveStep(trace, 'adaptive.indexing_check', () => ensureSessionArtifactsIndexed(session.id));
+  const initialRetrievalBundle = await measureAdaptiveStep(trace, 'adaptive.retrieval', () => agentRegistry.retrieval(
+    buildInterviewRetrievalInput({ session, payload, objective: 'bootstrap_interview_context' })
+  ));
 
-  const environment = buildInterviewEnvironment({ session, retrievalBundle: initialRetrievalBundle });
-  const evaluatorOutput = evaluateInterviewTurn({ environment });
+  const environment = await measureAdaptiveStep(trace, 'adaptive.environment_build', () => buildInterviewEnvironment({ session, retrievalBundle: initialRetrievalBundle }));
+  const evaluatorOutput = await measureAdaptiveStep(trace, 'adaptive.turn_evaluation', () => evaluateInterviewTurn({ environment }));
   enqueueBackgroundJob('persist-evaluator-record', () => persistEvaluatorRecord({ sessionId: session.id, evaluation: evaluatorOutput }), { sessionId: session.id });
 
-  const evidenceBundle = buildEvidenceBundle({ session, retrievalBundle: initialRetrievalBundle });
-  const decisionContext = await buildDecisionContext({
+  const evidenceBundle = await measureAdaptiveStep(trace, 'adaptive.evidence_bundle', () => buildEvidenceBundle({ session, retrievalBundle: initialRetrievalBundle }));
+  const decisionContext = await measureAdaptiveStep(trace, 'adaptive.decision_context', () => buildDecisionContext({
     taskType: 'interview_next_turn',
     session,
     retrievalBundle: initialRetrievalBundle,
     latestEvaluation: evaluatorOutput,
-  });
+  }));
   enqueueBackgroundJob('persist-controller-context', async () => {
     await persistDynamicSlotState({ sessionId: session.id, dynamicSlots: decisionContext.dynamicSlotState });
     await persistControllerSnapshot({ sessionId: session.id, decisionContext, evidenceBundle });
@@ -162,7 +177,7 @@ const runInterviewController = async ({ session, payload = {}, onSentence = null
     });
   }, { sessionId: session.id });
 
-  const plan = selectNextAction(decisionContext);
+  const plan = await measureAdaptiveStep(trace, 'adaptive.action_selection', () => selectNextAction(decisionContext));
   enqueueBackgroundJob('persist-action-selection-record', () => createDecisionRecord({
     sessionId: session.id,
     record: {
@@ -181,14 +196,14 @@ const runInterviewController = async ({ session, payload = {}, onSentence = null
     },
   }), { sessionId: session.id });
 
-  const interviewerOutput = await executeInterviewAction({
+  const interviewerOutput = await measureAdaptiveStep(trace, 'adaptive.action_execution', () => executeInterviewAction({
     selectedAction: plan.selectedAction,
     decisionContext,
     actionInput: plan.actionInput,
     agentRegistry,
     session,
     onSentence,
-  });
+  }));
 
   enqueueBackgroundJob('persist-action-execution-record', () => createDecisionRecord({
     sessionId: session.id,
@@ -375,7 +390,29 @@ const runReportController = async ({ session }) => {
   return { report: executionResult.report, qaResult: executionResult.qaResult, stored, controllerAction: plan.selectedAction };
 };
 
-export const runTask = async ({ taskType, sessionId, payload = {}, onSentence = null } = {}) => {
+
+export const warmAdaptiveSession = async ({ sessionId, trace = null } = {}) => {
+  const session = await getSessionById(sessionId);
+  if (!session) {
+    throw new Error('Session not found');
+  }
+
+  await measureAdaptiveStep(trace, 'warm_adaptive.indexing_check', () => ensureSessionArtifactsIndexed(session.id));
+  const retrievalBundle = await measureAdaptiveStep(trace, 'warm_adaptive.retrieval', () => agentRegistry.retrieval(
+    buildInterviewRetrievalInput({ session, payload: {}, objective: 'warm_adaptive_session' })
+  ));
+  const environment = await measureAdaptiveStep(trace, 'warm_adaptive.environment_build', () => buildInterviewEnvironment({ session, retrievalBundle }));
+  await measureAdaptiveStep(trace, 'warm_adaptive.evidence_bundle', () => buildEvidenceBundle({ session, retrievalBundle }));
+
+  return {
+    warmed: true,
+    sessionId: session.id,
+    retrievalCount: Array.isArray(retrievalBundle?.items) ? retrievalBundle.items.length : 0,
+    hasEnvironment: Boolean(environment),
+  };
+};
+
+export const runTask = async ({ taskType, sessionId, payload = {}, onSentence = null, trace = null } = {}) => {
   if (!taskType) {
     throw new Error('taskType is required');
   }
@@ -385,7 +422,7 @@ export const runTask = async ({ taskType, sessionId, payload = {}, onSentence = 
     if (!session) {
       throw new Error('Session not found');
     }
-    return runInterviewController({ session, payload, onSentence });
+    return runInterviewController({ session, payload, onSentence, trace });
   }
 
   if (taskType === 'generate_report') {
