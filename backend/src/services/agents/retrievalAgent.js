@@ -17,6 +17,27 @@ import { RETRIEVAL_SOURCES } from '../retrieval/retrievalSourceRegistry.js';
 const ensureArray = (value) => (Array.isArray(value) ? value : []);
 const unique = (items = []) => [...new Set(items.filter(Boolean))];
 
+const buildRetrievalErrorBundle = (source, error) => ({
+  items: [],
+  retrievalFailed: true,
+  error: {
+    source,
+    message: error?.message || String(error || 'Retrieval failed'),
+  },
+});
+
+const safeRetrieve = async (source, fn) => {
+  try {
+    return await fn();
+  } catch (error) {
+    return buildRetrievalErrorBundle(source, error);
+  }
+};
+
+const collectRetrievalErrors = (bundles = []) => bundles
+  .map((bundle) => bundle?.error)
+  .filter(Boolean);
+
 const splitSessionAndGlobalSources = (sourceTypes = []) => {
   const globalSources = [RETRIEVAL_SOURCES.GLOBAL_QUESTION_BANK, RETRIEVAL_SOURCES.GLOBAL_BEHAVIOURAL_BANK];
   return {
@@ -62,11 +83,12 @@ export const runRetrievalAgent = async ({
   const { sessionSources, globalSources } = splitSessionAndGlobalSources(resolvedSources);
 
   const sessionBundle = sessionSources.length
-    ? await retrieveSessionEvidence({ query, sessionId, sourceTypes: sessionSources, topK })
+    ? await safeRetrieve('session_evidence', () => retrieveSessionEvidence({ query, sessionId, sourceTypes: sessionSources, topK }))
     : { items: [] };
   const globalBundle = globalSources.length
-    ? await retrieveGlobalKnowledge({ query, sourceTypes: globalSources, topK })
+    ? await safeRetrieve('global_knowledge', () => retrieveGlobalKnowledge({ query, sourceTypes: globalSources, topK }))
     : { items: [] };
+  const retrievalErrors = collectRetrievalErrors([sessionBundle, globalBundle]);
 
   let combinedResult = {
     query,
@@ -76,33 +98,52 @@ export const runRetrievalAgent = async ({
     sourceTypes: resolvedSources,
     items: mergeItems([sessionBundle, globalBundle]).slice(0, topK),
     correctiveRetryUsed: false,
+    retrievalFailed: retrievalErrors.length > 0,
+    retrievalErrors,
   };
 
   const quality = assessRetrievalQuality({ retrievalResult: combinedResult, targetTopic: objectivePayload.targetTopic });
   if (quality.retryRecommended) {
-    const retryResult = await runCorrectiveRetrieval({
+    const retryResult = await safeRetrieve('corrective_retrieval', () => runCorrectiveRetrieval({
       query,
       targetTopic: objectivePayload.targetTopic,
       evidenceType: objectivePayload.evidenceType,
       sessionId,
       sourceTypes: resolvedSources,
       topK,
-    });
-    const retryQuality = assessRetrievalQuality({ retrievalResult: retryResult, targetTopic: objectivePayload.targetTopic });
-    if (retryQuality.score >= quality.score) {
-      combinedResult = {
-        ...retryResult,
-        objective: objectivePayload.objective,
-        targetTopic: objectivePayload.targetTopic,
-        evidenceType: objectivePayload.evidenceType,
-        sourceTypes: unique([...(retryResult.correctiveMeta?.retrySources || []), ...resolvedSources]),
+    }));
+    if (retryResult.error) {
+      combinedResult.qualityAssessment = {
+        ...quality,
+        passed: false,
+        retryRecommended: false,
+        reasons: unique([...(quality.reasons || []), 'RETRIEVAL_ERROR']),
       };
-      combinedResult.qualityAssessment = retryQuality;
+      combinedResult.retrievalFailed = true;
+      combinedResult.retrievalErrors = collectRetrievalErrors([sessionBundle, globalBundle, retryResult]);
     } else {
-      combinedResult.qualityAssessment = quality;
+    const retryQuality = assessRetrievalQuality({ retrievalResult: retryResult, targetTopic: objectivePayload.targetTopic });
+      if (retryQuality.score >= quality.score) {
+        combinedResult = {
+          ...retryResult,
+          objective: objectivePayload.objective,
+          targetTopic: objectivePayload.targetTopic,
+          evidenceType: objectivePayload.evidenceType,
+          sourceTypes: unique([...(retryResult.correctiveMeta?.retrySources || []), ...resolvedSources]),
+          retrievalFailed: retrievalErrors.length > 0,
+          retrievalErrors,
+        };
+        combinedResult.qualityAssessment = retryQuality;
+      } else {
+        combinedResult.qualityAssessment = retrievalErrors.length
+          ? { ...quality, passed: false, retryRecommended: false, reasons: unique([...(quality.reasons || []), 'RETRIEVAL_ERROR']) }
+          : quality;
+      }
     }
   } else {
-    combinedResult.qualityAssessment = quality;
+    combinedResult.qualityAssessment = retrievalErrors.length
+      ? { ...quality, passed: false, retryRecommended: false, reasons: unique([...(quality.reasons || []), 'RETRIEVAL_ERROR']) }
+      : quality;
   }
 
   const evidenceSummary = combinedResult.items

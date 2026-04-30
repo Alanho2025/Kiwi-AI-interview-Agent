@@ -38,9 +38,13 @@ const getTraceMeta = (trace = null) => {
   };
 };
 
+const removeEmptyLatencyFields = (summary) => Object.fromEntries(
+  Object.entries(summary).filter(([, value]) => value !== 'n/a' && value !== null && value !== undefined)
+);
+
 export const buildVoiceLatencyConsoleSummary = ({ trace = null, backendLatency = null, phase = 'turn' } = {}) => {
   const derived = trace?.derived || {};
-  return {
+  const summary = {
     phase,
     ...getTraceMeta(trace),
     clientVadToPlayback: formatVoiceLatencyMs(derived.vadToPlaybackMs ?? derived.stopToNextAudioMs),
@@ -85,4 +89,5 @@ export const buildVoiceLatencyConsoleSummary = ({ trace = null, backendLatency =
     backendFirstAudioSent: formatVoiceLatencyMs(getBackendMarkMs(backendLatency, 'first_audio_sent')),
     backendFirstSentenceTts: formatVoiceLatencyMs(getStepDuration(backendLatency, 'stream_sentence_tts_0')),
   };
+  return removeEmptyLatencyFields(summary);
 };
