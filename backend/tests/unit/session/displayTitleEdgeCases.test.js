@@ -32,7 +32,7 @@ describe('session display title cleanup', () => {
     });
 
     const opening = getOpeningQuestionText({ interviewPlan: plan });
-    expect(opening).toContain('Software Engineer (agentic) interview');
+    expect(opening).toContain('Software Engineer (Agentic) interview');
     expect(opening).not.toMatch(/we are hiring/i);
   });
 

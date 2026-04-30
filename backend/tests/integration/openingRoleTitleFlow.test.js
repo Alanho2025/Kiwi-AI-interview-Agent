@@ -26,7 +26,7 @@ Build agentic AI workflows.`;
     });
 
     const opening = getOpeningQuestionText({ interviewPlan: plan });
-    expect(opening).toContain('Software Engineer (agentic) interview');
+    expect(opening).toMatch(/Software Engineer \(Agentic\) interview/i);
     expect(opening).not.toMatch(/we are hiring/i);
   });
 });

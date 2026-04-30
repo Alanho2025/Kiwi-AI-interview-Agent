@@ -8,12 +8,13 @@ const ACRONYMS = new Set(['AI', 'ML', 'UI', 'UX', 'QA', 'SQL', 'API', 'AWS', 'GC
 const ROLE_NOUN_PATTERN = /\b(?:engineer|developer|designer|analyst|architect|consultant|specialist|intern|scientist|administrator|programme|program)\b/i;
 const FALSE_POSITIVE_HIRING_ROLES = /\b(?:hiring manager|hiring coordinator|recruitment manager|talent acquisition specialist|people & culture advisor|people and culture advisor)\b/i;
 const MARKETING_TITLE_PREFIX_PATTERNS = [
-  /^(?:we\s+are\s+)?(?:now\s+)?hiring\s+(?:for\s+)?(?:a|an|the)?\s+/i,
-  /^we\s+are\s+looking\s+for\s+(?:a|an|the)?\s+/i,
-  /^join\s+us\s+as\s+(?:a|an|the)?\s+/i,
+  /^(?:we\s+are\s+)?(?:now\s+)?hiring\s*[:：]?\s+(?:for\s+)?(?:(?:a|an|the)\s+)?/i,
+  /^we\s+are\s+looking\s+for\s+(?:(?:a|an|the)\s+)?/i,
+  /^join\s+us\s+as\s+(?:(?:a|an|the)\s+)?/i,
   /^open\s+role\s*[:：]?\s*/i,
   /^role\s*[:：]?\s*/i,
   /^position\s*[:：]?\s*/i,
+  /^job\s+title\s*[:：]?\s*/i,
 ];
 
 const toTitleCase = (value = '') => String(value || '')
@@ -37,7 +38,7 @@ export const cleanRoleTitleCandidate = (value = '') => {
 
   for (const pattern of MARKETING_TITLE_PREFIX_PATTERNS) {
     const cleaned = normalizeCandidate(text.replace(pattern, ''));
-    if (cleaned && ROLE_NOUN_PATTERN.test(cleaned)) {
+    if (cleaned && cleaned !== text && ROLE_NOUN_PATTERN.test(cleaned)) {
       text = cleaned;
       break;
     }
@@ -61,6 +62,8 @@ const buildJoinedTitleCandidate = (first = '', second = '') => {
   const left = normalizeCandidate(first);
   const right = normalizeCandidate(second);
   if (!left || !right) return '';
+  const cleanedLeft = cleanRoleTitleCandidate(left);
+  if (cleanedLeft && cleanedLeft !== left && ROLE_KEYWORDS.test(cleanedLeft)) return toTitleCase(cleanedLeft);
   if (looksLikeNoise(left) || looksLikeNoise(right)) return '';
   if (!ROLE_KEYWORDS.test(left)) return '';
   if (left.includes(',')) return '';
