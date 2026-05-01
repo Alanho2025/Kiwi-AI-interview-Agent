@@ -15,12 +15,26 @@
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
+const isMockAiMode = () => process.env.AI_TEST_MODE === 'mock';
+const isRealAiMode = () => process.env.AI_TEST_MODE === 'real';
+const buildMockDeepSeekResponse = () => 'This is a mock response from DeepSeek. Please set DEEPSEEK_API_KEY to run real AI eval.';
+
+const resolveDeepSeekApiKey = () => {
+  const apiKey = process.env.DEEPSEEK_API_KEY;
+  if (apiKey) return apiKey;
+  if (isMockAiMode()) return null;
+  if (isRealAiMode()) {
+    throw new Error('DEEPSEEK_API_KEY is required when AI_TEST_MODE=real. Real eval must not silently use mock output.');
+  }
+  console.warn('DEEPSEEK_API_KEY is missing. Using mock response.');
+  return null;
+};
+
 export const callDeepSeek = async (prompt, systemInstruction = '') => {
   try {
-    const apiKey = process.env.DEEPSEEK_API_KEY;
+    const apiKey = resolveDeepSeekApiKey();
     if (!apiKey) {
-      console.warn('DEEPSEEK_API_KEY is missing. Using mock response.');
-      return "This is a mock response from DeepSeek. Please set your DEEPSEEK_API_KEY in the .env file.";
+      return buildMockDeepSeekResponse();
     }
 
     const response = await fetch('https://api.deepseek.com/chat/completions', {
@@ -56,11 +70,9 @@ export const callDeepSeek = async (prompt, systemInstruction = '') => {
  * Returns: Returns an async generator yielding text chunks as they arrive from the DeepSeek stream.
  */
 export const callDeepSeekStream = async function* (prompt, systemInstruction = '') {
-  const apiKey = process.env.DEEPSEEK_API_KEY;
+  const apiKey = resolveDeepSeekApiKey();
   if (!apiKey) {
-    console.warn('DEEPSEEK_API_KEY is missing. Using mock response.');
-    yield "This is a mock streaming response from DeepSeek. ";
-    yield "Please set your DEEPSEEK_API_KEY in the .env file.";
+    yield buildMockDeepSeekResponse();
     return;
   }
 

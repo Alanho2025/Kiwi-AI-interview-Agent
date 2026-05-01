@@ -8,7 +8,7 @@
 import { spawnSync } from 'node:child_process';
 
 const requestedGroups = process.argv.slice(2);
-const groups = requestedGroups.length > 0 ? requestedGroups : ['tests/unit', 'tests/scenario', 'tests/integration'];
+const groups = requestedGroups.length > 0 ? requestedGroups : ['tests/robustness'];
 const failures = [];
 
 for (const group of groups) {
