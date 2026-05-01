@@ -84,6 +84,37 @@ const buildRequirementList = ({ mustHaveRequirements, niceToHaveRequirements, qu
   return dedupeRequirementItems([...hardRequirements, ...preferredRequirements, ...qualificationRequirements]);
 };
 
+const buildRequirementListFromSectionLabels = ({ mustHaveRequirements = [], niceToHaveRequirements = [], qualifications = [] }) => {
+  const hardRequirements = mustHaveRequirements.map((label) => buildRequirementItem({ label, type: 'hard', importance: 'high', notes: 'guarded_jd_parse' }));
+  const preferredRequirements = niceToHaveRequirements.map((label) => buildRequirementItem({ label, type: 'soft', importance: 'low', notes: 'guarded_jd_parse' }));
+  const qualificationRequirements = qualifications.slice(0, 6).map((label) => buildRequirementItem({ label, type: 'soft', importance: 'medium', notes: 'guarded_jd_parse' }));
+  return dedupeRequirementItems([...hardRequirements, ...preferredRequirements, ...qualificationRequirements]);
+};
+
+const normalizeOverrideList = (value) => (Array.isArray(value) ? unique(value.map((item) => String(item || '').trim()).filter(Boolean)) : []);
+
+const applySectionOverrides = (normalizedSections = {}, sectionOverrides = {}) => {
+  const sections = { ...normalizedSections };
+  const overrideMap = {
+    responsibilities: normalizeOverrideList(sectionOverrides.responsibilities),
+    mustHaveRequirements: normalizeOverrideList(sectionOverrides.mustHaveRequirements || sectionOverrides.coreRequirements),
+    niceToHaveRequirements: normalizeOverrideList(sectionOverrides.niceToHaveRequirements || sectionOverrides.bonusRequirements),
+    benefits: normalizeOverrideList(sectionOverrides.benefits),
+    qualifications: normalizeOverrideList(sectionOverrides.qualifications),
+  };
+
+  Object.entries(overrideMap).forEach(([key, value]) => {
+    if (Object.prototype.hasOwnProperty.call(sectionOverrides, key) || value.length > 0) sections[key] = value;
+  });
+
+  if (sections.mustHaveRequirements?.length && sections.qualifications?.length) {
+    const mustHaveKeys = new Set(sections.mustHaveRequirements.map(normalizeRequirementKey));
+    sections.qualifications = sections.qualifications.filter((item) => !mustHaveKeys.has(normalizeRequirementKey(item)));
+  }
+
+  return sections;
+};
+
 const flattenTechnicalGroups = (technicalSkills = {}) => Object.values(technicalSkills).flat().map((item) => item.label || item.name);
 
 const buildMicroCriteria = ({ technicalSkills, softSkills }) => mergeUniqueLabels(
@@ -177,14 +208,14 @@ const extractTitle = (normalized) => {
     const splitIndex = text.search(/\b(?:company|employment type|job type|location|salary|contract type)\s*:|\b(?:what this role does|key responsibilities|responsibilities|core requirements|bonus requirements|qualifications|benefits|application notes|about the role|what you\'ll do|what you\'ll bring)\b/i);
     const head = splitIndex > 0 ? text.slice(0, splitIndex).trim() : text;
     const matched = head.match(/^([a-z0-9&/()+,.' -]{1,100}?\b(?:engineer|developer|manager|designer|analyst|architect|consultant|specialist|intern|scientist|administrator|programme|program)\b(?:\s*\([^)]{1,40}\))?)/i);
-    const value = (matched?.[1] || '').replace(/[.:;,-]+$/g, '').trim();
+    const value = (matched?.[1] || '').replace(/^we are seeking\s+(?:a|an)\s+/i, '').replace(/[.:;,-]+$/g, '').trim();
     if (value && value.split(' ').length <= 12) return value.split(/\s+/).map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()).join(' ');
   }
   return cleanLineLabel(firstMatchingLine(normalized.lines, /job title|role title|position title/i))
     || 'Target Role';
 };
 
-export const buildStructuredJobDescriptionRubric = async (rawJD = '') => {
+export const buildStructuredJobDescriptionRubric = async (rawJD = '', options = {}) => {
   const normalized = normalizeJobDescriptionText(rawJD);
   const fallbackTitle = extractTitle(normalized);
   const header = extractJobDescriptionHeader({ rawJD, fallbackTitle, normalized });
@@ -209,12 +240,19 @@ export const buildStructuredJobDescriptionRubric = async (rawJD = '') => {
     softSkills: extractedSkills.softSkills,
     aiSkills,
   });
-  const { normalized: normalizedSections, evidenceMap } = normalizeSectionView({
+  const { normalized: baseNormalizedSections, evidenceMap } = normalizeSectionView({
     sections,
     requirementGroups,
     technicalSkills: extractedSkills.technicalSkills,
     softSkills: extractedSkills.softSkills,
   });
+  const normalizedSections = applySectionOverrides(baseNormalizedSections, options.sectionOverrides?.sections || options.sectionOverrides || {});
+  const guardedHeader = {
+    ...header,
+    companyName: typeof options.sectionOverrides?.jobOverview?.companyName === 'string'
+      ? options.sectionOverrides.jobOverview.companyName
+      : header.companyName,
+  };
   const interviewTargets = buildJobDescriptionInterviewTargets({
     roleFamily: roleFamily.primary,
     groupedTechnicalSkills: extractedSkills.technicalSkills,
@@ -227,7 +265,9 @@ export const buildStructuredJobDescriptionRubric = async (rawJD = '') => {
   const softSkillRequirements = extractedSkills.softSkills.map((item) => item.label || item.name);
   const macroCriteria = buildMacroCriteria({ roleFamily, title: header.title, technicalSkills: extractedSkills.technicalSkills });
   const microCriteria = buildMicroCriteria({ technicalSkills: extractedSkills.technicalSkills, softSkills: extractedSkills.softSkills });
-  const requirements = buildRequirementList(requirementGroups);
+  const requirements = options.reparseMode
+    ? buildRequirementListFromSectionLabels(normalizedSections)
+    : buildRequirementList(requirementGroups);
   const keywords = unique([
     ...technicalSkillRequirements,
     ...softSkillRequirements,
@@ -240,7 +280,7 @@ export const buildStructuredJobDescriptionRubric = async (rawJD = '') => {
     rawJD,
     values: {
       title: header.title,
-      companyName: header.companyName,
+      companyName: guardedHeader.companyName,
       location: header.location,
       employmentType: header.employmentType,
       roleFamily: roleFamily.primary,
@@ -279,6 +319,10 @@ export const buildStructuredJobDescriptionRubric = async (rawJD = '') => {
       headingCount: detectedHeadings.length,
       fieldEvidence,
       normalizedEvidenceMap: evidenceMap,
+      agenticSafeguard: {
+        reparseMode: Boolean(options.reparseMode),
+        feedbackApplied: Boolean(options.criticFeedback),
+      },
     },
   });
 
@@ -286,7 +330,7 @@ export const buildStructuredJobDescriptionRubric = async (rawJD = '') => {
     ...rubric,
     jobOverview: {
       title: header.title,
-      companyName: header.companyName,
+      companyName: guardedHeader.companyName,
       location: header.location,
       contractType: header.contractType,
       employmentType: header.employmentType,
