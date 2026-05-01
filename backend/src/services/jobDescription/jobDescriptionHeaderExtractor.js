@@ -18,7 +18,7 @@ export const extractJobDescriptionHeader = ({ rawJD = '', fallbackTitle = '', no
   const afterTitleIndex = tokenizedLines.findIndex((line) => titleKeys.has(normalizeKey(line)));
   const afterTitleLines = afterTitleIndex >= 0 ? tokenizedLines.slice(afterTitleIndex + 1) : tokenizedLines;
 
-  const company = extractCompanyName({ afterTitleLines, title });
+  const company = extractCompanyName({ afterTitleLines, title, allLines: normalizedSource.lines || [] });
   const location = extractLocation({ afterTitleLines });
   const employmentType = extractEmploymentType({ afterTitleLines, flatText: normalizedSource.flatText });
   const salaryText = afterTitleLines.find((line) => /^salary:/i.test(line))?.replace(/^salary:\s*/i, '').trim()
