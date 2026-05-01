@@ -10,15 +10,13 @@
  */
 
 import express from 'express';
-import { startInterview, warmAdaptiveInterview, replyInterview, replyInterviewWithVoice, replyInterviewWithRealtimeVoice, replyInterviewWithRealtimeVoiceStream, repeatQuestion, pauseInterview, resumeInterview, endInterview, synthesizeInterviewText } from '../../controllers/interviewController.js';
-import { voiceUploadMiddleware } from '../../middleware/voiceUploadMiddleware.js';
+import { startInterview, warmAdaptiveInterview, replyInterview, replyInterviewWithRealtimeVoice, replyInterviewWithRealtimeVoiceStream, repeatQuestion, pauseInterview, resumeInterview, endInterview, synthesizeInterviewText } from '../../controllers/interviewController.js';
 
 const router = express.Router();
 
 router.post('/start', startInterview);
 router.post('/warm-adaptive', warmAdaptiveInterview);
 router.post('/reply', replyInterview);
-router.post('/voice-reply', voiceUploadMiddleware, replyInterviewWithVoice);
 router.post('/realtime-voice-turn', replyInterviewWithRealtimeVoice);
 router.post('/realtime-voice-turn-stream', replyInterviewWithRealtimeVoiceStream);
 router.post('/repeat', repeatQuestion);
