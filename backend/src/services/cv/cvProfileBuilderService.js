@@ -14,7 +14,7 @@ import { buildCvEvidenceProfile } from './cvEvidenceProfileBuilder.js';
 
 const COMMON_SKILLS = [
   'python', 'java', 'javascript', 'typescript', 'react', 'node', 'express', 'sql', 'postgresql', 'mongodb',
-  'aws', 'docker', 'git', 'html', 'css', 'tailwind', 'machine learning', 'data analysis', 'power bi',
+  'aws', 'azure', 'docker', 'git', 'html', 'css', 'tailwind', 'machine learning', 'data analysis', 'power bi',
   'excel', 'api', 'rest', 'agile', 'scrum', 'testing', 'pytest', 'jest', 'pandas', 'numpy', 'spark',
 ];
 

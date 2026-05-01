@@ -10,7 +10,7 @@
  */
 
 import { AGENT_ACTION_TYPES } from '../../constants/agentActionTypes.js';
-import { getNextPoolQuestion, hasReachedQuestionLimit } from '../interviewStateService.js';
+import { getNextPoolQuestion, hasReachedQuestionLimit, hasReachedTimeLimit } from '../interviewStateService.js';
 import { callDeepSeek, callDeepSeekStream } from '../deepseekService.js';
 const normalizeText = (value = '') => String(value || '').trim();
 const tokenize = (value = '') => normalizeText(value).toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
@@ -383,6 +383,28 @@ export const runInterviewerAgent = async ({
   const evaluatorState = decisionContext?.evaluatorState || null;
   const focusArea = String(decisionContext?.interviewStructure?.focusAreaKey || session?.settings?.focusArea || 'combined').trim().toLowerCase().replace('behavioural', 'behavioral');
 
+  if (hasReachedTimeLimit(session)) {
+    const reactTrace = buildReactTrace({
+      selectedAction: AGENT_ACTION_TYPES.WRAP_STAGE,
+      decisionContext,
+      selectedQuestion: { stage: 'wrap_up', topic: 'time_limit' },
+      environment,
+      evaluatorState,
+    });
+    return {
+      questionType: 'wrap_up',
+      nextQuestion: null,
+      rationale: 'The planned interview time limit has been reached.',
+      stage: 'wrap_up',
+      topic: 'time_limit',
+      followUpDepth: 0,
+      retrievalSnapshot: retrievalBundle,
+      isComplete: true,
+      completedBecause: 'time_limit_reached',
+      reactTrace,
+    };
+  }
+
   if (hasReachedQuestionLimit(session)) {
     const reactTrace = buildReactTrace({
       selectedAction: AGENT_ACTION_TYPES.WRAP_STAGE,
@@ -472,17 +494,24 @@ export const runInterviewerAgent = async ({
   }
 
   if (!selectedQuestion) {
-    selectedQuestion = {
-      type: 'behavioural_follow_up',
-      stage: 'behavioural',
-      topic: lastUserAnswer.includes('team') ? 'teamwork' : probeType || 'problem_solving',
-      followUpDepth: 1,
-      text: lastUserAnswer.includes('team')
-        ? 'What was your exact role in that team effort, and what result came from it?'
-        : 'Can you give me one specific example that shows how you handled that in practice?',
-      reason: 'Fallback follow-up when the structured role-linked pool is unavailable.',
-      sourceType: 'fallback',
-    };
+    selectedQuestion = focusArea === 'technical'
+      ? buildTechnicalRecoveryQuestion({ targetTopic: targetTopic || decisionContext?.matchState?.validationTargets?.[0] || 'implementation', session, decisionContext })
+      : {
+          type: 'behavioural_follow_up',
+          stage: 'behavioural',
+          category: 'behavioural',
+          topic: lastUserAnswer.includes('team') ? 'teamwork' : probeType || 'problem_solving',
+          followUpDepth: 1,
+          text: lastUserAnswer.includes('team')
+            ? 'What was your exact role in that team effort, and what result came from it?'
+            : 'Can you give me one specific example that shows how you handled that in practice?',
+          reason: 'Fallback follow-up when the structured role-linked pool is unavailable.',
+          sourceType: 'fallback',
+        };
+  }
+
+  if (focusArea === 'technical' && selectedQuestion?.category === 'behavioural') {
+    selectedQuestion = buildTechnicalRecoveryQuestion({ targetTopic: targetTopic || decisionContext?.matchState?.validationTargets?.[0] || 'implementation', session, decisionContext });
   }
 
   const reactTrace = buildReactTrace({ selectedAction: actionType, decisionContext, selectedQuestion, environment, evaluatorState });

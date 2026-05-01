@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { CirclePause, FileAudio, Mic, MicOff, RefreshCcw, Square, Volume2, ChevronDown, ChevronUp } from 'lucide-react';
+import { CirclePause, Mic, MicOff, RefreshCcw, Square, Volume2, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '../common/Button.jsx';
 import { cn } from '../../utils/formatters.js';
 
@@ -36,8 +36,6 @@ export function VoiceInterviewPanel({
     permissionError,
     stateLabel,
     voiceStatus,
-    voiceMode,
-    setVoiceMode,
     realtimeStatus,
     vadState,
     isAutoLoopActive,
@@ -52,20 +50,14 @@ export function VoiceInterviewPanel({
     transcriptionPreview,
     assistantAudioUrl,
     audioRef,
-    lastAsrConfidence,
-    manualAudioFile,
-    handleRequestPermission,
+    lastAsrConfidence,    handleRequestPermission,
     handleToggleRecording,
     handleReplayAssistantAudio,
     handleResetShell,
-    handleAudioFileSelect,
-    handleSubmitSelectedAudio,
   } = voiceShell;
 
   const waveBars = useMemo(() => buildWaveBars(levelHistory), [levelHistory]);
-  const currentQuestionText = currentQuestion?.displayText || currentQuestion?.text || '';
-  const backupDisabled = isSubmitting || isPaused || isCompleted || isProcessingTurn;
-  const statusBadgeLabel = isAutoLoopActive && !isRecording ? stateLabel : (isRecording ? 'Listening...' : stateLabel);
+  const currentQuestionText = currentQuestion?.displayText || currentQuestion?.text || '';  const statusBadgeLabel = isAutoLoopActive && !isRecording ? stateLabel : (isRecording ? 'Listening...' : stateLabel);
   const hasLiveCaption = Boolean(transcriptionPreview || pendingTranscript);
 
   return (
@@ -115,7 +107,7 @@ export function VoiceInterviewPanel({
                 {isAutoLoopActive ? (isRecording ? 'Listening automatically - ' + recordingDurationLabel : 'Auto voice interview is running') : 'Start Voice Interview to begin the hands-free loop'}
               </p>
               <p className="mt-1 text-sm text-gray-400">
-                Voice mode: {voiceMode === 'realtime' ? ('Full auto VAD' + (vadState ? ' · ' + vadState : '')) : 'Batch WAV fallback'}
+                Voice mode: Duplex Voice Agent{vadState ? ' · ' + vadState : ''}
               </p>
             </div>
 
@@ -217,30 +209,12 @@ export function VoiceInterviewPanel({
               </Button>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button variant={voiceMode === 'realtime' ? 'primary' : 'secondary'} size="sm" onClick={() => setVoiceMode('realtime')} disabled={isRecording || isProcessingTurn || isAutoLoopActive}>Auto VAD</Button>
-              <Button variant={voiceMode === 'batch' ? 'primary' : 'secondary'} size="sm" onClick={() => setVoiceMode('batch')} disabled={isRecording || isProcessingTurn || isAutoLoopActive}>Batch</Button>
               <Button variant="secondary" size="sm" onClick={handleRequestPermission}><Mic className="mr-2 h-4 w-4" />Enable Mic</Button>
               <Button variant="secondary" size="sm" onClick={handleReplayAssistantAudio}><Volume2 className="mr-2 h-4 w-4" />Replay</Button>
               <Button variant="secondary" size="sm" onClick={handleResetShell}><MicOff className="mr-2 h-4 w-4" />Reset</Button>
               <Button variant="danger" onClick={onEnd} disabled={isSubmitting || isCompleted}>End Interview</Button>
             </div>
           </div>
-
-          {voiceMode === 'batch' ? (
-            <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-4">
-              <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50">
-                <FileAudio className="h-4 w-4" />
-                Upload WAV fallback
-                <input type="file" accept=".wav,audio/wav,audio/x-wav" className="hidden" onChange={handleAudioFileSelect} />
-              </label>
-              {manualAudioFile ? (
-                <>
-                  <Button variant="secondary" onClick={handleSubmitSelectedAudio} disabled={backupDisabled}>Submit WAV</Button>
-                  <span className="text-xs text-gray-500">Selected: {manualAudioFile.name}</span>
-                </>
-              ) : null}
-            </div>
-          ) : null}
         </div>
       </div>
 

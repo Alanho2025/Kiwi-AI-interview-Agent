@@ -12,7 +12,7 @@ import { saveBufferToLocalStorage } from '../storageService.js';
 import { synthesizeSpeech } from './azureSpeechService.js';
 import { getLatestQuestionForSession } from '../session/sessionQuestionService.js';
 import { badRequest } from '../../utils/appError.js';
-import { saveInterviewAnswerWithDetails } from '../interview/interviewSessionService.js';
+import { applyElapsedSeconds, saveInterviewAnswerWithDetails } from '../interview/interviewSessionService.js';
 import { enqueueBackgroundJob } from '../../jobs/backgroundJobQueue.js';
 import { createLatencyTrace } from '../../utils/latencyTrace.js';
 import { logger } from '../../utils/logger.js';
@@ -32,15 +32,20 @@ const buildAssistantMetadata = ({ synthesis, storage = null, questionId = null }
   questionId,
 });
 
-const buildSessionPatch = (agentResult) => (agentResult.isComplete
-  ? {
-      status: 'completed',
-      endedAt: new Date().toISOString(),
-      lastResumedAt: null,
-    }
-  : {
-      currentQuestionIndex: agentResult.nextQuestionOrder,
-    });
+const buildSessionPatch = (agentResult, session) => {
+  const elapsedSession = applyElapsedSeconds(session);
+  return agentResult.isComplete
+    ? {
+        status: 'completed',
+        endedAt: new Date().toISOString(),
+        lastResumedAt: null,
+        elapsedSeconds: elapsedSession.elapsedSeconds,
+        completedBecause: agentResult.completedBecause || 'question_limit_reached',
+      }
+    : {
+        currentQuestionIndex: agentResult.nextQuestionOrder,
+      };
+};
 
 export const processRealtimeVoiceTurn = async ({
   session,
@@ -131,7 +136,7 @@ export const processRealtimeVoiceTurn = async ({
   const updatedSession = await trace.measure('update_session_state', () => updateSession(
     session.id,
     userId,
-    buildSessionPatch(agentResult)
+    buildSessionPatch(agentResult, session)
   ));
 
   const assistantText = String(agentResult.displayText || agentResult.interviewerTurn?.displayText || agentResult.nextQuestion || '').trim();

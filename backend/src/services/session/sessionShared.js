@@ -110,6 +110,11 @@ export const mapSessionRow = (row) => ({
   totalQuestions: row.total_questions,
   currentQuestionIndex: row.current_question_index,
   elapsedSeconds: row.elapsed_seconds,
+  controlMode: row.control_mode || 'question_limited',
+  questionType: row.question_type || row.focus_area || 'combined',
+  questionLimit: row.question_limit || row.total_questions,
+  timeLimitSeconds: row.time_limit_seconds || null,
+  completedBecause: row.completed_because || null,
   lastResumedAt: row.last_resumed_at,
   startedAt: row.started_at,
   endedAt: row.ended_at,
@@ -121,6 +126,11 @@ export const mapSessionRow = (row) => ({
   settings: {
     seniorityLevel: row.seniority_level,
     focusArea: row.focus_area,
+    questionType: row.question_type || row.focus_area,
+    controlMode: row.control_mode || 'question_limited',
+    questionLimit: row.question_limit || row.total_questions,
+    timeLimitSeconds: row.time_limit_seconds || null,
+    timeLimitMinutes: row.time_limit_seconds ? Math.round(Number(row.time_limit_seconds) / 60) : null,
     enableNZCultureFit: row.enable_nz_culture_fit,
   },
 });

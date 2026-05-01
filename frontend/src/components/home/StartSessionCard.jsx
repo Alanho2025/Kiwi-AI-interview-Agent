@@ -11,7 +11,7 @@
 
 import React from 'react';
 import { Mic, Settings } from 'lucide-react';
-import { focusOptions, seniorityOptions } from '../../utils/sessionDisplay.js';
+import { controlModeOptions, focusOptions, questionLimitOptions, seniorityOptions, timeLimitOptions } from '../../utils/sessionDisplay.js';
 import { VoiceDeviceCheckPanel } from './VoiceDeviceCheckPanel.jsx';
 
 /**
@@ -36,6 +36,8 @@ export function StartSessionCard({ summary, showSessionSettings, sessionDefaults
               <span className="rounded-full bg-gray-100 px-3 py-1 font-semibold text-gray-700">Level: {summary.level}</span>
               <span className="rounded-full bg-gray-100 px-3 py-1 font-semibold text-gray-700">Focus: {summary.focus}</span>
               <span className="rounded-full bg-gray-100 px-3 py-1 font-semibold text-gray-700">NZ context: {summary.nzContext}</span>
+              <span className="rounded-full bg-gray-100 px-3 py-1 font-semibold text-gray-700">Mode: {summary.controlMode}</span>
+              <span className="rounded-full bg-gray-100 px-3 py-1 font-semibold text-gray-700">Limit: {summary.limit}</span>
             </div>
           </div>
           <div className="flex flex-wrap gap-3">
@@ -74,16 +76,17 @@ export function StartSessionCard({ summary, showSessionSettings, sessionDefaults
             <div className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-emerald-600">Ready</div>
           </div>
           <div className="space-y-3 text-sm text-gray-600">
-            <div className="flex justify-between"><span>Mode</span><span className="font-semibold text-gray-900">Choose at start</span></div>
-            <div className="flex justify-between"><span>Flow</span><span className="font-semibold text-gray-900">Guided Interview</span></div>
-            <div className="flex justify-between"><span>Checks</span><span className="font-semibold text-gray-900">Clarity + Role Fit</span></div>
-            <div className="flex justify-between"><span>Estimate</span><span className="font-semibold text-gray-900">8 mins</span></div>
+            <div className="flex justify-between"><span>Delivery</span><span className="font-semibold text-gray-900">Choose at start</span></div>
+            <div className="flex justify-between"><span>Interview mode</span><span className="font-semibold text-gray-900">{summary.controlMode}</span></div>
+            <div className="flex justify-between"><span>Question type</span><span className="font-semibold text-gray-900">{summary.focus}</span></div>
+            <div className="flex justify-between"><span>Limit</span><span className="font-semibold text-gray-900">{summary.limit}</span></div>
           </div>
           <div className="mt-5 rounded-2xl bg-white p-4 text-sm text-gray-600 shadow-sm">
             <div className="mb-2 font-semibold text-gray-900">Default coaching setup</div>
             <div className="space-y-2">
               <div>{summary.level} role simulation</div>
               <div>{summary.focus} question mix</div>
+              <div>{summary.controlMode}: {summary.limit}</div>
               <div>NZ culture fit: {summary.nzContext}</div>
             </div>
           </div>
@@ -106,7 +109,7 @@ export function StartSessionCard({ summary, showSessionSettings, sessionDefaults
               </select>
             </label>
             <label className="text-sm font-medium text-gray-700">
-              Focus area
+              Question type
               <select
                 className="mt-2 w-full rounded-2xl border border-emerald-100 bg-white px-4 py-3 text-sm shadow-sm outline-none"
                 value={sessionDefaults.focusArea}
@@ -117,6 +120,48 @@ export function StartSessionCard({ summary, showSessionSettings, sessionDefaults
                 ))}
               </select>
             </label>
+            <label className="text-sm font-medium text-gray-700">
+              Interview mode
+              <select
+                className="mt-2 w-full rounded-2xl border border-emerald-100 bg-white px-4 py-3 text-sm shadow-sm outline-none"
+                value={sessionDefaults.controlMode}
+                onChange={(event) => onChangeDefaults('controlMode', event.target.value)}
+              >
+                {controlModeOptions.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <div className="mt-4 grid gap-4 md:grid-cols-3">
+            {sessionDefaults.controlMode === 'time_limited' ? (
+              <label className="text-sm font-medium text-gray-700">
+                Time limit
+                <select
+                  className="mt-2 w-full rounded-2xl border border-emerald-100 bg-white px-4 py-3 text-sm shadow-sm outline-none"
+                  value={sessionDefaults.timeLimitMinutes}
+                  onChange={(event) => onChangeDefaults('timeLimitMinutes', Number(event.target.value))}
+                >
+                  {timeLimitOptions.map((option) => (
+                    <option key={option} value={option}>{option} minutes · {option === 10 ? 15 : 10} questions</option>
+                  ))}
+                </select>
+              </label>
+            ) : (
+              <label className="text-sm font-medium text-gray-700">
+                Question limit
+                <select
+                  className="mt-2 w-full rounded-2xl border border-emerald-100 bg-white px-4 py-3 text-sm shadow-sm outline-none"
+                  value={sessionDefaults.questionLimit}
+                  onChange={(event) => onChangeDefaults('questionLimit', Number(event.target.value))}
+                >
+                  {questionLimitOptions.map((option) => (
+                    <option key={option} value={option}>{option} questions</option>
+                  ))}
+                </select>
+              </label>
+            )}
             <label className="flex items-center gap-3 rounded-2xl border border-emerald-100 bg-white px-4 py-3 text-sm font-medium text-gray-700 shadow-sm">
               <input
                 type="checkbox"

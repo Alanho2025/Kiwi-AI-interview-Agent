@@ -1,4 +1,5 @@
 import { AGENT_ACTION_TYPES } from '../../constants/agentActionTypes.js';
+import { getToolNameForAction } from '../../constants/agentToolNames.js';
 
 export const executeInterviewAction = async ({
   selectedAction,
@@ -21,7 +22,7 @@ export const executeInterviewAction = async ({
     });
   }
 
-  return agentRegistry.interviewer({
+  const result = await agentRegistry.interviewer({
     session,
     actionType: selectedAction,
     decisionContext,
@@ -33,4 +34,12 @@ export const executeInterviewAction = async ({
     category: actionInput.category || null,
     onSentence,
   });
+
+  return {
+    ...result,
+    reactTrace: {
+      ...(result?.reactTrace || {}),
+      tool: getToolNameForAction(selectedAction),
+    },
+  };
 };

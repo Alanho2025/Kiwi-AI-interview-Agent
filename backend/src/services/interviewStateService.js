@@ -80,6 +80,20 @@ export const getResolvedTotalQuestions = (session = {}) => {
  */
 export const hasReachedQuestionLimit = (session = {}) => getResolvedCurrentQuestionIndex(session) >= getResolvedTotalQuestions(session);
 
+export const getEffectiveElapsedSeconds = (session = {}) => {
+  const baseElapsed = Math.max(0, Number(session?.elapsedSeconds || 0));
+  if (!session?.lastResumedAt) return baseElapsed;
+  const elapsedMs = Date.now() - new Date(session.lastResumedAt).getTime();
+  const activeElapsed = elapsedMs > 0 ? Math.floor(elapsedMs / 1000) : 0;
+  return baseElapsed + activeElapsed;
+};
+
+export const hasReachedTimeLimit = (session = {}) => {
+  const controlMode = String(session?.controlMode || session?.settings?.controlMode || '').toLowerCase();
+  const timeLimitSeconds = Number(session?.timeLimitSeconds || session?.settings?.timeLimitSeconds || 0);
+  return controlMode === 'time_limited' && timeLimitSeconds > 0 && getEffectiveElapsedSeconds(session) >= timeLimitSeconds;
+};
+
 export const getCurrentPoolQuestion = (session = {}) => {
   const questionPool = getQuestionPool(session);
   const currentIndex = getResolvedCurrentQuestionIndex(session);

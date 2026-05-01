@@ -8,12 +8,10 @@
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist",
-    "lint": "eslint .",
     "start": "vite preview --host 0.0.0.0",
     "test": "vitest run --passWithNoTests=false",
-    "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage --passWithNoTests=false",
-    "test:voice": "vitest run src/hooks src/components/interview src/pages --passWithNoTests=false"
+    "test:all": "vitest run --passWithNoTests=false",
+    "quality:all": "npm run test:all && npm run build"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",

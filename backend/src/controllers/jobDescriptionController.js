@@ -11,7 +11,7 @@
 
 import { formatSuccess } from '../utils/responseFormatter.js';
 import {
-  buildStructuredJobDescriptionRubric,
+  buildGuardedStructuredJobDescriptionRubric,
   formatStructuredJobDescription,
 } from '../services/jobDescriptionService.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
@@ -20,15 +20,17 @@ import { logger, getRequestLogMeta } from '../utils/logger.js';
 
 export const paraphraseJD = asyncHandler(async (req, res) => {
   const rawJD = requireBodyField(req, 'rawJD', 'Please provide raw job description text');
-  const structuredJDRubric = await buildStructuredJobDescriptionRubric(rawJD);
+  const structuredJDRubric = await buildGuardedStructuredJobDescriptionRubric(rawJD);
   const structuredJD = formatStructuredJobDescription(structuredJDRubric);
 
   logger.info('Job description paraphrased', getRequestLogMeta(req, {
     rubricCriteriaCount: structuredJDRubric?.microCriteria?.length || 0,
+    safeguardStatus: structuredJDRubric?.safeguard?.finalStatus,
   }));
 
   res.json(formatSuccess('Job description paraphrased successfully', {
     structuredJD,
     structuredJDRubric,
+    safeguard: structuredJDRubric.safeguard,
   }));
 });

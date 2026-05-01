@@ -2,6 +2,21 @@
 import { collectMappedPoints, fallbackPoint } from './bluepointShared.js';
 
 const REQUIREMENT_MAPPINGS = [
+  { label: 'Data Pipelines', patterns: [/data pipelines?|pipelines?/i] },
+  { label: 'Data Platforms', patterns: [/data platforms?|modern data platforms?/i] },
+  { label: 'Data Models', patterns: [/data models?|data modelling|data modeling/i] },
+  { label: 'Data Architecture', patterns: [/architectures?|future-state architecture/i] },
+  { label: 'Databricks', patterns: [/databricks/i] },
+  { label: 'Kafka', patterns: [/kafka/i] },
+  { label: 'Redshift', patterns: [/redshift/i] },
+  { label: 'Data Governance', patterns: [/data governance/i] },
+  { label: 'Data Security', patterns: [/security|secure/i] },
+  { label: 'Data Quality', patterns: [/data quality|reliability|performance/i] },
+  { label: 'Monitoring', patterns: [/monitoring/i] },
+  { label: 'Infrastructure as Code', patterns: [/infrastructure as code|\biac\b/i] },
+  { label: 'DevOps Practices', patterns: [/devops/i] },
+  { label: 'Version Control', patterns: [/version control|\bgit\b/i] },
+  { label: 'Cloud Platforms', patterns: [/cloud platforms?|cloud-native/i] },
   { label: 'SQL', patterns: [/\bsql\b/i] },
   { label: 'Snowflake', patterns: [/snowflake/i] },
   { label: 'dbt', patterns: [/\bdbt\b/i] },

@@ -1,6 +1,6 @@
 {
   "casesRun": 6,
-  "average": 1,
+  "average": 0.91,
   "weakestCases": [],
   "thresholds": {
     "minAverage": 0,
@@ -10,49 +10,62 @@
     {
       "id": "data_engineer_clean",
       "fixture": "data-engineer-clean.txt",
-      "score": 1,
-      "earned": 24,
-      "possible": 24,
-      "failedChecks": []
+      "score": 0.85,
+      "earned": 0.88,
+      "possible": 1.04,
+      "failedChecks": [
+        "requirements",
+        "benefits",
+        "application"
+      ]
     },
     {
       "id": "graduate_software_developer",
       "fixture": "graduate-software-developer.txt",
-      "score": 1,
-      "earned": 20,
-      "possible": 20,
-      "failedChecks": []
+      "score": 0.89,
+      "earned": 0.88,
+      "possible": 0.99,
+      "failedChecks": [
+        "requirements",
+        "benefits"
+      ]
     },
     {
       "id": "cloud_platform_engineer",
       "fixture": "cloud-platform-engineer.txt",
-      "score": 1,
-      "earned": 20,
-      "possible": 20,
-      "failedChecks": []
+      "score": 0.94,
+      "earned": 0.81,
+      "possible": 0.86,
+      "failedChecks": [
+        "requirements"
+      ]
     },
     {
       "id": "benefit_heavy_precision_guard",
       "fixture": "benefit-heavy-jd.txt",
-      "score": 1,
-      "earned": 16,
-      "possible": 16,
-      "failedChecks": []
+      "score": 0.8,
+      "earned": 0.7,
+      "possible": 0.88,
+      "failedChecks": [
+        "requirements",
+        "benefits",
+        "application"
+      ]
     },
     {
       "id": "leading_company_false_positive_guard",
       "fixture": "data-engineer-leading-company.txt",
       "score": 1,
-      "earned": 9,
-      "possible": 9,
+      "earned": 0.78,
+      "possible": 0.78,
       "failedChecks": []
     },
     {
       "id": "heading_missing_paragraph",
       "fixture": "heading-missing-paragraph.txt",
       "score": 1,
-      "earned": 13,
-      "possible": 13,
+      "earned": 0.63,
+      "possible": 0.63,
       "failedChecks": []
     }
   ]

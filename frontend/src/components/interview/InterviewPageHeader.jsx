@@ -17,10 +17,13 @@ const buildPrimaryTitle = ({ isVoiceMode, title }) => {
   return title;
 };
 
-export function InterviewPageHeader({ session, title, roleFamilyLabel, exactRoleTitle, modeLabel, levelLabel, stageLabel, elapsedSeconds, isVoiceMode = false, onViewReport }) {
+export function InterviewPageHeader({ session, title, roleFamilyLabel, exactRoleTitle, modeLabel, levelLabel, stageLabel, elapsedSeconds, controlMode = 'question_limited', timeLimitSeconds = null, isVoiceMode = false, onViewReport }) {
   const isCompleted = session?.status === 'completed';
   const hasReport = Boolean(session?.hasReport);
   const showReportButton = isCompleted;
+  const isTimeLimited = controlMode === 'time_limited' && Number(timeLimitSeconds) > 0;
+  const timerLabel = isTimeLimited ? 'Time left' : 'Timer';
+  const timerValue = isTimeLimited ? formatDuration(Math.max(0, Number(timeLimitSeconds) - Number(elapsedSeconds || 0))) : formatDuration(elapsedSeconds);
 
   const buttonText = hasReport ? 'View Report' : 'Generate Report';
   const buttonClass = hasReport
@@ -42,8 +45,8 @@ export function InterviewPageHeader({ session, title, roleFamilyLabel, exactRole
           </div>
           <div className="flex items-center gap-8 shrink-0">
             <div className="text-right">
-              <p className="text-xs text-gray-500 uppercase tracking-wider">Timer</p>
-              <p className="text-[28px] font-mono font-medium text-gray-900">{formatDuration(elapsedSeconds)}</p>
+              <p className="text-xs text-gray-500 uppercase tracking-wider">{timerLabel}</p>
+              <p className="text-[28px] font-mono font-medium text-gray-900">{timerValue}</p>
             </div>
             <div className="text-right">
               <p className="text-xs text-gray-500 uppercase tracking-wider">Progress</p>
@@ -77,8 +80,8 @@ export function InterviewPageHeader({ session, title, roleFamilyLabel, exactRole
         </div>
         <div className="flex items-center gap-6 shrink-0">
           <div className="text-right">
-            <p className="text-xs text-gray-500 uppercase tracking-wider">Timer</p>
-            <p className="text-lg font-mono font-medium text-gray-900">{formatDuration(elapsedSeconds)}</p>
+            <p className="text-xs text-gray-500 uppercase tracking-wider">{timerLabel}</p>
+            <p className="text-lg font-mono font-medium text-gray-900">{timerValue}</p>
           </div>
           <div className="text-right">
             <p className="text-xs text-gray-500 uppercase tracking-wider">Progress</p>

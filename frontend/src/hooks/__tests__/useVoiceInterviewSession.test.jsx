@@ -7,63 +7,69 @@ import {
   useVoiceInterviewSession,
 } from '../useVoiceInterviewSession.js';
 
-const {
-      permissionMock,
-      batchRecorderMock,
-      realtimeMicMock,
-      speechSocketMock,
-    } = vi.hoisted(() => ({
-      permissionMock: {
-        permissionState: 'granted',
-        isRequesting: false,
-        error: null,
-        requestPermission: vi.fn().mockResolvedValue({ ok: true }),
-        isSupported: true,
-      },
-      batchRecorderMock: {
-        isRecording: false,
-        recordingError: null,
-        levelHistory: [],
-        recordingDurationMs: 0,
-        startRecording: vi.fn(),
-        stopRecording: vi.fn(),
-        clearResources: vi.fn(),
-      },
-      realtimeMicMock: {
-        isStreaming: false,
-        levelHistory: [],
-        durationMs: 0,
-        startStream: vi.fn(),
-        stopStream: vi.fn(),
-      },
-      speechSocketMock: {
-        socketState: 'idle',
-        partialTranscript: '',
-        finalTranscript: null,
-        socketError: null,
-        latency: {},
-        connect: vi.fn().mockResolvedValue({}),
-        closeSocket: vi.fn(),
-        sendAudioChunk: vi.fn(),
-        sendStop: vi.fn(),
-        resetTranscript: vi.fn(),
-      },
-    }));
-
-    vi.mock('../useMicrophonePermission.js', () => ({
-  useMicrophonePermission: () => permissionMock,
+const { permissionMock, realtimeMicMock, duplexSocketMock, audioQueueMock } = vi.hoisted(() => ({
+  permissionMock: {
+    permissionState: 'granted',
+    isRequesting: false,
+    error: null,
+    requestPermission: vi.fn().mockResolvedValue({ ok: true }),
+    isSupported: true,
+  },
+  realtimeMicMock: {
+    isStreaming: false,
+    levelHistory: [],
+    durationMs: 0,
+    mediaStream: null,
+    startStream: vi.fn().mockResolvedValue({}),
+    stopStream: vi.fn().mockResolvedValue(undefined),
+  },
+  duplexSocketMock: {
+    socketState: 'idle',
+    partialTranscript: '',
+    finalTranscript: null,
+    socketError: null,
+    latency: {},
+    connect: vi.fn().mockResolvedValue({}),
+    closeSocket: vi.fn(),
+    sendAudioChunk: vi.fn(),
+    sendSpeechStart: vi.fn(),
+    sendSpeechEnd: vi.fn(),
+    sendBargeIn: vi.fn(),
+    speakText: vi.fn(),
+    stopSession: vi.fn(),
+  },
+  audioQueueMock: {
+    audioRef: { current: null },
+    assistantAudioUrl: '',
+    isAssistantSpeaking: false,
+    enqueueAudioChunk: vi.fn(),
+    clearQueue: vi.fn(),
+  },
 }));
 
-vi.mock('../useDirectWavRecorder.js', () => ({
-  useDirectWavRecorder: () => batchRecorderMock,
+vi.mock('../useMicrophonePermission.js', () => ({
+  useMicrophonePermission: () => permissionMock,
 }));
 
 vi.mock('../voice/useRealtimeMicStream.js', () => ({
   useRealtimeMicStream: () => realtimeMicMock,
 }));
 
-vi.mock('../voice/useRealtimeSpeechSocket.js', () => ({
-  useRealtimeSpeechSocket: () => speechSocketMock,
+vi.mock('../voice/useVoiceActivityDetection.js', () => ({
+  useVoiceActivityDetection: () => ({
+    startVad: vi.fn().mockResolvedValue(true),
+    stopVad: vi.fn(),
+    vadState: 'idle',
+    vadMetrics: null,
+  }),
+}));
+
+vi.mock('../voice/useDuplexVoiceSocket.js', () => ({
+  useDuplexVoiceSocket: () => duplexSocketMock,
+}));
+
+vi.mock('../voice/useAssistantAudioQueue.js', () => ({
+  useAssistantAudioQueue: () => audioQueueMock,
 }));
 
 const buildSession = (overrides = {}) => ({
@@ -94,49 +100,28 @@ describe('voice interview session helpers', () => {
 describe('useVoiceInterviewSession', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.useRealTimers();
-    realtimeMicMock.isStreaming = false;
-    speechSocketMock.finalTranscript = null;
-    speechSocketMock.partialTranscript = '';
-    speechSocketMock.socketError = null;
     permissionMock.permissionState = 'granted';
     permissionMock.isSupported = true;
     permissionMock.requestPermission = vi.fn().mockResolvedValue({ ok: true });
-    vi.spyOn(console, 'log').mockImplementation(() => {});
-    vi.spyOn(console, 'info').mockImplementation(() => {});
+    realtimeMicMock.isStreaming = false;
+    duplexSocketMock.socketState = 'idle';
+    duplexSocketMock.finalTranscript = null;
+    duplexSocketMock.partialTranscript = '';
+    duplexSocketMock.socketError = null;
   });
 
   it('does not allow voice controls when disabled, paused, completed, or submitting', () => {
-    const { result: disabled } = renderHook(() => useVoiceInterviewSession({
-      enabled: false,
-      session: buildSession(),
-      isPaused: false,
-      isCompleted: false,
-      isSubmitting: false,
-    }));
+    const { result: disabled } = renderHook(() => useVoiceInterviewSession({ enabled: false, session: buildSession(), isPaused: false, isCompleted: false, isSubmitting: false }));
     expect(disabled.current.canUseVoice).toBe(false);
 
-    const { result: paused } = renderHook(() => useVoiceInterviewSession({
-      enabled: true,
-      session: buildSession(),
-      isPaused: true,
-      isCompleted: false,
-      isSubmitting: false,
-    }));
+    const { result: paused } = renderHook(() => useVoiceInterviewSession({ enabled: true, session: buildSession(), isPaused: true, isCompleted: false, isSubmitting: false }));
     expect(paused.current.canUseVoice).toBe(false);
 
-    const { result: submitting } = renderHook(() => useVoiceInterviewSession({
-      enabled: true,
-      session: buildSession(),
-      isPaused: false,
-      isCompleted: false,
-      isSubmitting: true,
-    }));
+    const { result: submitting } = renderHook(() => useVoiceInterviewSession({ enabled: true, session: buildSession(), isPaused: false, isCompleted: false, isSubmitting: true }));
     expect(submitting.current.canUseVoice).toBe(false);
   });
 
-  it('starts realtime recording only after permission and socket connection succeed', async () => {
-    vi.useFakeTimers();
+  it('starts the duplex socket and sends the current question through voice mode', async () => {
     const { result } = renderHook(() => useVoiceInterviewSession({
       enabled: true,
       session: buildSession(),
@@ -149,63 +134,13 @@ describe('useVoiceInterviewSession', () => {
     await act(async () => {
       await result.current.handleToggleRecording();
     });
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(350);
-    });
 
-    expect(permissionMock.requestPermission).toHaveBeenCalled();
-    expect(speechSocketMock.connect).toHaveBeenCalledWith({
-      sessionId: 'session-1',
-      language: 'en-NZ',
-      sampleRate: 16000,
-    });
-    expect(realtimeMicMock.startStream).toHaveBeenCalled();
+    expect(duplexSocketMock.connect).toHaveBeenCalledWith(expect.objectContaining({ sessionId: 'session-1' }));
+    expect(duplexSocketMock.speakText).toHaveBeenCalledWith('Why this role?');
+    expect(result.current.voiceMode).toBe('duplex');
   });
 
-  it('sets a safe error state instead of opening realtime voice without sessionId', async () => {
-    vi.useFakeTimers();
-    const { result } = renderHook(() => useVoiceInterviewSession({
-      enabled: true,
-      session: buildSession({ id: '' }),
-      sessionId: '',
-      isPaused: false,
-      isCompleted: false,
-      isSubmitting: false,
-    }));
-
-    await act(async () => {
-      await result.current.handleToggleRecording();
-    });
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(350);
-    });
-
-    expect(speechSocketMock.connect).not.toHaveBeenCalled();
-    expect(result.current.voiceState).toBe('error');
-    expect(result.current.voiceStatus.title).toBe('Session missing');
-  });
-
-  it('auto-submits final realtime transcript through the realtime voice flow', async () => {
-    const onSubmitRealtimeVoiceTurn = vi.fn().mockResolvedValue({
-      assistantAudio: null,
-      latency: {
-        totalMs: 1080,
-        steps: [
-          { step: 'load_latest_question', durationMs: 14 },
-          { step: 'save_realtime_user_turn', durationMs: 26 },
-          { step: 'adaptive_next_question', durationMs: 700 },
-          { step: 'update_session_state', durationMs: 40 },
-          { step: 'tts_synthesis', durationMs: 300 },
-        ],
-      },
-    });
-    speechSocketMock.finalTranscript = {
-      type: 'final_transcript',
-      displayText: 'I used STAR method in a project.',
-      confidenceStatus: 'high',
-      confidence: 0.93,
-    };
-
+  it('does not expose batch upload handlers as active features', () => {
     const { result } = renderHook(() => useVoiceInterviewSession({
       enabled: true,
       session: buildSession(),
@@ -213,28 +148,9 @@ describe('useVoiceInterviewSession', () => {
       isPaused: false,
       isCompleted: false,
       isSubmitting: false,
-      onSubmitRealtimeVoiceTurn,
     }));
 
-    await act(async () => {});
-
-    expect(result.current.editableTranscript).toBe('I used STAR method in a project.');
-    expect(onSubmitRealtimeVoiceTurn).toHaveBeenCalledWith(expect.objectContaining({
-      transcriptText: 'I used STAR method in a project.',
-      inputMode: 'realtime_voice_vad',
-    }));
-    expect(console.log).toHaveBeenCalledWith('[voice-latency-summary]', {
-      clientStopToSubmit: 'n/a',
-      clientSubmitToResponse: 'n/a',
-      clientStopToNextAudio: 'n/a',
-      clientAudioGap: 'n/a',
-      backendTotal: '1080 ms',
-      backendLoadQuestion: '14 ms',
-      backendSaveTurn: '26 ms',
-      backendAdaptiveNextQuestion: '700 ms',
-      backendUpdateSession: '40 ms',
-      backendTts: '300 ms',
-    });
-    expect(result.current.voiceStatus.title).toBe('Next question ready');
+    expect(result.current.manualAudioFile).toBeNull();
+    expect(result.current.voiceMode).toBe('duplex');
   });
 });
