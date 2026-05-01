@@ -104,6 +104,17 @@ export const selectNextAction = (decisionContext = {}) => {
     };
   }
 
+  const repairCount = Number(evaluatorState.repairCount || interviewStructure.currentTopicState?.repairCount || 0);
+  const repeatedRepairRequested = Boolean(evaluatorState.repeatedRepairRequested || evaluatorState.questionSimilarityFlag) || repairCount >= 2;
+  if ((evaluatorState.suggestedNextMode === 'rephrase' || evaluatorState.misunderstandingFlag) && repeatedRepairRequested) {
+    return {
+      selectedAction: AGENT_ACTION_TYPES.ASK_SCAFFOLD_QUESTION,
+      rationale: 'The candidate has repeatedly signalled misunderstanding, so the controller should reduce cognitive load with a scaffolded step-by-step question.',
+      confidence: 0.9,
+      actionInput: { targetTopic: evaluatorState.currentTopic || targetTopic, probeType: 'scaffold', forceEvidence: true, scaffoldStep: 'project_first' },
+    };
+  }
+
   if (evaluatorState.suggestedNextMode === 'rephrase' || evaluatorState.misunderstandingFlag) {
     return {
       selectedAction: AGENT_ACTION_TYPES.REPHRASE_QUESTION,
@@ -168,6 +179,16 @@ export const selectNextAction = (decisionContext = {}) => {
       rationale: `The current section ${sectionState.sectionKey} is sufficiently covered, and the evaluator signalled advance, so the controller should shift to ${sectionState.nextSectionKey}.`,
       confidence: 0.85,
       actionInput: { targetTopic: sectionState.nextSectionKey, probeType: 'section_shift', forceEvidence: false },
+    };
+  }
+
+  if ((candidateState.specificityLevel === 'low' || evaluatorState.suggestedNextMode === 'probe')
+    && (Number(interviewStructure.currentTopicState?.followUpCount || 0) >= 2 || evaluatorState.lowEvidenceRepeated)) {
+    return {
+      selectedAction: AGENT_ACTION_TYPES.ASK_SCAFFOLD_QUESTION,
+      rationale: 'Repeated probing on the same topic has not produced evidence, so the controller should ask a smaller scaffold question before moving on.',
+      confidence: 0.86,
+      actionInput: { targetTopic, probeType: 'scaffold', forceEvidence: true, scaffoldStep: 'one_concrete_project' },
     };
   }
 

@@ -19,6 +19,7 @@ import { apiClient, apiClientStream } from './client.js';
  */
 export const startInterview = (sessionId) => apiClient('/interview/start', { method: 'POST', body: { sessionId } });
 export const replyInterview = (sessionId, answer) => apiClient('/interview/reply', { method: 'POST', body: { sessionId, answer } });
+export const warmAdaptiveInterviewSession = (sessionId) => apiClient('/interview/warm-adaptive', { method: 'POST', body: { sessionId } });
 export const repeatQuestion = (sessionId) => apiClient('/interview/repeat', { method: 'POST', body: { sessionId } });
 /**
  * Purpose: Execute the main responsibility for pauseInterview.

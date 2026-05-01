@@ -5,6 +5,7 @@ import { useRealtimeMicStream } from './voice/useRealtimeMicStream.js';
 import { useRealtimeSpeechSocket } from './voice/useRealtimeSpeechSocket.js';
 import { useVoiceActivityDetection } from './voice/useVoiceActivityDetection.js';
 import { createVoiceLatencyTrace } from '../utils/voiceLatencyTrace.js';
+import { DEFAULT_VAD_CONFIG } from '../utils/voiceActivityDetectionCore.js';
 import { buildVoiceLatencyConsoleSummary } from '../utils/voiceLatencySummary.js';
 import { synthesizeInterviewText } from '../api/interviewApi.js';
 
@@ -118,6 +119,7 @@ export function useVoiceInterviewSession({
   const startAutoListeningRef = useRef(null);
   const stopRealtimeRecordingRef = useRef(null);
   const audioQueueRef = useRef([]);
+  const firstAudioChunkReceivedRef = useRef(false);
   const isAudioPlayingRef = useRef(false);
   const audioStateRef = useRef({ isProcessingTurn: false, isRealtimeStreaming: false, isBatchRecording: false, isPaused: false, isCompleted: false });
 
@@ -270,6 +272,13 @@ export function useVoiceInterviewSession({
     setVoiceState('auto_submitting_answer');
     setVoiceStatus(buildVoiceStatus('info', 'Preparing next question', 'KiwiCoach is using your answer to decide the next spoken question.'));
 
+    voiceTraceRef.current?.mark('final_transcript_received', {
+      source: turn?.source || 'unknown',
+      usedPartialFallback: Boolean(turn?.usedPartialFallback || turn?.fallback),
+      confidence: turn?.confidence ?? null,
+      textLength: answerText.length,
+      reason,
+    });
     voiceTraceRef.current?.mark('auto_submit_start', { reason });
     const submitStartedAt = performance.now();
     try {
@@ -286,6 +295,10 @@ export function useVoiceInterviewSession({
           finaliseReason: reason,
         },
         onAudioChunk: (base64, index) => {
+          if (!firstAudioChunkReceivedRef.current) {
+            firstAudioChunkReceivedRef.current = true;
+            voiceTraceRef.current?.mark('first_audio_chunk_received', { index });
+          }
           setVoiceState('ai_speaking');
           setVoiceStatus(buildVoiceStatus('success', 'KiwiCoach is speaking', 'Streaming response...'));
           audioQueueRef.current.push({ base64, index });
@@ -401,6 +414,7 @@ export function useVoiceInterviewSession({
     autoStopInFlightRef.current = false;
     realtimeStopAtRef.current = null;
     vadMetricsRef.current = null;
+    firstAudioChunkReceivedRef.current = false;
     setPendingTranscript(null);
     setEditableTranscript('');
     setTranscriptionPreview('');
@@ -480,6 +494,12 @@ export function useVoiceInterviewSession({
       setIsAutoLoopActive(true);
       voiceTraceRef.current = createVoiceLatencyTrace({ sessionId: activeSessionId, mode: 'realtime_voice_vad' });
       voiceTraceRef.current.mark('voice_loop_start');
+      voiceTraceRef.current.mark('vad_config', {
+        ...DEFAULT_VAD_CONFIG,
+        warmupIgnoreMs: VAD_WARMUP_IGNORE_MS,
+        micArmDelayMs: MIC_ARM_DELAY_MS,
+        finalTranscriptTimeoutMs: FINAL_TRANSCRIPT_TIMEOUT_MS,
+      });
       setVoiceState('starting');
       setVoiceStatus(buildVoiceStatus('info', 'Starting voice interview', 'KiwiCoach will speak, then the microphone will open automatically.'));
       const spoke = speakCurrentQuestion({ isReplay: false });

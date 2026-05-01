@@ -5,6 +5,18 @@ const FIELD_OR_SECTION_SPLIT = /\b(?:company|employment type|job type|location|s
 const TITLE_START_PATTERN = /^([a-z0-9&/()+,.' -]{1,100}?\b(?:engineer|developer|manager|designer|analyst|architect|consultant|specialist|intern|scientist|administrator|programme|program)\b(?:\s*\([^)]{1,40}\))?)/i;
 const ACRONYMS = new Set(['AI', 'ML', 'UI', 'UX', 'QA', 'SQL', 'API', 'AWS', 'GCP', 'PHP', 'HTML', 'CSS', 'C#', '.NET', 'DBT', 'DV2']);
 
+const ROLE_NOUN_PATTERN = /\b(?:engineer|developer|designer|analyst|architect|consultant|specialist|intern|scientist|administrator|programme|program)\b/i;
+const FALSE_POSITIVE_HIRING_ROLES = /\b(?:hiring manager|hiring coordinator|recruitment manager|talent acquisition specialist|people & culture advisor|people and culture advisor)\b/i;
+const MARKETING_TITLE_PREFIX_PATTERNS = [
+  /^(?:we\s+are\s+)?(?:now\s+)?hiring\s*[:：]?\s+(?:for\s+)?(?:(?:a|an|the)\s+)?/i,
+  /^we\s+are\s+looking\s+for\s+(?:(?:a|an|the)\s+)?/i,
+  /^join\s+us\s+as\s+(?:(?:a|an|the)\s+)?/i,
+  /^open\s+role\s*[:：]?\s*/i,
+  /^role\s*[:：]?\s*/i,
+  /^position\s*[:：]?\s*/i,
+  /^job\s+title\s*[:：]?\s*/i,
+];
+
 const toTitleCase = (value = '') => String(value || '')
   .split(/\s+/)
   .filter(Boolean)
@@ -19,12 +31,39 @@ const toTitleCase = (value = '') => String(value || '')
 
 const normalizeCandidate = (value = '') => String(value || '').replace(/\s+/g, ' ').trim().replace(/[.:;,-]+$/g, '').trim();
 
+export const cleanRoleTitleCandidate = (value = '') => {
+  let text = normalizeCandidate(value);
+  if (!text) return '';
+  if (FALSE_POSITIVE_HIRING_ROLES.test(text)) return text;
+
+  for (const pattern of MARKETING_TITLE_PREFIX_PATTERNS) {
+    const cleaned = normalizeCandidate(text.replace(pattern, ''));
+    if (cleaned && cleaned !== text && ROLE_NOUN_PATTERN.test(cleaned)) {
+      text = cleaned;
+      break;
+    }
+  }
+
+  return text;
+};
+
 const normalizeKey = (value = '') => normalizeCandidate(String(value || '').toLowerCase());
+
+const looksLikeNoise = (value = '') => {
+  const text = normalizeCandidate(value);
+  if (!text) return true;
+  if (NOISE_PATTERN.test(text)) return true;
+  if (text.split(' ').length > 12) return true;
+  if (text.length > 100) return true;
+  return false;
+};
 
 const buildJoinedTitleCandidate = (first = '', second = '') => {
   const left = normalizeCandidate(first);
   const right = normalizeCandidate(second);
   if (!left || !right) return '';
+  const cleanedLeft = cleanRoleTitleCandidate(left);
+  if (cleanedLeft && cleanedLeft !== left && ROLE_KEYWORDS.test(cleanedLeft)) return toTitleCase(cleanedLeft);
   if (looksLikeNoise(left) || looksLikeNoise(right)) return '';
   if (!ROLE_KEYWORDS.test(left)) return '';
   if (left.includes(',')) return '';
@@ -37,14 +76,6 @@ const buildJoinedTitleCandidate = (first = '', second = '') => {
   if (!ROLE_KEYWORDS.test(joined)) return '';
   return toTitleCase(joined);
 };
-const looksLikeNoise = (value = '') => {
-  const text = normalizeCandidate(value);
-  if (!text) return true;
-  if (NOISE_PATTERN.test(text)) return true;
-  if (text.split(' ').length > 12) return true;
-  if (text.length > 100) return true;
-  return false;
-};
 
 const extractInlineTitle = (line = '') => {
   const text = normalizeCandidate(line);
@@ -52,7 +83,8 @@ const extractInlineTitle = (line = '') => {
   const splitMatch = text.search(FIELD_OR_SECTION_SPLIT);
   const head = splitMatch > 0 ? text.slice(0, splitMatch).trim() : text;
   const labelled = /^job title:|^role title:|^position title:/i.test(head) ? cleanLineLabel(head) : head;
-  const matched = normalizeCandidate((labelled.match(TITLE_START_PATTERN) || [])[1] || labelled);
+  const cleanedLabelled = cleanRoleTitleCandidate(labelled);
+  const matched = normalizeCandidate((cleanedLabelled.match(TITLE_START_PATTERN) || [])[1] || cleanedLabelled);
   if (looksLikeNoise(matched)) return '';
   if (!ROLE_KEYWORDS.test(matched)) return '';
   return toTitleCase(matched);

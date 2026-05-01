@@ -15,7 +15,7 @@ import {
   createInterviewQuestion,
   updateSession,
 } from '../services/sessionService.js';
-import { runTask } from '../services/masterAiService.js';
+import { runTask, warmAdaptiveSession } from '../services/masterAiService.js';
 import { createInterviewLifecycleAuditLog } from '../services/interview/interviewAuditService.js';
 import {
   completeInterviewSession,
@@ -31,6 +31,7 @@ import { getOpeningQuestionText, hasAskedOpeningQuestion } from '../services/int
 import { resolveUserFromRequest } from '../services/authService.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { logger, getRequestLogMeta } from '../utils/logger.js';
+import { createLatencyTrace } from '../utils/latencyTrace.js';
 import { processVoiceReply } from '../services/voice/voiceOrchestrationService.js';
 import { processRealtimeVoiceTurn } from '../services/voice/realtimeVoiceTurnService.js';
 import { synthesizeSpeech } from '../services/voice/azureSpeechService.js';
@@ -95,6 +96,33 @@ export const startInterview = asyncHandler(async (req, res) => {
 
   logger.info('Interview started', getRequestLogMeta(req));
   res.json(formatSuccess('Interview started', { question: openingQuestion, session: updatedSession }));
+});
+
+
+export const warmAdaptiveInterview = asyncHandler(async (req, res) => {
+  const { sessionId } = req.body;
+  requireSessionId(sessionId);
+  const user = await resolveUserFromRequest(req);
+
+  const session = await loadOwnedSessionOrThrow({ sessionId, userId: user.id });
+  ensureInterviewInProgress(session);
+
+  const trace = createLatencyTrace('warm_adaptive_session', {
+    sessionId: session.id,
+    userId: user.id,
+  });
+  const result = await warmAdaptiveSession({ sessionId: session.id, trace });
+  const latency = trace.toJSON();
+
+  logger.info('Adaptive interview session warmed', getRequestLogMeta(req, {
+    sessionId: session.id,
+    latency,
+  }));
+
+  res.json(formatSuccess('Adaptive session warmed', {
+    ...result,
+    latency,
+  }));
 });
 
 export const replyInterview = asyncHandler(async (req, res) => {

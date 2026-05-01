@@ -10,7 +10,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { endInterview, pauseInterview, repeatQuestion, replyInterview, replyInterviewWithVoice, replyInterviewWithRealtimeVoice, replyInterviewWithRealtimeVoiceStream, resumeInterview, startInterview } from '../api/interviewApi.js';
+import { endInterview, pauseInterview, repeatQuestion, replyInterview, replyInterviewWithVoice, replyInterviewWithRealtimeVoice, replyInterviewWithRealtimeVoiceStream, resumeInterview, startInterview, warmAdaptiveInterviewSession } from '../api/interviewApi.js';
 import { exportTranscript } from '../api/exportApi.js';
 import { getSession } from '../api/sessionApi.js';
 import { buildInterviewDisplayModel } from '../utils/buildInterviewDisplayModel.js';
@@ -68,16 +68,33 @@ export function useInterviewSession({ sessionId, navigate }) {
   const [timerOffset, setTimerOffset] = useState(0);
   const [pageStatus, setPageStatus] = useState(null);
   const hasStartedRef = useRef(false);
+  const warmedAdaptiveRef = useRef(new Set());
+
+
+  const warmAdaptiveInBackground = useCallback((nextSession) => {
+    const nextSessionId = nextSession?.id || nextSession?._id || sessionId;
+    const isVoiceSession = String(nextSession?.mode || '').toLowerCase() === 'voice';
+    const isInProgress = nextSession?.status === 'in_progress';
+    if (!nextSessionId || !isVoiceSession || !isInProgress || warmedAdaptiveRef.current.has(nextSessionId)) return;
+
+    warmedAdaptiveRef.current.add(nextSessionId);
+    warmAdaptiveInterviewSession(nextSessionId).catch((error) => {
+      warmedAdaptiveRef.current.delete(nextSessionId);
+      console.warn('[voice-latency] adaptive warm-up failed', error);
+    });
+  }, [sessionId]);
 
   const loadSession = useCallback(async () => {
     try {
       const data = await getSession(sessionId);
       setSession(data.session);
+      warmAdaptiveInBackground(data.session);
 
       if (data.session.status === 'ready' && !hasStartedRef.current) {
         hasStartedRef.current = true;
         const startData = await startInterview(sessionId);
         setSession(startData.session);
+        warmAdaptiveInBackground(startData.session);
       }
     } catch (error) {
       setPageStatus(buildStatus('error', 'Could not load interview', error.message || 'Failed to load session.'));
@@ -85,11 +102,16 @@ export function useInterviewSession({ sessionId, navigate }) {
     } finally {
       setLoading(false);
     }
-  }, [navigate, sessionId]);
+  }, [navigate, sessionId, warmAdaptiveInBackground]);
 
   useEffect(() => {
     loadSession();
   }, [loadSession]);
+
+
+  useEffect(() => {
+    warmAdaptiveInBackground(session);
+  }, [session, warmAdaptiveInBackground]);
 
   useEffect(() => {
     if (!session || session.status !== 'in_progress') {
