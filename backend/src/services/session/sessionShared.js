@@ -35,16 +35,47 @@ export const titleCaseWords = (value = '') => value
   .map((part) => {
     if (ROLE_ACRONYMS.has(part.toUpperCase())) return part.toUpperCase();
     if (/^\.?net$/i.test(part)) return '.NET';
+    const parenthetical = part.match(/^\(([^)]+)\)$/);
+    if (parenthetical?.[1]) {
+      const inner = parenthetical[1];
+      const upperInner = inner.toUpperCase();
+      if (ROLE_ACRONYMS.has(upperInner)) return `(${upperInner})`;
+      return `(${inner.charAt(0).toUpperCase()}${inner.slice(1).toLowerCase()})`;
+    }
     if (/^[A-Z0-9_/-]{2,}$/.test(part)) return part;
     return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
   })
   .join(' ');
 
-export const cleanDisplayTitle = (value = '') =>
-  String(value || '')
+const DISPLAY_TITLE_ROLE_NOUN_PATTERN = /\b(?:engineer|developer|designer|analyst|architect|consultant|specialist|intern|scientist|administrator|programme|program|product manager)\b/i;
+const DISPLAY_TITLE_FALSE_POSITIVE_HIRING_ROLES = /\b(?:hiring manager|hiring coordinator|recruitment manager|talent acquisition specialist|people & culture advisor|people and culture advisor)\b/i;
+const DISPLAY_TITLE_MARKETING_PREFIX_PATTERNS = [
+  /^(?:we\s+are\s+)?(?:now\s+)?hiring\s*[:：]?\s+(?:for\s+)?(?:(?:a|an|the)\s+)?/i,
+  /^we\s+are\s+looking\s+for\s+(?:(?:a|an|the)\s+)?/i,
+  /^join\s+us\s+as\s+(?:(?:a|an|the)\s+)?/i,
+  /^open\s+role\s*[:：]?\s*/i,
+  /^role\s*[:：]?\s*/i,
+  /^position\s*[:：]?\s*/i,
+];
+
+export const cleanDisplayTitle = (value = '') => {
+  let text = String(value || '')
     .replace(/\s+/g, ' ')
     .replace(/[.,;:!?-]+\s*$/, '')
     .trim();
+
+  if (!text || DISPLAY_TITLE_FALSE_POSITIVE_HIRING_ROLES.test(text)) return text;
+
+  for (const pattern of DISPLAY_TITLE_MARKETING_PREFIX_PATTERNS) {
+    const cleaned = text.replace(pattern, '').replace(/[.,;:!?-]+\s*$/, '').trim();
+    if (cleaned && cleaned !== text && DISPLAY_TITLE_ROLE_NOUN_PATTERN.test(cleaned)) {
+      text = cleaned;
+      break;
+    }
+  }
+
+  return text;
+};
 
 export const extractDisplayTitle = (...candidates) => {
   for (const candidate of candidates) {

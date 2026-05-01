@@ -66,6 +66,7 @@ export const processRealtimeVoiceTurn = async ({
     userId,
   });
 
+  trace.mark('backend_request_received');
   const latestQuestion = await trace.measure('load_latest_question', () => getLatestQuestionForSession(session.id));
 
   await trace.measure('save_realtime_user_turn', async () => {
@@ -97,6 +98,24 @@ export const processRealtimeVoiceTurn = async ({
     });
   });
 
+  let firstSentenceSeen = false;
+  let firstAudioSeen = false;
+  const tracedOnSentence = onSentence
+    ? async (text, index) => {
+        if (!firstSentenceSeen) {
+          firstSentenceSeen = true;
+          trace.mark('first_sentence_ready', { index, textLength: String(text || '').length });
+          trace.mark('adaptive.llm_first_sentence', { index });
+        }
+        await onSentence(text, index);
+        if (!firstAudioSeen) {
+          firstAudioSeen = true;
+          trace.mark('first_audio_sent', { index });
+          trace.mark('adaptive.tts_first_audio', { index, mode: 'stream' });
+        }
+      }
+    : null;
+
   const agentResult = await trace.measure('adaptive_next_question', () => runTask({
     taskType: 'interview_next_turn',
     sessionId: session.id,
@@ -105,7 +124,8 @@ export const processRealtimeVoiceTurn = async ({
       inputMode,
       vad,
     },
-    onSentence,
+    onSentence: tracedOnSentence,
+    trace,
   }));
 
   const updatedSession = await trace.measure('update_session_state', () => updateSession(
@@ -142,6 +162,7 @@ export const processRealtimeVoiceTurn = async ({
     } else {
       try {
         const synthesis = await trace.measure('tts_synthesis', () => synthesizeSpeech({ text: assistantText, voiceName }));
+        trace.mark('adaptive.tts_first_audio', { mode: 'full_synthesis' });
         const aiTurns = updatedSession?.transcript?.filter((turn) => turn.role === 'ai') || [];
         const latestAiTurn = aiTurns[aiTurns.length - 1] || null;
         const questionId = latestAiTurn?.questionId || null;
