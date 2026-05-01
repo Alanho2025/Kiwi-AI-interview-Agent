@@ -10,6 +10,7 @@
  */
 
 import { AGENT_DECISION_TYPES } from '../constants/agentDecisionTypes.js';
+import { AGENT_TOOL_NAMES, getToolNameForAction } from '../constants/agentToolNames.js';
 import { agentRegistry } from './agentRegistryService.js';
 import { getSessionById, appendTranscriptTurn, createInterviewQuestion } from './sessionService.js';
 import { getNextQuestionOrder, hasReachedQuestionLimit } from './interviewStateService.js';
@@ -154,7 +155,8 @@ const runInterviewController = async ({ session, payload = {}, onSentence = null
       record: {
         taskType: 'interview_next_turn',
         agent: 'master_controller',
-        decisionType: AGENT_DECISION_TYPES.BUILD_CONTEXT,
+tool: AGENT_TOOL_NAMES.RETRIEVE_INTERVIEW_EVIDENCE,
+decisionType: AGENT_DECISION_TYPES.BUILD_CONTEXT,
         currentObjective: decisionContext.currentObjective,
         selectedAction: null,
         reasoningSummary: 'Built controller context from session state, retrieval evidence, transcript, and match analysis.',
@@ -167,7 +169,8 @@ const runInterviewController = async ({ session, payload = {}, onSentence = null
       record: {
         taskType: 'interview_next_turn',
         agent: 'interview_evaluator',
-        decisionType: AGENT_DECISION_TYPES.BUILD_CONTEXT,
+tool: AGENT_TOOL_NAMES.EVALUATE_CANDIDATE_ANSWER,
+decisionType: AGENT_DECISION_TYPES.BUILD_CONTEXT,
         currentObjective: decisionContext.currentObjective,
         selectedAction: evaluatorOutput.suggestedNextMode || null,
         reasoningSummary: evaluatorOutput.rationale,
@@ -183,7 +186,8 @@ const runInterviewController = async ({ session, payload = {}, onSentence = null
     record: {
       taskType: 'interview_next_turn',
       agent: 'master_controller',
-      decisionType: AGENT_DECISION_TYPES.SELECT_ACTION,
+tool: AGENT_TOOL_NAMES.PLAN_INTERVIEW_ACTION,
+decisionType: AGENT_DECISION_TYPES.SELECT_ACTION,
       currentObjective: decisionContext.currentObjective,
       selectedAction: plan.selectedAction,
       reasoningSummary: plan.rationale,
@@ -210,7 +214,8 @@ const runInterviewController = async ({ session, payload = {}, onSentence = null
     record: {
       taskType: 'interview_next_turn',
       agent: 'master_controller',
-      decisionType: AGENT_DECISION_TYPES.EXECUTE_ACTION,
+tool: getToolNameForAction(plan.selectedAction),
+decisionType: AGENT_DECISION_TYPES.EXECUTE_ACTION,
       currentObjective: decisionContext.currentObjective,
       selectedAction: plan.selectedAction,
       reasoningSummary: interviewerOutput?.rationale || 'Executed interview action.',
@@ -332,7 +337,8 @@ const runReportController = async ({ session }) => {
     record: {
       taskType: 'generate_report',
       agent: 'master_controller',
-      decisionType: AGENT_DECISION_TYPES.BUILD_CONTEXT,
+tool: AGENT_TOOL_NAMES.RETRIEVE_INTERVIEW_EVIDENCE,
+decisionType: AGENT_DECISION_TYPES.BUILD_CONTEXT,
       currentObjective: decisionContext.currentObjective,
       selectedAction: null,
       reasoningSummary: 'Built report controller context from session evidence and interview transcript.',
@@ -347,7 +353,8 @@ const runReportController = async ({ session }) => {
     record: {
       taskType: 'generate_report',
       agent: 'master_controller',
-      decisionType: AGENT_DECISION_TYPES.SELECT_ACTION,
+tool: AGENT_TOOL_NAMES.PLAN_INTERVIEW_ACTION,
+decisionType: AGENT_DECISION_TYPES.SELECT_ACTION,
       currentObjective: decisionContext.currentObjective,
       selectedAction: plan.selectedAction,
       reasoningSummary: plan.rationale,
@@ -372,7 +379,8 @@ const runReportController = async ({ session }) => {
     record: {
       taskType: 'generate_report',
       agent: 'master_controller',
-      decisionType: AGENT_DECISION_TYPES.EXECUTE_ACTION,
+tool: getToolNameForAction(plan.selectedAction),
+decisionType: AGENT_DECISION_TYPES.EXECUTE_ACTION,
       currentObjective: decisionContext.currentObjective,
       selectedAction: plan.selectedAction,
       reasoningSummary: 'Generated a grounded report draft and ran QA checks.',

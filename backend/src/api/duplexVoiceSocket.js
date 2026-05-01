@@ -1,49 +1,122 @@
 /**
- * File responsibility: Duplex voice WebSocket helpers.
+ * File responsibility: Duplex voice WebSocket endpoint.
  * Main responsibilities:
- * - Parse and validate the official duplex voice socket path.
- * - Keep socket JSON sending safe for closed connections.
- * - Keep JSON parsing conservative so malformed client frames do not crash the server.
+ * - Expose the product-level voice agent transport.
+ * - Authenticate the socket and load the owned interview session.
+ * - Delegate STT, agent planning, TTS, and barge-in orchestration to services.
  */
 
-const OFFICIAL_DUPLEX_PATH = /^\/api\/interview\/([^/]+)\/voice\/duplex$/;
+import { WebSocketServer } from 'ws';
+import jwt from 'jsonwebtoken';
+import { createDuplexVoiceAgentSession } from '../services/voice/duplexVoiceAgentService.js';
+import { loadOwnedSessionOrThrow, ensureInterviewInProgress } from '../services/interview/interviewSessionService.js';
+import { logger } from '../utils/logger.js';
+
+const DUPLEX_VOICE_PATH_PATTERN = /^\/api\/interview\/([^/]+)\/voice\/duplex$/;
 const DEFAULT_LANGUAGE = 'en-NZ';
 const DEFAULT_SAMPLE_RATE = 16000;
 
-const parsePositiveInteger = (value, fallback) => {
-  const parsed = Number.parseInt(String(value || ''), 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+export const safeJsonParse = (value) => {
+  try { return JSON.parse(value); } catch { return null; }
 };
 
-export function safeJsonParse(payload) {
+export const sendJson = (socket, payload) => {
+  if (socket.readyState !== 1) return;
+  socket.send(JSON.stringify(payload));
+};
+
+const parseAuthToken = (requestUrl) => {
+  const token = requestUrl.searchParams.get('token') || '';
+  if (!token) return null;
   try {
-    return JSON.parse(String(payload));
+    const secret = process.env.JWT_SECRET || 'fallback_secret_for_dev';
+    return jwt.verify(token, secret);
   } catch {
     return null;
   }
-}
+};
 
-export function sendJson(socket, payload) {
-  if (!socket || socket.readyState !== 1 || typeof socket.send !== 'function') {
-    return false;
-  }
-
-  socket.send(JSON.stringify(payload));
-  return true;
-}
-
-export function buildDuplexSocketContext(request = {}) {
-  const host = request.headers?.host || 'localhost';
-  const url = new URL(request.url || '', `http://${host}`);
-  const match = url.pathname.match(OFFICIAL_DUPLEX_PATH);
-
-  if (!match) {
-    return null;
-  }
-
+export const buildDuplexSocketContext = (request) => {
+  const requestUrl = new URL(request.url, `http://${request.headers.host}`);
+  const match = requestUrl.pathname.match(DUPLEX_VOICE_PATH_PATTERN);
+  if (!match) return null;
+  const language = requestUrl.searchParams.get('language') || DEFAULT_LANGUAGE;
+  const sampleRate = Number(requestUrl.searchParams.get('sampleRate') || DEFAULT_SAMPLE_RATE);
+  const voiceName = requestUrl.searchParams.get('voiceName') || undefined;
   return {
-    sessionId: decodeURIComponent(match[1]),
-    language: url.searchParams.get('language') || DEFAULT_LANGUAGE,
-    sampleRate: parsePositiveInteger(url.searchParams.get('sampleRate'), DEFAULT_SAMPLE_RATE),
+    sessionId: match[1],
+    language,
+    voiceName,
+    sampleRate: Number.isFinite(sampleRate) ? sampleRate : DEFAULT_SAMPLE_RATE,
+    auth: parseAuthToken(requestUrl),
   };
+};
+
+export function attachDuplexVoiceSocketServer(server) {
+  const wss = new WebSocketServer({ noServer: true });
+
+  server.on('upgrade', (request, socket, head) => {
+    const context = buildDuplexSocketContext(request);
+    if (!context) return;
+
+    wss.handleUpgrade(request, socket, head, (ws) => {
+      wss.emit('connection', ws, request, context);
+    });
+  });
+
+  wss.on('connection', async (socket, request, context) => {
+    let duplexSession = null;
+    const safeSend = (payload) => sendJson(socket, payload);
+
+    try {
+      const userId = context.auth?.id;
+      if (!userId) {
+        safeSend({ type: 'error', code: 'UNAUTHORIZED', message: 'Authentication required for duplex voice.' });
+        socket.close(1008, 'unauthorized');
+        return;
+      }
+
+      const session = await loadOwnedSessionOrThrow({ sessionId: context.sessionId, userId });
+      ensureInterviewInProgress(session);
+      duplexSession = createDuplexVoiceAgentSession({
+        socket,
+        context,
+        session,
+        userId,
+        logger,
+        sendJson: safeSend,
+      });
+    } catch (error) {
+      logger.error('Failed to start duplex voice socket', { error, sessionId: context.sessionId });
+      safeSend({ type: 'error', code: 'DUPLEX_START_FAILED', message: error?.message || 'Could not start duplex voice.' });
+      socket.close(1011, 'duplex-start-failed');
+      return;
+    }
+
+    socket.on('message', async (message, isBinary) => {
+      try {
+        if (isBinary) {
+          await duplexSession?.handleBinaryAudio?.(message);
+          return;
+        }
+        const payload = safeJsonParse(String(message));
+        if (!payload) return;
+        await duplexSession?.handleJsonMessage?.(payload);
+      } catch (error) {
+        logger.error('Duplex voice socket message failed', { error, sessionId: context.sessionId });
+        safeSend({ type: 'error', code: 'DUPLEX_MESSAGE_FAILED', message: error?.message || 'Duplex voice message failed.' });
+      }
+    });
+
+    socket.on('close', async () => {
+      await duplexSession?.close?.();
+    });
+
+    socket.on('error', async (error) => {
+      logger.error('Duplex voice socket error', { error, sessionId: context.sessionId });
+      await duplexSession?.close?.();
+    });
+  });
+
+  return wss;
 }

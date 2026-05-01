@@ -1,4 +1,5 @@
 import { AGENT_ACTION_TYPES } from '../../constants/agentActionTypes.js';
+import { AGENT_TOOL_NAMES } from '../../constants/agentToolNames.js';
 
 export const executeReportAction = async ({
   selectedAction,
@@ -31,5 +32,5 @@ export const executeReportAction = async ({
     retrievalBundle,
   });
 
-  return { report, qaResult, isComplete: true, completedBecause: 'report_generated' };
+  return { report, qaResult, tools: [AGENT_TOOL_NAMES.DRAFT_INTERVIEW_REPORT, AGENT_TOOL_NAMES.REVIEW_REPORT_QUALITY], isComplete: true, completedBecause: 'report_generated' };
 };

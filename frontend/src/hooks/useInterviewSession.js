@@ -10,7 +10,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { endInterview, pauseInterview, repeatQuestion, replyInterview, replyInterviewWithVoice, replyInterviewWithRealtimeVoice, replyInterviewWithRealtimeVoiceStream, resumeInterview, startInterview, warmAdaptiveInterviewSession } from '../api/interviewApi.js';
+import { endInterview, pauseInterview, repeatQuestion, replyInterview, resumeInterview, startInterview, warmAdaptiveInterviewSession } from '../api/interviewApi.js';
 import { exportTranscript } from '../api/exportApi.js';
 import { getSession } from '../api/sessionApi.js';
 import { buildInterviewDisplayModel } from '../utils/buildInterviewDisplayModel.js';
@@ -152,73 +152,12 @@ export function useInterviewSession({ sessionId, navigate }) {
   }, [isSubmitting, session, sessionId]);
 
 
-  const handleVoiceReply = useCallback(async ({ audioFile, language, voiceName, durationMs }) => {
-    if (isSubmitting || !audioFile) return null;
-
-    setIsSubmitting(true);
-
-    try {
-      const data = await replyInterviewWithVoice({
-        sessionId,
-        audioFile,
-        language,
-        voiceName,
-        durationMs,
-      });
-      setSession(data.session);
-
-      if (data.session?.status === 'completed') {
-        setPageStatus(buildStatus('success', 'Interview completed', 'The planned question set is finished. You can now review the report.'));
-      }
-
-      return data;
-    } catch (error) {
-      setPageStatus(buildStatus('error', 'Voice reply failed', error.message || 'Could not process the voice reply.'));
-      throw error;
-    } finally {
-      setIsSubmitting(false);
+  const handleVoiceSessionUpdate = useCallback((nextSession) => {
+    setSession(nextSession);
+    if (nextSession?.status === 'completed') {
+      setPageStatus(buildStatus('success', 'Interview completed', 'The planned question set is finished. You can now review the report.'));
     }
-  }, [isSubmitting, sessionId]);
-
-  const handleRealtimeVoiceTurn = useCallback(async ({ transcriptText, language, voiceName, asrConfidence, asrSource, inputMode, vad, onAudioChunk }) => {
-    const cleanTranscript = String(transcriptText || '').trim();
-    if (isSubmitting || !cleanTranscript) return null;
-
-    setIsSubmitting(true);
-
-    try {
-      let data;
-      const params = {
-        sessionId,
-        transcriptText: cleanTranscript,
-        language,
-        voiceName,
-        asrConfidence,
-        asrSource,
-        inputMode,
-        vad,
-      };
-
-      if (onAudioChunk) {
-        data = await replyInterviewWithRealtimeVoiceStream(params, onAudioChunk);
-      } else {
-        data = await replyInterviewWithRealtimeVoice(params);
-      }
-      
-      setSession(data.session);
-
-      if (data.session?.status === 'completed') {
-        setPageStatus(buildStatus('success', 'Interview completed', 'The planned question set is finished. You can now review the report.'));
-      }
-
-      return data;
-    } catch (error) {
-      setPageStatus(buildStatus('error', 'Realtime voice reply failed', error.message || 'Could not process the realtime voice reply.'));
-      throw error;
-    } finally {
-      setIsSubmitting(false);
-    }
-  }, [isSubmitting, sessionId]);
+  }, []);
 
   const handlePauseToggle = useCallback(async () => {
     if (session?.status === 'completed') return;
@@ -232,7 +171,6 @@ export function useInterviewSession({ sessionId, navigate }) {
       setPageStatus(buildStatus('error', 'Pause/resume failed', error.message || 'Could not update interview status.'));
     }
   }, [session?.status, sessionId]);
-
   const handleRepeat = useCallback(async () => {
     if (session?.status === 'completed') return;
 
@@ -309,8 +247,7 @@ export function useInterviewSession({ sessionId, navigate }) {
     setPageStatus,
     dismissStatus,
     handleReply,
-    handleVoiceReply,
-    handleRealtimeVoiceTurn,
+    handleVoiceSessionUpdate,
     handlePauseToggle,
     handleRepeat,
     handleEnd,
