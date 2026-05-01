@@ -22,10 +22,24 @@ const normalizeOverrides = (value = {}) => ({
   },
 });
 
+const extractCompanyNameFromRaw = (rawJD = '') => {
+  const text = String(rawJD || '');
+  const patterns = [
+    /\b(?:at|for)\s+([A-Z][A-Za-z0-9&.' -]{1,60}?)(?:,|\s+you(?:'|’)ll|\s+you will|\s+is\b|\s+are\b)/,
+    /^([A-Z][A-Za-z0-9&.' -]{1,60}?)\s+is\s+one\s+of\b/im,
+    /^([A-Z][A-Za-z0-9&.' -]{1,60}?)\s+is\s+(?:a|an)\b/im,
+  ];
+  for (const pattern of patterns) {
+    const value = text.match(pattern)?.[1]?.trim() || '';
+    if (value && value.split(/\s+/).length <= 6) return value;
+  }
+  return '';
+};
+
 const buildHeuristicOverrides = (rawJD = '') => {
   const extracted = extractSeekStyleSections(rawJD);
   return normalizeOverrides({
-    jobOverview: { companyName: '' },
+    jobOverview: { companyName: extractCompanyNameFromRaw(rawJD) },
     sections: {
       responsibilities: extracted.responsibilities,
       mustHaveRequirements: extracted.coreRequirements,
@@ -42,11 +56,11 @@ The first parser output was blocked by a critic agent. Re-extract only the field
 
 Rules:
 1. Use only the original JD text.
-2. Do not invent a company name. If there is no explicit company name, return an empty string for jobOverview.companyName.
+2. Do not invent a company name. Extract it only from explicit evidence such as "at CompanyName" or "CompanyName is ...". If there is no explicit company name, return an empty string for jobOverview.companyName.
 3. Extract responsibilities from duties/responsibilities style sections.
-4. Extract core requirements from requirements, must-have, essential, or "we are seeking someone with" sections.
+4. Extract core requirements from requirements, must-have, essential, "what we are looking for", or "we are seeking someone with" sections.
 5. Extract bonus requirements from pluses, bonus, preferred, desirable, or nice-to-have sections.
-6. Preserve complete phrases. Do not split around "or".
+6. Preserve complete phrases. Do not split around "or", "e.g.", or parentheses.
 7. Keep wording close to the JD.
 8. Return strict JSON only.
 

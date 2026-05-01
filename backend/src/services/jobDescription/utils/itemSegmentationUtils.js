@@ -20,11 +20,16 @@ const splitOutsideParentheses = (text = '', separator = ';') => {
   return items.map((item) => normalizeInlineWhitespace(item)).filter(Boolean);
 };
 
+const protectKnownAbbreviations = (value = '') => String(value || '')
+  .replace(/\be\.g\./gi, 'eg')
+  .replace(/\bi\.e\./gi, 'ie');
+
 export const segmentBlockItems = (blockText = '') => {
   const normalized = normalizeInlineWhitespace(blockText);
   if (!normalized) return [];
   if (normalized.includes(';')) return splitOutsideParentheses(normalized, ';');
-  const sentenceParts = normalized
+  const protectedText = protectKnownAbbreviations(normalized);
+  const sentenceParts = protectedText
     .split(/(?<=[.!?])\s+(?=[A-Z])/)
     .map((item) => normalizeInlineWhitespace(item))
     .filter(Boolean);
