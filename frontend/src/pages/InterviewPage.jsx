@@ -33,8 +33,7 @@ export function InterviewPage() {
     pageStatus,
     dismissStatus,
     handleReply,
-    handleVoiceReply,
-    handleRealtimeVoiceTurn,
+    handleVoiceSessionUpdate,
     handlePauseToggle,
     handleRepeat,
     handleEnd,
@@ -53,9 +52,7 @@ export function InterviewPage() {
     isPaused: session?.status === 'paused',
     isCompleted: session?.status === 'completed',
     isSubmitting,
-    onSubmitVoiceReply: handleVoiceReply,
-    onSubmitRealtimeVoiceTurn: handleRealtimeVoiceTurn,
-    onSubmitTextReply: handleReply,
+    onVoiceSessionUpdate: handleVoiceSessionUpdate,
     sessionId,
   });
 
@@ -75,6 +72,8 @@ export function InterviewPage() {
         levelLabel={viewModel.levelLabel}
         stageLabel={viewModel.stageLabel}
         elapsedSeconds={viewModel.elapsedSeconds}
+        controlMode={viewModel.controlMode}
+        timeLimitSeconds={viewModel.timeLimitSeconds}
         isVoiceMode={isVoiceMode}
         onViewReport={() => navigate(`/report/${sessionId}`)}
       />

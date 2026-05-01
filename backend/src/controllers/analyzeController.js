@@ -48,7 +48,7 @@ const extractTargetRole = ({ jdText = '', jdRubric = null, analysisResult = null
 };
 
 export const generateInterviewPlan = asyncHandler(async (req, res) => {
-  const { cvId, rawJD, jdText, jdRubric, settings, analysisResult, matchAnalysisId, mode } = req.body;
+  const { cvId, rawJD, jdText, jdRubric, settings, sessionSetup, analysisResult, matchAnalysisId, mode } = req.body;
   const user = await authService.resolveUserFromRequest(req);
 
   const persistedAnalysis = matchAnalysisId
@@ -68,7 +68,8 @@ export const generateInterviewPlan = asyncHandler(async (req, res) => {
     evidenceRefs: persistedAnalysis?.evidenceRefs || resolvedAnalysis?.evidenceRefs || [],
     targetRole: extractTargetRole({ jdText, jdRubric, analysisResult: resolvedAnalysis }) || null,
     mode,
-    totalQuestions: 8,
+    sessionSetup,
+    totalQuestions: sessionSetup?.questionLimit || settings?.questionLimit || 8,
     currentQuestionIndex: 1,
     candidateName: resolvedAnalysis?.candidateName || 'Candidate',
   });

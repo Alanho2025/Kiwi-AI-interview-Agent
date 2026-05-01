@@ -10,7 +10,9 @@ const FALSE_POSITIVE_HIRING_ROLES = /\b(?:hiring manager|hiring coordinator|recr
 const MARKETING_TITLE_PREFIX_PATTERNS = [
   /^(?:we\s+are\s+)?(?:now\s+)?hiring\s*[:：]?\s+(?:for\s+)?(?:(?:a|an|the)\s+)?/i,
   /^we\s+are\s+looking\s+for\s+(?:(?:a|an|the)\s+)?/i,
+  /^we\s+are\s+seeking\s+(?:(?:a|an|the)\s+)?/i,
   /^join\s+us\s+as\s+(?:(?:a|an|the)\s+)?/i,
+  /^as\s+(?:a|an|the)\s+/i,
   /^open\s+role\s*[:：]?\s*/i,
   /^role\s*[:：]?\s*/i,
   /^position\s*[:：]?\s*/i,
@@ -32,7 +34,7 @@ const toTitleCase = (value = '') => String(value || '')
 const normalizeCandidate = (value = '') => String(value || '').replace(/\s+/g, ' ').trim().replace(/[.:;,-]+$/g, '').trim();
 
 export const cleanRoleTitleCandidate = (value = '') => {
-  let text = normalizeCandidate(value);
+  let text = normalizeCandidate(value).replace(/\s+to join\b.*$/i, '');
   if (!text) return '';
   if (FALSE_POSITIVE_HIRING_ROLES.test(text)) return text;
 
