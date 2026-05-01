@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import { SessionAnalysis } from '../../db/models/sessionAnalysisModel.js';
+import { AGENT_TOOL_NAMES } from '../../constants/agentToolNames.js';
 
 export const createDecisionRecord = async ({ sessionId, record = {} } = {}) => {
   if (!sessionId) {
@@ -9,6 +10,7 @@ export const createDecisionRecord = async ({ sessionId, record = {} } = {}) => {
   const payload = {
     decisionId: crypto.randomUUID(),
     createdAt: new Date().toISOString(),
+    tool: record.tool || AGENT_TOOL_NAMES.PLAN_INTERVIEW_ACTION,
     ...record,
   };
 

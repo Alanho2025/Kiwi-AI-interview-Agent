@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import { SessionAnalysis } from '../../db/models/sessionAnalysisModel.js';
+import { getToolNameForAction } from '../../constants/agentToolNames.js';
 
 export const buildTrajectoryStep = ({
   session = {},
@@ -20,6 +21,7 @@ export const buildTrajectoryStep = ({
   latestQuestion: environment?.questionContext?.latestQuestionText || null,
   latestAnswer: environment?.latestAnswer?.text || '',
   thoughtSummary: actorOutput.reactTrace?.thoughtSummary || null,
+  tool: actorOutput.reactTrace?.tool || getToolNameForAction(actorOutput.reactTrace?.actionName || selectedAction),
   chosenAction: actorOutput.reactTrace?.actionName || selectedAction,
   actionInput,
   generatedQuestion: actorOutput.nextQuestion || null,
