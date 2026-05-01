@@ -31,12 +31,18 @@ export const DEFAULT_ANALYZE_SETTINGS = {
   seniorityLevel: 'Junior/Grad',
   enableNZCultureFit: false,
   focusArea: 'Combined',
+  controlMode: 'question_limited',
+  questionLimit: 8,
+  timeLimitMinutes: 5,
   voiceDeviceCheck: DEFAULT_VOICE_DEVICE_CHECK,
 };
 
 const ALLOWED_SENIORITY = new Set(['Junior/Grad', 'Intermediate', 'Advanced']);
 const ALLOWED_FOCUS = new Set(['Technical', 'Behavioral', 'Combined']);
 const ALLOWED_SESSION_MODES = new Set(['text', 'voice']);
+const ALLOWED_CONTROL_MODES = new Set(['question_limited', 'time_limited']);
+const ALLOWED_QUESTION_LIMITS = new Set([8, 12, 15]);
+const ALLOWED_TIME_LIMITS = new Set([5, 10]);
 const ALLOWED_DEVICE_STATUSES = new Set(['idle', 'checking', 'ok', 'blocked', 'missing', 'error']);
 
 export const sanitizeAnalyzeMode = (value) => (ALLOWED_SESSION_MODES.has(value) ? value : DEFAULT_ANALYZE_MODE);
@@ -92,6 +98,15 @@ export const sanitizeAnalyzeSettings = (input) => ({
   focusArea: ALLOWED_FOCUS.has(input?.focusArea)
     ? input.focusArea
     : DEFAULT_ANALYZE_SETTINGS.focusArea,
+  controlMode: ALLOWED_CONTROL_MODES.has(input?.controlMode)
+    ? input.controlMode
+    : DEFAULT_ANALYZE_SETTINGS.controlMode,
+  questionLimit: ALLOWED_QUESTION_LIMITS.has(Number(input?.questionLimit))
+    ? Number(input.questionLimit)
+    : DEFAULT_ANALYZE_SETTINGS.questionLimit,
+  timeLimitMinutes: ALLOWED_TIME_LIMITS.has(Number(input?.timeLimitMinutes))
+    ? Number(input.timeLimitMinutes)
+    : DEFAULT_ANALYZE_SETTINGS.timeLimitMinutes,
   voiceDeviceCheck: sanitizeVoiceDeviceCheck(input?.voiceDeviceCheck),
 });
 

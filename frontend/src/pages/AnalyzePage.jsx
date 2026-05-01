@@ -210,6 +210,15 @@ export function AnalyzePage() {
         jdText: finalStructuredJD,
         jdRubric: finalStructuredJDRubric,
         settings,
+        sessionSetup: {
+          deliveryMode: sessionMode,
+          controlMode: settings.controlMode,
+          questionLimit: settings.questionLimit,
+          timeLimitMinutes: settings.timeLimitMinutes,
+          questionType: settings.focusArea,
+          seniorityLevel: settings.seniorityLevel,
+          enableNZCultureFit: settings.enableNZCultureFit,
+        },
         mode: sessionMode,
         matchAnalysisId: matchResponse.matchAnalysisId || null,
       });

@@ -18,6 +18,7 @@ import {
 import { runTask, warmAdaptiveSession } from '../services/masterAiService.js';
 import { createInterviewLifecycleAuditLog } from '../services/interview/interviewAuditService.js';
 import {
+  applyElapsedSeconds,
   completeInterviewSession,
   ensureInterviewInProgress,
   loadOwnedSessionOrThrow,
@@ -142,11 +143,14 @@ export const replyInterview = asyncHandler(async (req, res) => {
       payload: { answer: cleanAnswer },
     });
 
+    const elapsedSession = applyElapsedSeconds(session);
     const sessionPatch = nextTurnResult.isComplete
       ? {
           status: 'completed',
           endedAt: new Date().toISOString(),
           lastResumedAt: null,
+          elapsedSeconds: elapsedSession.elapsedSeconds,
+          completedBecause: nextTurnResult.completedBecause || 'question_limit_reached',
         }
       : {
           currentQuestionIndex: nextTurnResult.nextQuestionOrder,

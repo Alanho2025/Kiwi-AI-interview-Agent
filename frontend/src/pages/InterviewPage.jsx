@@ -72,6 +72,8 @@ export function InterviewPage() {
         levelLabel={viewModel.levelLabel}
         stageLabel={viewModel.stageLabel}
         elapsedSeconds={viewModel.elapsedSeconds}
+        controlMode={viewModel.controlMode}
+        timeLimitSeconds={viewModel.timeLimitSeconds}
         isVoiceMode={isVoiceMode}
         onViewReport={() => navigate(`/report/${sessionId}`)}
       />
