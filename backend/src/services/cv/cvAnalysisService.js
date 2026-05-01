@@ -1,5 +1,5 @@
 import { badRequest } from '../../utils/appError.js';
-import { compareCvToJobDescription } from '../matchService.js';
+import { compareCvToJobDescriptionWithSafeguard } from '../match/guardedMatchService.js';
 import { getOwnedCvDocumentOrThrow } from './cvOwnershipService.js';
 
 export const runCvJdMatchAnalysis = async ({ cvId, userId, rawJD, jdRubric, settings }) => {
@@ -13,7 +13,7 @@ export const runCvJdMatchAnalysis = async ({ cvId, userId, rawJD, jdRubric, sett
 
   const cvDocument = await getOwnedCvDocumentOrThrow({ cvId, userId });
 
-  const matchData = await compareCvToJobDescription({
+  const matchData = await compareCvToJobDescriptionWithSafeguard({
     normalizedText: cvDocument.normalizedText,
     cvProfile: cvDocument.cvProfile,
     evidenceProfile: cvDocument.cvProfile?.evidenceProfile,

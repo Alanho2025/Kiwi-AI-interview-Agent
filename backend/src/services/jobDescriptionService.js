@@ -11,4 +11,5 @@
 
 export { extractSkillsWithAI } from './jobDescription/jobDescriptionAiService.js';
 export { buildStructuredJobDescriptionRubric } from './jobDescription/jobDescriptionRubricBuilder.js';
+export { buildGuardedStructuredJobDescriptionRubric } from './jobDescription/guardedJobDescriptionService.js';
 export { formatStructuredJobDescription } from './jobDescription/jobDescriptionFormatter.js';
