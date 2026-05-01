@@ -13,7 +13,7 @@ import { AGENT_DECISION_TYPES } from '../constants/agentDecisionTypes.js';
 import { AGENT_TOOL_NAMES, getToolNameForAction } from '../constants/agentToolNames.js';
 import { agentRegistry } from './agentRegistryService.js';
 import { getSessionById, appendTranscriptTurn, createInterviewQuestion } from './sessionService.js';
-import { getNextQuestionOrder, hasReachedQuestionLimit } from './interviewStateService.js';
+import { getNextQuestionOrder, hasReachedQuestionLimit, hasReachedTimeLimit } from './interviewStateService.js';
 import { indexSessionArtifacts, ensureSessionArtifactsIndexed } from './ragIndexService.js';
 import { SessionAnalysis } from '../db/models/sessionAnalysisModel.js';
 import { SessionReport } from '../db/models/sessionReportModel.js';
@@ -120,6 +120,17 @@ const buildDefaultRetrievalQuery = ({ session = {}, payload = {}, mode = 'interv
 };
 
 const runInterviewController = async ({ session, payload = {}, onSentence = null, trace = null }) => {
+  if (hasReachedTimeLimit(session)) {
+    return {
+      isComplete: true,
+      completedBecause: 'time_limit_reached',
+      nextQuestion: null,
+      nextQuestionOrder: session.currentQuestionIndex,
+      rationale: 'Interview completed after the planned time limit.',
+      retrievalSnapshot: null,
+    };
+  }
+
   if (hasReachedQuestionLimit(session)) {
     return {
       isComplete: true,

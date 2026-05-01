@@ -36,12 +36,17 @@ const insertInterviewSession = async ({
   settings,
   totalQuestions,
   sessionMode = 'text',
+  controlMode = 'question_limited',
+  questionType = 'combined',
+  questionLimit = 8,
+  timeLimitSeconds = null,
 }) => client.query(
   `INSERT INTO interview_sessions (
     id, user_id, status, mode, target_role, candidate_name, seniority_level, focus_area,
     enable_nz_culture_fit, current_question_index, total_questions, elapsed_seconds,
+    control_mode, question_type, question_limit, time_limit_seconds,
     created_at, updated_at
-  ) VALUES ($1,$2,'ready',$3,$4,$5,$6,$7,$8,1,$9,0,now(),now())`,
+  ) VALUES ($1,$2,'ready',$3,$4,$5,$6,$7,$8,1,$9,0,$10,$11,$12,$13,now(),now())`,
   [
     id,
     userId,
@@ -52,6 +57,10 @@ const insertInterviewSession = async ({
     resolvedFocusArea,
     Boolean(settings.enableNZCultureFit),
     totalQuestions,
+    controlMode,
+    questionType,
+    questionLimit,
+    timeLimitSeconds,
   ]
 );
 
@@ -138,6 +147,10 @@ export const persistSessionSetup = async ({
   settings,
   totalQuestions,
   sessionMode = 'text',
+  controlMode = 'question_limited',
+  questionType = 'combined',
+  questionLimit = 8,
+  timeLimitSeconds = null,
 }) => withTransaction(async (client) => {
   await insertInterviewSession({
     client,
@@ -150,6 +163,10 @@ export const persistSessionSetup = async ({
     settings,
     totalQuestions,
     sessionMode,
+    controlMode,
+    questionType,
+    questionLimit,
+    timeLimitSeconds,
   });
   await linkSessionCvFile({ client, id, cvFileId });
   await insertJobDescriptionInput({ client, id, rawJD });

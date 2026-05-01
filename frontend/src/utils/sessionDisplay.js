@@ -36,6 +36,9 @@ export const DEFAULT_SESSION_SETTINGS = {
   seniorityLevel: 'Junior/Grad',
   enableNZCultureFit: false,
   focusArea: 'Combined',
+  controlMode: 'question_limited',
+  questionLimit: 8,
+  timeLimitMinutes: 5,
   voiceDeviceCheck: DEFAULT_VOICE_DEVICE_CHECK,
 };
 
@@ -63,8 +66,14 @@ export const sanitizeVoiceDeviceCheck = (input) => ({
   checkedAt: typeof input?.checkedAt === 'string' ? input.checkedAt : '',
 });
 
-export const seniorityOptions = ['Junior/Grad', 'Mid-level', 'Senior'];
+export const seniorityOptions = ['Junior/Grad', 'Intermediate', 'Advanced'];
 export const focusOptions = ['Technical', 'Behavioral', 'Combined'];
+export const controlModeOptions = [
+  { value: 'question_limited', label: 'Question-limited' },
+  { value: 'time_limited', label: 'Time-limited' },
+];
+export const questionLimitOptions = [8, 12, 15];
+export const timeLimitOptions = [5, 10];
 
 /**
  * Purpose: Execute the main responsibility for formatFullDate.
@@ -157,11 +166,20 @@ export const resolveDisplayScore = (session = {}) => {
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-export const settingsSummary = (settings = DEFAULT_SESSION_SETTINGS) => ({
-  level: settings.seniorityLevel || 'Junior/Grad',
-  focus: settings.focusArea || 'Combined',
-  nzContext: settings.enableNZCultureFit ? 'On' : 'Off',
-});
+export const settingsSummary = (settings = DEFAULT_SESSION_SETTINGS) => {
+  const controlMode = settings.controlMode === 'time_limited' ? 'Time-limited' : 'Question-limited';
+  const limit = settings.controlMode === 'time_limited'
+    ? `${Number(settings.timeLimitMinutes) === 10 ? 10 : 5} min / ${Number(settings.timeLimitMinutes) === 10 ? 15 : 10} questions`
+    : `${[8, 12, 15].includes(Number(settings.questionLimit)) ? Number(settings.questionLimit) : 8} questions`;
+
+  return {
+    level: settings.seniorityLevel || 'Junior/Grad',
+    focus: settings.focusArea || 'Combined',
+    nzContext: settings.enableNZCultureFit ? 'On' : 'Off',
+    controlMode,
+    limit,
+  };
+};
 
 /**
  * Purpose: Execute the main responsibility for buildHomepageStats.
@@ -260,10 +278,19 @@ export const parseStoredSessionDefaults = (rawDefaults) => {
     ? DEFAULT_VOICE_DEVICE_CHECK
     : savedCheck;
 
+  const parsedControlMode = parsedDefaults.controlMode === 'time_limited' ? 'time_limited' : 'question_limited';
+  const parsedTimeLimit = Number(parsedDefaults.timeLimitMinutes) === 10 ? 10 : 5;
+  const parsedQuestionLimit = [8, 12, 15].includes(Number(parsedDefaults.questionLimit)) ? Number(parsedDefaults.questionLimit) : DEFAULT_SESSION_SETTINGS.questionLimit;
+  const parsedSeniority = seniorityOptions.includes(parsedDefaults.seniorityLevel) ? parsedDefaults.seniorityLevel : DEFAULT_SESSION_SETTINGS.seniorityLevel;
+  const parsedFocus = focusOptions.includes(parsedDefaults.focusArea) ? parsedDefaults.focusArea : DEFAULT_SESSION_SETTINGS.focusArea;
+
   return {
-    seniorityLevel: parsedDefaults.seniorityLevel || DEFAULT_SESSION_SETTINGS.seniorityLevel,
+    seniorityLevel: parsedSeniority,
     enableNZCultureFit: Boolean(parsedDefaults.enableNZCultureFit),
-    focusArea: parsedDefaults.focusArea || DEFAULT_SESSION_SETTINGS.focusArea,
+    focusArea: parsedFocus,
+    controlMode: parsedControlMode,
+    questionLimit: parsedQuestionLimit,
+    timeLimitMinutes: parsedTimeLimit,
     voiceDeviceCheck,
   };
 };

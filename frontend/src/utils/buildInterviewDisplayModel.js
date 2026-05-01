@@ -25,7 +25,9 @@ export const buildInterviewDisplayModel = (session = {}, currentPlanItem = null)
   const matchedAreas = session?.analysisResult?.planPreview?.topMatchedAreas || session?.analysisResult?.matchingDetails?.topMatchedSkills || [];
   const title = companyName ? `${companyName} - ${exactRoleTitle}` : exactRoleTitle;
   const levelLabel = `${seniorityLabel} ${focusLabel}`;
-  const modeLabel = focusLabel;
+  const controlMode = session?.controlMode || session?.settings?.controlMode || 'question_limited';
+  const timeLimitSeconds = Number(session?.timeLimitSeconds || session?.settings?.timeLimitSeconds || 0);
+  const modeLabel = controlMode === 'time_limited' ? `${timeLimitSeconds ? Math.round(timeLimitSeconds / 60) : 5}-minute ${focusLabel}` : focusLabel;
   const stageLabel = toTitleCase(currentPlanItem?.stage || 'opening');
   const promiseLabel = focusLabel === 'Technical'
     ? 'This session will stay technical, so explain tools, implementation choices, trade-offs, and results clearly.'
@@ -48,6 +50,8 @@ export const buildInterviewDisplayModel = (session = {}, currentPlanItem = null)
     seniorityLabel,
     focusLabel,
     modeLabel,
+    controlMode,
+    timeLimitSeconds,
     companyName,
     stageLabel,
     currentFocusLabel,

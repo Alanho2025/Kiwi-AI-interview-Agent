@@ -14,7 +14,7 @@ import { query } from '../../db/postgres.js';
 import { SessionAnalysis } from '../../db/models/sessionAnalysisModel.js';
 import { InterviewPlan } from '../../db/models/interviewPlanModel.js';
 import { SessionReport } from '../../db/models/sessionReportModel.js';
-import { resolveInterviewModeConfig } from '../../config/interviewBlueprints.js';
+import { normalizeControlMode, normalizeQuestionLimit, normalizeTimeLimitMinutes, resolveInterviewModeConfig } from '../../config/interviewBlueprints.js';
 import { clampVarchar, fetchSessionRowById, fetchOwnedSessionRowById } from './sessionShared.js';
 import {
   fetchSessionDependencies,
@@ -33,6 +33,21 @@ import {
 
 const normalizeSessionMode = (value) => (value === 'voice' ? 'voice' : 'text');
 
+const resolveSessionSetup = ({ settings = {}, sessionSetup = {}, mode = 'text' } = {}) => {
+  const controlMode = normalizeControlMode(sessionSetup.controlMode || settings.controlMode);
+  const timeLimitMinutes = normalizeTimeLimitMinutes(sessionSetup.timeLimitMinutes || settings.timeLimitMinutes);
+  const questionLimit = normalizeQuestionLimit(sessionSetup.questionLimit || settings.questionLimit);
+  const questionType = sessionSetup.questionType || settings.focusArea || 'Combined';
+
+  return {
+    deliveryMode: normalizeSessionMode(sessionSetup.deliveryMode || mode),
+    controlMode,
+    questionLimit,
+    timeLimitMinutes,
+    questionType,
+  };
+};
+
 export const createSession = async ({
   userId,
   cvFileId = null,
@@ -47,6 +62,7 @@ export const createSession = async ({
   totalQuestions = 8,
   candidateName = 'Candidate',
   mode = 'text',
+  sessionSetup = {},
 }) => {
   const id = crypto.randomUUID();
   const normalizedAnalysis = normalizeAnalysisPayload(analysisResult);
@@ -54,9 +70,26 @@ export const createSession = async ({
   const resolvedCandidateName = clampVarchar(normalizedAnalysis.candidateName || candidateName || 'Candidate');
   const resolvedSeniorityLevel = clampVarchar(settings.seniorityLevel || 'Junior/Grad');
   const resolvedFocusArea = clampVarchar(settings.focusArea || 'Combined');
-  const resolvedMode = normalizeSessionMode(mode);
-  const modeConfig = resolveInterviewModeConfig({ seniorityLevel: resolvedSeniorityLevel, focusArea: resolvedFocusArea });
-  const resolvedSettings = { ...settings, seniorityLevel: resolvedSeniorityLevel, focusArea: resolvedFocusArea };
+  const setup = resolveSessionSetup({ settings, sessionSetup, mode });
+  const resolvedMode = setup.deliveryMode;
+  const modeConfig = resolveInterviewModeConfig({
+    seniorityLevel: resolvedSeniorityLevel,
+    focusArea: setup.questionType || resolvedFocusArea,
+    questionType: setup.questionType || resolvedFocusArea,
+    controlMode: setup.controlMode,
+    questionLimit: setup.questionLimit,
+    timeLimitMinutes: setup.timeLimitMinutes,
+  });
+  const resolvedSettings = {
+    ...settings,
+    seniorityLevel: resolvedSeniorityLevel,
+    focusArea: resolvedFocusArea,
+    questionType: setup.questionType,
+    controlMode: modeConfig.controlMode,
+    questionLimit: modeConfig.questionLimit,
+    timeLimitMinutes: modeConfig.timeLimitMinutes || setup.timeLimitMinutes,
+    timeLimitSeconds: modeConfig.timeLimitSeconds,
+  };
 
   await persistSessionSetup({
     id,
@@ -72,6 +105,10 @@ export const createSession = async ({
     settings: resolvedSettings,
     totalQuestions: modeConfig.totalQuestions || totalQuestions,
     sessionMode: resolvedMode,
+    controlMode: modeConfig.controlMode,
+    questionType: modeConfig.focusAreaKey,
+    questionLimit: modeConfig.questionLimit,
+    timeLimitSeconds: modeConfig.timeLimitSeconds,
   });
 
   await persistParsedSkills({ id, normalizedAnalysis, jdRubric });
@@ -161,6 +198,7 @@ const updateInterviewSessionRow = async ({ id, userId = null, data = {} }) => {
   if (Object.prototype.hasOwnProperty.call(data, 'durationSeconds')) assign('duration_seconds', data.durationSeconds);
   if (Object.prototype.hasOwnProperty.call(data, 'overallScore')) assign('overall_score', data.overallScore);
   if (Object.prototype.hasOwnProperty.call(data, 'summaryText')) assign('summary_text', data.summaryText);
+  if (Object.prototype.hasOwnProperty.call(data, 'completedBecause')) assign('completed_because', data.completedBecause);
 
   if (!assignments.length) {
     return;
