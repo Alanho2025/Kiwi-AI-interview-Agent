@@ -38,7 +38,7 @@ export const DEFAULT_SESSION_SETTINGS = {
   focusArea: 'Combined',
   controlMode: 'question_limited',
   questionLimit: 8,
-  timeLimitMinutes: 5,
+  timeLimitMinutes: 15,
   voiceDeviceCheck: DEFAULT_VOICE_DEVICE_CHECK,
 };
 
@@ -73,7 +73,7 @@ export const controlModeOptions = [
   { value: 'time_limited', label: 'Time-limited' },
 ];
 export const questionLimitOptions = [8, 12, 15];
-export const timeLimitOptions = [5, 10];
+export const timeLimitOptions = [15, 30];
 
 /**
  * Purpose: Execute the main responsibility for formatFullDate.
@@ -169,7 +169,7 @@ export const resolveDisplayScore = (session = {}) => {
 export const settingsSummary = (settings = DEFAULT_SESSION_SETTINGS) => {
   const controlMode = settings.controlMode === 'time_limited' ? 'Time-limited' : 'Question-limited';
   const limit = settings.controlMode === 'time_limited'
-    ? `${Number(settings.timeLimitMinutes) === 10 ? 10 : 5} min / ${Number(settings.timeLimitMinutes) === 10 ? 15 : 10} questions`
+    ? `${Number(settings.timeLimitMinutes) === 30 ? 30 : 15} minutes total`
     : `${[8, 12, 15].includes(Number(settings.questionLimit)) ? Number(settings.questionLimit) : 8} questions`;
 
   return {
@@ -279,7 +279,7 @@ export const parseStoredSessionDefaults = (rawDefaults) => {
     : savedCheck;
 
   const parsedControlMode = parsedDefaults.controlMode === 'time_limited' ? 'time_limited' : 'question_limited';
-  const parsedTimeLimit = Number(parsedDefaults.timeLimitMinutes) === 10 ? 10 : 5;
+  const parsedTimeLimit = Number(parsedDefaults.timeLimitMinutes) === 30 ? 30 : 15;
   const parsedQuestionLimit = [8, 12, 15].includes(Number(parsedDefaults.questionLimit)) ? Number(parsedDefaults.questionLimit) : DEFAULT_SESSION_SETTINGS.questionLimit;
   const parsedSeniority = seniorityOptions.includes(parsedDefaults.seniorityLevel) ? parsedDefaults.seniorityLevel : DEFAULT_SESSION_SETTINGS.seniorityLevel;
   const parsedFocus = focusOptions.includes(parsedDefaults.focusArea) ? parsedDefaults.focusArea : DEFAULT_SESSION_SETTINGS.focusArea;

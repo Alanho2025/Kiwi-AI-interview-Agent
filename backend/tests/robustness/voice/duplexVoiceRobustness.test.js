@@ -1,6 +1,7 @@
+import jwt from 'jsonwebtoken';
 import { describe, expect, it, vi } from 'vitest';
 
-import { buildDuplexSocketContext, sendJson, safeJsonParse } from '../../../src/api/duplexVoiceSocket.js';
+import { buildDuplexSocketContext, parseCookies, sendJson, safeJsonParse } from '../../../src/api/duplexVoiceSocket.js';
 import { AGENT_TOOL_NAMES } from '../../../src/constants/agentToolNames.js';
 import { createBargeInController } from '../../../src/services/voice/bargeInController.js';
 import { buildConfidenceGate } from '../../../src/services/voice/speechConfidenceGate.js';
@@ -17,6 +18,24 @@ describe('duplex voice robustness', () => {
       url: '/api/interview/session-1/voice/live',
       headers: { host: 'localhost:3000' },
     })).toBeNull();
+  });
+
+
+
+  it('accepts the existing HTTP-only auth_token cookie during WebSocket upgrade', () => {
+    process.env.JWT_SECRET = 'test-secret';
+    const token = jwt.sign({ id: 'user-123' }, process.env.JWT_SECRET);
+
+    const context = buildDuplexSocketContext({
+      url: '/api/interview/session-1/voice/duplex?language=en-NZ&sampleRate=16000',
+      headers: {
+        host: 'localhost:3000',
+        cookie: `other=value; auth_token=${encodeURIComponent(token)}`,
+      },
+    });
+
+    expect(parseCookies(`auth_token=${encodeURIComponent(token)}`).auth_token).toBe(token);
+    expect(context.auth).toEqual(expect.objectContaining({ id: 'user-123' }));
   });
 
   it('does not send JSON to closed sockets and ignores malformed socket messages', () => {

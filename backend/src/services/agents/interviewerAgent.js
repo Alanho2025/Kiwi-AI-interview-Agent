@@ -12,6 +12,7 @@
 import { AGENT_ACTION_TYPES } from '../../constants/agentActionTypes.js';
 import { getNextPoolQuestion, hasReachedQuestionLimit, hasReachedTimeLimit } from '../interviewStateService.js';
 import { callDeepSeek, callDeepSeekStream } from '../deepseekService.js';
+import { guardGeneratedTextForInterviewMode, guardQuestionForInterviewMode } from '../aiControl/interviewModeGuard.js';
 const normalizeText = (value = '') => String(value || '').trim();
 const tokenize = (value = '') => normalizeText(value).toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
 const getLastUserAnswer = (transcript = []) => [...transcript].reverse().find((turn) => turn.role === 'user')?.text || '';
@@ -288,7 +289,7 @@ const buildReactTrace = ({ selectedAction, decisionContext, selectedQuestion, en
   };
 };
 
-const generateConversationalTurn = async ({ baseQuestion, actionType, lastUserAnswer, decisionContext, retrievalBundle, onSentence }) => {
+const generateConversationalTurn = async ({ baseQuestion, actionType, lastUserAnswer, decisionContext, retrievalBundle, focusArea = 'combined', onSentence }) => {
   const systemInstruction = `You are a professional, empathetic, and highly restrained Tech Lead conducting an interview.
 Your goal is to output the EXACT words you will say next to the candidate.
 DO NOT output any internal tags, XML, or json. Output ONLY the conversational text.
@@ -301,7 +302,13 @@ NEGATIVE_CONSTRAINTS:
 DIRECTIVE:
 - Acknowledge the factual substance of the candidate's last answer naturally, briefly, and neutrally.
 - Example: If they mentioned a performance win, you might say "Designing for a 40% throughput increase is a significant constraint" instead of "That's an impressive result".
-- Stay professional, sharp, and focused on gathering depth without over-praising or using cliches.`;
+- Stay professional, sharp, and focused on gathering depth without over-praising or using cliches.
+
+MODE_BOUNDARY:
+- Current selected mode: ${focusArea}.
+- If current selected mode is behavioral, ask only STAR-style behavioural evidence questions about situation, personal action, communication, conflict, pressure, result, or reflection.
+- If current selected mode is behavioral, do NOT ask about libraries, code, algorithms, architecture, database schema, SQL query, model accuracy, training/testing pipelines, scalability, latency, or implementation details.
+- If a technical project is mentioned in behavioral mode, use it only as context for behaviour. Do not turn it into a technical interview.`;
 
   const retrievedTexts = (retrievalBundle?.items || [])
     .map(i => i.text || i.metadata?.question || i.metadata?.skillTags?.join(', '))
@@ -489,6 +496,14 @@ export const runInterviewerAgent = async ({
     selectedQuestion = getNextPoolQuestion(session, { freshOnly: true, category: 'behavioural' });
   }
 
+  selectedQuestion = guardQuestionForInterviewMode({
+    focusArea,
+    actionType,
+    selectedQuestion,
+    targetTopic: targetTopic || decisionContext?.currentTopic || decisionContext?.sectionState?.nextSectionKey || '',
+    latestAnswer: environment?.latestAnswer?.text || lastUserAnswer,
+  });
+
   if (!selectedQuestion && (lockedCategory === 'technical' || category === 'technical' || decisionContext?.interviewStructure?.forceCategory === 'technical')) {
     selectedQuestion = buildTechnicalRecoveryQuestion({ targetTopic: targetTopic || decisionContext?.matchState?.validationTargets?.[0] || 'implementation', session, decisionContext });
   }
@@ -514,6 +529,14 @@ export const runInterviewerAgent = async ({
     selectedQuestion = buildTechnicalRecoveryQuestion({ targetTopic: targetTopic || decisionContext?.matchState?.validationTargets?.[0] || 'implementation', session, decisionContext });
   }
 
+  selectedQuestion = guardQuestionForInterviewMode({
+    focusArea,
+    actionType,
+    selectedQuestion,
+    targetTopic: targetTopic || decisionContext?.currentTopic || decisionContext?.sectionState?.nextSectionKey || '',
+    latestAnswer: environment?.latestAnswer?.text || lastUserAnswer,
+  });
+
   const reactTrace = buildReactTrace({ selectedAction: actionType, decisionContext, selectedQuestion, environment, evaluatorState });
   
   let generatedText = selectedQuestion.text;
@@ -524,11 +547,18 @@ export const runInterviewerAgent = async ({
       lastUserAnswer: environment?.latestAnswer?.text || lastUserAnswer, 
       decisionContext, 
       retrievalBundle,
+      focusArea,
       onSentence,
     });
   } catch (error) {
     console.warn('Failed to generate conversational turn via LLM, falling back to base template', error);
   }
+
+  generatedText = guardGeneratedTextForInterviewMode({
+    focusArea,
+    generatedText,
+    fallbackText: selectedQuestion.text,
+  });
 
   const displayTurn = {
     feedbackMode: 'conversational_llm',
