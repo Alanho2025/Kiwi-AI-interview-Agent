@@ -1,6 +1,7 @@
 import { AGENT_ACTION_TYPES } from '../../constants/agentActionTypes.js';
 
 const includesAny = (values = [], needles = []) => needles.some((needle) => values.includes(needle));
+const normalizeFocusAreaKey = (value = 'combined') => String(value || 'combined').trim().toLowerCase().replace('behavioural', 'behavioral');
 
 export const selectNextAction = (decisionContext = {}) => {
   const candidateState = decisionContext.candidateState || {};
@@ -13,6 +14,7 @@ export const selectNextAction = (decisionContext = {}) => {
   const interviewStructure = decisionContext.interviewStructure || {};
   const agentMemory = decisionContext.agentMemory || {};
   const currentStage = String(decisionContext.currentStage || '').toLowerCase();
+  const focusAreaKey = normalizeFocusAreaKey(interviewStructure.focusAreaKey || decisionContext.focusArea || 'combined');
   const targetTopic = decisionContext.currentTopic
     || evaluatorState.currentTopic
     || dynamicSlotState.activeSlotTopics?.[0]
@@ -141,20 +143,26 @@ export const selectNextAction = (decisionContext = {}) => {
     && (evaluatorState.frictionState?.frictionLevel === 'low' || !evaluatorState.frictionState?.frictionDetected);
 
   if (isTooPerfect && !isFinalPlannedTurn) {
-    const isBehaviouralOnly = interviewStructure.focusAreaKey === 'behavioral';
-    const useFriction = isBehaviouralOnly || Math.random() > 0.5;
+    // If the answer is strong but "happy path", introduce stress or look for friction
+    const useFriction = focusAreaKey === 'behavioral' || Math.random() > 0.5;
     return {
       selectedAction: useFriction ? AGENT_ACTION_TYPES.PROBE_FRICTION : AGENT_ACTION_TYPES.PROBE_STRESS,
-      rationale: isBehaviouralOnly
-        ? 'The behavioural interview needs friction, pressure, or communication evidence, not a technical stress test.'
-        : 'The answer was very smooth but lacked real-world friction/stress. Probing boundaries now.',
+      rationale: isTooPerfect ? 'The answer was very smooth but lacked real-world friction/stress. Probing boundaries now.' : 'Deepening the conversation.',
       confidence: 0.88,
-      actionInput: { targetTopic, probeType: useFriction ? 'failure_analysis' : 'constraint_test', forceEvidence: true, category: isBehaviouralOnly ? 'behavioural' : null },
+      actionInput: { targetTopic, probeType: useFriction ? 'failure_analysis' : 'constraint_test', forceEvidence: true },
     };
   }
   // -------------------------
 
   if (abductiveState.shouldProbe) {
+    if (focusAreaKey === 'behavioral') {
+      return {
+        selectedAction: AGENT_ACTION_TYPES.ASK_PROBING_QUESTION,
+        rationale: `A hidden gap was inferred (${abductiveState.hiddenGap}), but the selected mode is behavioural, so the controller should probe it through STAR-style behaviour rather than technical diagnosis.`,
+        confidence: 0.84,
+        actionInput: { targetTopic: abductiveState.probeTopic || targetTopic, probeType: 'behavioural_abductive_probe', forceEvidence: true },
+      };
+    }
     return {
       selectedAction: AGENT_ACTION_TYPES.ASK_ABDUCTIVE_PROBE_QUESTION,
       rationale: `A hidden gap was inferred (${abductiveState.hiddenGap}), so the controller should probe it directly before moving on.`,
@@ -176,6 +184,14 @@ export const selectNextAction = (decisionContext = {}) => {
     && sectionState.nextSectionKey
     && sectionState.nextSectionKey !== sectionState.sectionKey
     && evaluatorState.suggestedNextMode === 'advance') {
+    if (focusAreaKey === 'behavioral' && String(sectionState.nextSectionKey).toLowerCase() === 'technical') {
+      return {
+        selectedAction: AGENT_ACTION_TYPES.ASK_POOL_QUESTION,
+        rationale: 'The evaluator suggested a section shift, but behavioural mode blocks technical section transitions. The controller should select a fresh behavioural question instead.',
+        confidence: 0.86,
+        actionInput: { targetTopic: 'behavioural', probeType: 'mode_locked_fresh_anchor', forceEvidence: false, freshOnly: true, category: 'behavioural' },
+      };
+    }
     return {
       selectedAction: AGENT_ACTION_TYPES.SHIFT_SECTION,
       rationale: `The current section ${sectionState.sectionKey} is sufficiently covered, and the evaluator signalled advance, so the controller should shift to ${sectionState.nextSectionKey}.`,
@@ -204,6 +220,14 @@ export const selectNextAction = (decisionContext = {}) => {
   }
 
   if (sectionState.isSectionComplete && sectionState.nextSectionKey && sectionState.nextSectionKey !== sectionState.sectionKey) {
+    if (focusAreaKey === 'behavioral' && String(sectionState.nextSectionKey).toLowerCase() === 'technical') {
+      return {
+        selectedAction: AGENT_ACTION_TYPES.ASK_POOL_QUESTION,
+        rationale: 'The current section is covered, but behavioural mode blocks technical section transitions. The controller should stay in behavioural coverage.',
+        confidence: 0.84,
+        actionInput: { targetTopic: 'behavioural', probeType: 'mode_locked_fresh_anchor', forceEvidence: false, freshOnly: true, category: 'behavioural' },
+      };
+    }
     return {
       selectedAction: AGENT_ACTION_TYPES.SHIFT_SECTION,
       rationale: `The current section ${sectionState.sectionKey} is sufficiently covered, so the controller should shift to ${sectionState.nextSectionKey}.`,
@@ -213,6 +237,14 @@ export const selectNextAction = (decisionContext = {}) => {
   }
 
   if (matchState.validationTargets?.length) {
+    if (focusAreaKey === 'behavioral') {
+      return {
+        selectedAction: AGENT_ACTION_TYPES.ASK_PROBING_QUESTION,
+        rationale: 'There are validation targets, but behavioural mode requires evidence through behaviour, action, and result instead of technical validation.',
+        confidence: 0.82,
+        actionInput: { targetTopic: matchState.validationTargets[0], probeType: 'behavioural_validation', forceEvidence: true },
+      };
+    }
     return {
       selectedAction: AGENT_ACTION_TYPES.ASK_VALIDATION_QUESTION,
       rationale: 'There are unresolved validation targets that should be checked with direct evidence.',
