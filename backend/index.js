@@ -16,6 +16,7 @@ import { fileURLToPath } from 'url';
 import path from 'path';
 import api from './src/api.js';
 import { attachRealtimeVoiceSocketServer } from './src/api/realtimeVoiceSocket.js';
+import { attachDuplexVoiceSocketServer } from './src/api/duplexVoiceSocket.js';
 import { bootstrapDatabases } from './src/db/bootstrap.js';
 import { logger } from './src/utils/logger.js';
 
@@ -44,6 +45,7 @@ async function startServer() {
 
     const server = http.createServer(app);
     attachRealtimeVoiceSocketServer(server);
+    attachDuplexVoiceSocketServer(server);
 
     server.listen(PORT, '0.0.0.0', () => {
       logger.info('API server started', { port: PORT, url: `http://localhost:${PORT}` });

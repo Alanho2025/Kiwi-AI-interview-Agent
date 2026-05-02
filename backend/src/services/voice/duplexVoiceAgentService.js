@@ -16,6 +16,25 @@ const normalizeTranscriptText = (payload = {}) => String(
   payload.displayText || payload.normalizedText || payload.text || payload.rawText || ''
 ).trim();
 
+const mergeTranscriptSegments = (segments = []) => {
+  const pieces = segments
+    .map((segment) => normalizeTranscriptText(segment))
+    .filter(Boolean);
+  return pieces
+    .filter((piece, index) => piece !== pieces[index - 1])
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
+const averageConfidence = (segments = []) => {
+  const scores = segments
+    .map((segment) => Number(segment?.confidence))
+    .filter((score) => Number.isFinite(score));
+  if (!scores.length) return null;
+  return scores.reduce((sum, score) => sum + score, 0) / scores.length;
+};
+
 export const createDuplexVoiceAgentSession = ({
   socket,
   context,
@@ -31,6 +50,8 @@ export const createDuplexVoiceAgentSession = ({
   const sampleRate = context?.sampleRate || 16000;
   const voiceName = context?.voiceName || undefined;
   const bargeInController = createBargeInController({ sendJson, logger, sessionId: session?.id });
+  let finalTranscriptSegments = [];
+  let isProcessingBufferedTurn = false;
 
   const processFinalTranscript = async ({ transcriptText, asrConfidence, vad }) => {
     const turnCoordinator = createDuplexTurnCoordinator({
@@ -78,21 +99,8 @@ export const createDuplexVoiceAgentSession = ({
           type: 'stt_final',
           tool: AGENT_TOOL_NAMES.TRANSCRIBE_REALTIME_SPEECH,
         });
-        if (!text) return;
-        try {
-          await processFinalTranscript({
-            transcriptText: text,
-            asrConfidence: payload.confidence ?? null,
-            vad: context?.lastVad || null,
-          });
-        } catch (error) {
-          logger?.error?.('Duplex voice turn failed', { sessionId: activeSession?.id || session?.id, error });
-          sendJson({
-            type: 'error',
-            code: 'DUPLEX_TURN_FAILED',
-            message: error?.message || 'Could not process the duplex voice turn.',
-            timestamp: new Date().toISOString(),
-          });
+        if (text) {
+          finalTranscriptSegments.push(payload);
         }
       },
       onError: (payload) => sendJson({
@@ -138,6 +146,28 @@ export const createDuplexVoiceAgentSession = ({
     if (payload.type === 'speech_end') {
       context.lastVad = payload.vad || null;
       await stopSpeechSession();
+      const segmentsToProcess = finalTranscriptSegments;
+      finalTranscriptSegments = [];
+      const transcriptText = mergeTranscriptSegments(segmentsToProcess);
+      if (!transcriptText || isProcessingBufferedTurn) return;
+      isProcessingBufferedTurn = true;
+      try {
+        await processFinalTranscript({
+          transcriptText,
+          asrConfidence: averageConfidence(segmentsToProcess),
+          vad: context.lastVad,
+        });
+      } catch (error) {
+        logger?.error?.('Duplex voice turn failed', { sessionId: activeSession?.id || session?.id, error });
+        sendJson({
+          type: 'error',
+          code: 'DUPLEX_TURN_FAILED',
+          message: error?.message || 'Could not process the duplex voice turn.',
+          timestamp: new Date().toISOString(),
+        });
+      } finally {
+        isProcessingBufferedTurn = false;
+      }
       return;
     }
 

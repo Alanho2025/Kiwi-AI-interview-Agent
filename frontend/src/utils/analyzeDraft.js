@@ -33,7 +33,7 @@ export const DEFAULT_ANALYZE_SETTINGS = {
   focusArea: 'Combined',
   controlMode: 'question_limited',
   questionLimit: 8,
-  timeLimitMinutes: 5,
+  timeLimitMinutes: 15,
   voiceDeviceCheck: DEFAULT_VOICE_DEVICE_CHECK,
 };
 
@@ -42,7 +42,7 @@ const ALLOWED_FOCUS = new Set(['Technical', 'Behavioral', 'Combined']);
 const ALLOWED_SESSION_MODES = new Set(['text', 'voice']);
 const ALLOWED_CONTROL_MODES = new Set(['question_limited', 'time_limited']);
 const ALLOWED_QUESTION_LIMITS = new Set([8, 12, 15]);
-const ALLOWED_TIME_LIMITS = new Set([5, 10]);
+const ALLOWED_TIME_LIMITS = new Set([15, 30]);
 const ALLOWED_DEVICE_STATUSES = new Set(['idle', 'checking', 'ok', 'blocked', 'missing', 'error']);
 
 export const sanitizeAnalyzeMode = (value) => (ALLOWED_SESSION_MODES.has(value) ? value : DEFAULT_ANALYZE_MODE);

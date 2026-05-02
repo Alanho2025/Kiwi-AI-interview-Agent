@@ -144,7 +144,7 @@ export function StartSessionCard({ summary, showSessionSettings, sessionDefaults
                   onChange={(event) => onChangeDefaults('timeLimitMinutes', Number(event.target.value))}
                 >
                   {timeLimitOptions.map((option) => (
-                    <option key={option} value={option}>{option} minutes · {option === 10 ? 15 : 10} questions</option>
+                    <option key={option} value={option}>{option} minutes total</option>
                   ))}
                 </select>
               </label>

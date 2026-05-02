@@ -23,7 +23,7 @@ const SENIORITY_BLUEPRINTS = {
 };
 
 const QUESTION_LIMITS = new Set([8, 12, 15]);
-const TIME_LIMITS = new Set([5, 10]);
+const TIME_LIMITS = new Set([15, 30]);
 
 export const normalizeSeniorityLevelKey = (value = 'junior') => {
   const normalized = String(value || 'junior').trim().toLowerCase();
@@ -49,12 +49,12 @@ export const normalizeQuestionLimit = (value = 8) => {
   return QUESTION_LIMITS.has(parsed) ? parsed : 8;
 };
 
-export const normalizeTimeLimitMinutes = (value = 5) => {
+export const normalizeTimeLimitMinutes = (value = 15) => {
   const parsed = Number(value);
-  return TIME_LIMITS.has(parsed) ? parsed : 5;
+  return TIME_LIMITS.has(parsed) ? parsed : 15;
 };
 
-export const resolveTimeLimitedQuestionCount = (minutes = 5) => (normalizeTimeLimitMinutes(minutes) === 10 ? 15 : 10);
+export const resolveTimeLimitedQuestionCount = (minutes = 15) => (normalizeTimeLimitMinutes(minutes) === 30 ? 15 : 8);
 
 export const buildInterviewModeKey = ({ seniorityLevel = 'junior', focusArea = 'combined', controlMode = 'question_limited' } = {}) => `${normalizeSeniorityLevelKey(seniorityLevel)}_${normalizeFocusAreaKey(focusArea)}_${normalizeControlMode(controlMode)}`;
 
@@ -80,7 +80,7 @@ export const resolveInterviewModeConfig = ({
   questionType = null,
   controlMode = 'question_limited',
   questionLimit = 8,
-  timeLimitMinutes = 5,
+  timeLimitMinutes = 15,
 } = {}) => {
   const blueprint = resolveInterviewBlueprint(seniorityLevel);
   const normalizedFocusArea = normalizeFocusAreaKey(questionType || focusArea);
