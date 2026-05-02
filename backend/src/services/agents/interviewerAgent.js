@@ -150,49 +150,68 @@ const inferEvidenceTypeHint = (question = {}) => {
   return 'adjacent_experience';
 };
 
-const buildProbingQuestion = ({ targetTopic = 'project' } = {}) => ({
-  type: 'probing_follow_up',
-  stage: 'technical_probe',
-  topic: targetTopic,
-  category: 'technical',
-  followUpDepth: 1,
-  text: `Can you walk me through one concrete ${targetTopic} example, what you personally did, and what result it led to?`,
-  reason: 'A probing question is needed to collect one concrete example before moving on.',
-  sourceType: 'controller_directed',
-});
+const buildProbingQuestion = ({ targetTopic = 'project', category = 'technical' } = {}) => {
+  const isBehavioural = category === 'behavioural' || category === 'behavioral';
+  return {
+    type: isBehavioural ? 'behavioural_probing_follow_up' : 'probing_follow_up',
+    stage: isBehavioural ? 'behavioural_probe' : 'technical_probe',
+    topic: targetTopic,
+    category: isBehavioural ? 'behavioural' : 'technical',
+    followUpDepth: 1,
+    text: isBehavioural
+      ? `Can you give me one specific situation for ${targetTopic}? Please cover the situation, what you personally did, and what changed after your action.`
+      : `Can you walk me through one concrete ${targetTopic} example, what you personally did, and what result it led to?`,
+    reason: isBehavioural
+      ? 'A behavioural probing question is needed to collect a concrete STAR-style example before moving on.'
+      : 'A probing question is needed to collect one concrete example before moving on.',
+    sourceType: 'controller_directed',
+  };
+};
 
-const buildRephrasedQuestion = ({ targetTopic = 'project', environment = {} } = {}) => ({
+const buildRephrasedQuestion = ({ targetTopic = 'project', environment = {}, category = null } = {}) => ({
   type: 'rephrased_follow_up',
-  stage: environment?.questionContext?.latestQuestionStage || 'clarification',
+  stage: environment?.questionContext?.latestQuestionStage || (category === 'behavioural' ? 'behavioural_clarification' : 'clarification'),
   topic: targetTopic,
-  category: String(environment?.questionContext?.latestQuestionStage || '').includes('behaviour') ? 'behavioural' : 'technical',
+  category: category || (String(environment?.questionContext?.latestQuestionStage || '').includes('behaviour') ? 'behavioural' : 'technical'),
   followUpDepth: 1,
   text: `Let me rephrase that more clearly. For ${targetTopic}, please pick one real example and tell me your role, what you did, and the outcome.`,
   reason: 'The evaluator detected likely misunderstanding, so the interviewer should restate the question with a tighter structure.',
   sourceType: 'controller_directed',
 });
 
-const buildDeepDiveQuestion = ({ targetTopic = 'project' } = {}) => ({
-  type: 'deep_dive_follow_up',
-  stage: 'technical_probe',
-  topic: targetTopic,
-  category: 'technical',
-  followUpDepth: 2,
-  text: `Staying with ${targetTopic}, what trade-off, difficulty, or decision did you handle yourself, and how did you judge whether it worked?`,
-  reason: 'The latest answer was usable but still partial, so a deeper question should capture decision quality and ownership.',
-  sourceType: 'controller_directed',
-});
+const buildDeepDiveQuestion = ({ targetTopic = 'project', category = 'technical' } = {}) => {
+  const isBehavioural = category === 'behavioural' || category === 'behavioral';
+  return {
+    type: isBehavioural ? 'behavioural_deep_dive_follow_up' : 'deep_dive_follow_up',
+    stage: isBehavioural ? 'behavioural_probe' : 'technical_probe',
+    topic: targetTopic,
+    category: isBehavioural ? 'behavioural' : 'technical',
+    followUpDepth: 2,
+    text: isBehavioural
+      ? `Staying with that situation, what was the hardest people, communication, or pressure moment, and what did you do next?`
+      : `Staying with ${targetTopic}, what trade-off, difficulty, or decision did you handle yourself, and how did you judge whether it worked?`,
+    reason: isBehavioural
+      ? 'The latest answer was usable but still partial, so a deeper behavioural question should capture action, judgement, and reflection.'
+      : 'The latest answer was usable but still partial, so a deeper question should capture decision quality and ownership.',
+    sourceType: 'controller_directed',
+  };
+};
 
-const buildValidationQuestion = ({ targetTopic = 'claim' } = {}) => ({
-  type: 'validation_follow_up',
-  stage: 'technical_validation',
-  topic: targetTopic,
-  category: 'technical',
-  followUpDepth: 1,
-  text: `You mentioned ${targetTopic}. What exactly did you own, and how did you know it worked well in practice?`,
-  reason: 'This question validates a claim that still needs direct supporting evidence.',
-  sourceType: 'controller_directed',
-});
+const buildValidationQuestion = ({ targetTopic = 'claim', category = 'technical' } = {}) => {
+  const isBehavioural = category === 'behavioural' || category === 'behavioral';
+  return {
+    type: isBehavioural ? 'behavioural_validation_follow_up' : 'validation_follow_up',
+    stage: isBehavioural ? 'behavioural_validation' : 'technical_validation',
+    topic: targetTopic,
+    category: isBehavioural ? 'behavioural' : 'technical',
+    followUpDepth: 1,
+    text: isBehavioural
+      ? `You mentioned ${targetTopic}. Can you describe the situation, your personal action, and the outcome?`
+      : `You mentioned ${targetTopic}. What exactly did you own, and how did you know it worked well in practice?`,
+    reason: 'This question validates a claim that still needs direct supporting evidence.',
+    sourceType: 'controller_directed',
+  };
+};
 
 const buildSwitchTopicQuestion = ({ targetTopic = 'role_fit' } = {}) => ({
   type: 'coverage_follow_up',
@@ -205,16 +224,21 @@ const buildSwitchTopicQuestion = ({ targetTopic = 'role_fit' } = {}) => ({
   sourceType: 'controller_directed',
 });
 
-const buildAbductiveProbeQuestion = ({ targetTopic = 'decision_tradeoff', hiddenGap = '' } = {}) => ({
-  type: 'abductive_probe_follow_up',
-  stage: 'technical_probe',
-  topic: targetTopic,
-  category: 'technical',
-  followUpDepth: 2,
-  text: `You hinted at ${hiddenGap || targetTopic}. What was the hardest trade-off or gap there, and how did you handle it in practice?`,
-  reason: 'The controller inferred a hidden gap that should be tested before moving on.',
-  sourceType: 'controller_directed',
-});
+const buildAbductiveProbeQuestion = ({ targetTopic = 'decision_tradeoff', hiddenGap = '', category = 'technical' } = {}) => {
+  const isBehavioural = category === 'behavioural' || category === 'behavioral';
+  return {
+    type: 'abductive_probe_follow_up',
+    stage: isBehavioural ? 'behavioural_probe' : 'technical_probe',
+    topic: targetTopic,
+    category: isBehavioural ? 'behavioural' : 'technical',
+    followUpDepth: 2,
+    text: isBehavioural
+      ? `You hinted at ${hiddenGap || targetTopic}. What was the hardest communication, teamwork, or pressure moment, and how did you respond?`
+      : `You hinted at ${hiddenGap || targetTopic}. What was the hardest trade-off or gap there, and how did you handle it in practice?`,
+    reason: 'The controller inferred a hidden gap that should be tested before moving on.',
+    sourceType: 'controller_directed',
+  };
+};
 
 const buildSectionShiftQuestion = ({ nextSectionKey = 'motivation' } = {}) => ({
   type: 'section_shift_follow_up',
@@ -246,16 +270,23 @@ const buildForceShiftProjectQuestion = ({ targetTopic = 'experience', forbiddenP
   sourceType: 'controller_directed',
 });
 
-const buildProbeStressQuestion = ({ targetTopic = 'technical_depth' } = {}) => ({
-  type: 'probe_stress_follow_up',
-  stage: 'technical_stress',
-  topic: targetTopic,
-  category: 'technical',
-  followUpDepth: 2,
-  text: `That solution works well in a standard scenario. But what if you faced a major constraint—like 10x the traffic or a 50% cut in timeline? How would your approach for ${targetTopic} change?`,
-  reason: 'The candidate provided a stable answer, so the interviewer is applying a stress constraint to test boundaries.',
-  sourceType: 'controller_directed',
-});
+const buildProbeStressQuestion = ({ targetTopic = 'technical_depth', category = 'technical' } = {}) => {
+  const isBehavioural = category === 'behavioural' || category === 'behavioral';
+  return {
+    type: isBehavioural ? 'behavioural_pressure_follow_up' : 'probe_stress_follow_up',
+    stage: isBehavioural ? 'behavioural_pressure' : 'technical_stress',
+    topic: targetTopic,
+    category: isBehavioural ? 'behavioural' : 'technical',
+    followUpDepth: 2,
+    text: isBehavioural
+      ? `If that situation became more pressured, such as a tight deadline or disagreement, how would you communicate and keep the work moving?`
+      : `That solution works well in a standard scenario. But what if you faced a major constraint, like 10x the traffic or a 50% cut in timeline? How would your approach for ${targetTopic} change?`,
+    reason: isBehavioural
+      ? 'The candidate provided a stable answer, so the interviewer is probing behaviour under pressure without switching into technical depth.'
+      : 'The candidate provided a stable answer, so the interviewer is applying a stress constraint to test boundaries.',
+    sourceType: 'controller_directed',
+  };
+};
 
 const buildProbeFrictionQuestion = ({ targetTopic = 'ownership' } = {}) => ({
   type: 'probe_friction_follow_up',
@@ -320,6 +351,7 @@ Candidate's last answer:
 
 Strategic Intent of your next turn: [${actionType}]
 Target Topic: "${baseQuestion.topic}"
+Question Category: "${baseQuestion.category || baseQuestion.stage || 'experience'}"
 Base Goal: "${baseQuestion.text}"
 ${reflectionText}
 ${retrievedTexts ? `\nReference Context from Knowledge Base:\n- ${retrievedTexts}` : ''}
@@ -336,6 +368,7 @@ GENERAL GUIDELINES:
 2. Use the "Reference Context" for inspiration to make your response professional and deep.
 3. Keep the tone conversational, avoid sounding like a robot reading a template.
 4. NEVER leak internal engineering variables (e.g. 'targetTopic', 'decision_tradeoff', 'role_fit') to the user. Phrase it naturally.
+5. If Question Category is behavioural, stay in STAR-style behavioural evidence: situation, action, result, teamwork, communication, pressure, ownership. Do not switch into implementation, system design, model accuracy, traffic scaling, or architecture unless the candidate clearly chose a technical mode.
 
 Generate your verbal response now:`;
 
@@ -431,21 +464,21 @@ export const runInterviewerAgent = async ({
   let selectedQuestion = getNextPoolQuestion(session, { freshOnly, category: lockedCategory });
 
   if (actionType === AGENT_ACTION_TYPES.ASK_PROBING_QUESTION) {
-    selectedQuestion = buildProbingQuestion({ targetTopic: targetTopic || decisionContext?.currentTopic || evidenceBundle?.validationTargets?.[0] || 'project' });
+    selectedQuestion = buildProbingQuestion({ targetTopic: targetTopic || decisionContext?.currentTopic || evidenceBundle?.validationTargets?.[0] || 'project', category: focusArea === 'behavioral' ? 'behavioural' : 'technical' });
   } else if (actionType === AGENT_ACTION_TYPES.REPHRASE_QUESTION) {
-    selectedQuestion = buildRephrasedQuestion({ targetTopic: targetTopic || decisionContext?.currentTopic || 'project', environment });
+    selectedQuestion = buildRephrasedQuestion({ targetTopic: targetTopic || decisionContext?.currentTopic || 'project', environment, category: focusArea === 'behavioral' ? 'behavioural' : null });
   } else if (actionType === AGENT_ACTION_TYPES.ASK_DEEP_DIVE_QUESTION) {
     selectedQuestion = focusArea === 'behavioral'
-      ? buildProbingQuestion({ targetTopic: targetTopic || decisionContext?.currentTopic || 'behavioural_example' })
-      : buildDeepDiveQuestion({ targetTopic: targetTopic || decisionContext?.currentTopic || 'project' });
+      ? buildDeepDiveQuestion({ targetTopic: targetTopic || decisionContext?.currentTopic || 'behavioural_example', category: 'behavioural' })
+      : buildDeepDiveQuestion({ targetTopic: targetTopic || decisionContext?.currentTopic || 'project', category: 'technical' });
   } else if (actionType === AGENT_ACTION_TYPES.ASK_VALIDATION_QUESTION) {
     selectedQuestion = focusArea === 'behavioral'
-      ? buildProbingQuestion({ targetTopic: targetTopic || decisionContext?.currentTopic || 'behavioural_example' })
-      : buildValidationQuestion({ targetTopic: targetTopic || decisionContext?.matchState?.validationTargets?.[0] || 'claim' });
+      ? buildValidationQuestion({ targetTopic: targetTopic || decisionContext?.currentTopic || 'behavioural_example', category: 'behavioural' })
+      : buildValidationQuestion({ targetTopic: targetTopic || decisionContext?.matchState?.validationTargets?.[0] || 'claim', category: 'technical' });
   } else if (actionType === AGENT_ACTION_TYPES.SWITCH_TOPIC) {
     selectedQuestion = buildSwitchTopicQuestion({ targetTopic: targetTopic || decisionContext?.coverageState?.missingTopics?.[0] || 'role_fit' });
   } else if (actionType === AGENT_ACTION_TYPES.ASK_ABDUCTIVE_PROBE_QUESTION) {
-    selectedQuestion = buildAbductiveProbeQuestion({ targetTopic: targetTopic || decisionContext?.abductiveState?.probeTopic || 'decision_tradeoff', hiddenGap: decisionContext?.abductiveState?.hiddenGap || '' });
+    selectedQuestion = buildAbductiveProbeQuestion({ targetTopic: targetTopic || decisionContext?.abductiveState?.probeTopic || 'decision_tradeoff', hiddenGap: decisionContext?.abductiveState?.hiddenGap || '', category: focusArea === 'behavioral' ? 'behavioural' : 'technical' });
   } else if (actionType === AGENT_ACTION_TYPES.SHIFT_SECTION) {
     if ((category || decisionContext?.interviewStructure?.forceCategory) === 'technical' || probeType === 'technical_recovery' || targetTopic === 'technical') {
       selectedQuestion = getNextPoolQuestion(session, { freshOnly: true, category: 'technical' }) || buildTechnicalRecoveryQuestion({ targetTopic: decisionContext?.matchState?.validationTargets?.[0] || 'implementation', session, decisionContext });
@@ -455,7 +488,7 @@ export const runInterviewerAgent = async ({
   } else if (actionType === AGENT_ACTION_TYPES.FORCE_SHIFT_PROJECT) {
     selectedQuestion = buildForceShiftProjectQuestion({ targetTopic: targetTopic || 'experience', forbiddenProject: decisionContext?.latestDecision?.actionInput?.forbiddenProject || 'the previous project' });
   } else if (actionType === AGENT_ACTION_TYPES.PROBE_STRESS) {
-    selectedQuestion = buildProbeStressQuestion({ targetTopic: targetTopic || 'technical_depth' });
+    selectedQuestion = buildProbeStressQuestion({ targetTopic: targetTopic || 'technical_depth', category: focusArea === 'behavioral' ? 'behavioural' : 'technical' });
   } else if (actionType === AGENT_ACTION_TYPES.PROBE_FRICTION) {
     selectedQuestion = buildProbeFrictionQuestion({ targetTopic: targetTopic || 'ownership' });
   } else if (actionType === AGENT_ACTION_TYPES.ANSWER_CANDIDATE_QUESTION) {
@@ -486,7 +519,8 @@ export const runInterviewerAgent = async ({
     selectedQuestion = getNextPoolQuestion(session, { freshOnly: true, category: 'technical' });
   }
   if (focusArea === 'behavioral' && selectedQuestion && selectedQuestion.category === 'technical') {
-    selectedQuestion = getNextPoolQuestion(session, { freshOnly: true, category: 'behavioural' });
+    selectedQuestion = getNextPoolQuestion(session, { freshOnly: true, category: 'behavioural' })
+      || buildProbingQuestion({ targetTopic: targetTopic || decisionContext?.currentTopic || 'behavioural_example', category: 'behavioural' });
   }
 
   if (!selectedQuestion && (lockedCategory === 'technical' || category === 'technical' || decisionContext?.interviewStructure?.forceCategory === 'technical')) {

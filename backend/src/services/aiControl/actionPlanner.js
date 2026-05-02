@@ -141,13 +141,15 @@ export const selectNextAction = (decisionContext = {}) => {
     && (evaluatorState.frictionState?.frictionLevel === 'low' || !evaluatorState.frictionState?.frictionDetected);
 
   if (isTooPerfect && !isFinalPlannedTurn) {
-    // If the answer is strong but "happy path", introduce stress or look for friction
-    const useFriction = Math.random() > 0.5;
+    const isBehaviouralOnly = interviewStructure.focusAreaKey === 'behavioral';
+    const useFriction = isBehaviouralOnly || Math.random() > 0.5;
     return {
       selectedAction: useFriction ? AGENT_ACTION_TYPES.PROBE_FRICTION : AGENT_ACTION_TYPES.PROBE_STRESS,
-      rationale: isTooPerfect ? 'The answer was very smooth but lacked real-world friction/stress. Probing boundaries now.' : 'Deepening the conversation.',
+      rationale: isBehaviouralOnly
+        ? 'The behavioural interview needs friction, pressure, or communication evidence, not a technical stress test.'
+        : 'The answer was very smooth but lacked real-world friction/stress. Probing boundaries now.',
       confidence: 0.88,
-      actionInput: { targetTopic, probeType: useFriction ? 'failure_analysis' : 'constraint_test', forceEvidence: true },
+      actionInput: { targetTopic, probeType: useFriction ? 'failure_analysis' : 'constraint_test', forceEvidence: true, category: isBehaviouralOnly ? 'behavioural' : null },
     };
   }
   // -------------------------
