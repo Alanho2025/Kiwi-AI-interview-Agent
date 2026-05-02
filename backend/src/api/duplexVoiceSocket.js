@@ -8,8 +8,6 @@
 
 import { WebSocketServer } from 'ws';
 import jwt from 'jsonwebtoken';
-import { createDuplexVoiceAgentSession } from '../services/voice/duplexVoiceAgentService.js';
-import { loadOwnedSessionOrThrow, ensureInterviewInProgress } from '../services/interview/interviewSessionService.js';
 import { logger } from '../utils/logger.js';
 
 const DUPLEX_VOICE_PATH_PATTERN = /^\/api\/interview\/([^/]+)\/voice\/duplex$/;
@@ -25,8 +23,28 @@ export const sendJson = (socket, payload) => {
   socket.send(JSON.stringify(payload));
 };
 
-const parseAuthToken = (requestUrl) => {
-  const token = requestUrl.searchParams.get('token') || '';
+export const parseCookies = (cookieHeader = '') =>
+  String(cookieHeader || '')
+    .split(';')
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .reduce((acc, part) => {
+      const separatorIndex = part.indexOf('=');
+      if (separatorIndex === -1) return acc;
+
+      const key = part.slice(0, separatorIndex).trim();
+      const value = part.slice(separatorIndex + 1).trim();
+      try {
+        acc[key] = decodeURIComponent(value);
+      } catch {
+        acc[key] = value;
+      }
+      return acc;
+    }, {});
+
+const parseAuthToken = (requestUrl, request = {}) => {
+  const cookies = parseCookies(request.headers?.cookie || '');
+  const token = requestUrl.searchParams.get('token') || cookies.auth_token || '';
   if (!token) return null;
   try {
     const secret = process.env.JWT_SECRET || 'fallback_secret_for_dev';
@@ -48,11 +66,24 @@ export const buildDuplexSocketContext = (request) => {
     language,
     voiceName,
     sampleRate: Number.isFinite(sampleRate) ? sampleRate : DEFAULT_SAMPLE_RATE,
-    auth: parseAuthToken(requestUrl),
+    auth: parseAuthToken(requestUrl, request),
   };
 };
 
-export function attachDuplexVoiceSocketServer(server) {
+export async function loadDuplexVoiceDependencies() {
+  const [voiceAgentModule, interviewSessionModule] = await Promise.all([
+    import('../services/voice/duplexVoiceAgentService.js'),
+    import('../services/interview/interviewSessionService.js'),
+  ]);
+
+  return {
+    createDuplexVoiceAgentSession: voiceAgentModule.createDuplexVoiceAgentSession,
+    loadOwnedSessionOrThrow: interviewSessionModule.loadOwnedSessionOrThrow,
+    ensureInterviewInProgress: interviewSessionModule.ensureInterviewInProgress,
+  };
+}
+
+export function attachDuplexVoiceSocketServer(server, dependencies = {}) {
   const wss = new WebSocketServer({ noServer: true });
 
   server.on('upgrade', (request, socket, head) => {
@@ -75,6 +106,14 @@ export function attachDuplexVoiceSocketServer(server) {
         socket.close(1008, 'unauthorized');
         return;
       }
+
+      const {
+        createDuplexVoiceAgentSession,
+        loadOwnedSessionOrThrow,
+        ensureInterviewInProgress,
+      } = dependencies.loadDuplexVoiceDependencies
+        ? await dependencies.loadDuplexVoiceDependencies()
+        : await loadDuplexVoiceDependencies();
 
       const session = await loadOwnedSessionOrThrow({ sessionId: context.sessionId, userId });
       ensureInterviewInProgress(session);

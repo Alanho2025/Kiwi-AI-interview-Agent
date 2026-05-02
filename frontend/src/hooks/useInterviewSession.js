@@ -113,6 +113,8 @@ export function useInterviewSession({ sessionId, navigate }) {
     warmAdaptiveInBackground(session);
   }, [session, warmAdaptiveInBackground]);
 
+  const timerSessionKey = `${session?.id || session?._id || sessionId}:${session?.status || 'unknown'}:${session?.lastResumedAt || session?.startedAt || ''}`;
+
   useEffect(() => {
     if (!session || session.status !== 'in_progress') {
       return undefined;
@@ -121,7 +123,7 @@ export function useInterviewSession({ sessionId, navigate }) {
     setTimerOffset(0);
     const interval = setInterval(() => setTimerOffset((value) => value + 1), 1000);
     return () => clearInterval(interval);
-  }, [session]);
+  }, [timerSessionKey, session?.status]);
 
   const handleReply = useCallback(async (answer) => {
     const cleanAnswer = answer?.trim();

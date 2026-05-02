@@ -67,7 +67,9 @@
 - Added voice latency utilities and tests for frontend trace/summary behavior.
 - Added microphone permission and device-check hooks/components for safer voice session setup.
 - Added robustness tests for duplex voice behavior and removal of legacy batch voice flow.
-- Known integration note: the current backend entry point attaches the live STT socket. The duplex socket module exists, but it still needs to be attached in `index.js` before the full duplex frontend flow can work end to end.
+- Attached the duplex voice WebSocket server in `backend/index.js` alongside the live STT socket, so `/api/interview/:sessionId/voice/duplex` is now mounted from the backend entry point.
+- Lazy-loaded duplex voice session dependencies inside the socket connection flow to keep socket context parsing tests lightweight and avoid importing heavy interview/session services before an authenticated connection exists.
+- Added a server wiring robustness test to guard against shipping the frontend duplex voice flow without the backend socket attached.
 
 ### Backend architecture and maintainability
 - Added `src/api.js` as the API composition layer under `/api`.

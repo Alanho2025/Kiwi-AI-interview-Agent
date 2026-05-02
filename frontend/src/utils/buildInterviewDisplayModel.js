@@ -27,7 +27,7 @@ export const buildInterviewDisplayModel = (session = {}, currentPlanItem = null)
   const levelLabel = `${seniorityLabel} ${focusLabel}`;
   const controlMode = session?.controlMode || session?.settings?.controlMode || 'question_limited';
   const timeLimitSeconds = Number(session?.timeLimitSeconds || session?.settings?.timeLimitSeconds || 0);
-  const modeLabel = controlMode === 'time_limited' ? `${timeLimitSeconds ? Math.round(timeLimitSeconds / 60) : 5}-minute ${focusLabel}` : focusLabel;
+  const modeLabel = controlMode === 'time_limited' ? `${timeLimitSeconds ? Math.round(timeLimitSeconds / 60) : 15}-minute ${focusLabel}` : focusLabel;
   const stageLabel = toTitleCase(currentPlanItem?.stage || 'opening');
   const promiseLabel = focusLabel === 'Technical'
     ? 'This session will stay technical, so explain tools, implementation choices, trade-offs, and results clearly.'

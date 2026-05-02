@@ -50,9 +50,9 @@ Login
 - Service-level test coverage for every domain service
 - Further split of older broad services
 
-### Important integration note
+### Voice integration status
 
-The frontend is wired for the product-level duplex voice flow through `useVoiceInterviewSession` and `useDuplexVoiceSocket`. The backend also contains a duplex socket module and voice orchestration services. However, the current backend entry point only attaches `attachRealtimeVoiceSocketServer(server)` in `index.js`. The duplex socket module must also be attached before full duplex voice can work end to end.
+The frontend is wired for the product-level duplex voice flow through `useVoiceInterviewSession` and `useDuplexVoiceSocket`. The backend now attaches both `attachRealtimeVoiceSocketServer(server)` and `attachDuplexVoiceSocketServer(server)` in `index.js`, so the live STT socket and the product-level duplex voice socket are both mounted from the HTTP server entry point.
 
 That means text interview mode is the safer current demo path. Voice mode has strong groundwork, but the final backend socket attachment still needs to be completed.
 
@@ -287,8 +287,8 @@ Base path: `/api`
 
 ### WebSocket routes
 
-- `/api/interview/:sessionId/voice/live` - live STT socket attached in current backend entry point
-- `/api/interview/:sessionId/voice/duplex` - duplex voice socket module exists, but it still needs to be attached in `index.js`
+- `/api/interview/:sessionId/voice/live` - live STT socket attached in the backend entry point
+- `/api/interview/:sessionId/voice/duplex` - product-level duplex voice socket attached in the backend entry point
 
 ## Interview control behavior
 
@@ -596,7 +596,7 @@ RAG services support:
 
 ## Known gaps and technical debt
 
-- Duplex voice socket module exists but is not attached in the backend entry point yet.
+- Duplex voice is now mounted in the backend entry point, but it still depends on valid Azure Speech credentials, valid auth, and an in-progress interview session.
 - Some broad services still need more splitting.
 - Some ownership checks should be hardened across every route and resource.
 - `.env.example` has a typo-like duplicated `POSTGRES_URL=POSTGRES_URL=...` value and should be cleaned.
@@ -604,7 +604,7 @@ RAG services support:
 - Transcript export and report export behavior should be reviewed for final submission requirements.
 - MongoDB degraded mode is useful for development, but final deployment should define whether MongoDB is required.
 - Frontend still uses local draft persistence for analysis setup. This is useful, but privacy wording should match actual storage behavior.
-- Full end-to-end voice testing still needs the backend duplex socket attachment.
+- Full end-to-end voice testing still needs real browser microphone, Azure Speech, and authenticated session coverage.
 
 ## Recommended next engineering steps
 
@@ -633,4 +633,4 @@ For a stable current demo:
 11. Export transcript.
 12. Generate report and QA.
 
-Use voice mode only after the duplex socket attachment is completed and tested.
+Use voice mode after backend, frontend, Azure Speech credentials, auth token storage, and microphone permission are all available in the same environment.
