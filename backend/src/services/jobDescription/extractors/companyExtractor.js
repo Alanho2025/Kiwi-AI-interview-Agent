@@ -1,3 +1,4 @@
+import { matchCompanyCandidateToDirectory, matchCompanyInText, getNzCompanyDirectoryStats } from './companyDirectoryMatcher.js';
 const LOCATION_PATTERN = /(Auckland|Wellington|Christchurch|Hamilton|Takanini|Ponsonby|Pukekohe|Remote|Across New Zealand|New Zealand)/i;
 const EMPLOYMENT_PATTERN = /^(full[- ]?time|part[- ]?time|contract(?:\/temp)?|temp|temporary|casual|permanent|fixed term)$/i;
 const SALARY_PATTERN = /(\$|salary|hourly rate|per year|competitive|expected salary)/i;
@@ -26,6 +27,9 @@ const looksLikeCompanyLine = (line = '') => {
 
 const extractCompanyFromText = (lines = []) => {
   const joined = lines.join('\n');
+  const directoryMatch = matchCompanyInText(joined);
+  if (directoryMatch) return directoryMatch;
+
   const patterns = [
     /\b(?:at|for)\s+([A-Z][A-Za-z0-9&.' -]{1,60}?)(?:,|\s+you(?:'|’)ll|\s+you will|\s+is\b|\s+are\b)/,
     /^([A-Z][A-Za-z0-9&.' -]{1,60}?)\s+is\s+one\s+of\b/im,
@@ -51,12 +55,19 @@ export const extractCompanyName = ({ afterTitleLines = [], title = '', allLines 
 
   for (const [index, line] of afterTitleLines.slice(0, 10).entries()) {
     if (/^company:/i.test(line)) {
-      candidates.push({ value: cleanCompanyValue(line.replace(/^company:\s*/i, '')), source: 'labeled_company', score: 0.98 });
+      const value = cleanCompanyValue(line.replace(/^company:\s*/i, ''));
+      const directoryMatch = matchCompanyCandidateToDirectory(value);
+      candidates.push(directoryMatch || { value, source: 'labeled_company', score: 0.98 });
       continue;
     }
     if (!looksLikeCompanyLine(line)) continue;
     const value = cleanCompanyValue(line.trim());
     if (!value || value.toLowerCase() == normalizedTitle) continue;
+    const directoryMatch = matchCompanyCandidateToDirectory(value);
+    if (directoryMatch) {
+      candidates.push(directoryMatch);
+      continue;
+    }
     let score = 0.78;
     if (index == 0) score += 0.08;
     if (/(limited|ltd|inc|corp|group|company|rail|energy|software|digital|people|consulting|radar)\b/i.test(value)) score += 0.08;
@@ -69,6 +80,8 @@ export const extractCompanyName = ({ afterTitleLines = [], title = '', allLines 
     value: best?.value || '',
     candidates,
     confidence: best?.score || 0.2,
-    evidence: best ? [best.value] : [],
+    evidence: best ? [best.evidence || best.value] : [],
+    match: best || null,
+    directory: getNzCompanyDirectoryStats(),
   };
 };

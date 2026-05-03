@@ -339,6 +339,7 @@ export const buildStructuredJobDescriptionRubric = async (rawJD = '', options = 
       sourceLength: rawJD.length,
       headingCount: detectedHeadings.length,
       fieldEvidence,
+      companyResolution: header.companyResolution,
       normalizedEvidenceMap: evidenceMap,
       agenticSafeguard: {
         reparseMode: Boolean(options.reparseMode),

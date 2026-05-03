@@ -51,5 +51,10 @@ export const extractJobDescriptionHeader = ({ rawJD = '', fallbackTitle = '', no
       location: location.confidence,
       employmentType: employmentType.confidence,
     },
+    companyResolution: {
+      match: company.match,
+      evidence: company.evidence,
+      directory: company.directory,
+    },
   };
 };
