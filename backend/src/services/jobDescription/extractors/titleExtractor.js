@@ -41,9 +41,12 @@ const toTitleCase = (value = '') => String(value || '')
   .replace(/\bUx\b/g, 'UX');
 
 const normalizeCandidate = (value = '') => String(value || '').replace(/\s+/g, ' ').trim().replace(/[.:;,-]+$/g, '').trim();
+const ROLE_TITLE_TRAILING_CONTEXT_PATTERN = /\s+(?:at|with|for)\s+[A-Z][A-Za-z0-9&.'’ -]{1,80}(?:,|\s+you(?:'|’)ll|\s+you\s+will|\s+you\s+are|\s+is\b|\s+are\b).*$/i;
 
 export const cleanRoleTitleCandidate = (value = '') => {
-  let text = normalizeCandidate(value).replace(/\s+to join\b.*$/i, '');
+  let text = normalizeCandidate(value)
+    .replace(ROLE_TITLE_TRAILING_CONTEXT_PATTERN, '')
+    .replace(/\s+to join\b.*$/i, '');
   if (!text) return '';
   if (FALSE_POSITIVE_HIRING_ROLES.test(text)) return text;
 

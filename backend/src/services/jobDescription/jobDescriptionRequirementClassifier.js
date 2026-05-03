@@ -1,8 +1,10 @@
 import { buildTaxonomyItem } from '../taxonomyService.js';
 
 const containsAny = (text = '', patterns = []) => patterns.some((pattern) => pattern.test(text));
-const NICE_TO_HAVE_PATTERNS = [/\bbonus\b/i, /\bnice to have\b/i, /\bnice-to-have\b/i, /\bpreferred\b/i, /\bdesirable\b/i, /\badvantage(?:ous)?\b/i, /\bfamiliarity with\b/i, /\bwould be advantageous\b/i];
+const NICE_TO_HAVE_PATTERNS = [/\bbonus\b/i, /\bnice to have\b/i, /\bnice-to-have\b/i, /\bpreferred\b/i, /\bdesirable\b/i, /\badvantage(?:ous)?\b/i, /\bwould be advantageous\b/i, /\bpluses?\b/i];
+const NICE_TO_HAVE_HEADING_PATTERNS = [/\bbonus\b/i, /\bnice to have\b/i, /\bnice-to-have\b/i, /\bpreferred\b/i, /\bdesirable\b/i, /\badvantage(?:ous)?\b/i, /\bpluses?\b/i];
 const MUST_HAVE_PATTERNS = [/\bmust\b/i, /\bstrong\b/i, /\bexperience\b/i, /\bability to\b/i, /\bproficiency\b/i, /\bsolid foundation\b/i, /\bminimum\b/i, /\bdegree\b/i, /\bbasic experience\b/i, /\bcomfortable working\b/i];
+const MUST_HAVE_HEADING_PATTERNS = [/we are seeking someone with/i, /what we'?re looking for/i, /what we are looking for/i, /requirements/i, /you'?ll need/i, /key requirements/i, /about you/i, /qualifications/i, /experience level/i, /stack/i, /tech stack/i];
 const APPLICATION_PATTERNS = [/right to work/i, /expected salary/i, /notice are you required/i, /medical check/i, /drug screening/i, /apply online/i];
 const HEADING_ONLY_PATTERN = /^(stack|tech stack|technology stack|tools|technologies|experience level|level|seniority|bonus|bonus requirements|nice[- ]?to[- ]?haves?|what we'?re looking for|what we are looking for|what you'?ll do|what you will do|responsibilities|requirements|qualifications|core requirements)$/i;
 const FALLBACK_REQUIREMENT_PATTERNS = [
@@ -44,11 +46,21 @@ const FALLBACK_REQUIREMENT_PATTERNS = [
   /\bstakeholder\b/i,
 ];
 
-const createRequirementItem = (item, type, importance = 'medium', evidenceType = 'explicit') => ({
-  id: buildTaxonomyItem(item.normalizedText || item.text).id,
-  text: item.text,
-  normalizedText: item.normalizedText || item.text,
-  label: item.normalizedText || item.text,
+const cleanRequirementText = (value = '') => String(value || '')
+  .replace(/\bExperience\s+with\s+our\s+game,\s*/i, 'Experience with ')
+  .replace(/\bPath of Exile,\s+or\s+similar\s+games\b/i, 'Path of Exile or similar games')
+  .replace(/\s+/g, ' ')
+  .trim();
+
+const createRequirementItem = (item, type, importance = 'medium', evidenceType = 'explicit') => {
+  const text = cleanRequirementText(item.text);
+  const normalizedText = cleanRequirementText(item.normalizedText || item.text);
+
+  return {
+  id: buildTaxonomyItem(normalizedText || text).id,
+  text,
+  normalizedText: normalizedText || text,
+  label: normalizedText || text,
   type,
   importance,
   evidenceType,
@@ -58,7 +70,9 @@ const createRequirementItem = (item, type, importance = 'medium', evidenceType =
   confidence: item.confidence,
   sourceLineStart: item.sourceLineStart,
   sourceLineEnd: item.sourceLineEnd,
-});
+  sourceText: item.text,
+};
+};
 
 const uniqueByText = (items = []) => {
   const seen = new Set();
@@ -133,11 +147,19 @@ export const classifyJobDescriptionRequirements = (sections = {}) => {
     }
 
     qualifications.push(createRequirementItem(item, 'qualification', 'medium'));
-    if (containsAny(headingText, NICE_TO_HAVE_PATTERNS) || containsAny(text, NICE_TO_HAVE_PATTERNS)) {
+    if (containsAny(headingText, NICE_TO_HAVE_HEADING_PATTERNS)) {
       niceToHaveRequirements.push(createRequirementItem(item, 'nice_to_have', 'low'));
       return;
     }
-    if (containsAny(headingText, MUST_HAVE_PATTERNS) || containsAny(text, MUST_HAVE_PATTERNS) || mustSourceItems.length <= 10) {
+    if (containsAny(headingText, MUST_HAVE_HEADING_PATTERNS)) {
+      mustHaveRequirements.push(createRequirementItem(item, 'must_have', 'high'));
+      return;
+    }
+    if (containsAny(text, NICE_TO_HAVE_PATTERNS)) {
+      niceToHaveRequirements.push(createRequirementItem(item, 'nice_to_have', 'low'));
+      return;
+    }
+    if (containsAny(text, MUST_HAVE_PATTERNS) || mustSourceItems.length <= 10) {
       mustHaveRequirements.push(createRequirementItem(item, 'must_have', 'high'));
     }
   });

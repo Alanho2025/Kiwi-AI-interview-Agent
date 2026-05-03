@@ -25,7 +25,6 @@ export const SECTION_HEADING_RULES = [
     type: 'qualifications',
     patterns: [
       /^core requirements:?$/i,
-      /^pluses:?$/i,
       /^what we're looking for:?$/i,
       /^what we’re looking for:?$/i,
       /^what we are looking for:?$/i,
@@ -63,6 +62,7 @@ export const SECTION_HEADING_RULES = [
   {
     type: 'niceToHaveRequirements',
     patterns: [
+      /^pluses:?$/i,
       /^bonus:?$/i,
       /^bonus requirements:?$/i,
       /^bonus points:?$/i,
