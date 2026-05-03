@@ -1,0 +1,29 @@
+Data Engineer - AI
+RWA People 
+View all jobs
+East Tamaki, Auckland
+Engineering - Software (Information & Communication Technology)
+Full time
+Competitive
+Posted 13d ago•Medium application volume
+How you match
+3 skills and credentials match your profile
+ SQL Query Language
+ Python Programming
+ Analysis
+Show all⁠
+This is a role for someone who straddles the line between data engineering and AI — someone who can write a solid ETL pipeline in the morning and help shape an AI workflow in the afternoon. If you're curious about what's possible, comfortable with ambiguity, and energised by turning early-stage ideas into working systems, this could be a great fit.    What you'll be doing
+Designing and building data pipelines and ETL processes that are reliable and maintainable
+Writing and optimising SQL queries (including MySQL) and using Python for data processing and analysis
+Applying prompt engineering techniques as part of AI-driven workflows
+Translating stakeholder requirements into technical solutions — the kind of brief that goes "here's the dataset, figure out the logic"
+Supporting the development of AI agents — including human-in-the-loop systems and analysis of model outputs (call analysis, performance review, etc.)
+Helping move prototypes toward production — iterating with PMs and internal stakeholders along the way
+What we're looking for  
+Solid data engineering experience — pipelines, ETL, SQL, Python
+Exposure to or genuine interest in AI/ML and prompt engineering — you don't need to be an expert, but you need to be engaged
+Comfortable with ambiguity — this isn't a role with a fully mapped-out spec on day one
+A practical, delivery-focused mindset — willing to share early drafts, take feedback, and keep moving
+Clear communication skills — you can translate technical work for non-technical stakeholders without losing the detail 
+This role will be 5 days on site - location is East Tamaki.  
+Nice to haveExperience on AI-driven products or automation workflows · Exposure to unstructured data (voice, text, etc.) · A background that spans both engineering and analytics — you enjoy both sides of the houseIf you’re interested in having a conversation about this role or any future opportunities that might be aligned for you, please email marian@rwa.co.nz!

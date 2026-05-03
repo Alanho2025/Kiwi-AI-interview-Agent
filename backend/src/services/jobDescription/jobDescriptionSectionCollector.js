@@ -6,6 +6,7 @@ const createEmptySections = () => ({
   introduction: [],
   responsibilities: [],
   qualifications: [],
+  niceToHaveRequirements: [],
   softSkillPersona: [],
   benefits: [],
   companyContext: [],

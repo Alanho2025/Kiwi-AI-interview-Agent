@@ -1,0 +1,89 @@
+{
+  "id": "seek_job_09_ai_augmented_software_engineer",
+  "rawFile": "raw/seek_job_09.txt",
+  "expected": {
+    "jobOverview": {
+      "title": "AI Augmented Software Engineer",
+      "companyName": "Straker Ltd",
+      "location": "Rosedale, Auckland",
+      "workArrangement": "Hybrid",
+      "category": "Engineering - Software (Information & Communication Technology)",
+      "employmentType": "Full time",
+      "department": "Product Engineering",
+      "roleType": "Core Delivery",
+      "roleFamily": "software_development",
+      "roleLevel": "intermediate"
+    },
+    "sections": {
+      "responsibilities": [
+        "Utilize Cursor, Claude, and Gemini as your primary mechanisms for feature development.",
+        "Own the full stack from initial design to final deployment, translating loosely defined briefs into working software.",
+        "Write and critically verify AI-generated test suites, ensuring they challenge the logic rather than just passing the happy path.",
+        "Actively hunt for hallucinations, logic gaps, and edge-case failures in AI-generated output.",
+        "Maintain a prompt log to document how you steer AI, where it fails, and how you iterate for success.",
+        "Stay on the frontier of AI tools and bring new techniques to your pod rituals."
+      ],
+      "coreRequirements": [
+        "Recent experience using AI tools to ship production software",
+        "Ability to write precise prompts and iterate rapidly when outputs miss the mark.",
+        "Solid engineering DNA to recognize when code is structurally sound or a house of cards.",
+        "Healthy Scepticism",
+        "Pattern Recognition",
+        "Ambiguity Tolerance"
+      ],
+      "niceToHaveRequirements": [],
+      "benefits": [
+        "Hybrid working",
+        "Pod structure designed for autonomy and speed",
+        "Modern Workspace",
+        "Growth & Flexibility",
+        "High-Level Impact"
+      ],
+      "applicationNotes": [
+        "Employer questions are present"
+      ]
+    },
+    "skills": {
+      "softwareDevelopment": [
+        "Full stack development",
+        "Testing",
+        "Deployment",
+        "Code verification"
+      ],
+      "aiEngineering": [
+        "Cursor",
+        "Claude",
+        "Gemini",
+        "AI orchestration",
+        "Prompt engineering",
+        "AI-generated tests",
+        "Prompt log"
+      ],
+      "quality": [
+        "Hallucination detection",
+        "Logic gap detection",
+        "Edge-case review",
+        "Defensive review"
+      ],
+      "softSkills": [
+        "Healthy scepticism",
+        "Pattern recognition",
+        "Ambiguity tolerance",
+        "Professional judgment"
+      ]
+    },
+    "mustNotInclude": {
+      "title": [
+        "AI Augmented Softwre Engineer | High-Velocity AI Orchestration",
+        "Engineering - Software (Information & Communication Technology)"
+      ],
+      "companyName": [
+        "Full time"
+      ],
+      "requirements": [
+        "What We Are Looking For",
+        "Why Join Us?"
+      ]
+    }
+  }
+}

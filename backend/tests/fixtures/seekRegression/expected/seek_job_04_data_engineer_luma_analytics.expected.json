@@ -1,0 +1,103 @@
+{
+  "id": "seek_job_04_data_engineer_luma_analytics",
+  "rawFile": "raw/seek_job_04.txt",
+  "expected": {
+    "jobOverview": {
+      "title": "Data Engineer",
+      "companyName": "Luma Analytics",
+      "location": "Auckland CBD, Auckland",
+      "workArrangement": "Hybrid",
+      "category": "Other (Information & Communication Technology)",
+      "employmentType": "Full time",
+      "roleFamily": "data_engineering",
+      "roleLevel": "intermediate"
+    },
+    "sections": {
+      "responsibilities": [
+        "Designing and building modern data platforms and pipelines to support advanced analytics and AI use cases.",
+        "Developing scalable data models and architectures that enable high-performance analytics.",
+        "Working with cloud-native technologies and platforms (e.g. Databricks, Azure, AWS, GCP) to deliver robust, production-grade solutions.",
+        "Embedding AI and machine learning capabilities into data pipelines and workflows.",
+        "Collaborating with data scientists, analysts, and client stakeholders to translate business problems into technical solutions.",
+        "Ensuring data quality, reliability, and performance through testing, monitoring, and best-practice engineering approaches.",
+        "Contributing to CI/CD pipelines and infrastructure automation using Infrastructure as Code.",
+        "Working directly with clients to understand their data landscape and help shape their future-state architecture.",
+        "Adapting to new technologies and continuously improving how we design and deliver data solutions."
+      ],
+      "coreRequirements": [
+        "2–5 years’ experience in a Data Engineering or related role.",
+        "A relevant qualification in Computer Science, Engineering, or a related field.",
+        "Experience building data pipelines and working with modern data processing frameworks (e.g. Spark, Kafka).",
+        "Strong SQL skills and experience with modern data platforms (e.g. Snowflake, Databricks, Redshift, PostgreSQL).",
+        "Experience with cloud platforms such as AWS, Azure, or GCP.",
+        "Familiarity with DevOps practices, version control (e.g. Git), and CI/CD pipelines.",
+        "An understanding of data governance, security, and best practices in production data environments.",
+        "Strong problem-solving skills and attention to detail.",
+        "Excellent communication skills and the ability to work with both technical and non-technical stakeholders.",
+        "A curiosity for new technologies—especially in the rapidly evolving AI and data landscape."
+      ],
+      "niceToHaveRequirements": [],
+      "benefits": [
+        "Competitive remuneration",
+        "Flexible working arrangements",
+        "Wellbeing initiatives",
+        "Learning, growth, and innovation environment"
+      ],
+      "applicationNotes": []
+    },
+    "skills": {
+      "dataEngineering": [
+        "Data platforms",
+        "Data pipelines",
+        "Data models",
+        "Spark",
+        "Kafka",
+        "SQL",
+        "Snowflake",
+        "Databricks",
+        "Redshift",
+        "PostgreSQL"
+      ],
+      "cloud": [
+        "AWS",
+        "Azure",
+        "GCP",
+        "Cloud-native technologies"
+      ],
+      "mlAi": [
+        "AI",
+        "Machine learning"
+      ],
+      "devOps": [
+        "DevOps",
+        "Git",
+        "CI/CD",
+        "Infrastructure as Code"
+      ],
+      "governance": [
+        "Data governance",
+        "Security",
+        "Data quality",
+        "Monitoring"
+      ],
+      "softSkills": [
+        "Client engagement",
+        "Communication",
+        "Problem solving",
+        "Attention to detail"
+      ]
+    },
+    "mustNotInclude": {
+      "title": [
+        "Other (Information & Communication Technology)"
+      ],
+      "companyName": [
+        "Full time"
+      ],
+      "requirements": [
+        "What we’re looking for",
+        "What we offer"
+      ]
+    }
+  }
+}

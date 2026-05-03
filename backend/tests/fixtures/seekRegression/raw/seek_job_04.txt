@@ -1,0 +1,47 @@
+Data Engineer
+Luma Analytics 
+View all jobs
+Auckland CBD, Auckland (Hybrid)
+Other (Information & Communication Technology)
+Full time
+Add expected salary to your profile for insights
+Posted 9d ago•Medium application volume
+How you match
+3 skills and credentials match your profile
+ AWS
+ SQL Query Language
+ Git Version Control System
+Show all⁠
+About us
+Luma Analytics is one of New Zealand’s fastest-growing analytics consulting firms, recognised in the Deloitte Fast 50.
+We work at the forefront of modern data, analytics, and AI—helping organisations design and build next-generation data platforms, embed AI into their workflows, and unlock real business value from their data.
+Our team brings together deep technical expertise with strong commercial thinking. From cloud-native data platforms to advanced analytics and AI-driven solutions, we partner with clients across industries to deliver work that is both technically cutting-edge and commercially impactful.
+About the role
+As a Data Engineer at Luma Analytics, you’ll be building the foundations that power modern analytics and AI solutions.
+You’ll design and deliver scalable data platforms, develop robust pipelines, and help integrate AI capabilities directly into production data workflows. Working with tools like Databricks and other modern cloud platforms, you’ll be at the centre of how organisations evolve their data ecosystems.
+This is a hands-on consulting role where you’ll combine strong engineering skills with client engagement—solving complex problems, shaping solutions, and delivering tangible outcomes.
+What you’ll be doing
+Designing and building modern data platforms and pipelines to support advanced analytics and AI use cases.
+Developing scalable data models and architectures that enable high-performance analytics.
+Working with cloud-native technologies and platforms (e.g. Databricks, Azure, AWS, GCP) to deliver robust, production-grade solutions.
+Embedding AI and machine learning capabilities into data pipelines and workflows.
+Collaborating with data scientists, analysts, and client stakeholders to translate business problems into technical solutions.
+Ensuring data quality, reliability, and performance through testing, monitoring, and best-practice engineering approaches.
+Contributing to CI/CD pipelines and infrastructure automation using Infrastructure as Code.
+Working directly with clients to understand their data landscape and help shape their future-state architecture.
+Adapting to new technologies and continuously improving how we design and deliver data solutions.
+What we’re looking for
+2–5 years’ experience in a Data Engineering or related role.
+A relevant qualification in Computer Science, Engineering, or a related field.
+Experience building data pipelines and working with modern data processing frameworks (e.g. Spark, Kafka).
+Strong SQL skills and experience with modern data platforms (e.g. Snowflake, Databricks, Redshift, PostgreSQL).
+Experience with cloud platforms such as AWS, Azure, or GCP.
+Familiarity with DevOps practices, version control (e.g. Git), and CI/CD pipelines.
+An understanding of data governance, security, and best practices in production data environments.
+Strong problem-solving skills and attention to detail.
+Excellent communication skills and the ability to work with both technical and non-technical stakeholders.
+A curiosity for new technologies—especially in the rapidly evolving AI and data landscape.
+What we offer
+At Luma Analytics, you’ll work on challenging, high-impact projects using modern tools and technologies at the cutting edge of data and AI.
+We foster a collaborative and supportive environment with a strong focus on learning, growth, and innovation. You’ll have the opportunity to work across industries, develop your technical capability, and play a key role in shaping how organisations use data.
+We offer competitive remuneration, flexible working arrangements, and a range of wellbeing initiatives to support work-life balance.

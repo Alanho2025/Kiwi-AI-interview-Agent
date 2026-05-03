@@ -558,6 +558,7 @@ export const runInterviewerAgent = async ({
     focusArea,
     generatedText,
     fallbackText: selectedQuestion.text,
+    selectedQuestion,
   });
 
   const displayTurn = {

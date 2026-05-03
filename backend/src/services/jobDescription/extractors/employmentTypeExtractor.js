@@ -1,4 +1,4 @@
-const EMPLOYMENT_PATTERN = /(full[- ]?time|part[- ]?time|contract|permanent|fixed term)/i;
+const EMPLOYMENT_PATTERN = /(full[- ]?time|part[- ]?time|contract\/temp|contract|temp|temporary|casual|permanent|fixed term)/i;
 const TRAILING_SPLIT = /\b(?:what this role does|key responsibilities|responsibilities|core requirements|bonus requirements|qualifications|benefits|application notes|about the role|what you'll do|what you'll bring|company|location|salary|contract type)\b/i;
 
 const cleanEmploymentValue = (value = '') => {
@@ -6,7 +6,7 @@ const cleanEmploymentValue = (value = '') => {
   if (!text) return '';
   const splitIndex = text.search(TRAILING_SPLIT);
   const head = splitIndex > 0 ? text.slice(0, splitIndex).trim() : text;
-  const match = head.match(/\b(permanent\s+full[- ]?time|full[- ]?time|part[- ]?time|fixed term|contract)\b/i);
+  const match = head.match(/\b(permanent\s+full[- ]?time|full[- ]?time|part[- ]?time|contract\/temp|fixed term|contract|temp|temporary|casual)\b/i);
   return match ? match[1].replace(/\s+/g, ' ').trim() : head.replace(/[.;,:-]+$/g, '').trim();
 };
 
@@ -22,7 +22,7 @@ export const extractEmploymentType = ({ afterTitleLines = [], flatText = '' } = 
   }
 
   if (candidates.length === 0) {
-    const flatMatch = String(flatText || '').match(/\b(permanent\s+full[- ]?time|full[- ]?time|part[- ]?time|fixed term|contract)\b/i);
+    const flatMatch = String(flatText || '').match(/\b(permanent\s+full[- ]?time|full[- ]?time|part[- ]?time|contract\/temp|fixed term|contract|temp|temporary|casual)\b/i);
     if (flatMatch) candidates.push({ value: cleanEmploymentValue(flatMatch[1]), source: 'flat_text_candidate', score: 0.76 });
   }
 

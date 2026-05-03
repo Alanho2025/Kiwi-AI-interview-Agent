@@ -5,7 +5,8 @@ import { extractLocation } from './extractors/locationExtractor.js';
 import { extractEmploymentType } from './extractors/employmentTypeExtractor.js';
 
 const cleanHeaderLine = (value = '') => String(value || '').replace(/\s+/g, ' ').trim();
-const SALARY_PATTERN = /(\$|salary|hourly rate|per year|competitive|expected salary)/i;
+const SALARY_PATTERN = /^(?:salary\s*:|competitive$|\$|.*\b(?:per hour|per annum|per year|hourly rate)\b)/i;
+const SALARY_NOISE_PATTERN = /expected salary|salary to your profile|what'?s your expected|competitive remuneration|remuneration package/i;
 const CONTRACT_PATTERN = /(\d+\s*(?:month|year)\s*contract|fixed term)/i;
 
 export const extractJobDescriptionHeader = ({ rawJD = '', fallbackTitle = '', normalized = null }) => {
@@ -15,14 +16,18 @@ export const extractJobDescriptionHeader = ({ rawJD = '', fallbackTitle = '', no
   const title = titleResult.value && titleResult.value !== 'Target Role' ? titleResult.value : fallbackTitle;
   const normalizeKey = (value = '') => String(value || '').replace(/\s+/g, ' ').trim().toLowerCase();
   const titleKeys = new Set([normalizeKey(title), ...(titleResult.candidates || []).map((item) => normalizeKey(item.value))].filter(Boolean));
-  const afterTitleIndex = tokenizedLines.findIndex((line) => titleKeys.has(normalizeKey(line)));
+  const afterTitleIndex = tokenizedLines.findIndex((line) => {
+    const key = normalizeKey(line);
+    if (titleKeys.has(key)) return true;
+    return [...titleKeys].some((titleKey) => titleKey && key.startsWith(titleKey));
+  });
   const afterTitleLines = afterTitleIndex >= 0 ? tokenizedLines.slice(afterTitleIndex + 1) : tokenizedLines;
 
   const company = extractCompanyName({ afterTitleLines, title, allLines: normalizedSource.lines || [] });
   const location = extractLocation({ afterTitleLines });
   const employmentType = extractEmploymentType({ afterTitleLines, flatText: normalizedSource.flatText });
   const salaryText = afterTitleLines.find((line) => /^salary:/i.test(line))?.replace(/^salary:\s*/i, '').trim()
-    || afterTitleLines.find((line) => SALARY_PATTERN.test(line))
+    || afterTitleLines.find((line) => SALARY_PATTERN.test(line) && !SALARY_NOISE_PATTERN.test(line))
     || '';
   const contractType = [title, ...afterTitleLines].find((line) => CONTRACT_PATTERN.test(line)) || '';
 
@@ -45,6 +50,11 @@ export const extractJobDescriptionHeader = ({ rawJD = '', fallbackTitle = '', no
       companyName: company.confidence,
       location: location.confidence,
       employmentType: employmentType.confidence,
+    },
+    companyResolution: {
+      match: company.match,
+      evidence: company.evidence,
+      directory: company.directory,
     },
   };
 };

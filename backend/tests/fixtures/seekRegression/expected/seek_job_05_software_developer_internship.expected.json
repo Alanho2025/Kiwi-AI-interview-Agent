@@ -1,0 +1,71 @@
+{
+  "id": "seek_job_05_software_developer_internship",
+  "rawFile": "raw/seek_job_05.txt",
+  "expected": {
+    "jobOverview": {
+      "title": "Software Developer - Internship",
+      "companyName": "Windcave Limited",
+      "location": "Ellerslie, Auckland",
+      "workArrangement": "Hybrid",
+      "category": "Developers/Programmers (Information & Communication Technology)",
+      "employmentType": "Full time",
+      "roleFamily": "software_development",
+      "roleLevel": "internship"
+    },
+    "sections": {
+      "responsibilities": [
+        "Learn about the industry or start their career",
+        "Work in a full-time paid internship"
+      ],
+      "coreRequirements": [
+        "Currently in your second year and upwards of study/degree.",
+        "An A+/A equivalent bachelor’s or master’s degree in computer science engineering, Bachelor of Science or related field",
+        "Excellent attention to detail, with accurate data entry skills and technically savvy",
+        "Can work full-time.",
+        "Quick learner and passion for card and payments.",
+        "A growth mindset, be resilient and able to cope with change and a very fast-paced work environment."
+      ],
+      "niceToHaveRequirements": [
+        "Interest in C++"
+      ],
+      "benefits": [
+        "Hybrid work option (Mandatory 3 days work from office Monday, Tuesday, and Friday).",
+        "Competitive remuneration package",
+        "Career Development and long-term career opportunity",
+        "Diverse, energetic and friendly team environment"
+      ],
+      "applicationNotes": [
+        "Employer questions are present",
+        "Credit/criminal/education/employment checks are mentioned"
+      ]
+    },
+    "skills": {
+      "softwareDevelopment": [
+        "C++"
+      ],
+      "domain": [
+        "Card payments",
+        "Payment technology"
+      ],
+      "softSkills": [
+        "Attention to detail",
+        "Quick learner",
+        "Growth mindset",
+        "Resilience"
+      ]
+    },
+    "mustNotInclude": {
+      "title": [
+        "Developers/Programmers (Information & Communication Technology)"
+      ],
+      "companyName": [
+        "Full time"
+      ],
+      "requirements": [
+        "Benefits:",
+        "Why Windcave:",
+        "Ready to Make an Impact?"
+      ]
+    }
+  }
+}

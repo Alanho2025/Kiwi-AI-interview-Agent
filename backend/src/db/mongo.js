@@ -9,15 +9,10 @@
  * - Prefer composition and small helpers over repeated inline logic.
  */
 
-import dotenv from 'dotenv';
 import mongoose from 'mongoose';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import { getEnv, loadEnv } from '../config/env.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-dotenv.config({ path: path.join(__dirname, '../../.env') });
+loadEnv();
 
 let listenersRegistered = false;
 let connectPromise = null;
@@ -29,7 +24,7 @@ let lastMongoError = null;
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-const getMongoUri = () => process.env.MongoDB_URI || process.env.MONGODB_URI;
+const getMongoUri = () => getEnv('MONGODB_URI', 'MongoDB_URI', 'MONGO_URI');
 
 const registerConnectionListeners = () => {
   if (listenersRegistered) {

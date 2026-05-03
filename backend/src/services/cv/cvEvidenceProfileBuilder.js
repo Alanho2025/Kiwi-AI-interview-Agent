@@ -11,6 +11,20 @@ const extractKeyCompetencies = (sections = []) => {
 
 const extractSectionEntries = (text = '') => String(text || '').split('\n').map((line) => line.trim()).filter(Boolean);
 
+const extractQuantifiedEvidence = ({ achievements = [], evidenceItems = [], normalizedText = '' } = {}) => {
+  const achievementTexts = achievements.map((item) => item?.text || item).filter(Boolean);
+  const evidenceTexts = evidenceItems.map((item) => item?.text || item).filter(Boolean);
+  const lineTexts = String(normalizedText || '')
+    .split('\n')
+    .map((line) => line.replace(/^[•\-*]\s*/, '').trim())
+    .filter(Boolean)
+    .filter((line) => /(?:\d+(?:\.\d+)?%|percent|reduced|improved|increased|decreased|saved|cut)/i.test(line));
+
+  return [...new Set([...achievementTexts, ...evidenceTexts, ...lineTexts]
+    .map((text) => String(text || '').trim())
+    .filter((text) => /\d|%|percent/i.test(text)))];
+};
+
 const inferRoleSignals = ({ projects = [], achievements = [], hardSkills = [], capabilities = [] } = {}) => ({
   priorProfessionalMaturity: achievements.length > 0 ? 0.82 : 0.6,
   targetRoleReadiness: Math.min(0.92, 0.4 + (projects.length * 0.12) + (hardSkills.length * 0.03)),
@@ -65,6 +79,7 @@ export const buildCvEvidenceProfile = (cvProfile = {}, normalizedText = '') => {
     functionalCapabilities: capabilityResult.functionalCapabilities,
     behaviouralCapabilities: capabilityResult.behaviouralCapabilities,
     achievements,
+    quantifiedEvidence: extractQuantifiedEvidence({ achievements, evidenceItems, normalizedText }),
     evidenceItems,
   };
 };

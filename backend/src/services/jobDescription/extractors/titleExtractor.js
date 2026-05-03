@@ -1,11 +1,12 @@
 import { ROLE_KEYWORDS, cleanLineLabel } from '../jobDescriptionShared.js';
 
+const CATEGORY_PATTERN = /^(engineering|information technology|information & communication technology|accounting|administration|sales|marketing|hospitality|healthcare|education)\s*-|\binformation\s*&\s*communication\s*technology\b/i;
 const NOISE_PATTERN = /^(view all jobs|how you match|show all|posted\b|add expected salary|skills and credentials match your profile|employer questions|\d+(?:\.\d+)?\s+reviews.*|company description:?|job description:?|position description|about us|about the company|about the role|about you|why join us|benefits|requirements|qualifications|application notes?)$/i;
 const FIELD_OR_SECTION_SPLIT = /\b(?:company|employment type|job type|location|salary|contract type)\s*:|\b(?:about us|about the company|about the role|about you|why join us|what this role does|key responsibilities|responsibilities|core requirements|bonus requirements|requirements|qualifications|benefits|application notes|what you'll do|what you'll bring)\b/i;
-const TITLE_START_PATTERN = /^([a-z0-9&/()+,.' -]{1,100}?\b(?:engineer|developer|manager|designer|analyst|architect|consultant|specialist|intern|scientist|administrator|programme|program)\b(?:\s*\([^)]{1,40}\))?)/i;
+const TITLE_START_PATTERN = /^([a-z0-9&/()+,.' -]{1,100}?\b(?:engineer|developer|manager|designer|analyst|architect|consultant|specialist|intern|graduate|scientist|administrator|programme|program)\b(?:\s*\([^)]{1,40}\))?)/i;
 const ACRONYMS = new Set(['AI', 'ML', 'UI', 'UX', 'QA', 'SQL', 'API', 'AWS', 'GCP', 'PHP', 'HTML', 'CSS', 'C#', '.NET', 'DBT', 'DV2']);
 
-const ROLE_NOUN_PATTERN = /\b(?:engineer|developer|designer|analyst|architect|consultant|specialist|intern|scientist|administrator|programme|program)\b/i;
+const ROLE_NOUN_PATTERN = /\b(?:engineer|developer|designer|analyst|architect|consultant|specialist|intern|graduate|scientist|administrator|programme|program)\b/i;
 const FALSE_POSITIVE_HIRING_ROLES = /\b(?:hiring manager|hiring coordinator|recruitment manager|talent acquisition specialist|people & culture advisor|people and culture advisor)\b/i;
 const MARKETING_TITLE_PREFIX_PATTERNS = [
   /^(?:we\s+are\s+)?(?:now\s+)?hiring\s*[:：]?\s+(?:for\s+)?(?:(?:a|an|the)\s+)?/i,
@@ -19,22 +20,33 @@ const MARKETING_TITLE_PREFIX_PATTERNS = [
   /^job\s+title\s*[:：]?\s*/i,
 ];
 
+const titleCaseToken = (part = '') => {
+  const trimmed = part.trim();
+  const core = trimmed.replace(/^[^A-Za-z0-9#.]+|[^A-Za-z0-9#.]+$/g, '');
+  const upper = core.toUpperCase();
+  if (ACRONYMS.has(upper)) return trimmed.replace(core, upper);
+  if (/^[A-Z0-9#+./-]+$/.test(core) && core !== core.toLowerCase()) return trimmed;
+  const titledCore = core.charAt(0).toUpperCase() + core.slice(1).toLowerCase();
+  return core ? trimmed.replace(core, titledCore) : trimmed;
+};
+
 const toTitleCase = (value = '') => String(value || '')
   .split(/\s+/)
   .filter(Boolean)
-  .map((part) => {
-    const trimmed = part.trim();
-    const upper = trimmed.toUpperCase();
-    if (ACRONYMS.has(upper)) return upper;
-    if (/^[A-Z0-9#+./-]+$/.test(trimmed) && trimmed !== trimmed.toLowerCase()) return trimmed;
-    return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
-  })
-  .join(' ');
+  .map(titleCaseToken)
+  .join(' ')
+  .replace(/\bAi\b/g, 'AI')
+  .replace(/\bMl\b/g, 'ML')
+  .replace(/\bUi\b/g, 'UI')
+  .replace(/\bUx\b/g, 'UX');
 
 const normalizeCandidate = (value = '') => String(value || '').replace(/\s+/g, ' ').trim().replace(/[.:;,-]+$/g, '').trim();
+const ROLE_TITLE_TRAILING_CONTEXT_PATTERN = /\s+(?:at|with|for)\s+[A-Z][A-Za-z0-9&.'’ -]{1,80}(?:,|\s+you(?:'|’)ll|\s+you\s+will|\s+you\s+are|\s+is\b|\s+are\b).*$/i;
 
 export const cleanRoleTitleCandidate = (value = '') => {
-  let text = normalizeCandidate(value).replace(/\s+to join\b.*$/i, '');
+  let text = normalizeCandidate(value)
+    .replace(ROLE_TITLE_TRAILING_CONTEXT_PATTERN, '')
+    .replace(/\s+to join\b.*$/i, '');
   if (!text) return '';
   if (FALSE_POSITIVE_HIRING_ROLES.test(text)) return text;
 
@@ -55,6 +67,7 @@ const looksLikeNoise = (value = '') => {
   const text = normalizeCandidate(value);
   if (!text) return true;
   if (NOISE_PATTERN.test(text)) return true;
+  if (CATEGORY_PATTERN.test(text)) return true;
   if (text.split(' ').length > 12) return true;
   if (text.length > 100) return true;
   return false;

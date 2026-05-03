@@ -1,0 +1,72 @@
+{
+  "id": "seek_job_10_intermediate_data_engineer",
+  "rawFile": "raw/seek_job_10.txt",
+  "expected": {
+    "jobOverview": {
+      "title": "Intermediate Data Engineer",
+      "companyName": "Younity",
+      "location": "Auckland CBD, Auckland",
+      "workArrangement": "Hybrid",
+      "category": "Database Development & Administration (Information & Communication Technology)",
+      "employmentType": "Contract/Temp",
+      "roleFamily": "data_engineering",
+      "roleLevel": "intermediate"
+    },
+    "sections": {
+      "responsibilities": [
+        "Build and maintain data pipelines on AWS",
+        "Develop and manage data ingestion frameworks",
+        "Work with Redshift and broader AWS data services",
+        "Support ETL/ELT processes and data transformations",
+        "Contribute to data platform improvements and migrations"
+      ],
+      "coreRequirements": [
+        "Must have experience with dbt",
+        "Experience with AWS data platform (ideally Redshift)",
+        "Solid understanding of ETL/ELT and data ingestion",
+        "Strong SQL skills and experience with Python (or similar)",
+        "Experience working with large-scale data environments"
+      ],
+      "niceToHaveRequirements": [],
+      "benefits": [],
+      "applicationNotes": [
+        "Role is based in Auckland and requires the applicant to be currently in New Zealand.",
+        "Applicants with existing NZ work rights are encouraged to apply.",
+        "Contact email and phone number are present",
+        "Employer questions are present"
+      ]
+    },
+    "skills": {
+      "dataEngineering": [
+        "Data pipelines",
+        "Data ingestion",
+        "ETL",
+        "ELT",
+        "Data transformations",
+        "Large-scale data environments"
+      ],
+      "cloud": [
+        "AWS",
+        "Redshift",
+        "AWS data services"
+      ],
+      "programming": [
+        "SQL",
+        "Python",
+        "dbt"
+      ]
+    },
+    "mustNotInclude": {
+      "title": [
+        "Database Development & Administration (Information & Communication Technology)"
+      ],
+      "companyName": [
+        "Contract/Temp"
+      ],
+      "requirements": [
+        "Key Requirements",
+        "Employer questions"
+      ]
+    }
+  }
+}
