@@ -11,19 +11,15 @@
 
 import express from 'express';
 import http from 'http';
-import dotenv from 'dotenv';
-import { fileURLToPath } from 'url';
-import path from 'path';
+
 import api from './src/api.js';
 import { attachRealtimeVoiceSocketServer } from './src/api/realtimeVoiceSocket.js';
 import { attachDuplexVoiceSocketServer } from './src/api/duplexVoiceSocket.js';
 import { bootstrapDatabases } from './src/db/bootstrap.js';
 import { logger } from './src/utils/logger.js';
+import { getBooleanEnv, getServerPort, loadEnv } from './src/config/env.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-dotenv.config({ path: path.join(__dirname, '.env') });
+loadEnv();
 
 /**
  * Purpose: Execute the main responsibility for startServer.
@@ -34,13 +30,23 @@ dotenv.config({ path: path.join(__dirname, '.env') });
 async function startServer() {
   try {
     const startup = await bootstrapDatabases({
-      mongoRequired: String(process.env.MONGO_REQUIRED || '').toLowerCase() === 'true',
+      mongoRequired: getBooleanEnv('MONGO_REQUIRED', false),
+      postgresRequired: getBooleanEnv('POSTGRES_REQUIRED', false),
     });
 
     const app = express();
-    const PORT = process.env.PORT || 3000;
+    const PORT = getServerPort();
 
     app.locals.startupStatus = startup;
+
+    app.get('/', (req, res) => {
+      res.json({ ok: true, service: 'kiwi-ai-agent-backend', health: '/api/health' });
+    });
+
+    app.get('/health', (req, res) => {
+      res.json({ ok: true, service: 'kiwi-ai-agent-backend', health: '/api/health' });
+    });
+
     app.use('/api', api);
 
     const server = http.createServer(app);

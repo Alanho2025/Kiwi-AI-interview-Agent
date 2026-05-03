@@ -19,11 +19,26 @@ import { connectPostgres } from './postgres.js';
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-export const bootstrapPostgres = async () => {
-  await connectPostgres();
-  await initPostgresSchema();
-  console.log('[Bootstrap] Postgres schema ready');
-  return { ok: true };
+export const bootstrapPostgres = async ({ required = false } = {}) => {
+  try {
+    await connectPostgres();
+    await initPostgresSchema();
+    console.log('[Bootstrap] Postgres schema ready');
+    return { ok: true };
+  } catch (error) {
+    const message = error?.message || 'Unknown Postgres startup error';
+    console.error(`[Bootstrap] Postgres failed: ${message}`);
+
+    if (required) {
+      throw error;
+    }
+
+    return {
+      ok: false,
+      message,
+      degraded: true,
+    };
+  }
 };
 
 /**
@@ -60,8 +75,8 @@ export const bootstrapMongo = async ({ required = false } = {}) => {
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-export const bootstrapDatabases = async ({ mongoRequired = false } = {}) => {
-  const postgres = await bootstrapPostgres();
+export const bootstrapDatabases = async ({ mongoRequired = false, postgresRequired = false } = {}) => {
+  const postgres = await bootstrapPostgres({ required: postgresRequired });
   const mongo = await bootstrapMongo({ required: mongoRequired });
   return { postgres, mongo };
 };
