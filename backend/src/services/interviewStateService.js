@@ -1,4 +1,5 @@
 import { buildInterviewStructure, getQuestionCategory } from './interview/interviewTurnPolicy.js';
+import { resolveInterviewSessionConfig } from './interview/interviewSessionConfigResolver.js';
 
 /**
  * File responsibility: Service module.
@@ -66,6 +67,9 @@ export const getResolvedCurrentQuestionIndex = (session = {}) => {
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
 export const getResolvedTotalQuestions = (session = {}) => {
+  const resolved = resolveInterviewSessionConfig(session);
+  const planned = Number(resolved?.plannedQuestionCount || resolved?.totalQuestions || 0);
+  if (Number.isFinite(planned) && planned > 0) return Math.floor(planned);
   const poolLength = getQuestionPool(session).length;
   const raw = Number(session?.totalQuestions || 0);
   const fallback = poolLength > 1 ? Math.min(8, poolLength - 1) : 1;
@@ -89,9 +93,9 @@ export const getEffectiveElapsedSeconds = (session = {}) => {
 };
 
 export const hasReachedTimeLimit = (session = {}) => {
-  const controlMode = String(session?.controlMode || session?.settings?.controlMode || '').toLowerCase();
-  const timeLimitSeconds = Number(session?.timeLimitSeconds || session?.settings?.timeLimitSeconds || 0);
-  return controlMode === 'time_limited' && timeLimitSeconds > 0 && getEffectiveElapsedSeconds(session) >= timeLimitSeconds;
+  const resolved = resolveInterviewSessionConfig(session);
+  const timeLimitSeconds = Number(session?.timeLimitSeconds || session?.settings?.timeLimitSeconds || resolved?.timeLimitSeconds || 0);
+  return resolved.controlMode === 'time_limited' && timeLimitSeconds > 0 && getEffectiveElapsedSeconds(session) >= timeLimitSeconds;
 };
 
 export const getCurrentPoolQuestion = (session = {}) => {

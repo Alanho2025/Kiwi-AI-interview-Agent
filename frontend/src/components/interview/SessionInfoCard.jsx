@@ -23,7 +23,7 @@ export function SessionInfoCard({ totalQuestions, levelLabel, modeLabel, matched
       <CardContent className="p-5 space-y-4">
         <div>
           <h3 className="text-sm font-semibold text-gray-900 mb-2">Session Info</h3>
-          <p className="text-sm text-gray-600">Total Questions: {totalQuestions || 8}</p>
+          <p className="text-sm text-gray-600">Planned Questions: {totalQuestions || 8}</p>
           <p className="text-sm text-gray-600 mt-1">Level: {levelLabel || 'Junior Combined'}</p>
           <p className="text-sm text-gray-600 mt-1">Mode: {modeLabel || 'Combined'}</p>
           {matchedAreas.length ? <p className="text-sm text-gray-600 mt-1">Likely discussion areas: {matchedAreas.slice(0, 4).join(', ')}</p> : null}

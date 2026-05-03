@@ -59,6 +59,7 @@ export const extractJobDescriptionSkills = ({ sections = {}, requirementGroups =
     sections.introduction,
     sections.responsibilities,
     sections.qualifications,
+    sections.niceToHaveRequirements,
     sections.softSkillPersona,
     requirementGroups.mustHaveRequirements,
     requirementGroups.niceToHaveRequirements,

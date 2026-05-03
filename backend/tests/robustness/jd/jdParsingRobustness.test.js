@@ -29,7 +29,7 @@ describe('JD parsing robustness', () => {
   });
 
   it('strips marketing prefixes without damaging real role titles', () => {
-    expect(extractJobTitle({ lines: ['We are hiring a Software Engineer (agentic)'] }).value).toBe('Software Engineer (agentic)');
+    expect(extractJobTitle({ lines: ['We are hiring a Software Engineer (agentic)'] }).value).toBe('Software Engineer (Agentic)');
     expect(extractJobTitle({ lines: ['Join us as a Data Engineer'] }).value).toBe('Data Engineer');
     expect(extractJobTitle({ lines: ['Open role: Platform Engineer'] }).value).toBe('Platform Engineer');
     expect(cleanRoleTitleCandidate('Hiring Manager')).toBe('Hiring Manager');

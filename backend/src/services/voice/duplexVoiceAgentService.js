@@ -155,7 +155,11 @@ export const createDuplexVoiceAgentSession = ({
         await processFinalTranscript({
           transcriptText,
           asrConfidence: averageConfidence(segmentsToProcess),
-          vad: context.lastVad,
+          vad: {
+            ...(context.lastVad || {}),
+            sttSegmentCount: segmentsToProcess.length,
+            sttSource: 'final_segments',
+          },
         });
       } catch (error) {
         logger?.error?.('Duplex voice turn failed', { sessionId: activeSession?.id || session?.id, error });

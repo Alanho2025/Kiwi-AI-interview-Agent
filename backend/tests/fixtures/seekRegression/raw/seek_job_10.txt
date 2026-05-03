@@ -1,0 +1,35 @@
+Intermediate Data Engineer
+Younity 
+View all jobs
+Auckland CBD, Auckland (Hybrid)
+Database Development & Administration (Information & Communication Technology)
+Contract/Temp
+Add expected salary to your profile for insights
+Posted 2d ago•Low application volume
+How you match
+3 skills and credentials match your profile
+ AWS
+ SQL Query Language
+ Python Programming
+Show all⁠
+About the RoleWe’re looking for a Data Engineer with 3+ years of experience to support the build and enhancement of a modern AWS-based data platform. The focus of this role is on developing scalable data pipelines, enabling efficient data ingestion, and supporting ongoing platform improvements.Key Responsibilities
+Build and maintain data pipelines on AWS
+Develop and manage data ingestion frameworks
+Work with Redshift and broader AWS data services
+Support ETL/ELT processes and data transformations
+Contribute to data platform improvements and migrations
+Key Requirements
+Must have experience with dbt
+Experience with AWS data platform (ideally Redshift)
+Solid understanding of ETL/ELT and data ingestion
+Strong SQL skills and experience with Python (or similar)
+Experience working with large-scale data environments
+This role is based in Auckland and requires you to be currently in New Zealand. Applicants with existing NZ work rights are encouraged to apply.Please email any queries in the first instance to alicia@younity.co.nz.We are currently experiencing high volumes of applications, please apply if you have the above experience and call Alicia on 021 197 5740 if you have any questions.
+Employer questions
+Your application will include the following questions:
+Which of the following statements best describes your right to work in New Zealand?
+How many years' experience do you have as a Data Engineer?
+How much notice are you required to give your current employer?
+Do you have experience with dbt?
+What is your expected hourly rate?
+Report this job advert

@@ -1,0 +1,829 @@
+[
+  {
+    "id": "seek_job_01_junior_front_end_developer",
+    "rawFile": "raw/seek_job_01.txt",
+    "expected": {
+      "jobOverview": {
+        "title": "Junior Front End Developer",
+        "companyName": "PHQ",
+        "location": "Parnell, Auckland",
+        "workArrangement": "Hybrid",
+        "category": "Developers/Programmers (Information & Communication Technology)",
+        "employmentType": "Full time",
+        "roleFamily": "software_development",
+        "roleLevel": "junior"
+      },
+      "sections": {
+        "responsibilities": [
+          "Collaborate with other Developers, Designers and Producers on technical solutions that align closely with a creative vision",
+          "Develop production-ready code that meet UI/UX web accessibility and browser compatibility"
+        ],
+        "coreRequirements": [
+          "1-2 years development experience",
+          "Knowledge of relevant programming languages and methodologies (Typescript, HTML5, CSS3)",
+          "Knowledge of Javascript frameworks (e.g. Angular or React)",
+          "Excellent written and spoken English",
+          "Confident working with version control (Git)",
+          "Excellent written and verbal communication skills",
+          "Capability to work on simultaneous projects and meet deadlines",
+          "Experience giving and receiving code reviews"
+        ],
+        "niceToHaveRequirements": [
+          "Knowledge of Three.js, D3.js or other Creative technologies is a plus",
+          "Strong coding fundamentals",
+          "Amazing examples of past work in web applications",
+          "Self-motivated with good time management"
+        ],
+        "benefits": [],
+        "applicationNotes": [
+          "Employer questions are present"
+        ]
+      },
+      "skills": {
+        "softwareDevelopment": [
+          "TypeScript",
+          "HTML5",
+          "CSS3",
+          "JavaScript",
+          "Angular",
+          "React",
+          "Three.js",
+          "D3.js"
+        ],
+        "commonEngineering": [
+          "Git",
+          "Code review"
+        ],
+        "softSkills": [
+          "Communication",
+          "Time management",
+          "Deadline management"
+        ]
+      },
+      "mustNotInclude": {
+        "title": [
+          "Developers/Programmers (Information & Communication Technology)"
+        ],
+        "companyName": [
+          "Full time"
+        ],
+        "requirements": [
+          "About us",
+          "About the role",
+          "Bonus Experience:",
+          "Employer questions"
+        ]
+      }
+    }
+  },
+  {
+    "id": "seek_job_02_junior_data_engineer",
+    "rawFile": "raw/seek_job_02.txt",
+    "expected": {
+      "jobOverview": {
+        "title": "Junior Data Engineer",
+        "companyName": "Grinding Gear Games",
+        "location": "Henderson, Auckland",
+        "workArrangement": "On-site",
+        "category": "Developers/Programmers (Information & Communication Technology)",
+        "employmentType": "Full time",
+        "roleFamily": "data_engineering",
+        "roleLevel": "junior"
+      },
+      "sections": {
+        "responsibilities": [
+          "Building and maintaining data pipelines and systems",
+          "Contribute to the development of a long-term data strategy",
+          "Create scripts and queries to fulfil various data needs"
+        ],
+        "coreRequirements": [
+          "6 months experience in data or software engineering roles",
+          "Proficiency in Python and SQL or similar languages",
+          "Experience with Linux or command-line tools",
+          "Experience with our game, Path of Exile, or similar games",
+          "A drive for problem solving"
+        ],
+        "niceToHaveRequirements": [
+          "Experience with tools like Elasticsearch, Kibana, Grafana, version control",
+          "Understanding of other programming languages, especially C++"
+        ],
+        "benefits": [
+          "Relocation assistance (for the right candidate, if needed)"
+        ],
+        "applicationNotes": []
+      },
+      "skills": {
+        "dataEngineering": [
+          "Data pipelines",
+          "Data systems",
+          "SQL",
+          "Python",
+          "Scripts",
+          "Queries"
+        ],
+        "commonEngineering": [
+          "Linux",
+          "Command-line tools",
+          "Version control"
+        ],
+        "tools": [
+          "Elasticsearch",
+          "Kibana",
+          "Grafana",
+          "C++"
+        ],
+        "domain": [
+          "Path of Exile",
+          "Game data"
+        ]
+      },
+      "mustNotInclude": {
+        "title": [
+          "Developers/Programmers (Information & Communication Technology)"
+        ],
+        "companyName": [
+          "Full time"
+        ],
+        "requirements": [
+          "Pluses:",
+          "Show all"
+        ]
+      }
+    }
+  },
+  {
+    "id": "seek_job_03_full_stack_software_graduate_gen_ai",
+    "rawFile": "raw/seek_job_03.txt",
+    "expected": {
+      "jobOverview": {
+        "title": "Full Stack Software Graduate (Generative AI)",
+        "companyName": "AI Research Group",
+        "location": "Ponsonby, Auckland",
+        "category": "Engineering - Software (Information & Communication Technology)",
+        "employmentType": "Contract/Temp",
+        "salaryText": "$40 – $50 per hour",
+        "roleFamily": "software_development",
+        "roleLevel": "graduate"
+      },
+      "sections": {
+        "technicalStack": [
+          "Python (Quart/Flask)",
+          "Docker + Runpod (GPU infra)",
+          "React / Next js (minimal frontend work)"
+        ],
+        "responsibilities": [
+          "Deploy and manage GPU-based AI workloads (Runpod)",
+          "Integrate and manage ComfyUI workflows in our backend",
+          "Build and maintain APIs + supporting infrastructure"
+        ],
+        "coreRequirements": [
+          "Python backend experience",
+          "Basic experience with Docker and cloud/GPU environments",
+          "Comfortable working as a generalist across backend + infra",
+          "Open to graduates with hands-on projects in AI workflows",
+          "Or intermediate engineers with relevant backend / infra experience"
+        ],
+        "niceToHaveRequirements": [
+          "Experience with generative AI pipelines (ComfyUI, Wan, Stable Diffusion, etc.)",
+          "Comfortable working in the AI companion space"
+        ],
+        "contractNotes": [
+          "Contractor role to start, with potential for long-term or full-time if there’s a strong fit"
+        ],
+        "benefits": [],
+        "applicationNotes": [
+          "Employer questions are present"
+        ]
+      },
+      "skills": {
+        "softwareDevelopment": [
+          "Python",
+          "Quart",
+          "Flask",
+          "React",
+          "Next.js",
+          "API development"
+        ],
+        "aiEngineering": [
+          "Runpod",
+          "GPU infrastructure",
+          "ComfyUI",
+          "Generative AI pipelines",
+          "Wan",
+          "Stable Diffusion",
+          "AI workflows"
+        ],
+        "commonEngineering": [
+          "Docker",
+          "Cloud environments"
+        ]
+      },
+      "mustNotInclude": {
+        "title": [
+          "Engineering - Software (Information & Communication Technology)",
+          "Ponsonby"
+        ],
+        "companyName": [
+          "Contract/Temp"
+        ],
+        "requirements": [
+          "Bonus",
+          "Experience Level",
+          "Stack"
+        ]
+      }
+    }
+  },
+  {
+    "id": "seek_job_04_data_engineer_luma_analytics",
+    "rawFile": "raw/seek_job_04.txt",
+    "expected": {
+      "jobOverview": {
+        "title": "Data Engineer",
+        "companyName": "Luma Analytics",
+        "location": "Auckland CBD, Auckland",
+        "workArrangement": "Hybrid",
+        "category": "Other (Information & Communication Technology)",
+        "employmentType": "Full time",
+        "roleFamily": "data_engineering",
+        "roleLevel": "intermediate"
+      },
+      "sections": {
+        "responsibilities": [
+          "Designing and building modern data platforms and pipelines to support advanced analytics and AI use cases.",
+          "Developing scalable data models and architectures that enable high-performance analytics.",
+          "Working with cloud-native technologies and platforms (e.g. Databricks, Azure, AWS, GCP) to deliver robust, production-grade solutions.",
+          "Embedding AI and machine learning capabilities into data pipelines and workflows.",
+          "Collaborating with data scientists, analysts, and client stakeholders to translate business problems into technical solutions.",
+          "Ensuring data quality, reliability, and performance through testing, monitoring, and best-practice engineering approaches.",
+          "Contributing to CI/CD pipelines and infrastructure automation using Infrastructure as Code.",
+          "Working directly with clients to understand their data landscape and help shape their future-state architecture.",
+          "Adapting to new technologies and continuously improving how we design and deliver data solutions."
+        ],
+        "coreRequirements": [
+          "2–5 years’ experience in a Data Engineering or related role.",
+          "A relevant qualification in Computer Science, Engineering, or a related field.",
+          "Experience building data pipelines and working with modern data processing frameworks (e.g. Spark, Kafka).",
+          "Strong SQL skills and experience with modern data platforms (e.g. Snowflake, Databricks, Redshift, PostgreSQL).",
+          "Experience with cloud platforms such as AWS, Azure, or GCP.",
+          "Familiarity with DevOps practices, version control (e.g. Git), and CI/CD pipelines.",
+          "An understanding of data governance, security, and best practices in production data environments.",
+          "Strong problem-solving skills and attention to detail.",
+          "Excellent communication skills and the ability to work with both technical and non-technical stakeholders.",
+          "A curiosity for new technologies—especially in the rapidly evolving AI and data landscape."
+        ],
+        "niceToHaveRequirements": [],
+        "benefits": [
+          "Competitive remuneration",
+          "Flexible working arrangements",
+          "Wellbeing initiatives",
+          "Learning, growth, and innovation environment"
+        ],
+        "applicationNotes": []
+      },
+      "skills": {
+        "dataEngineering": [
+          "Data platforms",
+          "Data pipelines",
+          "Data models",
+          "Spark",
+          "Kafka",
+          "SQL",
+          "Snowflake",
+          "Databricks",
+          "Redshift",
+          "PostgreSQL"
+        ],
+        "cloud": [
+          "AWS",
+          "Azure",
+          "GCP",
+          "Cloud-native technologies"
+        ],
+        "mlAi": [
+          "AI",
+          "Machine learning"
+        ],
+        "devOps": [
+          "DevOps",
+          "Git",
+          "CI/CD",
+          "Infrastructure as Code"
+        ],
+        "governance": [
+          "Data governance",
+          "Security",
+          "Data quality",
+          "Monitoring"
+        ],
+        "softSkills": [
+          "Client engagement",
+          "Communication",
+          "Problem solving",
+          "Attention to detail"
+        ]
+      },
+      "mustNotInclude": {
+        "title": [
+          "Other (Information & Communication Technology)"
+        ],
+        "companyName": [
+          "Full time"
+        ],
+        "requirements": [
+          "What we’re looking for",
+          "What we offer"
+        ]
+      }
+    }
+  },
+  {
+    "id": "seek_job_05_software_developer_internship",
+    "rawFile": "raw/seek_job_05.txt",
+    "expected": {
+      "jobOverview": {
+        "title": "Software Developer - Internship",
+        "companyName": "Windcave Limited",
+        "location": "Ellerslie, Auckland",
+        "workArrangement": "Hybrid",
+        "category": "Developers/Programmers (Information & Communication Technology)",
+        "employmentType": "Full time",
+        "roleFamily": "software_development",
+        "roleLevel": "internship"
+      },
+      "sections": {
+        "responsibilities": [
+          "Learn about the industry or start their career",
+          "Work in a full-time paid internship"
+        ],
+        "coreRequirements": [
+          "Currently in your second year and upwards of study/degree.",
+          "An A+/A equivalent bachelor’s or master’s degree in computer science engineering, Bachelor of Science or related field",
+          "Excellent attention to detail, with accurate data entry skills and technically savvy",
+          "Can work full-time.",
+          "Quick learner and passion for card and payments.",
+          "A growth mindset, be resilient and able to cope with change and a very fast-paced work environment."
+        ],
+        "niceToHaveRequirements": [
+          "Interest in C++"
+        ],
+        "benefits": [
+          "Hybrid work option (Mandatory 3 days work from office Monday, Tuesday, and Friday).",
+          "Competitive remuneration package",
+          "Career Development and long-term career opportunity",
+          "Diverse, energetic and friendly team environment"
+        ],
+        "applicationNotes": [
+          "Employer questions are present",
+          "Credit/criminal/education/employment checks are mentioned"
+        ]
+      },
+      "skills": {
+        "softwareDevelopment": [
+          "C++"
+        ],
+        "domain": [
+          "Card payments",
+          "Payment technology"
+        ],
+        "softSkills": [
+          "Attention to detail",
+          "Quick learner",
+          "Growth mindset",
+          "Resilience"
+        ]
+      },
+      "mustNotInclude": {
+        "title": [
+          "Developers/Programmers (Information & Communication Technology)"
+        ],
+        "companyName": [
+          "Full time"
+        ],
+        "requirements": [
+          "Benefits:",
+          "Why Windcave:",
+          "Ready to Make an Impact?"
+        ]
+      }
+    }
+  },
+  {
+    "id": "seek_job_06_data_engineer_ai",
+    "rawFile": "raw/seek_job_06.txt",
+    "expected": {
+      "jobOverview": {
+        "title": "Data Engineer - AI",
+        "companyName": "RWA People",
+        "location": "East Tamaki, Auckland",
+        "workArrangement": "On-site",
+        "category": "Engineering - Software (Information & Communication Technology)",
+        "employmentType": "Full time",
+        "salaryText": "Competitive",
+        "roleFamily": "data_engineering",
+        "roleLevel": "intermediate"
+      },
+      "sections": {
+        "responsibilities": [
+          "Designing and building data pipelines and ETL processes that are reliable and maintainable",
+          "Writing and optimising SQL queries (including MySQL) and using Python for data processing and analysis",
+          "Applying prompt engineering techniques as part of AI-driven workflows",
+          "Translating stakeholder requirements into technical solutions",
+          "Supporting the development of AI agents — including human-in-the-loop systems and analysis of model outputs",
+          "Helping move prototypes toward production"
+        ],
+        "coreRequirements": [
+          "Solid data engineering experience — pipelines, ETL, SQL, Python",
+          "Exposure to or genuine interest in AI/ML and prompt engineering",
+          "Comfortable with ambiguity",
+          "A practical, delivery-focused mindset",
+          "Clear communication skills"
+        ],
+        "niceToHaveRequirements": [
+          "Experience on AI-driven products or automation workflows",
+          "Exposure to unstructured data (voice, text, etc.)",
+          "A background that spans both engineering and analytics"
+        ],
+        "benefits": [],
+        "applicationNotes": [
+          "This role will be 5 days on site - location is East Tamaki.",
+          "Contact email is present"
+        ]
+      },
+      "skills": {
+        "dataEngineering": [
+          "Data pipelines",
+          "ETL",
+          "SQL",
+          "MySQL",
+          "Python",
+          "Data processing",
+          "Analysis"
+        ],
+        "aiEngineering": [
+          "Prompt engineering",
+          "AI-driven workflows",
+          "AI agents",
+          "Human-in-the-loop systems",
+          "Model output analysis"
+        ],
+        "softSkills": [
+          "Ambiguity tolerance",
+          "Communication",
+          "Delivery-focused mindset",
+          "Stakeholder translation"
+        ]
+      },
+      "mustNotInclude": {
+        "title": [
+          "Engineering - Software (Information & Communication Technology)"
+        ],
+        "companyName": [
+          "Competitive"
+        ],
+        "requirements": [
+          "Nice to have",
+          "What we're looking for"
+        ]
+      }
+    }
+  },
+  {
+    "id": "seek_job_07_data_scientist",
+    "rawFile": "raw/seek_job_07.txt",
+    "expected": {
+      "jobOverview": {
+        "title": "Data Scientist",
+        "companyName": "Lotto NZ",
+        "location": "Newmarket, Auckland",
+        "category": "Mathematics, Statistics & Information Sciences (Science & Technology)",
+        "employmentType": "Contract/Temp",
+        "contractDuration": "12 month fixed term",
+        "roleFamily": "data_science",
+        "roleLevel": "intermediate"
+      },
+      "sections": {
+        "responsibilities": [
+          "Build and refine predictive, timeseries and recommendation models",
+          "Develop approaches to monitor and improve product, channel and organisational performance.",
+          "Lift efficiency through automation",
+          "Deliver clear, accurate insights that deepen understanding of customer behaviour, sales and market trends.",
+          "Prepare, integrate and model data to support predictive work and strategic decisionmaking.",
+          "Bring data to life through compelling visualisations",
+          "Confidently present findings to a wide range of audiences, including senior leaders",
+          "Build trusted relationships across Lotto NZ and help strengthen our Data Science practice.",
+          "Share accurate, relevant information across the organisation",
+          "Proactively develop improved methods for accessing and sharing customer and market insights"
+        ],
+        "coreRequirements": [
+          "Strong practical knowledge of timeseries forecasting and financial modelling",
+          "At least 3 years’ experience in a similar role",
+          "Excellent problem-solving skills and lateral thinking ability",
+          "Strong SQL and strong ability in R and/or Python.",
+          "Experience in a big data platform such as Apache Spark",
+          "Experience in ML frameworks such as Tensorflow, Keras, Sklearn etc.",
+          "A background in mathematics and statistics is advantageous"
+        ],
+        "niceToHaveRequirements": [
+          "A background in mathematics and statistics is advantageous"
+        ],
+        "benefits": [],
+        "applicationNotes": []
+      },
+      "skills": {
+        "dataScience": [
+          "Predictive models",
+          "Time series",
+          "Recommendation models",
+          "Machine learning",
+          "Financial modelling",
+          "Automation"
+        ],
+        "analytics": [
+          "Customer behaviour analysis",
+          "Sales analysis",
+          "Market trends",
+          "PowerBI dashboards",
+          "Data visualisation",
+          "Reporting"
+        ],
+        "programming": [
+          "SQL",
+          "R",
+          "Python"
+        ],
+        "platforms": [
+          "Apache Spark",
+          "TensorFlow",
+          "Keras",
+          "Scikit-learn"
+        ],
+        "softSkills": [
+          "Presentation",
+          "Stakeholder engagement",
+          "Problem solving",
+          "Lateral thinking"
+        ]
+      },
+      "mustNotInclude": {
+        "title": [
+          "Mathematics, Statistics & Information Sciences (Science & Technology)"
+        ],
+        "companyName": [
+          "Contract/Temp"
+        ],
+        "requirements": [
+          "Data Science",
+          "Analytics and Insight",
+          "Stakeholder Engagement",
+          "Your team:"
+        ]
+      }
+    }
+  },
+  {
+    "id": "seek_job_08_junior_intermediate_python_developer",
+    "rawFile": "raw/seek_job_08.txt",
+    "expected": {
+      "jobOverview": {
+        "title": "Junior/Int Python Developer",
+        "companyName": "PICWA LTD",
+        "location": "Ellerslie, Auckland",
+        "workArrangement": "Hybrid",
+        "category": "Developers/Programmers (Information & Communication Technology)",
+        "employmentType": "Full time",
+        "roleFamily": "software_development",
+        "roleLevel": "junior_intermediate"
+      },
+      "sections": {
+        "responsibilities": [
+          "Design, develop, and deliver new features within our internal software systems.",
+          "Build and maintain integration services with external platforms and APIs, ensuring reliability and scalability.",
+          "Diagnose and resolve complex software issues across the stack.",
+          "Write clean, maintainable, and well-documented code.",
+          "Collaborate with technical and non-technical teams to translate business needs into technical solutions."
+        ],
+        "coreRequirements": [
+          "1 - 2 years of Commercial software development experience.",
+          "Strong proficiency in Python, SQL, and REST API development.",
+          "Ability to code in JavaScript or TypeScript, does not need JS framework experience.",
+          "Solid understanding of software development best practices, debugging, and testing."
+        ],
+        "niceToHaveRequirements": [
+          "Experience with version control (Git) and collaborative workflows.",
+          "Familiarity with cloud platforms (e.g., AWS or Azure) or containerisation (e.g., Docker)."
+        ],
+        "benefits": [
+          "Strong growth environment and pathway",
+          "Hybrid setup with flexibility",
+          "HQ Office in Ellerslie",
+          "Competitive Salary"
+        ],
+        "applicationNotes": [
+          "Must have valid New Zealand work rights and be currently based in NZ.",
+          "Applicants currently enrolled in a bachelor's degree (or equivalent study) won't be suitable, but graduates are encouraged to apply."
+        ]
+      },
+      "skills": {
+        "softwareDevelopment": [
+          "Python",
+          "SQL",
+          "REST API",
+          "JavaScript",
+          "TypeScript",
+          "Debugging",
+          "Testing",
+          "Integration services"
+        ],
+        "cloud": [
+          "AWS",
+          "Azure"
+        ],
+        "commonEngineering": [
+          "Git",
+          "Docker",
+          "Version control"
+        ],
+        "softSkills": [
+          "Collaboration",
+          "Business needs translation"
+        ]
+      },
+      "mustNotInclude": {
+        "title": [
+          "Developers/Programmers (Information & Communication Technology)"
+        ],
+        "companyName": [
+          "Full time"
+        ],
+        "requirements": [
+          "Nice-to-haves:",
+          "Responsibilities:",
+          "Benefits:",
+          "Please note:"
+        ]
+      }
+    }
+  },
+  {
+    "id": "seek_job_09_ai_augmented_software_engineer",
+    "rawFile": "raw/seek_job_09.txt",
+    "expected": {
+      "jobOverview": {
+        "title": "AI Augmented Software Engineer",
+        "companyName": "Straker Ltd",
+        "location": "Rosedale, Auckland",
+        "workArrangement": "Hybrid",
+        "category": "Engineering - Software (Information & Communication Technology)",
+        "employmentType": "Full time",
+        "department": "Product Engineering",
+        "roleType": "Core Delivery",
+        "roleFamily": "software_development",
+        "roleLevel": "intermediate"
+      },
+      "sections": {
+        "responsibilities": [
+          "Utilize Cursor, Claude, and Gemini as your primary mechanisms for feature development.",
+          "Own the full stack from initial design to final deployment, translating loosely defined briefs into working software.",
+          "Write and critically verify AI-generated test suites, ensuring they challenge the logic rather than just passing the happy path.",
+          "Actively hunt for hallucinations, logic gaps, and edge-case failures in AI-generated output.",
+          "Maintain a prompt log to document how you steer AI, where it fails, and how you iterate for success.",
+          "Stay on the frontier of AI tools and bring new techniques to your pod rituals."
+        ],
+        "coreRequirements": [
+          "Recent experience using AI tools to ship production software",
+          "Ability to write precise prompts and iterate rapidly when outputs miss the mark.",
+          "Solid engineering DNA to recognize when code is structurally sound or a house of cards.",
+          "Healthy Scepticism",
+          "Pattern Recognition",
+          "Ambiguity Tolerance"
+        ],
+        "niceToHaveRequirements": [],
+        "benefits": [
+          "Hybrid working",
+          "Pod structure designed for autonomy and speed",
+          "Modern Workspace",
+          "Growth & Flexibility",
+          "High-Level Impact"
+        ],
+        "applicationNotes": [
+          "Employer questions are present"
+        ]
+      },
+      "skills": {
+        "softwareDevelopment": [
+          "Full stack development",
+          "Testing",
+          "Deployment",
+          "Code verification"
+        ],
+        "aiEngineering": [
+          "Cursor",
+          "Claude",
+          "Gemini",
+          "AI orchestration",
+          "Prompt engineering",
+          "AI-generated tests",
+          "Prompt log"
+        ],
+        "quality": [
+          "Hallucination detection",
+          "Logic gap detection",
+          "Edge-case review",
+          "Defensive review"
+        ],
+        "softSkills": [
+          "Healthy scepticism",
+          "Pattern recognition",
+          "Ambiguity tolerance",
+          "Professional judgment"
+        ]
+      },
+      "mustNotInclude": {
+        "title": [
+          "AI Augmented Softwre Engineer | High-Velocity AI Orchestration",
+          "Engineering - Software (Information & Communication Technology)"
+        ],
+        "companyName": [
+          "Full time"
+        ],
+        "requirements": [
+          "What We Are Looking For",
+          "Why Join Us?"
+        ]
+      }
+    }
+  },
+  {
+    "id": "seek_job_10_intermediate_data_engineer",
+    "rawFile": "raw/seek_job_10.txt",
+    "expected": {
+      "jobOverview": {
+        "title": "Intermediate Data Engineer",
+        "companyName": "Younity",
+        "location": "Auckland CBD, Auckland",
+        "workArrangement": "Hybrid",
+        "category": "Database Development & Administration (Information & Communication Technology)",
+        "employmentType": "Contract/Temp",
+        "roleFamily": "data_engineering",
+        "roleLevel": "intermediate"
+      },
+      "sections": {
+        "responsibilities": [
+          "Build and maintain data pipelines on AWS",
+          "Develop and manage data ingestion frameworks",
+          "Work with Redshift and broader AWS data services",
+          "Support ETL/ELT processes and data transformations",
+          "Contribute to data platform improvements and migrations"
+        ],
+        "coreRequirements": [
+          "Must have experience with dbt",
+          "Experience with AWS data platform (ideally Redshift)",
+          "Solid understanding of ETL/ELT and data ingestion",
+          "Strong SQL skills and experience with Python (or similar)",
+          "Experience working with large-scale data environments"
+        ],
+        "niceToHaveRequirements": [],
+        "benefits": [],
+        "applicationNotes": [
+          "Role is based in Auckland and requires the applicant to be currently in New Zealand.",
+          "Applicants with existing NZ work rights are encouraged to apply.",
+          "Contact email and phone number are present",
+          "Employer questions are present"
+        ]
+      },
+      "skills": {
+        "dataEngineering": [
+          "Data pipelines",
+          "Data ingestion",
+          "ETL",
+          "ELT",
+          "Data transformations",
+          "Large-scale data environments"
+        ],
+        "cloud": [
+          "AWS",
+          "Redshift",
+          "AWS data services"
+        ],
+        "programming": [
+          "SQL",
+          "Python",
+          "dbt"
+        ]
+      },
+      "mustNotInclude": {
+        "title": [
+          "Database Development & Administration (Information & Communication Technology)"
+        ],
+        "companyName": [
+          "Contract/Temp"
+        ],
+        "requirements": [
+          "Key Requirements",
+          "Employer questions"
+        ]
+      }
+    }
+  }
+]

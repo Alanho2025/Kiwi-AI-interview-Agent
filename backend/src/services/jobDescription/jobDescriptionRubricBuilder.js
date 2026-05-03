@@ -148,6 +148,27 @@ const buildRawSectionView = ({ sections, requirementGroups, technicalSkills, sof
   applicationInstructions: (sections.applicationInstructions || []).map((item) => item.text),
 });
 
+
+const SOURCE_SECTION_KEYS = new Set([
+  'responsibilities',
+  'mustHaveRequirements',
+  'niceToHaveRequirements',
+  'qualifications',
+]);
+
+const normalizeSourceLabel = (value = '') => String(value || '')
+  .replace(/^[•\-*]\s*/, '')
+  .replace(/\s+/g, ' ')
+  .trim()
+  .trim();
+
+const normalizeExactSourcePoints = (items = [], evidenceMap = {}) => unique(items.map((item) => {
+  const label = normalizeSourceLabel(item?.label || item?.text || item?.normalizedText || item);
+  const evidence = normalizeSourceLabel(item?.text || item?.label || item?.normalizedText || item);
+  if (label && evidence) evidenceMap[label] = unique([...(evidenceMap[label] || []), evidence]);
+  return label;
+}).filter(Boolean));
+
 const mergeEvidenceMaps = (...maps) => maps.reduce((accumulator, current) => {
   Object.entries(current || {}).forEach(([label, evidence]) => {
     accumulator[label] = unique([...(accumulator[label] || []), ...(evidence || [])]);
@@ -164,10 +185,10 @@ const normalizeSectionView = ({ sections, requirementGroups, technicalSkills, so
   const applicationEvidence = {};
   const softSkillEvidence = {};
 
-  const normalizedResponsibilities = unique((requirementGroups.responsibilities || []).flatMap((item) => normalizeResponsibilityPoints(item, responsibilityEvidence)));
-  const normalizedMustHave = unique((requirementGroups.mustHaveRequirements || []).flatMap((item) => normalizeRequirementPoints(item, mustHaveEvidence)));
-  const normalizedNiceToHave = unique((requirementGroups.niceToHaveRequirements || []).flatMap((item) => normalizeRequirementPoints(item, niceToHaveEvidence)));
-  const normalizedQualifications = unique((requirementGroups.qualifications || []).flatMap((item) => normalizeRequirementPoints(item, qualificationEvidence)));
+  const normalizedResponsibilities = normalizeExactSourcePoints(requirementGroups.responsibilities || [], responsibilityEvidence);
+  const normalizedMustHave = normalizeExactSourcePoints(requirementGroups.mustHaveRequirements || [], mustHaveEvidence);
+  const normalizedNiceToHave = normalizeExactSourcePoints(requirementGroups.niceToHaveRequirements || [], niceToHaveEvidence);
+  const normalizedQualifications = normalizeExactSourcePoints(requirementGroups.qualifications || [], qualificationEvidence);
   const normalizedBenefits = unique((sections.benefits || []).flatMap((item) => normalizeBenefitPoints(item, benefitEvidence)));
   const normalizedApplications = unique((sections.applicationInstructions || []).flatMap((item) => normalizeApplicationInstructionPoints(item, applicationEvidence)));
   const normalizedSoftSkills = unique([
@@ -207,7 +228,7 @@ const extractTitle = (normalized) => {
     const text = String(line || '').replace(/\s+/g, ' ').trim();
     const splitIndex = text.search(/\b(?:company|employment type|job type|location|salary|contract type)\s*:|\b(?:what this role does|key responsibilities|responsibilities|core requirements|bonus requirements|qualifications|benefits|application notes|about the role|what you\'ll do|what you\'ll bring)\b/i);
     const head = splitIndex > 0 ? text.slice(0, splitIndex).trim() : text;
-    const matched = head.match(/^([a-z0-9&/()+,.' -]{1,100}?\b(?:engineer|developer|manager|designer|analyst|architect|consultant|specialist|intern|scientist|administrator|programme|program)\b(?:\s*\([^)]{1,40}\))?)/i);
+    const matched = head.match(/^([a-z0-9&/()+,.' -]{1,100}?\b(?:engineer|developer|manager|designer|analyst|architect|consultant|specialist|intern|graduate|scientist|administrator|programme|program)\b(?:\s*\([^)]{1,40}\))?)/i);
     const value = (matched?.[1] || '').replace(/^we are seeking\s+(?:a|an)\s+/i, '').replace(/[.:;,-]+$/g, '').trim();
     if (value && value.split(' ').length <= 12) return value.split(/\s+/).map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()).join(' ');
   }
@@ -318,6 +339,7 @@ export const buildStructuredJobDescriptionRubric = async (rawJD = '', options = 
       sourceLength: rawJD.length,
       headingCount: detectedHeadings.length,
       fieldEvidence,
+      companyResolution: header.companyResolution,
       normalizedEvidenceMap: evidenceMap,
       agenticSafeguard: {
         reparseMode: Boolean(options.reparseMode),

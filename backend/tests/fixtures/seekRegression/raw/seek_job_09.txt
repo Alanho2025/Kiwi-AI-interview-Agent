@@ -1,0 +1,37 @@
+AI Augmented Software Engineer
+Straker Ltd 
+View all jobs
+Rosedale, Auckland (Hybrid)
+Engineering - Software (Information & Communication Technology)
+Full time
+Add expected salary to your profile for insights
+Posted 4d ago•Medium application volume
+AI Augmented Softwre Engineer | High-Velocity AI Orchestration
+Location: North Shore, Auckland (Hybrid)Department: Product EngineeringRole Type: Core Delivery
+The MissionAt Straker, we are a dynamic, AI-centric company ranked in the top 60 of over 27,000 global vendors. We provide AI-based multilingual solutions to more than 50,000 customers in over 80 languages. Our Engineering team is a hive of innovative activity, solving hard problems that others can't.
+As a Software Engineer, you are the primary delivery engine of our "Pods." You aren’t just a coder; you are an orchestrator of outcomes. You will use advanced AI orchestration to design, build, test, and ship solutions at a pace that traditional engineering cannot match. In our ecosystem, Velocity without Verification is a failure—we require both.
+What You Will DoThis is a "High-Velocity" execution role where you will direct AI to produce high-quality outputs and verify them with surgical precision.
+AI-First Development: Utilize Cursor, Claude, and Gemini as your primary mechanisms for feature development.
+End-to-End Execution: Own the full stack from initial design to final deployment, translating loosely defined briefs into working software.
+Rigorous Verification: Write and critically verify AI-generated test suites, ensuring they challenge the logic rather than just passing the "happy path."
+Defensive Review: Actively hunt for hallucinations, logic gaps, and edge-case failures in AI-generated output.
+Prompt Engineering: Maintain a "prompt log" to document how you steer AI, where it fails, and how you iterate for success.
+Continuous Evolution: Stay on the "frontier" of AI tools and bring new techniques to your pod rituals.
+What We Are Looking ForWe want engineers who have let go of manual methods that AI now handles better, without losing professional judgment.
+Proven AI Track Record: Recent experience using AI tools to ship production software (not just side projects).
+Prompt Mastery: Ability to write precise prompts and iterate rapidly when outputs miss the mark.
+Technical Foundation: Solid engineering "DNA" to recognize when code is structurally sound or a "house of cards."
+Healthy Scepticism: You treat AI as a capable but fallible collaborator, never as an absolute source of truth.
+Pattern Recognition: You can spot common AI failure modes, such as shallow error handling or overconfident logic.
+Ambiguity Tolerance: Comfort iterating toward a solution from a rough brief without waiting for perfect specifications.
+Why Join Us?
+Innovative Environment: Work in a pod structure designed for maximum autonomy and speed.
+Modern Workspace: Join us in our light and bright Auckland North Shore offices, conveniently located adjacent to motorway offramps and the bus station.
+Growth & Flexibility: We offer hybrid working and a culture that identifies talent and supports people to grow.
+High-Level Impact: Spend less time on boilerplate and more time solving high-level problems using the most advanced AI tools on the planet.
+Ready to build the future of multilingual tech? Join the Straker team today.
+Employer questions
+Your application will include the following questions:
+Which of the following statements best describes your right to work in New Zealand?
+How many years' experience do you have as a Product Engineer?
+What's your expected annual base salary?

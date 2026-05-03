@@ -1,0 +1,93 @@
+{
+  "id": "seek_job_07_data_scientist",
+  "rawFile": "raw/seek_job_07.txt",
+  "expected": {
+    "jobOverview": {
+      "title": "Data Scientist",
+      "companyName": "Lotto NZ",
+      "location": "Newmarket, Auckland",
+      "category": "Mathematics, Statistics & Information Sciences (Science & Technology)",
+      "employmentType": "Contract/Temp",
+      "contractDuration": "12 month fixed term",
+      "roleFamily": "data_science",
+      "roleLevel": "intermediate"
+    },
+    "sections": {
+      "responsibilities": [
+        "Build and refine predictive, timeseries and recommendation models",
+        "Develop approaches to monitor and improve product, channel and organisational performance.",
+        "Lift efficiency through automation",
+        "Deliver clear, accurate insights that deepen understanding of customer behaviour, sales and market trends.",
+        "Prepare, integrate and model data to support predictive work and strategic decisionmaking.",
+        "Bring data to life through compelling visualisations",
+        "Confidently present findings to a wide range of audiences, including senior leaders",
+        "Build trusted relationships across Lotto NZ and help strengthen our Data Science practice.",
+        "Share accurate, relevant information across the organisation",
+        "Proactively develop improved methods for accessing and sharing customer and market insights"
+      ],
+      "coreRequirements": [
+        "Strong practical knowledge of timeseries forecasting and financial modelling",
+        "At least 3 years’ experience in a similar role",
+        "Excellent problem-solving skills and lateral thinking ability",
+        "Strong SQL and strong ability in R and/or Python.",
+        "Experience in a big data platform such as Apache Spark",
+        "Experience in ML frameworks such as Tensorflow, Keras, Sklearn etc.",
+        "A background in mathematics and statistics is advantageous"
+      ],
+      "niceToHaveRequirements": [
+        "A background in mathematics and statistics is advantageous"
+      ],
+      "benefits": [],
+      "applicationNotes": []
+    },
+    "skills": {
+      "dataScience": [
+        "Predictive models",
+        "Time series",
+        "Recommendation models",
+        "Machine learning",
+        "Financial modelling",
+        "Automation"
+      ],
+      "analytics": [
+        "Customer behaviour analysis",
+        "Sales analysis",
+        "Market trends",
+        "PowerBI dashboards",
+        "Data visualisation",
+        "Reporting"
+      ],
+      "programming": [
+        "SQL",
+        "R",
+        "Python"
+      ],
+      "platforms": [
+        "Apache Spark",
+        "TensorFlow",
+        "Keras",
+        "Scikit-learn"
+      ],
+      "softSkills": [
+        "Presentation",
+        "Stakeholder engagement",
+        "Problem solving",
+        "Lateral thinking"
+      ]
+    },
+    "mustNotInclude": {
+      "title": [
+        "Mathematics, Statistics & Information Sciences (Science & Technology)"
+      ],
+      "companyName": [
+        "Contract/Temp"
+      ],
+      "requirements": [
+        "Data Science",
+        "Analytics and Insight",
+        "Stakeholder Engagement",
+        "Your team:"
+      ]
+    }
+  }
+}

@@ -24,13 +24,31 @@ import healthRoutes from './api/routes/healthRoutes.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { requestContext } from './middleware/requestContext.js';
 import { optionalAuth, requireAuth } from './middleware/authMiddleware.js';
-import dotenv from 'dotenv';
+import { getAllowedOrigins, loadEnv } from './config/env.js';
 
-dotenv.config();
+loadEnv();
 const api = express.Router();
 
+const allowedOrigins = getAllowedOrigins();
+
 api.use(cors({
-  origin: true,
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error(`CORS origin not allowed: ${origin}`));
+  },
+  credentials: true,
+}));
+api.options('*', cors({
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error(`CORS origin not allowed: ${origin}`));
+  },
   credentials: true,
 }));
 api.use(express.json({ limit: '2mb' }));

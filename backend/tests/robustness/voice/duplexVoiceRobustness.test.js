@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { buildDuplexSocketContext, parseCookies, sendJson, safeJsonParse } from '../../../src/api/duplexVoiceSocket.js';
 import { AGENT_TOOL_NAMES } from '../../../src/constants/agentToolNames.js';
 import { createBargeInController } from '../../../src/services/voice/bargeInController.js';
-import { buildConfidenceGate } from '../../../src/services/voice/speechConfidenceGate.js';
+import { buildConfidenceGate, validateRealtimeVoiceTranscript } from '../../../src/services/voice/speechConfidenceGate.js';
 import { normalizeTranscript } from '../../../src/services/voice/transcriptNormalizer.js';
 
 describe('duplex voice robustness', () => {
@@ -66,6 +66,21 @@ describe('duplex voice robustness', () => {
   it('treats low or missing STT confidence conservatively', () => {
     expect(buildConfidenceGate(null)).toEqual({ status: 'unknown', shouldConfirm: true, shouldRecordAgain: false });
     expect(buildConfidenceGate(0.2)).toEqual({ status: 'low', shouldConfirm: true, shouldRecordAgain: true });
+  });
+
+
+
+  it('blocks unsafe final transcripts before the duplex turn advances', () => {
+    expect(validateRealtimeVoiceTranscript({ transcriptText: '', asrConfidence: 0.9 }).ok).toBe(false);
+    expect(validateRealtimeVoiceTranscript({ transcriptText: 'yes', asrConfidence: 0.9 })).toEqual(expect.objectContaining({
+      ok: false,
+      reason: 'TOO_SHORT_TRANSCRIPT',
+    }));
+    expect(validateRealtimeVoiceTranscript({ transcriptText: 'I used React', asrConfidence: 0.2 })).toEqual(expect.objectContaining({
+      ok: false,
+      reason: 'LOW_CONFIDENCE_SHORT_TRANSCRIPT',
+    }));
+    expect(validateRealtimeVoiceTranscript({ transcriptText: 'I used React Query with PostgreSQL and checked the result through integration tests.', asrConfidence: 0.2 }).ok).toBe(true);
   });
 
   it('normalizes common STT technical misrecognitions without rewriting the answer meaning', () => {

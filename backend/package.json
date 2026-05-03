@@ -15,7 +15,9 @@
     "eval:all": "npm run eval:cv && npm run eval:jd && npm run eval:match && npm run eval:interview && npm run eval:report",
     "quality:all": "npm run test:all && npm run eval:all",
     "test:jd-safeguard": "NODE_ENV=test AI_TEST_MODE=mock ENABLE_AGENTIC_SAFEGUARDS=true vitest tests/robustness/jobDescription/jdParseAgenticSafeguard.test.js",
-    "test:match-safeguard": "NODE_ENV=test AI_TEST_MODE=mock ENABLE_AGENTIC_SAFEGUARDS=true vitest tests/robustness/match/matchAgenticSafeguard.test.js"
+    "test:match-safeguard": "NODE_ENV=test AI_TEST_MODE=mock ENABLE_AGENTIC_SAFEGUARDS=true vitest tests/robustness/match/matchAgenticSafeguard.test.js",
+    "build": "node -e \"console.log('No backend build step required')\"",
+    "start:local": "node index.js"
   },
   "dependencies": {
     "cors": "^2.8.6",
@@ -34,5 +36,8 @@
   },
   "devDependencies": {
     "vitest": "^3.2.4"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

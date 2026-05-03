@@ -1,0 +1,39 @@
+Junior/Int Python Developer
+PICWA LTD 
+View all jobs
+Ellerslie, Auckland (Hybrid)
+Developers/Programmers (Information & Communication Technology)
+Full time
+Add expected salary to your profile for insights
+Posted 10d ago•High application volume
+How you match
+5 skills and credentials match your profile
+ Python Programming
+ JavaScript Programming
+ SQL Query Language
+ Git Version Control System
++1 more⁠
+Our Client: Is looking for a Junior/Intermediate Software Developer with expertise in Python and JavaScript. 
+You can expect to work on the current ERP system, work on customer-facing custom software, improving integrations between all systems. Enabling a growth pathway for you as a software developer.  
+Requirements:
+1 - 2 years of Commercial software development experience.
+Strong proficiency in Python, SQL, and REST API development.
+Ability to code in JavaScript or TypeScript, does not need JS framework experience.
+Solid understanding of software development best practices, debugging, and testing.
+Nice-to-haves: 
+Experience with version control (Git) and collaborative workflows.
+Familiarity with cloud platforms (e.g., AWS or Azure) or containerisation (e.g., Docker).
+Responsibilities:
+Design, develop, and deliver new features within our internal software systems.
+Build and maintain integration services with external platforms and APIs, ensuring reliability and scalability.
+Diagnose and resolve complex software issues across the stack.
+Write clean, maintainable, and well-documented code.
+Collaborate with technical and non-technical teams to translate business needs into technical solutions.
+Benefits: 
+Strong growth environment and pathway 
+Hybrid setup with flexibility
+HQ Office in Ellerslie  
+Competitive Salary 
+Please note: 
+To be considered for this position, you must have valid New Zealand work rights and be currently based in NZ.
+We're looking for someone who can fully commit to this role as their primary focus. Applicants currently enrolled in a bachelor's degree (or equivalent study) won't be suitable, but graduates are encouraged to apply.
