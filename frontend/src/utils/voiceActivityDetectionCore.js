@@ -2,7 +2,7 @@ export const DEFAULT_VAD_CONFIG = {
   speechThreshold: 0.018,
   silenceThreshold: 0.012,
   minSpeechMs: 1500,
-  silenceToStopMs: 3000,
+  silenceToStopMs: 2000,
   maxAnswerMs: 240000,
   preSpeechGraceMs: 15000,
   micArmDelayMs: 350,

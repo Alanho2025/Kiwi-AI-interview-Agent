@@ -15,7 +15,11 @@ export const extractJobDescriptionHeader = ({ rawJD = '', fallbackTitle = '', no
   const title = titleResult.value && titleResult.value !== 'Target Role' ? titleResult.value : fallbackTitle;
   const normalizeKey = (value = '') => String(value || '').replace(/\s+/g, ' ').trim().toLowerCase();
   const titleKeys = new Set([normalizeKey(title), ...(titleResult.candidates || []).map((item) => normalizeKey(item.value))].filter(Boolean));
-  const afterTitleIndex = tokenizedLines.findIndex((line) => titleKeys.has(normalizeKey(line)));
+  const afterTitleIndex = tokenizedLines.findIndex((line) => {
+    const key = normalizeKey(line);
+    if (titleKeys.has(key)) return true;
+    return [...titleKeys].some((titleKey) => titleKey && key.startsWith(titleKey));
+  });
   const afterTitleLines = afterTitleIndex >= 0 ? tokenizedLines.slice(afterTitleIndex + 1) : tokenizedLines;
 
   const company = extractCompanyName({ afterTitleLines, title, allLines: normalizedSource.lines || [] });

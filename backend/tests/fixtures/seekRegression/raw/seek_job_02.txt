@@ -1,0 +1,27 @@
+Junior Data Engineer
+Grinding Gear Games 
+View all jobs
+Henderson, Auckland
+Developers/Programmers (Information & Communication Technology)
+Full time
+Add expected salary to your profile for insights
+Posted 10d ago•High application volume
+How you match
+2 skills and credentials match your profile
+ Python Programming
+ SQL Query Language
+Show all⁠
+We are seeking a Junior Data Engineer to join our team.Location: On-site in Henderson, Auckland, New ZealandRelocation assistance (for the right candidate, if needed)Full time position - 40 hours a week
+The position includes the following duties:
+Building and maintaining data pipelines and systems
+Contribute to the development of a long-term data strategy
+Create scripts and queries to fulfil various data needs
+We are seeking someone with:
+6 months experience in data or software engineering roles
+Proficiency in Python and SQL or similar languages
+Experience with Linux or command-line tools
+Experience with our game, Path of Exile, or similar games
+A drive for problem solving
+Pluses:
+Experience with tools like Elasticsearch, Kibana, Grafana, version control
+Understanding of other programming languages, especially C++

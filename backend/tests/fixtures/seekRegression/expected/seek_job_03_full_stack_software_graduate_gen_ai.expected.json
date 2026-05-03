@@ -1,0 +1,83 @@
+{
+  "id": "seek_job_03_full_stack_software_graduate_gen_ai",
+  "rawFile": "raw/seek_job_03.txt",
+  "expected": {
+    "jobOverview": {
+      "title": "Full Stack Software Graduate (Generative AI)",
+      "companyName": "AI Research Group",
+      "location": "Ponsonby, Auckland",
+      "category": "Engineering - Software (Information & Communication Technology)",
+      "employmentType": "Contract/Temp",
+      "salaryText": "$40 – $50 per hour",
+      "roleFamily": "software_development",
+      "roleLevel": "graduate"
+    },
+    "sections": {
+      "technicalStack": [
+        "Python (Quart/Flask)",
+        "Docker + Runpod (GPU infra)",
+        "React / Next js (minimal frontend work)"
+      ],
+      "responsibilities": [
+        "Deploy and manage GPU-based AI workloads (Runpod)",
+        "Integrate and manage ComfyUI workflows in our backend",
+        "Build and maintain APIs + supporting infrastructure"
+      ],
+      "coreRequirements": [
+        "Python backend experience",
+        "Basic experience with Docker and cloud/GPU environments",
+        "Comfortable working as a generalist across backend + infra",
+        "Open to graduates with hands-on projects in AI workflows",
+        "Or intermediate engineers with relevant backend / infra experience"
+      ],
+      "niceToHaveRequirements": [
+        "Experience with generative AI pipelines (ComfyUI, Wan, Stable Diffusion, etc.)",
+        "Comfortable working in the AI companion space"
+      ],
+      "contractNotes": [
+        "Contractor role to start, with potential for long-term or full-time if there’s a strong fit"
+      ],
+      "benefits": [],
+      "applicationNotes": [
+        "Employer questions are present"
+      ]
+    },
+    "skills": {
+      "softwareDevelopment": [
+        "Python",
+        "Quart",
+        "Flask",
+        "React",
+        "Next.js",
+        "API development"
+      ],
+      "aiEngineering": [
+        "Runpod",
+        "GPU infrastructure",
+        "ComfyUI",
+        "Generative AI pipelines",
+        "Wan",
+        "Stable Diffusion",
+        "AI workflows"
+      ],
+      "commonEngineering": [
+        "Docker",
+        "Cloud environments"
+      ]
+    },
+    "mustNotInclude": {
+      "title": [
+        "Engineering - Software (Information & Communication Technology)",
+        "Ponsonby"
+      ],
+      "companyName": [
+        "Contract/Temp"
+      ],
+      "requirements": [
+        "Bonus",
+        "Experience Level",
+        "Stack"
+      ]
+    }
+  }
+}

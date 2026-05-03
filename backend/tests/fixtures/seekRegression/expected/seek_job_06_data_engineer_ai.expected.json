@@ -1,0 +1,80 @@
+{
+  "id": "seek_job_06_data_engineer_ai",
+  "rawFile": "raw/seek_job_06.txt",
+  "expected": {
+    "jobOverview": {
+      "title": "Data Engineer - AI",
+      "companyName": "RWA People",
+      "location": "East Tamaki, Auckland",
+      "workArrangement": "On-site",
+      "category": "Engineering - Software (Information & Communication Technology)",
+      "employmentType": "Full time",
+      "salaryText": "Competitive",
+      "roleFamily": "data_engineering",
+      "roleLevel": "intermediate"
+    },
+    "sections": {
+      "responsibilities": [
+        "Designing and building data pipelines and ETL processes that are reliable and maintainable",
+        "Writing and optimising SQL queries (including MySQL) and using Python for data processing and analysis",
+        "Applying prompt engineering techniques as part of AI-driven workflows",
+        "Translating stakeholder requirements into technical solutions",
+        "Supporting the development of AI agents — including human-in-the-loop systems and analysis of model outputs",
+        "Helping move prototypes toward production"
+      ],
+      "coreRequirements": [
+        "Solid data engineering experience — pipelines, ETL, SQL, Python",
+        "Exposure to or genuine interest in AI/ML and prompt engineering",
+        "Comfortable with ambiguity",
+        "A practical, delivery-focused mindset",
+        "Clear communication skills"
+      ],
+      "niceToHaveRequirements": [
+        "Experience on AI-driven products or automation workflows",
+        "Exposure to unstructured data (voice, text, etc.)",
+        "A background that spans both engineering and analytics"
+      ],
+      "benefits": [],
+      "applicationNotes": [
+        "This role will be 5 days on site - location is East Tamaki.",
+        "Contact email is present"
+      ]
+    },
+    "skills": {
+      "dataEngineering": [
+        "Data pipelines",
+        "ETL",
+        "SQL",
+        "MySQL",
+        "Python",
+        "Data processing",
+        "Analysis"
+      ],
+      "aiEngineering": [
+        "Prompt engineering",
+        "AI-driven workflows",
+        "AI agents",
+        "Human-in-the-loop systems",
+        "Model output analysis"
+      ],
+      "softSkills": [
+        "Ambiguity tolerance",
+        "Communication",
+        "Delivery-focused mindset",
+        "Stakeholder translation"
+      ]
+    },
+    "mustNotInclude": {
+      "title": [
+        "Engineering - Software (Information & Communication Technology)"
+      ],
+      "companyName": [
+        "Competitive"
+      ],
+      "requirements": [
+        "Nice to have",
+        "What we're looking for"
+      ]
+    }
+  }
+}
