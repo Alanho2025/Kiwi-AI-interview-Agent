@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { CirclePause, Mic, MicOff, RefreshCcw, Square, Volume2, ChevronDown, ChevronUp } from 'lucide-react';
+import { useMemo } from 'react';
+import { CirclePause, Mic, MicOff, RefreshCcw, Square, Volume2 } from 'lucide-react';
 import { Button } from '../common/Button.jsx';
 import { cn } from '../../utils/formatters.js';
 
@@ -14,12 +14,6 @@ const renderStatusTone = (type) => {
   return 'border-sky-200 bg-sky-50 text-sky-700';
 };
 
-const buildConfidenceLabel = (pendingTranscript, lastAsrConfidence) => {
-  if (pendingTranscript?.confidenceStatus) return `${pendingTranscript.confidenceStatus} confidence`;
-  if (lastAsrConfidence != null) return `${Math.round(lastAsrConfidence * 100)}% confidence`;
-  return 'Waiting for final transcript';
-};
-
 export function VoiceInterviewPanel({
   onPause,
   onRepeat,
@@ -29,7 +23,6 @@ export function VoiceInterviewPanel({
   isSubmitting,
   voiceShell,
 }) {
-  const [isCaptionExpanded, setIsCaptionExpanded] = useState(false);
   const {
     currentQuestion,
     permissionState,
@@ -39,26 +32,21 @@ export function VoiceInterviewPanel({
     realtimeStatus,
     vadState,
     isAutoLoopActive,
-    pendingTranscript,
-    editableTranscript,
-    setEditableTranscript,
     isRecording,
-    isProcessingTurn,
     canUseVoice,
     levelHistory,
     recordingDurationLabel,
-    transcriptionPreview,
     assistantAudioUrl,
     audioRef,
-    lastAsrConfidence,    handleRequestPermission,
+    handleRequestPermission,
     handleToggleRecording,
     handleReplayAssistantAudio,
     handleResetShell,
   } = voiceShell;
 
   const waveBars = useMemo(() => buildWaveBars(levelHistory), [levelHistory]);
-  const currentQuestionText = currentQuestion?.displayText || currentQuestion?.text || '';  const statusBadgeLabel = isAutoLoopActive && !isRecording ? stateLabel : (isRecording ? 'Listening...' : stateLabel);
-  const hasLiveCaption = Boolean(transcriptionPreview || pendingTranscript);
+  const currentQuestionText = currentQuestion?.displayText || currentQuestion?.text || '';
+  const statusBadgeLabel = isAutoLoopActive && !isRecording ? stateLabel : (isRecording ? 'Listening...' : stateLabel);
 
   return (
     <div className="flex h-full min-h-0 flex-col space-y-4">
@@ -121,50 +109,6 @@ export function VoiceInterviewPanel({
               ))}
             </div>
 
-            <div className="w-full rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-              <button
-                type="button"
-                onClick={() => setIsCaptionExpanded((value) => !value)}
-                className="flex w-full items-center justify-between gap-3 text-left"
-              >
-                <div>
-                  <p className="text-sm font-semibold text-gray-900">Live captions</p>
-                  <p className="mt-1 line-clamp-1 text-sm text-gray-500">
-                    {hasLiveCaption ? (transcriptionPreview || pendingTranscript?.displayText) : 'Hidden by default. Expand if you need to check ASR text.'}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-gray-400">
-                  {buildConfidenceLabel(pendingTranscript, lastAsrConfidence)}
-                  {isCaptionExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                </div>
-              </button>
-
-              {isCaptionExpanded ? (
-                <div className="mt-4 border-t border-gray-100 pt-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">ASR preview</p>
-                  <p className="mt-2 whitespace-pre-line text-sm leading-6 text-gray-600">
-                    {transcriptionPreview || 'Start speaking to see real-time captions here.'}
-                  </p>
-
-                  {pendingTranscript ? (
-                    <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <p className="text-sm font-semibold text-emerald-800">Auto-submitted transcript</p>
-                        <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-emerald-700">
-                          {pendingTranscript.confidenceStatus || 'unknown'} confidence
-                        </span>
-                      </div>
-                      <p className="mt-3 whitespace-pre-line rounded-xl bg-white p-3 text-sm leading-6 text-gray-600">
-                        {editableTranscript || pendingTranscript.displayText}
-                      </p>
-                      {pendingTranscript.changed ? (
-                        <p className="mt-2 text-xs text-emerald-700">Calibrated from: “{pendingTranscript.rawText}”</p>
-                      ) : null}
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
-            </div>
           </div>
         </div>
 

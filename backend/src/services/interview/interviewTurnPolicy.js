@@ -1,4 +1,4 @@
-import { resolveInterviewModeConfig } from '../../config/interviewBlueprints.js';
+import { resolveInterviewSessionConfig } from './interviewSessionConfigResolver.js';
 
 const ensureArray = (value) => (Array.isArray(value) ? value : []);
 const normalizeText = (value = '') => String(value || '').trim().toLowerCase();
@@ -21,10 +21,7 @@ export const getQuestionCategory = (question = {}) => {
 };
 
 export const buildInterviewStructure = (session = {}) => {
-  const blueprint = resolveInterviewModeConfig({
-    seniorityLevel: session?.settings?.seniorityLevel || session?.settings?.level || 'junior',
-    focusArea: session?.settings?.focusArea || 'combined',
-  });
+  const blueprint = resolveInterviewSessionConfig(session);
   const transcript = ensureArray(session.transcript);
   const aiTurns = transcript.filter((turn) => turn.role === 'ai');
   const askedQuestions = aiTurns.map((turn, index) => ({
