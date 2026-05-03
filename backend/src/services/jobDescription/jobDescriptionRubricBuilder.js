@@ -160,7 +160,6 @@ const normalizeSourceLabel = (value = '') => String(value || '')
   .replace(/^[•\-*]\s*/, '')
   .replace(/\s+/g, ' ')
   .trim()
-  .replace(/[.;]+$/g, '')
   .trim();
 
 const normalizeExactSourcePoints = (items = [], evidenceMap = {}) => unique(items.map((item) => {

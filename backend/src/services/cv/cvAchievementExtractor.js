@@ -1,5 +1,5 @@
 const ACHIEVEMENT_PATTERNS = [
-  { type: 'quantified_impact', regex: /\b(?:reduced|lowered|improved|increased)\b[^\n]{0,120}\b\d+%?\b[^\n]{0,40}\b\d+%?\b/gi },
+  { type: 'quantified_impact', regex: /\b(?:reduced|lowered|improved|increased|decreased|saved|cut)\b[^\n]{0,160}\b\d+(?:\.\d+)?%?\b[^\n]{0,80}/gi },
   { type: 'delivery_outcome', regex: /\b(?:deployed|migrated|built)\b[^\n]{0,160}/gi },
   { type: 'efficiency_gain', regex: /\b(?:saved|reducing manual effort|improving analysis speed)\b[^\n]{0,120}/gi },
 ];
