@@ -1,5 +1,4 @@
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { VoiceInterviewPanel } from '../VoiceInterviewPanel.jsx';
 
@@ -37,8 +36,7 @@ const buildVoiceShell = (overrides = {}) => ({
 });
 
 describe('VoiceInterviewPanel', () => {
-  it('keeps live captions hidden by default and lets the user expand them', async () => {
-    const user = userEvent.setup();
+  it('does not render the removed live captions debug panel', () => {
     render(
       <VoiceInterviewPanel
         isPaused={false}
@@ -51,13 +49,10 @@ describe('VoiceInterviewPanel', () => {
       />
     );
 
-    expect(screen.getByText('Live captions')).toBeInTheDocument();
+    expect(screen.queryByText('Live captions')).not.toBeInTheDocument();
     expect(screen.queryByText('ASR preview')).not.toBeInTheDocument();
-
-    await user.click(screen.getByText('Live captions'));
-
-    expect(screen.getByText('ASR preview')).toBeInTheDocument();
-    expect(screen.getAllByText('partial answer').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Auto-submitted transcript')).not.toBeInTheDocument();
+    expect(screen.queryByText('WAITING FOR FINAL TRANSCRIPT')).not.toBeInTheDocument();
   });
 
   it('disables microphone action when voice cannot be used', () => {
@@ -77,7 +72,7 @@ describe('VoiceInterviewPanel', () => {
     expect(screen.getByLabelText('Start voice interview')).toBeDisabled();
   });
 
-  it('shows transcript confirmation controls for final realtime transcript', () => {
+  it('keeps final transcript debug text out of the voice panel', () => {
     render(
       <VoiceInterviewPanel
         isPaused={false}
@@ -93,6 +88,7 @@ describe('VoiceInterviewPanel', () => {
       />
     );
 
-    expect(screen.getByText('medium confidence')).toBeInTheDocument();
+    expect(screen.queryByText('medium confidence')).not.toBeInTheDocument();
+    expect(screen.queryByText('My confirmed answer')).not.toBeInTheDocument();
   });
 });

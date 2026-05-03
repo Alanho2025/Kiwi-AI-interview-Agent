@@ -17,6 +17,7 @@ import { enqueueBackgroundJob } from '../../jobs/backgroundJobQueue.js';
 import { createLatencyTrace } from '../../utils/latencyTrace.js';
 import { logger } from '../../utils/logger.js';
 import { buildRealtimeVoiceLatencySummary } from '../../utils/realtimeVoiceLatencySummary.js';
+import { validateRealtimeVoiceTranscript } from './speechConfidenceGate.js';
 
 const toBase64 = (buffer) => Buffer.from(buffer).toString('base64');
 
@@ -62,8 +63,9 @@ export const processRealtimeVoiceTurn = async ({
   onSentence = null,
 }) => {
   const normalizedAnswer = String(transcriptText || '').trim();
-  if (!normalizedAnswer) {
-    throw badRequest('Missing transcript text', 'Realtime voice turn requires non-empty transcriptText');
+  const transcriptGate = validateRealtimeVoiceTranscript({ transcriptText: normalizedAnswer, asrConfidence, vad });
+  if (!transcriptGate.ok) {
+    throw badRequest(transcriptGate.message || 'Voice transcript is not ready', transcriptGate.reason);
   }
 
   const trace = createLatencyTrace('realtime_voice_turn', {
@@ -85,6 +87,7 @@ export const processRealtimeVoiceTurn = async ({
         asrProvider: asrSource,
         asrLanguage: language,
         asrConfidence,
+        confidenceGate: transcriptGate.confidenceGate,
         transcriptionPreview: normalizedAnswer,
       },
     });
@@ -99,7 +102,7 @@ export const processRealtimeVoiceTurn = async ({
       asrProvider: asrSource,
       asrLanguage: language,
       asrConfidence,
-      providerPayload: { source: asrSource, realtime: true, inputMode, vad },
+      providerPayload: { source: asrSource, realtime: true, inputMode, vad, confidenceGate: transcriptGate.confidenceGate },
     });
   });
 
