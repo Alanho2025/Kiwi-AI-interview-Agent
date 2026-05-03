@@ -1,0 +1,42 @@
+Data Scientist
+Lotto NZ 
+View all jobs
+Newmarket, Auckland
+Mathematics, Statistics & Information Sciences (Science & Technology)
+Contract/Temp
+Posted 2d ago
+How you match
+3 skills and credentials match your profile
+ Analysis
+ SQL Query Language
+ Python Programming
+Show all⁠
+Your day-to-day:
+The Data Scientist is responsible for solving complex business challenges using their advanced statistical, algorithmic and machine learning techniques to leverage data. You will architect solutions, experiment, test hypotheses, build technically sophisticated models and effectively communicate insights and outcomes to support strategic decision making. 
+This full time, 12 month fixed term opportunity has been created to enhance the Innovation & Products teams capabilities during an exciting project phase. 
+Data Science
+Build and refine predictive, timeseries and recommendation models that drive personalisation and support timely, insightled game changes.
+Develop approaches to monitor and improve product, channel and organisational performance.
+Lift efficiency through automation while keeping Lotto NZ futureready by staying across emerging datascience trends.
+ Analytics and Insight
+Deliver clear, accurate insights that deepen understanding of customer behaviour, sales and market trends.
+Prepare, integrate and model data to support predictive work and strategic decisionmaking.
+Bring data to life through compelling visualisations and proactively source new data that strengthens Lotto NZ’s insight capability.
+ Stakeholder Engagement
+Confidently present findings to a wide range of audiences, including senior leaders, enabling fast and informed decisions.
+Build trusted relationships across Lotto NZ and help strengthen our Data Science practice. 
+Be a Lotto NZ Information Expert
+Share accurate, relevant information across the organisation in smarter, more impactful ways.
+Proactively develop improved methods for accessing and sharing customer and market insights that enhance decisionmaking.
+Your team:
+This role will work cross functionally where their machine learning and predictive analytics abilities can be utilised to create efficiency and optimise existing systems and processes. Reporting to the Data Science & Insights Lead, you will support the analytics team and the wider business in identifying key insights from the depths of data that cannot be easily identified or extracted.
+Additionally, this role will also provide data analysis, build PowerBI dashboards and complete other adhoc reporting tasks to support the busy Data & Analytics team here at Lotto NZ.
+A bit about you:
+With strong practical knowledge of timeseries forecasting and financial modelling, and at least 3 years’ experience in a similar role, the Lotto NZ Data Scientist with possess a deep understanding of solution design using data.
+Our ideal candidate will have:
+Excellent problem-solving skills and lateral thinking ability
+Strong SQL and strong ability in R and/or Python.
+Experience in a big data platform such as Apache Spark
+Experience in ML frameworks such as Tensorflow, Keras, Sklearn etc.
+A background in mathematics and statistics is advantageous 
+As a naturally curious person with an utmost passion for data, cutting edge technologies, and mathematical principles, the data scientist will stay abreast of emerging trends and developments to ensure Lotto NZ is continuously maximising the value in data.

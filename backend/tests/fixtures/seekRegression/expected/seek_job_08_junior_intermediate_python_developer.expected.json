@@ -1,0 +1,84 @@
+{
+  "id": "seek_job_08_junior_intermediate_python_developer",
+  "rawFile": "raw/seek_job_08.txt",
+  "expected": {
+    "jobOverview": {
+      "title": "Junior/Int Python Developer",
+      "companyName": "PICWA LTD",
+      "location": "Ellerslie, Auckland",
+      "workArrangement": "Hybrid",
+      "category": "Developers/Programmers (Information & Communication Technology)",
+      "employmentType": "Full time",
+      "roleFamily": "software_development",
+      "roleLevel": "junior_intermediate"
+    },
+    "sections": {
+      "responsibilities": [
+        "Design, develop, and deliver new features within our internal software systems.",
+        "Build and maintain integration services with external platforms and APIs, ensuring reliability and scalability.",
+        "Diagnose and resolve complex software issues across the stack.",
+        "Write clean, maintainable, and well-documented code.",
+        "Collaborate with technical and non-technical teams to translate business needs into technical solutions."
+      ],
+      "coreRequirements": [
+        "1 - 2 years of Commercial software development experience.",
+        "Strong proficiency in Python, SQL, and REST API development.",
+        "Ability to code in JavaScript or TypeScript, does not need JS framework experience.",
+        "Solid understanding of software development best practices, debugging, and testing."
+      ],
+      "niceToHaveRequirements": [
+        "Experience with version control (Git) and collaborative workflows.",
+        "Familiarity with cloud platforms (e.g., AWS or Azure) or containerisation (e.g., Docker)."
+      ],
+      "benefits": [
+        "Strong growth environment and pathway",
+        "Hybrid setup with flexibility",
+        "HQ Office in Ellerslie",
+        "Competitive Salary"
+      ],
+      "applicationNotes": [
+        "Must have valid New Zealand work rights and be currently based in NZ.",
+        "Applicants currently enrolled in a bachelor's degree (or equivalent study) won't be suitable, but graduates are encouraged to apply."
+      ]
+    },
+    "skills": {
+      "softwareDevelopment": [
+        "Python",
+        "SQL",
+        "REST API",
+        "JavaScript",
+        "TypeScript",
+        "Debugging",
+        "Testing",
+        "Integration services"
+      ],
+      "cloud": [
+        "AWS",
+        "Azure"
+      ],
+      "commonEngineering": [
+        "Git",
+        "Docker",
+        "Version control"
+      ],
+      "softSkills": [
+        "Collaboration",
+        "Business needs translation"
+      ]
+    },
+    "mustNotInclude": {
+      "title": [
+        "Developers/Programmers (Information & Communication Technology)"
+      ],
+      "companyName": [
+        "Full time"
+      ],
+      "requirements": [
+        "Nice-to-haves:",
+        "Responsibilities:",
+        "Benefits:",
+        "Please note:"
+      ]
+    }
+  }
+}

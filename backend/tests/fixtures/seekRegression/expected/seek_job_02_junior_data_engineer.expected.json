@@ -1,0 +1,75 @@
+{
+  "id": "seek_job_02_junior_data_engineer",
+  "rawFile": "raw/seek_job_02.txt",
+  "expected": {
+    "jobOverview": {
+      "title": "Junior Data Engineer",
+      "companyName": "Grinding Gear Games",
+      "location": "Henderson, Auckland",
+      "workArrangement": "On-site",
+      "category": "Developers/Programmers (Information & Communication Technology)",
+      "employmentType": "Full time",
+      "roleFamily": "data_engineering",
+      "roleLevel": "junior"
+    },
+    "sections": {
+      "responsibilities": [
+        "Building and maintaining data pipelines and systems",
+        "Contribute to the development of a long-term data strategy",
+        "Create scripts and queries to fulfil various data needs"
+      ],
+      "coreRequirements": [
+        "6 months experience in data or software engineering roles",
+        "Proficiency in Python and SQL or similar languages",
+        "Experience with Linux or command-line tools",
+        "Experience with our game, Path of Exile, or similar games",
+        "A drive for problem solving"
+      ],
+      "niceToHaveRequirements": [
+        "Experience with tools like Elasticsearch, Kibana, Grafana, version control",
+        "Understanding of other programming languages, especially C++"
+      ],
+      "benefits": [
+        "Relocation assistance (for the right candidate, if needed)"
+      ],
+      "applicationNotes": []
+    },
+    "skills": {
+      "dataEngineering": [
+        "Data pipelines",
+        "Data systems",
+        "SQL",
+        "Python",
+        "Scripts",
+        "Queries"
+      ],
+      "commonEngineering": [
+        "Linux",
+        "Command-line tools",
+        "Version control"
+      ],
+      "tools": [
+        "Elasticsearch",
+        "Kibana",
+        "Grafana",
+        "C++"
+      ],
+      "domain": [
+        "Path of Exile",
+        "Game data"
+      ]
+    },
+    "mustNotInclude": {
+      "title": [
+        "Developers/Programmers (Information & Communication Technology)"
+      ],
+      "companyName": [
+        "Full time"
+      ],
+      "requirements": [
+        "Pluses:",
+        "Show all"
+      ]
+    }
+  }
+}

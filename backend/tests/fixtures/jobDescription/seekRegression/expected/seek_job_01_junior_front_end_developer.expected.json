@@ -1,0 +1,77 @@
+{
+  "id": "seek_job_01_junior_front_end_developer",
+  "rawFile": "raw/seek_job_01.txt",
+  "expected": {
+    "jobOverview": {
+      "title": "Junior Front End Developer",
+      "companyName": "PHQ",
+      "location": "Parnell, Auckland",
+      "workArrangement": "Hybrid",
+      "category": "Developers/Programmers (Information & Communication Technology)",
+      "employmentType": "Full time",
+      "roleFamily": "software_development",
+      "roleLevel": "junior"
+    },
+    "sections": {
+      "responsibilities": [
+        "Collaborate with other Developers, Designers and Producers on technical solutions that align closely with a creative vision",
+        "Develop production-ready code that meet UI/UX web accessibility and browser compatibility"
+      ],
+      "coreRequirements": [
+        "1-2 years development experience",
+        "Knowledge of relevant programming languages and methodologies (Typescript, HTML5, CSS3)",
+        "Knowledge of Javascript frameworks (e.g. Angular or React)",
+        "Excellent written and spoken English",
+        "Confident working with version control (Git)",
+        "Excellent written and verbal communication skills",
+        "Capability to work on simultaneous projects and meet deadlines",
+        "Experience giving and receiving code reviews"
+      ],
+      "niceToHaveRequirements": [
+        "Knowledge of Three.js, D3.js or other Creative technologies is a plus",
+        "Strong coding fundamentals",
+        "Amazing examples of past work in web applications",
+        "Self-motivated with good time management"
+      ],
+      "benefits": [],
+      "applicationNotes": [
+        "Employer questions are present"
+      ]
+    },
+    "skills": {
+      "softwareDevelopment": [
+        "TypeScript",
+        "HTML5",
+        "CSS3",
+        "JavaScript",
+        "Angular",
+        "React",
+        "Three.js",
+        "D3.js"
+      ],
+      "commonEngineering": [
+        "Git",
+        "Code review"
+      ],
+      "softSkills": [
+        "Communication",
+        "Time management",
+        "Deadline management"
+      ]
+    },
+    "mustNotInclude": {
+      "title": [
+        "Developers/Programmers (Information & Communication Technology)"
+      ],
+      "companyName": [
+        "Full time"
+      ],
+      "requirements": [
+        "About us",
+        "About the role",
+        "Bonus Experience:",
+        "Employer questions"
+      ]
+    }
+  }
+}
