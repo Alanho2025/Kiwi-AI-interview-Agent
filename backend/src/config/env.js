@@ -67,7 +67,24 @@ export const getServerPort = () => Number(getEnv('PORT') || 3000);
 /**
  * Resolve comma-separated CORS origins.
  */
-const normalizeOrigin = (origin) => String(origin).trim().replace(/\/$/, '');
+const normalizeOrigin = (origin) => {
+  const trimmed = String(origin).trim().replace(/\/$/, '');
+
+  if (!trimmed) {
+    return '';
+  }
+
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    return trimmed;
+  }
+
+  return `https://${trimmed}`;
+};
+
+const splitOrigins = (value) => String(value || '')
+  .split(',')
+  .map(normalizeOrigin)
+  .filter(Boolean);
 
 export const getAllowedOrigins = () => {
   const configured = [
@@ -76,9 +93,9 @@ export const getAllowedOrigins = () => {
     getEnv('CLIENT_ORIGIN'),
     getEnv('CLIENT_URL'),
     getEnv('ALLOWED_ORIGINS'),
+    getEnv('VERCEL_URL'),
   ]
-    .filter(Boolean)
-    .flatMap((value) => value.split(','));
+    .flatMap(splitOrigins);
 
   const defaults = [
     'http://localhost:5173',
@@ -86,9 +103,7 @@ export const getAllowedOrigins = () => {
     'http://localhost:3000',
   ];
 
-  return [...new Set(
-    [...configured, ...defaults]
-      .map(normalizeOrigin)
-      .filter(Boolean)
-  )];
+  return [...new Set([...configured, ...defaults])];
 };
+
+export const isProduction = () => getEnv('NODE_ENV') === 'production';

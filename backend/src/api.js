@@ -43,19 +43,12 @@ const corsOptions = {
     return callback(new Error(`CORS origin not allowed: ${origin}`));
   },
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  optionsSuccessStatus: 204,
 };
 
-api.options('*', cors(corsOptions));
-api.options('*', cors({
-  origin(origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-
-    return callback(new Error(`CORS origin not allowed: ${origin}`));
-  },
-  credentials: true,
-}));
+api.use(cors(corsOptions));
 api.use(express.json({ limit: '2mb' }));
 api.use(requestContext);
 api.use(optionalAuth);
