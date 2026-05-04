@@ -9,13 +9,13 @@
  * - Prefer composition and small helpers over repeated inline logic.
  */
 
-import dotenv from 'dotenv';
 import { OAuth2Client } from 'google-auth-library';
 import jwt from 'jsonwebtoken';
 import dns from 'dns';
 import * as authService from '../services/authService.js';
+import { getEnv, isProduction, loadEnv } from '../config/env.js';
 
-dotenv.config();
+loadEnv();
 dns.setServers(['8.8.8.8', '8.8.4.4']);
 
 /**
@@ -24,15 +24,17 @@ dns.setServers(['8.8.8.8', '8.8.4.4']);
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-const getGoogleClient = () => new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+const getGoogleClientId = () => getEnv('GOOGLE_CLIENT_ID');
 
-const cookieOptions = {
+const getGoogleClient = () => new OAuth2Client(getGoogleClientId());
+
+const getCookieOptions = () => ({
   httpOnly: true,
-  sameSite: 'lax',
-  secure: process.env.NODE_ENV === 'production',
+  sameSite: isProduction() ? 'none' : 'lax',
+  secure: isProduction(),
   maxAge: 24 * 60 * 60 * 1000,
-  path: '/'
-};
+  path: '/',
+});
 
 /**
  * Purpose: Execute the main responsibility for successResponse.
@@ -61,7 +63,7 @@ const errorResponse = (res, msg, code = 400) => {
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
 const generateToken = (id) => {
-  const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_for_dev';
+  const JWT_SECRET = getEnv('JWT_SECRET') || 'fallback_secret_for_dev';
   return jwt.sign({ id }, JWT_SECRET, { expiresIn: '30d' });
 };
 
@@ -106,13 +108,15 @@ export const getMe = async (req, res) => {
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
 export const googleClientConfig = (_req, res) => {
-  if (!process.env.GOOGLE_CLIENT_ID) {
+  const clientId = getGoogleClientId();
+
+  if (!clientId) {
     return errorResponse(res, 'GOOGLE_CLIENT_ID is not configured', 500);
   }
 
   return successResponse(
     res,
-    { clientId: process.env.GOOGLE_CLIENT_ID || '' },
+    { clientId },
     'Google client config loaded'
   );
 };
@@ -131,13 +135,15 @@ export const googleLogin = async (req, res) => {
       return errorResponse(res, 'Google ID Token is required');
     }
 
-    if (!process.env.GOOGLE_CLIENT_ID) {
+    const clientId = getGoogleClientId();
+
+    if (!clientId) {
       return errorResponse(res, 'GOOGLE_CLIENT_ID is not configured', 500);
     }
 
     const ticket = await getGoogleClient().verifyIdToken({
       idToken,
-      audience: process.env.GOOGLE_CLIENT_ID
+      audience: clientId,
     });
 
     const payload = ticket.getPayload();
@@ -150,7 +156,7 @@ export const googleLogin = async (req, res) => {
     const user = await authService.findOrCreateGoogleUser(email, name, sub);
     const token = generateToken(user.id);
 
-    res.cookie('auth_token', token, cookieOptions);
+    res.cookie('auth_token', token, getCookieOptions());
 
     return successResponse(
       res,
@@ -172,6 +178,6 @@ export const googleLogin = async (req, res) => {
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
 export const logout = (req, res) => {
-  res.clearCookie('auth_token', { path: '/' });
+  res.clearCookie('auth_token', getCookieOptions());
   res.json({ message: 'Logged out successfully' });
 };
