@@ -9,7 +9,7 @@
  * - Prefer composition and small helpers over repeated inline logic.
  */
 
-import { apiClient } from './client.js';
+import { apiClient, clearStoredAuthToken, storeAuthToken } from './client.js';
 
 /**
  * Purpose: Execute the main responsibility for getGoogleClientConfig.
@@ -40,12 +40,16 @@ export const getCurrentUser = async () =>
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-export const loginWithGoogle = async (idToken) =>
-  apiClient('/auth/google', {
+export const loginWithGoogle = async (idToken) => {
+  const data = await apiClient('/auth/google', {
     method: 'POST',
     body: { idToken },
     credentials: 'include',
   });
+
+  storeAuthToken(data?.token);
+  return data;
+};
 
 /**
  * Purpose: Execute the main responsibility for logoutFromSession.
@@ -53,8 +57,13 @@ export const loginWithGoogle = async (idToken) =>
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-export const logoutFromSession = async () =>
-  apiClient('/auth/logout', {
-    method: 'POST',
-    credentials: 'include',
-  });
+export const logoutFromSession = async () => {
+  try {
+    return await apiClient('/auth/logout', {
+      method: 'POST',
+      credentials: 'include',
+    });
+  } finally {
+    clearStoredAuthToken();
+  }
+};

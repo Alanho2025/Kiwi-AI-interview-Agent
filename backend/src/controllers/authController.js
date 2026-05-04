@@ -157,7 +157,8 @@ export const googleLogin = async (req, res) => {
     return successResponse(
       res,
       {
-        user: serializeUser(user)
+        user: serializeUser(user),
+        token
       },
       'Google login successful'
     );
