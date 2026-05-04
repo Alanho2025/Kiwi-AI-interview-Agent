@@ -49,12 +49,13 @@ export function SessionHistorySection({ historyLoading, sessionHistoryRows, onOp
   };
 
   return (
-    <div className="rounded-3xl border border-gray-100 bg-white p-8 shadow-[0_2px_10px_rgb(0,0,0,0.02)]">
+    <div className="rounded-3xl border border-gray-100 bg-white p-4 sm:p-8 shadow-[0_2px_10px_rgb(0,0,0,0.02)]">
       <div className="mb-6 flex items-end justify-between">
         <h2 className="text-xl font-bold">Session History</h2>
         <span className="text-sm text-gray-400">Your recent interview sessions</span>
       </div>
-
+      <div className="overflow-x-auto">
+      <div className="min-w-[600px]">
       <div className="mb-4 grid grid-cols-12 border-b border-gray-100 pb-3 text-xs font-semibold text-gray-400">
         <div className="col-span-2">Date</div>
         <div className="col-span-5">Job Title</div>
@@ -128,6 +129,8 @@ export function SessionHistorySection({ historyLoading, sessionHistoryRows, onOp
             );
           })
         )}
+      </div>
+      </div>
       </div>
     </div>
   );

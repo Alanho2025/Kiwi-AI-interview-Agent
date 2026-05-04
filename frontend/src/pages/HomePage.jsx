@@ -14,6 +14,7 @@ import { useNavigate } from 'react-router-dom';
 import { PrivacySecurityCard } from '../components/home/PrivacySecurityCard.jsx';
 import { HomeHeader } from '../components/home/HomeHeader.jsx';
 import { QuickTipsCard } from '../components/home/QuickTipsCard.jsx';
+import { TokenUsageSummary } from '../components/home/TokenUsageSummary.jsx';
 import { RecentActivitySection } from '../components/home/RecentActivitySection.jsx';
 import { SessionHistorySection } from '../components/home/SessionHistorySection.jsx';
 import { StartSessionCard } from '../components/home/StartSessionCard.jsx';
@@ -180,7 +181,7 @@ export default function HomePage() {
         onSignOut={handleSignOut}
       />
 
-      <main className="mx-auto mt-8 grid max-w-[1600px] grid-cols-1 gap-8 px-6 lg:grid-cols-12 lg:px-8">
+      <main className="mx-auto mt-6 sm:mt-8 grid max-w-[1600px] grid-cols-1 gap-6 sm:gap-8 px-4 sm:px-6 lg:grid-cols-12 lg:px-8">
         <div className="flex flex-col gap-6 lg:col-span-8">
           <StartSessionCard
             summary={summary}
@@ -211,7 +212,9 @@ export default function HomePage() {
             completedCount={stats.completedSessions.length}
           />
           <QuickTipsCard />
+          <TokenUsageSummary />
           <PrivacySecurityCard email={user.email} loginProvider={user.loginProvider} />
+
         </div>
       </main>
     </div>

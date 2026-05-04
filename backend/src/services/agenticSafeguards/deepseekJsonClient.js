@@ -5,7 +5,7 @@
  * - Provide safe fallback behaviour so robustness tests never depend on the network.
  */
 
-import { callDeepSeek } from '../deepseekService.js';
+import { callDeepSeek, autoRecordUsage } from '../deepseekService.js';
 import { safeJsonParse } from '../jobDescription/jobDescriptionShared.js';
 
 const stripJsonFence = (text = '') => String(text || '')
@@ -32,9 +32,13 @@ export const callDeepSeekJson = async ({
 
   for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
     try {
-      const response = await callDeepSeek(prompt, systemInstruction);
-      const parsed = parseJsonSafely(response, null);
-      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
+      const { content, usage } = await callDeepSeek(prompt, systemInstruction, { skipAutoRecord: true });
+      // Record with distinct action so we can distinguish JSON-wrapper calls
+      autoRecordUsage(usage, 'callDeepSeekJson');
+      const parsed = parseJsonSafely(content, null);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return parsed;
+      }
       lastError = new Error('DeepSeek returned non-JSON output.');
     } catch (error) {
       lastError = error;

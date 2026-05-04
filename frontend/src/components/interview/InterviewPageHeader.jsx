@@ -33,20 +33,20 @@ export function InterviewPageHeader({ session, title, roleFamilyLabel, exactRole
   if (isVoiceMode) {
     return (
       <AppHeader>
-        <div className="flex items-center justify-between gap-6 min-w-0">
+        <div className="flex flex-wrap items-center justify-between gap-3 sm:gap-6 min-w-0">
           <div className="flex items-center gap-3 min-w-0">
-            <span className="text-sm text-gray-500">Target Role</span>
-            <span className="px-4 py-2 bg-[#e6f7f0] text-[#2eb886] text-sm font-medium rounded-full max-w-[260px] truncate">
+            <span className="hidden sm:inline text-sm text-gray-500">Target Role</span>
+            <span className="px-3 py-1.5 sm:px-4 sm:py-2 bg-[#e6f7f0] text-[#2eb886] text-xs sm:text-sm font-medium rounded-full max-w-[180px] sm:max-w-[260px] truncate">
               {exactRoleTitle || roleFamilyLabel}
             </span>
           </div>
-          <div className="min-w-0 flex-1 text-center">
-            <div className="text-[28px] font-semibold text-gray-900 truncate">{buildPrimaryTitle({ isVoiceMode, title })}</div>
+          <div className="hidden sm:block min-w-0 flex-1 text-center">
+            <div className="text-lg sm:text-[28px] font-semibold text-gray-900 truncate">{buildPrimaryTitle({ isVoiceMode, title })}</div>
           </div>
-          <div className="flex items-center gap-8 shrink-0">
+          <div className="flex items-center gap-4 sm:gap-8 shrink-0">
             <div className="text-right">
               <p className="text-xs text-gray-500 uppercase tracking-wider">{timerLabel}</p>
-              <p className="text-[28px] font-mono font-medium text-gray-900">{timerValue}</p>
+              <p className="text-[20px] sm:text-[28px] font-mono font-medium text-gray-900">{timerValue}</p>
             </div>
             <div className="text-right">
               <p className="text-xs text-gray-500 uppercase tracking-wider">Progress</p>
@@ -65,7 +65,7 @@ export function InterviewPageHeader({ session, title, roleFamilyLabel, exactRole
 
   return (
     <AppHeader>
-      <div className="flex items-center justify-end gap-6 min-w-0">
+      <div className="flex flex-wrap items-center justify-end gap-3 sm:gap-6 min-w-0">
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-sm text-gray-500">Role family</span>
           <span className="px-3 py-1 bg-[#e6f7f0] text-[#2eb886] text-sm font-medium rounded-full max-w-[220px] truncate">

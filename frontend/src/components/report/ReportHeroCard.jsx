@@ -22,13 +22,13 @@ import { formatNumber, titleCase } from '../../utils/reportViewBuilder.js';
 export function ReportHeroCard({ report, qa, candidateFeedback, takeaway, scoreBand, generationSource }) {
   return (
     <Card className="border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-sky-50">
-      <CardContent className="p-8">
+      <CardContent className="p-5 sm:p-8">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
           <div className="max-w-3xl">
             <div className="mb-3 inline-flex rounded-full bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">
               Interview Report
             </div>
-            <h1 className="text-3xl font-semibold tracking-tight text-gray-900">Your Interview Feedback</h1>
+            <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-gray-900">Your Interview Feedback</h1>
             <p className="mt-3 max-w-2xl text-base leading-7 text-gray-700">{takeaway}</p>
             <div className="mt-5 flex flex-wrap gap-2">
               <span className="rounded-full bg-emerald-100 px-3 py-1 text-sm font-medium text-emerald-800">{scoreBand}</span>

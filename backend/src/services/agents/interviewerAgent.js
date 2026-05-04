@@ -347,8 +347,10 @@ GENERAL GUIDELINES:
 Generate your verbal response now:`;
 
   if (!onSentence) {
-    return await callDeepSeek(prompt, systemInstruction);
+    const result = await callDeepSeek(prompt, systemInstruction);
+    return result.content;
   }
+
 
   const stream = callDeepSeekStream(prompt, systemInstruction);
   let fullText = '';
