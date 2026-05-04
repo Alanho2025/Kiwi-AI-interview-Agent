@@ -20,7 +20,7 @@ import { TranscriptPanel } from './TranscriptPanel.jsx';
  */
 export function InterviewRightRail({ transcript, candidateName, onExport, onSubmitBackup, backupDisabled }) {
   return (
-    <div className="col-span-3 flex flex-col gap-6 h-full pb-6 min-h-0">
+    <div className="hidden lg:flex lg:col-span-3 flex-col gap-6 h-full pb-6 min-h-0">
       <div className="flex-1 overflow-hidden min-h-0">
         <TranscriptPanel transcript={transcript} onExport={onExport} candidateName={candidateName} />
       </div>
