@@ -46,6 +46,25 @@ const verifyToken = (token) => {
 };
 
 /**
+ * Extract a Bearer token from the Authorization header.
+ */
+const getBearerToken = (authorizationHeader = '') => {
+  if (!authorizationHeader.startsWith('Bearer ')) {
+    return '';
+  }
+
+  return authorizationHeader.slice(7).trim();
+};
+
+/**
+ * Resolve auth token from cookie first, then Authorization header fallback.
+ */
+const getRequestAuthToken = (req) => {
+  const cookies = parseCookies(req.headers.cookie || '');
+  return cookies.auth_token || getBearerToken(req.headers.authorization || '');
+};
+
+/**
  * Purpose: Execute the main responsibility for optionalAuth.
  * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
@@ -53,8 +72,7 @@ const verifyToken = (token) => {
  */
 export const optionalAuth = (req, _res, next) => {
   try {
-    const cookies = parseCookies(req.headers.cookie || '');
-    const token = cookies.auth_token;
+    const token = getRequestAuthToken(req);
 
     if (!token) {
       req.user = null;
