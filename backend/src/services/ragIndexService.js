@@ -10,6 +10,7 @@
  */
 
 import crypto from 'crypto';
+import { query } from '../db/postgres.js';
 import { DocumentChunk } from '../db/models/documentChunkModel.js';
 import { embedBatch, normalizeForRetrieval } from './embeddingService.js';
 import { SessionAnalysis } from '../db/models/sessionAnalysisModel.js';
@@ -85,7 +86,27 @@ export const indexTextSource = async ({ sourceType, sourceId, documentType, text
 
   for (let index = 0; index < records.length; index += 1) {
     records[index].embedding = embeddings[index];
-    await DocumentChunk.findOneAndUpdate({ chunkId: records[index].chunkId }, records[index], { upsert: true, setDefaultsOnInsert: true });
+    
+    // Format vector array to Postgres pgvector string format: '[v1,v2,...]'
+    const vectorString = `[${embeddings[index].join(',')}]`;
+    const record = records[index];
+
+    await query(
+      `INSERT INTO document_chunks (session_id, source_type, chunk_index, text_content, metadata, embedding)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT DO NOTHING`, // Add simple conflict avoidance or just let it insert duplicates for now, or maybe delete old chunks for session first
+      [
+        record.sessionId || null,
+        record.sourceType,
+        record.metadata.chunkIndex,
+        record.text,
+        JSON.stringify(record.metadata),
+        vectorString
+      ]
+    );
+
+    // Keep Mongo insertion for backward compatibility temporarily if needed
+    await DocumentChunk.findOneAndUpdate({ chunkId: record.chunkId }, record, { upsert: true, setDefaultsOnInsert: true });
   }
 
   return records;

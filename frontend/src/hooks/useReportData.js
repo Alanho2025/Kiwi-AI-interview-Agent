@@ -217,7 +217,7 @@ export function useReportData(sessionId) {
       if (format === 'pdf') {
         if (reportData) {
           await generateReportPDF(reportData);
-          setStatus(buildStatus('success', 'Report ready', 'Please use the print dialog to save as PDF.'));
+          setStatus(buildStatus('success', 'Report exported', 'Report downloaded as PDF file.'));
         } else {
           setStatus(buildStatus('error', 'Export failed', 'No report data available to export.'));
         }

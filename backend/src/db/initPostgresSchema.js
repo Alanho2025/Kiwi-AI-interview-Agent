@@ -12,6 +12,17 @@
 import { query } from './postgres.js';
 
 const statements = [
+  `CREATE EXTENSION IF NOT EXISTS vector`,
+  `CREATE TABLE IF NOT EXISTS document_chunks (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_id uuid,
+    source_type varchar(50) NOT NULL,
+    chunk_index integer NOT NULL,
+    text_content text NOT NULL,
+    metadata jsonb,
+    embedding vector(32),
+    created_at timestamptz NOT NULL DEFAULT now()
+  )`,
   `CREATE TABLE IF NOT EXISTS users (
     id uuid PRIMARY KEY,
     email varchar(255) UNIQUE NOT NULL,
