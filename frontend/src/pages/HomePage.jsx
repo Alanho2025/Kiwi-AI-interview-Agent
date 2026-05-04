@@ -180,7 +180,7 @@ export default function HomePage() {
         onSignOut={handleSignOut}
       />
 
-      <main className="mx-auto mt-8 grid max-w-[1600px] grid-cols-1 gap-8 px-6 lg:grid-cols-12 lg:px-8">
+      <main className="mx-auto mt-6 sm:mt-8 grid max-w-[1600px] grid-cols-1 gap-6 sm:gap-8 px-4 sm:px-6 lg:grid-cols-12 lg:px-8">
         <div className="flex flex-col gap-6 lg:col-span-8">
           <StartSessionCard
             summary={summary}

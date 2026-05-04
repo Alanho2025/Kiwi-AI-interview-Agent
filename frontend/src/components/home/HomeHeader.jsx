@@ -20,7 +20,7 @@ import { Bird } from 'lucide-react';
  */
 export function HomeHeader({ user, isAvatarBroken, userInitials, onAvatarError, onSignOut }) {
   return (
-    <header className="sticky top-0 z-20 flex items-center justify-between border-b border-gray-100 bg-white px-8 py-4 shadow-sm">
+    <header className="sticky top-0 z-20 flex items-center justify-between border-b border-gray-100 bg-white px-4 py-3 sm:px-8 sm:py-4 shadow-sm">
       <div className="flex items-center gap-2 text-xl font-bold text-emerald-500">
         <Bird size={28} />
         <span className="text-gray-900">Kiwi Voice Coach</span>

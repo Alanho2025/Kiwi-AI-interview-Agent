@@ -30,7 +30,7 @@ export function ReportActionBar({ loading, onGenerate, onRunQa, onExport }) {
   };
 
   return (
-    <div className="flex gap-3 relative">
+    <div className="flex flex-wrap gap-3 relative">
       <Button onClick={onGenerate} disabled={loading}>{loading ? 'Working...' : 'Generate report'}</Button>
       <Button onClick={onRunQa} variant="secondary" disabled={loading}>Run QA</Button>
       
