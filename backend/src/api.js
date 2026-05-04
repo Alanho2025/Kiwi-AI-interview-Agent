@@ -44,11 +44,11 @@ const corsOptions = {
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  optionsSuccessStatus: 204,
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
 };
 
 api.use(cors(corsOptions));
+api.options('*', cors(corsOptions));
 api.use(express.json({ limit: '2mb' }));
 api.use(requestContext);
 api.use(optionalAuth);
