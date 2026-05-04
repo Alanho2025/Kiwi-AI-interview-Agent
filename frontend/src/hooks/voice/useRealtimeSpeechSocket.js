@@ -7,18 +7,14 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { buildApiWebSocketUrl } from '../../api/client.js';
 
 const DEFAULT_LANGUAGE = 'en-NZ';
 const DEFAULT_SAMPLE_RATE = 16000;
 
 export const buildSocketUrl = ({ sessionId, language = DEFAULT_LANGUAGE, sampleRate = DEFAULT_SAMPLE_RATE }) => {
-  const apiBase = String(import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '');
   const encodedSessionId = encodeURIComponent(sessionId);
-  const livePath = `${apiBase}/interview/${encodedSessionId}/voice/live`;
-  const baseUrl = apiBase.startsWith('http')
-    ? new URL(livePath)
-    : new URL(livePath, window.location.origin);
-  baseUrl.protocol = baseUrl.protocol === 'https:' ? 'wss:' : 'ws:';
+  const baseUrl = buildApiWebSocketUrl(`interview/${encodedSessionId}/voice/live`);
   baseUrl.searchParams.set('language', language);
   baseUrl.searchParams.set('sampleRate', String(sampleRate));
   const token = window.localStorage?.getItem?.('authToken') || window.localStorage?.getItem?.('kiwi_auth_token') || '';
