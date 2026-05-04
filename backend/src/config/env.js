@@ -67,8 +67,18 @@ export const getServerPort = () => Number(getEnv('PORT') || 3000);
 /**
  * Resolve comma-separated CORS origins.
  */
+const normalizeOrigin = (origin) => String(origin).trim().replace(/\/$/, '');
+
 export const getAllowedOrigins = () => {
-  const configured = getEnv('FRONTEND_ORIGIN', 'FRONTEND_URL', 'CLIENT_ORIGIN', 'CLIENT_URL');
+  const configured = [
+    getEnv('FRONTEND_ORIGIN'),
+    getEnv('FRONTEND_URL'),
+    getEnv('CLIENT_ORIGIN'),
+    getEnv('CLIENT_URL'),
+    getEnv('ALLOWED_ORIGINS'),
+  ]
+    .filter(Boolean)
+    .flatMap((value) => value.split(','));
 
   const defaults = [
     'http://localhost:5173',
@@ -76,10 +86,9 @@ export const getAllowedOrigins = () => {
     'http://localhost:3000',
   ];
 
-  const customOrigins = configured
-    .split(',')
-    .map((origin) => origin.trim())
-    .filter(Boolean);
-
-  return [...new Set([...customOrigins, ...defaults])];
+  return [...new Set(
+    [...configured, ...defaults]
+      .map(normalizeOrigin)
+      .filter(Boolean)
+  )];
 };
