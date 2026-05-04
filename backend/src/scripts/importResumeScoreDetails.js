@@ -59,12 +59,8 @@ const renderProgressBar = (current, total, label = '', barWidth = 30) => {
   }
 };
 
-/**
- * Purpose: Execute the main responsibility for upsertMany.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
+import { query as postgresQuery } from '../db/postgres.js';
+
 const upsertMany = async (Model, items, keyField, label = 'Progress') => {
   const total = items.length;
 
@@ -78,11 +74,32 @@ const upsertMany = async (Model, items, keyField, label = 'Progress') => {
 
   for (let i = 0; i < total; i += 1) {
     const item = items[i];
+    
+    // 1. Insert to Mongo (Legacy)
     await Model.findOneAndUpdate(
       { [keyField]: item[keyField] },
       item,
       { upsert: true, setDefaultsOnInsert: true }
     );
+    
+    // 2. Insert to Postgres Vector DB if it's DocumentChunk
+    if (Model === DocumentChunk) {
+      const vectorString = `[${(item.embedding || []).join(',')}]`;
+      await postgresQuery(
+        `INSERT INTO document_chunks (session_id, source_type, chunk_index, text_content, metadata, embedding)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         ON CONFLICT DO NOTHING`,
+        [
+          item.sessionId || null,
+          item.sourceType || 'knowledge',
+          item.metadata?.chunkIndex || 0,
+          item.text || item.normalizedText || '',
+          JSON.stringify(item.metadata || {}),
+          vectorString
+        ]
+      );
+    }
+    
     renderProgressBar(i + 1, total, label);
   }
 

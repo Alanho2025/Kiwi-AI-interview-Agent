@@ -62,7 +62,7 @@ export function InterviewPage() {
   const sharedBackupDisabled = isSubmitting || session.status === 'paused' || session.status === 'completed';
 
   return (
-    <div className="min-h-screen bg-[#f9fafb] flex flex-col h-screen overflow-hidden">
+    <div className="min-h-screen bg-[#f9fafb] flex flex-col lg:h-screen lg:overflow-hidden">
       <InterviewPageHeader
         session={session}
         title={viewModel.title}
@@ -78,7 +78,7 @@ export function InterviewPage() {
         onViewReport={() => navigate(`/report/${sessionId}`)}
       />
 
-      <main className="flex-1 max-w-[1600px] w-full mx-auto p-6 grid grid-cols-12 gap-6 h-[calc(100vh-64px)] overflow-hidden min-h-0">
+      <main className="flex-1 max-w-[1600px] w-full mx-auto px-4 py-4 sm:px-6 sm:py-6 flex flex-col gap-4 lg:p-6 lg:grid lg:grid-cols-12 lg:gap-6 lg:h-[calc(100vh-64px)] lg:overflow-hidden lg:min-h-0">
         <div className="col-span-12">
           <InterviewStatusBanner status={pageStatus} onConfirmEnd={handleConfirmEnd} onCancelEnd={dismissStatus} />
         </div>
@@ -93,7 +93,7 @@ export function InterviewPage() {
           matchedAreas={viewModel.matchedAreas}
         />
 
-        <div className="col-span-6 flex flex-col h-full pb-6 min-h-0">
+        <div className="lg:col-span-6 flex flex-col min-h-[400px] lg:h-full lg:pb-6 lg:min-h-0">
           {isVoiceMode ? (
             <VoiceInterviewPanel
               session={session}

@@ -38,7 +38,7 @@ export function ReportPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <AppHeader />
-      <main className="mx-auto max-w-6xl space-y-6 px-6 py-8">
+      <main className="mx-auto max-w-6xl space-y-4 sm:space-y-6 px-4 py-6 sm:px-6 sm:py-8">
         <StatusBanner {...status} />
         <ReportActionBar 
           loading={loading} 

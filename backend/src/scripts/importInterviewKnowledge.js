@@ -28,8 +28,27 @@ const defaultInputDir = path.resolve(__dirname, '../../../data/interview-knowled
  */
 const readJson = (filePath) => JSON.parse(fs.readFileSync(filePath, 'utf8'));
 
+import { query as postgresQuery } from '../db/postgres.js';
+
 const upsertMany = async (items) => {
   for (const item of items) {
+    // 1. Insert to Postgres Vector DB
+    const vectorString = `[${(item.embedding || []).join(',')}]`;
+    await postgresQuery(
+      `INSERT INTO document_chunks (session_id, source_type, chunk_index, text_content, metadata, embedding)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT DO NOTHING`,
+      [
+        item.sessionId || null,
+        item.sourceType || 'knowledge',
+        item.metadata?.chunkIndex || 0,
+        item.text || item.normalizedText || '',
+        JSON.stringify(item.metadata || {}),
+        vectorString
+      ]
+    );
+
+    // 2. Insert to Mongo (Legacy)
     await DocumentChunk.findOneAndUpdate({ chunkId: item.chunkId }, item, { upsert: true, setDefaultsOnInsert: true });
   }
 };
