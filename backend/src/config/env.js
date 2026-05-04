@@ -65,10 +65,10 @@ export const getBooleanEnv = (name, defaultValue = false) => {
 export const getServerPort = () => Number(getEnv('PORT') || 3000);
 
 /**
- * Resolve comma-separated CORS origins.
+ * Normalize one CORS origin value. Render/Vercel sometimes provide domains without protocol.
  */
 const normalizeOrigin = (origin) => {
-  const trimmed = String(origin).trim().replace(/\/$/, '');
+  const trimmed = String(origin || '').trim().replace(/\/$/, '');
 
   if (!trimmed) {
     return '';
@@ -81,11 +81,9 @@ const normalizeOrigin = (origin) => {
   return `https://${trimmed}`;
 };
 
-const splitOrigins = (value) => String(value || '')
-  .split(',')
-  .map(normalizeOrigin)
-  .filter(Boolean);
-
+/**
+ * Resolve comma-separated CORS origins for local, Vercel, and Render deployment.
+ */
 export const getAllowedOrigins = () => {
   const configured = [
     getEnv('FRONTEND_ORIGIN'),
@@ -95,7 +93,8 @@ export const getAllowedOrigins = () => {
     getEnv('ALLOWED_ORIGINS'),
     getEnv('VERCEL_URL'),
   ]
-    .flatMap(splitOrigins);
+    .filter(Boolean)
+    .flatMap((value) => value.split(','));
 
   const defaults = [
     'http://localhost:5173',
@@ -103,7 +102,9 @@ export const getAllowedOrigins = () => {
     'http://localhost:3000',
   ];
 
-  return [...new Set([...configured, ...defaults])];
+  return [...new Set(
+    [...configured, ...defaults]
+      .map(normalizeOrigin)
+      .filter(Boolean)
+  )];
 };
-
-export const isProduction = () => getEnv('NODE_ENV') === 'production';
