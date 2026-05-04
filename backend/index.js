@@ -47,7 +47,10 @@ async function startServer() {
       res.json({ ok: true, service: 'kiwi-ai-agent-backend', health: '/api/health' });
     });
 
+    // Keep the canonical /api routes, and also support legacy frontend builds
+    // that still call /auth/... without the /api prefix.
     app.use('/api', api);
+    app.use('/', api);
 
     const server = http.createServer(app);
     attachRealtimeVoiceSocketServer(server);
