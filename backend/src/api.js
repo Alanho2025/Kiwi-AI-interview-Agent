@@ -21,7 +21,10 @@ import authRoutes from './api/routes/authRoutes.js';
 import ragRoutes from './api/routes/ragRoutes.js';
 import reportRoutes from './api/routes/reportRoutes.js';
 import healthRoutes from './api/routes/healthRoutes.js';
+import usageRoutes from './api/routes/usageRoutes.js';
+import { usageContextMiddleware } from './services/deepseekService.js';
 import { errorHandler } from './middleware/errorHandler.js';
+
 import { requestContext } from './middleware/requestContext.js';
 import { optionalAuth, requireAuth } from './middleware/authMiddleware.js';
 import { getAllowedOrigins, loadEnv } from './config/env.js';
@@ -53,8 +56,13 @@ api.use(express.json({ limit: '2mb' }));
 api.use(requestContext);
 api.use(optionalAuth);
 
+// Per-request token usage tracking context via AsyncLocalStorage.
+// All downstream DeepSeek calls within the same request will see this context.
+api.use(usageContextMiddleware);
+
 api.use('/health', healthRoutes);
 api.use('/auth', authRoutes);
+
 api.use('/upload', requireAuth, uploadRoutes);
 api.use('/job-description', requireAuth, jobDescriptionRoutes);
 api.use('/analyze', requireAuth, analyzeRoutes);
@@ -62,8 +70,10 @@ api.use('/interview', requireAuth, interviewRoutes);
 api.use('/session', requireAuth, sessionRoutes);
 api.use('/export', requireAuth, exportRoutes);
 api.use('/rag', requireAuth, ragRoutes);
-api.use('/report', requireAuth, reportRoutes);
+api.use('/usage', requireAuth, usageRoutes);
 
 api.use(errorHandler);
 
 export default api;
+
+

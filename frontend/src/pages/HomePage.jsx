@@ -14,6 +14,7 @@ import { useNavigate } from 'react-router-dom';
 import { PrivacySecurityCard } from '../components/home/PrivacySecurityCard.jsx';
 import { HomeHeader } from '../components/home/HomeHeader.jsx';
 import { QuickTipsCard } from '../components/home/QuickTipsCard.jsx';
+import { TokenUsageSummary } from '../components/home/TokenUsageSummary.jsx';
 import { RecentActivitySection } from '../components/home/RecentActivitySection.jsx';
 import { SessionHistorySection } from '../components/home/SessionHistorySection.jsx';
 import { StartSessionCard } from '../components/home/StartSessionCard.jsx';
@@ -211,7 +212,9 @@ export default function HomePage() {
             completedCount={stats.completedSessions.length}
           />
           <QuickTipsCard />
+          <TokenUsageSummary />
           <PrivacySecurityCard email={user.email} loginProvider={user.loginProvider} />
+
         </div>
       </main>
     </div>
