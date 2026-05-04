@@ -50,8 +50,9 @@ Settings: ${JSON.stringify(settings)}
 CV Text:\n${String(cvText || '').slice(0, 1800)}\n\nJD Text:\n${String(jdText || '').slice(0, 1800)}`;
 
   try {
-    const responseText = await callDeepSeek(prompt, 'You output valid JSON only.');
+    const { content: responseText } = await callDeepSeek(prompt, 'You output valid JSON only.');
     const result = JSON.parse(extractJsonObject(responseText));
+
     return validateInterviewPlan({
       schemaVersion: 'v3',
       candidateName: result.candidateName || analysisResult.candidateName || 'Candidate',

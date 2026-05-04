@@ -79,12 +79,12 @@ export default function Login() {
   return (
     <div className="min-h-screen bg-[#f8fafc] flex flex-col font-sans relative overflow-hidden">
       {/* 头部导航栏（保持不变） */}
-      <header className="flex justify-between items-center px-8 py-6 w-full absolute top-0 z-20">
-        <div className="flex items-center gap-2 text-emerald-500 font-bold text-xl">
+      <header className="flex justify-between items-center px-4 py-4 sm:px-8 sm:py-6 w-full absolute top-0 z-20">
+        <div className="flex items-center gap-2 text-emerald-500 font-bold text-lg sm:text-xl">
           <Bird size={28} />
           <span className="text-gray-900">Kiwi Voice Coach</span>
         </div>
-        <div className="text-sm text-gray-400">
+        <div className="hidden sm:block text-sm text-gray-400">
           New to Kiwi Voice Coach?
         </div>
       </header>

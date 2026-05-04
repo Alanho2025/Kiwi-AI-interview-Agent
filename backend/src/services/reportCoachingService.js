@@ -269,7 +269,8 @@ export const generateCandidateFeedback = async ({
   });
 
   try {
-    const responseText = await callDeepSeek(prompt, 'You output valid JSON only. Stay grounded in the provided evidence and never invent facts.');
+    const { content: responseText } = await callDeepSeek(prompt, 'You output valid JSON only. Stay grounded in the provided evidence and never invent facts.');
+
     const parsed = JSON.parse(extractJsonObject(responseText));
     return normalizeCandidateFeedback({ ...parsed, generationSource: 'ai' }, deterministicFeedback);
   } catch (error) {

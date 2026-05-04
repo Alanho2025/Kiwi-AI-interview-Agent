@@ -11,6 +11,7 @@
 
 import { DocumentChunk } from '../db/models/documentChunkModel.js';
 import { cosineSimilarity, embedText, normalizeForRetrieval } from './embeddingService.js';
+import { query as postgresQuery } from '../db/postgres.js';
 
 /**
  * Purpose: Execute the main responsibility for tokenize.
@@ -48,39 +49,62 @@ export const retrieveChunks = async ({
   query,
   topK = 5,
   sourceTypes = [],
-  sourceId = null,
+  sourceId = null, // Deprecated in pg schema, mapped to metadata
   sessionId = null,
   minimumScore = 0.05,
 } = {}) => {
-  const mongoFilter = {};
-  if (sourceTypes?.length) {
-    mongoFilter.sourceType = { $in: sourceTypes };
-  }
-  if (sourceId) {
-    mongoFilter.sourceId = sourceId;
-  }
-  if (sessionId) {
-    mongoFilter.$or = [{ sessionId }, { 'metadata.sessionId': sessionId }];
-  }
-
   const queryEmbedding = await embedText(query || '');
   const queryTokens = tokenize(query || '');
-  const candidateChunks = await DocumentChunk.find(mongoFilter).lean();
+  const vectorString = `[${queryEmbedding.join(',')}]`;
+
+  // Build Postgres Query
+  let sql = `
+    SELECT 
+      id as "chunkId", 
+      source_type as "sourceType", 
+      session_id as "sessionId", 
+      text_content as "text", 
+      metadata,
+      1 - (embedding <=> $1) AS semantic
+    FROM document_chunks
+    WHERE 1=1
+  `;
+  const params = [vectorString];
+  let paramCounter = 2;
+
+  if (sourceTypes?.length) {
+    sql += ` AND source_type = ANY($${paramCounter})`;
+    params.push(sourceTypes);
+    paramCounter++;
+  }
+  if (sessionId) {
+    sql += ` AND session_id = $${paramCounter}`;
+    params.push(sessionId);
+    paramCounter++;
+  }
+
+  // Use pgvector to pre-filter or just calculate semantic score, we limit to 100 for fusion
+  sql += ` ORDER BY embedding <=> $1 LIMIT 100`;
+
+  const { rows: candidateChunks } = await postgresQuery(sql, params);
 
   return candidateChunks
     .map((chunk) => {
-      const semantic = cosineSimilarity(queryEmbedding, chunk.embedding || []);
-      const keyword = keywordScore(queryTokens, chunk.normalizedText || chunk.text || '');
-      const metadataBoost = sourceId && chunk.sourceId === sourceId ? 1 : sessionId && chunk.sessionId === sessionId ? 0.75 : 0;
+      const semantic = chunk.semantic || 0;
+      const keyword = keywordScore(queryTokens, chunk.text || '');
+      const metadataObj = chunk.metadata || {};
+      
+      // Legacy metadata boost logic
+      const metadataBoost = sourceId && metadataObj.sourceId === sourceId ? 1 : sessionId && chunk.sessionId === sessionId ? 0.75 : 0;
       const fusionScore = computeFusionScore({ semantic, keyword, metadata: metadataBoost });
 
       return {
         chunkId: chunk.chunkId,
         sourceType: chunk.sourceType,
-        sourceId: chunk.sourceId,
+        sourceId: metadataObj.sourceId || sourceId,
         sessionId: chunk.sessionId,
         text: chunk.text,
-        metadata: chunk.metadata || {},
+        metadata: metadataObj,
         scores: { semantic, keyword, metadata: metadataBoost, fusion: fusionScore },
       };
     })

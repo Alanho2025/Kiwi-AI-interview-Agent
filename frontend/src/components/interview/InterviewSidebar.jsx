@@ -36,7 +36,7 @@ const buildFocusDescription = ({ currentPlanItem, enableNZCultureFit, promiseLab
  */
 export function InterviewSidebar({ session, currentPlanItem, promiseLabel, levelLabel, modeLabel, currentFocusLabel, matchedAreas = [] }) {
   return (
-    <div className="col-span-3 flex flex-col gap-6 overflow-y-auto pr-2 pb-6 min-h-0">
+    <div className="hidden lg:flex lg:col-span-3 flex-col gap-6 overflow-y-auto pr-2 pb-6 min-h-0">
       <CandidateCard
         candidateName={session?.candidateName}
         status={session?.status === 'in_progress' ? 'Live' : session?.status}
