@@ -7,6 +7,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { buildApiWebSocketUrl } from '../../api/client.js';
 
 const DEFAULT_LANGUAGE = 'en-NZ';
 const DEFAULT_SAMPLE_RATE = 16000;
@@ -18,13 +19,8 @@ export const buildDuplexSocketUrl = ({
   sampleRate = DEFAULT_SAMPLE_RATE,
   voiceName = DEFAULT_VOICE_NAME,
 }) => {
-  const apiBase = String(import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '');
   const encodedSessionId = encodeURIComponent(sessionId);
-  const duplexPath = `${apiBase}/interview/${encodedSessionId}/voice/duplex`;
-  const baseUrl = apiBase.startsWith('http')
-    ? new URL(duplexPath)
-    : new URL(duplexPath, window.location.origin);
-  baseUrl.protocol = baseUrl.protocol === 'https:' ? 'wss:' : 'ws:';
+  const baseUrl = buildApiWebSocketUrl(`interview/${encodedSessionId}/voice/duplex`);
   baseUrl.searchParams.set('language', language);
   baseUrl.searchParams.set('sampleRate', String(sampleRate));
   baseUrl.searchParams.set('voiceName', voiceName);

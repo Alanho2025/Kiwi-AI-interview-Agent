@@ -1,38 +1,76 @@
 /**
- * File responsibility: Application module.
+ * File responsibility: Shared API client and URL builders.
  * Main responsibilities:
- * - Keep presentation, state orchestration, and display helpers separated so React components stay reusable.
- * - Main file role: client should keep its module boundaries clear and focused.
- * - Prefer extending behaviour by adding small helpers or sibling modules instead of growing one large file.
+ * - Keep HTTP requests pointed at the backend /api namespace in every environment.
+ * - Keep credentials included for cookie-based auth.
+ * - Build matching WebSocket URLs for voice interview endpoints.
  * Maintenance notes:
- * - Keep this file focused on one layer of responsibility.
- * - Prefer composition and small helpers over repeated inline logic.
+ * - VITE_API_BASE_URL should normally be the backend origin only, without /api.
+ * - The helpers below also tolerate an env value that already includes /api.
  */
+
+const API_NAMESPACE = '/api';
 
 /**
- * Purpose: Execute the main responsibility for normalizeBaseUrl.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ * Remove trailing slashes from a URL-like value.
+ */
+const trimTrailingSlashes = (value) => String(value || '').replace(/\/+$/, '');
+
+/**
+ * Remove leading slashes from an endpoint path.
+ */
+const trimLeadingSlashes = (value) => String(value || '').replace(/^\/+/, '');
+
+/**
+ * Resolve the configured backend origin.
+ * In local development, an empty env value keeps using Vite's /api proxy.
+ */
+export const getApiOrigin = () => trimTrailingSlashes(import.meta.env.VITE_API_BASE_URL || '');
+
+/**
+ * Normalize the configured backend URL so HTTP calls always include /api.
  */
 export const normalizeBaseUrl = (value) => {
-  if (!value) {
-    return '/api';
+  const trimmedValue = trimTrailingSlashes(value);
+
+  if (!trimmedValue) {
+    return API_NAMESPACE;
   }
 
-  return value.replace(/\/+$/, '');
+  if (trimmedValue.endsWith(API_NAMESPACE)) {
+    return trimmedValue;
+  }
+
+  return `${trimmedValue}${API_NAMESPACE}`;
 };
 
 /**
- * Purpose: Execute the main responsibility for apiClient.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ * Build a full API URL for fetch requests.
+ */
+export const buildApiUrl = (endpoint = '') => {
+  const baseUrl = normalizeBaseUrl(import.meta.env.VITE_API_BASE_URL);
+  const cleanEndpoint = trimLeadingSlashes(endpoint);
+  return cleanEndpoint ? `${baseUrl}/${cleanEndpoint}` : baseUrl;
+};
+
+/**
+ * Build a full backend WebSocket URL for voice requests.
+ */
+export const buildApiWebSocketUrl = (endpoint = '') => {
+  const apiBaseUrl = buildApiUrl(endpoint);
+  const absoluteUrl = apiBaseUrl.startsWith('http')
+    ? new URL(apiBaseUrl)
+    : new URL(apiBaseUrl, window.location.origin);
+
+  absoluteUrl.protocol = absoluteUrl.protocol === 'https:' ? 'wss:' : 'ws:';
+  return absoluteUrl;
+};
+
+/**
+ * Execute a JSON or FormData API request.
  */
 export const apiClient = async (endpoint, options = {}) => {
-  const baseUrl = normalizeBaseUrl(import.meta.env.VITE_API_BASE_URL);
-  const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-  const url = `${baseUrl}${normalizedEndpoint}`;
+  const url = buildApiUrl(endpoint);
 
   const defaultHeaders = {};
   if (!(options.body instanceof FormData)) {
@@ -65,20 +103,14 @@ export const apiClient = async (endpoint, options = {}) => {
   return payload.data;
 };
 
-
-/**
- * Purpose: Execute the main responsibility for apiGet.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
 export const apiGet = (endpoint, options = {}) => apiClient(endpoint, { method: 'GET', ...options });
 export const apiPost = (endpoint, body, options = {}) => apiClient(endpoint, { method: 'POST', body, ...options });
 
+/**
+ * Execute an API request that returns a stream response.
+ */
 export const apiClientStream = async (endpoint, options = {}) => {
-  const baseUrl = normalizeBaseUrl(import.meta.env.VITE_API_BASE_URL);
-  const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-  const url = `${baseUrl}${normalizedEndpoint}`;
+  const url = buildApiUrl(endpoint);
 
   const defaultHeaders = {};
   if (!(options.body instanceof FormData)) {
