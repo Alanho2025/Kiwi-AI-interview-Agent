@@ -31,16 +31,21 @@ const api = express.Router();
 
 const allowedOrigins = getAllowedOrigins();
 
-api.use(cors({
+console.log('[CORS] Allowed origins:', allowedOrigins);
+
+const corsOptions = {
   origin(origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
 
+    console.warn('[CORS] Blocked origin:', origin);
     return callback(new Error(`CORS origin not allowed: ${origin}`));
   },
   credentials: true,
-}));
+};
+
+api.options('*', cors(corsOptions));
 api.options('*', cors({
   origin(origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {
