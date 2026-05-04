@@ -9,12 +9,14 @@
  * - Prefer composition and small helpers over repeated inline logic.
  */
 
+import { AsyncLocalStorage } from 'async_hooks';
+
 /**
- * Purpose: Execute the main responsibility for callDeepSeek.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
+ * Per-request storage for usage tracking context (userId, sessionId).
+ * Set by API middleware; consumed by autoRecordUsage.
  */
+const usageContextStorage = new AsyncLocalStorage();
+
 const isMockAiMode = () => process.env.AI_TEST_MODE === 'mock';
 const isRealAiMode = () => process.env.AI_TEST_MODE === 'real';
 const buildMockDeepSeekResponse = () => 'This is a mock response from DeepSeek. Please set DEEPSEEK_API_KEY to run real AI eval.';
@@ -30,11 +32,57 @@ const resolveDeepSeekApiKey = () => {
   return null;
 };
 
-export const callDeepSeek = async (prompt, systemInstruction = '') => {
+/**
+ * Extract token usage from a DeepSeek API response.
+ * Returns { promptTokens, completionTokens } or null if unavailable.
+ */
+export const extractUsage = (data) => {
+  if (data?.usage?.prompt_tokens != null && data?.usage?.completion_tokens != null) {
+    return {
+      promptTokens:     data.usage.prompt_tokens,
+      completionTokens: data.usage.completion_tokens,
+    };
+  }
+  return null;
+};
+
+/** Return the current request's usage context store. */
+export const getUsageContextStore = () => usageContextStorage.getStore();
+
+/**
+ * Express middleware that wraps downstream handlers in an AsyncLocalStorage run context.
+ * Usage: api.use(usageContextMiddleware);
+ */
+export const usageContextMiddleware = (req, _res, next) => {
+  const ctx = req.user?.id
+    ? { userId: req.user.id, sessionId: req.params?.sessionId || req.body?.sessionId || null }
+    : null;
+  usageContextStorage.run(ctx, () => next());
+};
+
+
+export const autoRecordUsage = (usage, action = 'callDeepSeek') => {
+  if (!usage) return;
+  const ctx = getUsageContextStore();
+  if (!ctx?.userId) return;
+
+  // Dynamic import to avoid circular dependency
+  import('./usageTrackingService.js').then(({ recordTokenUsage }) => {
+    recordTokenUsage({
+      userId: ctx.userId,
+      sessionId: ctx.sessionId || null,
+      action,
+      promptTokens: usage.promptTokens,
+      completionTokens: usage.completionTokens,
+    }).catch((err) => console.warn('Failed to record token usage:', err?.message));
+  });
+};
+
+export const callDeepSeek = async (prompt, systemInstruction = '', { skipAutoRecord = false } = {}) => {
   try {
     const apiKey = resolveDeepSeekApiKey();
     if (!apiKey) {
-      return buildMockDeepSeekResponse();
+      return { content: buildMockDeepSeekResponse(), usage: null };
     }
 
     const response = await fetch('https://api.deepseek.com/chat/completions', {
@@ -57,7 +105,12 @@ export const callDeepSeek = async (prompt, systemInstruction = '') => {
     }
 
     const data = await response.json();
-    return data.choices[0].message.content;
+    const usage = extractUsage(data);
+    if (!skipAutoRecord) autoRecordUsage(usage);
+    return {
+      content: data.choices[0].message.content,
+      usage,
+    };
   } catch (error) {
     console.error('DeepSeek API Error:', error);
     throw error;
@@ -85,6 +138,7 @@ export const callDeepSeekStream = async function* (prompt, systemInstruction = '
     body: JSON.stringify({
       model: 'deepseek-chat',
       stream: true,
+      stream_options: { include_usage: true },
       messages: [
         { role: 'system', content: systemInstruction || 'You are a helpful assistant.' },
         { role: 'user', content: prompt }
@@ -99,6 +153,7 @@ export const callDeepSeekStream = async function* (prompt, systemInstruction = '
   const reader = response.body.getReader();
   const decoder = new TextDecoder('utf-8');
   let buffer = '';
+  let streamUsage = null;
 
   while (true) {
     const { done, value } = await reader.read();
@@ -115,10 +170,17 @@ export const callDeepSeekStream = async function* (prompt, systemInstruction = '
           const data = JSON.parse(trimmed.slice(6));
           const chunk = data.choices?.[0]?.delta?.content || '';
           if (chunk) yield chunk;
+          // Capture usage from the final chunk (DeepSeek sends it when stream_options.include_usage is true)
+          if (data.usage) {
+            streamUsage = extractUsage(data);
+          }
         } catch (e) {
           // ignore incomplete JSON chunks
         }
       }
     }
   }
+
+  // Record streaming usage after the generator completes
+  autoRecordUsage(streamUsage, 'callDeepSeek');
 };
