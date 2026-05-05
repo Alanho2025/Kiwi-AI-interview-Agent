@@ -30,6 +30,7 @@ const getTraceMeta = (trace = null) => {
   const finalTranscript = getLatestEvent(trace, 'final_transcript_received') || {};
   return {
     traceId: trace?.traceId || 'n/a',
+    turnId: trace?.turnId || 'n/a',
     vadPauseCandidateMs: formatVoiceLatencyMs(vadConfig.pauseCandidateMs),
     vadPauseConfirmMs: formatVoiceLatencyMs(vadConfig.pauseConfirmMs),
     vadSilenceToStopMs: formatVoiceLatencyMs(vadConfig.silenceToStopMs),
@@ -42,12 +43,32 @@ const removeEmptyLatencyFields = (summary) => Object.fromEntries(
   Object.entries(summary).filter(([, value]) => value !== 'n/a' && value !== null && value !== undefined)
 );
 
-export const buildVoiceLatencyConsoleSummary = ({ trace = null, backendLatency = null, phase = 'turn' } = {}) => {
+export const buildVoiceLatencyTargetSummary = ({ trace = null, backendLatency = null, phase = 'turn' } = {}) => {
+  const derived = trace?.derived || {};
+  const summary = {
+    phase,
+    traceId: trace?.traceId || 'n/a',
+    turnId: trace?.turnId || 'n/a',
+    targetSpeechEndToAiSpeechStart: formatVoiceLatencyMs(
+      derived.speechEndToAiSpeechStartMs ?? derived.vadToPlaybackMs ?? derived.stopToNextAudioMs
+    ),
+    backendFirstAudioSent: formatVoiceLatencyMs(getBackendMarkMs(backendLatency, 'first_audio_sent')),
+    backendTotal: formatVoiceLatencyMs(backendLatency?.totalMs),
+    transcriptSource: getLatestEvent(trace, 'final_transcript_received')?.source || 'n/a',
+    usedPartialFallback: String(Boolean(getLatestEvent(trace, 'final_transcript_received')?.usedPartialFallback)),
+  };
+  return removeEmptyLatencyFields(summary);
+};
+
+export const buildVoiceLatencyDebugSummary = ({ trace = null, backendLatency = null, phase = 'turn' } = {}) => {
   const derived = trace?.derived || {};
   const summary = {
     phase,
     ...getTraceMeta(trace),
-    clientVadToPlayback: formatVoiceLatencyMs(derived.vadToPlaybackMs ?? derived.stopToNextAudioMs),
+    clientSpeechEndToAiSpeechStart: formatVoiceLatencyMs(
+      derived.speechEndToAiSpeechStartMs ?? derived.vadToPlaybackMs ?? derived.stopToNextAudioMs
+    ),
+    clientStopToSubmit: formatVoiceLatencyMs(derived.stopToSubmitMs),
     clientSubmitToFirstAudioChunk: formatVoiceLatencyMs(derived.submitToFirstAudioChunkMs),
     clientSubmitToPlaybackStart: formatVoiceLatencyMs(derived.submitToPlaybackStartMs),
     clientSttFinalisation: formatVoiceLatencyMs(derived.sttFinalisationMs),
@@ -91,3 +112,5 @@ export const buildVoiceLatencyConsoleSummary = ({ trace = null, backendLatency =
   };
   return removeEmptyLatencyFields(summary);
 };
+
+export const buildVoiceLatencyConsoleSummary = buildVoiceLatencyDebugSummary;

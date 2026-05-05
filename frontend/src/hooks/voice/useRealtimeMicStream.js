@@ -50,6 +50,7 @@ export function useRealtimeMicStream({ onAudioChunk }) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [levelHistory, setLevelHistory] = useState([]);
   const [durationMs, setDurationMs] = useState(0);
+  const modeRef = useRef({ sendAudio: true });
   const [mediaStream, setMediaStream] = useState(null);
 
   const stopStream = useCallback(async () => {
@@ -67,7 +68,15 @@ export function useRealtimeMicStream({ onAudioChunk }) {
     setIsStreaming(false);
   }, []);
 
-  const startStream = useCallback(async () => {
+  const setSendAudio = useCallback((sendAudio) => {
+    modeRef.current = {
+      ...modeRef.current,
+      sendAudio: Boolean(sendAudio),
+    };
+  }, []);
+
+  const startStream = useCallback(async (options = {}) => {
+    modeRef.current = { sendAudio: options.sendAudio !== false };
     await stopStream();
     const stream = await navigator.mediaDevices.getUserMedia({
       audio: {
@@ -84,7 +93,9 @@ export function useRealtimeMicStream({ onAudioChunk }) {
     processor.onaudioprocess = (event) => {
       const input = event.inputBuffer.getChannelData(0);
       const downsampled = downsampleBuffer(input, audioContext.sampleRate, TARGET_SAMPLE_RATE);
-      onAudioChunk?.(floatTo16BitPcm(downsampled));
+      if (modeRef.current.sendAudio) {
+        onAudioChunk?.(floatTo16BitPcm(downsampled));
+      }
       const rms = calculateRmsLevel(input);
       setLevelHistory((history) => [...history.slice(-41), Math.min(1, rms * 18)]);
     };
@@ -113,5 +124,6 @@ export function useRealtimeMicStream({ onAudioChunk }) {
     mediaStream,
     startStream,
     stopStream,
+    setSendAudio,
   };
 }

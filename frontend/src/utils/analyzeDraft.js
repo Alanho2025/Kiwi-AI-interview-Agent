@@ -1,66 +1,21 @@
 /**
- * File responsibility: Utility module.
+ * File responsibility: Analyze page draft persistence.
  * Main responsibilities:
- * - Keep presentation, state orchestration, and display helpers separated so React components stay reusable.
- * - Main file role: analyzeDraft should provide focused helper logic without reaching into unrelated domain state.
- * - Prefer extending behaviour by adding small helpers or sibling modules instead of growing one large file.
- * Maintenance notes:
- * - Keep this file focused on one layer of responsibility.
- * - Prefer composition and small helpers over repeated inline logic.
+ * - Restore CV, JD, and analysis draft content between page visits.
+ * - Reuse the shared session settings source so Home and Analyze stay aligned.
+ * - Keep microphone and speaker checks out of draft defaults because they run inside Voice Session.
  */
 
+import {
+  DEFAULT_ANALYZE_MODE,
+  DEFAULT_SESSION_SETTINGS,
+  loadSessionDefaults,
+  sanitizeSessionMode,
+  sanitizeSessionSettings,
+} from './sessionSettings.js';
+
 export const ANALYZE_DRAFT_KEY = 'kiwi-analyze-draft';
-export const HOME_SESSION_DEFAULTS_KEY = 'kiwi-home-session-defaults';
-
-export const DEFAULT_ANALYZE_MODE = 'text';
-
-export const DEFAULT_VOICE_DEVICE_CHECK = {
-  mic: {
-    status: 'idle',
-    deviceLabel: '',
-    error: '',
-  },
-  speaker: {
-    status: 'idle',
-    error: '',
-  },
-  checkedAt: '',
-};
-
-export const DEFAULT_ANALYZE_SETTINGS = {
-  seniorityLevel: 'Junior/Grad',
-  enableNZCultureFit: false,
-  focusArea: 'Combined',
-  controlMode: 'question_limited',
-  questionLimit: 8,
-  timeLimitMinutes: 15,
-  voiceDeviceCheck: DEFAULT_VOICE_DEVICE_CHECK,
-};
-
-const ALLOWED_SENIORITY = new Set(['Junior/Grad', 'Intermediate', 'Advanced']);
-const ALLOWED_FOCUS = new Set(['Technical', 'Behavioral', 'Combined']);
-const ALLOWED_SESSION_MODES = new Set(['text', 'voice']);
-const ALLOWED_CONTROL_MODES = new Set(['question_limited', 'time_limited']);
-const ALLOWED_QUESTION_LIMITS = new Set([8, 12, 15]);
-const ALLOWED_TIME_LIMITS = new Set([15, 30]);
-const ALLOWED_DEVICE_STATUSES = new Set(['idle', 'checking', 'ok', 'blocked', 'missing', 'error']);
-
-export const sanitizeAnalyzeMode = (value) => (ALLOWED_SESSION_MODES.has(value) ? value : DEFAULT_ANALYZE_MODE);
-
-const sanitizeDeviceStatus = (value) => (ALLOWED_DEVICE_STATUSES.has(value) ? value : 'idle');
-
-export const sanitizeVoiceDeviceCheck = (input) => ({
-  mic: {
-    status: sanitizeDeviceStatus(input?.mic?.status),
-    deviceLabel: typeof input?.mic?.deviceLabel === 'string' ? input.mic.deviceLabel : '',
-    error: typeof input?.mic?.error === 'string' ? input.mic.error : '',
-  },
-  speaker: {
-    status: sanitizeDeviceStatus(input?.speaker?.status),
-    error: typeof input?.speaker?.error === 'string' ? input.speaker.error : '',
-  },
-  checkedAt: typeof input?.checkedAt === 'string' ? input.checkedAt : '',
-});
+export { DEFAULT_ANALYZE_MODE, DEFAULT_SESSION_SETTINGS as DEFAULT_ANALYZE_SETTINGS, sanitizeSessionMode as sanitizeAnalyzeMode, sanitizeSessionSettings as sanitizeAnalyzeSettings };
 
 const sanitizeSelectedCv = (selectedCV) => {
   if (!selectedCV || typeof selectedCV !== 'object') {
@@ -84,38 +39,6 @@ const sanitizeSelectedCv = (selectedCV) => {
   };
 };
 
-/**
- * Purpose: Execute the main responsibility for sanitizeAnalyzeSettings.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
-export const sanitizeAnalyzeSettings = (input) => ({
-  seniorityLevel: ALLOWED_SENIORITY.has(input?.seniorityLevel)
-    ? input.seniorityLevel
-    : DEFAULT_ANALYZE_SETTINGS.seniorityLevel,
-  enableNZCultureFit: Boolean(input?.enableNZCultureFit),
-  focusArea: ALLOWED_FOCUS.has(input?.focusArea)
-    ? input.focusArea
-    : DEFAULT_ANALYZE_SETTINGS.focusArea,
-  controlMode: ALLOWED_CONTROL_MODES.has(input?.controlMode)
-    ? input.controlMode
-    : DEFAULT_ANALYZE_SETTINGS.controlMode,
-  questionLimit: ALLOWED_QUESTION_LIMITS.has(Number(input?.questionLimit))
-    ? Number(input.questionLimit)
-    : DEFAULT_ANALYZE_SETTINGS.questionLimit,
-  timeLimitMinutes: ALLOWED_TIME_LIMITS.has(Number(input?.timeLimitMinutes))
-    ? Number(input.timeLimitMinutes)
-    : DEFAULT_ANALYZE_SETTINGS.timeLimitMinutes,
-  voiceDeviceCheck: sanitizeVoiceDeviceCheck(input?.voiceDeviceCheck),
-});
-
-/**
- * Purpose: Execute the main responsibility for resolveAnalyzeStep.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
 export const resolveAnalyzeStep = (analysisStatus) => {
   if (analysisStatus === 'matching' || analysisStatus === 'summarizing') {
     return 2;
@@ -128,32 +51,8 @@ export const resolveAnalyzeStep = (analysisStatus) => {
   return 1;
 };
 
-/**
- * Purpose: Execute the main responsibility for loadHomeSessionDefaults.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
-export const loadHomeSessionDefaults = () => {
-  try {
-    const rawHomeDefaults = window.localStorage.getItem(HOME_SESSION_DEFAULTS_KEY);
-    return rawHomeDefaults
-      ? sanitizeAnalyzeSettings(JSON.parse(rawHomeDefaults))
-      : sanitizeAnalyzeSettings(DEFAULT_ANALYZE_SETTINGS);
-  } catch (error) {
-    console.error('Failed to restore homepage session defaults', error);
-    return sanitizeAnalyzeSettings(DEFAULT_ANALYZE_SETTINGS);
-  }
-};
-
-/**
- * Purpose: Execute the main responsibility for loadAnalyzeDraft.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
 export const loadAnalyzeDraft = () => {
-  const homeDefaults = loadHomeSessionDefaults();
+  const homeDefaults = loadSessionDefaults();
 
   try {
     const savedDraft = window.localStorage.getItem(ANALYZE_DRAFT_KEY);
@@ -170,7 +69,6 @@ export const loadAnalyzeDraft = () => {
     }
 
     const parsed = JSON.parse(savedDraft);
-    const draftSettings = parsed.settings ? sanitizeAnalyzeSettings(parsed.settings) : homeDefaults;
 
     return {
       selectedCV: sanitizeSelectedCv(parsed.selectedCV),
@@ -178,11 +76,8 @@ export const loadAnalyzeDraft = () => {
       structuredJD: parsed.structuredJD || '',
       structuredJDRubric: parsed.structuredJDRubric || null,
       summarizedRawJD: parsed.summarizedRawJD || '',
-      settings: {
-        ...draftSettings,
-        voiceDeviceCheck: homeDefaults.voiceDeviceCheck,
-      },
-      sessionMode: sanitizeAnalyzeMode(parsed.sessionMode),
+      settings: parsed.settings ? sanitizeSessionSettings(parsed.settings) : homeDefaults,
+      sessionMode: sanitizeSessionMode(parsed.sessionMode),
     };
   } catch (error) {
     console.error('Failed to restore analyze draft', error);
@@ -198,16 +93,11 @@ export const loadAnalyzeDraft = () => {
   }
 };
 
-/**
- * Purpose: Execute the main responsibility for persistAnalyzeDraft.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
 export const persistAnalyzeDraft = (draft) => {
   window.localStorage.setItem(ANALYZE_DRAFT_KEY, JSON.stringify({
     ...draft,
-    settings: sanitizeAnalyzeSettings(draft.settings),
+    settings: sanitizeSessionSettings(draft.settings),
+    sessionMode: sanitizeSessionMode(draft.sessionMode),
     selectedCV: sanitizeSelectedCv(draft.selectedCV),
   }));
 };
