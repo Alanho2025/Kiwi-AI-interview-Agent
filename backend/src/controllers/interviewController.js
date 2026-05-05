@@ -314,13 +314,10 @@ export const repeatQuestion = asyncHandler(async (req, res) => {
 
   const session = await loadOwnedSessionOrThrow({ sessionId, userId: user.id });
   const lastAiMessage = session.transcript.filter((message) => message.role === 'ai').pop();
-  const preamble = String(lastAiMessage?.metadata?.preamble || '').trim();
   const question = String(lastAiMessage?.text || '').trim();
   res.json(formatSuccess('Question repeated', {
     question,
-    displayText: preamble && question ? `${preamble}
-
-${question}` : question,
+    displayText: question,
   }));
 });
 
