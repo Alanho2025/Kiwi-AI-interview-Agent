@@ -52,7 +52,7 @@ export function AnalyzeActionsCard({
         </Button>
       )}
       <p className="text-xs text-gray-500 text-center mt-2">
-        Current scope: CV upload, JD summary, CV to JD match score, and session mode setup.
+        Your interview plan will use the selected CV, JD, delivery mode, and session setup above.
       </p>
     </div>
   );

@@ -11,8 +11,7 @@
 
 import React from 'react';
 import { Mic, Settings } from 'lucide-react';
-import { controlModeOptions, focusOptions, questionLimitOptions, seniorityOptions, timeLimitOptions } from '../../utils/sessionDisplay.js';
-import { VoiceDeviceCheckPanel } from './VoiceDeviceCheckPanel.jsx';
+import { controlModeOptions, focusOptions, questionLimitOptions, seniorityOptions, timeLimitOptions } from '../../utils/sessionSettings.js';
 
 /**
  * Purpose: Execute the main responsibility for StartSessionCard.
@@ -171,11 +170,8 @@ export function StartSessionCard({ summary, showSessionSettings, sessionDefaults
               Enable NZ culture fit prompts
             </label>
           </div>
-          <div className="mt-5">
-            <VoiceDeviceCheckPanel
-              value={sessionDefaults.voiceDeviceCheck}
-              onChange={(voiceDeviceCheck) => onChangeDefaults('voiceDeviceCheck', voiceDeviceCheck)}
-            />
+          <div className="mt-4 rounded-2xl border border-emerald-100 bg-white px-4 py-3 text-sm text-gray-600 shadow-sm">
+            Voice readiness check now runs inside the Voice Session screen. Text Session can use the same setup without microphone checks.
           </div>
 
           <div className="mt-4 flex flex-wrap items-center gap-3">
