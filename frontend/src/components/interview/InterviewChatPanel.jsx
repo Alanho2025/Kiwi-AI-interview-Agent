@@ -13,7 +13,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Card, CardContent } from '../common/Card.jsx';
 import { Button } from '../common/Button.jsx';
 import { TextArea } from '../common/TextArea.jsx';
-import { Bird, Send } from 'lucide-react';
+import { Bird, Play, Send } from 'lucide-react';
 import { cn } from '../../utils/formatters.js';
 
 const INTERVIEWER_NAME = 'KiwiCoach';
@@ -24,7 +24,7 @@ const INTERVIEWER_NAME = 'KiwiCoach';
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-export function InterviewChatPanel({ transcript, onReply, onPause, onRepeat, onEnd, isPaused, isCompleted, isSubmitting, candidateName = "Candidate" }) {
+export function InterviewChatPanel({ transcript, onStart, onReply, onPause, onRepeat, onEnd, isPaused, isCompleted, isSubmitting, candidateName = "Candidate", sessionStatus = 'ready' }) {
   const [draft, setDraft] = useState('');
   const messagesEndRef = useRef(null);
 
@@ -45,6 +45,7 @@ export function InterviewChatPanel({ transcript, onReply, onPause, onRepeat, onE
     }
   };
 
+  const isNotStarted = sessionStatus === 'ready';
   const currentQuestion = transcript.filter(m => m.role === 'ai').pop();
   
   // The chat history should show everything except the current question if it's the last message
@@ -93,9 +94,17 @@ export function InterviewChatPanel({ transcript, onReply, onPause, onRepeat, onE
           ) : (
             <>
               <p className="text-xs font-medium text-gray-500 mb-2 uppercase tracking-wider">
-                {(!isLastMessageAi || isSubmitting) ? `${INTERVIEWER_NAME} is thinking...` : 'Current Question'}
+                {isNotStarted ? 'Ready to start' : ((!isLastMessageAi || isSubmitting) ? `${INTERVIEWER_NAME} is thinking...` : 'Current Question')}
               </p>
-              {(!isLastMessageAi || isSubmitting) ? (
+              {isNotStarted ? (
+                <div className="space-y-3">
+                  <p className="text-lg font-medium text-gray-900">Start the text interview when you are ready. The timer will begin after you start.</p>
+                  <Button type="button" onClick={onStart} disabled={isSubmitting}>
+                    <Play className="mr-2 h-4 w-4" />
+                    Start Text Interview
+                  </Button>
+                </div>
+              ) : (!isLastMessageAi || isSubmitting) ? (
                 <div className="flex items-center gap-2 text-gray-400">
                   <div className="w-2 h-2 bg-gray-300 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                   <div className="w-2 h-2 bg-gray-300 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
@@ -114,7 +123,7 @@ export function InterviewChatPanel({ transcript, onReply, onPause, onRepeat, onE
             <TextArea 
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
-              placeholder={isCompleted ? "Interview completed" : (isPaused ? "Interview paused..." : (isSubmitting ? `${INTERVIEWER_NAME} is thinking...` : "Type your answer here..."))}
+              placeholder={isCompleted ? "Interview completed" : (isNotStarted ? "Start the interview first..." : (isPaused ? "Interview paused..." : (isSubmitting ? `${INTERVIEWER_NAME} is thinking...` : "Type your answer here...")))}
               rows={3}
               className="pr-12"
               onKeyDown={(e) => {
@@ -123,11 +132,11 @@ export function InterviewChatPanel({ transcript, onReply, onPause, onRepeat, onE
                   handleSend();
                 }
               }}
-              disabled={isPaused || isCompleted || isSubmitting}
+              disabled={isNotStarted || isPaused || isCompleted || isSubmitting}
             />
             <button 
               onClick={handleSend}
-              disabled={!draft.trim() || isPaused || isCompleted || isSubmitting}
+              disabled={!draft.trim() || isNotStarted || isPaused || isCompleted || isSubmitting}
               className="absolute bottom-3 right-3 p-2 bg-[#2eb886] text-white rounded-lg hover:bg-[#259a6f] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <Send className="w-4 h-4" />
@@ -139,10 +148,10 @@ export function InterviewChatPanel({ transcript, onReply, onPause, onRepeat, onE
       {/* Action Bar */}
       <div className="flex items-center justify-between px-2 shrink-0">
         <div className="flex gap-3">
-          <Button variant="secondary" onClick={onPause} disabled={isCompleted}>
+          <Button variant="secondary" onClick={onPause} disabled={isNotStarted || isCompleted}>
             {isPaused ? 'Resume' : 'Pause'}
           </Button>
-          <Button variant="secondary" onClick={onRepeat} disabled={isPaused || isCompleted || isSubmitting}>
+          <Button variant="secondary" onClick={onRepeat} disabled={isNotStarted || isPaused || isCompleted || isSubmitting}>
             Repeat Question
           </Button>
         </div>

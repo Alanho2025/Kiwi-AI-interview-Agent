@@ -31,6 +31,7 @@ import {
   sanitizeAnalyzeSettings,
 } from '../utils/analyzeDraft.js';
 import { buildSessionSetupPayload, saveSessionDefaults } from '../utils/sessionSettings.js';
+import { DEFAULT_VOICE_DEVICE_CHECK } from '../hooks/useVoiceDeviceCheck.js';
 
 /**
  * Purpose: Execute the main responsibility for buildStatusMessage.
@@ -58,8 +59,12 @@ export function AnalyzePage() {
   const [generatedSessionId, setGeneratedSessionId] = useState(null);
   const [isSummarizingJD, setIsSummarizingJD] = useState(false);
   const [pageStatus, setPageStatus] = useState(null);
+  const [voiceDeviceCheck, setVoiceDeviceCheck] = useState(DEFAULT_VOICE_DEVICE_CHECK);
 
   const currentStep = resolveAnalyzeStep(analysisStatus);
+  const isVoiceReady = voiceDeviceCheck?.browser?.status === 'ok'
+    && voiceDeviceCheck?.mic?.status === 'ok'
+    && voiceDeviceCheck?.speaker?.status === 'ok';
 
   const resetAnalysisState = () => {
     setAnalysisStatus('idle');
@@ -268,6 +273,8 @@ export function AnalyzePage() {
               setSettings={handleSettingsChange}
               sessionMode={sessionMode}
               setSessionMode={handleSessionModeChange}
+              voiceDeviceCheck={voiceDeviceCheck}
+              setVoiceDeviceCheck={setVoiceDeviceCheck}
             />
             <AnalysisStatusCard
               status={analysisStatus}
@@ -282,6 +289,7 @@ export function AnalyzePage() {
               onGeneratePlan={handleGeneratePlan}
               onStartInterview={handleStartInterview}
               sessionMode={sessionMode}
+              isVoiceReady={isVoiceReady}
             />
           </div>
         </div>

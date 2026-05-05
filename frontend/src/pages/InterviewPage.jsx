@@ -36,6 +36,7 @@ export function InterviewPage() {
     endSessionProgress,
     setPageStatus,
     dismissStatus,
+    handleStartInterview,
     handleReply,
     handleVoiceSessionUpdate,
     handlePauseToggle,
@@ -57,6 +58,7 @@ export function InterviewPage() {
     isCompleted: session?.status === 'completed',
     isSubmitting,
     onVoiceSessionUpdate: handleVoiceSessionUpdate,
+    onStartInterview: handleStartInterview,
     sessionId,
   });
 
@@ -129,10 +131,12 @@ export function InterviewPage() {
               isCompleted={session.status === 'completed'}
               isSubmitting={isSubmitting}
               voiceShell={voiceShell}
+              sessionStatus={session.status}
             />
           ) : (
             <InterviewChatPanel
               transcript={session.transcript}
+              onStart={handleStartInterview}
               onReply={handleReply}
               onPause={handlePauseToggle}
               onRepeat={handleRepeat}
@@ -141,6 +145,7 @@ export function InterviewPage() {
               isCompleted={session.status === 'completed'}
               isSubmitting={isSubmitting}
               candidateName={session.candidateName}
+              sessionStatus={session.status}
             />
           )}
         </div>

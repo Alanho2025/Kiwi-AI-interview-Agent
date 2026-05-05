@@ -3,7 +3,7 @@
  * Main responsibilities:
  * - Keep Home and Analyze page interview setup options in one source of truth.
  * - Sanitize saved session defaults before they enter UI or API payloads.
- * - Keep voice device checks out of default setup so they run inside Voice Session.
+ * - Keep voice device checks separate from defaults so Analyze can run them only for Voice Session.
  */
 
 export const HOME_SESSION_DEFAULTS_KEY = 'kiwi-home-session-defaults';

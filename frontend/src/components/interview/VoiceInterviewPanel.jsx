@@ -1,7 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { CirclePause, Mic, MicOff, RefreshCcw, Square, Volume2 } from 'lucide-react';
 import { Button } from '../common/Button.jsx';
-import { VoiceDeviceCheckPanel } from '../analyze/VoiceDeviceCheckPanel.jsx';
 import { cn } from '../../utils/formatters.js';
 
 const buildWaveBars = (levels = []) => {
@@ -23,6 +22,7 @@ export function VoiceInterviewPanel({
   isCompleted,
   isSubmitting,
   voiceShell,
+  sessionStatus = 'ready',
 }) {
   const {
     currentQuestion,
@@ -46,11 +46,10 @@ export function VoiceInterviewPanel({
     handleResetShell,
   } = voiceShell;
 
-  const [deviceCheck, setDeviceCheck] = useState(null);
   const waveBars = useMemo(() => buildWaveBars(levelHistory), [levelHistory]);
+  const isNotStarted = sessionStatus === 'ready';
   const currentQuestionText = currentQuestion?.displayText || currentQuestion?.text || '';
   const statusBadgeLabel = isAutoLoopActive && !isRecording ? stateLabel : (isRecording ? 'Listening...' : stateLabel);
-  const isFacilityReady = deviceCheck?.browser?.status === 'ok' && deviceCheck?.mic?.status === 'ok' && deviceCheck?.speaker?.status === 'ok';
 
   return (
     <div className="flex h-full min-h-0 flex-col space-y-4">
@@ -68,9 +67,6 @@ export function VoiceInterviewPanel({
         </div>
       ) : null}
 
-      <div className="shrink-0">
-        <VoiceDeviceCheckPanel value={deviceCheck} onChange={setDeviceCheck} />
-      </div>
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
         <div className="flex-1 overflow-y-auto bg-gray-50 p-6 min-h-0">
@@ -90,8 +86,8 @@ export function VoiceInterviewPanel({
               <button
                 type="button"
                 onClick={handleToggleRecording}
-                disabled={!canUseVoice || !isFacilityReady}
-                className={cn('relative z-10 flex h-[112px] w-[112px] items-center justify-center rounded-full text-white shadow-lg transition-all duration-200', canUseVoice && isFacilityReady ? 'bg-[#2eb886] hover:bg-[#24a673]' : 'cursor-not-allowed bg-gray-300')}
+                disabled={!canUseVoice}
+                className={cn('relative z-10 flex h-[112px] w-[112px] items-center justify-center rounded-full text-white shadow-lg transition-all duration-200', canUseVoice ? 'bg-[#2eb886] hover:bg-[#24a673]' : 'cursor-not-allowed bg-gray-300')}
                 aria-label={isAutoLoopActive || isRecording ? 'Pause voice interview' : 'Start voice interview'}
               >
                 {isAutoLoopActive || isRecording ? <Square className="h-8 w-8" /> : <Mic className="h-8 w-8" />}
@@ -100,7 +96,7 @@ export function VoiceInterviewPanel({
 
             <div className="text-center">
               <p className="text-base font-medium text-gray-600">
-                {isFacilityReady ? (isAutoLoopActive ? (isRecording ? 'Listening automatically - ' + recordingDurationLabel : 'Auto voice interview is running') : 'Start Voice Interview to begin the hands-free loop') : 'Run the voice readiness check above before starting'}
+                {isAutoLoopActive ? (isRecording ? 'Listening automatically - ' + recordingDurationLabel : 'Auto voice interview is running') : (isNotStarted ? 'Click the mic to start the interview and begin the timer' : 'Start Voice Interview to begin the hands-free loop')}
               </p>
               <p className="mt-1 text-sm text-gray-400">
                 Voice mode: Duplex Voice Agent{vadState ? ' · ' + vadState : ''}{recordingStatus?.state === 'uploading' ? ' · Preparing MP3' : ''}
@@ -135,7 +131,7 @@ export function VoiceInterviewPanel({
             <>
               <p className="mb-2 text-xs font-medium uppercase tracking-wider text-gray-500">Voice-only question mode</p>
               <p className="text-lg font-medium leading-7 text-gray-900 pr-2">
-                {currentQuestionText ? 'Listen to KiwiCoach. Start speaking if you need to interrupt, or answer when the listening state appears.' : 'Waiting for the interviewer voice.'}
+                {isNotStarted ? 'Click the mic button when you are ready. The timer starts only after Voice Interview begins.' : (currentQuestionText ? 'Listen to KiwiCoach. Start speaking if you need to interrupt, or answer when the listening state appears.' : 'Waiting for the interviewer voice.')}
               </p>
             </>
           )}
@@ -144,7 +140,7 @@ export function VoiceInterviewPanel({
         <div className="shrink-0 border-t border-gray-200 bg-white p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap gap-3">
-              <Button variant="secondary" onClick={onPause} disabled={isCompleted || isSubmitting}>
+              <Button variant="secondary" onClick={onPause} disabled={isNotStarted || isCompleted || isSubmitting}>
                 <CirclePause className="mr-2 h-4 w-4" />
                 {isPaused ? 'Resume' : 'Pause'}
               </Button>
@@ -154,15 +150,15 @@ export function VoiceInterviewPanel({
                   const played = handleReplayAssistantAudio();
                   if (!played) onRepeat();
                 }}
-                disabled={isCompleted || isSubmitting}
+                disabled={isNotStarted || isCompleted || isSubmitting}
               >
                 <RefreshCcw className="mr-2 h-4 w-4" />
                 Repeat Question
               </Button>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button variant="secondary" size="sm" onClick={handleRequestPermission}><Mic className="mr-2 h-4 w-4" />Enable Mic</Button>
-              <Button variant="secondary" size="sm" onClick={handleReplayAssistantAudio}><Volume2 className="mr-2 h-4 w-4" />Replay</Button>
+              <Button variant="secondary" size="sm" onClick={handleRequestPermission}><Mic className="mr-2 h-4 w-4" />Allow Mic</Button>
+              <Button variant="secondary" size="sm" onClick={handleReplayAssistantAudio} disabled={isNotStarted}><Volume2 className="mr-2 h-4 w-4" />Replay</Button>
               <Button variant="secondary" size="sm" onClick={handleResetShell}><MicOff className="mr-2 h-4 w-4" />Reset</Button>
               <Button variant="danger" onClick={onEnd} disabled={isSubmitting || isCompleted}>End Interview</Button>
             </div>

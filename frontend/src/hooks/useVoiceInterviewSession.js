@@ -42,6 +42,7 @@ export function useVoiceInterviewSession({
   isCompleted,
   isSubmitting,
   onVoiceSessionUpdate,
+  onStartInterview,
 }) {
   const {
     permissionState,
@@ -79,6 +80,14 @@ export function useVoiceInterviewSession({
   const activeSessionId = resolveSessionId(session, sessionId);
   const currentQuestion = useMemo(() => getLatestTurnByRole(session?.transcript || [], 'ai'), [session?.transcript]);
   const latestUserTurn = useMemo(() => getLatestTurnByRole(session?.transcript || [], 'user'), [session?.transcript]);
+
+  const getLatestAssistantQuestionText = useCallback((sourceSession = session, preferDisplayText = true) => {
+    const latestQuestion = getLatestTurnByRole(sourceSession?.transcript || [], 'ai');
+    const displayText = String(latestQuestion?.displayText || '').trim();
+    const rawText = String(latestQuestion?.text || '').trim();
+    return preferDisplayText ? (displayText || rawText) : (rawText || displayText);
+  }, [session]);
+
 
   const setReadyState = useCallback(() => {
     if (!enabled) return;
@@ -279,16 +288,24 @@ export function useVoiceInterviewSession({
     startListeningRef.current = startListening;
   }, [startListening]);
 
-  const speakCurrentQuestion = useCallback(() => {
-    const questionText = String(currentQuestion?.displayText || currentQuestion?.text || '').trim();
-    if (!questionText) return false;
+  const speakQuestionText = useCallback((questionText, statusMessage = 'Listen to the question. You can start speaking to interrupt when needed.') => {
+    const cleanQuestion = String(questionText || '').trim();
+    if (!cleanQuestion) return false;
     setAssistantTextPreview('');
     firstAudioChunkSeenRef.current = false;
     setVoiceState('ai_speaking');
-    setVoiceStatus(buildVoiceStatus('info', 'KiwiCoach is speaking', 'Listen to the question. You can start speaking to interrupt when needed.'));
-    duplexSocket.speakText(questionText);
+    setVoiceStatus(buildVoiceStatus('info', 'KiwiCoach is speaking', statusMessage));
+    duplexSocket.speakText(cleanQuestion);
     return true;
-  }, [currentQuestion, duplexSocket]);
+  }, [duplexSocket]);
+
+  const speakCurrentQuestion = useCallback((options = {}) => {
+    const questionText = getLatestAssistantQuestionText(session, !options.repeatOnly);
+    return speakQuestionText(
+      questionText,
+      options.repeatOnly ? 'Repeating the current question without the question number.' : undefined
+    );
+  }, [getLatestAssistantQuestionText, session, speakQuestionText]);
 
   const ensureDuplexConnected = useCallback(async () => {
     if (!activeSessionId) throw new Error('Missing session ID.');
@@ -319,6 +336,13 @@ export function useVoiceInterviewSession({
     return true;
   }, [enabled, activeSessionId, isPaused, isCompleted, requestPermission, realtimeMic, vad, sessionAudioRecorder]);
 
+
+  const ensureInterviewStarted = useCallback(async () => {
+    if (session?.status !== 'ready') return session;
+    const startedSession = await onStartInterview?.();
+    return startedSession || session;
+  }, [onStartInterview, session]);
+
   const handleToggleRecording = useCallback(async () => {
     if (!enabled || isCompleted || isPaused) return;
     if (!isSupported) {
@@ -340,6 +364,9 @@ export function useVoiceInterviewSession({
     }
 
     try {
+      const startedSession = await ensureInterviewStarted();
+      const firstQuestionText = getLatestAssistantQuestionText(startedSession, true);
+
       voiceSessionTraceRef.current = createVoiceLatencyTrace({
         sessionId: activeSessionId,
         mode: 'duplex_voice',
@@ -356,7 +383,7 @@ export function useVoiceInterviewSession({
       setVoiceStatus(buildVoiceStatus('info', 'Starting duplex voice interview', 'KiwiCoach will speak, listen, and allow interruption.'));
       await ensureDuplexConnected();
       await startPassiveMicMonitor();
-      const spoke = speakCurrentQuestion();
+      const spoke = speakQuestionText(firstQuestionText);
       if (!spoke) await startListening();
     } catch (error) {
       autoLoopActiveRef.current = false;
@@ -364,7 +391,7 @@ export function useVoiceInterviewSession({
       setVoiceState('error');
       setVoiceStatus(buildVoiceStatus('error', 'Duplex voice failed', error.message || 'Could not start Voice Mode.'));
     }
-  }, [enabled, isCompleted, isPaused, isSupported, isAutoLoopActive, realtimeMic, audioQueue, vad, duplexSocket, setReadyState, activeSessionId, ensureDuplexConnected, startPassiveMicMonitor, speakCurrentQuestion, startListening, sessionAudioRecorder]);
+  }, [enabled, isCompleted, isPaused, isSupported, isAutoLoopActive, realtimeMic, audioQueue, vad, duplexSocket, setReadyState, activeSessionId, ensureDuplexConnected, startPassiveMicMonitor, speakQuestionText, getLatestAssistantQuestionText, ensureInterviewStarted, startListening, sessionAudioRecorder]);
 
   const handleRequestPermission = useCallback(async () => {
     setVoiceState('requesting_permission');
@@ -378,7 +405,7 @@ export function useVoiceInterviewSession({
   }, [requestPermission, setReadyState]);
 
   const handleReplayAssistantAudio = useCallback(() => {
-    ensureDuplexConnected().then(() => speakCurrentQuestion()).catch(() => {});
+    ensureDuplexConnected().then(() => speakCurrentQuestion({ repeatOnly: true })).catch(() => {});
     return true;
   }, [ensureDuplexConnected, speakCurrentQuestion]);
 

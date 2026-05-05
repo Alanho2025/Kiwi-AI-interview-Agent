@@ -30,6 +30,16 @@ const buildQuestionRootKey = (question = {}) => {
 
 export const getQuestionPool = (session = {}) => session?.interviewPlan?.questionPool || [];
 
+const toPositiveInteger = (value) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : null;
+};
+
+const getAnsweredQuestionCount = (session = {}) => (session?.transcript || [])
+  .filter((turn) => turn?.role === 'user' && String(turn?.text || '').trim())
+  .length;
+
+
 /**
  * Purpose: Execute the main responsibility for getOpeningQuestionText.
  * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
@@ -68,12 +78,21 @@ export const getResolvedCurrentQuestionIndex = (session = {}) => {
  */
 export const getResolvedTotalQuestions = (session = {}) => {
   const resolved = resolveInterviewSessionConfig(session);
-  const planned = Number(resolved?.plannedQuestionCount || resolved?.totalQuestions || 0);
-  if (Number.isFinite(planned) && planned > 0) return Math.floor(planned);
+  const candidates = [
+    session?.totalQuestions,
+    session?.questionLimit,
+    session?.settings?.totalQuestions,
+    session?.settings?.questionLimit,
+    resolved?.plannedQuestionCount,
+    resolved?.totalQuestions,
+  ].map(toPositiveInteger).filter(Boolean);
+
+  if (candidates.length) {
+    return Math.max(...candidates);
+  }
+
   const poolLength = getQuestionPool(session).length;
-  const raw = Number(session?.totalQuestions || 0);
-  const fallback = poolLength > 1 ? Math.min(8, poolLength - 1) : 1;
-  return Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : fallback;
+  return poolLength > 1 ? Math.min(8, poolLength) : 8;
 };
 
 /**
@@ -82,7 +101,12 @@ export const getResolvedTotalQuestions = (session = {}) => {
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-export const hasReachedQuestionLimit = (session = {}) => getResolvedCurrentQuestionIndex(session) >= getResolvedTotalQuestions(session);
+export const hasReachedQuestionLimit = (session = {}) => {
+  const totalQuestions = getResolvedTotalQuestions(session);
+  const currentQuestionIndex = getResolvedCurrentQuestionIndex(session);
+  const answeredQuestionCount = getAnsweredQuestionCount(session);
+  return Math.max(currentQuestionIndex, answeredQuestionCount) >= totalQuestions;
+};
 
 export const getEffectiveElapsedSeconds = (session = {}) => {
   const baseElapsed = Math.max(0, Number(session?.elapsedSeconds || 0));

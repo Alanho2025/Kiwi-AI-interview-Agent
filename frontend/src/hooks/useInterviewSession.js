@@ -72,7 +72,6 @@ export function useInterviewSession({ sessionId, navigate }) {
     step: 'idle',
     error: null,
   });
-  const hasStartedRef = useRef(false);
   const warmedAdaptiveRef = useRef(new Set());
 
 
@@ -95,12 +94,6 @@ export function useInterviewSession({ sessionId, navigate }) {
       setSession(data.session);
       warmAdaptiveInBackground(data.session);
 
-      if (data.session.status === 'ready' && !hasStartedRef.current) {
-        hasStartedRef.current = true;
-        const startData = await startInterview(sessionId);
-        setSession(startData.session);
-        warmAdaptiveInBackground(startData.session);
-      }
     } catch (error) {
       setPageStatus(buildStatus('error', 'Could not load interview', error.message || 'Failed to load session.'));
       navigate('/analysis');
@@ -130,6 +123,25 @@ export function useInterviewSession({ sessionId, navigate }) {
     return () => clearInterval(interval);
   }, [timerSessionKey, session?.status]);
 
+  const handleStartInterview = useCallback(async () => {
+    if (!sessionId || isSubmitting) return session;
+    if (session?.status && session.status !== 'ready') return session;
+
+    setIsSubmitting(true);
+    try {
+      const data = await startInterview(sessionId);
+      setSession(data.session);
+      warmAdaptiveInBackground(data.session);
+      return data.session;
+    } catch (error) {
+      setPageStatus(buildStatus('error', 'Start failed', error.message || 'Could not start the interview.'));
+      return session;
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [isSubmitting, session, sessionId, warmAdaptiveInBackground]);
+
+
   const handleReply = useCallback(async (answer) => {
     const cleanAnswer = answer?.trim();
     if (isSubmitting || !cleanAnswer) return;
@@ -138,6 +150,12 @@ export function useInterviewSession({ sessionId, navigate }) {
     const previousSession = session ? { ...session } : null;
 
     try {
+      if (session?.status === 'ready') {
+        const startData = await startInterview(sessionId);
+        setSession(startData.session);
+        warmAdaptiveInBackground(startData.session);
+      }
+
       setSession((prev) => prev
         ? { ...prev, transcript: appendTranscriptMessage(prev.transcript, 'user', cleanAnswer) }
         : prev);
@@ -156,7 +174,7 @@ export function useInterviewSession({ sessionId, navigate }) {
     } finally {
       setIsSubmitting(false);
     }
-  }, [isSubmitting, session, sessionId]);
+  }, [isSubmitting, session, sessionId, warmAdaptiveInBackground]);
 
 
   const handleVoiceSessionUpdate = useCallback((nextSession) => {
@@ -194,12 +212,10 @@ export function useInterviewSession({ sessionId, navigate }) {
         return {
           ...prev,
           transcript: appendTranscriptMessage(prev.transcript, 'ai', data.question, {
-            preamble: data.displayText && data.displayText !== data.question
-              ? data.displayText.replace(`${data.question}`, '').trim()
-              : '',
+            repeatOnly: true,
           }).map((turn, index, turns) => (
             index === turns.length - 1 && turn.role === 'ai'
-              ? { ...turn, displayText: data.displayText || data.question }
+              ? { ...turn, displayText: data.question }
               : turn
           )),
         };
@@ -294,6 +310,7 @@ export function useInterviewSession({ sessionId, navigate }) {
     endSessionProgress,
     setPageStatus,
     dismissStatus,
+    handleStartInterview,
     handleReply,
     handleVoiceSessionUpdate,
     handlePauseToggle,

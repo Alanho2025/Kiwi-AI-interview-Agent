@@ -25,9 +25,12 @@ export function AnalyzeActionsCard({
   onGeneratePlan,
   onStartInterview,
   sessionMode = 'text',
+  isVoiceReady = false,
 }) {
   const isGenerating = analysisStatus === 'matching' || analysisStatus === 'summarizing';
   const canGenerate = Boolean(selectedCV && rawJD && !isGenerating);
+  const isVoiceSession = sessionMode === 'voice';
+  const canContinue = Boolean(generatedSessionId && (!isVoiceSession || isVoiceReady));
 
   return (
     <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm flex flex-col gap-4">
@@ -37,8 +40,9 @@ export function AnalyzeActionsCard({
           size="lg"
           className="w-full"
           onClick={onStartInterview}
+          disabled={!canContinue}
         >
-          {sessionMode === 'voice' ? 'Continue to Voice Session' : 'Start Text Interview'}
+          {isVoiceSession ? 'Continue to Voice Session' : 'Start Text Interview'}
         </Button>
       ) : (
         <Button
@@ -52,7 +56,9 @@ export function AnalyzeActionsCard({
         </Button>
       )}
       <p className="text-xs text-gray-500 text-center mt-2">
-        Your interview plan will use the selected CV, JD, delivery mode, and session setup above.
+        {isVoiceSession
+          ? (isVoiceReady ? 'Voice devices are ready. Your interview plan will use the selected CV, JD, and session setup above.' : 'Run the voice readiness check in Session Setup before continuing to Voice Session.')
+          : 'Your interview plan will use the selected CV, JD, delivery mode, and session setup above.'}
       </p>
     </div>
   );
