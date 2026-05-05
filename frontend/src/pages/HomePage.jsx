@@ -25,12 +25,15 @@ import {
   buildHomepageStats,
   buildRecentActivity,
   buildSessionHistoryRows,
-  DEFAULT_SESSION_SETTINGS,
   getUserInitials,
-  HOME_SESSION_DEFAULTS_KEY,
-  parseStoredSessionDefaults,
-  settingsSummary,
 } from '../utils/sessionDisplay.js';
+import {
+  DEFAULT_SESSION_SETTINGS,
+  loadSessionDefaults,
+  resetSessionDefaults,
+  saveSessionDefaults,
+  settingsSummary,
+} from '../utils/sessionSettings.js';
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -68,13 +71,8 @@ export default function HomePage() {
         return;
       }
 
-      try {
-        const rawDefaults = window.localStorage.getItem(HOME_SESSION_DEFAULTS_KEY);
-        if (isActive) {
-          setSessionDefaults(parseStoredSessionDefaults(rawDefaults));
-        }
-      } catch (error) {
-        console.error('Failed to load homepage session defaults', error);
+      if (isActive) {
+        setSessionDefaults(loadSessionDefaults());
       }
     };
 
@@ -103,8 +101,8 @@ export default function HomePage() {
   }, []);
 
   const persistSessionDefaults = (nextDefaults, message) => {
-    setSessionDefaults(nextDefaults);
-    window.localStorage.setItem(HOME_SESSION_DEFAULTS_KEY, JSON.stringify(nextDefaults));
+    const safeDefaults = saveSessionDefaults(nextDefaults);
+    setSessionDefaults(safeDefaults);
     setSettingsSaved(message);
     window.setTimeout(() => setSettingsSaved(''), 1800);
   };
@@ -114,18 +112,12 @@ export default function HomePage() {
   };
 
   const handleResetSessionDefaults = () => {
-    persistSessionDefaults(DEFAULT_SESSION_SETTINGS, 'Defaults reset');
+    persistSessionDefaults(resetSessionDefaults(), 'Defaults reset');
   };
 
   const handleSessionDefaultsChange = (field, value) => {
     setVoiceStartWarning('');
-    setSessionDefaults((current) => {
-      const nextDefaults = { ...current, [field]: value };
-      if (field === 'voiceDeviceCheck') {
-        window.localStorage.setItem(HOME_SESSION_DEFAULTS_KEY, JSON.stringify(nextDefaults));
-      }
-      return nextDefaults;
-    });
+    setSessionDefaults((current) => ({ ...current, [field]: value }));
   };
 
   const handleSignOut = async () => {
@@ -155,14 +147,9 @@ export default function HomePage() {
   };
 
   const handleStartInterview = (sessionMode) => {
-    if (sessionMode === 'voice' && sessionDefaults.voiceDeviceCheck?.mic?.status !== 'ok') {
-      setShowSessionSettings(true);
-      setVoiceStartWarning('Run the microphone check in Session Settings before starting a voice interview.');
-      return;
-    }
-
-    window.localStorage.setItem(HOME_SESSION_DEFAULTS_KEY, JSON.stringify(sessionDefaults));
-    navigate('/analysis', { state: { sessionMode, sessionDefaults } });
+    const safeDefaults = saveSessionDefaults(sessionDefaults);
+    setSessionDefaults(safeDefaults);
+    navigate('/analysis', { state: { sessionMode, sessionDefaults: safeDefaults } });
   };
 
   const stats = buildHomepageStats(sessionHistory, historyLoading);

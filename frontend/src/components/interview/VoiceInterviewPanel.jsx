@@ -1,6 +1,7 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { CirclePause, Mic, MicOff, RefreshCcw, Square, Volume2 } from 'lucide-react';
 import { Button } from '../common/Button.jsx';
+import { VoiceDeviceCheckPanel } from '../analyze/VoiceDeviceCheckPanel.jsx';
 import { cn } from '../../utils/formatters.js';
 
 const buildWaveBars = (levels = []) => {
@@ -45,9 +46,11 @@ export function VoiceInterviewPanel({
     handleResetShell,
   } = voiceShell;
 
+  const [deviceCheck, setDeviceCheck] = useState(null);
   const waveBars = useMemo(() => buildWaveBars(levelHistory), [levelHistory]);
   const currentQuestionText = currentQuestion?.displayText || currentQuestion?.text || '';
   const statusBadgeLabel = isAutoLoopActive && !isRecording ? stateLabel : (isRecording ? 'Listening...' : stateLabel);
+  const isFacilityReady = deviceCheck?.browser?.status === 'ok' && deviceCheck?.mic?.status === 'ok' && deviceCheck?.speaker?.status === 'ok';
 
   return (
     <div className="flex h-full min-h-0 flex-col space-y-4">
@@ -64,6 +67,10 @@ export function VoiceInterviewPanel({
           <p className="mt-1">{permissionError}</p>
         </div>
       ) : null}
+
+      <div className="shrink-0">
+        <VoiceDeviceCheckPanel value={deviceCheck} onChange={setDeviceCheck} />
+      </div>
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
         <div className="flex-1 overflow-y-auto bg-gray-50 p-6 min-h-0">
@@ -83,8 +90,8 @@ export function VoiceInterviewPanel({
               <button
                 type="button"
                 onClick={handleToggleRecording}
-                disabled={!canUseVoice}
-                className={cn('relative z-10 flex h-[112px] w-[112px] items-center justify-center rounded-full text-white shadow-lg transition-all duration-200', canUseVoice ? 'bg-[#2eb886] hover:bg-[#24a673]' : 'cursor-not-allowed bg-gray-300')}
+                disabled={!canUseVoice || !isFacilityReady}
+                className={cn('relative z-10 flex h-[112px] w-[112px] items-center justify-center rounded-full text-white shadow-lg transition-all duration-200', canUseVoice && isFacilityReady ? 'bg-[#2eb886] hover:bg-[#24a673]' : 'cursor-not-allowed bg-gray-300')}
                 aria-label={isAutoLoopActive || isRecording ? 'Pause voice interview' : 'Start voice interview'}
               >
                 {isAutoLoopActive || isRecording ? <Square className="h-8 w-8" /> : <Mic className="h-8 w-8" />}
@@ -93,7 +100,7 @@ export function VoiceInterviewPanel({
 
             <div className="text-center">
               <p className="text-base font-medium text-gray-600">
-                {isAutoLoopActive ? (isRecording ? 'Listening automatically - ' + recordingDurationLabel : 'Auto voice interview is running') : 'Start Voice Interview to begin the hands-free loop'}
+                {isFacilityReady ? (isAutoLoopActive ? (isRecording ? 'Listening automatically - ' + recordingDurationLabel : 'Auto voice interview is running') : 'Start Voice Interview to begin the hands-free loop') : 'Run the voice readiness check above before starting'}
               </p>
               <p className="mt-1 text-sm text-gray-400">
                 Voice mode: Duplex Voice Agent{vadState ? ' · ' + vadState : ''}{recordingStatus?.state === 'uploading' ? ' · Preparing MP3' : ''}

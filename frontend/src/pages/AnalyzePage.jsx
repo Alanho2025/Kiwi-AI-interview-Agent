@@ -30,6 +30,7 @@ import {
   sanitizeAnalyzeMode,
   sanitizeAnalyzeSettings,
 } from '../utils/analyzeDraft.js';
+import { buildSessionSetupPayload, saveSessionDefaults } from '../utils/sessionSettings.js';
 
 /**
  * Purpose: Execute the main responsibility for buildStatusMessage.
@@ -168,16 +169,19 @@ export function AnalyzePage() {
   };
 
   const handleStartInterview = () => {
-    if (sessionMode === 'voice' && settings.voiceDeviceCheck?.mic?.status !== 'ok') {
-      setPageStatus(buildStatusMessage(
-        'error',
-        'Microphone check required',
-        'Run the microphone check from Start New Session > Session Settings before starting the voice session.'
-      ));
-      return;
-    }
-
     navigate(`/interview/${generatedSessionId}`);
+  };
+
+  const handleSettingsChange = (nextSettings) => {
+    const safeSettings = sanitizeAnalyzeSettings(nextSettings);
+    resetAnalysisState();
+    setSettings(safeSettings);
+    saveSessionDefaults(safeSettings);
+  };
+
+  const handleSessionModeChange = (nextMode) => {
+    resetAnalysisState();
+    setSessionMode(sanitizeAnalyzeMode(nextMode));
   };
 
   const handleGeneratePlan = async () => {
@@ -210,15 +214,7 @@ export function AnalyzePage() {
         jdText: finalStructuredJD,
         jdRubric: finalStructuredJDRubric,
         settings,
-        sessionSetup: {
-          deliveryMode: sessionMode,
-          controlMode: settings.controlMode,
-          questionLimit: settings.questionLimit,
-          timeLimitMinutes: settings.timeLimitMinutes,
-          questionType: settings.focusArea,
-          seniorityLevel: settings.seniorityLevel,
-          enableNZCultureFit: settings.enableNZCultureFit,
-        },
+        sessionSetup: buildSessionSetupPayload(settings, sessionMode),
         mode: sessionMode,
         matchAnalysisId: matchResponse.matchAnalysisId || null,
       });
@@ -267,7 +263,12 @@ export function AnalyzePage() {
                 message={pageStatus.message}
               />
             ) : null}
-            <NZSettingsCard settings={settings} setSettings={setSettings} />
+            <NZSettingsCard
+              settings={settings}
+              setSettings={handleSettingsChange}
+              sessionMode={sessionMode}
+              setSessionMode={handleSessionModeChange}
+            />
             <AnalysisStatusCard
               status={analysisStatus}
               matchRate={matchRate}
