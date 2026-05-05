@@ -36,6 +36,7 @@ export function VoiceInterviewPanel({
     canUseVoice,
     levelHistory,
     recordingDurationLabel,
+    recordingStatus,
     assistantAudioUrl,
     audioRef,
     handleRequestPermission,
@@ -95,7 +96,7 @@ export function VoiceInterviewPanel({
                 {isAutoLoopActive ? (isRecording ? 'Listening automatically - ' + recordingDurationLabel : 'Auto voice interview is running') : 'Start Voice Interview to begin the hands-free loop'}
               </p>
               <p className="mt-1 text-sm text-gray-400">
-                Voice mode: Duplex Voice Agent{vadState ? ' · ' + vadState : ''}
+                Voice mode: Duplex Voice Agent{vadState ? ' · ' + vadState : ''}{recordingStatus?.state === 'uploading' ? ' · Preparing MP3' : ''}
               </p>
             </div>
 
@@ -103,7 +104,7 @@ export function VoiceInterviewPanel({
               {waveBars.map((value, index) => (
                 <div
                   key={`wave-${index}`}
-                  className={cn('w-full rounded-full transition-all duration-100', isRecording ? 'bg-[#0f7d8a]' : 'bg-[#9cd8c4]')}
+                  className={cn('w-full rounded-full transition-all duration-100', isRecording ? 'bg-blue-500' : 'bg-blue-200')}
                   style={{ height: `${Math.round(value * 100)}%` }}
                 />
               ))}
@@ -127,7 +128,7 @@ export function VoiceInterviewPanel({
             <>
               <p className="mb-2 text-xs font-medium uppercase tracking-wider text-gray-500">Voice-only question mode</p>
               <p className="text-lg font-medium leading-7 text-gray-900 pr-2">
-                {currentQuestionText ? 'Listen to KiwiCoach. The microphone opens automatically after each question.' : 'Waiting for the interviewer voice.'}
+                {currentQuestionText ? 'Listen to KiwiCoach. Start speaking if you need to interrupt, or answer when the listening state appears.' : 'Waiting for the interviewer voice.'}
               </p>
             </>
           )}

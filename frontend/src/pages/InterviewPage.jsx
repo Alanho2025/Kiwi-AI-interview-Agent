@@ -12,6 +12,8 @@ import { VoiceInterviewPanel } from '../components/interview/VoiceInterviewPanel
 import { InterviewRightRail } from '../components/interview/InterviewRightRail.jsx';
 import { InterviewSidebar } from '../components/interview/InterviewSidebar.jsx';
 import { InterviewStatusBanner } from '../components/interview/InterviewStatusBanner.jsx';
+import { EndSessionProgress } from '../components/interview/EndSessionProgress.jsx';
+import { downloadSessionRecording } from '../api/recordingApi.js';
 import { useInterviewSession } from '../hooks/useInterviewSession.js';
 import { useVoiceInterviewSession } from '../hooks/useVoiceInterviewSession.js';
 
@@ -31,6 +33,8 @@ export function InterviewPage() {
     loading,
     isSubmitting,
     pageStatus,
+    endSessionProgress,
+    setPageStatus,
     dismissStatus,
     handleReply,
     handleVoiceSessionUpdate,
@@ -56,6 +60,25 @@ export function InterviewPage() {
     sessionId,
   });
 
+  const handleSafeEnd = async () => {
+    if (isVoiceMode) {
+      await voiceShell.stopVoiceSession?.('manual_end');
+    }
+    handleEnd({ mode: isVoiceMode ? 'voice' : 'text' });
+  };
+
+  const handleDownloadRecording = async () => {
+    try {
+      await downloadSessionRecording(sessionId);
+    } catch (error) {
+      setPageStatus({
+        type: 'error',
+        title: 'Could not download MP3',
+        message: error.message || 'Please try again after the recording is ready.',
+      });
+    }
+  };
+
   if (loading) return <LoadingState />;
   if (!session) return <EmptyState />;
 
@@ -80,6 +103,7 @@ export function InterviewPage() {
 
       <main className="flex-1 max-w-[1600px] w-full mx-auto px-4 py-4 sm:px-6 sm:py-6 flex flex-col gap-4 lg:p-6 lg:grid lg:grid-cols-12 lg:gap-6 lg:h-[calc(100vh-64px)] lg:overflow-hidden lg:min-h-0">
         <div className="col-span-12">
+          <EndSessionProgress progress={endSessionProgress} />
           <InterviewStatusBanner status={pageStatus} onConfirmEnd={handleConfirmEnd} onCancelEnd={dismissStatus} />
         </div>
 
@@ -99,7 +123,7 @@ export function InterviewPage() {
               session={session}
               onPause={handlePauseToggle}
               onRepeat={handleRepeat}
-              onEnd={handleEnd}
+              onEnd={handleSafeEnd}
               onSubmitBackup={handleReply}
               isPaused={session.status === 'paused'}
               isCompleted={session.status === 'completed'}
@@ -112,7 +136,7 @@ export function InterviewPage() {
               onReply={handleReply}
               onPause={handlePauseToggle}
               onRepeat={handleRepeat}
-              onEnd={handleEnd}
+              onEnd={handleSafeEnd}
               isPaused={session.status === 'paused'}
               isCompleted={session.status === 'completed'}
               isSubmitting={isSubmitting}
@@ -127,6 +151,10 @@ export function InterviewPage() {
           onExport={handleExport}
           onSubmitBackup={handleReply}
           backupDisabled={sharedBackupDisabled}
+          isVoiceMode={isVoiceMode}
+          isCompleted={session.status === 'completed'}
+          recordingStatus={voiceShell.recordingStatus}
+          onDownloadRecording={handleDownloadRecording}
         />
       </main>
     </div>
