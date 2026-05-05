@@ -3,12 +3,13 @@
  * Main responsibilities:
  * - Render the same interview settings used on the Home page.
  * - Let users choose Text Session or Voice Session before generating the plan.
- * - Keep facility checks out of Analyze because voice readiness belongs inside Voice Session.
+ * - Render the Voice readiness check directly on Analyze when Voice Session is selected.
  */
 
 import { Card, CardHeader, CardTitle, CardContent } from '../common/Card.jsx';
 import { Select } from '../common/Select.jsx';
 import { Checkbox } from '../common/Checkbox.jsx';
+import { VoiceDeviceCheckPanel } from './VoiceDeviceCheckPanel.jsx';
 import { cn } from '../../utils/formatters.js';
 import {
   controlModeOptions,
@@ -24,7 +25,7 @@ const toSelectOptions = (values, labelBuilder = (value) => value) => values.map(
   label: labelBuilder(value),
 }));
 
-export function NZSettingsCard({ settings, setSettings, sessionMode, setSessionMode }) {
+export function NZSettingsCard({ settings, setSettings, sessionMode, setSessionMode, voiceDeviceCheck, setVoiceDeviceCheck }) {
   const updateSetting = (field, value) => setSettings({ ...settings, [field]: value });
 
   return (
@@ -111,9 +112,13 @@ export function NZSettingsCard({ settings, setSettings, sessionMode, setSessionM
           onChange={(event) => updateSetting('enableNZCultureFit', event.target.checked)}
         />
 
-        <div className="rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3 text-sm text-sky-800">
-          Voice readiness check will appear inside Voice Session. Text Session does not require microphone or speaker checks.
-        </div>
+        {sessionMode === 'voice' ? (
+          <VoiceDeviceCheckPanel value={voiceDeviceCheck} onChange={setVoiceDeviceCheck} />
+        ) : (
+          <div className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3 text-sm text-gray-600">
+            Text Session does not require microphone or speaker checks. Switch to Voice Session if you want to test your devices before starting.
+          </div>
+        )}
       </CardContent>
     </Card>
   );

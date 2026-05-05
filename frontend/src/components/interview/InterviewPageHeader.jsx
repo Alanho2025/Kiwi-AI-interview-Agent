@@ -19,10 +19,11 @@ const buildPrimaryTitle = ({ isVoiceMode, title }) => {
 
 export function InterviewPageHeader({ session, title, roleFamilyLabel, exactRoleTitle, modeLabel, levelLabel, stageLabel, elapsedSeconds, controlMode = 'question_limited', timeLimitSeconds = null, isVoiceMode = false, onViewReport }) {
   const isCompleted = session?.status === 'completed';
+  const isNotStarted = session?.status === 'ready';
   const hasReport = Boolean(session?.hasReport);
   const showReportButton = isCompleted;
   const isTimeLimited = controlMode === 'time_limited' && Number(timeLimitSeconds) > 0;
-  const timerLabel = isTimeLimited ? 'Time left' : 'Timer';
+  const timerLabel = isTimeLimited ? (isNotStarted ? 'Time limit' : 'Time left') : (isNotStarted ? 'Timer starts after start' : 'Timer');
   const timerValue = isTimeLimited ? formatDuration(Math.max(0, Number(timeLimitSeconds) - Number(elapsedSeconds || 0))) : formatDuration(elapsedSeconds);
 
   const buttonText = hasReport ? 'View Report' : 'Generate Report';
