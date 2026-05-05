@@ -9,7 +9,7 @@ import express from 'express';
 import multer from 'multer';
 import path from 'path';
 import { prepareRecordingUploadDirectory, recordingUploadDirectory } from '../../services/recording/sessionRecordingService.js';
-import { uploadSessionAudio, downloadSessionAudio } from '../../controllers/recordingController.js';
+import { uploadSessionAudio, downloadSessionAudio, getSessionAudioStatus } from '../../controllers/recordingController.js';
 
 const router = express.Router();
 
@@ -31,6 +31,7 @@ const upload = multer({
 });
 
 router.post('/session-audio', upload.single('audio'), uploadSessionAudio);
+router.get('/session-audio/:sessionId/status', getSessionAudioStatus);
 router.get('/session-audio/:sessionId/download', downloadSessionAudio);
 
 export default router;

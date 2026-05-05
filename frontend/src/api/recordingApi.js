@@ -45,3 +45,12 @@ export const downloadSessionRecording = async (sessionId) => {
   anchor.click();
   URL.revokeObjectURL(url);
 };
+
+
+export const getSessionRecordingStatus = async (sessionId) => {
+  if (!sessionId) return { available: false, status: 'missing' };
+
+  return apiClient(`/recordings/session-audio/${sessionId}/status`, {
+    method: 'GET',
+  });
+};

@@ -32,7 +32,7 @@ import { buildReportViewModel } from '../utils/reportView/index.js';
  */
 export function ReportPage() {
   const { sessionId } = useParams();
-  const { reportData, status, loading, handleGenerate, handleQa, handleExport } = useReportData(sessionId);
+  const { reportData, status, loading, handleGenerate, handleQa, handleExport, handleDownloadRecording, recordingStatus } = useReportData(sessionId);
   const viewModel = buildReportViewModel(reportData);
 
   return (
@@ -45,6 +45,8 @@ export function ReportPage() {
           onGenerate={handleGenerate} 
           onRunQa={handleQa} 
           onExport={handleExport}
+          onDownloadRecording={handleDownloadRecording}
+          recordingStatus={recordingStatus}
         />
 
         <div id="report-printable-area" className="space-y-6">

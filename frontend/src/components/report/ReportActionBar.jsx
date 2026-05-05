@@ -19,8 +19,9 @@ import { useState } from 'react';
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-export function ReportActionBar({ loading, onGenerate, onRunQa, onExport }) {
+export function ReportActionBar({ loading, onGenerate, onRunQa, onExport, onDownloadRecording, recordingStatus }) {
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const canDownloadRecording = Boolean(onDownloadRecording) && recordingStatus?.state === 'ready';
 
   const handleExport = (format) => {
     setShowExportMenu(false);
@@ -33,6 +34,17 @@ export function ReportActionBar({ loading, onGenerate, onRunQa, onExport }) {
     <div className="flex flex-wrap gap-3 relative">
       <Button onClick={onGenerate} disabled={loading}>{loading ? 'Working...' : 'Generate report'}</Button>
       <Button onClick={onRunQa} variant="secondary" disabled={loading}>Run QA</Button>
+      {onDownloadRecording ? (
+        <Button
+          onClick={onDownloadRecording}
+          variant="secondary"
+          disabled={loading || !canDownloadRecording}
+          title={canDownloadRecording ? 'Download voice session MP3' : 'No MP3 recording is available yet'}
+        >
+          <Download size={16} />
+          Download MP3
+        </Button>
+      ) : null}
       
       {onExport && (
         <div className="relative">

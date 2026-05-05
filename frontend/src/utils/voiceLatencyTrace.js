@@ -1,3 +1,11 @@
+const getEventKey = (event) => event?.key || event?.name;
+
+const matchesEvent = (event, name, scope = {}) => {
+  if (!event || getEventKey(event) !== name) return false;
+  if (scope.turnId && event.turnId !== scope.turnId) return false;
+  return true;
+};
+
 export function createVoiceLatencyTrace(meta = {}) {
   const start = performance.now();
   const events = [];
@@ -8,38 +16,53 @@ export function createVoiceLatencyTrace(meta = {}) {
       name,
       atMs: Math.round(at - start),
       absoluteMs: Math.round(at),
+      traceId: meta.traceId,
+      turnId: extra.turnId || meta.turnId || null,
       ...extra,
     };
     events.push(event);
     return event;
   };
 
-  const duration = (from, to) => {
-    const startEvent = events.find((event) => event.name === from);
-    const endEvent = [...events].reverse().find((event) => event.name === to);
+  const scopedEvents = (scope = {}) => events.filter((event) => {
+    if (scope.turnId && event.turnId !== scope.turnId) return false;
+    return true;
+  });
+
+  const duration = (from, to, scope = {}) => {
+    const visibleEvents = scopedEvents(scope);
+    const startEvent = visibleEvents.find((event) => matchesEvent(event, from, scope));
+    const endEvent = visibleEvents.find((event) => matchesEvent(event, to, scope));
     if (!startEvent || !endEvent) return null;
     return Math.max(0, endEvent.atMs - startEvent.atMs);
   };
 
-  const toJSON = () => ({
-    ...meta,
-    totalMs: Math.round(performance.now() - start),
-    events: [...events],
-    derived: {
-      stopToSubmitMs: duration('vad_speech_end', 'auto_submit_start'),
-      submitToResponseMs: duration('auto_submit_start', 'auto_submit_response'),
-      stopToNextAudioMs: duration('vad_speech_end', 'assistant_audio_play_start'),
-      vadToPlaybackMs: duration('vad_speech_end', 'assistant_audio_play_start'),
-      submitToFirstAudioChunkMs: duration('auto_submit_start', 'first_audio_chunk_received'),
-      submitToPlaybackStartMs: duration('auto_submit_start', 'assistant_audio_play_start'),
-      sttFinalisationMs: duration('stt_stop_sent', 'final_transcript_received'),
-      firstAudioChunkToPlayMs: duration('first_audio_chunk_received', 'assistant_audio_play_start'),
-      pauseCandidateToConfirmedMs: duration('vad_pause_candidate', 'vad_speech_end'),
-      playbackToMicReadyMs: duration('assistant_audio_play_end', 'mic_ready'),
-      audioPlaybackMs: duration('assistant_audio_play_start', 'assistant_audio_play_end'),
-      audioGapMs: duration('assistant_audio_play_end', 'mic_ready'),
-    },
-  });
+  const toJSON = () => {
+    const turnScope = meta.turnId ? { turnId: meta.turnId } : {};
+    return {
+      ...meta,
+      totalMs: Math.round(performance.now() - start),
+      events: [...events],
+      derived: {
+        // Product-facing target: user finished speaking to AI voice playback start.
+        speechEndToAiSpeechStartMs: duration('vad_speech_end', 'assistant_audio_play_start', turnScope),
+        stopToNextAudioMs: duration('vad_speech_end', 'assistant_audio_play_start', turnScope),
+        vadToPlaybackMs: duration('vad_speech_end', 'assistant_audio_play_start', turnScope),
+
+        // Debug-only breakdown.
+        stopToSubmitMs: duration('vad_speech_end', 'auto_submit_start', turnScope),
+        submitToResponseMs: duration('auto_submit_start', 'auto_submit_response', turnScope),
+        submitToFirstAudioChunkMs: duration('auto_submit_start', 'first_audio_chunk_received', turnScope),
+        submitToPlaybackStartMs: duration('auto_submit_start', 'assistant_audio_play_start', turnScope),
+        sttFinalisationMs: duration('stt_stop_sent', 'final_transcript_received', turnScope),
+        firstAudioChunkToPlayMs: duration('first_audio_chunk_received', 'assistant_audio_play_start', turnScope),
+        pauseCandidateToConfirmedMs: duration('vad_pause_candidate', 'vad_speech_end', turnScope),
+        playbackToMicReadyMs: duration('assistant_audio_play_end', 'mic_ready', turnScope),
+        audioPlaybackMs: duration('assistant_audio_play_start', 'assistant_audio_play_end', turnScope),
+        audioGapMs: duration('assistant_audio_play_end', 'mic_ready', turnScope),
+      },
+    };
+  };
 
   return { mark, duration, toJSON };
 }
