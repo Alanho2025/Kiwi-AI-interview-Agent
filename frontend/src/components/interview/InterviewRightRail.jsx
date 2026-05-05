@@ -19,7 +19,7 @@ const resolveRecordingLabel = ({ isCompleted, recordingStatus }) => {
   if (recordingStatus?.state === 'uploading') return 'Preparing MP3...';
   if (recordingStatus?.state === 'failed') return 'Recording failed';
   if (recordingStatus?.state === 'ready') return 'MP3 ready';
-  return 'Download if available';
+  return 'Preparing recording status...';
 };
 
 export function InterviewRightRail({
@@ -33,7 +33,7 @@ export function InterviewRightRail({
   recordingStatus = { state: 'idle', error: null },
   onDownloadRecording,
 }) {
-  const canDownloadRecording = isVoiceMode && isCompleted && !['uploading', 'failed'].includes(recordingStatus?.state);
+  const canDownloadRecording = isVoiceMode && isCompleted && recordingStatus?.state === 'ready';
 
   return (
     <div className="hidden lg:flex lg:col-span-3 flex-col gap-6 h-full pb-6 min-h-0">

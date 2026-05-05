@@ -9,7 +9,7 @@
 import { formatSuccess } from '../utils/responseFormatter.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { resolveUserFromRequest } from '../services/authService.js';
-import { saveSessionRecording, loadSessionRecordingForDownload } from '../services/recording/sessionRecordingService.js';
+import { saveSessionRecording, loadSessionRecordingForDownload, getSessionRecordingStatus } from '../services/recording/sessionRecordingService.js';
 
 export const uploadSessionAudio = asyncHandler(async (req, res) => {
   const user = await resolveUserFromRequest(req);
@@ -20,6 +20,16 @@ export const uploadSessionAudio = asyncHandler(async (req, res) => {
   });
 
   res.json(formatSuccess('Session recording saved', result));
+});
+
+export const getSessionAudioStatus = asyncHandler(async (req, res) => {
+  const user = await resolveUserFromRequest(req);
+  const result = await getSessionRecordingStatus({
+    sessionId: req.params.sessionId,
+    userId: user.id,
+  });
+
+  res.json(formatSuccess('Session recording status loaded', result));
 });
 
 export const downloadSessionAudio = asyncHandler(async (req, res) => {

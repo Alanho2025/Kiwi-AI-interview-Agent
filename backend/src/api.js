@@ -69,6 +69,7 @@ api.use('/job-description', requireAuth, jobDescriptionRoutes);
 api.use('/analyze', requireAuth, analyzeRoutes);
 api.use('/interview', requireAuth, interviewRoutes);
 api.use('/session', requireAuth, sessionRoutes);
+api.use('/report', requireAuth, reportRoutes);
 api.use('/export', requireAuth, exportRoutes);
 api.use('/rag', requireAuth, ragRoutes);
 api.use('/usage', requireAuth, usageRoutes);

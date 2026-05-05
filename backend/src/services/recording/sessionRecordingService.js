@@ -78,6 +78,30 @@ export const saveSessionRecording = async ({ sessionId, userId, file }) => {
   };
 };
 
+export const getSessionRecordingStatus = async ({ sessionId, userId }) => {
+  requireSessionId(sessionId);
+  await ensureRecordingDirs();
+  await loadOwnedSessionOrThrow({ sessionId, userId });
+
+  const mp3Path = getSessionRecordingPath(sessionId);
+  try {
+    await fs.access(mp3Path);
+    return {
+      sessionId,
+      status: 'ready',
+      available: true,
+      filename: `interview-session-${sanitizeSessionId(sessionId)}.mp3`,
+    };
+  } catch {
+    return {
+      sessionId,
+      status: 'missing',
+      available: false,
+      filename: null,
+    };
+  }
+};
+
 export const loadSessionRecordingForDownload = async ({ sessionId, userId }) => {
   requireSessionId(sessionId);
   await ensureRecordingDirs();
