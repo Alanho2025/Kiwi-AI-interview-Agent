@@ -22,6 +22,7 @@ import ragRoutes from './api/routes/ragRoutes.js';
 import reportRoutes from './api/routes/reportRoutes.js';
 import healthRoutes from './api/routes/healthRoutes.js';
 import usageRoutes from './api/routes/usageRoutes.js';
+import recordingRoutes from './api/routes/recordingRoutes.js';
 import { usageContextMiddleware } from './services/deepseekService.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
@@ -71,6 +72,7 @@ api.use('/session', requireAuth, sessionRoutes);
 api.use('/export', requireAuth, exportRoutes);
 api.use('/rag', requireAuth, ragRoutes);
 api.use('/usage', requireAuth, usageRoutes);
+api.use('/recordings', requireAuth, recordingRoutes);
 
 api.use(errorHandler);
 

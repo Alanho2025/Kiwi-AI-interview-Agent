@@ -67,6 +67,11 @@ export function useInterviewSession({ sessionId, navigate }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [timerOffset, setTimerOffset] = useState(0);
   const [pageStatus, setPageStatus] = useState(null);
+  const [endSessionProgress, setEndSessionProgress] = useState({
+    active: false,
+    step: 'idle',
+    error: null,
+  });
   const hasStartedRef = useRef(false);
   const warmedAdaptiveRef = useRef(new Set());
 
@@ -204,16 +209,51 @@ export function useInterviewSession({ sessionId, navigate }) {
     }
   }, [session?.status, sessionId]);
 
-  const handleEnd = useCallback(() => {
-    setPageStatus(buildStatus('confirm-end', 'End interview?', 'This will mark the text interview as completed.'));
-  }, []);
+  const handleEnd = useCallback((options = {}) => {
+    const mode = options.mode || session?.mode || 'text';
+    const isVoiceEnd = String(mode).toLowerCase() === 'voice';
+
+    setEndSessionProgress({ active: false, step: 'idle', error: null });
+    setPageStatus(buildStatus(
+      'confirm-end',
+      'End interview?',
+      isVoiceEnd
+        ? 'This will stop the voice session, save your transcript, and generate your report.'
+        : 'This will save your transcript and generate your report.'
+    ));
+  }, [session?.mode]);
 
   const handleConfirmEnd = useCallback(async () => {
+    let progressTimer = null;
+
     try {
+      setEndSessionProgress({ active: true, step: 'saving', error: null });
+      setPageStatus(buildStatus('info', 'Ending session', 'Saving your interview session...'));
+
+      progressTimer = window.setTimeout(() => {
+        setEndSessionProgress({ active: true, step: 'generating_report', error: null });
+        setPageStatus(buildStatus('info', 'Generating report', 'Your interview is saved. KiwiCoach is preparing the report.'));
+      }, 700);
+
       const data = await endInterview(sessionId);
+      if (progressTimer) window.clearTimeout(progressTimer);
+
       setSession(data.session);
-      setPageStatus(buildStatus('success', 'Interview ended', 'You can now review or export the text transcript.'));
+      setEndSessionProgress({ active: true, step: 'completed', error: null });
+      setPageStatus(buildStatus(
+        'success',
+        'Interview ended',
+        data.reportStatus
+          ? 'Your session is saved and the report is ready.'
+          : 'Your session is saved. You can now review or export the transcript.'
+      ));
     } catch (error) {
+      if (progressTimer) window.clearTimeout(progressTimer);
+      setEndSessionProgress({
+        active: true,
+        step: 'failed',
+        error: error.message || 'Could not end interview.',
+      });
       setPageStatus(buildStatus('error', 'Could not end interview', error.message || 'Please try again.'));
     }
   }, [sessionId]);
@@ -227,7 +267,12 @@ export function useInterviewSession({ sessionId, navigate }) {
     }
   }, [sessionId]);
 
-  const dismissStatus = useCallback(() => setPageStatus(null), []);
+  const dismissStatus = useCallback(() => {
+    setPageStatus(null);
+    if (endSessionProgress.step !== 'completed') {
+      setEndSessionProgress({ active: false, step: 'idle', error: null });
+    }
+  }, [endSessionProgress.step]);
 
   const viewModel = useMemo(() => {
     const currentPlanItem = getCurrentPlanItem(session);
@@ -246,6 +291,7 @@ export function useInterviewSession({ sessionId, navigate }) {
     loading,
     isSubmitting,
     pageStatus,
+    endSessionProgress,
     setPageStatus,
     dismissStatus,
     handleReply,
