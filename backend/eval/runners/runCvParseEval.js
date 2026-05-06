@@ -3,23 +3,15 @@ import path from 'node:path';
 import { buildCvProfile } from '../../src/services/cv/cvProfileBuilderService.js';
 import { buildMarkdownTable } from '../helpers/evalShared.js';
 import { scoreCvParseCase } from '../helpers/cvParseEvalScorer.js';
+import { parseEvalArgs, exitIfGateFailed } from '../helpers/evalCli.js';
 
 const repoRoot = path.resolve('.');
 const datasetPath = path.join(repoRoot, 'eval/datasets/cv-parse-eval.json');
 const fixtureRoot = path.join(repoRoot, 'tests/fixtures/cv');
 const reportRoot = path.join(repoRoot, 'eval/reports');
 
-const parseArgs = (argv = []) => {
-  const options = { minAverage: 0, failBelow: 0 };
-  for (let index = 0; index < argv.length; index += 1) {
-    const value = argv[index];
-    if (value === '--min-average') options.minAverage = Number(argv[index + 1] || 0);
-    if (value === '--fail-below') options.failBelow = Number(argv[index + 1] || 0);
-  }
-  return options;
-};
 
-const options = parseArgs(process.argv.slice(2));
+const options = parseEvalArgs({ argv: process.argv.slice(2), gateName: 'cvParse' });
 const dataset = JSON.parse(await fs.readFile(datasetPath, 'utf8'));
 const results = [];
 
@@ -64,6 +56,4 @@ console.log(`Average score: ${summary.average}`);
 console.log(`JSON report: ${jsonPath}`);
 console.log(`Markdown report: ${mdPath}`);
 
-const averageFailed = options.minAverage > 0 && average < options.minAverage;
-const caseFailed = options.failBelow > 0 && results.some((item) => item.score < options.failBelow);
-if (averageFailed || caseFailed) process.exit(1);
+exitIfGateFailed({ average, results, options });

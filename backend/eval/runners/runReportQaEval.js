@@ -1,20 +1,12 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { runReportQaAgent } from '../../src/services/agents/reportQaAgent.js';
+import { parseEvalArgs, exitIfGateFailed } from '../helpers/evalCli.js';
 
 const repoRoot = path.resolve('.');
 const datasetPath = path.join(repoRoot, 'eval/datasets/report-qa-eval.json');
 const reportRoot = path.join(repoRoot, 'eval/reports');
 
-const parseArgs = (argv = []) => {
-  const options = { minAverage: 0, failBelow: 0 };
-  for (let index = 0; index < argv.length; index += 1) {
-    const value = argv[index];
-    if (value === '--min-average') options.minAverage = Number(argv[index + 1] || 0);
-    if (value === '--fail-below') options.failBelow = Number(argv[index + 1] || 0);
-  }
-  return options;
-};
 
 const scoreCase = ({ qa, expected }) => {
   const checks = [
@@ -25,7 +17,7 @@ const scoreCase = ({ qa, expected }) => {
   return { earned, possible: checks.length, score: Number((earned / checks.length).toFixed(2)), checks };
 };
 
-const options = parseArgs(process.argv.slice(2));
+const options = parseEvalArgs({ argv: process.argv.slice(2), gateName: 'reportQa' });
 const dataset = JSON.parse(await fs.readFile(datasetPath, 'utf8'));
 const results = [];
 for (const item of dataset) {
@@ -53,6 +45,4 @@ console.log(`Cases run: ${summary.casesRun}`);
 console.log(`Average score: ${summary.average}`);
 console.log(`JSON report: ${jsonPath}`);
 console.log(`Markdown report: ${mdPath}`);
-const averageFailed = options.minAverage > 0 && average < options.minAverage;
-const caseFailed = options.failBelow > 0 && results.some((item) => item.score < options.failBelow);
-if (averageFailed || caseFailed) process.exit(1);
+exitIfGateFailed({ average, results, options });
