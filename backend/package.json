@@ -12,12 +12,16 @@
     "eval:match": "NODE_ENV=test AI_TEST_MODE=real node eval/runners/runCvJdMatchEval.js",
     "eval:interview": "NODE_ENV=test AI_TEST_MODE=real node eval/runners/runInterviewControllerEval.js",
     "eval:report": "NODE_ENV=test AI_TEST_MODE=real node eval/runners/runReportQaEval.js",
-    "eval:all": "npm run eval:cv && npm run eval:jd && npm run eval:match && npm run eval:interview && npm run eval:report",
+    "eval:all": "npm run eval:cv && npm run eval:jd && npm run eval:seek && npm run eval:match && npm run eval:interview && npm run eval:report && npm run eval:e2e && npm run eval:green",
     "quality:all": "npm run test:all && npm run eval:all",
     "test:jd-safeguard": "NODE_ENV=test AI_TEST_MODE=mock ENABLE_AGENTIC_SAFEGUARDS=true vitest tests/robustness/jobDescription/jdParseAgenticSafeguard.test.js",
     "test:match-safeguard": "NODE_ENV=test AI_TEST_MODE=mock ENABLE_AGENTIC_SAFEGUARDS=true vitest tests/robustness/match/matchAgenticSafeguard.test.js",
     "build": "node -e \"console.log('No backend build step required')\"",
-    "start:local": "node index.js"
+    "start:local": "node index.js",
+    "eval:cv-jd-match": "NODE_ENV=test AI_TEST_MODE=real node eval/runners/runCvJdMatchEval.js",
+    "eval:seek": "NODE_ENV=test AI_TEST_MODE=real node eval/runners/runJdParseSeekBenchmark.js",
+    "eval:e2e": "NODE_ENV=test AI_TEST_MODE=mock node eval/runners/runEndToEndInterviewEval.js",
+    "eval:green": "NODE_ENV=test AI_TEST_MODE=mock node eval/runners/runGreenAgentEval.js"
   },
   "dependencies": {
     "cors": "^2.8.6",
