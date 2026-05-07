@@ -18,6 +18,14 @@ vi.mock('../../hooks/useVoiceInterviewSession.js', () => ({
   useVoiceInterviewSession: (args) => useVoiceInterviewSessionMock(args),
 }));
 
+vi.mock('../../contexts/TourContext.jsx', () => ({
+  useTour: () => ({
+    startTour: vi.fn(),
+    globalTourStep: null,
+    advanceGlobalTour: vi.fn(),
+  }),
+}));
+
 vi.mock('../../components/interview/InterviewChatPanel.jsx', () => ({
   InterviewChatPanel: () => <div data-testid="text-panel">Text interview panel</div>,
 }));
