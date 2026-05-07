@@ -25,8 +25,8 @@ export function AnalyzeActionsCard({
   hasCurrentJDSummary = false,
   jdParseConfidence = 0,
   jdConfidenceThreshold = 0.9,
-  isJdHumanVerified = false,
   requiresJdHumanReview = false,
+  canUseJDSummary = false,
   onGeneratePlan,
   onStartInterview,
   sessionMode = 'text',
@@ -34,7 +34,7 @@ export function AnalyzeActionsCard({
 }) {
   const isGenerating = analysisStatus === 'matching' || analysisStatus === 'summarizing';
   const hasRawJD = Boolean(rawJD?.trim());
-  const canGenerate = Boolean(selectedCV && hasRawJD && hasCurrentJDSummary && isJdHumanVerified && !isGenerating);
+  const canGenerate = Boolean(selectedCV && hasRawJD && hasCurrentJDSummary && canUseJDSummary && !isGenerating);
   const isVoiceSession = sessionMode === 'voice';
   const canContinue = Boolean(generatedSessionId && (!isVoiceSession || isVoiceReady));
   const confidencePercent = Math.round((jdParseConfidence || 0) * 100);
@@ -45,8 +45,8 @@ export function AnalyzeActionsCard({
     if (analysisStatus === 'matching') return 'Generating Match Analysis...';
     if (!selectedCV) return 'Select a CV first';
     if (!hasRawJD) return 'Paste a JD first';
-    if (!hasCurrentJDSummary) return 'Summarize JD before matching';
-    if (requiresJdHumanReview) return 'Confirm JD summary before matching';
+    if (!hasCurrentJDSummary) return 'Summarise JD before matching';
+    if (requiresJdHumanReview) return 'Review JD summary before matching';
     return 'Generate Match Analysis';
   })();
 
@@ -55,10 +55,10 @@ export function AnalyzeActionsCard({
       return 'Run the voice readiness check in Session Setup before continuing to Voice Session.';
     }
     if (!hasCurrentJDSummary) {
-      return 'CV-JD matching uses the reviewed JD summary, so summarize the current JD before generating the plan.';
+      return 'CV-JD matching uses the reviewed JD summary, so summarise the current JD before generating the plan.';
     }
     if (requiresJdHumanReview) {
-      return `JD confidence is ${confidencePercent}%, below the ${thresholdPercent}% gate. Confirm the summary if it is accurate, then generate the match.`;
+      return `JD confidence is ${confidencePercent}%, below the ${thresholdPercent}% gate. Edit the parsed fields if needed, then mark the JD as reviewed.`;
     }
     if (isVoiceSession) {
       return 'Voice devices are ready. Your interview plan will use the selected CV, reviewed JD, and session setup above.';
