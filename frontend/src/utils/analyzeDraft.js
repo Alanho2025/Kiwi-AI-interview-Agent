@@ -66,6 +66,7 @@ export const loadAnalyzeDraft = () => {
         structuredJDRubric: null,
         summarizedRawJD: '',
         jdHumanReviewedRawJD: '',
+        jdReviewStatus: 'unreviewed',
         settings: homeDefaults,
         sessionMode: DEFAULT_ANALYZE_MODE,
       };
@@ -80,6 +81,7 @@ export const loadAnalyzeDraft = () => {
       structuredJDRubric: parsed.structuredJDRubric || null,
       summarizedRawJD: parsed.summarizedRawJD || '',
       jdHumanReviewedRawJD: parsed.jdHumanReviewedRawJD || '',
+      jdReviewStatus: parsed.jdReviewStatus || 'unreviewed',
       settings: parsed.settings ? sanitizeSessionSettings(parsed.settings) : homeDefaults,
       sessionMode: sanitizeSessionMode(parsed.sessionMode),
     };
@@ -92,6 +94,7 @@ export const loadAnalyzeDraft = () => {
       structuredJDRubric: null,
       summarizedRawJD: '',
       jdHumanReviewedRawJD: '',
+      jdReviewStatus: 'unreviewed',
       settings: homeDefaults,
       sessionMode: DEFAULT_ANALYZE_MODE,
     };

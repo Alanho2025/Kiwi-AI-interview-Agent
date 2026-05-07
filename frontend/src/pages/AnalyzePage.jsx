@@ -45,6 +45,37 @@ const JD_CONFIDENCE_THRESHOLD = 0.9;
 
 const normalizeJDText = (value = '') => String(value || '').trim();
 
+const formatList = (items = []) => (items?.length ? items.map((item) => `• ${typeof item === 'string' ? item : item?.label || item?.name || item}`).join('\n') : 'N/A');
+
+const flattenTechnicalSkills = (technicalSkills = {}) => Object.values(technicalSkills || {}).flat().map((item) => item?.label || item?.name || item).filter(Boolean);
+
+const formatStructuredJobDescription = (rubric = {}) => {
+  const overview = rubric.jobOverview || {};
+  const sections = rubric.sections || {};
+  const technicalSkills = flattenTechnicalSkills(sections.technicalSkills);
+
+  return `# ${overview.title || rubric.title || 'Target Role'}\n\n## Job Overview\n${formatList([
+    overview.companyName && `Company: ${overview.companyName}`,
+    overview.location && `Location: ${overview.location}`,
+    overview.contractType && `Contract type: ${overview.contractType}`,
+    overview.employmentType && `Employment type: ${overview.employmentType}`,
+  ].filter(Boolean))}\n\n## What This Role Does\n${formatList(sections.responsibilities || rubric.roleSummary || [])}\n\n## Core Requirements\n${formatList(sections.mustHaveRequirements || rubric.mustHaveRequirements || [])}\n\n## Bonus Requirements\n${formatList(sections.niceToHaveRequirements || rubric.niceToHaveExperience || [])}\n\n## Technical Skills\n${formatList(technicalSkills)}\n\n## Soft Skills\n${formatList(sections.softSkills || rubric.softSkillRequirements || [])}\n\n## Benefits\n${formatList(sections.benefits || [])}\n\n## Application Notes\n${formatList(sections.applicationInstructions || [])}`;
+};
+
+const stampHumanReviewMetadata = (rubric, reviewStatus) => ({
+  ...(rubric || {}),
+  metadata: {
+    ...((rubric || {}).metadata || {}),
+    humanReviewStatus: reviewStatus,
+    inputTrustLevel: reviewStatus === 'verified' ? 'human_reviewed' : 'ai_parsed',
+    humanReviewedAt: reviewStatus === 'verified' ? new Date().toISOString() : null,
+  },
+  diagnostics: {
+    ...((rubric || {}).diagnostics || {}),
+    humanReviewStatus: reviewStatus,
+  },
+});
+
 const getJDParseConfidence = (rubric) => {
   const confidence = Number(rubric?.diagnostics?.confidence ?? rubric?.metadata?.confidence ?? 0);
   return Number.isFinite(confidence) ? confidence : 0;
@@ -81,6 +112,7 @@ export function AnalyzePage() {
   const [structuredJDRubric, setStructuredJDRubric] = useState(null);
   const [summarizedRawJD, setSummarizedRawJD] = useState('');
   const [jdHumanReviewedRawJD, setJdHumanReviewedRawJD] = useState('');
+  const [jdReviewStatus, setJdReviewStatus] = useState('unreviewed');
   const [settings, setSettings] = useState(DEFAULT_ANALYZE_SETTINGS);
   const [sessionMode, setSessionMode] = useState(DEFAULT_ANALYZE_MODE);
   const [analysisStatus, setAnalysisStatus] = useState('idle');
@@ -105,12 +137,16 @@ export function AnalyzePage() {
     && normalizedRawJD === normalizeJDText(summarizedRawJD)
   );
   const jdParseConfidence = getJDParseConfidence(structuredJDRubric);
+  const isJdEdited = jdReviewStatus === 'edited';
   const requiresJdHumanReview = Boolean(
     hasCurrentJDSummary
-    && jdParseConfidence < JD_CONFIDENCE_THRESHOLD
-    && normalizeJDText(jdHumanReviewedRawJD) !== normalizedRawJD
+    && (isJdEdited || (jdParseConfidence < JD_CONFIDENCE_THRESHOLD && jdReviewStatus !== 'verified'))
   );
-  const isJdHumanVerified = Boolean(hasCurrentJDSummary && !requiresJdHumanReview);
+  const isJdHumanVerified = Boolean(hasCurrentJDSummary && jdReviewStatus === 'verified');
+  const canUseCurrentJDSummary = Boolean(
+    hasCurrentJDSummary
+    && (jdReviewStatus === 'verified' || (jdReviewStatus === 'unreviewed' && jdParseConfidence >= JD_CONFIDENCE_THRESHOLD))
+  );
 
   useEffect(() => {
     // Trigger if the tour is meant for this page, or if user jumped here from Home via spotlight click
@@ -134,6 +170,7 @@ export function AnalyzePage() {
     setStructuredJDRubric(null);
     setSummarizedRawJD('');
     setJdHumanReviewedRawJD('');
+    setJdReviewStatus('unreviewed');
   };
 
   const handleRawJDChange = (value) => {
@@ -155,6 +192,7 @@ export function AnalyzePage() {
     setStructuredJDRubric(jdResponse.structuredJDRubric);
     setSummarizedRawJD(nextRawJD);
     setJdHumanReviewedRawJD('');
+    setJdReviewStatus('unreviewed');
   };
 
   useEffect(() => {
@@ -165,6 +203,7 @@ export function AnalyzePage() {
     setStructuredJDRubric(restoredDraft.structuredJDRubric);
     setSummarizedRawJD(restoredDraft.summarizedRawJD);
     setJdHumanReviewedRawJD(restoredDraft.jdHumanReviewedRawJD);
+    setJdReviewStatus(restoredDraft.jdReviewStatus || 'unreviewed');
     const homeSessionSettings = location.state?.sessionDefaults
       ? sanitizeAnalyzeSettings(location.state.sessionDefaults)
       : null;
@@ -182,10 +221,11 @@ export function AnalyzePage() {
       structuredJDRubric,
       summarizedRawJD,
       jdHumanReviewedRawJD,
+      jdReviewStatus,
       settings,
       sessionMode,
     });
-  }, [selectedCV, rawJD, structuredJD, structuredJDRubric, summarizedRawJD, jdHumanReviewedRawJD, settings, sessionMode]);
+  }, [selectedCV, rawJD, structuredJD, structuredJDRubric, summarizedRawJD, jdHumanReviewedRawJD, jdReviewStatus, settings, sessionMode]);
 
   const handleUpload = async (file) => {
     try {
@@ -258,14 +298,27 @@ export function AnalyzePage() {
     setSessionMode(sanitizeAnalyzeMode(nextMode));
   };
 
+  const handleStructuredJDRubricChange = (nextRubric) => {
+    const reviewedRubric = stampHumanReviewMetadata(nextRubric, 'edited');
+    setStructuredJDRubric(reviewedRubric);
+    setStructuredJD(formatStructuredJobDescription(reviewedRubric));
+    setJdReviewStatus('edited');
+    setJdHumanReviewedRawJD('');
+    resetAnalysisState();
+  };
+
   const handleConfirmJDSummary = () => {
     if (!hasCurrentJDSummary) {
-      setPageStatus(buildStatusMessage('error', 'Summarize current JD first', 'The JD text has changed. Summarize it again before confirming.'));
+      setPageStatus(buildStatusMessage('error', 'Summarise current JD first', 'The JD text has changed. Summarise it again before confirming.'));
       return;
     }
 
+    const verifiedRubric = stampHumanReviewMetadata(structuredJDRubric, 'verified');
+    setStructuredJDRubric(verifiedRubric);
+    setStructuredJD(formatStructuredJobDescription(verifiedRubric));
     setJdHumanReviewedRawJD(rawJD);
-    setPageStatus(buildStatusMessage('success', 'JD summary confirmed', 'KiwiCoach will use this reviewed JD summary for CV-JD matching.'));
+    setJdReviewStatus('verified');
+    setPageStatus(buildStatusMessage('success', 'JD summary reviewed', 'KiwiCoach will use this human-reviewed JD summary for CV-JD matching.'));
   };
 
   const handleGeneratePlan = async () => {
@@ -275,20 +328,20 @@ export function AnalyzePage() {
     }
 
     if (!hasCurrentJDSummary) {
-      setPageStatus(buildStatusMessage('info', 'Summarize JD first', 'Generate and review the JD summary before running CV-JD matching.'));
+      setPageStatus(buildStatusMessage('info', 'Summarise JD first', 'Generate and review the JD summary before running CV-JD matching.'));
       return;
     }
 
-    if (requiresJdHumanReview) {
-      setPageStatus(buildStatusMessage('info', 'Confirm JD summary first', 'This parse is below the 90% confidence gate. Confirm the summary if it looks correct, or edit the JD and summarize again.'));
+    if (!canUseCurrentJDSummary) {
+      setPageStatus(buildStatusMessage('info', 'Review JD summary first', 'Edit the parsed JD fields if needed, then mark the JD as reviewed before generating the match.'));
       return;
     }
 
     setAnalysisStatus('matching');
 
     try {
-      const finalStructuredJD = structuredJD;
-      const finalStructuredJDRubric = structuredJDRubric;
+      const finalStructuredJDRubric = stampHumanReviewMetadata(structuredJDRubric, isJdHumanVerified ? 'verified' : 'unreviewed');
+      const finalStructuredJD = formatStructuredJobDescription(finalStructuredJDRubric);
 
       const matchResponse = await matchCV(selectedCV.id, rawJD, finalStructuredJDRubric, settings);
       setAnalysisResult(matchResponse);
@@ -340,11 +393,13 @@ export function AnalyzePage() {
                 setRawJD={handleRawJDChange}
                 structuredJD={structuredJD}
                 structuredJDRubric={structuredJDRubric}
+                onStructuredJDRubricChange={handleStructuredJDRubricChange}
                 onSummarize={handleSummarizeJD}
                 isSummarizing={isSummarizingJD}
                 jdConfidenceThreshold={JD_CONFIDENCE_THRESHOLD}
                 isJdHumanVerified={isJdHumanVerified}
                 requiresJdHumanReview={requiresJdHumanReview}
+                isJdEdited={isJdEdited}
                 onConfirmJDSummary={handleConfirmJDSummary}
               />
             </div>
@@ -380,8 +435,8 @@ export function AnalyzePage() {
                 hasCurrentJDSummary={hasCurrentJDSummary}
                 jdParseConfidence={jdParseConfidence}
                 jdConfidenceThreshold={JD_CONFIDENCE_THRESHOLD}
-                isJdHumanVerified={isJdHumanVerified}
                 requiresJdHumanReview={requiresJdHumanReview}
+                canUseJDSummary={canUseCurrentJDSummary}
                 onGeneratePlan={handleGeneratePlan}
                 onStartInterview={handleStartInterview}
                 sessionMode={sessionMode}
