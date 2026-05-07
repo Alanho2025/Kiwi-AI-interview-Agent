@@ -1,10 +1,10 @@
 {
-  "casesRun": 1,
+  "casesRun": 9,
   "average": 1,
   "weakestCases": [],
   "thresholds": {
-    "minAverage": 0,
-    "failBelow": 0
+    "minAverage": 0.9,
+    "failBelow": 0.75
   },
   "results": [
     {
@@ -13,6 +13,70 @@
       "score": 1,
       "earned": 4,
       "possible": 4,
+      "failedChecks": []
+    },
+    {
+      "id": "report_complete_grounded_passes",
+      "passed": true,
+      "score": 1,
+      "earned": 1,
+      "possible": 1,
+      "failedChecks": []
+    },
+    {
+      "id": "report_missing_summary_flagged",
+      "passed": false,
+      "score": 1,
+      "earned": 2,
+      "possible": 2,
+      "failedChecks": []
+    },
+    {
+      "id": "report_question_count_mismatch_flagged",
+      "passed": false,
+      "score": 1,
+      "earned": 2,
+      "possible": 2,
+      "failedChecks": []
+    },
+    {
+      "id": "report_missing_candidate_feedback_flagged",
+      "passed": false,
+      "score": 1,
+      "earned": 5,
+      "possible": 5,
+      "failedChecks": []
+    },
+    {
+      "id": "report_missing_interaction_section_flagged",
+      "passed": false,
+      "score": 1,
+      "earned": 2,
+      "possible": 2,
+      "failedChecks": []
+    },
+    {
+      "id": "report_missing_reflection_content_flagged",
+      "passed": false,
+      "score": 1,
+      "earned": 3,
+      "possible": 3,
+      "failedChecks": []
+    },
+    {
+      "id": "report_missing_hypothetical_gap_note_flagged",
+      "passed": false,
+      "score": 1,
+      "earned": 2,
+      "possible": 2,
+      "failedChecks": []
+    },
+    {
+      "id": "report_extra_ai_turns_flagged",
+      "passed": false,
+      "score": 1,
+      "earned": 2,
+      "possible": 2,
       "failedChecks": []
     }
   ]

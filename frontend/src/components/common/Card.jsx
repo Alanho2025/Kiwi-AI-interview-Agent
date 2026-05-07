@@ -33,7 +33,7 @@ export function Card({ className, children, ...props }) {
  */
 export function CardHeader({ className, children, ...props }) {
   return (
-    <div className={cn("px-6 py-5 border-b border-gray-100 flex justify-between items-center", className)} {...props}>
+    <div className={cn("px-4 py-4 sm:px-6 sm:py-5 border-b border-gray-100 flex justify-between items-center gap-3", className)} {...props}>
       {children}
     </div>
   );
@@ -61,7 +61,7 @@ export function CardTitle({ className, children, ...props }) {
  */
 export function CardContent({ className, children, ...props }) {
   return (
-    <div className={cn("p-6", className)} {...props}>
+    <div className={cn("p-4 sm:p-6", className)} {...props}>
       {children}
     </div>
   );

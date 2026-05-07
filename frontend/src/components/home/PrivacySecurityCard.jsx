@@ -32,7 +32,7 @@ export function PrivacySecurityCard({ email = '', loginProvider = '' }) {
 
   return (
     <>
-      <div className="bg-white rounded-3xl p-6 shadow-[0_2px_10px_rgb(0,0,0,0.02)] border border-gray-100">
+      <div className="bg-white rounded-3xl p-5 shadow-[0_2px_10px_rgb(0,0,0,0.02)] border border-gray-100 sm:p-6">
         <h3 className="text-lg font-bold mb-2 flex items-center gap-2 text-gray-900">
           <ShieldCheck className="h-5 w-5 text-emerald-600" />
           Privacy & Security
@@ -50,7 +50,7 @@ export function PrivacySecurityCard({ email = '', loginProvider = '' }) {
 
         {showConnectionPanel ? (
           <div className="mt-4 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3">
-            <div className="flex items-start justify-between gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="flex items-start gap-2 min-w-0">
                 <Lock className="mt-0.5 h-4 w-4 shrink-0 text-gray-500" />
                 <div className="text-xs leading-5 text-gray-600 min-w-0">
@@ -74,7 +74,7 @@ export function PrivacySecurityCard({ email = '', loginProvider = '' }) {
           </div>
         ) : null}
 
-        <div className="mt-6 flex gap-3">
+        <div className="mt-6 grid gap-3 sm:grid-cols-2">
           <button
             type="button"
             className="flex-1 rounded-full border border-gray-300 py-2 text-xs font-semibold transition hover:bg-gray-50"

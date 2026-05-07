@@ -50,17 +50,21 @@ export function VoiceInterviewPanel({
   const isNotStarted = sessionStatus === 'ready';
   const currentQuestionText = currentQuestion?.displayText || currentQuestion?.text || '';
   const statusBadgeLabel = isAutoLoopActive && !isRecording ? stateLabel : (isRecording ? 'Listening...' : stateLabel);
+  const voiceActionDisabled = !canUseVoice || isCompleted;
+  const displayedVoiceStatus = isCompleted
+    ? { type: 'success', title: 'Interview ended', message: 'Your voice session is saved. Review the report or export the transcript when ready.' }
+    : voiceStatus;
 
   return (
     <div className="flex h-full min-h-0 flex-col space-y-4">
-      {voiceStatus ? (
-        <div className={cn('shrink-0 rounded-2xl border px-4 py-3 text-sm shadow-sm', renderStatusTone(voiceStatus.type))}>
-          <p className="font-semibold">{voiceStatus.title}</p>
-          <p className="mt-1">{voiceStatus.message}</p>
+      {displayedVoiceStatus ? (
+        <div className={cn('shrink-0 rounded-2xl border px-4 py-3 text-sm shadow-sm', renderStatusTone(displayedVoiceStatus.type))}>
+          <p className="font-semibold">{displayedVoiceStatus.title}</p>
+          <p className="mt-1">{displayedVoiceStatus.message}</p>
         </div>
       ) : null}
 
-      {(permissionError && !voiceStatus) ? (
+      {(permissionError && !displayedVoiceStatus) ? (
         <div className="shrink-0 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 shadow-sm">
           <p className="font-semibold">Microphone error</p>
           <p className="mt-1">{permissionError}</p>
@@ -69,100 +73,130 @@ export function VoiceInterviewPanel({
 
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-        <div className="flex-1 overflow-y-auto bg-gray-50 p-6 min-h-0">
-          <div className="mx-auto flex max-w-[520px] flex-col items-center gap-6 py-4">
+        <div className="min-h-[320px] flex-1 overflow-hidden bg-gray-50 p-4 sm:min-h-[360px] lg:min-h-0 xl:min-h-[420px]">
+          <div className="mx-auto flex h-full max-w-[520px] flex-col items-center justify-center gap-4 py-2">
             <div className="flex w-full flex-wrap items-center justify-between gap-3">
               <div className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm">
-                <span className={cn('h-2.5 w-2.5 rounded-full', isRecording ? 'bg-[#2eb886]' : 'bg-gray-300')} />
-                {statusBadgeLabel}
+                <span className={cn('h-2.5 w-2.5 rounded-full', isRecording ? 'bg-[#2eb886]' : (isCompleted ? 'bg-emerald-500' : 'bg-gray-300'))} />
+                {isCompleted ? 'Session ended' : statusBadgeLabel}
               </div>
               <div className="rounded-full bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-gray-500 shadow-sm">
                 {permissionState} · {realtimeStatus || 'idle'}
               </div>
             </div>
 
-            <div className="relative flex h-[220px] w-[220px] items-center justify-center rounded-full border border-[#cfece0] bg-white">
-              <div className={cn('absolute inset-6 rounded-full transition-all duration-200', isRecording ? 'bg-[#2eb886]/20 animate-pulse' : 'bg-[#2eb886]/10')} />
+            <div className="relative flex h-[120px] w-[120px] items-center justify-center rounded-full border border-[#cfece0] bg-white sm:h-[132px] sm:w-[132px] xl:h-[160px] xl:w-[160px]">
+              <div className={cn('absolute inset-4 rounded-full transition-all duration-200', isRecording ? 'bg-[#2eb886]/20 animate-pulse' : 'bg-[#2eb886]/10')} />
               <button
                 type="button"
                 onClick={handleToggleRecording}
-                disabled={!canUseVoice}
-                className={cn('relative z-10 flex h-[112px] w-[112px] items-center justify-center rounded-full text-white shadow-lg transition-all duration-200', canUseVoice ? 'bg-[#2eb886] hover:bg-[#24a673]' : 'cursor-not-allowed bg-gray-300')}
-                aria-label={isAutoLoopActive || isRecording ? 'Pause voice interview' : 'Start voice interview'}
+                disabled={voiceActionDisabled}
+                className={cn('relative z-10 flex h-[64px] w-[64px] items-center justify-center rounded-full text-white shadow-lg transition-all duration-200 sm:h-[68px] sm:w-[68px] xl:h-[78px] xl:w-[78px]', voiceActionDisabled ? 'cursor-not-allowed bg-gray-300' : 'bg-[#2eb886] hover:bg-[#24a673]')}
+                aria-label={isCompleted ? 'Voice interview ended' : (isAutoLoopActive || isRecording ? 'Pause voice interview' : 'Start voice interview')}
               >
-                {isAutoLoopActive || isRecording ? <Square className="h-8 w-8" /> : <Mic className="h-8 w-8" />}
+                {isAutoLoopActive || isRecording ? <Square className="h-6 w-6" /> : <Mic className="h-6 w-6" />}
               </button>
             </div>
 
-            <div className="text-center">
-              <p className="text-base font-medium text-gray-600">
-                {isAutoLoopActive ? (isRecording ? 'Listening automatically - ' + recordingDurationLabel : 'Auto voice interview is running') : (isNotStarted ? 'Click the mic to start the interview and begin the timer' : 'Start Voice Interview to begin the hands-free loop')}
-              </p>
-              <p className="mt-1 text-sm text-gray-400">
-                Voice mode: Duplex Voice Agent{vadState ? ' · ' + vadState : ''}{recordingStatus?.state === 'uploading' ? ' · Preparing MP3' : ''}
-              </p>
+            <div className="text-center min-h-[52px] flex flex-col justify-center">
+              {isCompleted ? (
+                <>
+                  <p className="text-lg font-semibold text-emerald-700">Interview ended</p>
+                  <p className="mt-1 text-sm text-emerald-600">Live voice controls are closed for this session.</p>
+                </>
+              ) : isAutoLoopActive ? (
+                isRecording ? (
+                  <>
+                    <p className="text-lg font-bold text-[#2eb886] animate-pulse">You can speak now</p>
+                    <p className="mt-1 text-sm text-gray-500">{stateLabel} · {recordingDurationLabel}</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-lg font-bold text-sky-600">{stateLabel}</p>
+                    <p className="mt-1 text-sm text-gray-500">Please wait for your turn</p>
+                  </>
+                )
+              ) : (
+                <>
+                  <p className="text-lg font-bold text-gray-700">Ready to begin</p>
+                  <p className="mt-1 text-sm text-gray-500">Click the microphone to start the interview</p>
+                </>
+              )}
             </div>
 
-            <div className="flex h-[78px] w-full items-end justify-between gap-1 overflow-hidden rounded-3xl bg-white px-4 py-4 shadow-sm">
+            <div className="flex h-[58px] w-full items-end justify-between gap-1 overflow-hidden rounded-2xl bg-white px-4 py-3 shadow-sm">
               {waveBars.map((value, index) => (
                 <div
                   key={`wave-${index}`}
-                  className={cn('w-full rounded-full transition-all duration-100', isRecording ? 'bg-blue-500' : 'bg-blue-200')}
+                  className={cn('w-full rounded-full transition-all duration-100', isRecording ? 'bg-blue-500' : (isCompleted ? 'bg-blue-100' : 'bg-blue-200'))}
                   style={{ height: `${Math.round(value * 100)}%` }}
                 />
               ))}
             </div>
 
+            {isCompleted ? (
+              <div className="w-full rounded-2xl border border-emerald-100 bg-white px-4 py-3 text-center text-sm text-emerald-700 shadow-sm">
+                Session ended. Report, transcript, and recording actions are available outside the live voice controls.
+              </div>
+            ) : null}
           </div>
         </div>
 
-        <div className={cn('shrink-0 border-t p-6 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] transition-colors', isPaused ? 'bg-amber-50 border-amber-200' : 'bg-white border-gray-100')}>
-          {isPaused ? (
+        {!isCompleted ? (
+          <div className={cn('shrink-0 border-t p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] transition-colors', isPaused ? 'bg-amber-50 border-amber-200' : 'bg-white border-gray-100')}>
+            {isPaused ? (
             <div className="flex flex-col items-center justify-center py-3">
               <p className="text-lg font-semibold text-amber-700">Interview Paused</p>
               <p className="mt-1 text-sm text-amber-600">Click Resume to continue your interview.</p>
             </div>
-          ) : isCompleted ? (
-            <div className="flex flex-col items-center justify-center py-3">
-              <p className="text-lg font-semibold text-emerald-700">Interview Completed</p>
-              <p className="mt-1 text-sm text-emerald-600">The planned questions are finished. You can review the report now.</p>
-            </div>
-          ) : (
+            ) : (
             <>
               <p className="mb-2 text-xs font-medium uppercase tracking-wider text-gray-500">Voice-only question mode</p>
               <p className="text-lg font-medium leading-7 text-gray-900 pr-2">
                 {isNotStarted ? 'Click the mic button when you are ready. The timer starts only after Voice Interview begins.' : (currentQuestionText ? 'Listen to KiwiCoach. Start speaking if you need to interrupt, or answer when the listening state appears.' : 'Waiting for the interviewer voice.')}
               </p>
             </>
-          )}
-        </div>
-
-        <div className="shrink-0 border-t border-gray-200 bg-white p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap gap-3">
-              <Button variant="secondary" onClick={onPause} disabled={isNotStarted || isCompleted || isSubmitting}>
-                <CirclePause className="mr-2 h-4 w-4" />
-                {isPaused ? 'Resume' : 'Pause'}
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  const played = handleReplayAssistantAudio();
-                  if (!played) onRepeat();
-                }}
-                disabled={isNotStarted || isCompleted || isSubmitting}
-              >
-                <RefreshCcw className="mr-2 h-4 w-4" />
-                Repeat Question
-              </Button>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button variant="secondary" size="sm" onClick={handleRequestPermission}><Mic className="mr-2 h-4 w-4" />Allow Mic</Button>
-              <Button variant="secondary" size="sm" onClick={handleReplayAssistantAudio} disabled={isNotStarted}><Volume2 className="mr-2 h-4 w-4" />Replay</Button>
-              <Button variant="secondary" size="sm" onClick={handleResetShell}><MicOff className="mr-2 h-4 w-4" />Reset</Button>
-              <Button variant="danger" onClick={onEnd} disabled={isSubmitting || isCompleted}>End Interview</Button>
-            </div>
+            )}
           </div>
+        ) : null}
+
+        <div className="sticky bottom-0 z-20 shrink-0 border-t border-gray-200 bg-white p-4 shadow-[0_-8px_20px_rgba(15,23,42,0.08)] lg:static lg:shadow-none">
+          {isCompleted ? (
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-gray-500">Live controls are closed.</p>
+              <Button variant="secondary" size="sm" onClick={handleReplayAssistantAudio} disabled={!assistantAudioUrl}>
+                <Volume2 className="mr-2 h-4 w-4" />
+                Replay
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="grid grid-cols-3 gap-2">
+                <Button variant="secondary" className="px-3" onClick={onPause} disabled={isNotStarted || isSubmitting}>
+                  <CirclePause className="mr-2 h-4 w-4" />
+                  {isPaused ? 'Resume' : 'Pause'}
+                </Button>
+                <Button
+                  variant="secondary"
+                  className="px-3"
+                  onClick={() => {
+                    const played = handleReplayAssistantAudio();
+                    if (!played) onRepeat();
+                  }}
+                  disabled={isNotStarted || isSubmitting}
+                >
+                  <RefreshCcw className="mr-2 h-4 w-4" />
+                  Repeat
+                </Button>
+                <Button variant="danger" className="px-3" onClick={onEnd} disabled={isSubmitting}>End</Button>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <Button variant="secondary" size="sm" className="px-2" onClick={handleRequestPermission}><Mic className="mr-1 h-4 w-4 sm:mr-2" />Mic</Button>
+                <Button variant="secondary" size="sm" className="px-2" onClick={handleReplayAssistantAudio} disabled={isNotStarted}><Volume2 className="mr-1 h-4 w-4 sm:mr-2" />Replay</Button>
+                <Button variant="secondary" size="sm" className="px-2" onClick={handleResetShell}><MicOff className="mr-1 h-4 w-4 sm:mr-2" />Reset</Button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

@@ -20,7 +20,7 @@ import { Briefcase, Clock, Star } from 'lucide-react';
  */
 function StatCard({ icon, title, value, iconBg = 'bg-emerald-50 text-emerald-600' }) {
   return (
-    <div className="flex items-start gap-4 rounded-3xl border border-gray-100 bg-white p-6 shadow-[0_2px_10px_rgb(0,0,0,0.02)]">
+    <div className="flex items-start gap-4 rounded-3xl border border-gray-100 bg-white p-5 shadow-[0_2px_10px_rgb(0,0,0,0.02)] sm:p-6">
       <div className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full ${iconBg}`}>
         {icon}
       </div>
@@ -43,7 +43,7 @@ function StatCard({ icon, title, value, iconBg = 'bg-emerald-50 text-emerald-600
  */
 export function StatsSection({ stats }) {
   return (
-    <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+    <div className="grid grid-cols-1 gap-5 sm:gap-6 lg:grid-cols-3">
       <StatCard icon={<Clock size={20} />} title="Total Sessions" value={stats.totalSessionsLabel} />
       <StatCard icon={<Star size={20} />} title="Avg. Score" value={stats.averageScoreLabel} iconBg="bg-[#20B2AA] text-white" />
       <StatCard icon={<Briefcase size={20} />} title="Latest Role" value={stats.latestRoleLabel} />

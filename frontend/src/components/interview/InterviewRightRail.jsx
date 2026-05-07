@@ -19,7 +19,7 @@ const resolveRecordingLabel = ({ isCompleted, recordingStatus }) => {
   if (recordingStatus?.state === 'uploading') return 'Preparing MP3...';
   if (recordingStatus?.state === 'failed') return 'Recording failed';
   if (recordingStatus?.state === 'ready') return 'MP3 ready';
-  return 'Preparing recording status...';
+  return 'Recording is still being processed';
 };
 
 export function InterviewRightRail({
@@ -34,11 +34,12 @@ export function InterviewRightRail({
   onDownloadRecording,
 }) {
   const canDownloadRecording = isVoiceMode && isCompleted && recordingStatus?.state === 'ready';
+  const transcriptModeLabel = isVoiceMode ? 'Voice Interview' : 'Text Interview';
 
   return (
-    <div className="hidden lg:flex lg:col-span-3 flex-col gap-6 h-full pb-6 min-h-0">
+    <div className="hidden lg:flex lg:col-span-3 xl:col-span-3 flex-col gap-6 h-full pb-6 min-h-0">
       <div className="flex-1 overflow-hidden min-h-0">
-        <TranscriptPanel transcript={transcript} onExport={onExport} candidateName={candidateName} />
+        <TranscriptPanel transcript={transcript} onExport={onExport} candidateName={candidateName} modeLabel={transcriptModeLabel} />
       </div>
 
       {isVoiceMode ? (

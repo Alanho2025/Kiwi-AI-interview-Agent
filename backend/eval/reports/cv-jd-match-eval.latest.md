@@ -2,8 +2,8 @@
 
 - Cases run: 4
 - Average score: 1
-- Min average gate: 0
-- Per-case fail gate: 0
+- Min average gate: 0.9
+- Per-case fail gate: 0.75
 
 ## Case results
 | case | score | failed checks |

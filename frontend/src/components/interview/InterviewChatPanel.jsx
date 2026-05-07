@@ -53,20 +53,20 @@ export function InterviewChatPanel({ transcript, onStart, onReply, onPause, onRe
   const historyTranscript = isLastMessageAi ? transcript.slice(0, -1) : transcript;
 
   return (
-    <div className="flex flex-col h-full space-y-4 min-h-0">
+    <div className="flex h-full min-h-0 flex-col space-y-4">
       <Card className="flex-1 flex flex-col min-h-0 overflow-hidden border-gray-200 shadow-sm">
         {/* Chat History Area */}
-        <CardContent className="flex-1 overflow-y-auto p-6 space-y-6 bg-gray-50 min-h-0">
+        <CardContent className="max-h-[300px] flex-1 overflow-y-auto space-y-4 bg-gray-50 p-4 sm:max-h-none sm:space-y-6 sm:p-6 lg:min-h-0">
           {historyTranscript.map((msg, idx) => (
-            <div key={idx} className={cn("flex gap-4 max-w-[85%]", msg.role === 'user' ? "ml-auto flex-row-reverse" : "")}>
+            <div key={idx} className={cn("flex max-w-[92%] gap-3 sm:max-w-[85%] sm:gap-4", msg.role === 'user' ? "ml-auto flex-row-reverse" : "")}>
               <div className={cn(
-                "w-10 h-10 rounded-full flex items-center justify-center shrink-0",
+                "w-8 h-8 rounded-full flex items-center justify-center shrink-0 sm:h-10 sm:w-10",
                 msg.role === 'ai' ? "bg-[#e6f7f0] text-[#2eb886]" : "bg-gray-200 text-gray-600"
               )}>
                 {msg.role === 'ai' ? <Bird className="w-5 h-5" /> : <span className="text-sm font-medium">{initials}</span>}
               </div>
               <div className={cn(
-                "p-4 rounded-2xl text-sm shadow-sm whitespace-pre-line",
+                "break-words p-3 sm:p-4 rounded-2xl text-sm shadow-sm whitespace-pre-line",
                 msg.role === 'ai' ? "bg-white text-gray-900 rounded-tl-none border border-gray-100" : "bg-[#2eb886] text-white rounded-tr-none"
               )}>
                 {msg.displayText || msg.text}
@@ -78,7 +78,7 @@ export function InterviewChatPanel({ transcript, onStart, onReply, onPause, onRe
 
         {/* Current Question Highlight */}
         <div className={cn(
-          "border-t p-6 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-10 transition-colors shrink-0",
+          "border-t p-4 sm:p-6 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-10 transition-colors shrink-0",
           isPaused ? "bg-amber-50 border-amber-200" : "bg-white border-gray-100"
         )}>
           {isPaused ? (
@@ -98,7 +98,7 @@ export function InterviewChatPanel({ transcript, onStart, onReply, onPause, onRe
               </p>
               {isNotStarted ? (
                 <div className="space-y-3">
-                  <p className="text-lg font-medium text-gray-900">Start the text interview when you are ready. The timer will begin after you start.</p>
+                  <p className="text-base font-medium text-gray-900 sm:text-lg">Start the text interview when you are ready. The timer will begin after you start.</p>
                   <Button type="button" onClick={onStart} disabled={isSubmitting}>
                     <Play className="mr-2 h-4 w-4" />
                     Start Text Interview
@@ -111,14 +111,14 @@ export function InterviewChatPanel({ transcript, onStart, onReply, onPause, onRe
                   <div className="w-2 h-2 bg-gray-300 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                 </div>
               ) : (
-                <p className="text-lg font-medium text-gray-900 whitespace-pre-line">{currentQuestion?.displayText || currentQuestion?.text}</p>
+                <p className="whitespace-pre-line break-words text-base font-medium text-gray-900 sm:text-lg">{currentQuestion?.displayText || currentQuestion?.text}</p>
               )}
             </>
           )}
         </div>
 
         {/* Input Area */}
-        <div className="p-4 bg-white border-t border-gray-200 shrink-0">
+        <div className="sticky bottom-0 z-20 shrink-0 border-t border-gray-200 bg-white p-4 shadow-[0_-8px_20px_rgba(15,23,42,0.08)] lg:static lg:shadow-none">
           <div className="relative">
             <TextArea 
               value={draft}
@@ -146,18 +146,14 @@ export function InterviewChatPanel({ transcript, onStart, onReply, onPause, onRe
       </Card>
 
       {/* Action Bar */}
-      <div className="flex items-center justify-between px-2 shrink-0">
-        <div className="flex gap-3">
-          <Button variant="secondary" onClick={onPause} disabled={isNotStarted || isCompleted}>
+      <div className="grid grid-cols-3 gap-2 px-2 shrink-0">
+        <Button variant="secondary" className="px-3" onClick={onPause} disabled={isNotStarted || isCompleted}>
             {isPaused ? 'Resume' : 'Pause'}
-          </Button>
-          <Button variant="secondary" onClick={onRepeat} disabled={isNotStarted || isPaused || isCompleted || isSubmitting}>
-            Repeat Question
-          </Button>
-        </div>
-        <div className="flex gap-3">
-          <Button variant="danger" onClick={onEnd} disabled={isSubmitting || isCompleted}>End Interview</Button>
-        </div>
+        </Button>
+        <Button variant="secondary" className="px-3" onClick={onRepeat} disabled={isNotStarted || isPaused || isCompleted || isSubmitting}>
+          Repeat
+        </Button>
+        <Button variant="danger" className="px-3" onClick={onEnd} disabled={isSubmitting || isCompleted}>End</Button>
       </div>
     </div>
   );

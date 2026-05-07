@@ -17,14 +17,27 @@ const buildPrimaryTitle = ({ isVoiceMode, title }) => {
   return title;
 };
 
+const countCandidateAnswers = (transcript = []) => transcript.filter((turn) => turn?.role === 'user').length;
+
+const buildProgressText = (session) => {
+  const totalQuestions = Number(session?.totalQuestions) || 0;
+  if (session?.status === 'completed') {
+    const answeredCount = countCandidateAnswers(session?.transcript);
+    return `Answered ${answeredCount} of ${totalQuestions || session?.totalQuestions || 0}`;
+  }
+
+  return `Question ${session?.currentQuestionIndex} of ${session?.totalQuestions}`;
+};
+
 export function InterviewPageHeader({ session, title, roleFamilyLabel, exactRoleTitle, modeLabel, levelLabel, stageLabel, elapsedSeconds, controlMode = 'question_limited', timeLimitSeconds = null, isVoiceMode = false, onViewReport }) {
   const isCompleted = session?.status === 'completed';
   const isNotStarted = session?.status === 'ready';
   const hasReport = Boolean(session?.hasReport);
   const showReportButton = isCompleted;
   const isTimeLimited = controlMode === 'time_limited' && Number(timeLimitSeconds) > 0;
-  const timerLabel = isTimeLimited ? (isNotStarted ? 'Time limit' : 'Time left') : (isNotStarted ? 'Timer starts after start' : 'Timer');
-  const timerValue = isTimeLimited ? formatDuration(Math.max(0, Number(timeLimitSeconds) - Number(elapsedSeconds || 0))) : formatDuration(elapsedSeconds);
+  const timerLabel = isCompleted ? 'Ended' : (isTimeLimited ? (isNotStarted ? 'Time limit' : 'Time left') : (isNotStarted ? 'Timer starts after start' : 'Timer'));
+  const timerValue = isCompleted ? formatDuration(session?.elapsedSeconds || elapsedSeconds) : (isTimeLimited ? formatDuration(Math.max(0, Number(timeLimitSeconds) - Number(elapsedSeconds || 0))) : formatDuration(elapsedSeconds));
+  const progressText = buildProgressText(session);
 
   const buttonText = hasReport ? 'View Report' : 'Generate Report';
   const buttonClass = hasReport
@@ -51,7 +64,7 @@ export function InterviewPageHeader({ session, title, roleFamilyLabel, exactRole
             </div>
             <div className="text-right">
               <p className="text-xs text-gray-500 uppercase tracking-wider">Progress</p>
-              <p className="text-sm font-medium text-gray-900">Question {session?.currentQuestionIndex} of {session?.totalQuestions}</p>
+              <p className="text-sm font-medium text-gray-900">{progressText}</p>
             </div>
             {showReportButton ? (
               <button className={buttonClass} onClick={onViewReport}>
@@ -86,7 +99,7 @@ export function InterviewPageHeader({ session, title, roleFamilyLabel, exactRole
           </div>
           <div className="text-right">
             <p className="text-xs text-gray-500 uppercase tracking-wider">Progress</p>
-            <p className="text-sm font-medium text-gray-900">Question {session?.currentQuestionIndex} of {session?.totalQuestions}</p>
+            <p className="text-sm font-medium text-gray-900">{progressText}</p>
           </div>
           {showReportButton ? (
             <button className={buttonClass} onClick={onViewReport}>

@@ -3,8 +3,8 @@
   "average": 1,
   "weakestCases": [],
   "thresholds": {
-    "minAverage": 0,
-    "failBelow": 0
+    "minAverage": 0.9,
+    "failBelow": 0.75
   },
   "results": [
     {
@@ -22,8 +22,8 @@
       "id": "transition_cv_to_data_engineer_jd",
       "cvFixture": "data-analyst-transition.txt",
       "jdFixture": "data-engineer-clean.txt",
-      "decision": "weak_match",
-      "overallScore": 35.97,
+      "decision": "not_qualified",
+      "overallScore": 38.5,
       "score": 1,
       "earned": 19,
       "possible": 19,

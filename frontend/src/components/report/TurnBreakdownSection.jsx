@@ -6,15 +6,15 @@ function ScoreBar({ label, score, colorClass }) {
   const percentage = Math.max(0, Math.min(100, (score / 10) * 100));
   
   return (
-    <div className="flex items-center space-x-3 text-sm">
-      <span className="w-20 text-gray-500 font-medium">{label}</span>
+    <div className="flex items-center gap-3 text-sm">
+      <span className="w-20 shrink-0 text-gray-500 font-medium">{label}</span>
       <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
         <div 
           className={`h-full ${colorClass} transition-all duration-500`} 
           style={{ width: `${percentage}%` }}
         />
       </div>
-      <span className="w-8 text-right font-semibold text-gray-700">{score}/10</span>
+      <span className="w-8 shrink-0 text-right font-semibold text-gray-700">{score}/10</span>
     </div>
   );
 }
@@ -46,13 +46,13 @@ export function TurnBreakdownSection({ turnBreakdowns }) {
                 onClick={() => !isExpanded && setExpandedIndex(index)}
               >
                 {/* Header (Always visible) */}
-                <div className="p-4 flex items-start justify-between space-x-4">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-2 mb-1">
-                      <span className="flex items-center justify-center w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold">
+                <div className="flex items-start justify-between gap-3 p-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="mb-1 flex items-start gap-2">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700">
                         Q{index + 1}
                       </span>
-                      <h4 className="text-sm font-semibold text-gray-900 line-clamp-2">{turn.question}</h4>
+                      <h4 className="min-w-0 break-words text-sm font-semibold text-gray-900 line-clamp-2">{turn.question}</h4>
                     </div>
                   </div>
                   
@@ -62,7 +62,7 @@ export function TurnBreakdownSection({ turnBreakdowns }) {
                       e.stopPropagation();
                       setExpandedIndex(isExpanded ? -1 : index);
                     }}
-                    className="p-1 rounded-full hover:bg-gray-200 transition-colors text-gray-400"
+                    className="shrink-0 rounded-full p-1 text-gray-400 transition-colors hover:bg-gray-200"
                   >
                     <svg 
                       className={`w-5 h-5 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} 

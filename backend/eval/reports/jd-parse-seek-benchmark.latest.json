@@ -1,7 +1,7 @@
 {
   "casesRun": 10,
-  "average": 0.8,
-  "criticalAverage": 0.84,
+  "average": 0.81,
+  "criticalAverage": 0.83,
   "weakestCases": [
     {
       "id": "seek_first_software_full_stack",
@@ -13,12 +13,10 @@
     },
     {
       "id": "seek_flowingly_full_stack_ai_workflow",
-      "score": 0.55,
-      "criticalScore": 0.42,
+      "score": 0.8,
+      "criticalScore": 0.75,
       "failedChecks": [
-        "title",
-        "roleFamily",
-        "roleLevel",
+        "companyName",
         "skills",
         "requirements",
         "application"
@@ -26,26 +24,25 @@
     },
     {
       "id": "seek_randstad_data_analyst",
-      "score": 0.67,
-      "criticalScore": 0.79,
+      "score": 0.86,
+      "criticalScore": 0.97,
       "failedChecks": [
-        "skills",
         "requirements",
         "benefits"
       ]
     },
     {
       "id": "seek_rwa_ai_software_product_developer",
-      "score": 0.81,
+      "score": 0.85,
       "criticalScore": 0.83,
       "failedChecks": [
-        "roleFamily"
+        "title"
       ]
     },
     {
       "id": "seek_ahwoo_senior_frontend",
-      "score": 0.5,
-      "criticalScore": 0.69,
+      "score": 0.71,
+      "criticalScore": 0.83,
       "failedChecks": [
         "skills",
         "requirements",
@@ -54,28 +51,43 @@
     },
     {
       "id": "seek_customer_radar_ai_enabled_software_engineer",
-      "score": 0.83,
-      "criticalScore": 0.88,
+      "score": 0.56,
+      "criticalScore": 0.55,
       "failedChecks": [
+        "companyName",
+        "roleFamily",
         "skills",
-        "requirements"
+        "requirements",
+        "application"
       ]
     },
     {
       "id": "seek_counties_energy_data_ai_engineer",
-      "score": 0.86,
-      "criticalScore": 0.8,
+      "score": 0.7,
+      "criticalScore": 0.63,
       "failedChecks": [
-        "roleLevel",
-        "skills"
+        "companyName",
+        "roleFamily",
+        "skills",
+        "application"
+      ]
+    },
+    {
+      "id": "seek_serato_senior_web_software_engineer",
+      "score": 0.82,
+      "criticalScore": 0.76,
+      "failedChecks": [
+        "companyName",
+        "skills",
+        "requirements"
       ]
     }
   ],
   "thresholds": {
-    "minAverage": 0,
-    "failBelow": 0,
-    "minCriticalAverage": 0,
-    "criticalFailBelow": 0
+    "minAverage": 0.78,
+    "failBelow": 0.55,
+    "minCriticalAverage": 0.82,
+    "criticalFailBelow": 0.5
   },
   "results": [
     {
@@ -123,25 +135,23 @@
     {
       "id": "seek_flowingly_full_stack_ai_workflow",
       "fixture": "seek-flowingly-full-stack-ai-workflow.txt",
-      "score": 0.55,
-      "criticalScore": 0.42,
-      "earned": 0.55,
+      "score": 0.8,
+      "criticalScore": 0.75,
+      "earned": 0.8,
       "possible": 1,
       "fieldScores": {
-        "title": 0,
-        "companyName": 1,
+        "title": 1,
+        "companyName": 0,
         "employmentType": 1,
-        "roleFamily": 0,
-        "roleLevel": 0,
+        "roleFamily": 1,
+        "roleLevel": 1,
         "skills": 0.92,
         "requirements": 0.6,
         "application": 0.5,
         "noiseControl": 1
       },
       "failedChecks": [
-        "title",
-        "roleFamily",
-        "roleLevel",
+        "companyName",
         "skills",
         "requirements",
         "application"
@@ -150,9 +160,9 @@
     {
       "id": "seek_randstad_data_analyst",
       "fixture": "seek-randstad-data-analyst.txt",
-      "score": 0.67,
-      "criticalScore": 0.79,
-      "earned": 0.67,
+      "score": 0.86,
+      "criticalScore": 0.97,
+      "earned": 0.86,
       "possible": 1,
       "fieldScores": {
         "title": 1,
@@ -160,12 +170,11 @@
         "employmentType": 1,
         "roleFamily": 1,
         "roleLevel": 1,
-        "skills": 0.71,
-        "requirements": 0,
-        "benefits": 0.5
+        "skills": 1,
+        "requirements": 0.8,
+        "benefits": 0
       },
       "failedChecks": [
-        "skills",
         "requirements",
         "benefits"
       ]
@@ -173,29 +182,29 @@
     {
       "id": "seek_rwa_ai_software_product_developer",
       "fixture": "seek-rwa-ai-software-product-developer.txt",
-      "score": 0.81,
+      "score": 0.85,
       "criticalScore": 0.83,
-      "earned": 0.77,
+      "earned": 0.81,
       "possible": 0.95,
       "fieldScores": {
-        "title": 1,
+        "title": 0,
         "companyName": 1,
         "employmentType": 1,
-        "roleFamily": 0,
+        "roleFamily": 1,
         "roleLevel": 1,
         "skills": 1,
         "requirements": 1
       },
       "failedChecks": [
-        "roleFamily"
+        "title"
       ]
     },
     {
       "id": "seek_ahwoo_senior_frontend",
       "fixture": "seek-ahwoo-senior-frontend-developer.txt",
-      "score": 0.5,
-      "criticalScore": 0.69,
-      "earned": 0.48,
+      "score": 0.71,
+      "criticalScore": 0.83,
+      "earned": 0.69,
       "possible": 0.96,
       "fieldScores": {
         "title": 1,
@@ -203,8 +212,8 @@
         "employmentType": 1,
         "roleFamily": 1,
         "roleLevel": 1,
-        "skills": 0.13,
-        "requirements": 0,
+        "skills": 0.75,
+        "requirements": 0.2,
         "application": 0
       },
       "failedChecks": [
@@ -216,65 +225,71 @@
     {
       "id": "seek_customer_radar_ai_enabled_software_engineer",
       "fixture": "seek-customer-radar-ai-enabled-software-engineer.txt",
-      "score": 0.83,
-      "criticalScore": 0.88,
-      "earned": 0.79,
+      "score": 0.56,
+      "criticalScore": 0.55,
+      "earned": 0.54,
       "possible": 0.95,
       "fieldScores": {
         "title": 1,
-        "companyName": 1,
+        "companyName": 0,
         "employmentType": 1,
-        "roleFamily": 1,
+        "roleFamily": 0,
         "roleLevel": 1,
         "skills": 0.71,
         "requirements": 0.57,
-        "application": 1
+        "application": 0
       },
       "failedChecks": [
+        "companyName",
+        "roleFamily",
         "skills",
-        "requirements"
+        "requirements",
+        "application"
       ]
     },
     {
       "id": "seek_counties_energy_data_ai_engineer",
       "fixture": "seek-counties-energy-data-ai-engineer.txt",
-      "score": 0.86,
-      "criticalScore": 0.8,
-      "earned": 0.82,
+      "score": 0.7,
+      "criticalScore": 0.63,
+      "earned": 0.66,
       "possible": 0.95,
       "fieldScores": {
         "title": 1,
-        "companyName": 1,
+        "companyName": 0,
         "employmentType": 1,
-        "roleFamily": 1,
-        "roleLevel": 0,
+        "roleFamily": 0,
+        "roleLevel": 1,
         "skills": 0.8,
         "requirements": 1,
-        "application": 1
+        "application": 0.33
       },
       "failedChecks": [
-        "roleLevel",
-        "skills"
+        "companyName",
+        "roleFamily",
+        "skills",
+        "application"
       ]
     },
     {
       "id": "seek_serato_senior_web_software_engineer",
       "fixture": "seek-serato-senior-web-software-engineer.txt",
-      "score": 0.94,
-      "criticalScore": 0.96,
-      "earned": 0.94,
+      "score": 0.82,
+      "criticalScore": 0.76,
+      "earned": 0.82,
       "possible": 1,
       "fieldScores": {
         "title": 1,
-        "companyName": 1,
+        "companyName": 0,
         "employmentType": 1,
         "roleFamily": 1,
         "roleLevel": 1,
         "skills": 0.9,
-        "requirements": 0.83,
+        "requirements": 0.67,
         "noiseControl": 1
       },
       "failedChecks": [
+        "companyName",
         "skills",
         "requirements"
       ]
@@ -282,9 +297,9 @@
     {
       "id": "seek_kiwirail_graduate_programme",
       "fixture": "seek-kiwirail-graduate-programme.txt",
-      "score": 1,
+      "score": 0.94,
       "criticalScore": 1,
-      "earned": 0.9,
+      "earned": 0.85,
       "possible": 0.9,
       "fieldScores": {
         "title": 1,
@@ -293,9 +308,11 @@
         "roleFamily": 1,
         "roleLevel": 1,
         "requirements": 1,
-        "application": 1
+        "application": 0.5
       },
-      "failedChecks": []
+      "failedChecks": [
+        "application"
+      ]
     }
   ]
 }
