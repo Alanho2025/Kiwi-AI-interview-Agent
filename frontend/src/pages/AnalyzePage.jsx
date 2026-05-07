@@ -32,6 +32,7 @@ import {
 } from '../utils/analyzeDraft.js';
 import { buildSessionSetupPayload, saveSessionDefaults } from '../utils/sessionSettings.js';
 import { DEFAULT_VOICE_DEVICE_CHECK } from '../hooks/useVoiceDeviceCheck.js';
+import { useTour } from '../contexts/TourContext.jsx';
 
 /**
  * Purpose: Execute the main responsibility for buildStatusMessage.
@@ -61,10 +62,42 @@ export function AnalyzePage() {
   const [pageStatus, setPageStatus] = useState(null);
   const [voiceDeviceCheck, setVoiceDeviceCheck] = useState(DEFAULT_VOICE_DEVICE_CHECK);
 
+  const { startTour, globalTourStep, advanceGlobalTour } = useTour();
+
   const currentStep = resolveAnalyzeStep(analysisStatus);
   const isVoiceReady = voiceDeviceCheck?.browser?.status === 'ok'
     && voiceDeviceCheck?.mic?.status === 'ok'
     && voiceDeviceCheck?.speaker?.status === 'ok';
+
+  const ANALYZE_TOUR_STEPS = [
+    {
+      target: '#tour-analyze-cv',
+      content: 'First, upload your CV or select a recent one. The AI will use this to understand your background.',
+      placement: 'bottom',
+      disableBeacon: true,
+    },
+    {
+      target: '#tour-analyze-jd',
+      content: 'Next, paste the Job Description. KiwiCoach will compare this with your CV to generate tailored interview questions.',
+      placement: 'bottom',
+    },
+    {
+      target: '#tour-analyze-actions',
+      content: 'Once both are ready, click "Generate Plan". After it finishes matching, you can click "Start Interview". Go ahead and upload a CV now!',
+      placement: 'top',
+      spotlightClicks: true,
+    }
+  ];
+
+  useEffect(() => {
+    // Trigger if the tour is meant for this page, or if user jumped here from Home via spotlight click
+    if (globalTourStep === 'analyze' || globalTourStep === 'home') {
+      advanceGlobalTour('analyze');
+      setTimeout(() => {
+        startTour(ANALYZE_TOUR_STEPS);
+      }, 1000);
+    }
+  }, [globalTourStep, startTour, advanceGlobalTour]);
 
   const resetAnalysisState = () => {
     setAnalysisStatus('idle');
@@ -244,20 +277,24 @@ export function AnalyzePage() {
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <div className="space-y-8">
-            <CVManagementCard
-              onUpload={handleUpload}
-              recentCVs={recentCVs}
-              onSelectRecent={handleSelectRecent}
-              validationMessage={pageStatus?.type === 'error' && pageStatus.title === 'Upload failed' ? pageStatus.message : null}
-            />
-            <JobContextCard
-              rawJD={rawJD}
-              setRawJD={handleRawJDChange}
-              structuredJD={structuredJD}
-              structuredJDRubric={structuredJDRubric}
-              onSummarize={handleSummarizeJD}
-              isSummarizing={isSummarizingJD}
-            />
+            <div id="tour-analyze-cv">
+              <CVManagementCard
+                onUpload={handleUpload}
+                recentCVs={recentCVs}
+                onSelectRecent={handleSelectRecent}
+                validationMessage={pageStatus?.type === 'error' && pageStatus.title === 'Upload failed' ? pageStatus.message : null}
+              />
+            </div>
+            <div id="tour-analyze-jd">
+              <JobContextCard
+                rawJD={rawJD}
+                setRawJD={handleRawJDChange}
+                structuredJD={structuredJD}
+                structuredJDRubric={structuredJDRubric}
+                onSummarize={handleSummarizeJD}
+                isSummarizing={isSummarizingJD}
+              />
+            </div>
           </div>
 
           <div className="space-y-8">
@@ -281,16 +318,18 @@ export function AnalyzePage() {
               matchRate={matchRate}
               analysisResult={analysisResult}
             />
-            <AnalyzeActionsCard
-              analysisStatus={analysisStatus}
-              generatedSessionId={generatedSessionId}
-              selectedCV={selectedCV}
-              rawJD={rawJD}
-              onGeneratePlan={handleGeneratePlan}
-              onStartInterview={handleStartInterview}
-              sessionMode={sessionMode}
-              isVoiceReady={isVoiceReady}
-            />
+            <div id="tour-analyze-actions">
+              <AnalyzeActionsCard
+                analysisStatus={analysisStatus}
+                generatedSessionId={generatedSessionId}
+                selectedCV={selectedCV}
+                rawJD={rawJD}
+                onGeneratePlan={handleGeneratePlan}
+                onStartInterview={handleStartInterview}
+                sessionMode={sessionMode}
+                isVoiceReady={isVoiceReady}
+              />
+            </div>
           </div>
         </div>
       </main>
