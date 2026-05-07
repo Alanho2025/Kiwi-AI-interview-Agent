@@ -51,7 +51,7 @@ export function TranscriptPanel({ transcript, onExport, candidateName = "Candida
       <div className="p-5 border-t border-gray-100 flex justify-end items-center bg-gray-50 shrink-0">
         <div className="flex gap-2">
           <Button variant="secondary" size="sm" onClick={onExport}>Export</Button>
-          <Button variant="secondary" size="sm">Flag</Button>
+
         </div>
       </div>
     </Card>
