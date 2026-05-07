@@ -10,9 +10,10 @@
  */
 
 import { Card, CardHeader, CardTitle, CardContent } from '../common/Card.jsx';
-import { Loader2, CheckCircle2, AlertTriangle, ShieldCheck, Target, TrendingUp } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, ShieldCheck, Target, TrendingUp } from 'lucide-react';
 import { cn } from '../../utils/formatters.js';
 import { buildMatchResultViewModel } from '../../utils/matchResultViewModel.js';
+import { LoadingInsightPanel } from '../common/LoadingInsightPanel.jsx';
 
 const toneStyles = {
   success: {
@@ -38,23 +39,6 @@ const toneStyles = {
 };
 
 const getTone = (tone = 'info') => toneStyles[tone] || toneStyles.info;
-
-const LoadingState = ({ title, message, progressClass }) => (
-  <div className="space-y-4">
-    <div className="flex items-center gap-4">
-      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#e6f7f0]">
-        <Loader2 className="h-5 w-5 animate-spin text-[#2eb886]" />
-      </div>
-      <div>
-        <p className="text-sm font-medium text-gray-900">{title}</p>
-        <p className="text-xs text-gray-500">{message}</p>
-      </div>
-    </div>
-    <div className="h-2 overflow-hidden rounded-full bg-gray-100">
-      <div className={cn('h-full animate-pulse rounded-full bg-[#2eb886]', progressClass)} />
-    </div>
-  </div>
-);
 
 const ScoreExplanationCard = ({ item }) => (
   <div className="rounded-xl border border-gray-100 bg-white p-4">
@@ -203,18 +187,20 @@ export function AnalysisStatusCard({ status, matchRate, analysisResult }) {
         {status === 'idle' && <div className="py-6 text-center text-sm text-gray-500">Upload a CV, paste the JD, and review the JD summary before matching.</div>}
 
         {status === 'summarizing' && (
-          <LoadingState
+          <LoadingInsightPanel
+            stage="jd"
+            skeletonLayout="match"
             title="KiwiCoach is structuring the JD..."
             message="Extracting role responsibilities, must-have requirements, and skill signals."
-            progressClass="w-1/3"
           />
         )}
 
         {status === 'matching' && (
-          <LoadingState
+          <LoadingInsightPanel
+            stage="match"
+            skeletonLayout="match"
             title="KiwiCoach is comparing your CV with the JD..."
             message="Checking role fit, skill evidence, and must-have requirement coverage."
-            progressClass="w-2/3"
           />
         )}
 

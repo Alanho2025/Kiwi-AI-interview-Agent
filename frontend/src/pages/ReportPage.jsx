@@ -22,6 +22,7 @@ import { InsightsSection } from '../components/report/InsightsSection.jsx';
 import { ReportActionBar } from '../components/report/ReportActionBar.jsx';
 import { ReportDetailSections } from '../components/report/ReportDetailSections.jsx';
 import { ReportHeroCard } from '../components/report/ReportHeroCard.jsx';
+import { LoadingInsightPanel } from '../components/common/LoadingInsightPanel.jsx';
 import { useReportData } from '../hooks/useReportData.js';
 import { buildReportViewModel } from '../utils/reportView/index.js';
 import { useTour } from '../contexts/TourContext.jsx';
@@ -85,34 +86,45 @@ export function ReportPage() {
           recordingStatus={recordingStatus}
         />
 
-        <div id="report-printable-area" className="space-y-6">
-          <div id="tour-report-hero">
-            <ReportHeroCard
-              report={viewModel.report}
-              qa={viewModel.qa}
-              takeaway={viewModel.takeaway}
-              scoreBand={viewModel.scoreBand}
-              generationSource={viewModel.generationSource}
+        {loading && !reportData ? (
+          <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
+            <LoadingInsightPanel
+              stage="report"
+              skeletonLayout="report"
+              title="KiwiCoach is building your coaching report..."
+              message="Your answers are being summarised before detailed metrics are shown."
             />
           </div>
-          <div id="tour-report-insights">
-            <InsightsSection dataInsights={viewModel.dataInsights} strengthHighlights={viewModel.strengthHighlights} />
+        ) : (
+          <div id="report-printable-area" className="space-y-6">
+            <div id="tour-report-hero">
+              <ReportHeroCard
+                report={viewModel.report}
+                qa={viewModel.qa}
+                takeaway={viewModel.takeaway}
+                scoreBand={viewModel.scoreBand}
+                generationSource={viewModel.generationSource}
+              />
+            </div>
+            <div id="tour-report-insights">
+              <InsightsSection dataInsights={viewModel.dataInsights} strengthHighlights={viewModel.strengthHighlights} />
+            </div>
+            <CommunicationProfileSection profile={viewModel.communicationProfile} />
+            <CoachingSection improvementPriorities={viewModel.improvementPriorities} coachingAdvice={viewModel.coachingAdvice} />
+            <QuoteAnalysisSection quoteAnalyses={viewModel.quoteAnalyses} />
+            <div id="tour-report-turns">
+              <TurnBreakdownSection turnBreakdowns={viewModel.turnBreakdowns} />
+            </div>
+            <AnswerRewriteSection answerRewriteTips={viewModel.answerRewriteTips} />
+            <ReportDetailSections
+              report={viewModel.report}
+              qa={viewModel.qa}
+              interviewMetrics={viewModel.interviewMetrics}
+              evidenceDiagnostics={viewModel.evidenceDiagnostics}
+              qaDiagnostics={viewModel.qaDiagnostics}
+            />
           </div>
-          <CommunicationProfileSection profile={viewModel.communicationProfile} />
-          <CoachingSection improvementPriorities={viewModel.improvementPriorities} coachingAdvice={viewModel.coachingAdvice} />
-          <QuoteAnalysisSection quoteAnalyses={viewModel.quoteAnalyses} />
-          <div id="tour-report-turns">
-            <TurnBreakdownSection turnBreakdowns={viewModel.turnBreakdowns} />
-          </div>
-          <AnswerRewriteSection answerRewriteTips={viewModel.answerRewriteTips} />
-          <ReportDetailSections
-            report={viewModel.report}
-            qa={viewModel.qa}
-            interviewMetrics={viewModel.interviewMetrics}
-            evidenceDiagnostics={viewModel.evidenceDiagnostics}
-            qaDiagnostics={viewModel.qaDiagnostics}
-          />
-        </div>
+        )}
       </main>
     </div>
   );
