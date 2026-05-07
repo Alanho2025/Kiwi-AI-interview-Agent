@@ -20,9 +20,28 @@ const statements = [
     chunk_index integer NOT NULL,
     text_content text NOT NULL,
     metadata jsonb,
-    embedding vector(32),
+    embedding vector(256),
     created_at timestamptz NOT NULL DEFAULT now()
   )`,
+  `DO $$
+   DECLARE current_embedding_type text;
+   BEGIN
+     SELECT format_type(attribute.atttypid, attribute.atttypmod)
+       INTO current_embedding_type
+     FROM pg_attribute attribute
+     JOIN pg_class class ON class.oid = attribute.attrelid
+     JOIN pg_namespace namespace ON namespace.oid = class.relnamespace
+     WHERE namespace.nspname = current_schema()
+       AND class.relname = 'document_chunks'
+       AND attribute.attname = 'embedding'
+       AND NOT attribute.attisdropped;
+
+     IF current_embedding_type IS DISTINCT FROM 'vector(256)' THEN
+       ALTER TABLE document_chunks
+         ALTER COLUMN embedding TYPE vector(256)
+         USING NULL;
+     END IF;
+   END $$`,
   `CREATE TABLE IF NOT EXISTS users (
     id uuid PRIMARY KEY,
     email varchar(255) UNIQUE NOT NULL,

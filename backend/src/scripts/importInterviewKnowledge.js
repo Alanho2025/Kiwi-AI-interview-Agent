@@ -14,7 +14,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { connectMongo } from '../db/mongo.js';
 import { DocumentChunk } from '../db/models/documentChunkModel.js';
-import { embedBatch } from '../services/embeddingService.js';
+import { EMBEDDING_DIMENSION, EMBEDDING_MODEL, embedBatch } from '../services/embeddingService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -43,12 +43,16 @@ const upsertMany = async (items) => {
         item.sourceType || 'knowledge',
         item.metadata?.chunkIndex || 0,
         item.text || item.normalizedText || '',
-        JSON.stringify(item.metadata || {}),
+        JSON.stringify({
+          ...(item.metadata || {}),
+          embeddingModel: EMBEDDING_MODEL,
+          embeddingDimension: EMBEDDING_DIMENSION,
+        }),
         vectorString
       ]
     );
 
-    // 2. Insert to Mongo (Legacy)
+    // 2. Insert to Mongo legacy mirror. Runtime retrieval uses PostgreSQL pgvector.
     await DocumentChunk.findOneAndUpdate({ chunkId: item.chunkId }, item, { upsert: true, setDefaultsOnInsert: true });
   }
 };
@@ -63,7 +67,15 @@ const run = async ({ inputDir = defaultInputDir } = {}) => {
   await connectMongo();
   const chunks = readJson(path.join(inputDir, 'normalized_interview_chunks.json'));
   const embeddings = await embedBatch(chunks.map((item) => item.normalizedText || item.text || ''));
-  const hydrated = chunks.map((item, index) => ({ ...item, embedding: embeddings[index] || [] }));
+  const hydrated = chunks.map((item, index) => ({
+    ...item,
+    embedding: embeddings[index] || [],
+    metadata: {
+      ...(item.metadata || {}),
+      embeddingModel: EMBEDDING_MODEL,
+      embeddingDimension: EMBEDDING_DIMENSION,
+    },
+  }));
   await upsertMany(hydrated);
   console.log(`Imported ${hydrated.length} interview knowledge chunks from ${inputDir}`);
 };

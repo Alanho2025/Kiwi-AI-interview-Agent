@@ -30,6 +30,7 @@ import {
   sanitizeAnalyzeMode,
   sanitizeAnalyzeSettings,
 } from '../utils/analyzeDraft.js';
+import { stampHumanReviewMetadata } from '../utils/jdHumanReview.js';
 import { buildSessionSetupPayload, saveSessionDefaults } from '../utils/sessionSettings.js';
 import { DEFAULT_VOICE_DEVICE_CHECK } from '../hooks/useVoiceDeviceCheck.js';
 import { useTour } from '../contexts/TourContext.jsx';
@@ -61,20 +62,6 @@ const formatStructuredJobDescription = (rubric = {}) => {
     overview.employmentType && `Employment type: ${overview.employmentType}`,
   ].filter(Boolean))}\n\n## What This Role Does\n${formatList(sections.responsibilities || rubric.roleSummary || [])}\n\n## Core Requirements\n${formatList(sections.mustHaveRequirements || rubric.mustHaveRequirements || [])}\n\n## Bonus Requirements\n${formatList(sections.niceToHaveRequirements || rubric.niceToHaveExperience || [])}\n\n## Technical Skills\n${formatList(technicalSkills)}\n\n## Soft Skills\n${formatList(sections.softSkills || rubric.softSkillRequirements || [])}\n\n## Benefits\n${formatList(sections.benefits || [])}\n\n## Application Notes\n${formatList(sections.applicationInstructions || [])}`;
 };
-
-const stampHumanReviewMetadata = (rubric, reviewStatus) => ({
-  ...(rubric || {}),
-  metadata: {
-    ...((rubric || {}).metadata || {}),
-    humanReviewStatus: reviewStatus,
-    inputTrustLevel: reviewStatus === 'verified' ? 'human_reviewed' : 'ai_parsed',
-    humanReviewedAt: reviewStatus === 'verified' ? new Date().toISOString() : null,
-  },
-  diagnostics: {
-    ...((rubric || {}).diagnostics || {}),
-    humanReviewStatus: reviewStatus,
-  },
-});
 
 const getJDParseConfidence = (rubric) => {
   const confidence = Number(rubric?.diagnostics?.confidence ?? rubric?.metadata?.confidence ?? 0);
