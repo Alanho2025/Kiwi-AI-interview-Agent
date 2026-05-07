@@ -27,6 +27,7 @@ export function AnalyzeActionsCard({
   jdConfidenceThreshold = 0.9,
   requiresJdHumanReview = false,
   canUseJDSummary = false,
+  isCvHumanVerified = false,
   onGeneratePlan,
   onStartInterview,
   sessionMode = 'text',
@@ -34,7 +35,7 @@ export function AnalyzeActionsCard({
 }) {
   const isGenerating = analysisStatus === 'matching' || analysisStatus === 'summarizing';
   const hasRawJD = Boolean(rawJD?.trim());
-  const canGenerate = Boolean(selectedCV && hasRawJD && hasCurrentJDSummary && canUseJDSummary && !isGenerating);
+  const canGenerate = Boolean(selectedCV && isCvHumanVerified && hasRawJD && hasCurrentJDSummary && canUseJDSummary && !isGenerating);
   const isVoiceSession = sessionMode === 'voice';
   const canContinue = Boolean(generatedSessionId && (!isVoiceSession || isVoiceReady));
   const confidencePercent = Math.round((jdParseConfidence || 0) * 100);
@@ -44,6 +45,7 @@ export function AnalyzeActionsCard({
     if (analysisStatus === 'summarizing') return 'Summarizing JD...';
     if (analysisStatus === 'matching') return 'Generating Match Analysis...';
     if (!selectedCV) return 'Select a CV first';
+    if (!isCvHumanVerified) return 'Review CV parse before matching';
     if (!hasRawJD) return 'Paste a JD first';
     if (!hasCurrentJDSummary) return 'Summarise JD before matching';
     if (requiresJdHumanReview) return 'Review JD summary before matching';
@@ -51,14 +53,17 @@ export function AnalyzeActionsCard({
   })();
 
   const helperText = (() => {
-    if (isVoiceSession && !isVoiceReady) {
+    if (analysisStatus === 'success' && isVoiceSession && !isVoiceReady) {
       return 'Run the voice readiness check in Session Setup before continuing to Voice Session.';
+    }
+    if (selectedCV && !isCvHumanVerified) {
+      return 'Check the parsed CV fields used for matching, then mark the CV as reviewed.';
     }
     if (!hasCurrentJDSummary) {
       return 'CV-JD matching uses the reviewed JD summary, so summarise the current JD before generating the plan.';
     }
     if (requiresJdHumanReview) {
-      return `JD confidence is ${confidencePercent}%, below the ${thresholdPercent}% gate. Edit the parsed fields if needed, then mark the JD as reviewed.`;
+      return `JD confidence is ${confidencePercent}%. Gate target is ${thresholdPercent}%, but every JD still needs one human review before matching.`;
     }
     if (isVoiceSession) {
       return 'Voice devices are ready. Your interview plan will use the selected CV, reviewed JD, and session setup above.';

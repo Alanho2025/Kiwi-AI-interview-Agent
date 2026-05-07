@@ -29,6 +29,8 @@ const buildCvListItem = (row, document) => ({
   type: row.mime_type,
   parseStatus: document?.parseStatus || 'pending',
   profileStatus: document?.cvProfile ? 'completed' : 'pending',
+  parseConfidence: document?.parseConfidence ?? document?.cvProfile?.confidence ?? null,
+  parseWarnings: document?.parseWarnings || [],
   candidateName: document?.cvProfile?.candidateName || 'Candidate',
   topSkills: document?.displayProfile?.topSkills || [],
   summary: document?.displayProfile?.summary || '',
