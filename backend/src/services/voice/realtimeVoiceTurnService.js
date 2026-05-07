@@ -88,6 +88,11 @@ export const processRealtimeVoiceTurn = async ({
         asrLanguage: language,
         asrConfidence,
         confidenceGate: transcriptGate.confidenceGate,
+        transcriptAcceptance: {
+          accepted: true,
+          reason: transcriptGate.reason,
+          metrics: transcriptGate.metrics,
+        },
         transcriptionPreview: normalizedAnswer,
       },
     });
@@ -102,7 +107,18 @@ export const processRealtimeVoiceTurn = async ({
       asrProvider: asrSource,
       asrLanguage: language,
       asrConfidence,
-      providerPayload: { source: asrSource, realtime: true, inputMode, vad, confidenceGate: transcriptGate.confidenceGate },
+      providerPayload: {
+        source: asrSource,
+        realtime: true,
+        inputMode,
+        vad,
+        confidenceGate: transcriptGate.confidenceGate,
+        transcriptAcceptance: {
+          accepted: true,
+          reason: transcriptGate.reason,
+          metrics: transcriptGate.metrics,
+        },
+      },
     });
   });
 

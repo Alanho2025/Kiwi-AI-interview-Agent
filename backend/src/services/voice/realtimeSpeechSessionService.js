@@ -66,6 +66,7 @@ export function createRealtimeSpeechSession({
   for (const phrase of buildSpeechPhraseList(extraPhrases)) {
     phraseGrammar.addPhrase(phrase);
   }
+  phraseGrammar.setWeight?.(1.5);
 
   recognizer.recognizing = (_, event) => {
     const text = String(event?.result?.text || '').trim();

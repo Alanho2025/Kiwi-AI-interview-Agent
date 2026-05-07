@@ -76,11 +76,23 @@ describe('duplex voice robustness', () => {
       ok: false,
       reason: 'TOO_SHORT_TRANSCRIPT',
     }));
-    expect(validateRealtimeVoiceTranscript({ transcriptText: 'I used React', asrConfidence: 0.2 })).toEqual(expect.objectContaining({
+    expect(validateRealtimeVoiceTranscript({ transcriptText: 'I used React', asrConfidence: 0.2, vad: { speechDurationMs: 4000 } })).toEqual(expect.objectContaining({
       ok: false,
-      reason: 'LOW_CONFIDENCE_SHORT_TRANSCRIPT',
+      reason: 'LOW_CONFIDENCE_TRANSCRIPT',
     }));
-    expect(validateRealtimeVoiceTranscript({ transcriptText: 'I used React Query with PostgreSQL and checked the result through integration tests.', asrConfidence: 0.2 }).ok).toBe(true);
+    expect(validateRealtimeVoiceTranscript({
+      transcriptText: 'I used React Query with PostgreSQL and checked the result through integration tests.',
+      asrConfidence: 0.2,
+      vad: { speechDurationMs: 9000 },
+    })).toEqual(expect.objectContaining({
+      ok: false,
+      reason: 'LOW_CONFIDENCE_TRANSCRIPT',
+    }));
+    expect(validateRealtimeVoiceTranscript({
+      transcriptText: 'I used React Query with PostgreSQL and checked the result through integration tests.',
+      asrConfidence: 0.62,
+      vad: { speechDurationMs: 9000 },
+    }).ok).toBe(true);
   });
 
   it('normalizes common STT technical misrecognitions without rewriting the answer meaning', () => {

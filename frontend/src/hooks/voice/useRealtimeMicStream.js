@@ -78,7 +78,7 @@ export function useRealtimeMicStream({ onAudioChunk }) {
   const startStream = useCallback(async (options = {}) => {
     modeRef.current = { sendAudio: options.sendAudio !== false };
     await stopStream();
-    const stream = await navigator.mediaDevices.getUserMedia({
+    const stream = options.stream || await navigator.mediaDevices.getUserMedia({
       audio: {
         echoCancellation: true,
         noiseSuppression: true,
@@ -87,6 +87,7 @@ export function useRealtimeMicStream({ onAudioChunk }) {
     });
     const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
     const audioContext = new AudioContextCtor();
+    if (audioContext.state === 'suspended') await audioContext.resume();
     const source = audioContext.createMediaStreamSource(stream);
     const processor = audioContext.createScriptProcessor(4096, 1, 1);
 

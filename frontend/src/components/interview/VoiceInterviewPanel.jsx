@@ -11,6 +11,7 @@ const buildWaveBars = (levels = []) => {
 const renderStatusTone = (type) => {
   if (type === 'error') return 'border-red-200 bg-red-50 text-red-700';
   if (type === 'success') return 'border-emerald-200 bg-emerald-50 text-emerald-700';
+  if (type === 'warning') return 'border-amber-200 bg-amber-50 text-amber-800';
   return 'border-sky-200 bg-sky-50 text-sky-700';
 };
 
@@ -200,7 +201,7 @@ export function VoiceInterviewPanel({
         </div>
       </div>
 
-      <audio ref={audioRef} controls src={assistantAudioUrl || undefined} className="hidden" />
+      <audio ref={audioRef} controls playsInline src={assistantAudioUrl || undefined} className="hidden" />
     </div>
   );
 }
