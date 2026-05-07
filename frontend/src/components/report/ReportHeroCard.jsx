@@ -39,7 +39,7 @@ export function ReportHeroCard({ report, qa, candidateFeedback, takeaway, scoreB
             </div>
           </div>
 
-          <div className="grid w-full gap-3 sm:grid-cols-3 lg:max-w-lg">
+          <div className="grid w-full gap-3 md:grid-cols-3 lg:max-w-lg">
             <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-emerald-100">
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-600">Overall</p>
               <p className="mt-2 text-3xl font-semibold text-gray-900">{formatNumber(report.scores?.overall)}</p>

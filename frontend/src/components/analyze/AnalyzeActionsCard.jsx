@@ -33,7 +33,7 @@ export function AnalyzeActionsCard({
   const canContinue = Boolean(generatedSessionId && (!isVoiceSession || isVoiceReady));
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm flex flex-col gap-4">
+    <div className="sticky bottom-0 z-20 -mx-4 flex flex-col gap-3 border-t border-gray-200 bg-white/95 p-4 shadow-[0_-8px_20px_rgba(15,23,42,0.08)] backdrop-blur sm:static sm:mx-0 sm:rounded-2xl sm:border sm:p-6 sm:shadow-sm">
       {analysisStatus === 'success' && generatedSessionId ? (
         <Button
           variant="primary"

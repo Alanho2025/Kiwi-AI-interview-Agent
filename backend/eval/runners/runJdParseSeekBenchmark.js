@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { buildStructuredJobDescriptionRubric } from '../../src/services/jobDescription/jobDescriptionRubricBuilder.js';
 import { scoreJdParseCase } from '../helpers/jdParseEvalScorer.js';
+import { parseEvalArgs, exitIfGateFailed } from '../helpers/evalCli.js';
 
 process.env.DISABLE_AI_JD_ENHANCEMENT = 'true';
 
@@ -10,19 +11,8 @@ const datasetPath = path.join(repoRoot, 'eval/datasets/jd-parse-seek-benchmark.j
 const fixtureRoot = path.join(repoRoot, 'tests/fixtures/jobDescription');
 const reportRoot = path.join(repoRoot, 'eval/reports');
 
-const parseArgs = (argv = []) => {
-  const options = { minAverage: 0, failBelow: 0, minCriticalAverage: 0, criticalFailBelow: 0 };
-  for (let index = 0; index < argv.length; index += 1) {
-    const value = argv[index];
-    if (value === '--min-average') options.minAverage = Number(argv[index + 1] || 0);
-    if (value === '--fail-below') options.failBelow = Number(argv[index + 1] || 0);
-    if (value === '--min-critical-average') options.minCriticalAverage = Number(argv[index + 1] || 0);
-    if (value === '--critical-fail-below') options.criticalFailBelow = Number(argv[index + 1] || 0);
-  }
-  return options;
-};
 
-const options = parseArgs(process.argv.slice(2));
+const options = parseEvalArgs({ argv: process.argv.slice(2), gateName: 'jdParseSeek' });
 const dataset = JSON.parse(await fs.readFile(datasetPath, 'utf8'));
 const results = [];
 
@@ -70,8 +60,4 @@ console.log(`Critical average score: ${summary.criticalAverage}`);
 console.log(`JSON report: ${jsonPath}`);
 console.log(`Markdown report: ${mdPath}`);
 
-const averageFailed = options.minAverage > 0 && average < options.minAverage;
-const caseFailed = options.failBelow > 0 && results.some((item) => item.score < options.failBelow);
-const criticalAverageFailed = options.minCriticalAverage > 0 && criticalAverage < options.minCriticalAverage;
-const criticalCaseFailed = options.criticalFailBelow > 0 && results.some((item) => item.criticalScore < options.criticalFailBelow);
-if (averageFailed || caseFailed || criticalAverageFailed || criticalCaseFailed) process.exit(1);
+exitIfGateFailed({ average, criticalAverage, results, options });

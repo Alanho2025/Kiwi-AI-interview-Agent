@@ -21,8 +21,8 @@ import { controlModeOptions, focusOptions, questionLimitOptions, seniorityOption
  */
 export function StartSessionCard({ summary, showSessionSettings, sessionDefaults, settingsSaved, voiceStartWarning, onOpenTextInterview, onOpenVoiceInterview, onToggleSettings, onChangeDefaults, onSaveDefaults, onResetDefaults }) {
   return (
-    <div className="relative overflow-hidden rounded-3xl border border-gray-100 bg-white p-8 shadow-[0_2px_10px_rgb(0,0,0,0.02)]">
-      <div className="relative z-10 flex flex-col items-center justify-between gap-8 md:flex-row">
+    <div className="relative overflow-hidden rounded-3xl border border-gray-100 bg-white p-5 shadow-[0_2px_10px_rgb(0,0,0,0.02)] sm:p-6 xl:p-8">
+      <div className="relative z-10 flex flex-col items-stretch justify-between gap-6 xl:flex-row xl:items-center">
         <div className="max-w-md">
           <h1 className="mb-3 text-3xl font-extrabold">Start New Session</h1>
           <p className="mb-8 text-sm leading-relaxed text-gray-500">
@@ -39,7 +39,7 @@ export function StartSessionCard({ summary, showSessionSettings, sessionDefaults
               <span className="rounded-full bg-gray-100 px-3 py-1 font-semibold text-gray-700">Limit: {summary.limit}</span>
             </div>
           </div>
-          <div className="flex flex-wrap gap-3">
+          <div className="grid gap-3 sm:grid-cols-3 xl:flex xl:flex-wrap">
             <button
               className="rounded-full bg-emerald-500 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-600"
               onClick={onOpenTextInterview}
@@ -53,7 +53,7 @@ export function StartSessionCard({ summary, showSessionSettings, sessionDefaults
               Voice Start
             </button>
             <button
-              className="inline-flex items-center gap-2 rounded-full border border-gray-300 px-5 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+              className="inline-flex items-center justify-center gap-2 rounded-full border border-gray-300 px-5 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
               onClick={onToggleSettings}
             >
               <Settings size={16} /> Session Settings
@@ -66,7 +66,7 @@ export function StartSessionCard({ summary, showSessionSettings, sessionDefaults
           ) : null}
         </div>
 
-        <div className="relative z-10 w-full max-w-sm rounded-3xl border border-gray-100 bg-gray-50 p-6 shadow-inner">
+        <div className="relative z-10 w-full rounded-3xl border border-gray-100 bg-gray-50 p-5 shadow-inner sm:p-6 xl:max-w-sm">
           <div className="mb-4 flex items-center justify-between">
             <div>
               <div className="text-sm font-bold text-gray-900">Practice Snapshot</div>
@@ -93,8 +93,8 @@ export function StartSessionCard({ summary, showSessionSettings, sessionDefaults
       </div>
 
       {showSessionSettings && (
-        <div className="relative z-10 mt-6 rounded-3xl border border-emerald-100 bg-emerald-50/60 p-6">
-          <div className="grid gap-4 md:grid-cols-3">
+        <div className="relative z-10 mt-6 rounded-3xl border border-emerald-100 bg-emerald-50/60 p-4 sm:p-6">
+          <div className="grid gap-4 lg:grid-cols-3">
             <label className="text-sm font-medium text-gray-700">
               Seniority level
               <select
@@ -133,7 +133,7 @@ export function StartSessionCard({ summary, showSessionSettings, sessionDefaults
             </label>
           </div>
 
-          <div className="mt-4 grid gap-4 md:grid-cols-3">
+          <div className="mt-4 grid gap-4 lg:grid-cols-3">
             {sessionDefaults.controlMode === 'time_limited' ? (
               <label className="text-sm font-medium text-gray-700">
                 Time limit

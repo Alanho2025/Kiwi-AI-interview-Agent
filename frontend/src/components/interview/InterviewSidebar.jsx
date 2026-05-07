@@ -35,8 +35,10 @@ const buildFocusDescription = ({ currentPlanItem, enableNZCultureFit, promiseLab
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
 export function InterviewSidebar({ session, currentPlanItem, promiseLabel, levelLabel, modeLabel, currentFocusLabel, matchedAreas = [] }) {
+  const sessionModeLabel = String(session?.mode || '').toLowerCase() === 'voice' ? 'Voice interview' : 'Text interview';
+
   return (
-    <div className="hidden lg:flex lg:col-span-3 flex-col gap-6 overflow-y-auto pr-2 pb-6 min-h-0">
+    <div className="hidden xl:flex xl:col-span-3 flex-col gap-6 overflow-y-auto pr-2 pb-6 min-h-0">
       <CandidateCard
         candidateName={session?.candidateName}
         status={session?.status === 'in_progress' ? 'Live' : session?.status}
@@ -50,7 +52,15 @@ export function InterviewSidebar({ session, currentPlanItem, promiseLabel, level
           promiseLabel,
         })}`}
       />
-      <SessionInfoCard totalQuestions={session?.totalQuestions} levelLabel={levelLabel} modeLabel={modeLabel} matchedAreas={matchedAreas} />
+      <SessionInfoCard
+        totalQuestions={session?.totalQuestions}
+        levelLabel={levelLabel}
+        modeLabel={sessionModeLabel}
+        formatLabel={modeLabel}
+        status={session?.status}
+        transcript={session?.transcript}
+        matchedAreas={matchedAreas}
+      />
     </div>
   );
 }

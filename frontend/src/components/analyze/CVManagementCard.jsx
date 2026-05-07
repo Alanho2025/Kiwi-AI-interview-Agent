@@ -12,7 +12,7 @@
 import { useState, useRef } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../common/Card.jsx';
 import { Button } from '../common/Button.jsx';
-import { FileText, UploadCloud, Lock, CheckCircle2, Loader2 } from 'lucide-react';
+import { FileText, Lock, CheckCircle2, Loader2 } from 'lucide-react';
 import { cn } from '../../utils/formatters.js';
 import { StatusBanner } from '../common/StatusBanner.jsx';
 
@@ -87,14 +87,15 @@ export function CVManagementCard({ onUpload, recentCVs, onSelectRecent, validati
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="items-start">
         <div>
           <CardTitle>CV Management</CardTitle>
           <p className="text-sm text-gray-500 mt-1">Provide a resume to let the AI match your background with the role.</p>
         </div>
-        <div className="flex items-center text-xs text-gray-400 gap-1">
+        <div className="flex shrink-0 items-center text-xs text-gray-400 gap-1">
           <Lock className="w-3 h-3" />
-          <span>Document text is used for CV to JD matching</span>
+          <span className="hidden sm:inline">Document text is used for CV to JD matching</span>
+          <span className="sm:hidden">Private</span>
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -102,14 +103,14 @@ export function CVManagementCard({ onUpload, recentCVs, onSelectRecent, validati
           <StatusBanner variant="error" message={validationMessage || localValidationMessage} />
         ) : null}
         <div>
-          <div className="flex justify-between items-end mb-3">
+          <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
             <h4 className="text-sm font-medium text-gray-900">Upload your CV</h4>
             {isUploading && <span className="text-xs text-[#2eb886] flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin"/> Uploading...</span>}
             {uploadSuccess && <span className="text-xs text-green-600 flex items-center gap-1"><CheckCircle2 className="w-3 h-3"/> Upload successful!</span>}
           </div>
           <div 
             className={cn(
-              "border-2 border-dashed rounded-xl p-6 flex items-center justify-between cursor-pointer transition-colors",
+              "border-2 border-dashed rounded-xl p-4 sm:p-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between cursor-pointer transition-colors",
               isDragging ? "border-[#2eb886] bg-[#e6f7f0]" : "border-gray-200 hover:bg-gray-50"
             )}
             onClick={requestPermissionAndOpenPicker}
@@ -118,10 +119,10 @@ export function CVManagementCard({ onUpload, recentCVs, onSelectRecent, validati
             onDrop={handleDrop}
           >
             <div className="flex items-center gap-4 pointer-events-none">
-              <div className="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center text-blue-500">
+              <div className="w-12 h-12 shrink-0 bg-blue-50 rounded-lg flex items-center justify-center text-blue-500">
                 <FileText className="w-6 h-6" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-sm font-medium text-gray-900">Drop files here or click to upload</p>
                 <p className="text-xs text-gray-500 mt-1">PDF, DOCX · Max 5MB</p>
               </div>
@@ -131,6 +132,7 @@ export function CVManagementCard({ onUpload, recentCVs, onSelectRecent, validati
               size="sm" 
               type="button" 
               onClick={requestPermissionAndOpenPicker}
+              className="w-full sm:w-auto"
             >
               Choose File
             </Button>
@@ -150,13 +152,13 @@ export function CVManagementCard({ onUpload, recentCVs, onSelectRecent, validati
             <h4 className="text-sm font-medium text-gray-900 mb-3">Recent CVs</h4>
             <div className="space-y-3">
               {recentCVs.map((cv) => (
-                <div key={cv.id} className="flex items-center justify-between p-3 border border-gray-100 rounded-lg hover:border-gray-200 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gray-100 rounded flex items-center justify-center text-gray-500">
+                <div key={cv.id} className="flex flex-col gap-3 p-3 border border-gray-100 rounded-lg hover:border-gray-200 transition-colors sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="w-10 h-10 shrink-0 bg-gray-100 rounded flex items-center justify-center text-gray-500">
                       <FileText className="w-5 h-5" />
                     </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">{cv.name}</p>
+                    <div className="min-w-0">
+                      <p className="break-words text-sm font-medium text-gray-900 sm:truncate">{cv.name}</p>
                       <p className="text-xs text-gray-500">Updated: {cv.updated} · {cv.size}</p>
                     </div>
                   </div>
@@ -167,6 +169,7 @@ export function CVManagementCard({ onUpload, recentCVs, onSelectRecent, validati
                       setSelectedRecent(cv.id);
                       onSelectRecent(cv.id);
                     }}
+                    className="w-full sm:w-auto"
                   >
                     Use
                   </Button>

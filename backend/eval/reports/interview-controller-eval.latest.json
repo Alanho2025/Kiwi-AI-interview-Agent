@@ -3,8 +3,8 @@
   "average": 1,
   "weakestCases": [],
   "thresholds": {
-    "minAverage": 0,
-    "failBelow": 0
+    "minAverage": 0.95,
+    "failBelow": 0.75
   },
   "results": [
     {

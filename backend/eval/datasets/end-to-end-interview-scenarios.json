@@ -1,0 +1,425 @@
+[
+  {
+    "id": "junior_data_scientist_five_question_flow",
+    "settings": {
+      "mode": "text",
+      "focusArea": "combined",
+      "difficulty": "junior",
+      "questionCount": 5
+    },
+    "cvProfile": {
+      "skills": [
+        "Python",
+        "SQL",
+        "Power BI",
+        "data cleaning"
+      ],
+      "projects": [
+        "LinkedIn job posting analysis",
+        "salary clustering dashboard"
+      ]
+    },
+    "jdProfile": {
+      "roleTitle": "Junior Data Scientist - Fleet Operations",
+      "requiredSkills": [
+        "Python",
+        "SQL",
+        "data analysis",
+        "communication"
+      ],
+      "preferredSkills": [
+        "dashboard",
+        "operations analytics"
+      ],
+      "priorityTopics": [
+        "python",
+        "sql",
+        "data cleaning",
+        "stakeholder communication"
+      ]
+    },
+    "transcript": [
+      {
+        "role": "ai",
+        "text": "Hi, thanks for joining today. Could you briefly introduce yourself and explain what interested you in this Junior Data Scientist role?",
+        "metadata": {
+          "stage": "opening",
+          "topic": "self_intro",
+          "category": "behavioural"
+        }
+      },
+      {
+        "role": "user",
+        "text": "I am a Master of IT student. I used Python, SQL, and dashboards in a LinkedIn job posting analysis project."
+      },
+      {
+        "role": "ai",
+        "text": "Can you walk me through how you used Python or SQL to clean messy data in your LinkedIn job posting analysis project?",
+        "metadata": {
+          "stage": "technical_core",
+          "topic": "data_cleaning",
+          "category": "technical"
+        }
+      },
+      {
+        "role": "user",
+        "text": "I removed missing salary rows, normalised salary values, and grouped job locations before modelling."
+      },
+      {
+        "role": "ai",
+        "text": "Tell me about one time you explained an analysis result to a non-technical stakeholder or teammate.",
+        "metadata": {
+          "stage": "behavioural",
+          "topic": "communication",
+          "category": "behavioural"
+        }
+      },
+      {
+        "role": "user",
+        "text": "I explained why clustering was better than regression for salary groups because regression had a very low R squared."
+      },
+      {
+        "role": "ai",
+        "text": "What basic dashboard or visual would you build first to help a fleet operations team understand data quality issues?",
+        "metadata": {
+          "stage": "technical_core",
+          "topic": "dashboard",
+          "category": "technical"
+        }
+      },
+      {
+        "role": "user",
+        "text": "I would show missing values, unusual values, and high level trends so the team can see where data needs cleaning."
+      },
+      {
+        "role": "ai",
+        "text": "Before we finish, what is one skill from this role that you want to improve next?",
+        "metadata": {
+          "stage": "closing",
+          "topic": "growth",
+          "category": "behavioural"
+        }
+      }
+    ],
+    "report": {
+      "summary": "The candidate is a moderate match because the transcript shows Python, SQL, dashboard, and data cleaning experience.",
+      "sections": [
+        {
+          "id": "strengths",
+          "content": "Evidence includes Python, SQL, dashboard work, and salary data cleaning."
+        },
+        {
+          "id": "gaps",
+          "content": "The next step is to give a more concrete operations analytics example."
+        },
+        {
+          "id": "interaction_feedback",
+          "content": "Answers were clear but could include more result metrics."
+        },
+        {
+          "id": "reflection_memory",
+          "content": "The candidate should reuse the clustering example when asked about analytical judgement."
+        }
+      ],
+      "evidenceReferences": [
+        "Python, SQL, and dashboards",
+        "normalised salary values",
+        "clustering was better than regression"
+      ],
+      "interviewMetrics": {
+        "interviewerQuestionCount": 5,
+        "plannedQuestionCount": 5,
+        "candidateTurnCount": 4,
+        "extraAiTurnCount": 0
+      },
+      "scores": {
+        "averageInteractionScore": 0.78,
+        "reflectionCount": 1
+      },
+      "candidateFeedback": {
+        "overallTakeaway": "You have a solid junior data profile. Add more role-specific operations examples.",
+        "plainEnglishMetrics": [
+          "Your answers were relevant and mostly grounded in real projects."
+        ],
+        "coachingAdvice": [
+          "Use one STAR example for stakeholder communication.",
+          "Add one measurable outcome when discussing dashboards."
+        ],
+        "answerRewriteExamples": [
+          "In my LinkedIn analysis project, I used Python and SQL to clean missing salary data, then explained why clustering gave more useful salary groups than regression."
+        ]
+      }
+    },
+    "expected": {
+      "firstAiTopic": "self_intro",
+      "plannedQuestionCount": 5,
+      "requiredCategories": [
+        "technical",
+        "behavioural"
+      ],
+      "requiredTopics": [
+        "data_cleaning",
+        "communication",
+        "dashboard"
+      ],
+      "forbiddenClaims": [
+        "production machine learning",
+        "Kubernetes",
+        "senior leadership"
+      ]
+    }
+  },
+  {
+    "id": "technical_mode_blocks_behavioural_drift",
+    "settings": {
+      "mode": "text",
+      "focusArea": "technical",
+      "difficulty": "intermediate",
+      "questionCount": 4
+    },
+    "cvProfile": {
+      "skills": [
+        "Node.js",
+        "React",
+        "MongoDB",
+        "API design"
+      ],
+      "projects": [
+        "AI food assistant",
+        "recommendation scoring API"
+      ]
+    },
+    "jdProfile": {
+      "roleTitle": "Intermediate Full Stack Developer",
+      "requiredSkills": [
+        "React",
+        "Node.js",
+        "API design",
+        "MongoDB"
+      ],
+      "preferredSkills": [
+        "testing",
+        "deployment"
+      ],
+      "priorityTopics": [
+        "api design",
+        "react state",
+        "mongodb",
+        "testing"
+      ]
+    },
+    "transcript": [
+      {
+        "role": "ai",
+        "text": "Hi, thanks for joining today. Could you briefly introduce your full stack background for this role?",
+        "metadata": {
+          "stage": "opening",
+          "topic": "self_intro",
+          "category": "technical"
+        }
+      },
+      {
+        "role": "user",
+        "text": "I built a React and Node.js food assistant using MongoDB and recommendation scoring."
+      },
+      {
+        "role": "ai",
+        "text": "How did you design the Node.js API so the recommendation scoring logic stayed maintainable?",
+        "metadata": {
+          "stage": "technical_core",
+          "topic": "api_design",
+          "category": "technical"
+        }
+      },
+      {
+        "role": "user",
+        "text": "I separated parsing, retrieval, scoring, and response composition into services."
+      },
+      {
+        "role": "ai",
+        "text": "What trade-off did you make when storing menu data in MongoDB for retrieval and scoring?",
+        "metadata": {
+          "stage": "technical_core",
+          "topic": "mongodb",
+          "category": "technical"
+        }
+      },
+      {
+        "role": "user",
+        "text": "MongoDB made flexible menu data easier, but I had to be careful with indexes and filtering."
+      },
+      {
+        "role": "ai",
+        "text": "How would you test the React state changes when a user gives quick feedback such as Good match or Not for me?",
+        "metadata": {
+          "stage": "technical_core",
+          "topic": "testing",
+          "category": "technical"
+        }
+      }
+    ],
+    "report": {
+      "summary": "The candidate is a strong technical match because the transcript covers React, Node.js, MongoDB, API design, and testing.",
+      "sections": [
+        {
+          "id": "strengths",
+          "content": "The candidate gave technical evidence about API design and MongoDB trade-offs."
+        },
+        {
+          "id": "gaps",
+          "content": "The candidate should add more deployment evidence."
+        },
+        {
+          "id": "interaction_feedback",
+          "content": "Answers were specific and technical."
+        },
+        {
+          "id": "reflection_memory",
+          "content": "Use the service separation example again for maintainability questions."
+        }
+      ],
+      "evidenceReferences": [
+        "separated parsing, retrieval, scoring",
+        "MongoDB made flexible menu data easier"
+      ],
+      "interviewMetrics": {
+        "interviewerQuestionCount": 4,
+        "plannedQuestionCount": 4,
+        "candidateTurnCount": 3,
+        "extraAiTurnCount": 0
+      },
+      "scores": {
+        "averageInteractionScore": 0.84,
+        "reflectionCount": 1
+      },
+      "candidateFeedback": {
+        "overallTakeaway": "Your technical examples are clear. Add deployment evidence for a stronger answer.",
+        "plainEnglishMetrics": [
+          "Your examples matched the role requirements."
+        ],
+        "coachingAdvice": [
+          "Add one testing result or bug caught by the test suite."
+        ],
+        "answerRewriteExamples": [
+          "I separated parsing, retrieval, scoring, and response composition, then tested each service independently."
+        ]
+      }
+    },
+    "expected": {
+      "firstAiTopic": "self_intro",
+      "plannedQuestionCount": 4,
+      "requiredCategories": [
+        "technical"
+      ],
+      "blockedCategories": [
+        "behavioural"
+      ],
+      "requiredTopics": [
+        "api_design",
+        "mongodb",
+        "testing"
+      ],
+      "forbiddenClaims": [
+        "team conflict",
+        "payroll system",
+        "medical diagnosis"
+      ]
+    }
+  },
+  {
+    "id": "bad_report_and_early_completion_is_caught",
+    "settings": {
+      "mode": "voice",
+      "focusArea": "combined",
+      "difficulty": "junior",
+      "questionCount": 5
+    },
+    "cvProfile": {
+      "skills": [
+        "Java",
+        "SQL"
+      ],
+      "projects": [
+        "course registration database"
+      ]
+    },
+    "jdProfile": {
+      "roleTitle": "Graduate Software Developer",
+      "requiredSkills": [
+        "Java",
+        "SQL",
+        "debugging"
+      ],
+      "priorityTopics": [
+        "java",
+        "sql",
+        "debugging"
+      ]
+    },
+    "transcript": [
+      {
+        "role": "ai",
+        "text": "Tell me about Java.",
+        "metadata": {
+          "stage": "technical_core",
+          "topic": "java",
+          "category": "technical"
+        }
+      },
+      {
+        "role": "user",
+        "text": "I used Java in lab exercises and SQL in a course database."
+      }
+    ],
+    "report": {
+      "summary": "The candidate is excellent because they have Kubernetes, production machine learning, and senior leadership experience.",
+      "sections": [
+        {
+          "id": "strengths",
+          "content": "Strong production machine learning."
+        }
+      ],
+      "claimedSkills": [
+        "Kubernetes",
+        "production machine learning"
+      ],
+      "evidenceReferences": [],
+      "interviewMetrics": {
+        "interviewerQuestionCount": 1,
+        "plannedQuestionCount": 5,
+        "candidateTurnCount": 1,
+        "extraAiTurnCount": 0
+      },
+      "scores": {
+        "averageInteractionScore": 0.95,
+        "reflectionCount": 0
+      },
+      "candidateFeedback": {
+        "overallTakeaway": "Great answer.",
+        "plainEnglishMetrics": [],
+        "coachingAdvice": [],
+        "answerRewriteExamples": []
+      }
+    },
+    "expected": {
+      "shouldPass": false,
+      "maxPassingScore": 0.7,
+      "firstAiTopic": "self_intro",
+      "plannedQuestionCount": 5,
+      "requiredCategories": [
+        "technical",
+        "behavioural"
+      ],
+      "requiredTopics": [
+        "java",
+        "sql",
+        "debugging"
+      ],
+      "forbiddenClaims": [
+        "Kubernetes",
+        "production machine learning",
+        "senior leadership"
+      ]
+    }
+  }
+]

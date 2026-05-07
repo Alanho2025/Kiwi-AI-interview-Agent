@@ -5,22 +5,683 @@
       "sessionId": "session-1",
       "summary": "The candidate is promising overall.",
       "sections": [
-        { "id": "strengths", "title": "Strengths", "content": "" },
-        { "id": "gaps", "title": "Gaps", "content": "Needs more real examples." }
+        {
+          "id": "strengths",
+          "title": "Strengths",
+          "content": ""
+        },
+        {
+          "id": "gaps",
+          "title": "Gaps",
+          "content": "Needs more real examples."
+        }
       ],
       "evidenceReferences": [],
-      "interviewMetrics": { "interviewerQuestionCount": 3, "plannedQuestionCount": 4, "candidateTurnCount": 3 },
-      "evidenceDiagnostics": { "averageStrength": 2, "totals": { "hypothetical_understanding": 1 } },
-      "scores": { "averageInteractionScore": 0.4, "reflectionCount": 1 },
-      "candidateFeedback": { "overallTakeaway": "", "plainEnglishMetrics": [], "coachingAdvice": [], "answerRewriteExamples": [] }
+      "interviewMetrics": {
+        "interviewerQuestionCount": 3,
+        "plannedQuestionCount": 4,
+        "candidateTurnCount": 3
+      },
+      "evidenceDiagnostics": {
+        "averageStrength": 2,
+        "totals": {
+          "hypothetical_understanding": 1
+        }
+      },
+      "scores": {
+        "averageInteractionScore": 0.4,
+        "reflectionCount": 1
+      },
+      "candidateFeedback": {
+        "overallTakeaway": "",
+        "plainEnglishMetrics": [],
+        "coachingAdvice": [],
+        "answerRewriteExamples": []
+      }
     },
     "analysisResult": {
-      "decision": { "label": "manual_review" },
-      "explanation": { "strengths": ["Node.js basics"] }
+      "decision": {
+        "label": "manual_review"
+      },
+      "explanation": {
+        "strengths": [
+          "Node.js basics"
+        ]
+      }
     },
     "expected": {
       "passed": false,
-      "qualityFlags": ["missing_interaction_section", "missing_reflection_section", "missing_candidate_feedback"]
+      "qualityFlags": [
+        "missing_interaction_section",
+        "missing_reflection_section",
+        "missing_candidate_feedback"
+      ]
+    }
+  },
+  {
+    "id": "report_complete_grounded_passes",
+    "report": {
+      "sessionId": "good-session",
+      "summary": "The candidate is a moderate_match because the interview evidence shows Python and SQL strengths with one communication gap.",
+      "sections": [
+        {
+          "id": "strengths",
+          "title": "Strengths",
+          "content": "Python and SQL evidence is clear."
+        },
+        {
+          "id": "gaps",
+          "title": "Gaps",
+          "content": "Needs a stronger stakeholder example."
+        },
+        {
+          "id": "interaction_feedback",
+          "title": "Interaction feedback",
+          "content": "Answers were relevant and grounded."
+        },
+        {
+          "id": "reflection_memory",
+          "title": "Reflection memory",
+          "content": "Reuse the SQL data cleaning example."
+        }
+      ],
+      "evidenceReferences": [
+        "used Python and SQL",
+        "normalised salary values"
+      ],
+      "interviewMetrics": {
+        "interviewerQuestionCount": 5,
+        "plannedQuestionCount": 5,
+        "candidateTurnCount": 4,
+        "extraAiTurnCount": 0
+      },
+      "evidenceDiagnostics": {
+        "averageStrength": 3.2,
+        "totals": {
+          "hypothetical_understanding": 0
+        }
+      },
+      "scores": {
+        "averageInteractionScore": 0.78,
+        "reflectionCount": 1
+      },
+      "candidateFeedback": {
+        "overallTakeaway": "You gave relevant evidence.",
+        "plainEnglishMetrics": [
+          "Your examples matched the role."
+        ],
+        "coachingAdvice": [
+          "Add one measurable outcome."
+        ],
+        "answerRewriteExamples": [
+          "I used Python and SQL to clean salary data and explain the result."
+        ]
+      }
+    },
+    "analysisResult": {
+      "decision": {
+        "label": "moderate_match"
+      },
+      "explanation": {
+        "strengths": [
+          "Python"
+        ],
+        "gaps": [
+          "Communication depth"
+        ]
+      }
+    },
+    "expected": {
+      "passed": true,
+      "qualityFlags": []
+    }
+  },
+  {
+    "id": "report_missing_summary_flagged",
+    "report": {
+      "sessionId": "good-session",
+      "summary": "",
+      "sections": [
+        {
+          "id": "strengths",
+          "title": "Strengths",
+          "content": "Python and SQL evidence is clear."
+        },
+        {
+          "id": "gaps",
+          "title": "Gaps",
+          "content": "Needs a stronger stakeholder example."
+        },
+        {
+          "id": "interaction_feedback",
+          "title": "Interaction feedback",
+          "content": "Answers were relevant and grounded."
+        },
+        {
+          "id": "reflection_memory",
+          "title": "Reflection memory",
+          "content": "Reuse the SQL data cleaning example."
+        }
+      ],
+      "evidenceReferences": [
+        "used Python and SQL",
+        "normalised salary values"
+      ],
+      "interviewMetrics": {
+        "interviewerQuestionCount": 5,
+        "plannedQuestionCount": 5,
+        "candidateTurnCount": 4,
+        "extraAiTurnCount": 0
+      },
+      "evidenceDiagnostics": {
+        "averageStrength": 3.2,
+        "totals": {
+          "hypothetical_understanding": 0
+        }
+      },
+      "scores": {
+        "averageInteractionScore": 0.78,
+        "reflectionCount": 1
+      },
+      "candidateFeedback": {
+        "overallTakeaway": "You gave relevant evidence.",
+        "plainEnglishMetrics": [
+          "Your examples matched the role."
+        ],
+        "coachingAdvice": [
+          "Add one measurable outcome."
+        ],
+        "answerRewriteExamples": [
+          "I used Python and SQL to clean salary data and explain the result."
+        ]
+      }
+    },
+    "analysisResult": {
+      "decision": {
+        "label": "moderate_match"
+      },
+      "explanation": {
+        "strengths": [
+          "Python"
+        ],
+        "gaps": [
+          "Communication depth"
+        ]
+      }
+    },
+    "expected": {
+      "passed": false,
+      "qualityFlags": [
+        "missing_summary"
+      ]
+    }
+  },
+  {
+    "id": "report_question_count_mismatch_flagged",
+    "report": {
+      "sessionId": "good-session",
+      "summary": "The candidate is a moderate_match because the interview evidence shows Python and SQL strengths with one communication gap.",
+      "sections": [
+        {
+          "id": "strengths",
+          "title": "Strengths",
+          "content": "Python and SQL evidence is clear."
+        },
+        {
+          "id": "gaps",
+          "title": "Gaps",
+          "content": "Needs a stronger stakeholder example."
+        },
+        {
+          "id": "interaction_feedback",
+          "title": "Interaction feedback",
+          "content": "Answers were relevant and grounded."
+        },
+        {
+          "id": "reflection_memory",
+          "title": "Reflection memory",
+          "content": "Reuse the SQL data cleaning example."
+        }
+      ],
+      "evidenceReferences": [
+        "used Python and SQL",
+        "normalised salary values"
+      ],
+      "interviewMetrics": {
+        "interviewerQuestionCount": 3,
+        "plannedQuestionCount": 5,
+        "candidateTurnCount": 3,
+        "extraAiTurnCount": 0
+      },
+      "evidenceDiagnostics": {
+        "averageStrength": 3.2,
+        "totals": {
+          "hypothetical_understanding": 0
+        }
+      },
+      "scores": {
+        "averageInteractionScore": 0.78,
+        "reflectionCount": 1
+      },
+      "candidateFeedback": {
+        "overallTakeaway": "You gave relevant evidence.",
+        "plainEnglishMetrics": [
+          "Your examples matched the role."
+        ],
+        "coachingAdvice": [
+          "Add one measurable outcome."
+        ],
+        "answerRewriteExamples": [
+          "I used Python and SQL to clean salary data and explain the result."
+        ]
+      }
+    },
+    "analysisResult": {
+      "decision": {
+        "label": "moderate_match"
+      },
+      "explanation": {
+        "strengths": [
+          "Python"
+        ],
+        "gaps": [
+          "Communication depth"
+        ]
+      }
+    },
+    "expected": {
+      "passed": false,
+      "qualityFlags": [
+        "question_count_mismatch"
+      ]
+    }
+  },
+  {
+    "id": "report_missing_candidate_feedback_flagged",
+    "report": {
+      "sessionId": "good-session",
+      "summary": "The candidate is a moderate_match because the interview evidence shows Python and SQL strengths with one communication gap.",
+      "sections": [
+        {
+          "id": "strengths",
+          "title": "Strengths",
+          "content": "Python and SQL evidence is clear."
+        },
+        {
+          "id": "gaps",
+          "title": "Gaps",
+          "content": "Needs a stronger stakeholder example."
+        },
+        {
+          "id": "interaction_feedback",
+          "title": "Interaction feedback",
+          "content": "Answers were relevant and grounded."
+        },
+        {
+          "id": "reflection_memory",
+          "title": "Reflection memory",
+          "content": "Reuse the SQL data cleaning example."
+        }
+      ],
+      "evidenceReferences": [
+        "used Python and SQL",
+        "normalised salary values"
+      ],
+      "interviewMetrics": {
+        "interviewerQuestionCount": 5,
+        "plannedQuestionCount": 5,
+        "candidateTurnCount": 4,
+        "extraAiTurnCount": 0
+      },
+      "evidenceDiagnostics": {
+        "averageStrength": 3.2,
+        "totals": {
+          "hypothetical_understanding": 0
+        }
+      },
+      "scores": {
+        "averageInteractionScore": 0.78,
+        "reflectionCount": 1
+      },
+      "candidateFeedback": {
+        "overallTakeaway": "",
+        "plainEnglishMetrics": [],
+        "coachingAdvice": [],
+        "answerRewriteExamples": []
+      }
+    },
+    "analysisResult": {
+      "decision": {
+        "label": "moderate_match"
+      },
+      "explanation": {
+        "strengths": [
+          "Python"
+        ],
+        "gaps": [
+          "Communication depth"
+        ]
+      }
+    },
+    "expected": {
+      "passed": false,
+      "qualityFlags": [
+        "missing_candidate_feedback",
+        "missing_metric_translation",
+        "missing_actionable_coaching",
+        "missing_rewrite_examples"
+      ]
+    }
+  },
+  {
+    "id": "report_missing_interaction_section_flagged",
+    "report": {
+      "sessionId": "good-session",
+      "summary": "The candidate is a moderate_match because the interview evidence shows Python and SQL strengths with one communication gap.",
+      "sections": [
+        {
+          "id": "strengths",
+          "title": "Strengths",
+          "content": "Python and SQL evidence is clear."
+        },
+        {
+          "id": "gaps",
+          "title": "Gaps",
+          "content": "Needs a stronger stakeholder example."
+        },
+        {
+          "id": "reflection_memory",
+          "title": "Reflection memory",
+          "content": "Reuse the SQL data cleaning example."
+        }
+      ],
+      "evidenceReferences": [
+        "used Python and SQL",
+        "normalised salary values"
+      ],
+      "interviewMetrics": {
+        "interviewerQuestionCount": 5,
+        "plannedQuestionCount": 5,
+        "candidateTurnCount": 4,
+        "extraAiTurnCount": 0
+      },
+      "evidenceDiagnostics": {
+        "averageStrength": 3.2,
+        "totals": {
+          "hypothetical_understanding": 0
+        }
+      },
+      "scores": {
+        "averageInteractionScore": 0.78,
+        "reflectionCount": 1
+      },
+      "candidateFeedback": {
+        "overallTakeaway": "You gave relevant evidence.",
+        "plainEnglishMetrics": [
+          "Your examples matched the role."
+        ],
+        "coachingAdvice": [
+          "Add one measurable outcome."
+        ],
+        "answerRewriteExamples": [
+          "I used Python and SQL to clean salary data and explain the result."
+        ]
+      }
+    },
+    "analysisResult": {
+      "decision": {
+        "label": "moderate_match"
+      },
+      "explanation": {
+        "strengths": [
+          "Python"
+        ],
+        "gaps": [
+          "Communication depth"
+        ]
+      }
+    },
+    "expected": {
+      "passed": false,
+      "qualityFlags": [
+        "missing_interaction_section"
+      ]
+    }
+  },
+  {
+    "id": "report_missing_reflection_content_flagged",
+    "report": {
+      "sessionId": "good-session",
+      "summary": "The candidate is a moderate_match because the interview evidence shows Python and SQL strengths with one communication gap.",
+      "sections": [
+        {
+          "id": "strengths",
+          "title": "Strengths",
+          "content": "Python and SQL evidence is clear."
+        },
+        {
+          "id": "gaps",
+          "title": "Gaps",
+          "content": "Needs a stronger stakeholder example."
+        },
+        {
+          "id": "interaction_feedback",
+          "title": "Interaction feedback",
+          "content": "Answers were relevant and grounded."
+        }
+      ],
+      "evidenceReferences": [
+        "used Python and SQL",
+        "normalised salary values"
+      ],
+      "interviewMetrics": {
+        "interviewerQuestionCount": 5,
+        "plannedQuestionCount": 5,
+        "candidateTurnCount": 4,
+        "extraAiTurnCount": 0
+      },
+      "evidenceDiagnostics": {
+        "averageStrength": 3.2,
+        "totals": {
+          "hypothetical_understanding": 0
+        }
+      },
+      "scores": {
+        "averageInteractionScore": 0.78,
+        "reflectionCount": 2
+      },
+      "candidateFeedback": {
+        "overallTakeaway": "You gave relevant evidence.",
+        "plainEnglishMetrics": [
+          "Your examples matched the role."
+        ],
+        "coachingAdvice": [
+          "Add one measurable outcome."
+        ],
+        "answerRewriteExamples": [
+          "I used Python and SQL to clean salary data and explain the result."
+        ]
+      }
+    },
+    "analysisResult": {
+      "decision": {
+        "label": "moderate_match"
+      },
+      "explanation": {
+        "strengths": [
+          "Python"
+        ],
+        "gaps": [
+          "Communication depth"
+        ]
+      }
+    },
+    "expected": {
+      "passed": false,
+      "qualityFlags": [
+        "missing_reflection_section",
+        "missing_reflection_content"
+      ]
+    }
+  },
+  {
+    "id": "report_missing_hypothetical_gap_note_flagged",
+    "report": {
+      "sessionId": "good-session",
+      "summary": "The candidate is a moderate_match because the interview evidence shows Python and SQL strengths with one communication gap.",
+      "sections": [
+        {
+          "id": "strengths",
+          "title": "Strengths",
+          "content": "Python and SQL evidence is clear."
+        },
+        {
+          "id": "gaps",
+          "title": "Gaps",
+          "content": "Needs clearer examples."
+        },
+        {
+          "id": "interaction_feedback",
+          "title": "Interaction feedback",
+          "content": "Answers were relevant and grounded."
+        },
+        {
+          "id": "reflection_memory",
+          "title": "Reflection memory",
+          "content": "Reuse the SQL data cleaning example."
+        }
+      ],
+      "evidenceReferences": [
+        "used Python and SQL",
+        "normalised salary values"
+      ],
+      "interviewMetrics": {
+        "interviewerQuestionCount": 5,
+        "plannedQuestionCount": 5,
+        "candidateTurnCount": 4,
+        "extraAiTurnCount": 0
+      },
+      "evidenceDiagnostics": {
+        "averageStrength": 2,
+        "totals": {
+          "hypothetical_understanding": 2
+        }
+      },
+      "scores": {
+        "averageInteractionScore": 0.78,
+        "reflectionCount": 1
+      },
+      "candidateFeedback": {
+        "overallTakeaway": "You gave relevant evidence.",
+        "plainEnglishMetrics": [
+          "Your examples matched the role."
+        ],
+        "coachingAdvice": [
+          "Add one measurable outcome."
+        ],
+        "answerRewriteExamples": [
+          "I used Python and SQL to clean salary data and explain the result."
+        ]
+      }
+    },
+    "analysisResult": {
+      "decision": {
+        "label": "moderate_match"
+      },
+      "explanation": {
+        "strengths": [
+          "Python"
+        ],
+        "gaps": [
+          "Communication depth"
+        ]
+      }
+    },
+    "expected": {
+      "passed": false,
+      "qualityFlags": [
+        "missing_hypothetical_gap_note"
+      ]
+    }
+  },
+  {
+    "id": "report_extra_ai_turns_flagged",
+    "report": {
+      "sessionId": "good-session",
+      "summary": "The candidate is a moderate_match because the interview evidence shows Python and SQL strengths with one communication gap.",
+      "sections": [
+        {
+          "id": "strengths",
+          "title": "Strengths",
+          "content": "Python and SQL evidence is clear."
+        },
+        {
+          "id": "gaps",
+          "title": "Gaps",
+          "content": "Needs a stronger stakeholder example."
+        },
+        {
+          "id": "interaction_feedback",
+          "title": "Interaction feedback",
+          "content": "Answers were relevant and grounded."
+        },
+        {
+          "id": "reflection_memory",
+          "title": "Reflection memory",
+          "content": "Reuse the SQL data cleaning example."
+        }
+      ],
+      "evidenceReferences": [
+        "used Python and SQL",
+        "normalised salary values"
+      ],
+      "interviewMetrics": {
+        "interviewerQuestionCount": 5,
+        "plannedQuestionCount": 5,
+        "candidateTurnCount": 4,
+        "extraAiTurnCount": 1
+      },
+      "evidenceDiagnostics": {
+        "averageStrength": 3.2,
+        "totals": {
+          "hypothetical_understanding": 0
+        }
+      },
+      "scores": {
+        "averageInteractionScore": 0.78,
+        "reflectionCount": 1
+      },
+      "candidateFeedback": {
+        "overallTakeaway": "You gave relevant evidence.",
+        "plainEnglishMetrics": [
+          "Your examples matched the role."
+        ],
+        "coachingAdvice": [
+          "Add one measurable outcome."
+        ],
+        "answerRewriteExamples": [
+          "I used Python and SQL to clean salary data and explain the result."
+        ]
+      }
+    },
+    "analysisResult": {
+      "decision": {
+        "label": "moderate_match"
+      },
+      "explanation": {
+        "strengths": [
+          "Python"
+        ],
+        "gaps": [
+          "Communication depth"
+        ]
+      }
+    },
+    "expected": {
+      "passed": false,
+      "qualityFlags": [
+        "extra_ai_turns_detected"
+      ]
     }
   }
 ]

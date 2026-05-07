@@ -31,15 +31,16 @@ export function ReportActionBar({ loading, onGenerate, onRunQa, onExport, onDown
   };
 
   return (
-    <div className="flex flex-wrap gap-3 relative">
-      <Button onClick={onGenerate} disabled={loading}>{loading ? 'Working...' : 'Generate report'}</Button>
-      <Button onClick={onRunQa} variant="secondary" disabled={loading}>Run QA</Button>
+    <div className="sticky top-16 z-20 -mx-4 flex gap-2 overflow-x-auto border-b border-gray-100 bg-gray-50/95 px-4 py-3 backdrop-blur sm:static sm:mx-0 sm:flex-wrap sm:border-0 sm:bg-transparent sm:px-0 sm:py-0">
+      <Button className="shrink-0" onClick={onGenerate} disabled={loading}>{loading ? 'Working...' : 'Generate report'}</Button>
+      <Button className="shrink-0" onClick={onRunQa} variant="secondary" disabled={loading}>Run QA</Button>
       {onDownloadRecording ? (
         <Button
           onClick={onDownloadRecording}
           variant="secondary"
           disabled={loading || !canDownloadRecording}
           title={canDownloadRecording ? 'Download voice session MP3' : 'No MP3 recording is available yet'}
+          className="shrink-0"
         >
           <Download size={16} />
           Download MP3
@@ -52,7 +53,7 @@ export function ReportActionBar({ loading, onGenerate, onRunQa, onExport, onDown
             variant="secondary" 
             disabled={loading}
             onClick={() => setShowExportMenu(!showExportMenu)}
-            className="flex items-center gap-2"
+            className="flex shrink-0 items-center gap-2"
           >
             <Download size={16} />
             Export
@@ -60,7 +61,7 @@ export function ReportActionBar({ loading, onGenerate, onRunQa, onExport, onDown
           </Button>
           
           {showExportMenu && (
-            <div className="absolute top-full left-0 mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+            <div className="absolute left-0 top-full z-30 mt-1 w-48 rounded-lg border border-gray-200 bg-white shadow-lg">
               <div className="py-1">
                 <button
                   onClick={() => handleExport('pdf')}

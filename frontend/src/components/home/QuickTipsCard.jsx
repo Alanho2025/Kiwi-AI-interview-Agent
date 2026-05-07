@@ -20,7 +20,7 @@ import { TrendingUp } from 'lucide-react';
  */
 export function QuickTipsCard() {
   return (
-    <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-[0_2px_10px_rgb(0,0,0,0.02)]">
+    <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-[0_2px_10px_rgb(0,0,0,0.02)] sm:p-6">
       <div className="mb-4 flex items-center justify-between">
         <h3 className="text-lg font-bold">Quick Tips</h3>
         <span className="text-xs text-gray-400">Bite-sized</span>

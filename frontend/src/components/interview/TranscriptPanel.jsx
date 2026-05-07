@@ -20,7 +20,7 @@ import { formatClockTime } from '../../utils/formatters.js';
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-export function TranscriptPanel({ transcript, onExport, candidateName = "Candidate" }) {
+export function TranscriptPanel({ transcript, onExport, candidateName = "Candidate", modeLabel = 'Text Interview' }) {
   const firstName = candidateName.split(' ')[0];
   const initials = candidateName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
 
@@ -28,7 +28,7 @@ export function TranscriptPanel({ transcript, onExport, candidateName = "Candida
     <Card className="h-full flex flex-col min-h-0">
       <div className="p-5 border-b border-gray-100 flex justify-between items-center shrink-0">
         <h3 className="text-sm font-semibold text-gray-900">Conversation History</h3>
-        <span className="text-xs text-gray-400">Text Interview</span>
+        <span className="text-xs text-gray-400">{modeLabel}</span>
       </div>
       
       <CardContent className="flex-1 overflow-y-auto p-5 space-y-6 min-h-0">
@@ -51,7 +51,7 @@ export function TranscriptPanel({ transcript, onExport, candidateName = "Candida
       <div className="p-5 border-t border-gray-100 flex justify-end items-center bg-gray-50 shrink-0">
         <div className="flex gap-2">
           <Button variant="secondary" size="sm" onClick={onExport}>Export</Button>
-          <Button variant="secondary" size="sm">Flag</Button>
+
         </div>
       </div>
     </Card>
