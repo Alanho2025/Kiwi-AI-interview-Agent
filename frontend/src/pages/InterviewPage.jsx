@@ -5,6 +5,7 @@
  * - Let voice mode replace only the centre interaction panel while the sidebar and right rail stay shared.
  */
 
+import { useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { InterviewChatPanel } from '../components/interview/InterviewChatPanel.jsx';
 import { InterviewPageHeader } from '../components/interview/InterviewPageHeader.jsx';
@@ -16,6 +17,7 @@ import { EndSessionProgress } from '../components/interview/EndSessionProgress.j
 import { downloadSessionRecording } from '../api/recordingApi.js';
 import { useInterviewSession } from '../hooks/useInterviewSession.js';
 import { useVoiceInterviewSession } from '../hooks/useVoiceInterviewSession.js';
+import { useTour } from '../contexts/TourContext.jsx';
 
 const LoadingState = () => (
   <div className="min-h-screen flex items-center justify-center">Loading session...</div>
@@ -81,6 +83,39 @@ export function InterviewPage() {
     }
   };
 
+  const { startTour, globalTourStep, advanceGlobalTour } = useTour();
+
+  const INTERVIEW_TOUR_STEPS = [
+    {
+      target: '#tour-interview-header',
+      content: 'Here is your session info — role, level, mode, and a live timer.',
+      placement: 'bottom',
+      disableBeacon: true,
+    },
+    {
+      target: '#tour-interview-center',
+      content: isVoiceMode
+        ? 'This is your Voice Interview panel. Click the microphone to start talking. You can end the interview here when finished.'
+        : 'This is where your conversation happens. Type your answers here. Click End when you are done.',
+      placement: 'right',
+      spotlightClicks: true, // Allow clicking End button
+    },
+    {
+      target: '#tour-interview-right',
+      content: 'Check the conversation transcript here, and use the Text Reply area below to draft or refine your answers.',
+      placement: 'left',
+    },
+  ];
+
+  useEffect(() => {
+    if (!loading && session && (globalTourStep === 'interview' || globalTourStep === 'analyze')) {
+      advanceGlobalTour('interview');
+      setTimeout(() => {
+        startTour(INTERVIEW_TOUR_STEPS);
+      }, 500);
+    }
+  }, [globalTourStep, loading, session, startTour, advanceGlobalTour]);
+
   if (loading) return <LoadingState />;
   if (!session) return <EmptyState />;
 
@@ -119,7 +154,7 @@ export function InterviewPage() {
           matchedAreas={viewModel.matchedAreas}
         />
 
-        <div className="lg:col-span-6 flex flex-col min-h-[400px] lg:h-full lg:pb-6 lg:min-h-0">
+        <div id="tour-interview-center" className="lg:col-span-6 flex flex-col min-h-[400px] lg:h-full lg:pb-6 lg:min-h-0">
           {isVoiceMode ? (
             <VoiceInterviewPanel
               session={session}

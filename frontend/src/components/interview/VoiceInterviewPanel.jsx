@@ -81,26 +81,38 @@ export function VoiceInterviewPanel({
               </div>
             </div>
 
-            <div className="relative flex h-[220px] w-[220px] items-center justify-center rounded-full border border-[#cfece0] bg-white">
-              <div className={cn('absolute inset-6 rounded-full transition-all duration-200', isRecording ? 'bg-[#2eb886]/20 animate-pulse' : 'bg-[#2eb886]/10')} />
+            <div className="relative flex h-[160px] w-[160px] items-center justify-center rounded-full border border-[#cfece0] bg-white">
+              <div className={cn('absolute inset-4 rounded-full transition-all duration-200', isRecording ? 'bg-[#2eb886]/20 animate-pulse' : 'bg-[#2eb886]/10')} />
               <button
                 type="button"
                 onClick={handleToggleRecording}
                 disabled={!canUseVoice}
-                className={cn('relative z-10 flex h-[112px] w-[112px] items-center justify-center rounded-full text-white shadow-lg transition-all duration-200', canUseVoice ? 'bg-[#2eb886] hover:bg-[#24a673]' : 'cursor-not-allowed bg-gray-300')}
+                className={cn('relative z-10 flex h-[80px] w-[80px] items-center justify-center rounded-full text-white shadow-lg transition-all duration-200', canUseVoice ? 'bg-[#2eb886] hover:bg-[#24a673]' : 'cursor-not-allowed bg-gray-300')}
                 aria-label={isAutoLoopActive || isRecording ? 'Pause voice interview' : 'Start voice interview'}
               >
-                {isAutoLoopActive || isRecording ? <Square className="h-8 w-8" /> : <Mic className="h-8 w-8" />}
+                {isAutoLoopActive || isRecording ? <Square className="h-6 w-6" /> : <Mic className="h-6 w-6" />}
               </button>
             </div>
 
-            <div className="text-center">
-              <p className="text-base font-medium text-gray-600">
-                {isAutoLoopActive ? (isRecording ? 'Listening automatically - ' + recordingDurationLabel : 'Auto voice interview is running') : (isNotStarted ? 'Click the mic to start the interview and begin the timer' : 'Start Voice Interview to begin the hands-free loop')}
-              </p>
-              <p className="mt-1 text-sm text-gray-400">
-                Voice mode: Duplex Voice Agent{vadState ? ' · ' + vadState : ''}{recordingStatus?.state === 'uploading' ? ' · Preparing MP3' : ''}
-              </p>
+            <div className="text-center h-16 flex flex-col justify-center">
+              {isAutoLoopActive ? (
+                isRecording ? (
+                  <>
+                    <p className="text-lg font-bold text-[#2eb886] animate-pulse">You can speak now</p>
+                    <p className="mt-1 text-sm text-gray-500">{stateLabel} · {recordingDurationLabel}</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-lg font-bold text-sky-600">{stateLabel}</p>
+                    <p className="mt-1 text-sm text-gray-500">Please wait for your turn</p>
+                  </>
+                )
+              ) : (
+                <>
+                  <p className="text-lg font-bold text-gray-700">Ready to begin</p>
+                  <p className="mt-1 text-sm text-gray-500">Click the microphone to start the interview</p>
+                </>
+              )}
             </div>
 
             <div className="flex h-[78px] w-full items-end justify-between gap-1 overflow-hidden rounded-3xl bg-white px-4 py-4 shadow-sm">
