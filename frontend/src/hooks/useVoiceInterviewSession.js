@@ -9,12 +9,18 @@ import { uploadSessionRecording } from '../api/recordingApi.js';
 import { createVoiceLatencyTrace } from '../utils/voiceLatencyTrace.js';
 import { buildVoiceLatencyDebugSummary, buildVoiceLatencyTargetSummary } from '../utils/voiceLatencySummary.js';
 import { DEFAULT_VAD_CONFIG } from '../utils/voiceActivityDetectionCore.js';
+import { assessVoiceNetworkQuality } from '../utils/voiceRuntimeNetwork.js';
+import { cancelLatencyAcknowledgement, playLatencyAcknowledgement } from '../utils/voiceLatencyAcknowledgement.js';
 
 const DEFAULT_VOICE_NAME = 'en-NZ-MollyNeural';
 const DEFAULT_LANGUAGE = 'en-NZ';
 const MIC_ARM_DELAY_MS = 350;
 const VAD_WARMUP_IGNORE_MS = 500;
 const SLOW_PROCESSING_WARNING_MS = 8000;
+const NETWORK_PING_INTERVAL_MS = 6000;
+const SLOW_FIRST_AUDIO_MS = 3500;
+const LATENCY_ACK_DELAY_MS = 650;
+const LATENCY_ACK_COOLDOWN_MS = 16000;
 
 const buildVoiceStatus = (type, title, message) => ({ type, title, message });
 
@@ -65,6 +71,7 @@ export function useVoiceInterviewSession({
   const [assistantTextPreview, setAssistantTextPreview] = useState('');
   const [recordingStatus, setRecordingStatus] = useState({ state: 'idle', error: null });
   const [lastTranscriptRejection, setLastTranscriptRejection] = useState(null);
+  const [voiceNetworkQuality, setVoiceNetworkQuality] = useState(() => assessVoiceNetworkQuality());
 
   const autoLoopActiveRef = useRef(false);
   const voiceSessionTraceRef = useRef(null);
@@ -72,7 +79,13 @@ export function useVoiceInterviewSession({
   const activeBackendLatencyRef = useRef(null);
   const voiceTurnSequenceRef = useRef(0);
   const vadMetricsRef = useRef(null);
+  const latestSocketLatencyRef = useRef({});
   const firstAudioChunkSeenRef = useRef(false);
+  const activeVoiceTurnStartedAtRef = useRef(null);
+  const latestFirstAudioDelayRef = useRef(null);
+  const consecutiveSlowTurnsRef = useRef(0);
+  const latencyAcknowledgementTimerRef = useRef(null);
+  const lastLatencyAcknowledgementAtRef = useRef(0);
   const noSpeechPromptedRef = useRef(false);
   const completedCleanupDoneRef = useRef(false);
   const startListeningRef = useRef(null);
@@ -126,14 +139,58 @@ export function useVoiceInterviewSession({
     activeVoiceTurnTraceRef.current = trace;
     activeBackendLatencyRef.current = null;
     firstAudioChunkSeenRef.current = false;
+    activeVoiceTurnStartedAtRef.current = performance.now();
     trace.mark('vad_config', { ...DEFAULT_VAD_CONFIG, warmupIgnoreMs: VAD_WARMUP_IGNORE_MS, turnId });
     trace.mark('vad_speech_end', { reason, turnId });
     return { trace, turnId };
   }, [activeSessionId]);
 
+  const updateVoiceNetworkQuality = useCallback((overrides = {}) => {
+    const socketLatency = latestSocketLatencyRef.current || {};
+    setVoiceNetworkQuality(assessVoiceNetworkQuality({
+      rttMs: socketLatency.networkRttMs,
+      jitterMs: socketLatency.networkJitterMs,
+      socketOpenMs: socketLatency.socketOpenMs,
+      firstAudioDelayMs: latestFirstAudioDelayRef.current,
+      consecutiveSlowTurns: consecutiveSlowTurnsRef.current,
+      ...overrides,
+    }));
+  }, []);
+
+  const clearLatencyAcknowledgementTimer = useCallback(() => {
+    if (latencyAcknowledgementTimerRef.current) {
+      window.clearTimeout(latencyAcknowledgementTimerRef.current);
+      latencyAcknowledgementTimerRef.current = null;
+    }
+  }, []);
+
+  const stopLatencyAcknowledgement = useCallback(() => {
+    clearLatencyAcknowledgementTimer();
+    cancelLatencyAcknowledgement();
+  }, [clearLatencyAcknowledgementTimer]);
+
+  const scheduleLatencyAcknowledgement = useCallback(() => {
+    clearLatencyAcknowledgementTimer();
+    latencyAcknowledgementTimerRef.current = window.setTimeout(() => {
+      const now = Date.now();
+      const recentlyPlayed = now - lastLatencyAcknowledgementAtRef.current < LATENCY_ACK_COOLDOWN_MS;
+      if (
+        recentlyPlayed ||
+        !autoLoopActiveRef.current ||
+        firstAudioChunkSeenRef.current
+      ) {
+        return;
+      }
+
+      const played = playLatencyAcknowledgement({ index: voiceTurnSequenceRef.current });
+      if (played) lastLatencyAcknowledgementAtRef.current = now;
+    }, LATENCY_ACK_DELAY_MS);
+  }, [clearLatencyAcknowledgementTimer]);
+
 
   const audioQueue = useAssistantAudioQueue({
     onPlaybackStart: () => {
+      stopLatencyAcknowledgement();
       isAssistantSpeakingRef.current = true;
       activeVoiceTurnTraceRef.current?.mark('assistant_audio_play_start');
       if (activeVoiceTurnTraceRef.current) logVoiceLatencySummary('assistant_playback_start', activeBackendLatencyRef.current);
@@ -160,8 +217,17 @@ export function useVoiceInterviewSession({
 
   const duplexSocket = useDuplexVoiceSocket({
     onAudioChunk: (chunk) => {
+      stopLatencyAcknowledgement();
       if (!firstAudioChunkSeenRef.current) {
         firstAudioChunkSeenRef.current = true;
+        const firstAudioDelayMs = activeVoiceTurnStartedAtRef.current
+          ? Math.round(performance.now() - activeVoiceTurnStartedAtRef.current)
+          : null;
+        latestFirstAudioDelayRef.current = firstAudioDelayMs;
+        consecutiveSlowTurnsRef.current = firstAudioDelayMs > SLOW_FIRST_AUDIO_MS
+          ? consecutiveSlowTurnsRef.current + 1
+          : 0;
+        updateVoiceNetworkQuality({ firstAudioDelayMs, consecutiveSlowTurns: consecutiveSlowTurnsRef.current });
         activeVoiceTurnTraceRef.current?.mark('first_audio_chunk_received', { index: chunk.index });
       }
       activeVoiceTurnTraceRef.current?.mark('tts_audio_chunk_received', { index: chunk.index });
@@ -174,6 +240,7 @@ export function useVoiceInterviewSession({
       setIsProcessingTurn(false);
     },
     onTranscriptRejected: (payload) => {
+      stopLatencyAcknowledgement();
       setIsProcessingTurn(false);
       setIsVoiceTakingLong(false);
       setPendingTranscript(null);
@@ -184,6 +251,7 @@ export function useVoiceInterviewSession({
       setVoiceStatus(buildVoiceStatus('warning', 'Voice did not catch that clearly', payload?.message || 'Please answer again so KiwiCoach can score the right content.'));
     },
     onTurnDone: (payload) => {
+      stopLatencyAcknowledgement();
       activeVoiceTurnTraceRef.current?.mark('auto_submit_response');
       setIsProcessingTurn(false);
       setIsVoiceTakingLong(false);
@@ -228,14 +296,16 @@ export function useVoiceInterviewSession({
     setIsProcessingTurn(true);
     setVoiceState('agent_thinking');
     setVoiceStatus(buildVoiceStatus('info', 'Processing your answer', 'KiwiCoach is preparing the next turn. This may take a few seconds.'));
+    scheduleLatencyAcknowledgement();
 
     if (realtimeMic.mediaStream && autoLoopActiveRef.current) {
       await vad.startVad({ stream: realtimeMic.mediaStream, ignoreFirstMs: VAD_WARMUP_IGNORE_MS });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [duplexSocket, realtimeMic, startVoiceTurnTrace]);
+  }, [duplexSocket, realtimeMic, scheduleLatencyAcknowledgement, startVoiceTurnTrace]);
 
   const handleVadSpeechStart = useCallback((metrics = {}) => {
+    stopLatencyAcknowledgement();
     vadMetricsRef.current = { ...(vadMetricsRef.current || {}), ...metrics };
     voiceSessionTraceRef.current?.mark('vad_speech_start', metrics);
     realtimeMic.setSendAudio?.(true);
@@ -250,7 +320,7 @@ export function useVoiceInterviewSession({
       setVoiceState('user_speaking');
       setVoiceStatus(buildVoiceStatus('info', 'Listening', 'Keep answering naturally. KiwiCoach will stop when you pause.'));
     }
-  }, [audioQueue, duplexSocket, realtimeMic]);
+  }, [audioQueue, duplexSocket, realtimeMic, stopLatencyAcknowledgement]);
 
   const handleVadSpeechEnd = useCallback(async (metrics = {}) => {
     vadMetricsRef.current = { ...(vadMetricsRef.current || {}), ...metrics };
@@ -385,6 +455,7 @@ export function useVoiceInterviewSession({
     if (isAutoLoopActive || realtimeMic.isStreaming) {
       autoLoopActiveRef.current = false;
       setIsAutoLoopActive(false);
+      stopLatencyAcknowledgement();
       audioQueue.clearQueue();
       vad.stopVad?.();
       await sessionAudioRecorder.stopCurrentSegment();
@@ -410,6 +481,9 @@ export function useVoiceInterviewSession({
       activeVoiceTurnTraceRef.current = null;
       activeBackendLatencyRef.current = null;
       firstAudioChunkSeenRef.current = false;
+      latestFirstAudioDelayRef.current = null;
+      consecutiveSlowTurnsRef.current = 0;
+      updateVoiceNetworkQuality({ firstAudioDelayMs: null, consecutiveSlowTurns: 0 });
       voiceSessionTraceRef.current.mark('voice_loop_start');
       voiceSessionTraceRef.current.mark('vad_config', { ...DEFAULT_VAD_CONFIG, warmupIgnoreMs: VAD_WARMUP_IGNORE_MS });
       autoLoopActiveRef.current = true;
@@ -426,7 +500,7 @@ export function useVoiceInterviewSession({
       setVoiceState('error');
       setVoiceStatus(buildVoiceStatus('error', 'Duplex voice failed', error.message || 'Could not start Voice Mode.'));
     }
-  }, [enabled, isCompleted, isPaused, isSupported, isAutoLoopActive, realtimeMic, audioQueue, vad, duplexSocket, setReadyState, activeSessionId, ensureDuplexConnected, startPassiveMicMonitor, speakQuestionText, getLatestAssistantQuestionText, ensureInterviewStarted, startListening, sessionAudioRecorder]);
+  }, [enabled, isCompleted, isPaused, isSupported, isAutoLoopActive, realtimeMic, stopLatencyAcknowledgement, audioQueue, vad, duplexSocket, setReadyState, activeSessionId, ensureDuplexConnected, startPassiveMicMonitor, speakQuestionText, getLatestAssistantQuestionText, ensureInterviewStarted, startListening, sessionAudioRecorder, updateVoiceNetworkQuality]);
 
   const handleRequestPermission = useCallback(async () => {
     setVoiceState('requesting_permission');
@@ -447,6 +521,7 @@ export function useVoiceInterviewSession({
   const handleResetShell = useCallback(async () => {
     autoLoopActiveRef.current = false;
     setIsAutoLoopActive(false);
+    stopLatencyAcknowledgement();
     audioQueue.clearQueue();
     vad.stopVad?.();
     await sessionAudioRecorder.stopCurrentSegment();
@@ -459,8 +534,11 @@ export function useVoiceInterviewSession({
     setEditableTranscript('');
     setLastAsrConfidence(null);
     setAssistantTextPreview('');
+    latestFirstAudioDelayRef.current = null;
+    consecutiveSlowTurnsRef.current = 0;
+    updateVoiceNetworkQuality({ firstAudioDelayMs: null, consecutiveSlowTurns: 0 });
     setReadyState();
-  }, [audioQueue, vad, realtimeMic, duplexSocket, setReadyState, sessionAudioRecorder]);
+  }, [audioQueue, vad, realtimeMic, duplexSocket, setReadyState, sessionAudioRecorder, stopLatencyAcknowledgement, updateVoiceNetworkQuality]);
 
   const uploadRecordingIfAvailable = useCallback(async () => {
     const recordingBlob = await sessionAudioRecorder.getCombinedRecording();
@@ -483,6 +561,7 @@ export function useVoiceInterviewSession({
     setVoiceState('ending');
     setVoiceStatus(buildVoiceStatus('info', 'Stopping voice session', 'Microphone, audio, and voice connection are being closed.'));
 
+    stopLatencyAcknowledgement();
     audioQueue.clearQueue();
     vad.stopVad?.();
     duplexSocket.stopSession();
@@ -490,7 +569,7 @@ export function useVoiceInterviewSession({
     await realtimeMic.stopStream();
     duplexSocket.closeSocket();
     voiceSessionTraceRef.current?.mark('voice_session_stopped', { reason });
-  }, [audioQueue, vad, duplexSocket, uploadRecordingIfAvailable, realtimeMic]);
+  }, [audioQueue, vad, duplexSocket, uploadRecordingIfAvailable, realtimeMic, stopLatencyAcknowledgement]);
 
   useEffect(() => {
     if (!enabled || !isCompleted || completedCleanupDoneRef.current) return;
@@ -531,9 +610,22 @@ export function useVoiceInterviewSession({
 
   useEffect(() => {
     if (!duplexSocket.socketError) return;
+    stopLatencyAcknowledgement();
     setVoiceState('error');
     setVoiceStatus(buildVoiceStatus('error', 'Duplex voice failed', duplexSocket.socketError));
-  }, [duplexSocket.socketError]);
+  }, [duplexSocket.socketError, stopLatencyAcknowledgement]);
+
+  useEffect(() => {
+    latestSocketLatencyRef.current = duplexSocket.latency || {};
+    updateVoiceNetworkQuality();
+  }, [duplexSocket.latency, updateVoiceNetworkQuality]);
+
+  useEffect(() => {
+    if (!isAutoLoopActive || !['open', 'ready', 'listening'].includes(duplexSocket.socketState)) return undefined;
+    duplexSocket.sendPing?.();
+    const timer = window.setInterval(() => duplexSocket.sendPing?.(), NETWORK_PING_INTERVAL_MS);
+    return () => window.clearInterval(timer);
+  }, [duplexSocket, duplexSocket.socketState, isAutoLoopActive]);
 
   useEffect(() => {
     if (!isProcessingTurn || voiceState !== 'agent_thinking') {
@@ -550,13 +642,14 @@ export function useVoiceInterviewSession({
 
   useEffect(() => {
     cleanupRef.current = () => {
+      stopLatencyAcknowledgement();
       audioQueue.clearQueue();
       vad.stopVad?.();
       sessionAudioRecorder.resetRecording();
       realtimeMic.stopStream();
       duplexSocket.closeSocket();
     };
-  }, [audioQueue, vad, realtimeMic, duplexSocket, sessionAudioRecorder]);
+  }, [audioQueue, vad, realtimeMic, duplexSocket, sessionAudioRecorder, stopLatencyAcknowledgement]);
 
   useEffect(() => () => cleanupRef.current?.(), []);
 
@@ -606,6 +699,7 @@ export function useVoiceInterviewSession({
     isRecording,
     isProcessingTurn,
     isVoiceTakingLong,
+    voiceNetworkQuality,
     canUseVoice,
     recordingStatus,
     lastTranscriptRejection,

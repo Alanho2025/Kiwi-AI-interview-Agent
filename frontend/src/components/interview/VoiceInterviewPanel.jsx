@@ -41,6 +41,7 @@ export function VoiceInterviewPanel({
     levelHistory,
     recordingDurationLabel,
     isVoiceTakingLong,
+    voiceNetworkQuality,
     lastTranscriptRejection,
     assistantAudioUrl,
     audioRef,
@@ -63,6 +64,10 @@ export function VoiceInterviewPanel({
     : voiceStatus;
   const hasVoiceError = voiceState === 'error' || displayedVoiceStatus?.type === 'error';
   const shouldShowRecovery = !isCompleted && (Boolean(lastTranscriptRejection) || Boolean(isVoiceTakingLong) || hasVoiceError);
+  const shouldShowNetworkWarning = !isCompleted && isAutoLoopActive && ['warning', 'poor'].includes(voiceNetworkQuality?.status);
+  const networkTone = voiceNetworkQuality?.status === 'poor'
+    ? 'border-amber-200 bg-amber-50 text-amber-900'
+    : 'border-sky-200 bg-sky-50 text-sky-800';
   const recoveryTitle = lastTranscriptRejection
     ? 'Voice did not catch that clearly'
     : isVoiceTakingLong
@@ -93,6 +98,22 @@ export function VoiceInterviewPanel({
         <div className={cn('shrink-0 rounded-2xl border px-4 py-3 text-sm shadow-sm', renderStatusTone(displayedVoiceStatus.type))}>
           <p className="font-semibold">{displayedVoiceStatus.title}</p>
           <p className="mt-1">{displayedVoiceStatus.message}</p>
+        </div>
+      ) : null}
+
+      {shouldShowNetworkWarning ? (
+        <div className={cn('shrink-0 rounded-2xl border px-4 py-3 text-sm shadow-sm', networkTone)}>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="font-semibold">{voiceNetworkQuality.title}</p>
+              <p className="mt-1 leading-6">{voiceNetworkQuality.message}</p>
+            </div>
+            {voiceNetworkQuality.rttMs != null ? (
+              <span className="shrink-0 rounded-full bg-white/75 px-3 py-1 text-xs font-semibold">
+                {voiceNetworkQuality.rttMs}ms
+              </span>
+            ) : null}
+          </div>
         </div>
       ) : null}
 
