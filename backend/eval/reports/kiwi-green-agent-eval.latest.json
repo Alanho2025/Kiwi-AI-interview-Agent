@@ -1,0 +1,126 @@
+{
+  "label": "Kiwi Green Agent Eval",
+  "casesRun": 3,
+  "average": 0.98,
+  "weakestCases": [],
+  "thresholds": {
+    "minAverage": 0.88,
+    "failBelow": 0.7
+  },
+  "results": [
+    {
+      "id": "junior_data_scientist_five_question_flow",
+      "score": 0.97,
+      "rawScore": 0.97,
+      "expectedOutcome": "should_pass_quality_checks",
+      "subScores": {
+        "flow": 1,
+        "questionQuality": 0.89,
+        "reportGrounding": 1
+      },
+      "failedChecks": [
+        "q2:difficulty_fit",
+        "q5:jd_grounded",
+        "q5:cv_or_project_grounded",
+        "q5:difficulty_fit"
+      ],
+      "diagnostics": {
+        "plannedQuestionCount": 5,
+        "actualQuestionCount": 5,
+        "categories": [
+          "behavioural",
+          "technical",
+          "behavioural",
+          "technical",
+          "behavioural"
+        ],
+        "topics": [
+          "self_intro",
+          "data_cleaning",
+          "communication",
+          "dashboard",
+          "growth"
+        ],
+        "forbiddenReportClaims": [],
+        "unknownSkillClaims": []
+      }
+    },
+    {
+      "id": "technical_mode_blocks_behavioural_drift",
+      "score": 0.97,
+      "rawScore": 0.97,
+      "expectedOutcome": "should_pass_quality_checks",
+      "subScores": {
+        "flow": 1,
+        "questionQuality": 0.86,
+        "reportGrounding": 1
+      },
+      "failedChecks": [
+        "q1:jd_grounded",
+        "q1:cv_or_project_grounded",
+        "q1:difficulty_fit",
+        "q4:difficulty_fit"
+      ],
+      "diagnostics": {
+        "plannedQuestionCount": 4,
+        "actualQuestionCount": 4,
+        "categories": [
+          "technical",
+          "technical",
+          "technical",
+          "technical"
+        ],
+        "topics": [
+          "self_intro",
+          "api_design",
+          "mongodb",
+          "testing"
+        ],
+        "forbiddenReportClaims": [],
+        "unknownSkillClaims": []
+      }
+    },
+    {
+      "id": "bad_report_and_early_completion_is_caught",
+      "score": 1,
+      "rawScore": 0.5,
+      "expectedOutcome": "should_fail_quality_checks",
+      "subScores": {
+        "flow": 0.5,
+        "questionQuality": 0.71,
+        "reportGrounding": 0.33
+      },
+      "failedChecks": [
+        "starts_with_self_intro",
+        "question_count_matches_setting",
+        "required_categories_present",
+        "required_topics_present",
+        "q1:natural_length",
+        "q1:interview_tone",
+        "report:evidence_reference_present",
+        "report:coaching_present",
+        "report:no_forbidden_claims",
+        "report:no_unknown_skill_claims"
+      ],
+      "diagnostics": {
+        "plannedQuestionCount": 5,
+        "actualQuestionCount": 1,
+        "categories": [
+          "technical"
+        ],
+        "topics": [
+          "java"
+        ],
+        "forbiddenReportClaims": [
+          "Kubernetes",
+          "production machine learning",
+          "senior leadership"
+        ],
+        "unknownSkillClaims": [
+          "Kubernetes",
+          "production machine learning"
+        ]
+      }
+    }
+  ]
+}
