@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createVoiceActivityStateMachine, DEFAULT_VAD_CONFIG } from '../../utils/voiceActivityDetectionCore.js';
+
+const EMPTY_CONFIG = {};
 
 const calculateRms = (byteData) => {
   if (!byteData?.length) return 0;
@@ -13,7 +15,7 @@ const calculateRms = (byteData) => {
 
 export function useVoiceActivityDetection({
   stream = null,
-  config = {},
+  config = EMPTY_CONFIG,
   enabled = true,
   onSpeechStart,
   onSpeechEnd,
@@ -21,7 +23,7 @@ export function useVoiceActivityDetection({
   onMaxAnswerTimeout,
   onVadFrame,
 } = {}) {
-  const mergedConfig = { ...DEFAULT_VAD_CONFIG, ...config };
+  const mergedConfig = useMemo(() => ({ ...DEFAULT_VAD_CONFIG, ...config }), [config]);
   const [vadState, setVadState] = useState('idle');
   const [isSpeechDetected, setIsSpeechDetected] = useState(false);
   const [vadMetrics, setVadMetrics] = useState(null);
@@ -102,7 +104,7 @@ export function useVoiceActivityDetection({
     }, mergedConfig.frameIntervalMs);
 
     return true;
-  }, [enabled, mergedConfig.frameIntervalMs, mergedConfig.speechThreshold, mergedConfig.silenceThreshold, mergedConfig.minSpeechMs, mergedConfig.silenceToStopMs, mergedConfig.maxAnswerMs, mergedConfig.preSpeechGraceMs, mergedConfig.warmupIgnoreMs, stopVad, stream]);
+  }, [enabled, mergedConfig, stopVad, stream]);
 
   const resetVad = useCallback(() => {
     stopVad();

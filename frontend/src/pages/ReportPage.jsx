@@ -26,6 +26,30 @@ import { useReportData } from '../hooks/useReportData.js';
 import { buildReportViewModel } from '../utils/reportView/index.js';
 import { useTour } from '../contexts/TourContext.jsx';
 
+const REPORT_TOUR_STEPS = [
+  {
+    target: '#tour-report-hero',
+    content: 'Your performance at a glance — see your overall score, CV-JD match, and interview quality in one place.',
+    placement: 'bottom',
+    disableBeacon: true,
+  },
+  {
+    target: '#tour-report-insights',
+    content: 'Deep-dive into what the data says about your interview — evidence strength, use of examples, and more.',
+    placement: 'top',
+  },
+  {
+    target: '#tour-report-turns',
+    content: 'Review every single answer turn by turn. See what you did well and how to improve each response.',
+    placement: 'top',
+  },
+  {
+    target: 'body',
+    content: 'That concludes the tour! You can review your report or start a new session. Click Finish to exit the tour.',
+    placement: 'center',
+  }
+];
+
 /**
  * Purpose: Execute the main responsibility for ReportPage.
  * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
@@ -36,31 +60,7 @@ export function ReportPage() {
   const { sessionId } = useParams();
   const { reportData, status, loading, handleGenerate, handleQa, handleExport, handleDownloadRecording, recordingStatus } = useReportData(sessionId);
   const viewModel = buildReportViewModel(reportData);
-  const { startTour, globalTourStep, stopGlobalTour, advanceGlobalTour } = useTour();
-
-  const REPORT_TOUR_STEPS = [
-    {
-      target: '#tour-report-hero',
-      content: 'Your performance at a glance — see your overall score, CV-JD match, and interview quality in one place.',
-      placement: 'bottom',
-      disableBeacon: true,
-    },
-    {
-      target: '#tour-report-insights',
-      content: 'Deep-dive into what the data says about your interview — evidence strength, use of examples, and more.',
-      placement: 'top',
-    },
-    {
-      target: '#tour-report-turns',
-      content: 'Review every single answer turn by turn. See what you did well and how to improve each response.',
-      placement: 'top',
-    },
-    {
-      target: 'body',
-      content: 'That concludes the tour! You can review your report or start a new session. Click Finish to exit the tour.',
-      placement: 'center',
-    }
-  ];
+  const { startTour, globalTourStep, advanceGlobalTour } = useTour();
 
   useEffect(() => {
     if (!loading && reportData && (globalTourStep === 'report' || globalTourStep === 'interview')) {
@@ -90,7 +90,6 @@ export function ReportPage() {
             <ReportHeroCard
               report={viewModel.report}
               qa={viewModel.qa}
-              candidateFeedback={viewModel.candidateFeedback}
               takeaway={viewModel.takeaway}
               scoreBand={viewModel.scoreBand}
               generationSource={viewModel.generationSource}

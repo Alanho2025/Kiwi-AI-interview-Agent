@@ -1,7 +1,7 @@
 const normalizeText = (value = '') => String(value || '').trim();
 const tokenize = (value = '') => normalizeText(value).toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
 
-export const deriveAbductiveState = ({ latestAnswer = '', currentTopic = '', candidateState = {}, dynamicSlotState = {} } = {}) => {
+export const deriveAbductiveState = ({ latestAnswer = '', currentTopic: _currentTopic = '', candidateState = {}, dynamicSlotState = {} } = {}) => {
   const tokens = tokenize(latestAnswer);
   let surprisingFact = null;
   let hiddenGap = null;

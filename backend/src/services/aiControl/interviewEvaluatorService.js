@@ -45,7 +45,6 @@ const detectCandidateQuestion = (answerText = '') => {
 };
 
 const detectFrictionSignals = (answerText = '') => {
-  const tokens = tokenize(answerText);
   const frictionKeywords = [
     'conflict', 'disagreed', 'opposed', 'failed', 'limited', 'bottleneck', 'deadline',
     'compromise', 'tradeoff', 'trade-off', 'technical debt', 'regret', 'refuse', 'mistake',
@@ -132,7 +131,7 @@ const detectGapClosure = ({ answerText = '', topic = '' } = {}) => {
     && ['used', 'checked', 'grouped', 'validated', 'compared', 'built', 'implemented', 'handled', 'separated', 'updated'].some((token) => tokens.includes(token));
   const successJudgement = ['result', 'outcome', 'reduced', 'improved', 'worked', 'judge', 'validated', 'reproduced', 'consistent'].some((token) => tokens.includes(token))
     || normalized.includes('how i knew')
-    || /(first|second)/.test(normalized);
+    || /\b(first|second)\b/.test(normalized);
   const closeCurrentIntent = Boolean(topic) && hardestTradeoff && handlingApproach && successJudgement;
   return { hardestTradeoff, handlingApproach, successJudgement, closeCurrentIntent };
 };

@@ -14,6 +14,7 @@ const DEFAULT_VOICE_NAME = 'en-NZ-MollyNeural';
 const DEFAULT_LANGUAGE = 'en-NZ';
 const MIC_ARM_DELAY_MS = 350;
 const VAD_WARMUP_IGNORE_MS = 500;
+const SLOW_PROCESSING_WARNING_MS = 8000;
 
 const buildVoiceStatus = (type, title, message) => ({ type, title, message });
 
@@ -59,6 +60,7 @@ export function useVoiceInterviewSession({
   const [editableTranscript, setEditableTranscript] = useState('');
   const [lastAsrConfidence, setLastAsrConfidence] = useState(null);
   const [isProcessingTurn, setIsProcessingTurn] = useState(false);
+  const [isVoiceTakingLong, setIsVoiceTakingLong] = useState(false);
   const [isAutoLoopActive, setIsAutoLoopActive] = useState(false);
   const [assistantTextPreview, setAssistantTextPreview] = useState('');
   const [recordingStatus, setRecordingStatus] = useState({ state: 'idle', error: null });
@@ -173,16 +175,18 @@ export function useVoiceInterviewSession({
     },
     onTranscriptRejected: (payload) => {
       setIsProcessingTurn(false);
+      setIsVoiceTakingLong(false);
       setPendingTranscript(null);
       setEditableTranscript('');
       setLastAsrConfidence(payload?.transcription?.confidence ?? null);
       setLastTranscriptRejection(payload);
       setVoiceState('repair_prompt');
-      setVoiceStatus(buildVoiceStatus('warning', 'Please repeat your answer', payload?.message || 'I did not catch that clearly. Please repeat your answer.'));
+      setVoiceStatus(buildVoiceStatus('warning', 'Voice did not catch that clearly', payload?.message || 'Please answer again so KiwiCoach can score the right content.'));
     },
     onTurnDone: (payload) => {
       activeVoiceTurnTraceRef.current?.mark('auto_submit_response');
       setIsProcessingTurn(false);
+      setIsVoiceTakingLong(false);
       setLastTranscriptRejection(null);
       activeBackendLatencyRef.current = payload?.latency || null;
       logVoiceLatencySummary('duplex_turn_done', activeBackendLatencyRef.current);
@@ -223,7 +227,7 @@ export function useVoiceInterviewSession({
     realtimeMic.setSendAudio?.(false);
     setIsProcessingTurn(true);
     setVoiceState('agent_thinking');
-    setVoiceStatus(buildVoiceStatus('info', 'Preparing next question', 'KiwiCoach is planning the next turn.'));
+    setVoiceStatus(buildVoiceStatus('info', 'Processing your answer', 'KiwiCoach is preparing the next turn. This may take a few seconds.'));
 
     if (realtimeMic.mediaStream && autoLoopActiveRef.current) {
       await vad.startVad({ stream: realtimeMic.mediaStream, ignoreFirstMs: VAD_WARMUP_IGNORE_MS });
@@ -451,6 +455,7 @@ export function useVoiceInterviewSession({
     setTranscriptionPreview('');
     setPendingTranscript(null);
     setLastTranscriptRejection(null);
+    setIsVoiceTakingLong(false);
     setEditableTranscript('');
     setLastAsrConfidence(null);
     setAssistantTextPreview('');
@@ -531,6 +536,19 @@ export function useVoiceInterviewSession({
   }, [duplexSocket.socketError]);
 
   useEffect(() => {
+    if (!isProcessingTurn || voiceState !== 'agent_thinking') {
+      setIsVoiceTakingLong(false);
+      return undefined;
+    }
+
+    const timer = window.setTimeout(() => {
+      setIsVoiceTakingLong(true);
+    }, SLOW_PROCESSING_WARNING_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [isProcessingTurn, voiceState]);
+
+  useEffect(() => {
     cleanupRef.current = () => {
       audioQueue.clearQueue();
       vad.stopVad?.();
@@ -553,7 +571,7 @@ export function useVoiceInterviewSession({
       case 'listening': return 'Listening';
       case 'user_speaking': return 'Answering';
       case 'interrupted': return 'Interrupted';
-      case 'agent_thinking': return 'Planning next turn';
+      case 'agent_thinking': return 'Processing answer';
       case 'repair_prompt': return 'Please repeat';
       case 'ending': return 'Ending voice session';
       case 'error': return 'Voice error';
@@ -561,8 +579,7 @@ export function useVoiceInterviewSession({
     }
   }, [voiceState]);
 
-  const transcript = session?.transcript || [];
-  const liveTranscript = useMemo(() => transcript.slice(-8), [transcript]);
+  const liveTranscript = useMemo(() => (session?.transcript || []).slice(-8), [session?.transcript]);
   const isRecording = realtimeMic.isStreaming || ['listening', 'user_speaking', 'interrupted'].includes(voiceState);
   const canUseVoice = enabled && !isPaused && !isCompleted && (!isSubmitting || isAutoLoopActive) && (!isProcessingTurn || isAutoLoopActive);
 
@@ -588,6 +605,7 @@ export function useVoiceInterviewSession({
     setEditableTranscript,
     isRecording,
     isProcessingTurn,
+    isVoiceTakingLong,
     canUseVoice,
     recordingStatus,
     lastTranscriptRejection,

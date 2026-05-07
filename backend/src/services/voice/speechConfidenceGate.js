@@ -93,7 +93,7 @@ export function assessRealtimeVoiceTranscript({
     return {
       ok: false,
       reason: 'LOW_CONFIDENCE_TRANSCRIPT',
-      message: 'I am not confident I heard that correctly. Please repeat your answer from the start, a little slower.',
+      message: 'Voice recognition was not confident it heard that correctly. Please repeat your answer from the start.',
       ...basePayload,
     };
   }

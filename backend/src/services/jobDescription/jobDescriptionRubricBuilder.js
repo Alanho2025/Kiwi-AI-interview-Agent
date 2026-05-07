@@ -21,8 +21,6 @@ import { validateJobDescriptionRubric } from './jobDescriptionSchemaValidator.js
 import { extractJobDescriptionHeader } from './jobDescriptionHeaderExtractor.js';
 import { buildFieldEvidence } from './jobDescriptionEvidenceBuilder.js';
 import { ROLE_KEYWORDS, cleanLineLabel, firstMatchingLine, unique } from './jobDescriptionShared.js';
-import { normalizeResponsibilityPoints } from './normalizers/normalizeResponsibility.js';
-import { normalizeRequirementPoints } from './normalizers/normalizeRequirement.js';
 import { normalizeBenefitPoints } from './normalizers/normalizeBenefit.js';
 import { normalizeSoftSkillPoints } from './normalizers/normalizeSoftSkill.js';
 import { normalizeApplicationInstructionPoints } from './normalizers/normalizeApplicationInstruction.js';
@@ -226,7 +224,7 @@ const extractTitle = (normalized) => {
   const candidates = (normalized.lines || []).slice(0, 8);
   for (const line of candidates) {
     const text = String(line || '').replace(/\s+/g, ' ').trim();
-    const splitIndex = text.search(/\b(?:company|employment type|job type|location|salary|contract type)\s*:|\b(?:what this role does|key responsibilities|responsibilities|core requirements|bonus requirements|qualifications|benefits|application notes|about the role|what you\'ll do|what you\'ll bring)\b/i);
+    const splitIndex = text.search(/\b(?:company|employment type|job type|location|salary|contract type)\s*:|\b(?:what this role does|key responsibilities|responsibilities|core requirements|bonus requirements|qualifications|benefits|application notes|about the role|what you'll do|what you'll bring)\b/i);
     const head = splitIndex > 0 ? text.slice(0, splitIndex).trim() : text;
     const matched = head.match(/^([a-z0-9&/()+,.' -]{1,100}?\b(?:engineer|developer|manager|designer|analyst|architect|consultant|specialist|intern|graduate|scientist|administrator|programme|program)\b(?:\s*\([^)]{1,40}\))?)/i);
     const value = (matched?.[1] || '').replace(/^we are seeking\s+(?:a|an)\s+/i, '').replace(/[.:;,-]+$/g, '').trim();
