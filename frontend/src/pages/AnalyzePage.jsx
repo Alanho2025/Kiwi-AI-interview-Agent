@@ -42,6 +42,26 @@ import { useTour } from '../contexts/TourContext.jsx';
  */
 const buildStatusMessage = (type, title, message) => ({ type, title, message });
 
+const ANALYZE_TOUR_STEPS = [
+  {
+    target: '#tour-analyze-cv',
+    content: 'First, upload your CV or select a recent one. The AI will use this to understand your background.',
+    placement: 'bottom',
+    disableBeacon: true,
+  },
+  {
+    target: '#tour-analyze-jd',
+    content: 'Next, paste the Job Description. KiwiCoach will compare this with your CV to generate tailored interview questions.',
+    placement: 'bottom',
+  },
+  {
+    target: '#tour-analyze-actions',
+    content: 'Once both are ready, click "Generate Plan". After it finishes matching, you can click "Start Interview". Go ahead and upload a CV now!',
+    placement: 'top',
+    spotlightClicks: true,
+  }
+];
+
 export function AnalyzePage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -68,26 +88,6 @@ export function AnalyzePage() {
   const isVoiceReady = voiceDeviceCheck?.browser?.status === 'ok'
     && voiceDeviceCheck?.mic?.status === 'ok'
     && voiceDeviceCheck?.speaker?.status === 'ok';
-
-  const ANALYZE_TOUR_STEPS = [
-    {
-      target: '#tour-analyze-cv',
-      content: 'First, upload your CV or select a recent one. The AI will use this to understand your background.',
-      placement: 'bottom',
-      disableBeacon: true,
-    },
-    {
-      target: '#tour-analyze-jd',
-      content: 'Next, paste the Job Description. KiwiCoach will compare this with your CV to generate tailored interview questions.',
-      placement: 'bottom',
-    },
-    {
-      target: '#tour-analyze-actions',
-      content: 'Once both are ready, click "Generate Plan". After it finishes matching, you can click "Start Interview". Go ahead and upload a CV now!',
-      placement: 'top',
-      spotlightClicks: true,
-    }
-  ];
 
   useEffect(() => {
     // Trigger if the tour is meant for this page, or if user jumped here from Home via spotlight click

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { VoiceInterviewPanel } from '../VoiceInterviewPanel.jsx';
 
@@ -7,6 +7,7 @@ const buildVoiceShell = (overrides = {}) => ({
   permissionState: 'granted',
   permissionError: '',
   stateLabel: 'Realtime captions ready',
+  voiceState: 'ready',
   voiceStatus: null,
   voiceMode: 'realtime',
   setVoiceMode: vi.fn(),
@@ -16,6 +17,7 @@ const buildVoiceShell = (overrides = {}) => ({
   setEditableTranscript: vi.fn(),
   isRecording: false,
   isProcessingTurn: false,
+  isVoiceTakingLong: false,
   canUseVoice: true,
   levelHistory: [0.2, 0.5, 0.9],
   recordingDurationLabel: '00:12',
@@ -23,6 +25,7 @@ const buildVoiceShell = (overrides = {}) => ({
   assistantAudioUrl: '',
   audioRef: { current: null },
   lastAsrConfidence: null,
+  lastTranscriptRejection: null,
   manualAudioFile: null,
   handleRequestPermission: vi.fn(),
   handleToggleRecording: vi.fn(),
@@ -90,5 +93,59 @@ describe('VoiceInterviewPanel', () => {
 
     expect(screen.queryByText('medium confidence')).not.toBeInTheDocument();
     expect(screen.queryByText('My confirmed answer')).not.toBeInTheDocument();
+  });
+
+  it('shows scoring boundary wording without requiring transcript confirmation', () => {
+    render(
+      <VoiceInterviewPanel
+        isPaused={false}
+        isCompleted={false}
+        isSubmitting={false}
+        onPause={vi.fn()}
+        onRepeat={vi.fn()}
+        onEnd={vi.fn()}
+        voiceShell={buildVoiceShell()}
+      />
+    );
+
+    expect(screen.getByText(/scores answer content and communication clarity/i)).toBeInTheDocument();
+    expect(screen.queryByText('Confirm answer')).not.toBeInTheDocument();
+    expect(screen.queryByText('Edit transcript')).not.toBeInTheDocument();
+  });
+
+  it('offers recovery actions when speech recognition is unclear', () => {
+    const onSubmitBackup = vi.fn();
+    const handleResetShell = vi.fn();
+
+    render(
+      <VoiceInterviewPanel
+        isPaused={false}
+        isCompleted={false}
+        isSubmitting={false}
+        onPause={vi.fn()}
+        onRepeat={vi.fn()}
+        onEnd={vi.fn()}
+        onSubmitBackup={onSubmitBackup}
+        voiceShell={buildVoiceShell({
+          lastTranscriptRejection: {
+            message: 'Voice recognition was not confident it heard that correctly.',
+          },
+          handleResetShell,
+        })}
+      />
+    );
+
+    expect(screen.getByText('Voice did not catch that clearly')).toBeInTheDocument();
+    expect(screen.getByText('Retry voice')).toBeInTheDocument();
+    expect(screen.getByText('Answer by text')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Answer by text'));
+    fireEvent.change(screen.getByPlaceholderText('Type the answer you would give for this question...'), {
+      target: { value: 'I used SQL to clean the dataset and checked the result with tests.' },
+    });
+    fireEvent.click(screen.getByText('Submit text answer'));
+
+    expect(handleResetShell).toHaveBeenCalled();
+    expect(onSubmitBackup).toHaveBeenCalledWith('I used SQL to clean the dataset and checked the result with tests.');
   });
 });

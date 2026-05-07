@@ -174,7 +174,7 @@ export const callDeepSeekStream = async function* (prompt, systemInstruction = '
           if (data.usage) {
             streamUsage = extractUsage(data);
           }
-        } catch (e) {
+        } catch {
           // ignore incomplete JSON chunks
         }
       }

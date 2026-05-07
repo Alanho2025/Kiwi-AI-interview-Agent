@@ -368,7 +368,7 @@ Generate your verbal response now:`;
   }
 
   if (currentSentence.trim()) {
-    await onSentence(currentSentence.trim(), sentenceIndex++);
+    await onSentence(currentSentence.trim(), sentenceIndex);
   }
 
   return fullText;

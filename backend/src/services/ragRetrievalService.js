@@ -10,7 +10,7 @@
  */
 
 import { DocumentChunk } from '../db/models/documentChunkModel.js';
-import { cosineSimilarity, embedText, normalizeForRetrieval } from './embeddingService.js';
+import { embedText, normalizeForRetrieval } from './embeddingService.js';
 import { query as postgresQuery } from '../db/postgres.js';
 
 /**
@@ -80,7 +80,6 @@ export const retrieveChunks = async ({
   if (sessionId) {
     sql += ` AND session_id = $${paramCounter}`;
     params.push(sessionId);
-    paramCounter++;
   }
 
   // Use pgvector to pre-filter or just calculate semantic score, we limit to 100 for fusion

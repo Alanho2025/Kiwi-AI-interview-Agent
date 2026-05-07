@@ -163,7 +163,7 @@ const normalizeCandidateFeedback = (candidateFeedback = {}, fallback = {}) => ({
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-const buildPrompt = ({ session, analysisResult, interviewPlan, evidenceSummary, interviewMetrics, strongestExamples, deterministicFeedback }) => {
+const buildPrompt = ({ session, analysisResult, interviewPlan, evidenceSummary: _evidenceSummary, interviewMetrics, strongestExamples, deterministicFeedback }) => {
   const groundingPayload = {
     candidateName: analysisResult.candidateName || session.candidateName || 'Candidate',
     jobTitle: analysisResult.jobTitle || session.targetRole || 'Target Role',

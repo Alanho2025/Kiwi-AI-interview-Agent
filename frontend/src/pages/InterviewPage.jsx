@@ -28,6 +28,28 @@ const EmptyState = () => (
   <div className="min-h-screen flex items-center justify-center">Session not found.</div>
 );
 
+const buildInterviewTourSteps = (isVoiceMode) => [
+  {
+    target: '#tour-interview-header',
+    content: 'Here is your session info — role, level, mode, and a live timer.',
+    placement: 'bottom',
+    disableBeacon: true,
+  },
+  {
+    target: '#tour-interview-center',
+    content: isVoiceMode
+      ? 'This is your Voice Interview panel. Click the microphone to start talking. You can end the interview here when finished.'
+      : 'This is where your conversation happens. Type your answers here. Click End when you are done.',
+    placement: 'right',
+    spotlightClicks: true, // Allow clicking End button
+  },
+  {
+    target: '#tour-interview-right',
+    content: 'Check the conversation transcript here, and use the Text Reply area below to draft or refine your answers.',
+    placement: 'left',
+  },
+];
+
 export function InterviewPage() {
   const { sessionId } = useParams();
   const navigate = useNavigate();
@@ -86,36 +108,14 @@ export function InterviewPage() {
 
   const { startTour, globalTourStep, advanceGlobalTour } = useTour();
 
-  const INTERVIEW_TOUR_STEPS = [
-    {
-      target: '#tour-interview-header',
-      content: 'Here is your session info — role, level, mode, and a live timer.',
-      placement: 'bottom',
-      disableBeacon: true,
-    },
-    {
-      target: '#tour-interview-center',
-      content: isVoiceMode
-        ? 'This is your Voice Interview panel. Click the microphone to start talking. You can end the interview here when finished.'
-        : 'This is where your conversation happens. Type your answers here. Click End when you are done.',
-      placement: 'right',
-      spotlightClicks: true, // Allow clicking End button
-    },
-    {
-      target: '#tour-interview-right',
-      content: 'Check the conversation transcript here, and use the Text Reply area below to draft or refine your answers.',
-      placement: 'left',
-    },
-  ];
-
   useEffect(() => {
     if (!loading && session && (globalTourStep === 'interview' || globalTourStep === 'analyze')) {
       advanceGlobalTour('interview');
       setTimeout(() => {
-        startTour(INTERVIEW_TOUR_STEPS);
+        startTour(buildInterviewTourSteps(isVoiceMode));
       }, 500);
     }
-  }, [globalTourStep, loading, session, startTour, advanceGlobalTour]);
+  }, [advanceGlobalTour, globalTourStep, isVoiceMode, loading, session, startTour]);
 
   if (loading) return <LoadingState />;
   if (!session) return <EmptyState />;

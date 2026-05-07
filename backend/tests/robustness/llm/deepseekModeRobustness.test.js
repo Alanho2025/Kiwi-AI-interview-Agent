@@ -29,7 +29,8 @@ describe('DeepSeek mode robustness', () => {
 
     const response = await callDeepSeek('parse this CV');
 
-    expect(response).toMatch(/mock response/i);
+    expect(response.content).toMatch(/mock response/i);
+    expect(response.usage).toBeNull();
     expect(warnSpy).not.toHaveBeenCalled();
   });
 

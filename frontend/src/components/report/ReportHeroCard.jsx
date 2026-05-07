@@ -19,7 +19,7 @@ import { formatNumber, titleCase } from '../../utils/reportViewBuilder.js';
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-export function ReportHeroCard({ report, qa, candidateFeedback, takeaway, scoreBand, generationSource }) {
+export function ReportHeroCard({ report, qa, takeaway, scoreBand, generationSource }) {
   return (
     <Card className="border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-sky-50">
       <CardContent className="p-5 sm:p-8">
