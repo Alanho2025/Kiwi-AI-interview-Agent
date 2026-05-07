@@ -42,6 +42,14 @@ const statements = [
          USING NULL;
      END IF;
    END $$`,
+  `DELETE FROM document_chunks newer
+   USING document_chunks older
+   WHERE newer.id > older.id
+     AND newer.source_type = older.source_type
+     AND COALESCE(newer.session_id, '00000000-0000-0000-0000-000000000000'::uuid) = COALESCE(older.session_id, '00000000-0000-0000-0000-000000000000'::uuid)
+     AND newer.chunk_index = older.chunk_index
+     AND COALESCE(newer.metadata->>'sourceId', '') = COALESCE(older.metadata->>'sourceId', '')
+     AND md5(newer.text_content) = md5(older.text_content)`,
   `CREATE TABLE IF NOT EXISTS users (
     id uuid PRIMARY KEY,
     email varchar(255) UNIQUE NOT NULL,
@@ -272,6 +280,32 @@ const statements = [
     ON interview_responses(session_id, question_id)`,
   `CREATE INDEX IF NOT EXISTS idx_audit_logs_session_created_at
     ON audit_logs(session_id, created_at DESC)`,
+  `CREATE INDEX IF NOT EXISTS idx_document_chunks_session_source
+    ON document_chunks(session_id, source_type, chunk_index)`,
+  `CREATE INDEX IF NOT EXISTS idx_document_chunks_metadata_source_id
+    ON document_chunks((metadata->>'sourceId'))`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS idx_document_chunks_unique_source_chunk
+    ON document_chunks(
+      source_type,
+      COALESCE(session_id, '00000000-0000-0000-0000-000000000000'::uuid),
+      chunk_index,
+      COALESCE(metadata->>'sourceId', ''),
+      md5(text_content)
+    )`,
+  `DO $$
+   BEGIN
+     BEGIN
+       CREATE INDEX IF NOT EXISTS idx_document_chunks_embedding_hnsw
+         ON document_chunks
+         USING hnsw (embedding vector_cosine_ops)
+         WHERE embedding IS NOT NULL;
+     EXCEPTION WHEN undefined_object OR feature_not_supported THEN
+       CREATE INDEX IF NOT EXISTS idx_document_chunks_embedding_ivfflat
+         ON document_chunks
+         USING ivfflat (embedding vector_cosine_ops)
+         WHERE embedding IS NOT NULL;
+     END;
+   END $$`,
 ];
 
 /**
