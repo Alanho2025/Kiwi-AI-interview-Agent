@@ -35,6 +35,7 @@ export function useDuplexVoiceSocket({
   onTurnDone,
   onBargeInAck,
   onSpeechDone,
+  onTranscriptRejected,
 } = {}) {
   const socketRef = useRef(null);
   const [socketState, setSocketState] = useState('idle');
@@ -118,6 +119,10 @@ export function useDuplexVoiceSocket({
         onSpeechDone?.(payload);
         return;
       }
+      if (payload.type === 'transcript_rejected') {
+        onTranscriptRejected?.(payload);
+        return;
+      }
       if (payload.type === 'barge_in_ack') {
         onBargeInAck?.(payload);
         return;
@@ -142,7 +147,7 @@ export function useDuplexVoiceSocket({
       if (socketRef.current === socket) socketRef.current = null;
       setSocketState((current) => (current === 'error' ? current : 'closed'));
     };
-  }), [closeSocket, onAssistantText, onAudioChunk, onBargeInAck, onSpeechDone, onTurnDone]);
+  }), [closeSocket, onAssistantText, onAudioChunk, onBargeInAck, onSpeechDone, onTranscriptRejected, onTurnDone]);
 
   const sendAudioChunk = useCallback((arrayBuffer) => {
     const socket = socketRef.current;

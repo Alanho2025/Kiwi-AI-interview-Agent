@@ -33,7 +33,8 @@ export function useMicrophonePermission() {
     return () => { cancelled = true; };
   }, [isSupported]);
 
-  const requestPermission = useCallback(async () => {
+  const requestPermission = useCallback(async (options = {}) => {
+    const keepStream = Boolean(options.keepStream);
     if (!isSupported) {
       const message = 'This browser does not support microphone access.';
       setPermissionState('unsupported');
@@ -45,9 +46,9 @@ export function useMicrophonePermission() {
     setError(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      stream.getTracks().forEach((track) => track.stop());
+      if (!keepStream) stream.getTracks().forEach((track) => track.stop());
       setPermissionState('granted');
-      return { ok: true };
+      return { ok: true, stream: keepStream ? stream : null };
     } catch (permissionError) {
       const message = getPermissionErrorMessage(permissionError);
       setPermissionState('denied');
