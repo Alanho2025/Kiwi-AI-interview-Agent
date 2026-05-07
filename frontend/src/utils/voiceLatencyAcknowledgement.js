@@ -13,6 +13,7 @@ export const isLatencyAcknowledgementAvailable = () => (
 );
 
 export const playLatencyAcknowledgement = ({ index = 0, volume = 0.72, rate = 1.02 } = {}) => {
+  if (import.meta.env.VITE_VOICE_LATENCY_FILLERS !== 'true') return false;
   if (!isLatencyAcknowledgementAvailable()) return false;
 
   const phrase = DEFAULT_ACKNOWLEDGEMENTS[Math.abs(index) % DEFAULT_ACKNOWLEDGEMENTS.length];

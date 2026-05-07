@@ -90,6 +90,7 @@ export function ReportPage() {
           <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
             <LoadingInsightPanel
               stage="report"
+              skeletonLayout="report"
               title="KiwiCoach is building your coaching report..."
               message="Your answers are being summarised before detailed metrics are shown."
             />

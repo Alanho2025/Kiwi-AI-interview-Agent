@@ -189,6 +189,7 @@ export function AnalysisStatusCard({ status, matchRate, analysisResult }) {
         {status === 'summarizing' && (
           <LoadingInsightPanel
             stage="jd"
+            skeletonLayout="match"
             title="KiwiCoach is structuring the JD..."
             message="Extracting role responsibilities, must-have requirements, and skill signals."
           />
@@ -197,6 +198,7 @@ export function AnalysisStatusCard({ status, matchRate, analysisResult }) {
         {status === 'matching' && (
           <LoadingInsightPanel
             stage="match"
+            skeletonLayout="match"
             title="KiwiCoach is comparing your CV with the JD..."
             message="Checking role fit, skill evidence, and must-have requirement coverage."
           />

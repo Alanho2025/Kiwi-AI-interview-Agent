@@ -103,17 +103,52 @@ export function VoiceInterviewPanel({
 
       {shouldShowNetworkWarning ? (
         <div className={cn('shrink-0 rounded-2xl border px-4 py-3 text-sm shadow-sm', networkTone)}>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <p className="font-semibold">{voiceNetworkQuality.title}</p>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <p className="font-semibold">{voiceNetworkQuality.title}</p>
+                {voiceNetworkQuality.rttMs != null ? (
+                  <span className="shrink-0 rounded-full bg-white/60 px-2 py-0.5 text-[10px] font-semibold">
+                    {voiceNetworkQuality.rttMs}ms
+                  </span>
+                ) : null}
+              </div>
               <p className="mt-1 leading-6">{voiceNetworkQuality.message}</p>
             </div>
-            {voiceNetworkQuality.rttMs != null ? (
-              <span className="shrink-0 rounded-full bg-white/75 px-3 py-1 text-xs font-semibold">
-                {voiceNetworkQuality.rttMs}ms
-              </span>
-            ) : null}
+            <div className="flex shrink-0 flex-wrap gap-2">
+              <Button variant="secondary" size="sm" onClick={() => setShowTextFallback(false)}>
+                Keep going
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  handleResetShell?.();
+                  setShowTextFallback((value) => !value);
+                }}
+                disabled={!onSubmitBackup}
+              >
+                Answer by text
+              </Button>
+            </div>
           </div>
+
+          {showTextFallback && !shouldShowRecovery ? (
+            <div className="mt-4 rounded-2xl border border-white/50 bg-white/50 p-3">
+              <TextArea
+                value={textFallback}
+                onChange={(event) => setTextFallback(event.target.value)}
+                rows={3}
+                placeholder="Type the answer you would give for this question..."
+                disabled={isSubmitting}
+              />
+              <div className="mt-3 flex justify-end">
+                <Button size="sm" onClick={submitTextFallback} disabled={!textFallback.trim() || isSubmitting}>
+                  Submit text answer
+                </Button>
+              </div>
+            </div>
+          ) : null}
         </div>
       ) : null}
 
