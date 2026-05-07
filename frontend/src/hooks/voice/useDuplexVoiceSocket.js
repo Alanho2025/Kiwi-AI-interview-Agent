@@ -44,6 +44,8 @@ export function useDuplexVoiceSocket({
   const [socketError, setSocketError] = useState(null);
   const [latency, setLatency] = useState({});
   const startedAtRef = useRef(0);
+  const pingSentAtRef = useRef(null);
+  const rttSamplesRef = useRef([]);
 
   const closeSocket = useCallback(() => {
     const socket = socketRef.current;
@@ -69,6 +71,8 @@ export function useDuplexVoiceSocket({
     setPartialTranscript('');
     setFinalTranscript(null);
     setLatency({});
+    pingSentAtRef.current = null;
+    rttSamplesRef.current = [];
     setSocketState('connecting');
     startedAtRef.current = performance.now();
 
@@ -87,6 +91,18 @@ export function useDuplexVoiceSocket({
       const payload = JSON.parse(String(event.data || '{}'));
       if (payload.type === 'session_ready') {
         setSocketState('ready');
+        return;
+      }
+      if (payload.type === 'pong') {
+        const sentAt = pingSentAtRef.current;
+        if (sentAt == null) return;
+        const rttMs = Math.round(performance.now() - sentAt);
+        pingSentAtRef.current = null;
+        rttSamplesRef.current = [...rttSamplesRef.current.slice(-5), rttMs];
+        const samples = rttSamplesRef.current;
+        const average = samples.reduce((sum, value) => sum + value, 0) / samples.length;
+        const jitterMs = Math.round(samples.reduce((sum, value) => sum + Math.abs(value - average), 0) / samples.length);
+        setLatency((current) => ({ ...current, networkRttMs: rttMs, networkJitterMs: jitterMs }));
         return;
       }
       if (payload.type === 'listening_started') {
@@ -159,6 +175,10 @@ export function useDuplexVoiceSocket({
   const sendSpeechEnd = useCallback((vad = null) => sendJson({ type: 'speech_end', vad, clientTimestamp: Date.now() }), [sendJson]);
   const sendBargeIn = useCallback((reason = 'user_started_speaking') => sendJson({ type: 'barge_in', reason, clientTimestamp: Date.now() }), [sendJson]);
   const speakText = useCallback((text) => sendJson({ type: 'speak_text', text, clientTimestamp: Date.now() }), [sendJson]);
+  const sendPing = useCallback(() => {
+    pingSentAtRef.current = performance.now();
+    return sendJson({ type: 'ping', clientTimestamp: Date.now() });
+  }, [sendJson]);
   const stopSession = useCallback(() => sendJson({ type: 'session_stop', clientTimestamp: Date.now() }), [sendJson]);
 
   useEffect(() => () => closeSocket(), [closeSocket]);
@@ -176,6 +196,7 @@ export function useDuplexVoiceSocket({
     sendSpeechEnd,
     sendBargeIn,
     speakText,
+    sendPing,
     stopSession,
-  }), [socketState, partialTranscript, finalTranscript, socketError, latency, connect, closeSocket, sendAudioChunk, sendSpeechStart, sendSpeechEnd, sendBargeIn, speakText, stopSession]);
+  }), [socketState, partialTranscript, finalTranscript, socketError, latency, connect, closeSocket, sendAudioChunk, sendSpeechStart, sendSpeechEnd, sendBargeIn, speakText, sendPing, stopSession]);
 }

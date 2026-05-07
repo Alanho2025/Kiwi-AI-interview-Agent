@@ -36,6 +36,7 @@ const { permissionMock, realtimeMicMock, duplexSocketMock, audioQueueMock } = vi
     sendSpeechEnd: vi.fn(),
     sendBargeIn: vi.fn(),
     speakText: vi.fn(),
+    sendPing: vi.fn(),
     stopSession: vi.fn(),
   },
   audioQueueMock: {
