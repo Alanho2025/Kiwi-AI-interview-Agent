@@ -98,6 +98,8 @@ export function AnalyzePage() {
   const [structuredJD, setStructuredJD] = useState('');
   const [structuredJDRubric, setStructuredJDRubric] = useState(null);
   const [summarizedRawJD, setSummarizedRawJD] = useState('');
+  const [cvHumanReviewedFileId, setCvHumanReviewedFileId] = useState('');
+  const [cvReviewStatus, setCvReviewStatus] = useState('unreviewed');
   const [jdHumanReviewedRawJD, setJdHumanReviewedRawJD] = useState('');
   const [jdReviewStatus, setJdReviewStatus] = useState('unreviewed');
   const [settings, setSettings] = useState(DEFAULT_ANALYZE_SETTINGS);
@@ -127,13 +129,11 @@ export function AnalyzePage() {
   const isJdEdited = jdReviewStatus === 'edited';
   const requiresJdHumanReview = Boolean(
     hasCurrentJDSummary
-    && (isJdEdited || (jdParseConfidence < JD_CONFIDENCE_THRESHOLD && jdReviewStatus !== 'verified'))
+    && jdReviewStatus !== 'verified'
   );
   const isJdHumanVerified = Boolean(hasCurrentJDSummary && jdReviewStatus === 'verified');
-  const canUseCurrentJDSummary = Boolean(
-    hasCurrentJDSummary
-    && (jdReviewStatus === 'verified' || (jdReviewStatus === 'unreviewed' && jdParseConfidence >= JD_CONFIDENCE_THRESHOLD))
-  );
+  const canUseCurrentJDSummary = Boolean(hasCurrentJDSummary && jdReviewStatus === 'verified');
+  const isCvHumanVerified = Boolean(selectedCV?.id && cvReviewStatus === 'verified' && cvHumanReviewedFileId === selectedCV.id);
 
   useEffect(() => {
     // Trigger if the tour is meant for this page, or if user jumped here from Home via spotlight click
@@ -185,6 +185,8 @@ export function AnalyzePage() {
   useEffect(() => {
     const restoredDraft = loadAnalyzeDraft();
     setSelectedCV(restoredDraft.selectedCV);
+    setCvHumanReviewedFileId(restoredDraft.cvHumanReviewedFileId || '');
+    setCvReviewStatus(restoredDraft.cvReviewStatus || 'unreviewed');
     setRawJD(restoredDraft.rawJD);
     setStructuredJD(restoredDraft.structuredJD);
     setStructuredJDRubric(restoredDraft.structuredJDRubric);
@@ -203,6 +205,8 @@ export function AnalyzePage() {
   useEffect(() => {
     persistAnalyzeDraft({
       selectedCV,
+      cvHumanReviewedFileId,
+      cvReviewStatus,
       rawJD,
       structuredJD,
       structuredJDRubric,
@@ -212,13 +216,15 @@ export function AnalyzePage() {
       settings,
       sessionMode,
     });
-  }, [selectedCV, rawJD, structuredJD, structuredJDRubric, summarizedRawJD, jdHumanReviewedRawJD, jdReviewStatus, settings, sessionMode]);
+  }, [selectedCV, cvHumanReviewedFileId, cvReviewStatus, rawJD, structuredJD, structuredJDRubric, summarizedRawJD, jdHumanReviewedRawJD, jdReviewStatus, settings, sessionMode]);
 
   const handleUpload = async (file) => {
     try {
       const uploadedCV = await uploadCV(file);
       resetAnalysisState();
       setSelectedCV(uploadedCV);
+      setCvHumanReviewedFileId('');
+      setCvReviewStatus('unreviewed');
       setPageStatus(buildStatusMessage('success', 'CV uploaded', `${uploadedCV.name} was parsed into a CV profile and is ready for matching.`));
       await refreshRecentCVs();
       return true;
@@ -233,6 +239,8 @@ export function AnalyzePage() {
       const activeCV = await selectCV(cvId);
       resetAnalysisState();
       setSelectedCV(activeCV);
+      setCvHumanReviewedFileId('');
+      setCvReviewStatus('unreviewed');
       setPageStatus(buildStatusMessage('info', 'CV selected', `${activeCV.name} is now the active CV for JD matching.`));
     } catch (error) {
       setPageStatus(buildStatusMessage('error', 'Could not select CV', error.message));
@@ -259,7 +267,7 @@ export function AnalyzePage() {
           `AI confidence is ${Math.round(confidence * 100)}%. Check the extracted role details and confirm the summary before CV-JD matching.`
         ));
       } else {
-        setPageStatus(buildStatusMessage('success', 'JD summary ready', 'The current JD summary is high-confidence and ready for CV matching.'));
+        setPageStatus(buildStatusMessage('success', 'JD summary ready', 'The current JD summary is high-confidence. Review it once before CV-JD matching.'));
       }
     } catch (error) {
       setPageStatus(buildStatusMessage('error', 'JD summary failed', error.message));
@@ -308,9 +316,26 @@ export function AnalyzePage() {
     setPageStatus(buildStatusMessage('success', 'JD summary reviewed', 'KiwiCoach will use this human-reviewed JD summary for CV-JD matching.'));
   };
 
+  const handleConfirmCVReview = () => {
+    if (!selectedCV?.id) {
+      setPageStatus(buildStatusMessage('error', 'Select a CV first', 'Upload or select a CV before reviewing the parsed CV fields.'));
+      return;
+    }
+
+    setCvHumanReviewedFileId(selectedCV.id);
+    setCvReviewStatus('verified');
+    resetAnalysisState();
+    setPageStatus(buildStatusMessage('success', 'CV parse reviewed', 'KiwiCoach will use this reviewed CV profile for CV-JD matching.'));
+  };
+
   const handleGeneratePlan = async () => {
     if (!selectedCV || !rawJD) {
       setPageStatus(buildStatusMessage('error', 'Missing input', 'Please provide both a CV and a job description.'));
+      return;
+    }
+
+    if (!isCvHumanVerified) {
+      setPageStatus(buildStatusMessage('info', 'Review CV parse first', 'Check the CV fields used for matching, then mark the CV parse as reviewed.'));
       return;
     }
 
@@ -371,6 +396,8 @@ export function AnalyzePage() {
                 selectedCV={selectedCV}
                 recentCVs={recentCVs}
                 onSelectRecent={handleSelectRecent}
+                isCvHumanVerified={isCvHumanVerified}
+                onConfirmCVReview={handleConfirmCVReview}
                 validationMessage={pageStatus?.type === 'error' && pageStatus.title === 'Upload failed' ? pageStatus.message : null}
               />
             </div>
@@ -424,6 +451,7 @@ export function AnalyzePage() {
                 jdConfidenceThreshold={JD_CONFIDENCE_THRESHOLD}
                 requiresJdHumanReview={requiresJdHumanReview}
                 canUseJDSummary={canUseCurrentJDSummary}
+                isCvHumanVerified={isCvHumanVerified}
                 onGeneratePlan={handleGeneratePlan}
                 onStartInterview={handleStartInterview}
                 sessionMode={sessionMode}
