@@ -37,7 +37,6 @@ const averageConfidence = (segments = []) => {
 };
 
 export const createDuplexVoiceAgentSession = ({
-  socket,
   context,
   session,
   userId,

@@ -33,20 +33,17 @@ export const recordTokenUsage = async ({ userId, sessionId = null, action, promp
 export const getUsageSummary = async (userId) => {
   if (!userId) return null;
 
-  const [stats, count] = await Promise.all([
-    TokenUsage.aggregate([
-      { $match: { userId } },
-      {
-        $group: {
-          _id: null,
-          totalPromptTokens:     { $sum: '$promptTokens' },
-          totalCompletionTokens: { $sum: '$completionTokens' },
-          totalCost:             { $sum: '$estimatedCost' },
-          callCount:             { $sum: 1 },
-        },
+  const stats = await TokenUsage.aggregate([
+    { $match: { userId } },
+    {
+      $group: {
+        _id: null,
+        totalPromptTokens:     { $sum: '$promptTokens' },
+        totalCompletionTokens: { $sum: '$completionTokens' },
+        totalCost:             { $sum: '$estimatedCost' },
+        callCount:             { $sum: 1 },
       },
-    ]),
-    TokenUsage.countDocuments({ userId }),
+    },
   ]);
 
   const s = stats?.[0] || { totalPromptTokens: 0, totalCompletionTokens: 0, totalCost: 0, callCount: 0 };

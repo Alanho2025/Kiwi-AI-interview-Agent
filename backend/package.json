@@ -6,6 +6,7 @@
     "dev": "node index.js",
     "start": "node index.js",
     "test": "npm run test:all",
+    "lint": "eslint .",
     "test:all": "NODE_ENV=test AI_TEST_MODE=mock node tests/helpers/runVitestGroups.js tests/robustness",
     "eval:jd": "NODE_ENV=test AI_TEST_MODE=real node eval/runners/runJdParseEval.js",
     "eval:cv": "NODE_ENV=test AI_TEST_MODE=real node eval/runners/runCvParseEval.js",
@@ -13,7 +14,7 @@
     "eval:interview": "NODE_ENV=test AI_TEST_MODE=real node eval/runners/runInterviewControllerEval.js",
     "eval:report": "NODE_ENV=test AI_TEST_MODE=real node eval/runners/runReportQaEval.js",
     "eval:all": "npm run eval:cv && npm run eval:jd && npm run eval:seek && npm run eval:match && npm run eval:interview && npm run eval:report && npm run eval:e2e && npm run eval:green",
-    "quality:all": "npm run test:all && npm run eval:all",
+    "quality:all": "npm run lint && npm run test:all && npm run eval:all",
     "test:jd-safeguard": "NODE_ENV=test AI_TEST_MODE=mock ENABLE_AGENTIC_SAFEGUARDS=true vitest tests/robustness/jobDescription/jdParseAgenticSafeguard.test.js",
     "test:match-safeguard": "NODE_ENV=test AI_TEST_MODE=mock ENABLE_AGENTIC_SAFEGUARDS=true vitest tests/robustness/match/matchAgenticSafeguard.test.js",
     "build": "node -e \"console.log('No backend build step required')\"",
@@ -30,15 +31,18 @@
     "google-auth-library": "^10.4.1",
     "jsonwebtoken": "^9.0.2",
     "mammoth": "^1.12.0",
+    "microsoft-cognitiveservices-speech-sdk": "^1.44.0",
     "mongodb": "^7.1.1",
     "mongoose": "^9.4.1",
     "multer": "^2.1.1",
     "pdf-parse": "^2.4.5",
     "pg": "^8.20.0",
-    "microsoft-cognitiveservices-speech-sdk": "^1.44.0",
     "ws": "^8.18.3"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.3.0",
+    "globals": "^17.6.0",
     "vitest": "^3.2.4"
   },
   "engines": {

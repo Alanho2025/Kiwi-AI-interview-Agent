@@ -162,7 +162,6 @@ export const transcribeShortAudio = async ({ buffer, mimetype, originalname, lan
   try {
     parsed = rawText ? JSON.parse(rawText) : null;
   } catch {
-    parsed = null;
   }
 
   if (!response.ok) {

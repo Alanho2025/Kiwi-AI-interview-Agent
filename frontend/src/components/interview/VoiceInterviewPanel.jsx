@@ -1,6 +1,7 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { CirclePause, Mic, MicOff, RefreshCcw, Square, Volume2 } from 'lucide-react';
 import { Button } from '../common/Button.jsx';
+import { TextArea } from '../common/TextArea.jsx';
 import { cn } from '../../utils/formatters.js';
 
 const buildWaveBars = (levels = []) => {
@@ -19,6 +20,7 @@ export function VoiceInterviewPanel({
   onPause,
   onRepeat,
   onEnd,
+  onSubmitBackup,
   isPaused,
   isCompleted,
   isSubmitting,
@@ -30,15 +32,16 @@ export function VoiceInterviewPanel({
     permissionState,
     permissionError,
     stateLabel,
+    voiceState,
     voiceStatus,
     realtimeStatus,
-    vadState,
     isAutoLoopActive,
     isRecording,
     canUseVoice,
     levelHistory,
     recordingDurationLabel,
-    recordingStatus,
+    isVoiceTakingLong,
+    lastTranscriptRejection,
     assistantAudioUrl,
     audioRef,
     handleRequestPermission,
@@ -46,6 +49,9 @@ export function VoiceInterviewPanel({
     handleReplayAssistantAudio,
     handleResetShell,
   } = voiceShell;
+
+  const [showTextFallback, setShowTextFallback] = useState(false);
+  const [textFallback, setTextFallback] = useState('');
 
   const waveBars = useMemo(() => buildWaveBars(levelHistory), [levelHistory]);
   const isNotStarted = sessionStatus === 'ready';
@@ -55,9 +61,34 @@ export function VoiceInterviewPanel({
   const displayedVoiceStatus = isCompleted
     ? { type: 'success', title: 'Interview ended', message: 'Your voice session is saved. Review the report or export the transcript when ready.' }
     : voiceStatus;
+  const hasVoiceError = voiceState === 'error' || displayedVoiceStatus?.type === 'error';
+  const shouldShowRecovery = !isCompleted && (Boolean(lastTranscriptRejection) || Boolean(isVoiceTakingLong) || hasVoiceError);
+  const recoveryTitle = lastTranscriptRejection
+    ? 'Voice did not catch that clearly'
+    : isVoiceTakingLong
+      ? 'Voice is taking longer than expected'
+      : 'Voice connection had an issue';
+  const recoveryMessage = lastTranscriptRejection
+    ? 'Answer again so KiwiCoach scores what you actually said. Your accent is not scored.'
+    : isVoiceTakingLong
+      ? 'You can keep waiting, restart voice, or answer this question by text.'
+      : 'Restart the voice connection, or use text for this question and continue the session.';
+  const submitTextFallback = () => {
+    const cleanText = textFallback.trim();
+    if (!cleanText || isSubmitting) return;
+    onSubmitBackup?.(cleanText);
+    setTextFallback('');
+    setShowTextFallback(false);
+  };
 
   return (
     <div className="flex h-full min-h-0 flex-col space-y-4">
+      {!isCompleted ? (
+        <div className="shrink-0 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-xs leading-5 text-gray-600 shadow-sm">
+          <span className="font-semibold text-gray-800">Scoring note:</span> KiwiCoach scores answer content and communication clarity, not whether you sound native. If voice recognition fails, you can retry or answer by text.
+        </div>
+      ) : null}
+
       {displayedVoiceStatus ? (
         <div className={cn('shrink-0 rounded-2xl border px-4 py-3 text-sm shadow-sm', renderStatusTone(displayedVoiceStatus.type))}>
           <p className="font-semibold">{displayedVoiceStatus.title}</p>
@@ -69,6 +100,51 @@ export function VoiceInterviewPanel({
         <div className="shrink-0 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 shadow-sm">
           <p className="font-semibold">Microphone error</p>
           <p className="mt-1">{permissionError}</p>
+        </div>
+      ) : null}
+
+      {shouldShowRecovery ? (
+        <div className="shrink-0 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 shadow-sm">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <p className="font-semibold">{recoveryTitle}</p>
+              <p className="mt-1 leading-6">{recoveryMessage}</p>
+            </div>
+            <div className="flex shrink-0 flex-wrap gap-2">
+              <Button variant="secondary" size="sm" onClick={handleResetShell}>
+                <RefreshCcw className="mr-2 h-4 w-4" />
+                Retry voice
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  handleResetShell?.();
+                  setShowTextFallback((value) => !value);
+                }}
+                disabled={!onSubmitBackup}
+              >
+                Answer by text
+              </Button>
+            </div>
+          </div>
+
+          {showTextFallback ? (
+            <div className="mt-4 rounded-2xl border border-amber-100 bg-white p-3">
+              <TextArea
+                value={textFallback}
+                onChange={(event) => setTextFallback(event.target.value)}
+                rows={3}
+                placeholder="Type the answer you would give for this question..."
+                disabled={isSubmitting}
+              />
+              <div className="mt-3 flex justify-end">
+                <Button size="sm" onClick={submitTextFallback} disabled={!textFallback.trim() || isSubmitting}>
+                  Submit text answer
+                </Button>
+              </div>
+            </div>
+          ) : null}
         </div>
       ) : null}
 
@@ -167,7 +243,7 @@ export function VoiceInterviewPanel({
               <p className="text-sm text-gray-500">Live controls are closed.</p>
               <Button variant="secondary" size="sm" onClick={handleReplayAssistantAudio} disabled={!assistantAudioUrl}>
                 <Volume2 className="mr-2 h-4 w-4" />
-                Replay
+                Replay audio
               </Button>
             </div>
           ) : (
@@ -187,14 +263,14 @@ export function VoiceInterviewPanel({
                   disabled={isNotStarted || isSubmitting}
                 >
                   <RefreshCcw className="mr-2 h-4 w-4" />
-                  Repeat
+                  Ask again
                 </Button>
                 <Button variant="danger" className="px-3" onClick={onEnd} disabled={isSubmitting}>End</Button>
               </div>
               <div className="grid grid-cols-3 gap-2">
                 <Button variant="secondary" size="sm" className="px-2" onClick={handleRequestPermission}><Mic className="mr-1 h-4 w-4 sm:mr-2" />Mic</Button>
-                <Button variant="secondary" size="sm" className="px-2" onClick={handleReplayAssistantAudio} disabled={isNotStarted}><Volume2 className="mr-1 h-4 w-4 sm:mr-2" />Replay</Button>
-                <Button variant="secondary" size="sm" className="px-2" onClick={handleResetShell}><MicOff className="mr-1 h-4 w-4 sm:mr-2" />Reset</Button>
+                <Button variant="secondary" size="sm" className="px-2 text-xs sm:text-sm" onClick={handleReplayAssistantAudio} disabled={isNotStarted}><Volume2 className="mr-1 h-4 w-4 sm:mr-2" />Replay audio</Button>
+                <Button variant="secondary" size="sm" className="px-2 text-xs sm:text-sm" onClick={handleResetShell}><MicOff className="mr-1 h-4 w-4 sm:mr-2" />Restart voice</Button>
               </div>
             </div>
           )}

@@ -255,7 +255,7 @@ export function useReportData(sessionId) {
         }
       } else {
         // For JSON and TXT, call backend API
-        const result = await exportReport({ sessionId, format });
+        await exportReport({ sessionId, format });
         if (reportData) {
           const content = format === 'json' 
             ? JSON.stringify(reportData, null, 2)

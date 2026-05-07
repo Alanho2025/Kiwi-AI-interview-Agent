@@ -2,10 +2,6 @@ import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useMicrophonePermission } from '../useMicrophonePermission.js';
 
-const buildStream = () => ({
-  getTracks: () => [{ stop: vi.fn() }],
-});
-
 describe('useMicrophonePermission', () => {
   beforeEach(() => {
     vi.restoreAllMocks();

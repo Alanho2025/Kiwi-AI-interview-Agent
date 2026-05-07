@@ -308,6 +308,6 @@ export const generateReportPDF = async (reportData) => {
     return true;
   } catch (error) {
     console.error('PDF Generation Error:', error);
-    throw new Error('Could not generate PDF. ' + error.message);
+    throw new Error('Could not generate PDF. ' + error.message, { cause: error });
   }
 };

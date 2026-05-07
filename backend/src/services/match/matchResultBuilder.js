@@ -29,7 +29,7 @@ export const buildAnalyzeResult = ({
   explanation,
   strengths,
   gaps,
-  risks,
+  risks: _risks,
   questionPlanHints,
   transitionProfile = {},
   cvEvidenceProfile = {},

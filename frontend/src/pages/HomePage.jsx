@@ -36,6 +36,26 @@ import {
 } from '../utils/sessionSettings.js';
 import { useTour } from '../contexts/TourContext.jsx';
 
+const HOME_TOUR_STEPS = [
+  {
+    target: 'body',
+    content: 'Welcome to Kiwi Voice Coach! Let\'s take a quick tour to show you how to crush your next Tech Interview.',
+    placement: 'center',
+    disableBeacon: true,
+  },
+  {
+    target: '#tour-session-history',
+    content: 'All your past sessions are saved here. You can revisit your feedback and track your progress over time.',
+    placement: 'top',
+  },
+  {
+    target: '#tour-start-card',
+    content: 'Here is where you begin. Select Voice or Text mode, and click Start to set up your session. Go ahead and click it!',
+    placement: 'bottom',
+    spotlightClicks: true, // Allow clicking the start button under the spotlight
+  }
+];
+
 export default function HomePage() {
   const navigate = useNavigate();
   const [user, setUser] = useState({ name: 'Guest User', email: 'guest@kiwi.nz', picture: '', loginProvider: '' });
@@ -47,26 +67,6 @@ export default function HomePage() {
   const [settingsSaved, setSettingsSaved] = useState('');
   const [voiceStartWarning, setVoiceStartWarning] = useState('');
   const { startTour, globalTourStep, startGlobalTour } = useTour();
-
-  const HOME_TOUR_STEPS = [
-    {
-      target: 'body',
-      content: 'Welcome to Kiwi Voice Coach! Let\'s take a quick tour to show you how to crush your next Tech Interview.',
-      placement: 'center',
-      disableBeacon: true,
-    },
-    {
-      target: '#tour-session-history',
-      content: 'All your past sessions are saved here. You can revisit your feedback and track your progress over time.',
-      placement: 'top',
-    },
-    {
-      target: '#tour-start-card',
-      content: 'Here is where you begin. Select Voice or Text mode, and click Start to set up your session. Go ahead and click it!',
-      placement: 'bottom',
-      spotlightClicks: true, // Allow clicking the start button under the spotlight
-    }
-  ];
 
   const handleStartTour = () => {
     startGlobalTour();

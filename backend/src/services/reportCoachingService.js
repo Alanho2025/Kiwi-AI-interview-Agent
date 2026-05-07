@@ -99,6 +99,27 @@ const normalizeQuoteAnalysis = (item = {}, fallback = {}) => ({
   rewrite: ensureString(item.rewrite, fallback.rewrite || ''),
 });
 
+const normalizeScoreExplanations = (scoreExplanations = {}, fallback = {}) => {
+  const normalizeOne = (key) => ({
+    summary: ensureString(scoreExplanations[key]?.summary, fallback[key]?.summary || ''),
+    helped: ensureString(scoreExplanations[key]?.helped, fallback[key]?.helped || ''),
+    lowered: ensureString(scoreExplanations[key]?.lowered, fallback[key]?.lowered || ''),
+    next: ensureString(scoreExplanations[key]?.next, fallback[key]?.next || ''),
+  });
+
+  return {
+    overall: normalizeOne('overall'),
+    cvJdMatch: normalizeOne('cvJdMatch'),
+    interview: normalizeOne('interview'),
+  };
+};
+
+const normalizeDimensionReasons = (item = {}, fallback = {}) => ({
+  business: ensureString(item.business, fallback.business || ''),
+  logic: ensureString(item.logic, fallback.logic || ''),
+  evidence: ensureString(item.evidence, fallback.evidence || ''),
+});
+
 const normalizeTurnBreakdown = (item = {}, fallback = {}) => ({
   question: ensureString(item.question, fallback.question || ''),
   answer: ensureString(item.answer, fallback.answer || ''),
@@ -108,6 +129,7 @@ const normalizeTurnBreakdown = (item = {}, fallback = {}) => ({
     logic: Number.isFinite(Number(item.scores?.logic)) ? Number(item.scores.logic) : Number(fallback.scores?.logic || 0),
     evidence: Number.isFinite(Number(item.scores?.evidence)) ? Number(item.scores.evidence) : Number(fallback.scores?.evidence || 0),
   },
+  dimensionReasons: normalizeDimensionReasons(item.dimensionReasons || item.scoreReasons, fallback.dimensionReasons || fallback.scoreReasons || {}),
 });
 
 const normalizeCommunicationTrait = (item = {}, fallback = {}) => ({
@@ -133,6 +155,7 @@ const normalizeCandidateFeedback = (candidateFeedback = {}, fallback = {}) => ({
   overallTakeaway: ensureString(candidateFeedback.overallTakeaway, fallback.overallTakeaway || ''),
   scoreBand: ensureString(candidateFeedback.scoreBand, fallback.scoreBand || ''),
   generationSource: ensureString(candidateFeedback.generationSource, fallback.generationSource || 'fallback'),
+  scoreExplanations: normalizeScoreExplanations(candidateFeedback.scoreExplanations, fallback.scoreExplanations || {}),
   communicationProfile: normalizeCommunicationProfile(candidateFeedback.communicationProfile, fallback.communicationProfile || {}),
   plainEnglishMetrics: ensureArray(candidateFeedback.plainEnglishMetrics)
     .map((item, index) => normalizeMetric(item, ensureArray(fallback.plainEnglishMetrics)[index] || {}))
@@ -163,7 +186,7 @@ const normalizeCandidateFeedback = (candidateFeedback = {}, fallback = {}) => ({
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-const buildPrompt = ({ session, analysisResult, interviewPlan, evidenceSummary, interviewMetrics, strongestExamples, deterministicFeedback }) => {
+const buildPrompt = ({ session, analysisResult, interviewPlan, evidenceSummary: _evidenceSummary, interviewMetrics, strongestExamples, deterministicFeedback }) => {
   const groundingPayload = {
     candidateName: analysisResult.candidateName || session.candidateName || 'Candidate',
     jobTitle: analysisResult.jobTitle || session.targetRole || 'Target Role',
@@ -193,6 +216,11 @@ Required JSON shape:
   "plainEnglishMetrics": [
     { "id": "string", "label": "string", "value": number, "interpretation": "string" }
   ],
+  "scoreExplanations": {
+    "overall": { "summary": "string", "helped": "string", "lowered": "string", "next": "string" },
+    "cvJdMatch": { "summary": "string", "helped": "string", "lowered": "string", "next": "string" },
+    "interview": { "summary": "string", "helped": "string", "lowered": "string", "next": "string" }
+  },
   "communicationProfile": {
     "summary": "string",
     "keyTraits": [
@@ -220,7 +248,8 @@ Required JSON shape:
       "question": "string", 
       "answer": "string", 
       "feedback": "string", 
-      "scores": { "business": 5, "logic": 5, "evidence": 5 } 
+      "scores": { "business": 5, "logic": 5, "evidence": 5 },
+      "dimensionReasons": { "business": "string", "logic": "string", "evidence": "string" }
     }
   ]
 }
@@ -239,7 +268,8 @@ Rules:
 - Rewrite examples must sound realistic and tied to the role focus.
 - quoteAnalyses MUST extract exact, verbatim quotes from the candidate's transcript to show them exactly what they said, explain why it was weak/strong, and how to improve it. Include at least 2-3 quote analyses.
 - communicationProfile MUST analyze their communication style, tone, conciseness, and use of filler words (if any) based on the transcript.
-- turnBreakdowns MUST provide a turn-by-turn analysis of each major question asked. Summarize the question and answer, provide constructive feedback, and score (0-10) for business understanding, logic/structure, and evidence strength.
+- scoreExplanations MUST explain Overall, CV-JD Match, and Interview scores with one short summary, one helped factor, one lowered factor, and one next lever.
+- turnBreakdowns MUST provide a turn-by-turn analysis of each major question asked. Summarize the question and answer, provide constructive feedback, score (0-10) for business understanding, logic/structure, and evidence strength, and explain each micro-score in dimensionReasons.
 `;
 };
 
