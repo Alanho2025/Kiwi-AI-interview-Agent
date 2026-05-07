@@ -154,7 +154,7 @@ export function InterviewPage() {
           matchedAreas={viewModel.matchedAreas}
         />
 
-        <div id="tour-interview-center" className="lg:col-span-6 flex flex-col min-h-[400px] lg:h-full lg:pb-6 lg:min-h-0">
+        <div id="tour-interview-center" className="lg:col-span-6 flex flex-col min-h-[400px] lg:h-full lg:min-h-0">
           {isVoiceMode ? (
             <VoiceInterviewPanel
               session={session}
