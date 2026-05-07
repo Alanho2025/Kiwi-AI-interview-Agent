@@ -212,8 +212,8 @@ export default function HomePage() {
         onStartTour={handleStartTour}
       />
 
-      <main className="mx-auto mt-6 sm:mt-8 grid max-w-[1600px] grid-cols-1 gap-6 sm:gap-8 px-4 sm:px-6 lg:grid-cols-12 lg:px-8">
-        <div className="flex flex-col gap-6 lg:col-span-8">
+      <main className="mx-auto mt-5 sm:mt-8 grid max-w-[1600px] grid-cols-1 gap-5 sm:gap-6 px-4 sm:px-6 lg:px-8 xl:grid-cols-12">
+        <div className="flex flex-col gap-5 sm:gap-6 xl:col-span-8">
           <div id="tour-start-card">
             <StartSessionCard
               summary={summary}
@@ -240,7 +240,7 @@ export default function HomePage() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-6 lg:col-span-4">
+        <div className="grid gap-5 sm:grid-cols-2 xl:col-span-4 xl:flex xl:flex-col xl:gap-6">
           <RecentActivitySection
             historyLoading={historyLoading}
             recentActivity={recentActivity}

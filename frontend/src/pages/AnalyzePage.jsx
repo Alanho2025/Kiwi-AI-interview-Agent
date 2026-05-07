@@ -274,9 +274,9 @@ export function AnalyzePage() {
         <StepProgress currentStep={currentStep} />
       </AppHeader>
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div className="space-y-8">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-8">
+        <div className="grid grid-cols-1 gap-5 sm:gap-6 xl:grid-cols-2 xl:gap-8">
+          <div className="space-y-5 sm:space-y-6 xl:space-y-8">
             <div id="tour-analyze-cv">
               <CVManagementCard
                 onUpload={handleUpload}
@@ -297,7 +297,7 @@ export function AnalyzePage() {
             </div>
           </div>
 
-          <div className="space-y-8">
+          <div className="space-y-5 sm:space-y-6 xl:space-y-8">
             {pageStatus ? (
               <StatusBanner
                 variant={pageStatus.type}

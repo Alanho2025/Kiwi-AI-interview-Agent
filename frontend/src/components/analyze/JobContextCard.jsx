@@ -35,6 +35,16 @@ const TechnicalSkillGroup = ({ title, items }) => (
   </div>
 );
 
+const TechnicalGroups = ({ groups }) => {
+  if (!groups.length) return null;
+
+  return (
+    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+      {groups.map((group) => <TechnicalSkillGroup key={group.groupKey} title={group.title} items={group.items} />)}
+    </div>
+  );
+};
+
 const AnalysisStatusBlock = ({ analysisMode, confidence, warnings, missingSections }) => (
   <div className="rounded-lg border border-gray-100 bg-white p-4">
     <div className="flex items-start justify-between gap-4">
@@ -63,12 +73,12 @@ export function JobContextCard({ rawJD, setRawJD, structuredJD, structuredJDRubr
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="items-start">
         <div>
           <CardTitle>Job Context</CardTitle>
           <p className="mt-1 text-sm text-gray-500">Paste the job description so AI can tailor interview questions and coaching tips.</p>
         </div>
-        <div className="text-xs text-gray-400">NZ-focused analysis</div>
+        <div className="shrink-0 text-xs text-gray-400">NZ-focused analysis</div>
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
@@ -80,9 +90,9 @@ export function JobContextCard({ rawJD, setRawJD, structuredJD, structuredJDRubr
             onChange={(e) => setRawJD(e.target.value)}
             maxLength={6000}
           />
-          <div className="mt-2 flex items-center justify-between">
+          <div className="mt-2 flex items-start justify-between gap-3">
             <p className="text-xs text-gray-500">Tip: include responsibilities, tech stack, and must-have skills.</p>
-            <p className="text-xs text-gray-400">{rawJD.length}/6000</p>
+            <p className="shrink-0 text-xs text-gray-400">{rawJD.length}/6000</p>
           </div>
         </div>
 
@@ -100,7 +110,7 @@ export function JobContextCard({ rawJD, setRawJD, structuredJD, structuredJDRubr
         </Button>
 
         {structuredJD && structuredJDRubric && viewModel && (
-          <div className="mt-4 space-y-4 rounded-xl border border-gray-100 bg-gray-50 p-4">
+          <div className="mt-4 space-y-4 rounded-xl border border-gray-100 bg-gray-50 p-3 sm:p-4">
             <div>
               <h4 className="text-sm font-medium text-gray-900">JD Summary</h4>
               <p className="mt-1 text-xs text-gray-500">
@@ -108,34 +118,56 @@ export function JobContextCard({ rawJD, setRawJD, structuredJD, structuredJDRubr
               </p>
             </div>
 
-            <AnalysisStatusBlock
-              analysisMode={viewModel.analysisMode}
-              confidence={viewModel.confidence}
-              warnings={viewModel.warnings}
-              missingSections={viewModel.missingSections}
-            />
-
-            <SummarySection title="Job Overview" items={[viewModel.title, ...viewModel.overviewItems]} emptyText="No overview details detected." />
-
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-              <SummarySection title="What This Role Does" items={viewModel.responsibilities} emptyText="Responsibilities could not be confidently extracted." />
+            <div className="space-y-3 md:hidden">
+              <SummarySection title="Job Overview" items={[viewModel.title, ...viewModel.overviewItems]} emptyText="No overview details detected." />
               <SummarySection title="Core Requirements" items={viewModel.coreRequirements} emptyText="Core requirements could not be confidently extracted." />
-              <SummarySection title="Bonus Requirements" items={viewModel.bonusRequirements} emptyText="No clear bonus requirements were detected." />
-              <SummarySection title="Qualifications" items={viewModel.qualifications} emptyText="Qualifications could not be confidently extracted." />
+              <TechnicalGroups groups={viewModel.technicalGroups} />
+
+              <details className="rounded-lg border border-gray-100 bg-white">
+                <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-gray-900">Show full JD analysis</summary>
+                <div className="space-y-3 border-t border-gray-100 p-3">
+                  <AnalysisStatusBlock
+                    analysisMode={viewModel.analysisMode}
+                    confidence={viewModel.confidence}
+                    warnings={viewModel.warnings}
+                    missingSections={viewModel.missingSections}
+                  />
+                  <SummarySection title="What This Role Does" items={viewModel.responsibilities} emptyText="Responsibilities could not be confidently extracted." />
+                  <SummarySection title="Bonus Requirements" items={viewModel.bonusRequirements} emptyText="No clear bonus requirements were detected." />
+                  <SummarySection title="Qualifications" items={viewModel.qualifications} emptyText="Qualifications could not be confidently extracted." />
+                  <SummarySection title="Soft Skills" items={viewModel.softSkills} emptyText="No clear soft skills were detected." />
+                  <SummarySection title="Benefits" items={viewModel.benefits} emptyText="No clear benefits section was detected." />
+                  <SummarySection title="Application Notes" items={viewModel.applicationInstructions} emptyText="No clear application instructions were detected." />
+                </div>
+              </details>
             </div>
 
-            {viewModel.technicalGroups.length > 0 ? (
+            <div className="hidden space-y-4 md:block">
+              <AnalysisStatusBlock
+                analysisMode={viewModel.analysisMode}
+                confidence={viewModel.confidence}
+                warnings={viewModel.warnings}
+                missingSections={viewModel.missingSections}
+              />
+
+              <SummarySection title="Job Overview" items={[viewModel.title, ...viewModel.overviewItems]} emptyText="No overview details detected." />
+
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                {viewModel.technicalGroups.map((group) => <TechnicalSkillGroup key={group.groupKey} title={group.title} items={group.items} />)}
+                <SummarySection title="What This Role Does" items={viewModel.responsibilities} emptyText="Responsibilities could not be confidently extracted." />
+                <SummarySection title="Core Requirements" items={viewModel.coreRequirements} emptyText="Core requirements could not be confidently extracted." />
+                <SummarySection title="Bonus Requirements" items={viewModel.bonusRequirements} emptyText="No clear bonus requirements were detected." />
+                <SummarySection title="Qualifications" items={viewModel.qualifications} emptyText="Qualifications could not be confidently extracted." />
               </div>
-            ) : null}
 
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-              <SummarySection title="Soft Skills" items={viewModel.softSkills} emptyText="No clear soft skills were detected." />
-              <SummarySection title="Benefits" items={viewModel.benefits} emptyText="No clear benefits section was detected." />
+              <TechnicalGroups groups={viewModel.technicalGroups} />
+
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <SummarySection title="Soft Skills" items={viewModel.softSkills} emptyText="No clear soft skills were detected." />
+                <SummarySection title="Benefits" items={viewModel.benefits} emptyText="No clear benefits section was detected." />
+              </div>
+
+              <SummarySection title="Application Notes" items={viewModel.applicationInstructions} emptyText="No clear application instructions were detected." />
             </div>
-
-            <SummarySection title="Application Notes" items={viewModel.applicationInstructions} emptyText="No clear application instructions were detected." />
           </div>
         )}
       </CardContent>
