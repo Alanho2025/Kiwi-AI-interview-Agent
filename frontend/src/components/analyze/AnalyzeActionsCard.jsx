@@ -22,15 +22,49 @@ export function AnalyzeActionsCard({
   generatedSessionId,
   selectedCV,
   rawJD,
+  hasCurrentJDSummary = false,
+  jdParseConfidence = 0,
+  jdConfidenceThreshold = 0.9,
+  isJdHumanVerified = false,
+  requiresJdHumanReview = false,
   onGeneratePlan,
   onStartInterview,
   sessionMode = 'text',
   isVoiceReady = false,
 }) {
   const isGenerating = analysisStatus === 'matching' || analysisStatus === 'summarizing';
-  const canGenerate = Boolean(selectedCV && rawJD && !isGenerating);
+  const hasRawJD = Boolean(rawJD?.trim());
+  const canGenerate = Boolean(selectedCV && hasRawJD && hasCurrentJDSummary && isJdHumanVerified && !isGenerating);
   const isVoiceSession = sessionMode === 'voice';
   const canContinue = Boolean(generatedSessionId && (!isVoiceSession || isVoiceReady));
+  const confidencePercent = Math.round((jdParseConfidence || 0) * 100);
+  const thresholdPercent = Math.round(jdConfidenceThreshold * 100);
+
+  const buttonLabel = (() => {
+    if (analysisStatus === 'summarizing') return 'Summarizing JD...';
+    if (analysisStatus === 'matching') return 'Generating Match Analysis...';
+    if (!selectedCV) return 'Select a CV first';
+    if (!hasRawJD) return 'Paste a JD first';
+    if (!hasCurrentJDSummary) return 'Summarize JD before matching';
+    if (requiresJdHumanReview) return 'Confirm JD summary before matching';
+    return 'Generate Match Analysis';
+  })();
+
+  const helperText = (() => {
+    if (isVoiceSession && !isVoiceReady) {
+      return 'Run the voice readiness check in Session Setup before continuing to Voice Session.';
+    }
+    if (!hasCurrentJDSummary) {
+      return 'CV-JD matching uses the reviewed JD summary, so summarize the current JD before generating the plan.';
+    }
+    if (requiresJdHumanReview) {
+      return `JD confidence is ${confidencePercent}%, below the ${thresholdPercent}% gate. Confirm the summary if it is accurate, then generate the match.`;
+    }
+    if (isVoiceSession) {
+      return 'Voice devices are ready. Your interview plan will use the selected CV, reviewed JD, and session setup above.';
+    }
+    return 'Your interview plan will use the selected CV, reviewed JD, delivery mode, and session setup above.';
+  })();
 
   return (
     <div className="sticky bottom-0 z-20 -mx-4 flex flex-col gap-3 border-t border-gray-200 bg-white/95 p-4 shadow-[0_-8px_20px_rgba(15,23,42,0.08)] backdrop-blur sm:static sm:mx-0 sm:rounded-2xl sm:border sm:p-6 sm:shadow-sm">
@@ -52,13 +86,11 @@ export function AnalyzeActionsCard({
           onClick={onGeneratePlan}
           disabled={!canGenerate}
         >
-          Generate Match Analysis
+          {buttonLabel}
         </Button>
       )}
       <p className="text-xs text-gray-500 text-center mt-2">
-        {isVoiceSession
-          ? (isVoiceReady ? 'Voice devices are ready. Your interview plan will use the selected CV, JD, and session setup above.' : 'Run the voice readiness check in Session Setup before continuing to Voice Session.')
-          : 'Your interview plan will use the selected CV, JD, delivery mode, and session setup above.'}
+        {helperText}
       </p>
     </div>
   );

@@ -9,7 +9,7 @@
  * - Prefer composition and small helpers over repeated inline logic.
  */
 
-import { formatSuccess } from '../utils/responseFormatter.js';
+import { formatError, formatSuccess } from '../utils/responseFormatter.js';
 import {
   appendTranscriptTurn,
   createInterviewQuestion,

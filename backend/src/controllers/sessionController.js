@@ -10,10 +10,10 @@
  */
 
 import { formatSuccess } from '../utils/responseFormatter.js';
-import { getSessionById, getOwnedSessionById, listSessionsByUserId, updateSession, softDeleteOwnedSession } from '../services/sessionService.js';
+import { getOwnedSessionById, listSessionsByUserId, updateSession, softDeleteOwnedSession } from '../services/sessionService.js';
 import { resolveUserFromRequest } from '../services/authService.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
-import { badRequest, notFound, forbidden } from '../utils/appError.js';
+import { badRequest, notFound } from '../utils/appError.js';
 import { logger, getRequestLogMeta } from '../utils/logger.js';
 
 export const saveSession = asyncHandler(async (req, res) => {
