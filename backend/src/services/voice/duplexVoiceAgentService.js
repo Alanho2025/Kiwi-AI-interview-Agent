@@ -10,6 +10,7 @@ import { createRealtimeSpeechSession } from './realtimeSpeechSessionService.js';
 import { streamAssistantSpeech } from './ttsStreamQueue.js';
 import { createBargeInController } from './bargeInController.js';
 import { createDuplexTurnCoordinator } from './duplexTurnCoordinator.js';
+import { buildSessionSpeechPhraseList } from './speechPhraseHintService.js';
 import { AGENT_TOOL_NAMES } from '../../constants/agentToolNames.js';
 
 const normalizeTranscriptText = (payload = {}) => String(
@@ -84,9 +85,11 @@ export const createDuplexVoiceAgentSession = ({
 
   const startSpeechSession = async () => {
     if (speechSession && isSpeechSessionStarted) return speechSession;
+    const extraPhrases = buildSessionSpeechPhraseList(activeSession);
     speechSession = createRealtimeSpeechSession({
       language,
       sampleRate,
+      extraPhrases,
       onPartialTranscript: (payload) => sendJson({
         ...payload,
         type: 'stt_partial',
@@ -123,6 +126,10 @@ export const createDuplexVoiceAgentSession = ({
     });
     await speechSession.start();
     isSpeechSessionStarted = true;
+    logger?.info?.('Duplex speech session started with phrase hints', {
+      sessionId: activeSession?.id || session?.id,
+      phraseCount: extraPhrases.length,
+    });
     return speechSession;
   };
 
@@ -149,7 +156,7 @@ export const createDuplexVoiceAgentSession = ({
       const segmentsToProcess = finalTranscriptSegments;
       finalTranscriptSegments = [];
       const transcriptText = mergeTranscriptSegments(segmentsToProcess);
-      if (!transcriptText || isProcessingBufferedTurn) return;
+      if (isProcessingBufferedTurn) return;
       isProcessingBufferedTurn = true;
       try {
         await processFinalTranscript({
