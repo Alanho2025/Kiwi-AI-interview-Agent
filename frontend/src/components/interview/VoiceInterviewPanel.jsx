@@ -73,8 +73,8 @@ export function VoiceInterviewPanel({
 
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-        <div className="flex-1 overflow-y-auto bg-gray-50 p-6 min-h-0">
-          <div className="mx-auto flex min-h-[420px] max-w-[520px] flex-col items-center justify-center gap-6 py-4">
+        <div className="flex-1 overflow-hidden bg-gray-50 p-4 min-h-0">
+          <div className="mx-auto flex h-full max-w-[520px] flex-col items-center justify-center gap-4 py-2">
             <div className="flex w-full flex-wrap items-center justify-between gap-3">
               <div className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm">
                 <span className={cn('h-2.5 w-2.5 rounded-full', isRecording ? 'bg-[#2eb886]' : (isCompleted ? 'bg-emerald-500' : 'bg-gray-300'))} />
@@ -85,20 +85,20 @@ export function VoiceInterviewPanel({
               </div>
             </div>
 
-            <div className="relative flex h-[160px] w-[160px] items-center justify-center rounded-full border border-[#cfece0] bg-white">
+            <div className="relative flex h-[132px] w-[132px] items-center justify-center rounded-full border border-[#cfece0] bg-white">
               <div className={cn('absolute inset-4 rounded-full transition-all duration-200', isRecording ? 'bg-[#2eb886]/20 animate-pulse' : 'bg-[#2eb886]/10')} />
               <button
                 type="button"
                 onClick={handleToggleRecording}
                 disabled={voiceActionDisabled}
-                className={cn('relative z-10 flex h-[80px] w-[80px] items-center justify-center rounded-full text-white shadow-lg transition-all duration-200', voiceActionDisabled ? 'cursor-not-allowed bg-gray-300' : 'bg-[#2eb886] hover:bg-[#24a673]')}
+                className={cn('relative z-10 flex h-[68px] w-[68px] items-center justify-center rounded-full text-white shadow-lg transition-all duration-200', voiceActionDisabled ? 'cursor-not-allowed bg-gray-300' : 'bg-[#2eb886] hover:bg-[#24a673]')}
                 aria-label={isCompleted ? 'Voice interview ended' : (isAutoLoopActive || isRecording ? 'Pause voice interview' : 'Start voice interview')}
               >
                 {isAutoLoopActive || isRecording ? <Square className="h-6 w-6" /> : <Mic className="h-6 w-6" />}
               </button>
             </div>
 
-            <div className="text-center h-16 flex flex-col justify-center">
+            <div className="text-center min-h-[52px] flex flex-col justify-center">
               {isCompleted ? (
                 <>
                   <p className="text-lg font-semibold text-emerald-700">Interview ended</p>
@@ -124,7 +124,7 @@ export function VoiceInterviewPanel({
               )}
             </div>
 
-            <div className="flex h-[78px] w-full items-end justify-between gap-1 overflow-hidden rounded-3xl bg-white px-4 py-4 shadow-sm">
+            <div className="flex h-[58px] w-full items-end justify-between gap-1 overflow-hidden rounded-2xl bg-white px-4 py-3 shadow-sm">
               {waveBars.map((value, index) => (
                 <div
                   key={`wave-${index}`}
@@ -143,7 +143,7 @@ export function VoiceInterviewPanel({
         </div>
 
         {!isCompleted ? (
-          <div className={cn('shrink-0 border-t p-6 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] transition-colors', isPaused ? 'bg-amber-50 border-amber-200' : 'bg-white border-gray-100')}>
+          <div className={cn('shrink-0 border-t p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] transition-colors', isPaused ? 'bg-amber-50 border-amber-200' : 'bg-white border-gray-100')}>
             {isPaused ? (
             <div className="flex flex-col items-center justify-center py-3">
               <p className="text-lg font-semibold text-amber-700">Interview Paused</p>
