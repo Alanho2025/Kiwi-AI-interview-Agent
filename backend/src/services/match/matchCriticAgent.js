@@ -6,7 +6,7 @@
  */
 
 import { callDeepSeekJson } from '../agenticSafeguards/deepseekJsonClient.js';
-import { isMockAiMode, normalizeSafeguardReview } from '../agenticSafeguards/safeguardShared.js';
+import { assertSafeguardProviderConfigured, isMockAiMode, normalizeSafeguardReview } from '../agenticSafeguards/safeguardShared.js';
 
 const buildHeuristicMatchReview = ({ matchResult = {} } = {}) => {
   const requirementChecks = matchResult.requirementChecks || [];
@@ -82,7 +82,8 @@ ${JSON.stringify(matchResult, null, 2).slice(0, 12000)}`;
 
 export const reviewMatchWithDeepSeek = async ({ jdRubric = {}, cvProfile = {}, matchResult = {} } = {}) => {
   const fallback = buildHeuristicMatchReview({ matchResult });
-  if (isMockAiMode() || !process.env.DEEPSEEK_API_KEY) return normalizeSafeguardReview(fallback, fallback);
+  if (isMockAiMode()) return normalizeSafeguardReview(fallback, fallback);
+  assertSafeguardProviderConfigured();
 
   const aiReview = await callDeepSeekJson({
     prompt: buildPrompt({ jdRubric, cvProfile, matchResult }),

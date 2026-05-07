@@ -6,7 +6,7 @@
  */
 
 import { callDeepSeekJson } from '../agenticSafeguards/deepseekJsonClient.js';
-import { isMockAiMode, normalizeSafeguardReview } from '../agenticSafeguards/safeguardShared.js';
+import { assertSafeguardProviderConfigured, isMockAiMode, normalizeSafeguardReview } from '../agenticSafeguards/safeguardShared.js';
 import { buildHeuristicJdParseReview } from './jdSafeguardHeuristics.js';
 
 const buildPrompt = ({ rawJD = '', parsedJD = {} }) => `You are a strict JD parse output controller for an interview preparation system.
@@ -49,9 +49,10 @@ ${JSON.stringify(parsedJD, null, 2).slice(0, 12000)}`;
 
 export const reviewJdParseWithDeepSeek = async ({ rawJD = '', parsedJD = {} } = {}) => {
   const heuristicFallback = buildHeuristicJdParseReview({ rawJD, parsedJD });
-  if (isMockAiMode() || !process.env.DEEPSEEK_API_KEY) {
+  if (isMockAiMode()) {
     return normalizeSafeguardReview(heuristicFallback, heuristicFallback);
   }
+  assertSafeguardProviderConfigured();
 
   const aiReview = await callDeepSeekJson({
     prompt: buildPrompt({ rawJD, parsedJD }),

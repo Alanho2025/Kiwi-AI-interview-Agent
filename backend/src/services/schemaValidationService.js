@@ -140,6 +140,25 @@ const normalizeCandidateFeedbackItem = (item = {}) => ({
   description: ensureString(item.description),
 });
 
+const normalizeScoreExplanation = (item = {}) => ({
+  summary: ensureString(item.summary),
+  helped: ensureString(item.helped),
+  lowered: ensureString(item.lowered),
+  next: ensureString(item.next),
+});
+
+const normalizeScoreExplanations = (value = {}) => ({
+  overall: normalizeScoreExplanation(value.overall),
+  cvJdMatch: normalizeScoreExplanation(value.cvJdMatch),
+  interview: normalizeScoreExplanation(value.interview),
+});
+
+const normalizeDimensionReasons = (value = {}) => ({
+  business: ensureString(value.business),
+  logic: ensureString(value.logic),
+  evidence: ensureString(value.evidence),
+});
+
 const normalizeTurnBreakdown = (item = {}) => ({
   question: ensureString(item.question),
   answer: ensureString(item.answer),
@@ -151,6 +170,7 @@ const normalizeTurnBreakdown = (item = {}) => ({
         evidence: ensureNumber(item.scores.evidence, 0),
       }
     : { business: 0, logic: 0, evidence: 0 },
+  dimensionReasons: normalizeDimensionReasons(item.dimensionReasons || item.scoreReasons),
 });
 
 /**
@@ -179,6 +199,7 @@ export const validateReportOutput = (report = {}) => ({
         overallTakeaway: ensureString(report.candidateFeedback.overallTakeaway),
         scoreBand: ensureString(report.candidateFeedback.scoreBand),
         generationSource: ensureString(report.candidateFeedback.generationSource),
+        scoreExplanations: normalizeScoreExplanations(report.candidateFeedback.scoreExplanations || {}),
         communicationProfile: isObject(report.candidateFeedback.communicationProfile)
           ? {
               summary: ensureString(report.candidateFeedback.communicationProfile.summary),
@@ -198,6 +219,7 @@ export const validateReportOutput = (report = {}) => ({
         overallTakeaway: '',
         scoreBand: '',
         generationSource: '',
+        scoreExplanations: normalizeScoreExplanations({}),
         communicationProfile: { summary: '', keyTraits: [], fillerWords: '' },
         plainEnglishMetrics: [],
         strengthHighlights: [],
