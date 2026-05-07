@@ -10,7 +10,7 @@
  */
 
 import React from 'react';
-import { Bird } from 'lucide-react';
+import { Bird, HelpCircle } from 'lucide-react';
 
 /**
  * Purpose: Execute the main responsibility for HomeHeader.
@@ -18,7 +18,7 @@ import { Bird } from 'lucide-react';
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-export function HomeHeader({ user, isAvatarBroken, userInitials, onAvatarError, onSignOut }) {
+export function HomeHeader({ user, isAvatarBroken, userInitials, onAvatarError, onSignOut, onStartTour }) {
   return (
     <header className="sticky top-0 z-20 flex items-center justify-between border-b border-gray-100 bg-white px-4 py-3 sm:px-8 sm:py-4 shadow-sm">
       <div className="flex items-center gap-2 text-xl font-bold text-emerald-500">
@@ -30,7 +30,12 @@ export function HomeHeader({ user, isAvatarBroken, userInitials, onAvatarError, 
         Ready to start? Click the big Start button or select a mode.
       </div>
 
-      <div className="flex items-center gap-6">
+      <div className="flex items-center gap-4 sm:gap-6">
+        <button onClick={onStartTour} className="flex items-center gap-1.5 text-sm font-medium text-gray-400 hover:text-emerald-600 transition" title="Replay Tour">
+          <HelpCircle size={20} />
+          <span className="hidden sm:inline">Tour</span>
+        </button>
+        
         <div className="flex items-center gap-3">
           {user.picture && !isAvatarBroken ? (
             <img
@@ -56,7 +61,7 @@ export function HomeHeader({ user, isAvatarBroken, userInitials, onAvatarError, 
           </div>
         </div>
         <button
-          className="rounded-full border border-gray-300 px-5 py-2 text-sm font-semibold transition hover:bg-gray-50"
+          className="rounded-full border border-gray-300 px-4 py-1.5 sm:px-5 sm:py-2 text-sm font-semibold transition hover:bg-gray-50"
           onClick={onSignOut}
         >
           Sign out
