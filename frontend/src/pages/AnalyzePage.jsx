@@ -41,6 +41,14 @@ import { useTour } from '../contexts/TourContext.jsx';
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
 const buildStatusMessage = (type, title, message) => ({ type, title, message });
+const JD_CONFIDENCE_THRESHOLD = 0.9;
+
+const normalizeJDText = (value = '') => String(value || '').trim();
+
+const getJDParseConfidence = (rubric) => {
+  const confidence = Number(rubric?.diagnostics?.confidence ?? rubric?.metadata?.confidence ?? 0);
+  return Number.isFinite(confidence) ? confidence : 0;
+};
 
 const ANALYZE_TOUR_STEPS = [
   {
@@ -72,6 +80,7 @@ export function AnalyzePage() {
   const [structuredJD, setStructuredJD] = useState('');
   const [structuredJDRubric, setStructuredJDRubric] = useState(null);
   const [summarizedRawJD, setSummarizedRawJD] = useState('');
+  const [jdHumanReviewedRawJD, setJdHumanReviewedRawJD] = useState('');
   const [settings, setSettings] = useState(DEFAULT_ANALYZE_SETTINGS);
   const [sessionMode, setSessionMode] = useState(DEFAULT_ANALYZE_MODE);
   const [analysisStatus, setAnalysisStatus] = useState('idle');
@@ -88,6 +97,20 @@ export function AnalyzePage() {
   const isVoiceReady = voiceDeviceCheck?.browser?.status === 'ok'
     && voiceDeviceCheck?.mic?.status === 'ok'
     && voiceDeviceCheck?.speaker?.status === 'ok';
+  const normalizedRawJD = normalizeJDText(rawJD);
+  const hasCurrentJDSummary = Boolean(
+    structuredJD
+    && structuredJDRubric
+    && normalizedRawJD
+    && normalizedRawJD === normalizeJDText(summarizedRawJD)
+  );
+  const jdParseConfidence = getJDParseConfidence(structuredJDRubric);
+  const requiresJdHumanReview = Boolean(
+    hasCurrentJDSummary
+    && jdParseConfidence < JD_CONFIDENCE_THRESHOLD
+    && normalizeJDText(jdHumanReviewedRawJD) !== normalizedRawJD
+  );
+  const isJdHumanVerified = Boolean(hasCurrentJDSummary && !requiresJdHumanReview);
 
   useEffect(() => {
     // Trigger if the tour is meant for this page, or if user jumped here from Home via spotlight click
@@ -110,6 +133,7 @@ export function AnalyzePage() {
     setStructuredJD('');
     setStructuredJDRubric(null);
     setSummarizedRawJD('');
+    setJdHumanReviewedRawJD('');
   };
 
   const handleRawJDChange = (value) => {
@@ -130,6 +154,7 @@ export function AnalyzePage() {
     setStructuredJD(jdResponse.structuredJD);
     setStructuredJDRubric(jdResponse.structuredJDRubric);
     setSummarizedRawJD(nextRawJD);
+    setJdHumanReviewedRawJD('');
   };
 
   useEffect(() => {
@@ -139,6 +164,7 @@ export function AnalyzePage() {
     setStructuredJD(restoredDraft.structuredJD);
     setStructuredJDRubric(restoredDraft.structuredJDRubric);
     setSummarizedRawJD(restoredDraft.summarizedRawJD);
+    setJdHumanReviewedRawJD(restoredDraft.jdHumanReviewedRawJD);
     const homeSessionSettings = location.state?.sessionDefaults
       ? sanitizeAnalyzeSettings(location.state.sessionDefaults)
       : null;
@@ -155,10 +181,11 @@ export function AnalyzePage() {
       structuredJD,
       structuredJDRubric,
       summarizedRawJD,
+      jdHumanReviewedRawJD,
       settings,
       sessionMode,
     });
-  }, [selectedCV, rawJD, structuredJD, structuredJDRubric, summarizedRawJD, settings, sessionMode]);
+  }, [selectedCV, rawJD, structuredJD, structuredJDRubric, summarizedRawJD, jdHumanReviewedRawJD, settings, sessionMode]);
 
   const handleUpload = async (file) => {
     try {
@@ -197,7 +224,16 @@ export function AnalyzePage() {
       const jdResponse = await paraphraseJD(rawJD);
       applyStructuredJD(jdResponse, rawJD);
       setAnalysisStatus('idle');
-      setPageStatus(buildStatusMessage('success', 'JD summary ready', 'The current JD summary will be used for CV matching.'));
+      const confidence = getJDParseConfidence(jdResponse.structuredJDRubric);
+      if (confidence < JD_CONFIDENCE_THRESHOLD) {
+        setPageStatus(buildStatusMessage(
+          'info',
+          'Review JD summary before matching',
+          `AI confidence is ${Math.round(confidence * 100)}%. Check the extracted role details and confirm the summary before CV-JD matching.`
+        ));
+      } else {
+        setPageStatus(buildStatusMessage('success', 'JD summary ready', 'The current JD summary is high-confidence and ready for CV matching.'));
+      }
     } catch (error) {
       setPageStatus(buildStatusMessage('error', 'JD summary failed', error.message));
       setAnalysisStatus('error');
@@ -222,25 +258,37 @@ export function AnalyzePage() {
     setSessionMode(sanitizeAnalyzeMode(nextMode));
   };
 
+  const handleConfirmJDSummary = () => {
+    if (!hasCurrentJDSummary) {
+      setPageStatus(buildStatusMessage('error', 'Summarize current JD first', 'The JD text has changed. Summarize it again before confirming.'));
+      return;
+    }
+
+    setJdHumanReviewedRawJD(rawJD);
+    setPageStatus(buildStatusMessage('success', 'JD summary confirmed', 'KiwiCoach will use this reviewed JD summary for CV-JD matching.'));
+  };
+
   const handleGeneratePlan = async () => {
     if (!selectedCV || !rawJD) {
       setPageStatus(buildStatusMessage('error', 'Missing input', 'Please provide both a CV and a job description.'));
       return;
     }
 
+    if (!hasCurrentJDSummary) {
+      setPageStatus(buildStatusMessage('info', 'Summarize JD first', 'Generate and review the JD summary before running CV-JD matching.'));
+      return;
+    }
+
+    if (requiresJdHumanReview) {
+      setPageStatus(buildStatusMessage('info', 'Confirm JD summary first', 'This parse is below the 90% confidence gate. Confirm the summary if it looks correct, or edit the JD and summarize again.'));
+      return;
+    }
+
     setAnalysisStatus('matching');
 
     try {
-      let finalStructuredJD = structuredJD;
-      let finalStructuredJDRubric = structuredJDRubric;
-      const needsFreshSummary = !finalStructuredJD || !finalStructuredJDRubric || rawJD.trim() !== summarizedRawJD.trim();
-
-      if (needsFreshSummary) {
-        const jdResponse = await paraphraseJD(rawJD);
-        finalStructuredJD = jdResponse.structuredJD;
-        finalStructuredJDRubric = jdResponse.structuredJDRubric;
-        applyStructuredJD(jdResponse, rawJD);
-      }
+      const finalStructuredJD = structuredJD;
+      const finalStructuredJDRubric = structuredJDRubric;
 
       const matchResponse = await matchCV(selectedCV.id, rawJD, finalStructuredJDRubric, settings);
       setAnalysisResult(matchResponse);
@@ -280,6 +328,7 @@ export function AnalyzePage() {
             <div id="tour-analyze-cv">
               <CVManagementCard
                 onUpload={handleUpload}
+                selectedCV={selectedCV}
                 recentCVs={recentCVs}
                 onSelectRecent={handleSelectRecent}
                 validationMessage={pageStatus?.type === 'error' && pageStatus.title === 'Upload failed' ? pageStatus.message : null}
@@ -293,6 +342,10 @@ export function AnalyzePage() {
                 structuredJDRubric={structuredJDRubric}
                 onSummarize={handleSummarizeJD}
                 isSummarizing={isSummarizingJD}
+                jdConfidenceThreshold={JD_CONFIDENCE_THRESHOLD}
+                isJdHumanVerified={isJdHumanVerified}
+                requiresJdHumanReview={requiresJdHumanReview}
+                onConfirmJDSummary={handleConfirmJDSummary}
               />
             </div>
           </div>
@@ -324,6 +377,11 @@ export function AnalyzePage() {
                 generatedSessionId={generatedSessionId}
                 selectedCV={selectedCV}
                 rawJD={rawJD}
+                hasCurrentJDSummary={hasCurrentJDSummary}
+                jdParseConfidence={jdParseConfidence}
+                jdConfidenceThreshold={JD_CONFIDENCE_THRESHOLD}
+                isJdHumanVerified={isJdHumanVerified}
+                requiresJdHumanReview={requiresJdHumanReview}
                 onGeneratePlan={handleGeneratePlan}
                 onStartInterview={handleStartInterview}
                 sessionMode={sessionMode}

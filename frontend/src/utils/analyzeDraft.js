@@ -30,6 +30,8 @@ const sanitizeSelectedCv = (selectedCV) => {
     type: selectedCV.type || '',
     parseStatus: selectedCV.parseStatus || 'pending',
     profileStatus: selectedCV.profileStatus || 'pending',
+    parseConfidence: Number.isFinite(Number(selectedCV.parseConfidence)) ? Number(selectedCV.parseConfidence) : null,
+    parseWarnings: Array.isArray(selectedCV.parseWarnings) ? selectedCV.parseWarnings : [],
     candidateName: selectedCV.candidateName || 'Candidate',
     topSkills: Array.isArray(selectedCV.topSkills) ? selectedCV.topSkills : [],
     summary: selectedCV.summary || '',
@@ -63,6 +65,7 @@ export const loadAnalyzeDraft = () => {
         structuredJD: '',
         structuredJDRubric: null,
         summarizedRawJD: '',
+        jdHumanReviewedRawJD: '',
         settings: homeDefaults,
         sessionMode: DEFAULT_ANALYZE_MODE,
       };
@@ -76,6 +79,7 @@ export const loadAnalyzeDraft = () => {
       structuredJD: parsed.structuredJD || '',
       structuredJDRubric: parsed.structuredJDRubric || null,
       summarizedRawJD: parsed.summarizedRawJD || '',
+      jdHumanReviewedRawJD: parsed.jdHumanReviewedRawJD || '',
       settings: parsed.settings ? sanitizeSessionSettings(parsed.settings) : homeDefaults,
       sessionMode: sanitizeSessionMode(parsed.sessionMode),
     };
@@ -87,6 +91,7 @@ export const loadAnalyzeDraft = () => {
       structuredJD: '',
       structuredJDRubric: null,
       summarizedRawJD: '',
+      jdHumanReviewedRawJD: '',
       settings: homeDefaults,
       sessionMode: DEFAULT_ANALYZE_MODE,
     };

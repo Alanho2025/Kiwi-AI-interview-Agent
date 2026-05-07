@@ -2,7 +2,7 @@
  * File responsibility: Shared helpers for controlled agentic safeguards.
  * Main responsibilities:
  * - Keep safeguard verdict names stable across JD parsing and CV-JD matching.
- * - Centralise feature flags so normal dev/test flows can enable or skip DeepSeek review predictably.
+ * - Centralise feature flags so mock tests can opt into review while real flows always run safeguards.
  */
 
 export const SAFEGUARD_VERDICTS = {
@@ -14,7 +14,17 @@ export const SAFEGUARD_VERDICTS = {
 export const isMockAiMode = () => process.env.AI_TEST_MODE === 'mock';
 export const isRealAiMode = () => process.env.AI_TEST_MODE === 'real';
 
-export const shouldRunAgenticSafeguard = () => process.env.ENABLE_AGENTIC_SAFEGUARDS === 'true';
+export const shouldRunAgenticSafeguard = () => {
+  if (isMockAiMode()) return process.env.ENABLE_AGENTIC_SAFEGUARDS === 'true';
+  return true;
+};
+
+export const assertSafeguardProviderConfigured = () => {
+  if (isMockAiMode()) return;
+  if (!process.env.DEEPSEEK_API_KEY) {
+    throw new Error('DEEPSEEK_API_KEY is required because agentic safeguards are mandatory outside mock mode.');
+  }
+};
 
 export const getMaxSafeguardReparseAttempts = () => {
   const configured = Number(process.env.AGENTIC_SAFEGUARD_MAX_REPARSE_ATTEMPTS || 1);
