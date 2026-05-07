@@ -56,6 +56,7 @@ export function useVoiceActivityDetection({
     stopVad();
     const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
     const audioContext = new AudioContextCtor();
+    if (audioContext.state === 'suspended') await audioContext.resume();
     const analyser = audioContext.createAnalyser();
     analyser.fftSize = 1024;
     analyser.smoothingTimeConstant = 0.2;

@@ -8,6 +8,7 @@
 
 import { processRealtimeVoiceTurn } from './realtimeVoiceTurnService.js';
 import { streamAssistantSpeech } from './ttsStreamQueue.js';
+import { assessRealtimeVoiceTranscript } from './speechConfidenceGate.js';
 import { AGENT_TOOL_NAMES } from '../../constants/agentToolNames.js';
 
 export const createDuplexTurnCoordinator = ({
@@ -21,9 +22,66 @@ export const createDuplexTurnCoordinator = ({
 } = {}) => {
   let sentenceIndex = 0;
 
+  const streamRepairPrompt = async ({ assessment, transcriptText, asrConfidence }) => {
+    const repairText = assessment?.message || 'I did not catch that clearly. Please repeat your answer.';
+    const speechToken = bargeInController?.startAssistantSpeech?.();
+    sendJson?.({
+      type: 'transcript_rejected',
+      tool: AGENT_TOOL_NAMES.TRANSCRIBE_REALTIME_SPEECH,
+      reason: assessment?.reason || 'TRANSCRIPT_REJECTED',
+      message: repairText,
+      transcription: {
+        accepted: false,
+        text: transcriptText,
+        confidence: asrConfidence,
+        confidenceGate: assessment?.confidenceGate || null,
+        metrics: assessment?.metrics || null,
+      },
+      timestamp: new Date().toISOString(),
+    });
+    sendJson?.({
+      type: 'assistant_text_delta',
+      tool: AGENT_TOOL_NAMES.SYNTHESIZE_ASSISTANT_SPEECH,
+      text: repairText,
+      index: 0,
+      timestamp: new Date().toISOString(),
+    });
+    await streamAssistantSpeech({
+      text: repairText,
+      voiceName,
+      sendJson,
+      bargeInController,
+      index: 0,
+      speechToken,
+    });
+    bargeInController?.finishAssistantSpeech?.(speechToken);
+    sendJson?.({
+      type: 'assistant_speech_done',
+      tool: AGENT_TOOL_NAMES.SYNTHESIZE_ASSISTANT_SPEECH,
+      timestamp: new Date().toISOString(),
+    });
+    return {
+      transcriptRejected: true,
+      assessment,
+    };
+  };
+
   const processFinalTranscript = async ({ transcriptText, asrConfidence = null, vad = null } = {}) => {
     const cleanTranscript = String(transcriptText || '').trim();
-    if (!cleanTranscript) return null;
+    const assessment = assessRealtimeVoiceTranscript({
+      transcriptText: cleanTranscript,
+      asrConfidence,
+      vad,
+    });
+    if (!assessment.ok) {
+      logger?.info?.('Duplex voice transcript rejected before scoring', {
+        sessionId: session?.id,
+        reason: assessment.reason,
+        confidenceStatus: assessment.confidenceGate?.status,
+        metrics: assessment.metrics,
+      });
+      return streamRepairPrompt({ assessment, transcriptText: cleanTranscript, asrConfidence });
+    }
 
     sendJson?.({
       type: 'agent_thinking',
