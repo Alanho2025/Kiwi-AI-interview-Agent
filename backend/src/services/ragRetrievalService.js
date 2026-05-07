@@ -9,7 +9,6 @@
  * - Prefer composition and small helpers over repeated inline logic.
  */
 
-import { DocumentChunk } from '../db/models/documentChunkModel.js';
 import { embedText, normalizeForRetrieval } from './embeddingService.js';
 import { query as postgresQuery } from '../db/postgres.js';
 
@@ -67,7 +66,7 @@ export const retrieveChunks = async ({
       metadata,
       1 - (embedding <=> $1) AS semantic
     FROM document_chunks
-    WHERE 1=1
+    WHERE embedding IS NOT NULL
   `;
   const params = [vectorString];
   let paramCounter = 2;

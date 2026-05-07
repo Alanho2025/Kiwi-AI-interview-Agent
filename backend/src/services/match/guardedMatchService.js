@@ -10,19 +10,56 @@ import { compareCvToJobDescription } from '../matchService.js';
 import { shouldRunAgenticSafeguard, buildSkippedSafeguardResult, getMaxSafeguardReparseAttempts } from '../agenticSafeguards/safeguardShared.js';
 import { reviewMatchWithDeepSeek } from './matchCriticAgent.js';
 
-const attachMatchSafeguard = (matchResult = {}, safeguard = {}) => ({
+const attachMatchSafeguard = (matchResult = {}, safeguard = {}, jdSafeguard = null) => ({
   ...matchResult,
   safeguard,
   matchingDetails: {
     ...(matchResult.matchingDetails || {}),
     safeguard,
+    ...(jdSafeguard ? { jdSafeguard } : {}),
   },
 });
 
 const shouldRecompare = ({ review = {}, attempt = 1, maxAttempts = 1 }) => review.verdict === 'revise' && attempt <= maxAttempts;
+const getJdSafeguard = (jdRubric = {}) => jdRubric?.safeguard || jdRubric?.metadata?.safeguard || {};
+const isHumanReviewedJd = (jdRubric = {}) =>
+  jdRubric?.metadata?.humanReviewStatus === 'verified'
+  || jdRubric?.diagnostics?.humanReviewStatus === 'verified'
+  || jdRubric?.metadata?.inputTrustLevel === 'human_reviewed';
+
+const buildHumanReviewedRubric = (jdRubric = {}, originalSafeguard = {}) => {
+  const reviewedSafeguard = {
+    ...originalSafeguard,
+    blockMatch: false,
+    humanReviewOverrideApplied: true,
+    originalBlockMatch: true,
+    finalStatus: originalSafeguard.finalStatus
+      ? `${originalSafeguard.finalStatus}_human_reviewed`
+      : 'jd_safeguard_block_match_human_reviewed',
+  };
+
+  return {
+    ...jdRubric,
+    safeguard: reviewedSafeguard,
+    metadata: {
+      ...(jdRubric.metadata || {}),
+      safeguard: reviewedSafeguard,
+      humanReviewOverrideApplied: true,
+    },
+  };
+};
 
 export const compareCvToJobDescriptionWithSafeguard = async (cvInput, rawJD, jdRubric, settings = {}) => {
-  if (jdRubric?.safeguard?.blockMatch || jdRubric?.metadata?.safeguard?.blockMatch) {
+  const jdSafeguard = getJdSafeguard(jdRubric);
+  const isJdMatchBlocked = Boolean(jdSafeguard.blockMatch);
+  const humanReviewedJdRubric = isJdMatchBlocked && isHumanReviewedJd(jdRubric)
+    ? buildHumanReviewedRubric(jdRubric, jdSafeguard)
+    : jdRubric;
+  const reviewedJdSafeguard = humanReviewedJdRubric?.metadata?.humanReviewOverrideApplied
+    ? humanReviewedJdRubric.safeguard
+    : null;
+
+  if (isJdMatchBlocked && !isHumanReviewedJd(jdRubric)) {
     return {
       schemaVersion: 'v3',
       candidateName: 'Candidate',
@@ -46,19 +83,19 @@ export const compareCvToJobDescriptionWithSafeguard = async (cvInput, rawJD, jdR
       interviewFocus: [],
       planPreview: 'Review the JD extraction before starting interview planning.',
       matchingDetails: {},
-      safeguard: jdRubric.safeguard || jdRubric.metadata.safeguard,
+      safeguard: jdSafeguard,
     };
   }
 
-  const firstMatch = await compareCvToJobDescription(cvInput, rawJD, jdRubric, settings);
+  const firstMatch = await compareCvToJobDescription(cvInput, rawJD, humanReviewedJdRubric, settings);
 
   if (!shouldRunAgenticSafeguard()) {
-    return attachMatchSafeguard(firstMatch, buildSkippedSafeguardResult('Agentic safeguards disabled.'));
+    return attachMatchSafeguard(firstMatch, buildSkippedSafeguardResult('Agentic safeguards disabled.'), reviewedJdSafeguard);
   }
 
   const maxAttempts = getMaxSafeguardReparseAttempts();
   const firstReview = await reviewMatchWithDeepSeek({
-    jdRubric: firstMatch.parsedJdProfile || jdRubric,
+    jdRubric: firstMatch.parsedJdProfile || humanReviewedJdRubric,
     cvProfile: firstMatch.parsedCvProfile,
     matchResult: firstMatch,
   });
@@ -68,10 +105,10 @@ export const compareCvToJobDescriptionWithSafeguard = async (cvInput, rawJD, jdR
       ...firstReview,
       compareAttempts: 1,
       finalStatus: firstReview.verdict === 'pass' ? 'accepted_first_match' : 'needs_review_before_recompare',
-    });
+    }, reviewedJdSafeguard);
   }
 
-  const secondMatch = await compareCvToJobDescription(cvInput, rawJD, jdRubric, {
+  const secondMatch = await compareCvToJobDescription(cvInput, rawJD, humanReviewedJdRubric, {
     ...settings,
     recompareMode: true,
     criticFeedback: firstReview,
@@ -79,7 +116,7 @@ export const compareCvToJobDescriptionWithSafeguard = async (cvInput, rawJD, jdR
   });
 
   const secondReview = await reviewMatchWithDeepSeek({
-    jdRubric: secondMatch.parsedJdProfile || jdRubric,
+    jdRubric: secondMatch.parsedJdProfile || humanReviewedJdRubric,
     cvProfile: secondMatch.parsedCvProfile,
     matchResult: secondMatch,
   });
@@ -89,5 +126,5 @@ export const compareCvToJobDescriptionWithSafeguard = async (cvInput, rawJD, jdR
     compareAttempts: 2,
     firstReview,
     finalStatus: secondReview.verdict === 'pass' ? 'accepted_after_recompare' : 'needs_review_after_recompare',
-  });
+  }, reviewedJdSafeguard);
 };
