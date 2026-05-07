@@ -28,7 +28,7 @@ export function TextBackupCard({ onSubmit, disabled }) {
     <Card>
       <div className="p-5 flex justify-between items-center cursor-pointer" onClick={() => setExpanded(!expanded)}>
         <div>
-          <h3 className="text-sm font-semibold text-gray-900">Text Draft</h3>
+          <h3 className="text-sm font-semibold text-gray-900">Text Reply</h3>
           <p className="text-xs text-gray-500">Use this area to draft or save backup text</p>
         </div>
         <Button variant="secondary" size="sm">
