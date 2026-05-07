@@ -1,5 +1,22 @@
 # Version History
 
+## Current Backend Gap Closure
+- Fixed backend safeguard test scripts so `npm run test:jd-safeguard` and `npm run test:match-safeguard` point to existing robustness tests.
+- Confirmed `npm run eval:seek` runs the 10-case SEEK JD benchmark from `eval/datasets/jd-parse-seek-benchmark.json`.
+- Added CV parse confidence and warning fields to recent and selected CV responses so frontend human review can evaluate parser quality before matching.
+- Preserved blocked JD behavior for unreviewed JD rubrics while allowing human-reviewed blocked JD rubrics to proceed through normal CV-JD matching.
+- Added recording upload type validation for browser audio files before ffmpeg conversion.
+- Added recording upload guard robustness coverage.
+- Upgraded local deterministic retrieval embeddings to 256-dimensional weighted hash embeddings with token, n-gram, character n-gram, signed hashing, and estimated IDF weighting.
+- Added match analysis and controller decision payloads to session RAG indexing.
+- Kept Mongo document chunks as a legacy mirror while runtime retrieval uses PostgreSQL pgvector.
+- Added PostgreSQL duplicate cleanup for `document_chunks`.
+- Added source/session/chunk/text uniqueness for idempotent RAG indexing.
+- Added source/session and metadata `sourceId` indexes for retrieval filtering.
+- Added pgvector ANN indexing with HNSW and IVFFlat fallback.
+- Added retrieval robustness tests for embedding behavior and RAG index payloads.
+- Latest validation: backend `npm run lint`, `npm run test:all`, `npm run test:jd-safeguard`, `npm run test:match-safeguard`, and `npm run eval:seek` pass.
+
 ## JD Parser Phase 2
 - Added normalized bluepoint output for responsibilities, requirements, benefits, and application instructions.
 - Added raw section preservation under `rawSections` so original JD evidence is still available.
@@ -18,4 +35,3 @@
 ## JD Parser Phase 4
 - Fixed malformed newline escaping in `tests/jobDescription/jobDescriptionMetamorphic.test.js` so Vitest and Vite import analysis can parse the file correctly.
 - Preserved Phase 3 contract compatibility changes while keeping metamorphic stability coverage for lowercase paragraph and reordered variants.
-

@@ -9,8 +9,10 @@ The current codebase is no longer a toy chatbot. It now has a real React fronten
 ```text
 Login
   -> Upload or select CV
+  -> Review parsed CV match fields
   -> Paste JD
   -> Parse JD into structured rubric
+  -> Review parsed JD rubric
   -> Match CV against JD
   -> Generate interview plan
   -> Run text or voice interview
@@ -28,33 +30,37 @@ Login
 - CV upload and recent CV selection
 - PDF and DOCX CV text extraction
 - CV profile parsing and evidence building
+- CV parse confidence and match-field human review before matching
 - JD parsing, normalization, rubric building, and safeguard checks
+- JD summary human review before matching, even when AI confidence is high
 - CV-JD match analysis
+- Guarded CV-JD match behavior for unreviewed blocked JDs and human-reviewed JDs
 - Interview setup with seniority, focus area, control mode, question limit, and time limit
 - Text interview session flow
+- Duplex voice interview socket attachment and frontend voice shell
+- Session MP3 recording upload, conversion, status, and download routes
 - Pause, resume, repeat, reply, end, and report navigation
 - Transcript storage and export route
 - Report generation and report QA
-- Session-aware retrieval and global interview knowledge retrieval
+- Session-aware retrieval, global interview knowledge retrieval, and RAG chunk indexing
 - PostgreSQL + MongoDB hybrid persistence
 - Structured backend logging and shared error handling
 - Backend robustness tests
 - Frontend voice-related unit tests
-- Real AI eval runners for parser, match, interview, and report quality
+- Real AI eval runners for parser, SEEK JD benchmark, match, interview, and report quality
 
 ### In progress or partially wired
 
-- Full duplex voice interview flow
-- Voice barge-in and streaming coordination
 - Fine-grained ownership hardening across all resources
 - Service-level test coverage for every domain service
 - Further split of older broad services
+- Security and governance hardening after core product flow is complete
 
 ### Voice integration status
 
 The frontend is wired for the product-level duplex voice flow through `useVoiceInterviewSession` and `useDuplexVoiceSocket`. The backend now attaches both `attachRealtimeVoiceSocketServer(server)` and `attachDuplexVoiceSocketServer(server)` in `index.js`, so the live STT socket and the product-level duplex voice socket are both mounted from the HTTP server entry point.
 
-That means text interview mode is the safer current demo path. Voice mode has strong groundwork, but the final backend socket attachment still needs to be completed.
+Text interview mode remains the safest low-dependency demo path. Voice mode is product-wired, but it still depends on browser microphone permission, authenticated WebSocket access, valid Azure Speech credentials, and a live interview session.
 
 ## Tech stack
 
@@ -148,6 +154,11 @@ The analysis page passes the following setup into backend plan generation:
 - `seniorityLevel`: Junior/Grad, Intermediate, or Advanced
 - `enableNZCultureFit`: enabled or disabled
 
+The analysis page also enforces two trust gates before CV-JD matching:
+
+- CV parse review: the user reviews only match-relevant parsed CV fields, not contact details.
+- JD parse review: the user reviews the structured JD rubric before matching, even when parser confidence is above the 90% gate.
+
 ## Backend structure
 
 ```text
@@ -194,7 +205,7 @@ index.js
   -> creates Express app and HTTP server
   -> bootstraps PostgreSQL and MongoDB
   -> mounts /api
-  -> attaches realtime voice WebSocket server
+  -> attaches realtime and duplex voice WebSocket servers
 
 src/api.js
   -> applies CORS, JSON parsing, request context, optional auth
@@ -270,6 +281,12 @@ Base path: `/api`
 ### Export routes
 
 - `POST /api/export/transcript`
+
+### Recording routes
+
+- `POST /api/recordings/session-audio`
+- `GET /api/recordings/session-audio/:sessionId/status`
+- `GET /api/recordings/session-audio/:sessionId/download`
 
 ### Report routes
 
@@ -359,13 +376,14 @@ PostgreSQL stores structured operational data, including:
 - skills
 - interview sessions
 - session control fields such as control mode, question limit, and time limit
+- pgvector-backed RAG `document_chunks` for runtime vector retrieval
 
 ### MongoDB
 
 MongoDB stores flexible AI-oriented data, including:
 
 - AI logs
-- document chunks
+- legacy document chunk mirror records for migration/debug compatibility
 - document content
 - evaluation ground truth
 - interview plans
@@ -381,7 +399,7 @@ MongoDB stores flexible AI-oriented data, including:
 
 ### Local filesystem
 
-The backend still uses local file persistence for uploaded CV files and transcript/report export artifacts.
+The backend still uses local file persistence for uploaded CV files, transcript/report export artifacts, and converted session MP3 recordings.
 
 ## Environment setup
 
@@ -428,6 +446,7 @@ Notes:
 - `AI_TEST_MODE=real` requires `DEEPSEEK_API_KEY` and should fail fast if the key is missing.
 - `AI_TEST_MODE=mock` uses deterministic mock AI output for robustness tests.
 - `ENABLE_AGENTIC_SAFEGUARDS=true` enables safeguard-specific test paths.
+- RAG runtime retrieval uses PostgreSQL pgvector. MongoDB document chunks are kept as a legacy mirror, not the primary vector store.
 
 ### Frontend setup
 
@@ -457,10 +476,13 @@ npm run test:all
 npm run test:jd-safeguard
 npm run test:match-safeguard
 npm run eval:jd
+npm run eval:seek
 npm run eval:cv
 npm run eval:match
 npm run eval:interview
 npm run eval:report
+npm run eval:e2e
+npm run eval:green
 npm run eval:all
 npm run quality:all
 ```
@@ -475,10 +497,13 @@ npm run quality:all
 | `npm run test:jd-safeguard` | Run JD safeguard robustness test |
 | `npm run test:match-safeguard` | Run match safeguard robustness test |
 | `npm run eval:jd` | Run real JD parse eval |
+| `npm run eval:seek` | Run the 10-case SEEK JD benchmark |
 | `npm run eval:cv` | Run real CV parse eval |
 | `npm run eval:match` | Run real CV-JD match eval |
 | `npm run eval:interview` | Run real interview controller eval |
 | `npm run eval:report` | Run real report QA eval |
+| `npm run eval:e2e` | Run deterministic end-to-end interview eval |
+| `npm run eval:green` | Run Kiwi Green Agent benchmark |
 | `npm run quality:all` | Run robustness tests, then real AI evals |
 
 ### Frontend scripts
@@ -520,9 +545,12 @@ Current backend robustness tests cover:
 - JD parsing edge cases
 - JD parser agentic safeguards
 - Luma Analytics JD safeguard regression
+- Guarded match human-review behavior
 - Interview control behavior
 - Tool trace contract stability
 - Retrieval behavior
+- RAG index payload and embedding behavior
+- Recording upload guard behavior
 - Report grounding
 - DeepSeek mock vs real mode behavior
 - Duplex voice behavior
@@ -539,6 +567,8 @@ Current frontend tests cover:
 - Realtime speech socket helper
 - Voice activity detection core
 - Voice latency trace and summary helpers
+- CV review view model
+- JD human review metadata stamping
 - Interview page voice-mode behavior
 
 ### Eval coverage
@@ -547,9 +577,12 @@ The backend `eval/` folder contains curated datasets and runners for:
 
 - CV parse quality
 - JD parse quality
+- SEEK JD parsing quality
 - CV-JD match quality
 - Interview controller quality
 - Report QA quality
+- End-to-end interview scenario quality
+- Green Agent benchmark quality
 
 Eval reports are written into:
 
@@ -575,6 +608,11 @@ RAG-related routes support:
 
 RAG services support:
 
+- PostgreSQL pgvector runtime retrieval
+- legacy Mongo chunk mirroring for migration/debug compatibility
+- 256-dimensional weighted hash embeddings
+- token, word n-gram, character n-gram, estimated IDF, and keyword fusion scoring
+- duplicate cleanup and idempotent source/session/chunk indexing
 - session evidence retrieval
 - global knowledge retrieval
 - corrective retrieval
@@ -587,6 +625,8 @@ RAG services support:
 - Clear frontend page split
 - Stronger backend modularity than earlier versions
 - Better JD parsing safeguards
+- Human review gates for CV and JD parse quality before matching
+- Hardened RAG indexing and retrieval storage
 - Better interview control settings
 - More realistic test strategy
 - Real AI eval runners instead of only mocked tests
@@ -605,14 +645,16 @@ RAG services support:
 - MongoDB degraded mode is useful for development, but final deployment should define whether MongoDB is required.
 - Frontend still uses local draft persistence for analysis setup. This is useful, but privacy wording should match actual storage behavior.
 - Full end-to-end voice testing still needs real browser microphone, Azure Speech, and authenticated session coverage.
+- CV-JD match eval coverage is still small and should be expanded beyond the current curated cases before claiming broad random-JD reliability.
+- The deterministic local embedding is acceptable for MVP retrieval experiments, but a real embedding model migration plan is still needed for production-grade semantic retrieval.
 
 ## Recommended next engineering steps
 
-1. Attach `attachDuplexVoiceSocketServer(server)` in `backend/index.js` if duplex voice mode is required for demo.
-2. Fix `.env.example` so PostgreSQL setup is clean.
-3. Run backend `npm run test:all` and frontend `npm run quality:all` after every structural change.
-4. Run `npm run eval:all` only when a real DeepSeek key is configured.
-5. Add route-level ownership tests for CV, session, report, transcript, and RAG access.
+1. Fix `.env.example` so PostgreSQL setup is clean.
+2. Run backend `npm run test:all` and frontend `npm run quality:all` after every structural change.
+3. Run `npm run eval:all` only when a real DeepSeek key is configured.
+4. Expand CV-JD match eval coverage with more weak, partial, transition, overqualified, and noisy SEEK cases.
+5. Add route-level ownership tests for CV, session, report, transcript, recording, and RAG access.
 6. Continue splitting older broad services into smaller domain services.
 7. Keep README, version history, and test docs aligned after each release-level change.
 
@@ -624,13 +666,15 @@ For a stable current demo:
 2. Start frontend.
 3. Login with Google.
 4. Upload a CV.
-5. Paste a JD.
-6. Generate the structured JD summary.
-7. Run CV-JD match analysis.
-8. Select text interview mode.
-9. Choose question-limited or time-limited setup.
-10. Run the interview.
-11. Export transcript.
-12. Generate report and QA.
+5. Review the parsed CV match fields and mark the CV as reviewed.
+6. Paste a JD.
+7. Generate the structured JD summary.
+8. Review the parsed JD rubric and mark the JD as reviewed.
+9. Run CV-JD match analysis.
+10. Select text interview mode.
+11. Choose question-limited or time-limited setup.
+12. Run the interview.
+13. Export transcript.
+14. Generate report and QA.
 
 Use voice mode after backend, frontend, Azure Speech credentials, auth token storage, and microphone permission are all available in the same environment.

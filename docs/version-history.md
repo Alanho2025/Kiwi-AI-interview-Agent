@@ -1,5 +1,56 @@
 # Version History
 
+## Current Gap Closure - Human Review Gates, RAG Hardening, Recording Guardrails, and Eval Alignment
+
+### Analyze flow trust gates
+- Added a human review gate for CV parsing before CV-JD matching.
+- Limited the CV review panel to fields that affect matching: candidate summary, core skills, experience evidence, project evidence, education and credentials, and key competencies.
+- Kept contact details out of the CV review panel so users review match-relevant evidence without exposing unnecessary personal data in the analyze flow.
+- Persisted CV review state in the analyze draft so the page can distinguish the currently reviewed CV from a newly uploaded or newly selected CV.
+- Changed JD review behavior so every current JD summary must be marked as reviewed before CV-JD matching, even when AI confidence is at or above the 90% gate.
+- Hardened the JD human-review stamp so verified JD rubrics clear stale `blockMatch` safeguards before matching.
+- Updated analyze action copy so users understand that CV-JD matching depends on a reviewed CV parse and reviewed JD summary.
+
+### CV parse confidence and warnings
+- Returned CV `parseConfidence` and `parseWarnings` from recent and selected CV API responses so frontend review UI can show parser quality.
+- Added a focused CV review view model that only exposes match-relevant parsed fields.
+- Added frontend coverage for the CV review view model to ensure contact details are not included in the matching review surface.
+
+### CV-JD match and human-in-the-loop behavior
+- Preserved the backend safeguard behavior where a blocked JD still returns a 0/manual-review match if it has not been human reviewed.
+- Allowed blocked-but-human-reviewed JD rubrics to proceed through normal CV-JD matching instead of staying stuck at 0.
+- Added robustness coverage for both paths: blocked unreviewed JD remains blocked, while blocked reviewed JD can produce a normal match result.
+
+### RAG and retrieval hardening
+- Upgraded the deterministic local embedding from a 32-dimension hash vector to a 256-dimension weighted hash embedding with token features, word n-grams, character n-grams, estimated IDF weighting, signed hashing, and keyword fusion compatibility.
+- Marked Mongo `DocumentChunk` usage as a legacy mirror while runtime vector retrieval reads PostgreSQL pgvector chunks.
+- Added RAG indexing payloads for match analysis and controller decision records so session retrieval can use CV, JD, match, interview-plan, transcript, and controller evidence.
+- Added PostgreSQL dedupe cleanup for existing duplicate `document_chunks` rows.
+- Added a unique source/session/chunk/text index so repeated indexing does not create duplicate retrieval chunks.
+- Added source/session lookup indexes and metadata `sourceId` indexing for retrieval filtering.
+- Added pgvector ANN indexing with HNSW when available and IVFFlat fallback when HNSW is unavailable.
+- Added retrieval robustness tests for embedding behavior and RAG index payload content.
+
+### Recording upload guardrails
+- Added audio MIME type and extension validation to the session recording upload route before files are passed to MP3 conversion.
+- Added a recording upload guard robustness test covering accepted browser audio files and rejected arbitrary files.
+
+### Backend quality gates and eval alignment
+- Fixed `npm run test:jd-safeguard` so it points to the existing JD safeguard robustness test.
+- Fixed `npm run test:match-safeguard` so it points to the existing guarded match human-review robustness test.
+- Confirmed the SEEK JD benchmark is an evaluation runner through `npm run eval:seek`, using the 10 SEEK JD cases under `backend/eval/datasets/jd-parse-seek-benchmark.json`.
+- Kept `npm run eval:all` wired to include the SEEK JD benchmark alongside CV parse, JD parse, CV-JD match, interview controller, report QA, end-to-end interview, and Green Agent evals.
+
+### Validation snapshot
+- Frontend `npm run lint` passes.
+- Frontend `npm run test:all` passes with 12 test files and 34 tests.
+- Frontend `npm run build` passes.
+- Backend `npm run lint` passes.
+- Backend `npm run test:all` passes with 20 test files and 51 tests.
+- Backend `npm run test:jd-safeguard` passes.
+- Backend `npm run test:match-safeguard` passes.
+- Backend `npm run eval:seek` passes with 10 SEEK cases, average score `0.81`, and critical average score `0.83`.
+
 ## Current Release - Interview Session Control, Voice Track, Robustness Tests, and Documentation Alignment
 
 ### Product scope update
