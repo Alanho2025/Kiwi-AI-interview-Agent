@@ -27,8 +27,8 @@ export function InterviewStatusBanner({ status, onConfirmEnd, onCancelEnd }) {
     return (
       <StatusBanner
         variant="info"
-        title="End interview?"
-        message="This will mark the text interview as completed."
+        title={status.title || 'End interview?'}
+        message={status.message || 'This will mark the interview as completed.'}
         actions={[
           <Button key="confirm" size="sm" variant="danger" onClick={onConfirmEnd}>Confirm End</Button>,
           <Button key="cancel" size="sm" variant="secondary" onClick={onCancelEnd}>Cancel</Button>,

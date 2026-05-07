@@ -1,7 +1,7 @@
 import { Card, CardHeader, CardTitle, CardContent } from '../common/Card.jsx';
 import { TextArea } from '../common/TextArea.jsx';
 import { Button } from '../common/Button.jsx';
-import { Loader2, UploadCloud, AlertTriangle } from 'lucide-react';
+import { Loader2, UploadCloud, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { buildJobDescriptionViewModel } from '../../utils/jobDescriptionViewModel.js';
 
 const SummarySection = ({ title, items = [], emptyText = 'No clear items detected in this section.' }) => (
@@ -45,30 +45,78 @@ const TechnicalGroups = ({ groups }) => {
   );
 };
 
-const AnalysisStatusBlock = ({ analysisMode, confidence, warnings, missingSections }) => (
-  <div className="rounded-lg border border-gray-100 bg-white p-4">
-    <div className="flex items-start justify-between gap-4">
-      <div>
-        <p className="text-xs font-medium uppercase tracking-wide text-gray-400">Analysis Status</p>
-        <p className="mt-2 text-sm font-semibold text-gray-900">{analysisMode}</p>
-        <p className="mt-1 text-xs text-gray-500">Confidence {Math.round((confidence || 0) * 100)}%</p>
+const AnalysisStatusBlock = ({
+  analysisMode,
+  confidence,
+  warnings,
+  missingSections,
+  confidenceThreshold,
+  isJdHumanVerified,
+  requiresJdHumanReview,
+  onConfirmJDSummary,
+}) => {
+  const confidencePercent = Math.round((confidence || 0) * 100);
+  const thresholdPercent = Math.round(confidenceThreshold * 100);
+  const statusTone = requiresJdHumanReview
+    ? 'border-amber-200 bg-amber-50'
+    : 'border-emerald-100 bg-white';
+
+  return (
+    <div className={`rounded-lg border p-4 ${statusTone}`}>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wide text-gray-400">Analysis Status</p>
+          <p className="mt-2 text-sm font-semibold text-gray-900">{analysisMode}</p>
+          <p className="mt-1 text-xs text-gray-500">AI confidence {confidencePercent}% · Gate {thresholdPercent}%</p>
+        </div>
+        {requiresJdHumanReview || warnings?.length ? <AlertTriangle className="h-5 w-5 text-amber-500" /> : <CheckCircle2 className="h-5 w-5 text-emerald-600" />}
       </div>
-      {warnings?.length ? <AlertTriangle className="h-5 w-5 text-amber-500" /> : null}
+
+      {requiresJdHumanReview ? (
+        <div className="mt-3 rounded-lg border border-amber-200 bg-white/80 p-3">
+          <p className="text-sm font-semibold text-amber-900">Human review required before matching</p>
+          <p className="mt-1 text-xs leading-5 text-amber-800">
+            Check the summary below. If the role details are correct, confirm it; otherwise edit the JD text and summarize again.
+          </p>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            className="mt-3"
+            onClick={onConfirmJDSummary}
+          >
+            Confirm summary is accurate
+          </Button>
+        </div>
+      ) : (
+        <p className="mt-3 text-xs text-emerald-700">
+          {isJdHumanVerified ? 'This JD summary is ready for CV-JD matching.' : 'No parser warnings were raised for this JD.'}
+        </p>
+      )}
+
+      {warnings?.length ? (
+        <ul className="mt-3 space-y-2 text-xs text-amber-700">
+          {warnings.map((warning, index) => <li key={`warning-${index}`}>• {warning}</li>)}
+        </ul>
+      ) : null}
+
+      {missingSections?.length ? <p className="mt-3 text-xs text-gray-500">Missing sections: {missingSections.join(', ')}</p> : null}
     </div>
+  );
+};
 
-    {warnings?.length ? (
-      <ul className="mt-3 space-y-2 text-xs text-amber-700">
-        {warnings.map((warning, index) => <li key={`warning-${index}`}>• {warning}</li>)}
-      </ul>
-    ) : (
-      <p className="mt-3 text-xs text-gray-500">No parser warnings were raised for this JD.</p>
-    )}
-
-    {missingSections?.length ? <p className="mt-3 text-xs text-gray-500">Missing sections: {missingSections.join(', ')}</p> : null}
-  </div>
-);
-
-export function JobContextCard({ rawJD, setRawJD, structuredJD, structuredJDRubric, onSummarize, isSummarizing }) {
+export function JobContextCard({
+  rawJD,
+  setRawJD,
+  structuredJD,
+  structuredJDRubric,
+  onSummarize,
+  isSummarizing,
+  jdConfidenceThreshold = 0.9,
+  isJdHumanVerified = false,
+  requiresJdHumanReview = false,
+  onConfirmJDSummary,
+}) {
   const viewModel = structuredJDRubric ? buildJobDescriptionViewModel(structuredJDRubric) : null;
 
   return (
@@ -131,6 +179,10 @@ export function JobContextCard({ rawJD, setRawJD, structuredJD, structuredJDRubr
                     confidence={viewModel.confidence}
                     warnings={viewModel.warnings}
                     missingSections={viewModel.missingSections}
+                    confidenceThreshold={jdConfidenceThreshold}
+                    isJdHumanVerified={isJdHumanVerified}
+                    requiresJdHumanReview={requiresJdHumanReview}
+                    onConfirmJDSummary={onConfirmJDSummary}
                   />
                   <SummarySection title="What This Role Does" items={viewModel.responsibilities} emptyText="Responsibilities could not be confidently extracted." />
                   <SummarySection title="Bonus Requirements" items={viewModel.bonusRequirements} emptyText="No clear bonus requirements were detected." />
@@ -148,6 +200,10 @@ export function JobContextCard({ rawJD, setRawJD, structuredJD, structuredJDRubr
                 confidence={viewModel.confidence}
                 warnings={viewModel.warnings}
                 missingSections={viewModel.missingSections}
+                confidenceThreshold={jdConfidenceThreshold}
+                isJdHumanVerified={isJdHumanVerified}
+                requiresJdHumanReview={requiresJdHumanReview}
+                onConfirmJDSummary={onConfirmJDSummary}
               />
 
               <SummarySection title="Job Overview" items={[viewModel.title, ...viewModel.overviewItems]} emptyText="No overview details detected." />

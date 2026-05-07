@@ -387,7 +387,7 @@ export function useVoiceInterviewSession({
       setIsAutoLoopActive(false);
       audioQueue.clearQueue();
       vad.stopVad?.();
-      await sessionAudioRecorder.resetRecording();
+      await sessionAudioRecorder.stopCurrentSegment();
       await realtimeMic.stopStream();
       duplexSocket.stopSession();
       setReadyState();
@@ -449,7 +449,7 @@ export function useVoiceInterviewSession({
     setIsAutoLoopActive(false);
     audioQueue.clearQueue();
     vad.stopVad?.();
-    await sessionAudioRecorder.resetRecording();
+    await sessionAudioRecorder.stopCurrentSegment();
     await realtimeMic.stopStream();
     duplexSocket.closeSocket();
     setTranscriptionPreview('');

@@ -16,19 +16,32 @@ import { FileText, Lock, CheckCircle2, Loader2 } from 'lucide-react';
 import { cn } from '../../utils/formatters.js';
 import { StatusBanner } from '../common/StatusBanner.jsx';
 
+const getCvParseConfidence = (selectedCV) => {
+  const confidence = Number(selectedCV?.parseConfidence ?? selectedCV?.profile?.confidence ?? selectedCV?.display?.parseConfidence ?? 0);
+  return Number.isFinite(confidence) ? confidence : 0;
+};
+
+const buildCvParseLabel = (confidence) => {
+  if (confidence >= 0.9) return 'High parse confidence';
+  if (confidence >= 0.7) return 'Usable parse confidence';
+  return 'Review recommended';
+};
+
 /**
  * Purpose: Execute the main responsibility for CVManagementCard.
  * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-export function CVManagementCard({ onUpload, recentCVs, onSelectRecent, validationMessage }) {
+export function CVManagementCard({ onUpload, selectedCV, recentCVs, onSelectRecent, validationMessage }) {
   const [selectedRecent, setSelectedRecent] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [localValidationMessage, setLocalValidationMessage] = useState('');
   const fileInputRef = useRef(null);
+  const activeCvConfidence = getCvParseConfidence(selectedCV);
+  const activeCvWarnings = selectedCV?.parseWarnings || selectedCV?.warnings || [];
 
   const processUpload = async (file) => {
     setIsUploading(true);
@@ -146,6 +159,30 @@ export function CVManagementCard({ onUpload, recentCVs, onSelectRecent, validati
             />
           </div>
         </div>
+
+        {selectedCV ? (
+          <div className="rounded-xl border border-emerald-100 bg-emerald-50/70 p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">Active CV</p>
+                <p className="mt-1 break-words text-sm font-semibold text-gray-900">{selectedCV.name}</p>
+                <p className="mt-1 text-xs text-gray-600">
+                  {buildCvParseLabel(activeCvConfidence)} · {Math.round(activeCvConfidence * 100)}%
+                </p>
+              </div>
+              <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" />
+            </div>
+            {activeCvWarnings.length ? (
+              <ul className="mt-3 space-y-1 text-xs text-amber-700">
+                {activeCvWarnings.map((warning, index) => (
+                  <li key={`cv-warning-${index}`}>• {warning}</li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-3 text-xs text-emerald-800">No CV parser warnings were raised.</p>
+            )}
+          </div>
+        ) : null}
 
         {recentCVs && recentCVs.length > 0 && (
           <div>
