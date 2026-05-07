@@ -38,7 +38,7 @@ export function InterviewSidebar({ session, currentPlanItem, promiseLabel, level
   const sessionModeLabel = String(session?.mode || '').toLowerCase() === 'voice' ? 'Voice interview' : 'Text interview';
 
   return (
-    <div className="hidden lg:flex lg:col-span-3 flex-col gap-6 overflow-y-auto pr-2 pb-6 min-h-0">
+    <div className="hidden xl:flex xl:col-span-3 flex-col gap-6 overflow-y-auto pr-2 pb-6 min-h-0">
       <CandidateCard
         candidateName={session?.candidateName}
         status={session?.status === 'in_progress' ? 'Live' : session?.status}

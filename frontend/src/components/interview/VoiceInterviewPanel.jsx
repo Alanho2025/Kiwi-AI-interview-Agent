@@ -73,7 +73,7 @@ export function VoiceInterviewPanel({
 
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-        <div className="flex-1 overflow-hidden bg-gray-50 p-4 min-h-0">
+        <div className="min-h-[320px] flex-1 overflow-hidden bg-gray-50 p-4 sm:min-h-[360px] lg:min-h-0 xl:min-h-[420px]">
           <div className="mx-auto flex h-full max-w-[520px] flex-col items-center justify-center gap-4 py-2">
             <div className="flex w-full flex-wrap items-center justify-between gap-3">
               <div className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm">
@@ -85,13 +85,13 @@ export function VoiceInterviewPanel({
               </div>
             </div>
 
-            <div className="relative flex h-[132px] w-[132px] items-center justify-center rounded-full border border-[#cfece0] bg-white">
+            <div className="relative flex h-[120px] w-[120px] items-center justify-center rounded-full border border-[#cfece0] bg-white sm:h-[132px] sm:w-[132px] xl:h-[160px] xl:w-[160px]">
               <div className={cn('absolute inset-4 rounded-full transition-all duration-200', isRecording ? 'bg-[#2eb886]/20 animate-pulse' : 'bg-[#2eb886]/10')} />
               <button
                 type="button"
                 onClick={handleToggleRecording}
                 disabled={voiceActionDisabled}
-                className={cn('relative z-10 flex h-[68px] w-[68px] items-center justify-center rounded-full text-white shadow-lg transition-all duration-200', voiceActionDisabled ? 'cursor-not-allowed bg-gray-300' : 'bg-[#2eb886] hover:bg-[#24a673]')}
+                className={cn('relative z-10 flex h-[64px] w-[64px] items-center justify-center rounded-full text-white shadow-lg transition-all duration-200 sm:h-[68px] sm:w-[68px] xl:h-[78px] xl:w-[78px]', voiceActionDisabled ? 'cursor-not-allowed bg-gray-300' : 'bg-[#2eb886] hover:bg-[#24a673]')}
                 aria-label={isCompleted ? 'Voice interview ended' : (isAutoLoopActive || isRecording ? 'Pause voice interview' : 'Start voice interview')}
               >
                 {isAutoLoopActive || isRecording ? <Square className="h-6 w-6" /> : <Mic className="h-6 w-6" />}
@@ -160,9 +160,9 @@ export function VoiceInterviewPanel({
           </div>
         ) : null}
 
-        <div className="shrink-0 border-t border-gray-200 bg-white p-4">
+        <div className="sticky bottom-0 z-20 shrink-0 border-t border-gray-200 bg-white p-4 shadow-[0_-8px_20px_rgba(15,23,42,0.08)] lg:static lg:shadow-none">
           {isCompleted ? (
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-sm text-gray-500">Live controls are closed.</p>
               <Button variant="secondary" size="sm" onClick={handleReplayAssistantAudio} disabled={!assistantAudioUrl}>
                 <Volume2 className="mr-2 h-4 w-4" />
@@ -170,14 +170,15 @@ export function VoiceInterviewPanel({
               </Button>
             </div>
           ) : (
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex flex-wrap gap-3">
-                <Button variant="secondary" onClick={onPause} disabled={isNotStarted || isSubmitting}>
+            <div className="space-y-3">
+              <div className="grid grid-cols-3 gap-2">
+                <Button variant="secondary" className="px-3" onClick={onPause} disabled={isNotStarted || isSubmitting}>
                   <CirclePause className="mr-2 h-4 w-4" />
                   {isPaused ? 'Resume' : 'Pause'}
                 </Button>
                 <Button
                   variant="secondary"
+                  className="px-3"
                   onClick={() => {
                     const played = handleReplayAssistantAudio();
                     if (!played) onRepeat();
@@ -185,14 +186,14 @@ export function VoiceInterviewPanel({
                   disabled={isNotStarted || isSubmitting}
                 >
                   <RefreshCcw className="mr-2 h-4 w-4" />
-                  Repeat Question
+                  Repeat
                 </Button>
+                <Button variant="danger" className="px-3" onClick={onEnd} disabled={isSubmitting}>End</Button>
               </div>
-              <div className="flex flex-wrap gap-2">
-                <Button variant="secondary" size="sm" onClick={handleRequestPermission}><Mic className="mr-2 h-4 w-4" />Allow Mic</Button>
-                <Button variant="secondary" size="sm" onClick={handleReplayAssistantAudio} disabled={isNotStarted}><Volume2 className="mr-2 h-4 w-4" />Replay</Button>
-                <Button variant="secondary" size="sm" onClick={handleResetShell}><MicOff className="mr-2 h-4 w-4" />Reset</Button>
-                <Button variant="danger" onClick={onEnd} disabled={isSubmitting}>End Interview</Button>
+              <div className="grid grid-cols-3 gap-2">
+                <Button variant="secondary" size="sm" className="px-2" onClick={handleRequestPermission}><Mic className="mr-1 h-4 w-4 sm:mr-2" />Mic</Button>
+                <Button variant="secondary" size="sm" className="px-2" onClick={handleReplayAssistantAudio} disabled={isNotStarted}><Volume2 className="mr-1 h-4 w-4 sm:mr-2" />Replay</Button>
+                <Button variant="secondary" size="sm" className="px-2" onClick={handleResetShell}><MicOff className="mr-1 h-4 w-4 sm:mr-2" />Reset</Button>
               </div>
             </div>
           )}

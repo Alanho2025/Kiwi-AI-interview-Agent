@@ -84,7 +84,7 @@ export function TokenUsageSummary() {
 
   if (loading) {
     return (
-      <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-[0_2px_10px_rgb(0,0,0,0.02)]">
+      <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-[0_2px_10px_rgb(0,0,0,0.02)] sm:p-6">
         <div className="animate-pulse space-y-3">
           <div className="h-4 w-32 rounded bg-gray-100" />
           <div className="h-3 w-full rounded bg-gray-50" />
@@ -96,7 +96,7 @@ export function TokenUsageSummary() {
 
   if (error) {
     return (
-      <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-[0_2px_10px_rgb(0,0,0,0.02)]">
+      <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-[0_2px_10px_rgb(0,0,0,0.02)] sm:p-6">
         <p className="text-xs text-gray-400">Token usage data unavailable</p>
       </div>
     );
@@ -104,7 +104,7 @@ export function TokenUsageSummary() {
 
   if (!summary || summary.totalTokens === 0) {
     return (
-      <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-[0_2px_10px_rgb(0,0,0,0.02)]">
+      <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-[0_2px_10px_rgb(0,0,0,0.02)] sm:p-6">
         <h3 className="mb-3 text-sm font-bold">AI Token Usage</h3>
         <p className="text-xs text-gray-400">No DeepSeek API calls recorded yet. Start an interview to see usage.</p>
       </div>
@@ -112,7 +112,7 @@ export function TokenUsageSummary() {
   }
 
   return (
-    <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-[0_2px_10px_rgb(0,0,0,0.02)]">
+    <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-[0_2px_10px_rgb(0,0,0,0.02)] sm:p-6">
       <div className="mb-3 flex items-center justify-between">
         <h3 className="text-sm font-bold">AI Token Usage</h3>
         <span className="text-[10px] text-gray-400">DeepSeek</span>

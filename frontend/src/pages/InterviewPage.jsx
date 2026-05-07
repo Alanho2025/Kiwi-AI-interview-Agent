@@ -12,6 +12,7 @@ import { InterviewPageHeader } from '../components/interview/InterviewPageHeader
 import { VoiceInterviewPanel } from '../components/interview/VoiceInterviewPanel.jsx';
 import { InterviewRightRail } from '../components/interview/InterviewRightRail.jsx';
 import { InterviewSidebar } from '../components/interview/InterviewSidebar.jsx';
+import { MobileInterviewDetails } from '../components/interview/MobileInterviewDetails.jsx';
 import { InterviewStatusBanner } from '../components/interview/InterviewStatusBanner.jsx';
 import { EndSessionProgress } from '../components/interview/EndSessionProgress.jsx';
 import { downloadSessionRecording } from '../api/recordingApi.js';
@@ -138,7 +139,7 @@ export function InterviewPage() {
         onViewReport={() => navigate(`/report/${sessionId}`)}
       />
 
-      <main className="flex-1 max-w-[1600px] w-full mx-auto px-4 py-4 sm:px-6 sm:py-6 flex flex-col gap-4 lg:p-6 lg:grid lg:grid-cols-12 lg:gap-6 lg:h-[calc(100vh-64px)] lg:overflow-hidden lg:min-h-0">
+      <main className="flex-1 max-w-[1600px] w-full mx-auto px-4 py-4 sm:px-6 sm:py-6 flex flex-col gap-4 lg:p-6 lg:grid lg:grid-cols-8 xl:grid-cols-12 lg:gap-6 lg:h-[calc(100vh-64px)] lg:overflow-hidden lg:min-h-0">
         <div className="col-span-12">
           <EndSessionProgress progress={endSessionProgress} />
           <InterviewStatusBanner status={pageStatus} onConfirmEnd={handleConfirmEnd} onCancelEnd={dismissStatus} />
@@ -154,7 +155,7 @@ export function InterviewPage() {
           matchedAreas={viewModel.matchedAreas}
         />
 
-        <div id="tour-interview-center" className="lg:col-span-6 flex flex-col min-h-[400px] lg:h-full lg:min-h-0">
+        <div id="tour-interview-center" className="flex min-h-[400px] flex-col lg:col-span-5 lg:h-full lg:min-h-0 xl:col-span-6">
           {isVoiceMode ? (
             <VoiceInterviewPanel
               session={session}
@@ -195,6 +196,23 @@ export function InterviewPage() {
           isCompleted={session.status === 'completed'}
           recordingStatus={voiceShell.recordingStatus}
           onDownloadRecording={handleDownloadRecording}
+        />
+
+        <MobileInterviewDetails
+          transcript={session.transcript}
+          candidateName={session.candidateName}
+          onExport={handleExport}
+          onSubmitBackup={handleReply}
+          backupDisabled={sharedBackupDisabled}
+          isVoiceMode={isVoiceMode}
+          isCompleted={session.status === 'completed'}
+          recordingStatus={voiceShell.recordingStatus}
+          onDownloadRecording={handleDownloadRecording}
+          session={session}
+          levelLabel={viewModel.levelLabel}
+          modeLabel={viewModel.modeLabel}
+          formatLabel={viewModel.modeLabel}
+          matchedAreas={viewModel.matchedAreas}
         />
       </main>
     </div>

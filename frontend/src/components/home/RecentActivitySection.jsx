@@ -19,8 +19,8 @@ import React from 'react';
  */
 export function RecentActivitySection({ historyLoading, recentActivity, completedCount }) {
   return (
-    <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-[0_2px_10px_rgb(0,0,0,0.02)]">
-      <div className="mb-6 flex items-start justify-between">
+    <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-[0_2px_10px_rgb(0,0,0,0.02)] sm:p-6">
+      <div className="mb-6 flex items-start justify-between gap-3">
         <div>
           <h3 className="text-lg font-bold">Recent Activity</h3>
           <p className="text-xs text-gray-400">Latest updates from your sessions</p>
@@ -44,7 +44,7 @@ export function RecentActivitySection({ historyLoading, recentActivity, complete
                   : 'text-orange-500';
 
             return (
-              <div key={activity.id} className="flex items-center justify-between">
+              <div key={activity.id} className="flex items-center justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-3">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-500">
                     <ActivityIcon size={18} />
