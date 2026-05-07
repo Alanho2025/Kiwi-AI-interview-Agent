@@ -213,7 +213,11 @@ export const createDuplexVoiceAgentSession = ({
     }
 
     if (payload.type === 'ping') {
-      sendJson({ type: 'pong', timestamp: new Date().toISOString() });
+      sendJson({
+        type: 'pong',
+        clientTimestamp: payload.clientTimestamp || null,
+        timestamp: new Date().toISOString(),
+      });
       return;
     }
 
