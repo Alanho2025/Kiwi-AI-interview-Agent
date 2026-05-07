@@ -34,6 +34,7 @@ import {
   saveSessionDefaults,
   settingsSummary,
 } from '../utils/sessionSettings.js';
+import { useTour } from '../contexts/TourContext.jsx';
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -45,6 +46,48 @@ export default function HomePage() {
   const [sessionDefaults, setSessionDefaults] = useState(DEFAULT_SESSION_SETTINGS);
   const [settingsSaved, setSettingsSaved] = useState('');
   const [voiceStartWarning, setVoiceStartWarning] = useState('');
+  const { startTour, globalTourStep, startGlobalTour } = useTour();
+
+  const HOME_TOUR_STEPS = [
+    {
+      target: 'body',
+      content: 'Welcome to Kiwi Voice Coach! Let\'s take a quick tour to show you how to crush your next Tech Interview.',
+      placement: 'center',
+      disableBeacon: true,
+    },
+    {
+      target: '#tour-session-history',
+      content: 'All your past sessions are saved here. You can revisit your feedback and track your progress over time.',
+      placement: 'top',
+    },
+    {
+      target: '#tour-start-card',
+      content: 'Here is where you begin. Select Voice or Text mode, and click Start to set up your session. Go ahead and click it!',
+      placement: 'bottom',
+      spotlightClicks: true, // Allow clicking the start button under the spotlight
+    }
+  ];
+
+  const handleStartTour = () => {
+    startGlobalTour();
+  };
+
+  useEffect(() => {
+    // If global tour is on 'home' step, run Home steps
+    if (globalTourStep === 'home') {
+      setTimeout(() => {
+        startTour(HOME_TOUR_STEPS);
+      }, 500);
+    }
+  }, [globalTourStep, startTour]);
+
+  useEffect(() => {
+    // Auto-start for brand new users
+    if (localStorage.getItem('kiwi_tour_completed') !== 'true') {
+      localStorage.setItem('kiwi_tour_completed', 'true');
+      startGlobalTour();
+    }
+  }, [startGlobalTour]);
 
   useEffect(() => {
     let isActive = true;
@@ -166,30 +209,35 @@ export default function HomePage() {
         userInitials={userInitials}
         onAvatarError={() => setIsAvatarBroken(true)}
         onSignOut={handleSignOut}
+        onStartTour={handleStartTour}
       />
 
       <main className="mx-auto mt-6 sm:mt-8 grid max-w-[1600px] grid-cols-1 gap-6 sm:gap-8 px-4 sm:px-6 lg:grid-cols-12 lg:px-8">
         <div className="flex flex-col gap-6 lg:col-span-8">
-          <StartSessionCard
-            summary={summary}
-            showSessionSettings={showSessionSettings}
-            sessionDefaults={sessionDefaults}
-            settingsSaved={settingsSaved}
-            voiceStartWarning={voiceStartWarning}
-            onOpenTextInterview={() => handleStartInterview('text')}
-            onOpenVoiceInterview={() => handleStartInterview('voice')}
-            onToggleSettings={() => setShowSessionSettings((current) => !current)}
-            onChangeDefaults={handleSessionDefaultsChange}
-            onSaveDefaults={handleSaveSessionDefaults}
-            onResetDefaults={handleResetSessionDefaults}
-          />
+          <div id="tour-start-card">
+            <StartSessionCard
+              summary={summary}
+              showSessionSettings={showSessionSettings}
+              sessionDefaults={sessionDefaults}
+              settingsSaved={settingsSaved}
+              voiceStartWarning={voiceStartWarning}
+              onOpenTextInterview={() => handleStartInterview('text')}
+              onOpenVoiceInterview={() => handleStartInterview('voice')}
+              onToggleSettings={() => setShowSessionSettings((current) => !current)}
+              onChangeDefaults={handleSessionDefaultsChange}
+              onSaveDefaults={handleSaveSessionDefaults}
+              onResetDefaults={handleResetSessionDefaults}
+            />
+          </div>
           <StatsSection stats={stats} />
-          <SessionHistorySection
-            historyLoading={historyLoading}
-            sessionHistoryRows={sessionHistoryRows}
-            onOpenSession={handleOpenSession}
-            onDeleteSession={handleDeleteSession}
-          />
+          <div id="tour-session-history">
+            <SessionHistorySection
+              historyLoading={historyLoading}
+              sessionHistoryRows={sessionHistoryRows}
+              onOpenSession={handleOpenSession}
+              onDeleteSession={handleDeleteSession}
+            />
+          </div>
         </div>
 
         <div className="flex flex-col gap-6 lg:col-span-4">
