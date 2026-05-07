@@ -18,7 +18,7 @@ import { RagBenchmarkCase } from '../db/models/ragBenchmarkCaseModel.js';
 import { NormalizedCvProfile } from '../db/models/normalizedCvProfileModel.js';
 import { NormalizedJdRubric } from '../db/models/normalizedJdRubricModel.js';
 import { EvaluationGroundTruth } from '../db/models/evaluationGroundTruthModel.js';
-import { embedBatch } from '../services/embeddingService.js';
+import { EMBEDDING_DIMENSION, EMBEDDING_MODEL, embedBatch } from '../services/embeddingService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -75,14 +75,14 @@ const upsertMany = async (Model, items, keyField, label = 'Progress') => {
   for (let i = 0; i < total; i += 1) {
     const item = items[i];
     
-    // 1. Insert to Mongo (Legacy)
+    // 1. Insert to Mongo legacy collection.
     await Model.findOneAndUpdate(
       { [keyField]: item[keyField] },
       item,
       { upsert: true, setDefaultsOnInsert: true }
     );
     
-    // 2. Insert to Postgres Vector DB if it's DocumentChunk
+    // 2. Insert DocumentChunk rows into PostgreSQL pgvector, which is the runtime retrieval store.
     if (Model === DocumentChunk) {
       const vectorString = `[${(item.embedding || []).join(',')}]`;
       await postgresQuery(
@@ -94,7 +94,11 @@ const upsertMany = async (Model, items, keyField, label = 'Progress') => {
           item.sourceType || 'knowledge',
           item.metadata?.chunkIndex || 0,
           item.text || item.normalizedText || '',
-          JSON.stringify(item.metadata || {}),
+          JSON.stringify({
+            ...(item.metadata || {}),
+            embeddingModel: EMBEDDING_MODEL,
+            embeddingDimension: EMBEDDING_DIMENSION,
+          }),
           vectorString
         ]
       );
@@ -133,6 +137,11 @@ const run = async ({ inputDir = defaultInputDir } = {}) => {
   const hydratedChunks = chunks.map((item, index) => ({
     ...item,
     embedding: chunkEmbeddings[index] || [],
+    metadata: {
+      ...(item.metadata || {}),
+      embeddingModel: EMBEDDING_MODEL,
+      embeddingDimension: EMBEDDING_DIMENSION,
+    },
   }));
 
   await upsertMany(

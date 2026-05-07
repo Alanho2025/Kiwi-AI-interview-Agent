@@ -7,6 +7,7 @@
  * Maintenance notes:
  * - Keep this file focused on one layer of responsibility.
  * - Prefer composition and small helpers over repeated inline logic.
+ * - This collection is a legacy mirror of RAG chunks. Runtime vector retrieval uses PostgreSQL pgvector.
  */
 
 import mongoose from 'mongoose';
