@@ -17,8 +17,6 @@ export const buildSocketUrl = ({ sessionId, language = DEFAULT_LANGUAGE, sampleR
   const baseUrl = buildApiWebSocketUrl(`interview/${encodedSessionId}/voice/live`);
   baseUrl.searchParams.set('language', language);
   baseUrl.searchParams.set('sampleRate', String(sampleRate));
-  const token = window.localStorage?.getItem?.('authToken') || window.localStorage?.getItem?.('kiwi_auth_token') || '';
-  if (token) baseUrl.searchParams.set('token', token);
   return baseUrl.toString();
 };
 

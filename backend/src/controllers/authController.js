@@ -11,9 +11,10 @@
 
 import dotenv from 'dotenv';
 import { OAuth2Client } from 'google-auth-library';
-import jwt from 'jsonwebtoken';
 import dns from 'dns';
 import * as authService from '../services/authService.js';
+import { generateAuthToken } from '../services/authTokenService.js';
+import { setCsrfCookie } from '../middleware/csrfMiddleware.js';
 
 dotenv.config();
 dns.setServers(['8.8.8.8', '8.8.4.4']);
@@ -62,10 +63,7 @@ const errorResponse = (res, msg, code = 400) => {
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-const generateToken = (id) => {
-  const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_for_dev';
-  return jwt.sign({ id }, JWT_SECRET, { expiresIn: '30d' });
-};
+const generateToken = (id) => generateAuthToken(id);
 
 /**
  * Purpose: Execute the main responsibility for serializeUser.
@@ -119,6 +117,11 @@ export const googleClientConfig = (_req, res) => {
   );
 };
 
+export const csrfToken = (_req, res) => {
+  const token = setCsrfCookie(res);
+  return successResponse(res, { csrfToken: token }, 'CSRF token issued');
+};
+
 /**
  * Purpose: Execute the main responsibility for googleLogin.
  * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
@@ -127,10 +130,18 @@ export const googleClientConfig = (_req, res) => {
  */
 export const googleLogin = async (req, res) => {
   try {
-    const { idToken } = req.body;
+    const {
+      idToken,
+      termsAccepted = false,
+      privacyPolicyVersion = authService.CURRENT_PRIVACY_POLICY_VERSION,
+    } = req.body;
 
     if (!idToken) {
       return errorResponse(res, 'Google ID Token is required');
+    }
+
+    if (!termsAccepted) {
+      return errorResponse(res, 'Privacy terms must be accepted before login', 400);
     }
 
     if (!process.env.GOOGLE_CLIENT_ID) {
@@ -149,7 +160,13 @@ export const googleLogin = async (req, res) => {
       return errorResponse(res, 'Google account email is missing', 401);
     }
 
-    const user = await authService.findOrCreateGoogleUser(email, name, sub);
+    const user = await authService.findOrCreateGoogleUser({
+      email,
+      name,
+      googleSub: sub,
+      termsAccepted,
+      policyVersion: privacyPolicyVersion,
+    });
     const token = generateToken(user.id);
 
     res.cookie('auth_token', token, cookieOptions);
@@ -158,7 +175,6 @@ export const googleLogin = async (req, res) => {
       res,
       {
         user: serializeUser(user),
-        token
       },
       'Google login successful'
     );

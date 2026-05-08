@@ -24,8 +24,6 @@ export const buildDuplexSocketUrl = ({
   baseUrl.searchParams.set('language', language);
   baseUrl.searchParams.set('sampleRate', String(sampleRate));
   baseUrl.searchParams.set('voiceName', voiceName);
-  const token = window.localStorage?.getItem?.('authToken') || window.localStorage?.getItem?.('kiwi_auth_token') || '';
-  if (token) baseUrl.searchParams.set('token', token);
   return baseUrl.toString();
 };
 

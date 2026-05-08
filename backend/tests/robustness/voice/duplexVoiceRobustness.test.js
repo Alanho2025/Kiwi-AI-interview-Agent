@@ -38,6 +38,18 @@ describe('duplex voice robustness', () => {
     expect(context.auth).toEqual(expect.objectContaining({ id: 'user-123' }));
   });
 
+  it('rejects query-string JWTs during WebSocket upgrade context building', () => {
+    process.env.JWT_SECRET = 'test-secret';
+    const token = jwt.sign({ id: 'user-123' }, process.env.JWT_SECRET);
+
+    const context = buildDuplexSocketContext({
+      url: `/api/interview/session-1/voice/duplex?token=${encodeURIComponent(token)}`,
+      headers: { host: 'localhost:3000' },
+    });
+
+    expect(context.auth).toBeNull();
+  });
+
   it('does not send JSON to closed sockets and ignores malformed socket messages', () => {
     expect(safeJsonParse('{bad')).toBeNull();
     const closedSocket = { readyState: 3, send: vi.fn() };

@@ -12,6 +12,7 @@
 import { SessionAnalysis } from '../db/models/sessionAnalysisModel.js';
 import { InterviewPlan } from '../db/models/interviewPlanModel.js';
 import { SessionTranscript } from '../db/models/sessionTranscriptModel.js';
+import { redactSensitiveText } from '../services/privacyRedactionService.js';
 
 /**
  * Purpose: Execute the main responsibility for retentionDate.
@@ -168,7 +169,8 @@ export const appendTranscriptTurnDocument = async (sessionId, turn) => {
   transcript.turns.push(nextTurn);
   transcript.lastTurnOrder = transcript.turns.length;
   transcript.fullTranscript = buildFullTranscript(transcript.turns);
-  transcript.redactedTranscript = transcript.fullTranscript;
+  transcript.redactedTranscript = redactSensitiveText(transcript.fullTranscript);
+  transcript.redactionStatus = transcript.redactedTranscript === transcript.fullTranscript ? 'no_sensitive_match' : 'redacted';
   await transcript.save();
 
   return {

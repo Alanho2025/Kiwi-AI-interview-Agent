@@ -9,7 +9,7 @@
  * - Prefer composition and small helpers over repeated inline logic.
  */
 
-import jwt from 'jsonwebtoken';
+import { verifyAuthToken } from '../services/authTokenService.js';
 
 /**
  * Purpose: Execute the main responsibility for parseCookies.
@@ -41,27 +41,15 @@ const parseCookies = (cookieHeader = '') =>
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
 const verifyToken = (token) => {
-  const secret = process.env.JWT_SECRET || 'fallback_secret_for_dev';
-  return jwt.verify(token, secret);
+  return verifyAuthToken(token);
 };
 
 /**
- * Extract a Bearer token from the Authorization header.
- */
-const getBearerToken = (authorizationHeader = '') => {
-  if (!authorizationHeader.startsWith('Bearer ')) {
-    return '';
-  }
-
-  return authorizationHeader.slice(7).trim();
-};
-
-/**
- * Resolve auth token from cookie first, then Authorization header fallback.
+ * Resolve auth token from the HTTP-only session cookie.
  */
 const getRequestAuthToken = (req) => {
   const cookies = parseCookies(req.headers.cookie || '');
-  return cookies.auth_token || getBearerToken(req.headers.authorization || '');
+  return cookies.auth_token || '';
 };
 
 /**

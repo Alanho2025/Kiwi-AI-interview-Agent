@@ -7,9 +7,14 @@
  */
 
 import { WebSocketServer } from 'ws';
-import jwt from 'jsonwebtoken';
 import { createRealtimeSpeechSession } from '../services/voice/realtimeSpeechSessionService.js';
 import { logger } from '../utils/logger.js';
+import {
+  createWebSocketUpgradeLimiter,
+  isAllowedWebSocketOrigin,
+  parseCookieAuth,
+  rejectUpgrade,
+} from './webSocketSecurity.js';
 
 const LIVE_VOICE_PATH_PATTERN = /^\/api\/interview\/([^/]+)\/voice\/live$/;
 const DEFAULT_LANGUAGE = 'en-NZ';
@@ -24,14 +29,9 @@ export const sendJson = (socket, payload) => {
   socket.send(JSON.stringify(payload));
 };
 
-const parseAuthToken = (requestUrl) => {
-  const token = requestUrl.searchParams.get('token') || '';
-  if (!token || !process.env.JWT_SECRET) return null;
-  try {
-    return jwt.verify(token, process.env.JWT_SECRET);
-  } catch {
-    return null;
-  }
+const parseAuthToken = (requestUrl, request = {}) => {
+  if (requestUrl.searchParams.has('token')) return null;
+  return parseCookieAuth(request);
 };
 
 export const buildSocketContext = (request) => {
@@ -44,16 +44,25 @@ export const buildSocketContext = (request) => {
     sessionId: match[1],
     language,
     sampleRate: Number.isFinite(sampleRate) ? sampleRate : DEFAULT_SAMPLE_RATE,
-    auth: parseAuthToken(requestUrl),
+    auth: parseAuthToken(requestUrl, request),
   };
 };
 
 export function attachRealtimeVoiceSocketServer(server) {
   const wss = new WebSocketServer({ noServer: true });
+  const allowUpgrade = createWebSocketUpgradeLimiter({ windowMs: 60 * 1000, max: 30 });
 
   server.on('upgrade', (request, socket, head) => {
     const context = buildSocketContext(request);
     if (!context) return;
+    if (!allowUpgrade(request)) {
+      rejectUpgrade(socket, 429, 'Too Many Requests');
+      return;
+    }
+    if (!isAllowedWebSocketOrigin(request)) {
+      rejectUpgrade(socket, 403, 'Forbidden');
+      return;
+    }
 
     wss.handleUpgrade(request, socket, head, (ws) => {
       wss.emit('connection', ws, request, context);
@@ -67,6 +76,12 @@ export function attachRealtimeVoiceSocketServer(server) {
     const safeSend = (payload) => sendJson(socket, payload);
 
     try {
+      if (!context.auth?.id) {
+        safeSend({ type: 'speech_error', errorDetails: 'Authentication required for realtime voice.' });
+        socket.close(1008, 'unauthorized');
+        return;
+      }
+
       speechSession = createRealtimeSpeechSession({
         language: context.language,
         sampleRate: context.sampleRate,
