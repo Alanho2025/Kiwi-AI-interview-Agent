@@ -21,20 +21,31 @@ export const streamAssistantSpeech = async ({
   if (!cleanText || !sendJson) return null;
   if (speechToken && !bargeInController?.isTokenActive?.(speechToken)) return null;
 
-  const synthesis = await synthesizeSpeech({ text: cleanText, voiceName });
-  if (speechToken && !bargeInController?.isTokenActive?.(speechToken)) return null;
+  try {
+    const synthesis = await synthesizeSpeech({ text: cleanText, voiceName });
+    if (speechToken && !bargeInController?.isTokenActive?.(speechToken)) return null;
 
-  const payload = {
-    type: 'tts_audio_chunk',
-    tool: AGENT_TOOL_NAMES.SYNTHESIZE_ASSISTANT_SPEECH,
-    base64: synthesis.audioBuffer.toString('base64'),
-    contentType: synthesis.contentType,
-    voiceName: synthesis.voiceName,
-    outputFormat: synthesis.outputFormat,
-    index,
-    text: cleanText,
-    timestamp: new Date().toISOString(),
-  };
-  sendJson(payload);
-  return payload;
+    const payload = {
+      type: 'tts_audio_chunk',
+      tool: AGENT_TOOL_NAMES.SYNTHESIZE_ASSISTANT_SPEECH,
+      base64: synthesis.audioBuffer.toString('base64'),
+      contentType: synthesis.contentType,
+      voiceName: synthesis.voiceName,
+      outputFormat: synthesis.outputFormat,
+      index,
+      text: cleanText,
+      timestamp: new Date().toISOString(),
+    };
+    sendJson(payload);
+    return payload;
+  } catch (error) {
+    sendJson?.({
+      type: 'error',
+      tool: AGENT_TOOL_NAMES.SYNTHESIZE_ASSISTANT_SPEECH,
+      code: 'TTS_STREAM_FAILED',
+      message: error.message || 'TTS Synthesis failed',
+      timestamp: new Date().toISOString(),
+    });
+    throw error;
+  }
 };
