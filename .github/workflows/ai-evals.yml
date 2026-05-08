@@ -1,0 +1,40 @@
+name: AI Evaluations
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 15 * * *"
+
+concurrency:
+  group: ai-evals-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  backend-evals:
+    name: Backend AI evals
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run AI evaluations
+        run: npm run eval:all
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          PG_CONNECTION_STRING: ${{ secrets.PG_CONNECTION_STRING }}
