@@ -146,12 +146,14 @@ export function useDuplexVoiceSocket({
         return;
       }
       if (payload.type === 'error' || payload.type === 'speech_error') {
+        console.error('[Voice Error] Received error payload from backend:', payload);
         setSocketError(payload.message || payload.errorDetails || payload.reason || 'Duplex voice failed.');
         setSocketState('error');
       }
     };
 
-    socket.onerror = () => {
+    socket.onerror = (event) => {
+      console.error('[Voice Error] WebSocket native onerror triggered:', event);
       setSocketError('Duplex voice socket connection failed.');
       setSocketState('error');
       reject(new Error('Duplex voice socket connection failed.'));
