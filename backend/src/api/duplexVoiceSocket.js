@@ -67,6 +67,21 @@ export function attachDuplexVoiceSocketServer(server, dependencies = {}) {
   const wss = new WebSocketServer({ noServer: true });
   const allowUpgrade = createWebSocketUpgradeLimiter({ windowMs: 60 * 1000, max: 30 });
 
+  const pingInterval = setInterval(() => {
+    wss.clients.forEach((ws) => {
+      if (ws.isAlive === false) {
+        logger.warn('Duplex voice socket dead, terminating', { sessionId: ws.kiwiSessionId });
+        return ws.terminate();
+      }
+      ws.isAlive = false;
+      ws.ping();
+    });
+  }, 30000);
+
+  wss.on('close', () => {
+    clearInterval(pingInterval);
+  });
+
   server.on('upgrade', (request, socket, head) => {
     const context = buildDuplexSocketContext(request);
     if (!context) return;
@@ -85,6 +100,12 @@ export function attachDuplexVoiceSocketServer(server, dependencies = {}) {
   });
 
   wss.on('connection', async (socket, request, context) => {
+    socket.isAlive = true;
+    socket.kiwiSessionId = context.sessionId;
+    socket.on('pong', () => {
+      socket.isAlive = true;
+    });
+
     let duplexSession = null;
     const safeSend = (payload) => sendJson(socket, payload);
 
