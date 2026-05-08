@@ -26,10 +26,10 @@ export function TextBackupCard({ onSubmit, disabled }) {
 
   return (
     <Card>
-      <div className="p-5 flex justify-between items-center cursor-pointer" onClick={() => setExpanded(!expanded)}>
+      <div className="flex cursor-pointer items-start justify-between gap-3 p-5" onClick={() => setExpanded(!expanded)}>
         <div>
           <h3 className="text-sm font-semibold text-gray-900">Text Reply</h3>
-          <p className="text-xs text-gray-500">Use this area to draft or save backup text</p>
+          <p className="mt-1 text-xs leading-5 text-gray-500">Use this only when voice input is unavailable or you need to submit a backup answer.</p>
         </div>
         <Button variant="secondary" size="sm">
           {expanded ? 'Collapse' : 'Expand'}

@@ -10,6 +10,7 @@
  */
 
 import { cn } from '../../utils/formatters.js';
+import { ChevronDown } from 'lucide-react';
 
 /**
  * Purpose: Execute the main responsibility for Select.
@@ -19,18 +20,21 @@ import { cn } from '../../utils/formatters.js';
  */
 export function Select({ className, options = [], ...props }) {
   return (
-    <select
-      className={cn(
-        "flex w-full rounded-xl border border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2eb886] focus:border-transparent appearance-none",
-        className
-      )}
-      {...props}
-    >
-      {options.map((opt) => (
-        <option key={opt.value} value={opt.value}>
-          {opt.label}
-        </option>
-      ))}
-    </select>
+    <div className="relative">
+      <select
+        className={cn(
+          "flex w-full appearance-none rounded-xl border border-gray-300 bg-white px-4 py-3 pr-10 text-sm text-gray-900 shadow-sm focus:border-[#2eb886] focus:outline-none focus:ring-2 focus:ring-[#2eb886]/20 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:opacity-70",
+          className
+        )}
+        {...props}
+      >
+        {options.map((opt) => (
+          <option key={opt.value} value={opt.value}>
+            {opt.label}
+          </option>
+        ))}
+      </select>
+      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+    </div>
   );
 }

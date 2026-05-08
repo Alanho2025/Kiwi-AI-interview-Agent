@@ -19,16 +19,16 @@ import { cn } from '../../utils/formatters.js';
  */
 export function Checkbox({ className, label, ...props }) {
   return (
-    <label className="flex items-center space-x-3 cursor-pointer">
+    <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm shadow-sm transition hover:border-gray-300">
       <input
         type="checkbox"
         className={cn(
-          "h-5 w-5 rounded border-gray-300 text-[#2eb886] focus:ring-[#2eb886] transition duration-150 ease-in-out cursor-pointer",
+          "mt-0.5 h-4 w-4 cursor-pointer rounded border-gray-300 text-[#2eb886] transition duration-150 ease-in-out focus:ring-[#2eb886]",
           className
         )}
         {...props}
       />
-      {label && <span className="text-sm text-gray-700">{label}</span>}
+      {label && <span className="leading-5 text-gray-700">{label}</span>}
     </label>
   );
 }

@@ -10,6 +10,7 @@
  */
 
 import { Button } from '../common/Button.jsx';
+import { AlertTriangle, CheckCircle2, Circle } from 'lucide-react';
 
 /**
  * Purpose: Execute the main responsibility for AnalyzeActionsCard.
@@ -71,8 +72,55 @@ export function AnalyzeActionsCard({
     return 'Your interview plan will use the selected CV, reviewed JD, delivery mode, and session setup above.';
   })();
 
+  const workflowSteps = [
+    {
+      label: 'CV selected',
+      detail: selectedCV ? selectedCV.name : 'Upload or choose a recent CV.',
+      complete: Boolean(selectedCV),
+      blocked: false,
+    },
+    {
+      label: 'CV parse reviewed',
+      detail: isCvHumanVerified ? 'Reviewed profile is ready for matching.' : 'Check the parsed fields and mark the CV as reviewed.',
+      complete: isCvHumanVerified,
+      blocked: Boolean(selectedCV && !isCvHumanVerified),
+    },
+    {
+      label: 'JD summary reviewed',
+      detail: canUseJDSummary ? 'Reviewed JD summary is ready.' : hasRawJD ? 'Summarise and review the current JD before matching.' : 'Paste the target job description.',
+      complete: Boolean(canUseJDSummary),
+      blocked: Boolean(hasRawJD && (!hasCurrentJDSummary || requiresJdHumanReview)),
+    },
+    {
+      label: 'Match analysis',
+      detail: generatedSessionId ? 'Interview plan is ready.' : 'Generate the plan after the inputs are reviewed.',
+      complete: Boolean(generatedSessionId),
+      blocked: false,
+    },
+  ];
+
+  const StepIcon = ({ complete, blocked }) => {
+    if (complete) return <CheckCircle2 className="h-4 w-4 text-emerald-600" />;
+    if (blocked) return <AlertTriangle className="h-4 w-4 text-amber-600" />;
+    return <Circle className="h-4 w-4 text-gray-300" />;
+  };
+
   return (
-    <div className="sticky bottom-0 z-20 -mx-4 flex flex-col gap-3 border-t border-gray-200 bg-white/95 p-4 shadow-[0_-8px_20px_rgba(15,23,42,0.08)] backdrop-blur sm:static sm:mx-0 sm:rounded-2xl sm:border sm:p-6 sm:shadow-sm">
+    <div className="sticky bottom-0 z-20 -mx-4 flex flex-col gap-4 border-t border-gray-200 bg-white/95 p-4 shadow-[0_-8px_20px_rgba(15,23,42,0.08)] backdrop-blur sm:static sm:mx-0 sm:rounded-2xl sm:border sm:p-6 sm:shadow-sm">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Setup checklist</p>
+        <div className="mt-3 space-y-2">
+          {workflowSteps.map((step) => (
+            <div key={step.label} className="flex gap-3 rounded-xl border border-gray-100 bg-gray-50 px-3 py-3">
+              <StepIcon complete={step.complete} blocked={step.blocked} />
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-gray-900">{step.label}</p>
+                <p className="mt-1 truncate text-xs text-gray-600">{step.detail}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
       {analysisStatus === 'success' && generatedSessionId ? (
         <Button
           variant="primary"
@@ -94,7 +142,7 @@ export function AnalyzeActionsCard({
           {buttonLabel}
         </Button>
       )}
-      <p className="text-xs text-gray-500 text-center mt-2">
+      <p className="text-center text-xs leading-5 text-gray-600">
         {helperText}
       </p>
     </div>
