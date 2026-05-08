@@ -65,8 +65,8 @@ export const validateAnalyzeOutput = (payload = {}) => {
     sourceSnapshots: ensureArray(safePayload.sourceSnapshots),
     matchingDetails: isObject(safePayload.matchingDetails) ? safePayload.matchingDetails : {},
     legacy: {
-      interviewFocus: ensureArray(safePayload.interviewFocus),
-      planPreview: ensureString(safePayload.planPreview),
+      interviewFocus: ensureArray(safePayload.interviewFocus || safePayload.legacy?.interviewFocus),
+      planPreview: ensureString(safePayload.planPreview || safePayload.legacy?.planPreview),
     },
   });
 };

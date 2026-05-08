@@ -33,10 +33,12 @@ export const buildAnalyzeResult = ({
   questionPlanHints,
   transitionProfile = {},
   cvEvidenceProfile = {},
+  cvAnalysis = {},
 }) => {
   const confidence = calculateConfidence({ parsedCvProfile, macroScores, microScores, requirementChecks, cvEvidenceProfile });
   const decision = deriveDecision({ overallScore: scoreBreakdown.overallScore, confidence, hardGateFailed: hasHardGateFailure(requirementChecks) });
   const interviewFocus = unique([
+    ...(questionPlanHints.priorityTopics || []).slice(0, 3),
     ...questionPlanHints.mustProbeSkills.slice(0, 3),
     ...questionPlanHints.mustProbeExperience.slice(0, 2),
     ...questionPlanHints.mustProbeBehavioural.slice(0, 2),
@@ -55,6 +57,7 @@ export const buildAnalyzeResult = ({
     requirementScore: scoreBreakdown.requirementScore,
     questionPlanHints,
     cvEvidenceProfile,
+    cvAnalysis,
     sectionBreakdown: {
       projects: (cvEvidenceProfile.sections?.projects || []).length,
       experienceEntries: (cvEvidenceProfile.sections?.experience || []).length,
@@ -82,6 +85,7 @@ export const buildAnalyzeResult = ({
       parsedCvProfile: {
         ...parsedCvProfile,
         evidenceProfile: cvEvidenceProfile,
+        cvAnalysis,
       },
       parsedJdProfile: rubric,
       macroScores,

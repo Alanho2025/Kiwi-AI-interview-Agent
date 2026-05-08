@@ -31,6 +31,28 @@ const truncate = (value = '', maxLength = 260) => {
   return `${text.slice(0, maxLength - 1).trim()}…`;
 };
 
+const buildFallbackAnalysis = (reviewProfile = {}) => {
+  const strongestEvidence = [
+    reviewProfile.experienceEvidence && { label: 'Experience evidence', text: truncate(reviewProfile.experienceEvidence) },
+    reviewProfile.projectEvidence && { label: 'Project evidence', text: truncate(reviewProfile.projectEvidence) },
+    reviewProfile.educationCredentials && { label: 'Education and credentials', text: truncate(reviewProfile.educationCredentials) },
+  ].filter(Boolean);
+
+  return {
+    candidateIntro: reviewProfile.candidateSummary || 'Review the parsed CV fields before matching.',
+    careerDirection: reviewProfile.coreSkills?.length ? `Likely direction: ${reviewProfile.coreSkills.slice(0, 4).join(', ')}` : '',
+    strongestEvidence,
+    jdRelevantEvidence: [],
+    transferableCompetencies: reviewProfile.keyCompetencies || [],
+    weakOrMissingEvidence: strongestEvidence.length ? [] : ['No strong CV evidence was extracted yet.'],
+    suggestedInterviewHooks: [
+      'self introduction and career direction',
+      ...(reviewProfile.coreSkills || []).slice(0, 4),
+      ...(reviewProfile.keyCompetencies || []).slice(0, 3),
+    ],
+  };
+};
+
 export const buildCvReviewFormModel = (selectedCV = {}) => {
   const profile = selectedCV.profile || {};
   const display = selectedCV.display || {};
@@ -61,11 +83,13 @@ export const buildCvReviewViewModel = (selectedCV = {}) => {
   const parseConfidence = Number(selectedCV.parseConfidence ?? profile.confidence ?? display.parseConfidence ?? 0);
   const warnings = selectedCV.parseWarnings || selectedCV.warnings || display.warnings || profile.warnings || [];
   const reviewProfile = buildCvReviewFormModel(selectedCV);
+  const cvAnalysis = profile.cvAnalysis || buildFallbackAnalysis(reviewProfile);
 
   return {
     confidence: Number.isFinite(parseConfidence) ? parseConfidence : 0,
     warnings: Array.isArray(warnings) ? warnings : [],
     reviewProfile,
+    cvAnalysis,
     fields: CV_REVIEW_FIELDS
       .map((field) => ({
         label: field.label,
@@ -73,6 +97,6 @@ export const buildCvReviewViewModel = (selectedCV = {}) => {
           ? reviewProfile[field.key].join(', ')
           : reviewProfile[field.key],
       }))
-      .map((field) => ({ ...field, value: truncate(field.value) }))
+      .map((field) => ({ ...field, value: truncate(field.value) })),
   };
 };

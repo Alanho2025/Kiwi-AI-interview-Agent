@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { buildInterviewEnvironment } from '../../../src/services/aiControl/interviewEnvironmentService.js';
 import { compareCvToJobDescriptionWithSafeguard } from '../../../src/services/match/guardedMatchService.js';
 
 const cvText = `Ava Chen
@@ -84,5 +85,38 @@ describe('guarded match human review override', () => {
       humanReviewOverrideApplied: true,
       originalBlockMatch: true,
     });
+  });
+
+  it('carries CV analysis and JD-relevant hooks into interview context', async () => {
+    const reviewedRubric = {
+      ...blockedJdRubric,
+      metadata: {
+        ...blockedJdRubric.metadata,
+        humanReviewStatus: 'verified',
+        inputTrustLevel: 'human_reviewed',
+      },
+    };
+
+    const result = await compareCvToJobDescriptionWithSafeguard(cvText, 'Data Engineer JD', reviewedRubric);
+    const cvAnalysis = result.parsedCvProfile.cvAnalysis;
+
+    expect(cvAnalysis.candidateIntro).toMatch(/Data|Python|SQL/i);
+    expect(cvAnalysis.jdRelevantEvidence.map((item) => item.requirement)).toEqual(expect.arrayContaining(['Python', 'SQL']));
+    expect(result.matchingDetails.questionPlanHints.priorityTopics).toEqual(expect.arrayContaining(['Python', 'SQL']));
+    expect(result.matchingDetails.questionPlanHints.followUpTargets).toEqual(expect.arrayContaining(['self introduction and career direction']));
+
+    const environment = buildInterviewEnvironment({
+      session: {
+        id: 'session_1',
+        userId: 'user_1',
+        candidateName: 'Ava Chen',
+        analysisResult: result,
+        transcript: [],
+      },
+    });
+
+    expect(environment.candidateContext.candidateIntro).toBe(cvAnalysis.candidateIntro);
+    expect(environment.candidateContext.jdRelevantEvidence.length).toBeGreaterThan(0);
+    expect(environment.candidateContext.suggestedInterviewHooks).toEqual(expect.arrayContaining(['self introduction and career direction']));
   });
 });

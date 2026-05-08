@@ -1,5 +1,6 @@
 import { DocumentContent } from '../../db/models/documentContentModel.js';
 import { badRequest } from '../../utils/appError.js';
+import { buildCvAnalysis } from './cvAnalysisBuilderService.js';
 import { buildCvDisplayView } from './cvDisplayViewService.js';
 import { buildCvEvidenceProfile } from './cvEvidenceProfileBuilder.js';
 import { getOwnedCvDocumentOrThrow, getOwnedCvRecordOrThrow } from './cvOwnershipService.js';
@@ -101,10 +102,13 @@ export const buildReviewedCvProfile = ({ baseProfile = {}, reviewProfile = {}, r
   };
   const reviewedText = buildReviewedCvText(normalizedReview);
 
+  const evidenceProfile = buildCvEvidenceProfile(reviewedProfile, reviewedText);
+
   return {
     ...reviewedProfile,
     reviewedText,
-    evidenceProfile: buildCvEvidenceProfile(reviewedProfile, reviewedText),
+    evidenceProfile,
+    cvAnalysis: buildCvAnalysis({ cvProfile: reviewedProfile, evidenceProfile, normalizedText: reviewedText }),
   };
 };
 

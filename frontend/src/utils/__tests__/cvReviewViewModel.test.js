@@ -20,6 +20,8 @@ describe('buildCvReviewViewModel', () => {
 
     expect(viewModel.confidence).toBe(0.72);
     expect(viewModel.warnings).toHaveLength(1);
+    expect(viewModel.cvAnalysis.candidateIntro).toMatch(/Data analyst/);
+    expect(viewModel.cvAnalysis.strongestEvidence.map((item) => item.label)).toEqual(expect.arrayContaining(['Experience evidence', 'Project evidence']));
     expect(viewModel.fields.map((field) => field.label)).toEqual([
       'Candidate summary',
       'Core skills',
@@ -54,5 +56,21 @@ describe('buildCvReviewViewModel', () => {
     });
     expect(payload.coreSkills).toEqual(['React', 'Python']);
     expect(payload.candidateSummary).toBe('Frontend engineer focused on React apps.');
+  });
+
+  it('uses backend CV analysis when available', () => {
+    const viewModel = buildCvReviewViewModel({
+      profile: {
+        cvAnalysis: {
+          candidateIntro: 'Introduce around AI engineering transition.',
+          careerDirection: 'AI software direction',
+          strongestEvidence: [{ label: 'Project', text: 'Built AI app.' }],
+          suggestedInterviewHooks: ['AI app'],
+        },
+      },
+    });
+
+    expect(viewModel.cvAnalysis.candidateIntro).toBe('Introduce around AI engineering transition.');
+    expect(viewModel.cvAnalysis.strongestEvidence[0].text).toBe('Built AI app.');
   });
 });
