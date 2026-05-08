@@ -11,11 +11,13 @@
 
 import { extractCvSections } from './cvSectionParser.js';
 import { buildCvEvidenceProfile } from './cvEvidenceProfileBuilder.js';
+import { buildCvAnalysis } from './cvAnalysisBuilderService.js';
 
 const COMMON_SKILLS = [
-  'python', 'java', 'javascript', 'typescript', 'react', 'node', 'express', 'sql', 'postgresql', 'mongodb',
-  'aws', 'azure', 'docker', 'git', 'html', 'css', 'tailwind', 'machine learning', 'data analysis', 'power bi',
-  'excel', 'api', 'rest', 'agile', 'scrum', 'testing', 'pytest', 'jest', 'pandas', 'numpy', 'spark',
+  'c#', '.net', 'python', 'java', 'javascript', 'typescript', 'react', 'node', 'node.js', 'express', 'sql', 'postgresql', 'mongodb',
+  'aws', 'azure', 'docker', 'kubernetes', 'linux', 'networking', 'troubleshooting', 'git', 'html', 'css', 'tailwind',
+  'machine learning', 'data analysis', 'power bi', 'excel', 'reporting', 'api', 'rest', 'ci/cd', 'agile', 'scrum',
+  'testing', 'pytest', 'jest', 'pandas', 'numpy', 'spark',
 ];
 
 const normalizeText = (text = '') => String(text || '').replace(/\s+/g, ' ').trim();
@@ -40,9 +42,16 @@ const extractContactInfo = (text = '') => ({
   location: text.match(/\b(?:Auckland|Wellington|Christchurch|Hamilton|New Zealand|NZ|Sydney|Melbourne|Taiwan)\b/i)?.[0] || '',
 });
 
+const escapeRegex = (value = '') => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const skillPattern = (skill = '') => {
+  if (skill === 'node.js') return /(^|[^a-z0-9+#.])node(?:\.js)?([^a-z0-9+#.]|$)/i;
+  if (skill === 'api') return /(^|[^a-z0-9+#.])apis?([^a-z0-9+#.]|$)/i;
+  return new RegExp(`(^|[^a-z0-9+#.])${escapeRegex(skill)}([^a-z0-9+#.]|$)`, 'i');
+};
+
 const extractSkillItems = (text = '') => {
-  const lowerText = text.toLowerCase();
-  return COMMON_SKILLS.filter((skill) => lowerText.includes(skill)).map((skill) => ({
+  return COMMON_SKILLS.filter((skill) => skillPattern(skill).test(text)).map((skill) => ({
     label: skill,
     sourceType: 'keyword_match',
     confidence: 0.7,
@@ -107,8 +116,11 @@ export const buildCvProfile = (text = '') => {
     confidence: skillItems.length ? 0.72 : 0.48,
   };
 
+  const evidenceProfile = buildCvEvidenceProfile(profile, normalizedText);
+
   return {
     ...profile,
-    evidenceProfile: buildCvEvidenceProfile(profile, normalizedText),
+    evidenceProfile,
+    cvAnalysis: buildCvAnalysis({ cvProfile: profile, evidenceProfile, normalizedText }),
   };
 };

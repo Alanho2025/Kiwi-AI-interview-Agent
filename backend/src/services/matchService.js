@@ -12,6 +12,7 @@ import {
 } from './match/matchScoringService.js';
 import { buildQuestionPlanHints } from './match/questionPlanService.js';
 import { buildAnalyzeResult } from './match/matchResultBuilder.js';
+import { buildCvAnalysis, buildJdMatchedCvAnalysis } from './cv/cvAnalysisBuilderService.js';
 import { buildCvEvidenceProfile } from './cv/cvEvidenceProfileBuilder.js';
 import { buildTransitionProfile } from './match/transitionAwareScoring.js';
 
@@ -20,6 +21,7 @@ export const compareCvToJobDescription = async (cvInput, rawJD, jdRubric, settin
   const rawCvText = typeof cvInput === 'string' ? cvInput : cvInput?.normalizedText || '';
   const parsedCvProfile = cvInput?.cvProfile || buildCvProfile(rawCvText);
   const cvEvidenceProfile = cvInput?.evidenceProfile || parsedCvProfile.evidenceProfile || buildCvEvidenceProfile(parsedCvProfile, rawCvText);
+  const baseCvAnalysis = parsedCvProfile.cvAnalysis || buildCvAnalysis({ cvProfile: parsedCvProfile, evidenceProfile: cvEvidenceProfile, normalizedText: rawCvText });
 
   const macroScores = buildMacroScores(rubric.macroCriteria, rawCvText, rubric.weights, cvEvidenceProfile);
   const microScores = buildMicroScores(rubric.microCriteria, rawCvText, rubric.weights, cvEvidenceProfile);
@@ -27,12 +29,14 @@ export const compareCvToJobDescription = async (cvInput, rawJD, jdRubric, settin
   const scoreBreakdown = calculateScoreBreakdown({ rubric, macroScores, microScores, requirementChecks });
   const transitionProfile = buildTransitionProfile({ evidenceProfile: cvEvidenceProfile, parsedCvProfile });
   const { strengths, gaps, risks, explanation } = buildExplanation({ microScores, requirementChecks, cvEvidenceProfile });
-  const questionPlanHints = buildQuestionPlanHints({ rubric, requirementChecks, microScores, settings, cvEvidenceProfile, transitionProfile });
+  const cvAnalysis = buildJdMatchedCvAnalysis({ cvAnalysis: baseCvAnalysis, requirementChecks, microScores });
+  const questionPlanHints = buildQuestionPlanHints({ rubric, requirementChecks, microScores, settings, cvEvidenceProfile, transitionProfile, cvAnalysis });
 
   return buildAnalyzeResult({
     parsedCvProfile: {
       ...parsedCvProfile,
       evidenceProfile: cvEvidenceProfile,
+      cvAnalysis,
     },
     rubric,
     macroScores,
@@ -46,5 +50,6 @@ export const compareCvToJobDescription = async (cvInput, rawJD, jdRubric, settin
     questionPlanHints,
     transitionProfile,
     cvEvidenceProfile,
+    cvAnalysis,
   });
 };

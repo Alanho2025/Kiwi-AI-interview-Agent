@@ -10,6 +10,10 @@
       "requiredSkills": ["sql", "git", "javascript", "agile", "testing"],
       "achievementKeywords": ["50%"],
       "capabilityKeywords": ["automation", "stakeholder_collaboration"],
+      "candidateIntroKeywords": ["Graduate software developer", "Main direction"],
+      "careerDirectionKeywords": ["software"],
+      "strongestEvidenceKeywords": ["50%", "Azure"],
+      "interviewHookKeywords": ["self introduction", "sql"],
       "absentWarnings": ["No clear experience section", "No dedicated skills section"]
     }
   },
@@ -24,6 +28,10 @@
       "requiredSkills": ["sql", "excel", "python", "reporting", "testing"],
       "achievementKeywords": ["35%"],
       "capabilityKeywords": ["documentation", "stakeholder_collaboration"],
+      "candidateIntroKeywords": ["transitioning into data engineering", "Main direction"],
+      "careerDirectionKeywords": ["Data"],
+      "strongestEvidenceKeywords": ["35%", "SQL reports"],
+      "interviewHookKeywords": ["self introduction", "sql"],
       "absentWarnings": ["No clear experience section"]
     }
   },
@@ -38,6 +46,10 @@
       "requiredSkills": ["docker", "git"],
       "achievementKeywords": ["30%"],
       "capabilityKeywords": ["ownership", "documentation"],
+      "candidateIntroKeywords": ["Cloud platform engineer", "Main direction"],
+      "careerDirectionKeywords": ["cloud"],
+      "strongestEvidenceKeywords": ["30%", "incident"],
+      "interviewHookKeywords": ["self introduction", "docker"],
       "absentWarnings": ["No clear experience section"]
     }
   },
@@ -51,6 +63,11 @@
       "requiredSections": ["summary", "skills", "projects", "education"],
       "requiredSkills": ["react", "javascript", "html", "css", "git", "testing"],
       "capabilityKeywords": ["frontend_development"],
+      "candidateIntroKeywords": ["Frontend-focused student", "Main direction"],
+      "careerDirectionKeywords": ["Frontend"],
+      "strongestEvidenceKeywords": ["React application"],
+      "interviewHookKeywords": ["self introduction", "react"],
+      "weakEvidenceKeywords": ["Direct work experience"],
       "requiredWarnings": ["No clear experience section was detected"]
     }
   }

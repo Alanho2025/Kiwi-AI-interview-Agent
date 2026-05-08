@@ -18,8 +18,15 @@ const buildQuestionContext = (session = {}) => {
 
 const buildCandidateContext = (session = {}) => {
   const profile = session.analysisResult?.parsedCvProfile || session.cvProfile || {};
+  const cvAnalysis = profile.cvAnalysis || session.analysisResult?.matchingDetails?.cvAnalysis || {};
   return {
     candidateName: profile.candidateName || session.candidateName || null,
+    candidateIntro: cvAnalysis.candidateIntro || '',
+    careerDirection: cvAnalysis.careerDirection || '',
+    strongestEvidence: ensureArray(cvAnalysis.strongestEvidence).slice(0, 5),
+    jdRelevantEvidence: ensureArray(cvAnalysis.jdRelevantEvidence).slice(0, 5),
+    suggestedInterviewHooks: ensureArray(cvAnalysis.suggestedInterviewHooks).slice(0, 8),
+    weakOrMissingEvidence: ensureArray(cvAnalysis.weakOrMissingEvidence).slice(0, 6),
     strengths: ensureArray(session.analysisResult?.explanation?.strengths).slice(0, 5),
     gaps: ensureArray(session.analysisResult?.explanation?.gaps).slice(0, 5),
     projects: ensureArray(profile.projects).slice(0, 4),

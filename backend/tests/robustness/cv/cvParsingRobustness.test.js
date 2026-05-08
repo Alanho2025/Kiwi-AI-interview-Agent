@@ -23,6 +23,9 @@ describe('CV parsing robustness', () => {
     expect(skills).toEqual(expect.arrayContaining(['sql', 'git', 'javascript', 'azure', 'testing']));
     expect(profile.sections.map((section) => section.key)).toEqual(expect.arrayContaining(['summary', 'skills', 'projects', 'experience', 'education']));
     expect(profile.evidenceProfile.quantifiedEvidence.join(' ')).toMatch(/50%/);
+    expect(profile.cvAnalysis.candidateIntro).toMatch(/Main direction/i);
+    expect(profile.cvAnalysis.strongestEvidence.length).toBeGreaterThan(0);
+    expect(profile.cvAnalysis.suggestedInterviewHooks).toEqual(expect.arrayContaining(['self introduction and career direction']));
     expect(profile.warnings).not.toEqual(expect.arrayContaining([expect.stringMatching(/No clear experience/i)]));
   });
 
@@ -78,6 +81,8 @@ describe('CV parsing robustness', () => {
     expect(reviewedProfile.sections.map((section) => section.key)).toEqual(expect.arrayContaining(['experience', 'projects', 'education', 'key_competencies']));
     expect(reviewedProfile.evidenceProfile.sections.projects[0].rawText).toMatch(/React interview dashboard/i);
     expect(reviewedProfile.evidenceProfile.hardSkills).toEqual(expect.arrayContaining(['React', 'Node.js', 'Python']));
+    expect(reviewedProfile.cvAnalysis.careerDirection).toMatch(/Data|AI|software/i);
+    expect(reviewedProfile.cvAnalysis.strongestEvidence.map((item) => item.text).join(' ')).toMatch(/React interview dashboard/i);
     expect(reviewedProfile.metadata.humanReviewStatus).toBe('verified');
   });
 });

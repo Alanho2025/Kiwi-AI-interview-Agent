@@ -6,6 +6,10 @@ const explanationTexts = (result = {}) => ({
   gaps: flattenExplanationItems(result.explanation?.gaps || []),
   risks: flattenExplanationItems(result.explanation?.risks || []),
 });
+const cvAnalysis = (result = {}) => result.parsedCvProfile?.cvAnalysis || result.matchingDetails?.cvAnalysis || {};
+const jdRelevantEvidenceTexts = (result = {}) => (cvAnalysis(result).jdRelevantEvidence || [])
+  .map((item) => `${item.requirement || ''} ${item.status || ''} ${item.evidence || ''}`);
+const questionHints = (result = {}) => result.matchingDetails?.questionPlanHints || {};
 
 export const scoreCvJdMatchCase = (result, expected = {}) => {
   let earned = 0;
@@ -41,6 +45,21 @@ export const scoreCvJdMatchCase = (result, expected = {}) => {
   }
   for (const keyword of expected.summaryKeywords || []) {
     push(`summary:${keyword}`, containsInText(result.explanation?.summary, keyword), 1);
+  }
+  for (const keyword of expected.jdRelevantEvidenceKeywords || []) {
+    push(`jdRelevantEvidence:${keyword}`, jdRelevantEvidenceTexts(result).some((line) => containsInText(line, keyword)), 2);
+  }
+  for (const keyword of expected.priorityTopicKeywords || []) {
+    push(`priorityTopic:${keyword}`, includesNormalized(questionHints(result).priorityTopics || [], keyword), 1);
+  }
+  for (const keyword of expected.followUpTargetKeywords || []) {
+    push(`followUpTarget:${keyword}`, includesNormalized(questionHints(result).followUpTargets || [], keyword), 1);
+  }
+  for (const keyword of expected.interviewFocusKeywords || []) {
+    push(`interviewFocus:${keyword}`, includesNormalized(result.interviewFocus || [], keyword), 1);
+  }
+  for (const keyword of expected.absentJdRelevantEvidenceKeywords || []) {
+    push(`no-jdRelevantEvidence:${keyword}`, !jdRelevantEvidenceTexts(result).some((line) => containsInText(line, keyword)), 1);
   }
 
   if (expected.enforceDistinctGapRisk !== false) {

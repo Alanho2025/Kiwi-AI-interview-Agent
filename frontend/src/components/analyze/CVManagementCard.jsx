@@ -92,6 +92,74 @@ const EditableCVReviewPanel = ({ reviewProfile = {}, onReviewProfileChange }) =>
   );
 };
 
+const ChipList = ({ items = [] }) => {
+  if (!items.length) return <p className="text-sm text-gray-500">No clear signals detected yet.</p>;
+  return (
+    <div className="flex flex-wrap gap-2">
+      {items.map((item) => (
+        <span key={item} className="rounded-full bg-[#eef8f4] px-3 py-1 text-xs font-medium text-[#1f7d59]">{item}</span>
+      ))}
+    </div>
+  );
+};
+
+const EvidenceList = ({ items = [], emptyText }) => {
+  if (!items.length) return <p className="text-sm text-gray-500">{emptyText}</p>;
+  return (
+    <div className="space-y-2">
+      {items.slice(0, 4).map((item, index) => (
+        <div key={`${item.label || item.requirement || 'evidence'}-${index}`} className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">{item.label || item.requirement || 'Evidence'}</p>
+          <p className="mt-1 text-sm leading-5 text-gray-800">{item.text || item.evidence}</p>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const CVAnalysisSummary = ({ analysis = {}, coreSkills = [] }) => (
+  <div className="mt-4 space-y-4 rounded-xl border border-emerald-100 bg-white p-4 shadow-sm">
+    <div className="flex items-start gap-3">
+      <div className="rounded-full bg-[#eef8f4] p-2 text-[#1f7d59]"><PencilLine className="h-4 w-4" /></div>
+      <div>
+        <h4 className="text-sm font-semibold text-gray-900">CV analysis for matching</h4>
+        <p className="mt-1 text-xs leading-5 text-gray-500">Review the candidate story, evidence, and interview hooks before matching.</p>
+      </div>
+    </div>
+
+    <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Candidate intro angle</p>
+      <p className="mt-2 text-sm leading-6 text-gray-800">{analysis.candidateIntro || 'No candidate intro angle detected yet.'}</p>
+      {analysis.careerDirection ? <p className="mt-2 text-xs font-medium text-emerald-700">{analysis.careerDirection}</p> : null}
+    </div>
+
+    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+      <div className="rounded-lg border border-gray-100 bg-white p-3">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Core skills</p>
+        <ChipList items={coreSkills} />
+      </div>
+      <div className="rounded-lg border border-gray-100 bg-white p-3">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Interview hooks</p>
+        <ChipList items={analysis.suggestedInterviewHooks || []} />
+      </div>
+    </div>
+
+    <div>
+      <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Strongest evidence</p>
+      <EvidenceList items={analysis.strongestEvidence || []} emptyText="No strong evidence extracted yet." />
+    </div>
+
+    {(analysis.weakOrMissingEvidence || []).length ? (
+      <div className="rounded-lg border border-amber-100 bg-amber-50 p-3">
+        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-amber-700">Weak or missing evidence</p>
+        <ul className="mt-2 space-y-1 text-sm text-amber-800">
+          {analysis.weakOrMissingEvidence.slice(0, 4).map((item) => <li key={item}>• {item}</li>)}
+        </ul>
+      </div>
+    ) : null}
+  </div>
+);
+
 /**
  * Purpose: Execute the main responsibility for CVManagementCard.
  * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
@@ -278,7 +346,14 @@ export function CVManagementCard({
                 )}
               </div>
 
-              <EditableCVReviewPanel reviewProfile={activeReviewProfile} onReviewProfileChange={onCvReviewProfileChange} />
+              <CVAnalysisSummary analysis={cvReview?.cvAnalysis || {}} coreSkills={activeReviewProfile.coreSkills || []} />
+
+              <details className="mt-4 rounded-xl border border-gray-100 bg-white">
+                <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-gray-900">Edit parsed source fields</summary>
+                <div className="border-t border-gray-100 p-4">
+                  <EditableCVReviewPanel reviewProfile={activeReviewProfile} onReviewProfileChange={onCvReviewProfileChange} />
+                </div>
+              </details>
 
               {!cvReview?.fields?.some((field) => field.value) ? (
                 <p className="mt-4 rounded-lg border border-amber-100 bg-amber-50 p-3 text-sm text-amber-800">

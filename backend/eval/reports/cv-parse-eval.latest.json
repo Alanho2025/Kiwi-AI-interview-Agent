@@ -1,6 +1,6 @@
 {
   "casesRun": 4,
-  "average": 0.99,
+  "average": 1,
   "weakestCases": [],
   "thresholds": {
     "minAverage": 0.9,
@@ -11,34 +11,88 @@
       "id": "graduate_software_cv",
       "fixture": "graduate-software-engineer.txt",
       "score": 1,
-      "earned": 20,
-      "possible": 20,
+      "earned": 29,
+      "possible": 29,
+      "careerDirection": "Data, AI, and software-oriented career direction",
+      "strongestEvidenceCount": 8,
+      "interviewHooks": [
+        "self introduction and career direction",
+        "Quantified evidence",
+        "Project: Inventory Portal Project",
+        "Project: Placement Project",
+        "Experience evidence",
+        "c#",
+        ".net",
+        "javascript",
+        "sql",
+        "automation"
+      ],
       "failedChecks": []
     },
     {
       "id": "data_transition_cv",
       "fixture": "data-analyst-transition.txt",
-      "score": 0.95,
-      "earned": 18,
-      "possible": 19,
-      "failedChecks": [
-        "skill:reporting"
-      ]
+      "score": 1,
+      "earned": 28,
+      "possible": 28,
+      "careerDirection": "Data, AI, and software-oriented career direction",
+      "strongestEvidenceCount": 8,
+      "interviewHooks": [
+        "self introduction and career direction",
+        "Quantified evidence",
+        "Project: Data Warehouse Transition Project",
+        "Experience evidence",
+        "python",
+        "sql",
+        "data analysis",
+        "power bi",
+        "process improvement",
+        "stakeholder collaboration"
+      ],
+      "failedChecks": []
     },
     {
       "id": "cloud_platform_cv",
       "fixture": "cloud-platform-engineer.txt",
       "score": 1,
-      "earned": 16,
-      "possible": 16,
+      "earned": 25,
+      "possible": 25,
+      "careerDirection": "Backend, API, and cloud delivery direction",
+      "strongestEvidenceCount": 8,
+      "interviewHooks": [
+        "self introduction and career direction",
+        "Quantified evidence",
+        "Project: Platform Reliability Project",
+        "Experience evidence",
+        "azure",
+        "docker",
+        "kubernetes",
+        "linux",
+        "automation",
+        "process improvement"
+      ],
       "failedChecks": []
     },
     {
       "id": "frontend_student_cv",
       "fixture": "frontend-student.txt",
       "score": 1,
-      "earned": 17,
-      "possible": 17,
+      "earned": 25,
+      "possible": 25,
+      "careerDirection": "Frontend and product software delivery direction",
+      "strongestEvidenceCount": 4,
+      "interviewHooks": [
+        "self introduction and career direction",
+        "Project: Campus Events App",
+        "Competency signal",
+        "Measured achievement",
+        "javascript",
+        "react",
+        "git",
+        "html",
+        "automation",
+        "process improvement"
+      ],
       "failedChecks": []
     }
   ]
