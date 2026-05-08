@@ -84,7 +84,7 @@ class MemoryCache {
    * Clear the entire cache.
    */
   clear() {
-    for (const [key, item] of this.cache.entries()) {
+    for (const item of this.cache.values()) {
       clearTimeout(item.timeoutId);
     }
     this.cache.clear();
