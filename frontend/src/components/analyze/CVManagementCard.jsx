@@ -12,7 +12,7 @@
 import { useState, useRef } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../common/Card.jsx';
 import { Button } from '../common/Button.jsx';
-import { FileText, Lock, CheckCircle2, Loader2 } from 'lucide-react';
+import { FileText, Lock, CheckCircle2, Loader2, PencilLine } from 'lucide-react';
 import { cn } from '../../utils/formatters.js';
 import { StatusBanner } from '../common/StatusBanner.jsx';
 import { buildCvReviewViewModel } from '../../utils/cvReviewViewModel.js';
@@ -28,6 +28,70 @@ const buildCvParseLabel = (confidence) => {
   return 'Review recommended';
 };
 
+const normalizeList = (items = []) => (Array.isArray(items) ? items : [])
+  .map((item) => (typeof item === 'string' ? item : item?.label || item?.name || ''))
+  .map((item) => item.trim())
+  .filter(Boolean);
+
+const splitListText = (value = '') => String(value || '')
+  .split('\n')
+  .map((line) => line.replace(/^[-•*]\s*/, '').trim())
+  .filter(Boolean);
+
+const joinListText = (items = []) => normalizeList(items).join('\n');
+const fieldClass = 'mt-2 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 outline-none transition focus:border-[#2eb886] focus:ring-2 focus:ring-[#2eb886]/15';
+
+const EditableCvTextArea = ({ label, value, onChange, rows = 4 }) => (
+  <label className="block text-xs font-semibold text-gray-600">
+    {label}
+    <textarea
+      className={`${fieldClass} min-h-[92px] resize-y leading-5`}
+      value={value || ''}
+      rows={rows}
+      onChange={(event) => onChange(event.target.value)}
+    />
+  </label>
+);
+
+const EditableCvListField = ({ label, value = [], onChange }) => (
+  <label className="block text-xs font-semibold text-gray-600">
+    {label}
+    <textarea
+      className={`${fieldClass} min-h-[92px] resize-y leading-5`}
+      value={joinListText(value)}
+      onChange={(event) => onChange(splitListText(event.target.value))}
+    />
+    <span className="mt-1 block text-[11px] font-normal text-gray-400">One item per line.</span>
+  </label>
+);
+
+const EditableCVReviewPanel = ({ reviewProfile = {}, onReviewProfileChange }) => {
+  const updateField = (field, value) => {
+    onReviewProfileChange?.({ ...reviewProfile, [field]: value });
+  };
+
+  return (
+    <div className="mt-4 rounded-xl border border-emerald-100 bg-white p-4 shadow-sm">
+      <div className="flex items-start gap-3">
+        <div className="rounded-full bg-[#eef8f4] p-2 text-[#1f7d59]"><PencilLine className="h-4 w-4" /></div>
+        <div>
+          <h4 className="text-sm font-semibold text-gray-900">Review and edit parsed CV</h4>
+          <p className="mt-1 text-xs leading-5 text-gray-500">Edit the parsed CV fields below. The match uses this reviewed profile.</p>
+        </div>
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+        <EditableCvTextArea label="Candidate summary" value={reviewProfile.candidateSummary} rows={4} onChange={(value) => updateField('candidateSummary', value)} />
+        <EditableCvListField label="Core skills" value={reviewProfile.coreSkills} onChange={(value) => updateField('coreSkills', value)} />
+        <EditableCvTextArea label="Experience evidence" value={reviewProfile.experienceEvidence} rows={5} onChange={(value) => updateField('experienceEvidence', value)} />
+        <EditableCvTextArea label="Project evidence" value={reviewProfile.projectEvidence} rows={5} onChange={(value) => updateField('projectEvidence', value)} />
+        <EditableCvTextArea label="Education and credentials" value={reviewProfile.educationCredentials} rows={4} onChange={(value) => updateField('educationCredentials', value)} />
+        <EditableCvListField label="Key competencies" value={reviewProfile.keyCompetencies} onChange={(value) => updateField('keyCompetencies', value)} />
+      </div>
+    </div>
+  );
+};
+
 /**
  * Purpose: Execute the main responsibility for CVManagementCard.
  * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
@@ -41,6 +105,10 @@ export function CVManagementCard({
   onSelectRecent,
   isCvHumanVerified = false,
   onConfirmCVReview,
+  cvReviewProfile,
+  onCvReviewProfileChange,
+  isCvEdited = false,
+  isCvReviewSaving = false,
   validationMessage,
 }) {
   const [selectedRecent, setSelectedRecent] = useState(null);
@@ -52,6 +120,7 @@ export function CVManagementCard({
   const activeCvConfidence = getCvParseConfidence(selectedCV);
   const activeCvWarnings = selectedCV?.parseWarnings || selectedCV?.warnings || [];
   const cvReview = selectedCV ? buildCvReviewViewModel(selectedCV) : null;
+  const activeReviewProfile = cvReviewProfile || cvReview?.reviewProfile || {};
 
   const processUpload = async (file) => {
     setIsUploading(true);
@@ -201,26 +270,19 @@ export function CVManagementCard({
                 {isCvHumanVerified ? (
                   <span className="shrink-0 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">Reviewed</span>
                 ) : (
-                  <Button type="button" variant="secondary" size="sm" className="shrink-0" onClick={onConfirmCVReview}>
-                    Mark CV as reviewed
+                  <Button type="button" variant="secondary" size="sm" className="shrink-0" onClick={onConfirmCVReview} disabled={isCvReviewSaving}>
+                    {isCvReviewSaving ? <><Loader2 className="mr-2 inline h-3 w-3 animate-spin" /> Saving...</> : isCvEdited ? 'Mark edited CV as reviewed' : 'Mark CV as reviewed'}
                   </Button>
                 )}
               </div>
 
-              {cvReview?.fields?.length ? (
-                <div className="mt-4 grid grid-cols-1 gap-3">
-                  {cvReview.fields.map((field) => (
-                    <div key={field.label} className="rounded-lg border border-gray-100 bg-gray-50 p-3">
-                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">{field.label}</p>
-                      <p className="mt-2 text-sm leading-6 text-gray-800">{field.value}</p>
-                    </div>
-                  ))}
-                </div>
-              ) : (
+              <EditableCVReviewPanel reviewProfile={activeReviewProfile} onReviewProfileChange={onCvReviewProfileChange} />
+
+              {!cvReview?.fields?.some((field) => field.value) ? (
                 <p className="mt-4 rounded-lg border border-amber-100 bg-amber-50 p-3 text-sm text-amber-800">
                   KiwiCoach could not extract enough comparable CV fields. Review the uploaded file before matching.
                 </p>
-              )}
+              ) : null}
             </div>
           </div>
         ) : null}

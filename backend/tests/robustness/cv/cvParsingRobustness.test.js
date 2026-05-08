@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 import { buildCvProfile } from '../../../src/services/cv/cvProfileBuilderService.js';
 import { buildNormalizedCvProfile } from '../../../src/services/cv/cvProfileContractBuilder.js';
+import { buildReviewedCvProfile } from '../../../src/services/cv/cvReviewedProfileService.js';
 import { extractCvSections } from '../../../src/services/cv/cvSectionParser.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -56,5 +57,27 @@ describe('CV parsing robustness', () => {
     expect(normalized.workHistory[0].title).toBe('Operations Analyst');
     expect(normalized.evidenceProfile.quantifiedEvidence.join(' ')).toMatch(/35%/);
     expect(normalized.skills).toEqual(expect.arrayContaining(['Python', 'SQL']));
+  });
+
+  it('turns human-reviewed CV fields into downstream matching evidence', () => {
+    const reviewedProfile = buildReviewedCvProfile({
+      baseProfile: { candidateName: 'Alan Ho', sections: [], confidence: 0.48 },
+      reviewProfile: {
+        candidateSummary: 'Graduate developer with React and data project experience.',
+        coreSkills: ['React', 'Node.js', 'Python'],
+        experienceEvidence: 'Delivered customer support workflows and automated reporting.',
+        projectEvidence: 'Built a React interview dashboard with Node.js APIs.',
+        educationCredentials: 'Bachelor of Computer Science.',
+        keyCompetencies: ['Communication', 'Troubleshooting'],
+      },
+      reviewedAt: '2026-05-08T00:00:00.000Z',
+    });
+
+    expect(reviewedProfile.summary).toMatch(/Graduate developer/i);
+    expect(reviewedProfile.skills.map((item) => item.label)).toEqual(['React', 'Node.js', 'Python']);
+    expect(reviewedProfile.sections.map((section) => section.key)).toEqual(expect.arrayContaining(['experience', 'projects', 'education', 'key_competencies']));
+    expect(reviewedProfile.evidenceProfile.sections.projects[0].rawText).toMatch(/React interview dashboard/i);
+    expect(reviewedProfile.evidenceProfile.hardSkills).toEqual(expect.arrayContaining(['React', 'Node.js', 'Python']));
+    expect(reviewedProfile.metadata.humanReviewStatus).toBe('verified');
   });
 });

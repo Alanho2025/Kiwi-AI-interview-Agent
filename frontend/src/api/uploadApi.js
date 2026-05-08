@@ -33,5 +33,6 @@ export const getRecentCVs = () => apiClient('/upload/recent-cvs');
 export const selectCV = (cvId) => apiClient('/upload/select-cv', { method: 'POST', body: { cvId } });
 
 export const rebuildCvProfile = (cvId) => apiClient(`/upload/cv/${cvId}/rebuild-profile`, { method: 'POST' });
+export const saveReviewedCvProfile = (cvId, reviewProfile) => apiClient(`/upload/cv/${cvId}/review-profile`, { method: 'POST', body: { reviewProfile } });
 export const deleteCv = (cvId) => apiClient(`/upload/cv/${cvId}`, { method: 'DELETE' });
 export const exportCv = (cvId) => apiClient(`/upload/cv/${cvId}/export`);

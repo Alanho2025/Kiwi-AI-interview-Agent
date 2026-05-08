@@ -15,6 +15,7 @@ import {
   getRecentCVs,
   selectCV,
   rebuildCvProfile,
+  reviewCvProfile,
   deleteCv,
   exportCv,
 } from '../../controllers/uploadController.js';
@@ -26,6 +27,7 @@ router.post('/cv', uploadMiddleware, uploadCV);
 router.get('/recent-cvs', getRecentCVs);
 router.post('/select-cv', selectCV);
 router.post('/cv/:cvId/rebuild-profile', rebuildCvProfile);
+router.post('/cv/:cvId/review-profile', reviewCvProfile);
 router.delete('/cv/:cvId', deleteCv);
 router.get('/cv/:cvId/export', exportCv);
 
