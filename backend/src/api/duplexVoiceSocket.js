@@ -7,8 +7,14 @@
  */
 
 import { WebSocketServer } from 'ws';
-import jwt from 'jsonwebtoken';
 import { logger } from '../utils/logger.js';
+import {
+  createWebSocketUpgradeLimiter,
+  isAllowedWebSocketOrigin,
+  parseCookieAuth,
+  rejectUpgrade,
+} from './webSocketSecurity.js';
+export { parseCookies } from './webSocketSecurity.js';
 
 const DUPLEX_VOICE_PATH_PATTERN = /^\/api\/interview\/([^/]+)\/voice\/duplex$/;
 const DEFAULT_LANGUAGE = 'en-NZ';
@@ -23,35 +29,9 @@ export const sendJson = (socket, payload) => {
   socket.send(JSON.stringify(payload));
 };
 
-export const parseCookies = (cookieHeader = '') =>
-  String(cookieHeader || '')
-    .split(';')
-    .map((part) => part.trim())
-    .filter(Boolean)
-    .reduce((acc, part) => {
-      const separatorIndex = part.indexOf('=');
-      if (separatorIndex === -1) return acc;
-
-      const key = part.slice(0, separatorIndex).trim();
-      const value = part.slice(separatorIndex + 1).trim();
-      try {
-        acc[key] = decodeURIComponent(value);
-      } catch {
-        acc[key] = value;
-      }
-      return acc;
-    }, {});
-
 const parseAuthToken = (requestUrl, request = {}) => {
-  const cookies = parseCookies(request.headers?.cookie || '');
-  const token = requestUrl.searchParams.get('token') || cookies.auth_token || '';
-  if (!token) return null;
-  try {
-    const secret = process.env.JWT_SECRET || 'fallback_secret_for_dev';
-    return jwt.verify(token, secret);
-  } catch {
-    return null;
-  }
+  if (requestUrl.searchParams.has('token')) return null;
+  return parseCookieAuth(request);
 };
 
 export const buildDuplexSocketContext = (request) => {
@@ -85,10 +65,19 @@ export async function loadDuplexVoiceDependencies() {
 
 export function attachDuplexVoiceSocketServer(server, dependencies = {}) {
   const wss = new WebSocketServer({ noServer: true });
+  const allowUpgrade = createWebSocketUpgradeLimiter({ windowMs: 60 * 1000, max: 30 });
 
   server.on('upgrade', (request, socket, head) => {
     const context = buildDuplexSocketContext(request);
     if (!context) return;
+    if (!allowUpgrade(request)) {
+      rejectUpgrade(socket, 429, 'Too Many Requests');
+      return;
+    }
+    if (!isAllowedWebSocketOrigin(request)) {
+      rejectUpgrade(socket, 403, 'Forbidden');
+      return;
+    }
 
     wss.handleUpgrade(request, socket, head, (ws) => {
       wss.emit('connection', ws, request, context);

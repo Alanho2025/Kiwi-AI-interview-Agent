@@ -61,7 +61,7 @@ export default function Login() {
     setIsSubmitting(true);
 
     try {
-      await loginWithGoogle(credentialResponse.credential);
+      await loginWithGoogle(credentialResponse.credential, { termsAccepted: isAgreed });
       navigate('/home', { replace: true });
     } catch (loginError) {
       console.error('Failed to log in with Google', loginError);

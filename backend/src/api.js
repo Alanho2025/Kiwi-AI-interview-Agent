@@ -28,9 +28,18 @@ import { errorHandler } from './middleware/errorHandler.js';
 
 import { requestContext } from './middleware/requestContext.js';
 import { optionalAuth, requireAuth } from './middleware/authMiddleware.js';
-import { getAllowedOrigins, loadEnv } from './config/env.js';
+import { csrfProtection } from './middleware/csrfMiddleware.js';
+import {
+  aiRateLimit,
+  exportRateLimit,
+  uploadRateLimit,
+} from './middleware/rateLimitMiddleware.js';
+import { assertRequiredEnv, getAllowedOrigins, loadEnv } from './config/env.js';
 
 loadEnv();
+if (process.env.NODE_ENV === 'production') {
+  assertRequiredEnv(['JWT_SECRET']);
+}
 const api = express.Router();
 
 const allowedOrigins = getAllowedOrigins();
@@ -48,7 +57,7 @@ const corsOptions = {
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  allowedHeaders: ['Content-Type', 'X-CSRF-Token', 'X-Requested-With'],
 };
 
 api.use(cors(corsOptions));
@@ -56,6 +65,7 @@ api.options('*', cors(corsOptions));
 api.use(express.json({ limit: '2mb' }));
 api.use(requestContext);
 api.use(optionalAuth);
+api.use(csrfProtection);
 
 // Per-request token usage tracking context via AsyncLocalStorage.
 // All downstream DeepSeek calls within the same request will see this context.
@@ -64,19 +74,17 @@ api.use(usageContextMiddleware);
 api.use('/health', healthRoutes);
 api.use('/auth', authRoutes);
 
-api.use('/upload', requireAuth, uploadRoutes);
-api.use('/job-description', requireAuth, jobDescriptionRoutes);
-api.use('/analyze', requireAuth, analyzeRoutes);
-api.use('/interview', requireAuth, interviewRoutes);
+api.use('/upload', requireAuth, uploadRateLimit, uploadRoutes);
+api.use('/job-description', requireAuth, aiRateLimit, jobDescriptionRoutes);
+api.use('/analyze', requireAuth, aiRateLimit, analyzeRoutes);
+api.use('/interview', requireAuth, aiRateLimit, interviewRoutes);
 api.use('/session', requireAuth, sessionRoutes);
-api.use('/report', requireAuth, reportRoutes);
-api.use('/export', requireAuth, exportRoutes);
-api.use('/rag', requireAuth, ragRoutes);
+api.use('/report', requireAuth, aiRateLimit, reportRoutes);
+api.use('/export', requireAuth, exportRateLimit, exportRoutes);
+api.use('/rag', requireAuth, aiRateLimit, ragRoutes);
 api.use('/usage', requireAuth, usageRoutes);
-api.use('/recordings', requireAuth, recordingRoutes);
+api.use('/recordings', requireAuth, uploadRateLimit, recordingRoutes);
 
 api.use(errorHandler);
 
 export default api;
-
-
