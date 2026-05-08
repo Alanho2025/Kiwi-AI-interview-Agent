@@ -55,6 +55,18 @@ const buildCoachingMemoryText = (userCoachingMemory = {}) => {
   return 'No cross-session coaching memory was available.';
 };
 
+const buildNzWorkplaceFitText = (nzWorkplaceFit = {}) => {
+  if (!nzWorkplaceFit.enabled) return 'NZ workplace communication coaching was not enabled for this session.';
+  const scoreText = Number.isFinite(Number(nzWorkplaceFit.score)) ? `Score ${nzWorkplaceFit.score}/10. ` : '';
+  const strengthText = ensureArray(nzWorkplaceFit.strengths).length
+    ? `Strengths: ${nzWorkplaceFit.strengths.slice(0, 2).join(' ')} `
+    : '';
+  const gapText = ensureArray(nzWorkplaceFit.gaps).length
+    ? `Gaps: ${nzWorkplaceFit.gaps.slice(0, 2).join(' ')}`
+    : '';
+  return `${scoreText}${nzWorkplaceFit.summary || ''} ${strengthText}${gapText}`.trim();
+};
+
 /**
  * Compute an interview performance score (0-100) from evidence analysis and AI turn scores.
  * Factors:
@@ -113,6 +125,7 @@ export const buildReportDraft = ({
   trajectoryRecords = [],
   reflectionRecords = [],
   userCoachingMemory = {},
+  nzWorkplaceFit = {},
 }) => {
   const strongEvidenceText = buildStrongEvidenceText(evidenceSummary);
   const averageInteractionScore = ensureArray(evaluatorRecords).length
@@ -174,6 +187,11 @@ export const buildReportDraft = ({
         title: 'Coaching memory',
         content: buildCoachingMemoryText(userCoachingMemory),
       },
+      {
+        id: 'nz_workplace_fit',
+        title: 'NZ workplace communication fit',
+        content: buildNzWorkplaceFitText(nzWorkplaceFit),
+      },
     ],
     scores: {
       overall: computeBlendedOverallScore(
@@ -189,6 +207,7 @@ export const buildReportDraft = ({
       directEvidenceTurns: evidenceSummary.totals.direct_past_experience || 0,
       hypotheticalTurns: evidenceSummary.totals.hypothetical_understanding || 0,
       averageInteractionScore,
+      nzWorkplaceFit: Number.isFinite(Number(nzWorkplaceFit.score)) ? Number(nzWorkplaceFit.score) : null,
       trajectoryCount: ensureArray(trajectoryRecords).length,
       reflectionCount: ensureArray(reflectionRecords).length,
       evaluatedTurnCount: ensureArray(evaluatorRecords).length,
@@ -210,6 +229,7 @@ export const buildReportDraft = ({
       totals: evidenceSummary.totals,
       averageStrength: evidenceSummary.averageStrength,
     },
+    nzWorkplaceFit,
     candidateFeedback,
   };
 };

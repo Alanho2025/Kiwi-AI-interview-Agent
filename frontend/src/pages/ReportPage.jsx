@@ -17,6 +17,7 @@ import { AnswerRewriteSection } from '../components/report/AnswerRewriteSection.
 import { CoachingSection } from '../components/report/CoachingSection.jsx';
 import { QuoteAnalysisSection } from '../components/report/QuoteAnalysisSection.jsx';
 import { CommunicationProfileSection } from '../components/report/CommunicationProfileSection.jsx';
+import { NZWorkplaceFitSection } from '../components/report/NZWorkplaceFitSection.jsx';
 import { TurnBreakdownSection } from '../components/report/TurnBreakdownSection.jsx';
 import { InsightsSection } from '../components/report/InsightsSection.jsx';
 import { ReportActionBar } from '../components/report/ReportActionBar.jsx';
@@ -109,6 +110,7 @@ export function ReportPage() {
             <div id="tour-report-insights">
               <InsightsSection dataInsights={viewModel.dataInsights} strengthHighlights={viewModel.strengthHighlights} />
             </div>
+            <NZWorkplaceFitSection fit={viewModel.nzWorkplaceFit} />
             <CommunicationProfileSection profile={viewModel.communicationProfile} />
             <CoachingSection improvementPriorities={viewModel.improvementPriorities} coachingAdvice={viewModel.coachingAdvice} />
             <QuoteAnalysisSection quoteAnalyses={viewModel.quoteAnalyses} />

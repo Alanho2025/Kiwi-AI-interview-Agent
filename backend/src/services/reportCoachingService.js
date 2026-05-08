@@ -186,7 +186,7 @@ const normalizeCandidateFeedback = (candidateFeedback = {}, fallback = {}) => ({
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-const buildPrompt = ({ session, analysisResult, interviewPlan, evidenceSummary: _evidenceSummary, interviewMetrics, strongestExamples, deterministicFeedback }) => {
+const buildPrompt = ({ session, analysisResult, interviewPlan, evidenceSummary: _evidenceSummary, interviewMetrics, strongestExamples, deterministicFeedback, nzWorkplaceFit = {} }) => {
   const groundingPayload = {
     candidateName: analysisResult.candidateName || session.candidateName || 'Candidate',
     jobTitle: analysisResult.jobTitle || session.targetRole || 'Target Role',
@@ -198,6 +198,7 @@ const buildPrompt = ({ session, analysisResult, interviewPlan, evidenceSummary: 
     interviewFocus: interviewPlan.interviewFocus || [],
     interviewMetrics,
     strongestExamples,
+    nzWorkplaceFit,
     transcript: session.transcript || [],
   };
 
@@ -268,6 +269,7 @@ Rules:
 - Rewrite examples must sound realistic and tied to the role focus.
 - quoteAnalyses MUST extract exact, verbatim quotes from the candidate's transcript to show them exactly what they said, explain why it was weak/strong, and how to improve it. Include at least 2-3 quote analyses.
 - communicationProfile MUST analyze their communication style, tone, conciseness, and use of filler words (if any) based on the transcript.
+- If nzWorkplaceFit.enabled is true, coachingAdvice and communicationProfile should include NZ workplace communication guidance grounded in nzWorkplaceFit. Focus on observable behaviours such as teamwork, humility with confidence, initiative, open communication, respect, relationship-building, and sustainable delivery. Do not claim the candidate culturally "fits" New Zealand; discuss interview communication behaviours only.
 - scoreExplanations MUST explain Overall, CV-JD Match, and Interview scores with one short summary, one helped factor, one lowered factor, and one next lever.
 - turnBreakdowns MUST provide a turn-by-turn analysis of each major question asked. Summarize the question and answer, provide constructive feedback, score (0-10) for business understanding, logic/structure, and evidence strength, and explain each micro-score in dimensionReasons.
 `;
@@ -287,6 +289,7 @@ export const generateCandidateFeedback = async ({
   interviewMetrics = {},
   strongestExamples = [],
   deterministicFeedback = {},
+  nzWorkplaceFit = {},
 } = {}) => {
   const prompt = buildPrompt({
     session,
@@ -296,6 +299,7 @@ export const generateCandidateFeedback = async ({
     interviewMetrics,
     strongestExamples,
     deterministicFeedback,
+    nzWorkplaceFit,
   });
 
   try {
