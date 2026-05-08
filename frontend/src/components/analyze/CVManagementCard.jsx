@@ -39,7 +39,7 @@ const splitListText = (value = '') => String(value || '')
   .filter(Boolean);
 
 const joinListText = (items = []) => normalizeList(items).join('\n');
-const fieldClass = 'mt-2 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 outline-none transition focus:border-[#2eb886] focus:ring-2 focus:ring-[#2eb886]/15';
+const fieldClass = 'mt-2 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 outline-none transition focus:border-[#2eb886] focus:ring-2 focus:ring-[#2eb886]/15';
 
 const EditableCvTextArea = ({ label, value, onChange, rows = 4 }) => (
   <label className="block text-xs font-semibold text-gray-600">
@@ -97,7 +97,7 @@ const ChipList = ({ items = [] }) => {
   return (
     <div className="flex flex-wrap gap-2">
       {items.map((item) => (
-        <span key={item} className="rounded-full bg-[#eef8f4] px-3 py-1 text-xs font-medium text-[#1f7d59]">{item}</span>
+        <span key={item} className="rounded-lg bg-[#eef8f4] px-3 py-1.5 text-xs font-medium text-[#1f7d59]">{item}</span>
       ))}
     </div>
   );
@@ -272,7 +272,7 @@ export function CVManagementCard({
           </div>
           <div 
             className={cn(
-              "border-2 border-dashed rounded-xl p-4 sm:p-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between cursor-pointer transition-colors",
+              "flex cursor-pointer flex-col gap-4 rounded-xl border-2 border-dashed p-4 transition-colors sm:flex-row sm:items-center sm:justify-between sm:p-6",
               isDragging ? "border-[#2eb886] bg-[#e6f7f0]" : "border-gray-200 hover:bg-gray-50"
             )}
             onClick={requestPermissionAndOpenPicker}
@@ -338,7 +338,7 @@ export function CVManagementCard({
                   <p className="mt-1 text-xs leading-5 text-gray-500">Check only the parsed fields that affect CV-JD matching. Contact details are not shown here.</p>
                 </div>
                 {isCvHumanVerified ? (
-                  <span className="shrink-0 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">Reviewed</span>
+                  <span className="shrink-0 rounded-lg bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-800">Reviewed</span>
                 ) : (
                   <Button type="button" variant="secondary" size="sm" className="shrink-0" onClick={onConfirmCVReview} disabled={isCvReviewSaving}>
                     {isCvReviewSaving ? <><Loader2 className="mr-2 inline h-3 w-3 animate-spin" /> Saving...</> : isCvEdited ? 'Mark edited CV as reviewed' : 'Mark CV as reviewed'}

@@ -94,7 +94,7 @@ export function NZSettingsCard({ settings, setSettings, sessionMode, setSessionM
                 type="button"
                 onClick={() => updateSetting('focusArea', area)}
                 className={cn(
-                  'px-4 py-2 rounded-full text-sm font-medium border transition-colors',
+                  'rounded-xl border px-4 py-2 text-sm font-medium transition-colors',
                   settings.focusArea === area
                     ? 'border-[#2eb886] text-[#2eb886] bg-[#e6f7f0]'
                     : 'border-gray-200 text-gray-600 hover:border-gray-300'
@@ -115,7 +115,7 @@ export function NZSettingsCard({ settings, setSettings, sessionMode, setSessionM
         {sessionMode === 'voice' ? (
           <VoiceDeviceCheckPanel value={voiceDeviceCheck} onChange={setVoiceDeviceCheck} />
         ) : (
-          <div className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3 text-sm text-gray-600">
+          <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm leading-6 text-gray-600">
             Text Session does not require microphone or speaker checks. Switch to Voice Session if you want to test your devices before starting.
           </div>
         )}

@@ -28,13 +28,13 @@ export function InsightsSection({ dataInsights, strengthHighlights }) {
         <CardContent>
           <div className="space-y-4">
             {dataInsights.map((insight) => (
-              <div key={insight.title || insight.label || insight.id} className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+              <div key={insight.title || insight.label || insight.id} className="rounded-xl border border-gray-100 bg-gray-50 p-4">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                   <div>
                     <h3 className="text-base font-semibold text-gray-900">{insight.title || insight.label}</h3>
                     <p className="mt-1 text-sm leading-6 text-gray-700">{insight.description || insight.interpretation}</p>
                   </div>
-                  <div className="rounded-full bg-white px-3 py-1 text-sm font-medium text-gray-700 shadow-sm">
+                  <div className="rounded-lg bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm">
                     {insight.metric || insight.value || '-'}
                   </div>
                 </div>
@@ -52,7 +52,7 @@ export function InsightsSection({ dataInsights, strengthHighlights }) {
           {strengthHighlights.length ? (
             <div className="space-y-3">
               {strengthHighlights.map((item) => (
-                <div key={item.title || item.label} className="rounded-2xl bg-emerald-50 p-4">
+                <div key={item.title || item.label} className="rounded-xl bg-emerald-50 p-4">
                   <p className="text-sm font-medium text-emerald-900">{item.title || item.label || item}</p>
                   <p className="mt-1 text-sm leading-6 text-emerald-800">{item.explanation || 'This showed up as one of your clearer match signals for the role. Keep backing it up with specific examples.'}</p>
                 </div>

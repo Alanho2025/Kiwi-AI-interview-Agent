@@ -11,7 +11,7 @@
 
 import { Button } from '../common/Button.jsx';
 import { Download, ChevronDown } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 /**
  * Purpose: Execute the main responsibility for ReportActionBar.
@@ -21,7 +21,29 @@ import { useState } from 'react';
  */
 export function ReportActionBar({ loading, onGenerate, onRunQa, onExport, onDownloadRecording, recordingStatus }) {
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const exportMenuRef = useRef(null);
   const canDownloadRecording = Boolean(onDownloadRecording) && recordingStatus?.state === 'ready';
+
+  useEffect(() => {
+    if (!showExportMenu) return undefined;
+
+    const closeMenu = (event) => {
+      if (event.key === 'Escape') {
+        setShowExportMenu(false);
+      }
+      if (event.type === 'mousedown' && exportMenuRef.current && !exportMenuRef.current.contains(event.target)) {
+        setShowExportMenu(false);
+      }
+    };
+
+    document.addEventListener('keydown', closeMenu);
+    document.addEventListener('mousedown', closeMenu);
+
+    return () => {
+      document.removeEventListener('keydown', closeMenu);
+      document.removeEventListener('mousedown', closeMenu);
+    };
+  }, [showExportMenu]);
 
   const handleExport = (format) => {
     setShowExportMenu(false);
@@ -48,7 +70,7 @@ export function ReportActionBar({ loading, onGenerate, onRunQa, onExport, onDown
       ) : null}
       
       {onExport && (
-        <div className="relative">
+        <div className="relative" ref={exportMenuRef}>
           <Button 
             variant="secondary" 
             disabled={loading}
@@ -61,7 +83,7 @@ export function ReportActionBar({ loading, onGenerate, onRunQa, onExport, onDown
           </Button>
           
           {showExportMenu && (
-            <div className="absolute left-0 top-full z-30 mt-1 w-48 rounded-lg border border-gray-200 bg-white shadow-lg">
+            <div className="absolute left-0 top-full z-30 mt-1 w-48 rounded-xl border border-gray-200 bg-white shadow-lg">
               <div className="py-1">
                 <button
                   onClick={() => handleExport('pdf')}

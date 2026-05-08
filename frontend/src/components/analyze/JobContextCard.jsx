@@ -15,7 +15,7 @@ const splitListText = (value = '') => String(value || '')
   .filter(Boolean);
 
 const joinListText = (items = []) => normalizeList(items).join('\n');
-const fieldClass = 'mt-2 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 outline-none transition focus:border-[#2eb886] focus:ring-2 focus:ring-[#2eb886]/15';
+const fieldClass = 'mt-2 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 outline-none transition focus:border-[#2eb886] focus:ring-2 focus:ring-[#2eb886]/15';
 
 const SummarySection = ({ title, items = [], emptyText = 'No clear items detected in this section.' }) => (
   <div className="rounded-lg border border-gray-100 bg-white p-4">
@@ -40,7 +40,7 @@ const TechnicalSkillGroup = ({ title, items }) => (
     <h5 className="text-sm font-semibold text-gray-900">{title}</h5>
     <div className="mt-3 flex flex-wrap gap-2">
       {items.map((item) => (
-        <span key={`${title}-${item}`} className="rounded-full bg-[#eef8f4] px-3 py-1 text-xs font-medium text-[#1f7d59]">
+        <span key={`${title}-${item}`} className="rounded-lg bg-[#eef8f4] px-3 py-1.5 text-xs font-medium text-[#1f7d59]">
           {item}
         </span>
       ))}
@@ -189,7 +189,7 @@ const AnalysisStatusBlock = ({
   const statusTone = requiresJdHumanReview ? 'border-amber-200 bg-amber-50' : 'border-emerald-100 bg-white';
 
   return (
-    <div className={`rounded-lg border p-4 ${statusTone}`}>
+    <div className={`rounded-xl border p-4 ${statusTone}`}>
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-xs font-medium uppercase tracking-wide text-gray-400">Analysis Status</p>
@@ -200,7 +200,7 @@ const AnalysisStatusBlock = ({
       </div>
 
       {requiresJdHumanReview ? (
-        <div className="mt-3 rounded-lg border border-amber-200 bg-white/80 p-3">
+        <div className="mt-3 rounded-xl border border-amber-200 bg-white/80 p-3">
           <p className="text-sm font-semibold text-amber-900">{isJdEdited ? 'Review your edited JD before matching' : 'Human review required before matching'}</p>
           <p className="mt-1 text-xs leading-5 text-amber-800">Check and edit the parsed JD fields. When they look correct, mark the JD as reviewed to unlock CV-JD matching.</p>
           <Button type="button" variant="secondary" size="sm" className="mt-3" onClick={onConfirmJDSummary}>Mark JD as reviewed</Button>
@@ -257,7 +257,7 @@ export function JobContextCard({
         </Button>
 
         {structuredJD && structuredJDRubric && viewModel && (
-          <div className="mt-4 space-y-4 rounded-xl border border-gray-100 bg-gray-50 p-3 sm:p-4">
+          <div className="mt-4 space-y-4 rounded-xl border border-gray-200 bg-gray-50 p-3 sm:p-4">
             <div>
               <h4 className="text-sm font-medium text-gray-900">JD Summary</h4>
               <p className="mt-1 text-xs text-gray-500">Review this structured JD before matching. Edits here directly change the rubric used by CV-JD matching.</p>
@@ -277,7 +277,7 @@ export function JobContextCard({
 
             <EditableJDReviewPanel rubric={structuredJDRubric} onRubricChange={onStructuredJDRubricChange} />
 
-            <details className="rounded-lg border border-gray-100 bg-white">
+            <details className="rounded-xl border border-gray-200 bg-white">
               <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-gray-900">Preview current parsed JD</summary>
               <div className="space-y-3 border-t border-gray-100 p-3">
                 <SummarySection title="Job Overview" items={[viewModel.title, ...viewModel.overviewItems]} emptyText="No overview details detected." />

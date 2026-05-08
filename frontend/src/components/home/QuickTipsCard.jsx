@@ -20,21 +20,21 @@ import { TrendingUp } from 'lucide-react';
  */
 export function QuickTipsCard() {
   return (
-    <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-[0_2px_10px_rgb(0,0,0,0.02)] sm:p-6">
+    <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
       <div className="mb-4 flex items-center justify-between">
         <h3 className="text-lg font-bold">Quick Tips</h3>
-        <span className="text-xs text-gray-400">Bite-sized</span>
+        <span className="text-xs text-gray-500">Bite-sized</span>
       </div>
-      <ul className="mb-6 space-y-4 text-sm text-gray-600">
+      <ul className="mb-6 space-y-4 text-sm leading-6 text-gray-600">
         <li>Speak clearly at a steady pace. Aim for 140-160 wpm for technical answers.</li>
         <li>Emphasize keywords in NZ English pronunciations: 'process', 'schedule', 'route'.</li>
         <li>Use the timed mode to build concise answers under pressure.</li>
       </ul>
       <div className="mt-4 border-t border-gray-100 pt-4">
-        <div className="flex h-24 w-full items-end rounded-lg border border-emerald-100 bg-gradient-to-r from-emerald-50 to-teal-50 p-2">
+        <div className="flex h-20 w-full items-end rounded-xl border border-emerald-100 bg-emerald-50 p-2">
           <TrendingUp className="h-full w-full text-emerald-300 opacity-50" />
         </div>
-        <div className="mt-2 text-[10px] text-gray-400">Weekly practice trend</div>
+        <div className="mt-2 text-[10px] text-gray-500">Weekly practice trend</div>
       </div>
     </div>
   );

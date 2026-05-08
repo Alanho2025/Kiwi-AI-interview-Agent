@@ -18,18 +18,18 @@ import { cn } from '../../utils/formatters.js';
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
 export function Button({ className, variant = 'primary', size = 'md', children, ...props }) {
-  const baseStyles = "inline-flex items-center justify-center rounded-full font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none";
+  const baseStyles = "inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-50";
   
   const variants = {
-    primary: "bg-[#2eb886] text-white hover:bg-[#259a6f] focus:ring-[#2eb886]",
-    secondary: "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 focus:ring-gray-200",
-    outline: "border-2 border-[#2eb886] text-[#2eb886] hover:bg-[#2eb886] hover:text-white",
-    ghost: "text-gray-600 hover:bg-gray-100 hover:text-gray-900",
-    danger: "bg-red-50 text-red-600 hover:bg-red-100"
+    primary: "bg-[#2eb886] text-white shadow-sm hover:bg-[#259a6f] focus:ring-[#2eb886]",
+    secondary: "border border-gray-300 bg-white text-gray-800 hover:bg-gray-50 focus:ring-gray-200",
+    outline: "border border-[#2eb886] bg-white text-[#217c5d] hover:bg-[#eef8f4] focus:ring-[#2eb886]",
+    ghost: "text-gray-700 hover:bg-gray-100 hover:text-gray-950",
+    danger: "border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 focus:ring-red-200"
   };
   
   const sizes = {
-    sm: "px-3 py-1.5 text-sm",
+    sm: "px-3 py-2 text-sm",
     md: "px-5 py-2.5 text-sm",
     lg: "px-8 py-3 text-base"
   };

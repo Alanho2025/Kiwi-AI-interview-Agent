@@ -20,18 +20,18 @@ import { Bird, HelpCircle } from 'lucide-react';
  */
 export function HomeHeader({ user, isAvatarBroken, userInitials, onAvatarError, onSignOut, onStartTour }) {
   return (
-    <header className="sticky top-0 z-20 flex items-center justify-between border-b border-gray-100 bg-white px-4 py-3 sm:px-8 sm:py-4 shadow-sm">
+    <header className="sticky top-0 z-20 flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3 shadow-sm sm:px-8 sm:py-4">
       <div className="flex items-center gap-2 text-xl font-bold text-emerald-500">
         <Bird size={28} />
         <span className="text-gray-900">Kiwi Voice Coach</span>
       </div>
 
-      <div className="hidden text-sm font-medium text-gray-600 md:block">
-        Ready to start? Click the big Start button or select a mode.
+      <div className="hidden text-sm font-medium text-gray-600 lg:block">
+        Practice dashboard
       </div>
 
       <div className="flex items-center gap-4 sm:gap-6">
-        <button onClick={onStartTour} className="flex items-center gap-1.5 text-sm font-medium text-gray-400 hover:text-emerald-600 transition" title="Replay Tour">
+        <button onClick={onStartTour} className="flex items-center gap-1.5 rounded-xl px-2 py-2 text-sm font-medium text-gray-500 transition hover:bg-gray-100 hover:text-emerald-700" title="Replay Tour">
           <HelpCircle size={20} />
           <span className="hidden sm:inline">Tour</span>
         </button>
@@ -51,7 +51,7 @@ export function HomeHeader({ user, isAvatarBroken, userInitials, onAvatarError, 
             </div>
           )}
           <div className="hidden text-right sm:block">
-            <div className="text-sm font-bold text-gray-900 underline decoration-gray-300 underline-offset-2">
+            <div className="text-sm font-semibold text-gray-900">
               {user.name || user.email}
             </div>
             <div className="text-xs text-gray-400">
@@ -61,7 +61,7 @@ export function HomeHeader({ user, isAvatarBroken, userInitials, onAvatarError, 
           </div>
         </div>
         <button
-          className="rounded-full border border-gray-300 px-4 py-1.5 sm:px-5 sm:py-2 text-sm font-semibold transition hover:bg-gray-50"
+          className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-semibold transition hover:bg-gray-50"
           onClick={onSignOut}
         >
           Sign out
