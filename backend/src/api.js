@@ -86,5 +86,10 @@ api.use('/usage', requireAuth, usageRoutes);
 api.use('/recordings', requireAuth, uploadRateLimit, recordingRoutes);
 
 api.use(errorHandler);
+loadEnv();
 
+assertRequiredEnv([
+  'JWT_SECRET',
+  'GOOGLE_CLIENT_ID',
+]);
 export default api;
