@@ -86,6 +86,9 @@ export function attachDuplexVoiceSocketServer(server, dependencies = {}) {
 
   wss.on('connection', async (socket, request, context) => {
     socket.kiwiSessionId = context.sessionId;
+    socket.on('error', (error) => {
+      logger.error('Duplex WebSocket connection error', { sessionId: socket.kiwiSessionId, error: error.message, stack: error.stack });
+    });
 
     let duplexSession = null;
     const safeSend = (payload) => sendJson(socket, payload);
