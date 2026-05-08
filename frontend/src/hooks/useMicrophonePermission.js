@@ -8,6 +8,12 @@ const getPermissionErrorMessage = (permissionError) => {
   return permissionError?.message || 'Microphone access was blocked.';
 };
 
+export const MICROPHONE_AUDIO_CONSTRAINTS = {
+  echoCancellation: true,
+  noiseSuppression: true,
+  autoGainControl: true,
+};
+
 export function useMicrophonePermission() {
   const [permissionState, setPermissionState] = useState('prompt');
   const [isRequesting, setIsRequesting] = useState(false);
@@ -45,7 +51,7 @@ export function useMicrophonePermission() {
     setIsRequesting(true);
     setError(null);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: MICROPHONE_AUDIO_CONSTRAINTS });
       if (!keepStream) stream.getTracks().forEach((track) => track.stop());
       setPermissionState('granted');
       return { ok: true, stream: keepStream ? stream : null };

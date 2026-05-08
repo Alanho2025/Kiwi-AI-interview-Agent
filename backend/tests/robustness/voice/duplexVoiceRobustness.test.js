@@ -107,6 +107,35 @@ describe('duplex voice robustness', () => {
     }).ok).toBe(true);
   });
 
+  it('rejects noise-like transcripts even when ASR returns text', () => {
+    expect(validateRealtimeVoiceTranscript({
+      transcriptText: 'Thank you',
+      asrConfidence: 0.92,
+      vad: { speechDurationMs: 1400, sttSegmentCount: 1 },
+    })).toEqual(expect.objectContaining({
+      ok: false,
+      reason: 'FILLER_TRANSCRIPT',
+    }));
+
+    expect(validateRealtimeVoiceTranscript({
+      transcriptText: 'I used React and PostgreSQL for the project.',
+      asrConfidence: 0.92,
+      vad: { speechDurationMs: 600, sttSegmentCount: 1 },
+    })).toEqual(expect.objectContaining({
+      ok: false,
+      reason: 'SPEECH_TOO_SHORT',
+    }));
+
+    expect(validateRealtimeVoiceTranscript({
+      transcriptText: 'I used React and PostgreSQL for the project.',
+      asrConfidence: 0.92,
+      vad: { speechDurationMs: 5000, sttSegmentCount: 0 },
+    })).toEqual(expect.objectContaining({
+      ok: false,
+      reason: 'NO_FINAL_STT_SEGMENTS',
+    }));
+  });
+
   it('normalizes common STT technical misrecognitions without rewriting the answer meaning', () => {
     const result = normalizeTranscript('I used react query with post gray sql and r a g.');
 

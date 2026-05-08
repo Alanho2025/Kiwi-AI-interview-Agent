@@ -7,7 +7,7 @@ import {
   useVoiceInterviewSession,
 } from '../useVoiceInterviewSession.js';
 
-const { permissionMock, realtimeMicMock, duplexSocketMock, audioQueueMock } = vi.hoisted(() => ({
+const { permissionMock, realtimeMicMock, duplexSocketMock, audioQueueMock, vadMock } = vi.hoisted(() => ({
   permissionMock: {
     permissionState: 'granted',
     isRequesting: false,
@@ -22,6 +22,7 @@ const { permissionMock, realtimeMicMock, duplexSocketMock, audioQueueMock } = vi
     mediaStream: null,
     startStream: vi.fn().mockResolvedValue({}),
     stopStream: vi.fn().mockResolvedValue(undefined),
+    setSendAudio: vi.fn(),
   },
   duplexSocketMock: {
     socketState: 'idle',
@@ -40,11 +41,18 @@ const { permissionMock, realtimeMicMock, duplexSocketMock, audioQueueMock } = vi
     stopSession: vi.fn(),
   },
   audioQueueMock: {
+    config: null,
     audioRef: { current: null },
     assistantAudioUrl: '',
     isAssistantSpeaking: false,
+    unlockAudio: vi.fn().mockResolvedValue({ ok: true }),
     enqueueAudioChunk: vi.fn(),
     clearQueue: vi.fn(),
+  },
+  vadMock: {
+    config: null,
+    startVad: vi.fn().mockResolvedValue(true),
+    stopVad: vi.fn(),
   },
 }));
 
@@ -57,12 +65,15 @@ vi.mock('../voice/useRealtimeMicStream.js', () => ({
 }));
 
 vi.mock('../voice/useVoiceActivityDetection.js', () => ({
-  useVoiceActivityDetection: () => ({
-    startVad: vi.fn().mockResolvedValue(true),
-    stopVad: vi.fn(),
-    vadState: 'idle',
-    vadMetrics: null,
-  }),
+  useVoiceActivityDetection: (config) => {
+    vadMock.config = config;
+    return {
+      startVad: vadMock.startVad,
+      stopVad: vadMock.stopVad,
+      vadState: 'idle',
+      vadMetrics: null,
+    };
+  },
 }));
 
 vi.mock('../voice/useDuplexVoiceSocket.js', () => ({
@@ -70,7 +81,10 @@ vi.mock('../voice/useDuplexVoiceSocket.js', () => ({
 }));
 
 vi.mock('../voice/useAssistantAudioQueue.js', () => ({
-  useAssistantAudioQueue: () => audioQueueMock,
+  useAssistantAudioQueue: (config) => {
+    audioQueueMock.config = config;
+    return audioQueueMock;
+  },
 }));
 
 const buildSession = (overrides = {}) => ({
@@ -105,10 +119,19 @@ describe('useVoiceInterviewSession', () => {
     permissionMock.isSupported = true;
     permissionMock.requestPermission = vi.fn().mockResolvedValue({ ok: true });
     realtimeMicMock.isStreaming = false;
+    realtimeMicMock.mediaStream = null;
+    realtimeMicMock.setSendAudio = vi.fn();
+    realtimeMicMock.startStream = vi.fn().mockResolvedValue({});
+    realtimeMicMock.stopStream = vi.fn().mockResolvedValue(undefined);
     duplexSocketMock.socketState = 'idle';
     duplexSocketMock.finalTranscript = null;
     duplexSocketMock.partialTranscript = '';
     duplexSocketMock.socketError = null;
+    audioQueueMock.config = null;
+    audioQueueMock.unlockAudio = vi.fn().mockResolvedValue({ ok: true });
+    vadMock.config = null;
+    vadMock.startVad = vi.fn().mockResolvedValue(true);
+    vadMock.stopVad = vi.fn();
   });
 
   it('does not allow voice controls when disabled, paused, completed, or submitting', () => {
@@ -153,5 +176,66 @@ describe('useVoiceInterviewSession', () => {
 
     expect(result.current.manualAudioFile).toBeNull();
     expect(result.current.voiceMode).toBe('duplex');
+  });
+
+  it('confirms sustained speech before sending barge-in while assistant is speaking', async () => {
+    renderHook(() => useVoiceInterviewSession({
+      enabled: true,
+      session: buildSession(),
+      sessionId: 'session-1',
+      isPaused: false,
+      isCompleted: false,
+      isSubmitting: false,
+    }));
+
+    await act(async () => {
+      audioQueueMock.config.onPlaybackStart();
+      vadMock.config.onSpeechStart({ speechStartedAt: 1000 });
+    });
+
+    expect(audioQueueMock.clearQueue).not.toHaveBeenCalled();
+    expect(duplexSocketMock.sendSpeechStart).not.toHaveBeenCalled();
+    expect(duplexSocketMock.sendBargeIn).not.toHaveBeenCalled();
+
+    await act(async () => {
+      vadMock.config.onVadFrame({
+        rms: 0.04,
+        at: 1200,
+        metrics: { thresholds: { speechThreshold: 0.018, silenceThreshold: 0.012 } },
+      });
+    });
+
+    expect(duplexSocketMock.sendBargeIn).not.toHaveBeenCalled();
+
+    await act(async () => {
+      vadMock.config.onVadFrame({
+        rms: 0.04,
+        at: 1400,
+        metrics: { thresholds: { speechThreshold: 0.018, silenceThreshold: 0.012 } },
+      });
+    });
+
+    expect(audioQueueMock.clearQueue).toHaveBeenCalledTimes(1);
+    expect(realtimeMicMock.setSendAudio).toHaveBeenCalledWith(true);
+    expect(duplexSocketMock.sendSpeechStart).toHaveBeenCalledTimes(1);
+    expect(duplexSocketMock.sendBargeIn).toHaveBeenCalledWith('user_started_speaking');
+  });
+
+  it('does not restart VAD immediately while a submitted voice turn is processing', async () => {
+    renderHook(() => useVoiceInterviewSession({
+      enabled: true,
+      session: buildSession(),
+      sessionId: 'session-1',
+      isPaused: false,
+      isCompleted: false,
+      isSubmitting: false,
+    }));
+
+    await act(async () => {
+      await vadMock.config.onSpeechEnd({ speechDurationMs: 2500, silenceDurationMs: 2000 });
+    });
+
+    expect(duplexSocketMock.sendSpeechEnd).toHaveBeenCalledWith(expect.objectContaining({ speechDurationMs: 2500 }));
+    expect(vadMock.startVad).not.toHaveBeenCalled();
   });
 });

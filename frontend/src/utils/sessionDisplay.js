@@ -160,6 +160,17 @@ export const resolveDisplayScore = (session = {}) => {
   return null;
 };
 
+export const dedupeSessionsById = (sessionHistory = []) => {
+  const seenIds = new Set();
+
+  return sessionHistory.filter((item) => {
+    if (!item?.id) return true;
+    if (seenIds.has(item.id)) return false;
+    seenIds.add(item.id);
+    return true;
+  });
+};
+
 /**
  * Purpose: Execute the main responsibility for settingsSummary.
  * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
@@ -188,8 +199,9 @@ export const settingsSummary = (settings = DEFAULT_SESSION_SETTINGS) => {
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
 export const buildHomepageStats = (sessionHistory = [], historyLoading = false) => {
-  const completedSessions = sessionHistory.filter((item) => item.status === 'completed');
-  const scoredSessions = sessionHistory
+  const dedupedHistory = dedupeSessionsById(sessionHistory);
+  const completedSessions = dedupedHistory.filter((item) => item.status === 'completed');
+  const scoredSessions = dedupedHistory
     .map((item) => resolveDisplayScore(item))
     .filter((value) => Number.isFinite(Number(value)));
 
@@ -200,10 +212,10 @@ export const buildHomepageStats = (sessionHistory = [], historyLoading = false) 
   return {
     completedSessions,
     averageScore,
-    latestRole: sessionHistory[0]?.displayTitle || sessionHistory[0]?.targetRole || 'No sessions yet',
-    totalSessionsLabel: historyLoading ? '...' : String(sessionHistory.length),
+    latestRole: dedupedHistory[0]?.displayTitle || dedupedHistory[0]?.targetRole || 'No sessions yet',
+    totalSessionsLabel: historyLoading ? '...' : String(dedupedHistory.length),
     averageScoreLabel: historyLoading ? '...' : String(averageScore),
-    latestRoleLabel: historyLoading ? '...' : (sessionHistory[0]?.displayTitle || sessionHistory[0]?.targetRole || 'No sessions yet'),
+    latestRoleLabel: historyLoading ? '...' : (dedupedHistory[0]?.displayTitle || dedupedHistory[0]?.targetRole || 'No sessions yet'),
   };
 };
 
@@ -213,7 +225,7 @@ export const buildHomepageStats = (sessionHistory = [], historyLoading = false) 
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-export const buildRecentActivity = (sessionHistory = []) => sessionHistory.slice(0, 3).map((item) => ({
+export const buildRecentActivity = (sessionHistory = []) => dedupeSessionsById(sessionHistory).slice(0, 3).map((item) => ({
   id: item.id,
   title: item.displayTitle || item.targetRole || 'Interview Session',
   date: formatShortDate(item.createdAt),
@@ -229,7 +241,7 @@ export const buildRecentActivity = (sessionHistory = []) => sessionHistory.slice
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-export const buildSessionHistoryRows = (sessionHistory = []) => sessionHistory.map((item) => {
+export const buildSessionHistoryRows = (sessionHistory = []) => dedupeSessionsById(sessionHistory).map((item) => {
   const displayStatus = item.status === 'completed'
     ? 'Completed'
     : item.status === 'in_progress'

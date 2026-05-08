@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
+import { MICROPHONE_AUDIO_CONSTRAINTS } from '../useMicrophonePermission.js';
 
 const TARGET_SAMPLE_RATE = 16000;
 
@@ -78,13 +79,7 @@ export function useRealtimeMicStream({ onAudioChunk }) {
   const startStream = useCallback(async (options = {}) => {
     modeRef.current = { sendAudio: options.sendAudio !== false };
     await stopStream();
-    const stream = options.stream || await navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-      },
-    });
+    const stream = options.stream || await navigator.mediaDevices.getUserMedia({ audio: MICROPHONE_AUDIO_CONSTRAINTS });
     const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
     const audioContext = new AudioContextCtor();
     if (audioContext.state === 'suspended') await audioContext.resume();

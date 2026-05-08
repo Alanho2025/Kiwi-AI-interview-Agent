@@ -9,7 +9,7 @@
  * - Prefer composition and small helpers over repeated inline logic.
  */
 
-import { useState, useEffect } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AppHeader } from '../components/layout/AppHeader.jsx';
 import { StepProgress } from '../components/layout/StepProgress.jsx';
@@ -115,6 +115,7 @@ export function AnalyzePage() {
   const [deletingCvId, setDeletingCvId] = useState('');
   const [pageStatus, setPageStatus] = useState(null);
   const [voiceDeviceCheck, setVoiceDeviceCheck] = useState(DEFAULT_VOICE_DEVICE_CHECK);
+  const isGeneratingPlanRef = useRef(false);
 
   const { startTour, globalTourStep, advanceGlobalTour } = useTour();
 
@@ -385,6 +386,10 @@ export function AnalyzePage() {
   };
 
   const handleGeneratePlan = async () => {
+    if (isGeneratingPlanRef.current) {
+      return;
+    }
+
     if (!selectedCV || !rawJD) {
       setPageStatus(buildStatusMessage('error', 'Missing input', 'Please provide both a CV and a job description.'));
       return;
@@ -405,6 +410,7 @@ export function AnalyzePage() {
       return;
     }
 
+    isGeneratingPlanRef.current = true;
     setAnalysisStatus('matching');
 
     try {
@@ -434,6 +440,8 @@ export function AnalyzePage() {
       console.error(error);
       setAnalysisStatus('error');
       setPageStatus(buildStatusMessage('error', 'Analysis failed', error.message));
+    } finally {
+      isGeneratingPlanRef.current = false;
     }
   };
 
