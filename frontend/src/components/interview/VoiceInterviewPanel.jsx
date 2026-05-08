@@ -215,8 +215,8 @@ export function VoiceInterviewPanel({
 
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-        <div className="min-h-[320px] flex-1 overflow-hidden bg-gray-50 p-4 sm:min-h-[360px] lg:min-h-0 xl:min-h-[420px]">
-          <div className="mx-auto flex h-full max-w-[520px] flex-col items-center justify-center gap-4 py-2">
+        <div className="min-h-0 flex-1 overflow-y-auto bg-gray-50 p-4">
+          <div className="mx-auto flex min-h-full max-w-[520px] flex-col items-center justify-center gap-4 py-2">
             <div className="flex w-full flex-wrap items-center justify-between gap-3">
               <div className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm">
                 <span className={cn('h-2.5 w-2.5 rounded-full', isRecording ? 'bg-[#2eb886]' : (isCompleted ? 'bg-emerald-500' : 'bg-gray-300'))} />
