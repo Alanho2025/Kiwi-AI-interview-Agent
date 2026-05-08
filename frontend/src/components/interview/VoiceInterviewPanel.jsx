@@ -215,8 +215,8 @@ export function VoiceInterviewPanel({
 
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-        <div className="min-h-0 flex-1 overflow-y-auto bg-gray-50 p-4">
-          <div className="mx-auto flex min-h-full max-w-[520px] flex-col items-center justify-center gap-4 py-2">
+        <div className="min-h-0 flex-1 overflow-y-auto bg-gray-50 p-4 flex flex-col justify-center">
+          <div className="mx-auto flex w-full max-w-[520px] flex-col items-center justify-center gap-4 sm:gap-6 py-2">
             <div className="flex w-full flex-wrap items-center justify-between gap-3">
               <div className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm">
                 <span className={cn('h-2.5 w-2.5 rounded-full', isRecording ? 'bg-[#2eb886]' : (isCompleted ? 'bg-emerald-500' : 'bg-gray-300'))} />
@@ -266,7 +266,12 @@ export function VoiceInterviewPanel({
               )}
             </div>
 
-            <div className="flex h-[58px] w-full items-end justify-between gap-1 overflow-hidden rounded-xl bg-white px-4 py-3 shadow-sm">
+          </div>
+        </div>
+
+        <div className="shrink-0 bg-gray-50 px-4 pb-4">
+          <div className="mx-auto w-full max-w-[520px]">
+            <div className="flex h-[48px] sm:h-[58px] w-full items-end justify-between gap-1 overflow-hidden rounded-xl bg-white px-4 py-3 shadow-sm">
               {waveBars.map((value, index) => (
                 <div
                   key={`wave-${index}`}
@@ -277,7 +282,7 @@ export function VoiceInterviewPanel({
             </div>
 
             {isCompleted ? (
-              <div className="w-full rounded-xl border border-emerald-100 bg-white px-4 py-3 text-center text-sm text-emerald-700 shadow-sm">
+              <div className="mt-3 w-full rounded-xl border border-emerald-100 bg-white px-4 py-3 text-center text-sm text-emerald-700 shadow-sm">
                 Session ended. Report, transcript, and recording actions are available outside the live voice controls.
               </div>
             ) : null}
