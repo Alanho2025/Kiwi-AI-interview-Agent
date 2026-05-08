@@ -196,6 +196,7 @@ export function useVoiceInterviewSession({
 
   const audioQueue = useAssistantAudioQueue({
     onPlaybackStart: () => {
+      console.log(`[FRONTEND-TTS-TRACE] Assistant audio playback started.`);
       stopLatencyAcknowledgement();
       isAssistantSpeakingRef.current = true;
       activeVoiceTurnTraceRef.current?.mark('assistant_audio_play_start');
@@ -207,6 +208,7 @@ export function useVoiceInterviewSession({
       activeVoiceTurnTraceRef.current?.mark('assistant_audio_play_end');
     },
     onQueueDrained: () => {
+      console.log(`[FRONTEND-TTS-TRACE] Assistant audio queue drained.`);
       isAssistantSpeakingRef.current = false;
       clearPendingBargeIn();
       if (autoLoopActiveRef.current && !isPaused && !isCompleted && !isProcessingTurn) {
@@ -226,6 +228,7 @@ export function useVoiceInterviewSession({
     onAudioChunk: (chunk) => {
       stopLatencyAcknowledgement();
       if (!firstAudioChunkSeenRef.current) {
+        console.log(`[FRONTEND-TTS-TRACE] Received first TTS audio chunk from backend.`);
         firstAudioChunkSeenRef.current = true;
         const firstAudioDelayMs = activeVoiceTurnStartedAtRef.current
           ? Math.round(performance.now() - activeVoiceTurnStartedAtRef.current)
@@ -244,9 +247,11 @@ export function useVoiceInterviewSession({
       setAssistantTextPreview((current) => `${current}${payload.text || ''}`);
     },
     onSpeechDone: () => {
+      console.log(`[FRONTEND-STT-TRACE] Backend finished processing speech (speech_done).`);
       setIsProcessingTurn(false);
     },
     onTranscriptRejected: (payload) => {
+      console.log(`[FRONTEND-STT-TRACE] Transcript rejected by backend (repair prompt).`);
       stopLatencyAcknowledgement();
       setIsProcessingTurn(false);
       setIsVoiceTakingLong(false);
@@ -258,6 +263,7 @@ export function useVoiceInterviewSession({
       setVoiceStatus(buildVoiceStatus('warning', 'Voice did not catch that clearly', payload?.message || 'Please answer again so KiwiCoach can score the right content.'));
     },
     onTurnDone: (payload) => {
+      console.log(`[FRONTEND-STT-TRACE] Turn done received. Final transcript:`, payload?.transcription?.text);
       stopLatencyAcknowledgement();
       activeVoiceTurnTraceRef.current?.mark('auto_submit_response');
       setIsProcessingTurn(false);
@@ -307,10 +313,12 @@ export function useVoiceInterviewSession({
   }, [audioQueue, duplexSocket, realtimeMic]);
 
   const stopListening = useCallback(async (reason = 'speech_end') => {
+    console.log(`[FRONTEND-STT-TRACE] Stopping listening. Reason: ${reason}`);
     const { turnId } = startVoiceTurnTrace(reason);
     activeVoiceTurnTraceRef.current?.mark('auto_submit_start', { reason, turnId });
     activeVoiceTurnTraceRef.current?.mark('stt_stop_sent', { reason, turnId });
     vad.stopVad?.();
+    console.log(`[FRONTEND-STT-TRACE] Sending speech_end to backend.`);
     duplexSocket.sendSpeechEnd(vadMetricsRef.current || null);
     realtimeMic.setSendAudio?.(false);
     setIsProcessingTurn(true);
@@ -339,6 +347,7 @@ export function useVoiceInterviewSession({
   }, [clearPendingBargeIn, confirmPendingBargeIn]);
 
   const handleVadSpeechStart = useCallback((metrics = {}) => {
+    console.log(`[FRONTEND-STT-TRACE] VAD detected speech start.`);
     stopLatencyAcknowledgement();
     setLastTranscriptRejection(null);
     vadMetricsRef.current = { ...(vadMetricsRef.current || {}), ...metrics };
@@ -350,6 +359,7 @@ export function useVoiceInterviewSession({
         confirmed: false,
       };
     } else {
+      console.log(`[FRONTEND-STT-TRACE] Arming microphone and sending speech_start.`);
       realtimeMic.setSendAudio?.(true);
       duplexSocket.sendSpeechStart();
       setVoiceState('user_speaking');
@@ -530,8 +540,22 @@ export function useVoiceInterviewSession({
       setVoiceStatus(buildVoiceStatus('info', 'Starting duplex voice interview', 'KiwiCoach will speak, listen, and allow interruption.'));
       await ensureDuplexConnected();
       await startPassiveMicMonitor();
-      const spoke = speakQuestionText(firstQuestionText);
-      if (!spoke) await startListening();
+      
+      // Delay the first audio playback by 1.2s.
+      // Why? When startPassiveMicMonitor activates the microphone, macOS and Windows
+      // often switch Bluetooth headsets from high-quality (A2DP) to mono+mic (HFP).
+      // This profile switch takes ~1-2 seconds, during which ALL audio is muted.
+      // Delaying ensures the user actually hears the first few words of the question.
+      window.setTimeout(async () => {
+        try {
+          if (!autoLoopActiveRef.current) return;
+          const spoke = speakQuestionText(firstQuestionText);
+          if (!spoke) await startListening();
+        } catch (e) {
+          console.error('Failed to start first voice turn', e);
+        }
+      }, 1200);
+
     } catch (error) {
       autoLoopActiveRef.current = false;
       setIsAutoLoopActive(false);
@@ -647,6 +671,7 @@ export function useVoiceInterviewSession({
 
   useEffect(() => {
     if (!duplexSocket.finalTranscript?.displayText) return;
+    console.log(`[FRONTEND-STT-TRACE] Final transcript segment received:`, duplexSocket.finalTranscript.displayText);
     activeVoiceTurnTraceRef.current?.mark('final_transcript_received', {
       source: duplexSocket.finalTranscript.type || 'duplex_socket',
       confidence: duplexSocket.finalTranscript.confidence ?? null,
