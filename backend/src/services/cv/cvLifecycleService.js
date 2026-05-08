@@ -3,6 +3,7 @@ import { DocumentContent } from '../../db/models/documentContentModel.js';
 import { buildCvProfile } from './cvProfileBuilderService.js';
 import { buildCvDisplayView } from './cvDisplayViewService.js';
 import { getOwnedCvDocumentOrThrow, getOwnedCvRecordOrThrow } from './cvOwnershipService.js';
+import { deleteLocalStorageObject } from '../storageService.js';
 
 export const rebuildOwnedCvProfile = async ({ cvId, userId }) => {
   const cvDocument = await getOwnedCvDocumentOrThrow({ cvId, userId });
@@ -39,6 +40,15 @@ export const rebuildOwnedCvProfile = async ({ cvId, userId }) => {
 
 export const softDeleteOwnedCv = async ({ cvId, userId }) => {
   await getOwnedCvRecordOrThrow({ cvId, userId });
+  const storageResult = await query(
+    `SELECT storage_provider, storage_key
+     FROM uploaded_files
+     WHERE id = $1 AND user_id = $2 AND file_role = 'cv' AND deleted_at IS NULL
+     LIMIT 1`,
+    [cvId, userId]
+  );
+  const storageRecord = storageResult.rows[0] || null;
+
   await query(
     `UPDATE uploaded_files
      SET deleted_at = now()
@@ -50,6 +60,9 @@ export const softDeleteOwnedCv = async ({ cvId, userId }) => {
     { deletedAt: new Date() },
     { returnDocument: 'after' }
   );
+  if (storageRecord?.storage_provider === 'local') {
+    await deleteLocalStorageObject(storageRecord.storage_key);
+  }
   return { deleted: true, cvId };
 };
 

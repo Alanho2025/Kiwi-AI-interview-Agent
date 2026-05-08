@@ -9,7 +9,7 @@
  * - Prefer composition and small helpers over repeated inline logic.
  */
 
-import { apiClient, clearStoredAuthToken, storeAuthToken } from './client.js';
+import { apiClient, clearCsrfToken, clearStoredAuthToken } from './client.js';
 
 /**
  * Purpose: Execute the main responsibility for getGoogleClientConfig.
@@ -40,14 +40,19 @@ export const getCurrentUser = async () =>
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-export const loginWithGoogle = async (idToken) => {
+const PRIVACY_POLICY_VERSION = 'privacy_act_2020_v1';
+
+export const loginWithGoogle = async (idToken, { termsAccepted = false } = {}) => {
   const data = await apiClient('/auth/google', {
     method: 'POST',
-    body: { idToken },
+    body: {
+      idToken,
+      termsAccepted,
+      privacyPolicyVersion: PRIVACY_POLICY_VERSION,
+    },
     credentials: 'include',
   });
 
-  storeAuthToken(data?.token);
   return data;
 };
 
@@ -64,6 +69,7 @@ export const logoutFromSession = async () => {
       credentials: 'include',
     });
   } finally {
+    clearCsrfToken();
     clearStoredAuthToken();
   }
 };
