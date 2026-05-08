@@ -71,6 +71,9 @@ export function attachRealtimeVoiceSocketServer(server) {
 
   wss.on('connection', async (socket, request, context) => {
     socket.kiwiSessionId = context.sessionId;
+    socket.on('error', (error) => {
+      logger.error('Realtime WebSocket connection error', { sessionId: socket.kiwiSessionId, error: error.message, stack: error.stack });
+    });
 
     let speechSession = null;
     let started = false;

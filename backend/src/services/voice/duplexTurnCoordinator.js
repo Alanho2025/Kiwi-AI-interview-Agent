@@ -103,24 +103,28 @@ export const createDuplexTurnCoordinator = ({
       inputMode: 'duplex_voice',
       vad,
       onSentence: async (text, index) => {
-        const nextIndex = Number.isFinite(index) ? index : sentenceIndex;
-        sentenceIndex = nextIndex + 1;
-        if (!bargeInController?.isTokenActive?.(speechToken)) return;
-        sendJson?.({
-          type: 'assistant_text_delta',
-          tool: AGENT_TOOL_NAMES.GENERATE_INTERVIEW_QUESTION,
-          text,
-          index: nextIndex,
-          timestamp: new Date().toISOString(),
-        });
-        await streamAssistantSpeech({
-          text,
-          voiceName,
-          sendJson,
-          bargeInController,
-          index: nextIndex,
-          speechToken,
-        });
+        try {
+          const nextIndex = Number.isFinite(index) ? index : sentenceIndex;
+          sentenceIndex = nextIndex + 1;
+          if (!bargeInController?.isTokenActive?.(speechToken)) return;
+          sendJson?.({
+            type: 'assistant_text_delta',
+            tool: AGENT_TOOL_NAMES.GENERATE_INTERVIEW_QUESTION,
+            text,
+            index: nextIndex,
+            timestamp: new Date().toISOString(),
+          });
+          await streamAssistantSpeech({
+            text,
+            voiceName,
+            sendJson,
+            bargeInController,
+            index: nextIndex,
+            speechToken,
+          });
+        } catch (error) {
+          logger?.error?.('Failed to process sentence in duplex turn', { sessionId: session?.id, index, text, error: error.message });
+        }
       },
     });
 

@@ -133,15 +133,16 @@ export const createDuplexVoiceAgentSession = ({
   };
 
   const handleJsonMessage = async (payload = {}) => {
-    if (payload.type === 'session_start' || payload.type === 'speech_start') {
-      await startSpeechSession();
-      sendJson({
-        type: 'listening_started',
-        tool: AGENT_TOOL_NAMES.ORCHESTRATE_DUPLEX_VOICE,
-        timestamp: new Date().toISOString(),
-      });
-      return;
-    }
+    try {
+      if (payload.type === 'session_start' || payload.type === 'speech_start') {
+        await startSpeechSession();
+        sendJson({
+          type: 'listening_started',
+          tool: AGENT_TOOL_NAMES.ORCHESTRATE_DUPLEX_VOICE,
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
 
     if (payload.type === 'audio_chunk' && payload.audioBase64) {
       const target = await startSpeechSession();
@@ -229,11 +230,24 @@ export const createDuplexVoiceAgentSession = ({
         timestamp: new Date().toISOString(),
       });
     }
+    } catch (error) {
+      logger?.error?.('Duplex voice message handling failed', { sessionId: activeSession?.id || session?.id, type: payload.type, error: error.message, stack: error.stack });
+      sendJson({
+        type: 'error',
+        code: 'MESSAGE_HANDLING_FAILED',
+        message: error?.message || 'Failed to process voice message.',
+        timestamp: new Date().toISOString(),
+      });
+    }
   };
 
   const handleBinaryAudio = async (message) => {
-    const target = await startSpeechSession();
-    target.writeAudio(Buffer.from(message));
+    try {
+      const target = await startSpeechSession();
+      target.writeAudio(Buffer.from(message));
+    } catch (error) {
+      logger?.error?.('Duplex voice binary audio handling failed', { sessionId: activeSession?.id || session?.id, error: error.message, stack: error.stack });
+    }
   };
 
   const close = async () => {
