@@ -19,7 +19,7 @@ import { NZSettingsCard } from '../components/analyze/NZSettingsCard.jsx';
 import { AnalysisStatusCard } from '../components/analyze/AnalysisStatusCard.jsx';
 import { AnalyzeActionsCard } from '../components/analyze/AnalyzeActionsCard.jsx';
 import { StatusBanner } from '../components/common/StatusBanner.jsx';
-import { uploadCV, getRecentCVs, selectCV } from '../api/uploadApi.js';
+import { uploadCV, getRecentCVs, selectCV, saveReviewedCvProfile, deleteCv } from '../api/uploadApi.js';
 import { paraphraseJD, matchCV, generateInterviewPlan } from '../api/analyzeApi.js';
 import {
   DEFAULT_ANALYZE_MODE,
@@ -31,6 +31,7 @@ import {
   sanitizeAnalyzeSettings,
 } from '../utils/analyzeDraft.js';
 import { stampHumanReviewMetadata } from '../utils/jdHumanReview.js';
+import { buildCvReviewFormModel, buildReviewedCvProfilePayload } from '../utils/cvReviewViewModel.js';
 import { buildSessionSetupPayload, saveSessionDefaults } from '../utils/sessionSettings.js';
 import { DEFAULT_VOICE_DEVICE_CHECK } from '../hooks/useVoiceDeviceCheck.js';
 import { useTour } from '../contexts/TourContext.jsx';
@@ -98,6 +99,7 @@ export function AnalyzePage() {
   const [structuredJD, setStructuredJD] = useState('');
   const [structuredJDRubric, setStructuredJDRubric] = useState(null);
   const [summarizedRawJD, setSummarizedRawJD] = useState('');
+  const [structuredCVProfile, setStructuredCVProfile] = useState(null);
   const [cvHumanReviewedFileId, setCvHumanReviewedFileId] = useState('');
   const [cvReviewStatus, setCvReviewStatus] = useState('unreviewed');
   const [jdHumanReviewedRawJD, setJdHumanReviewedRawJD] = useState('');
@@ -109,6 +111,8 @@ export function AnalyzePage() {
   const [matchRate, setMatchRate] = useState(null);
   const [generatedSessionId, setGeneratedSessionId] = useState(null);
   const [isSummarizingJD, setIsSummarizingJD] = useState(false);
+  const [isSavingCVReview, setIsSavingCVReview] = useState(false);
+  const [deletingCvId, setDeletingCvId] = useState('');
   const [pageStatus, setPageStatus] = useState(null);
   const [voiceDeviceCheck, setVoiceDeviceCheck] = useState(DEFAULT_VOICE_DEVICE_CHECK);
 
@@ -126,6 +130,7 @@ export function AnalyzePage() {
     && normalizedRawJD === normalizeJDText(summarizedRawJD)
   );
   const jdParseConfidence = getJDParseConfidence(structuredJDRubric);
+  const isCvEdited = cvReviewStatus === 'edited';
   const isJdEdited = jdReviewStatus === 'edited';
   const requiresJdHumanReview = Boolean(
     hasCurrentJDSummary
@@ -185,6 +190,7 @@ export function AnalyzePage() {
   useEffect(() => {
     const restoredDraft = loadAnalyzeDraft();
     setSelectedCV(restoredDraft.selectedCV);
+    setStructuredCVProfile(restoredDraft.structuredCVProfile || (restoredDraft.selectedCV ? buildCvReviewFormModel(restoredDraft.selectedCV) : null));
     setCvHumanReviewedFileId(restoredDraft.cvHumanReviewedFileId || '');
     setCvReviewStatus(restoredDraft.cvReviewStatus || 'unreviewed');
     setRawJD(restoredDraft.rawJD);
@@ -205,6 +211,7 @@ export function AnalyzePage() {
   useEffect(() => {
     persistAnalyzeDraft({
       selectedCV,
+      structuredCVProfile,
       cvHumanReviewedFileId,
       cvReviewStatus,
       rawJD,
@@ -216,13 +223,14 @@ export function AnalyzePage() {
       settings,
       sessionMode,
     });
-  }, [selectedCV, cvHumanReviewedFileId, cvReviewStatus, rawJD, structuredJD, structuredJDRubric, summarizedRawJD, jdHumanReviewedRawJD, jdReviewStatus, settings, sessionMode]);
+  }, [selectedCV, structuredCVProfile, cvHumanReviewedFileId, cvReviewStatus, rawJD, structuredJD, structuredJDRubric, summarizedRawJD, jdHumanReviewedRawJD, jdReviewStatus, settings, sessionMode]);
 
   const handleUpload = async (file) => {
     try {
       const uploadedCV = await uploadCV(file);
       resetAnalysisState();
       setSelectedCV(uploadedCV);
+      setStructuredCVProfile(buildCvReviewFormModel(uploadedCV));
       setCvHumanReviewedFileId('');
       setCvReviewStatus('unreviewed');
       setPageStatus(buildStatusMessage('success', 'CV uploaded', `${uploadedCV.name} was parsed into a CV profile and is ready for matching.`));
@@ -239,11 +247,41 @@ export function AnalyzePage() {
       const activeCV = await selectCV(cvId);
       resetAnalysisState();
       setSelectedCV(activeCV);
+      setStructuredCVProfile(buildCvReviewFormModel(activeCV));
       setCvHumanReviewedFileId('');
       setCvReviewStatus('unreviewed');
       setPageStatus(buildStatusMessage('info', 'CV selected', `${activeCV.name} is now the active CV for JD matching.`));
     } catch (error) {
       setPageStatus(buildStatusMessage('error', 'Could not select CV', error.message));
+    }
+  };
+
+  const handleDeleteRecent = async (cv) => {
+    if (!cv?.id) {
+      return;
+    }
+
+    const confirmed = window.confirm(`Delete ${cv.name}? This removes it from your recent CV list.`);
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingCvId(cv.id);
+    try {
+      await deleteCv(cv.id);
+      if (selectedCV?.id === cv.id) {
+        setSelectedCV(null);
+        setStructuredCVProfile(null);
+        setCvHumanReviewedFileId('');
+        setCvReviewStatus('unreviewed');
+        resetAnalysisState();
+      }
+      await refreshRecentCVs();
+      setPageStatus(buildStatusMessage('success', 'CV deleted', `${cv.name} was removed from your recent CVs.`));
+    } catch (error) {
+      setPageStatus(buildStatusMessage('error', 'Could not delete CV', error.message));
+    } finally {
+      setDeletingCvId('');
     }
   };
 
@@ -302,6 +340,13 @@ export function AnalyzePage() {
     resetAnalysisState();
   };
 
+  const handleStructuredCVProfileChange = (nextProfile) => {
+    setStructuredCVProfile(nextProfile);
+    setCvReviewStatus('edited');
+    setCvHumanReviewedFileId('');
+    resetAnalysisState();
+  };
+
   const handleConfirmJDSummary = () => {
     if (!hasCurrentJDSummary) {
       setPageStatus(buildStatusMessage('error', 'Summarise current JD first', 'The JD text has changed. Summarise it again before confirming.'));
@@ -316,16 +361,27 @@ export function AnalyzePage() {
     setPageStatus(buildStatusMessage('success', 'JD summary reviewed', 'KiwiCoach will use this human-reviewed JD summary for CV-JD matching.'));
   };
 
-  const handleConfirmCVReview = () => {
+  const handleConfirmCVReview = async () => {
     if (!selectedCV?.id) {
       setPageStatus(buildStatusMessage('error', 'Select a CV first', 'Upload or select a CV before reviewing the parsed CV fields.'));
       return;
     }
 
-    setCvHumanReviewedFileId(selectedCV.id);
-    setCvReviewStatus('verified');
-    resetAnalysisState();
-    setPageStatus(buildStatusMessage('success', 'CV parse reviewed', 'KiwiCoach will use this reviewed CV profile for CV-JD matching.'));
+    setIsSavingCVReview(true);
+    try {
+      const reviewPayload = buildReviewedCvProfilePayload(structuredCVProfile || buildCvReviewFormModel(selectedCV));
+      const reviewedCV = await saveReviewedCvProfile(selectedCV.id, reviewPayload);
+      setSelectedCV(reviewedCV);
+      setStructuredCVProfile(buildCvReviewFormModel(reviewedCV));
+      setCvHumanReviewedFileId(reviewedCV.id);
+      setCvReviewStatus('verified');
+      resetAnalysisState();
+      setPageStatus(buildStatusMessage('success', 'CV parse reviewed', 'KiwiCoach will use this reviewed CV profile for CV-JD matching.'));
+    } catch (error) {
+      setPageStatus(buildStatusMessage('error', 'CV review failed', error.message));
+    } finally {
+      setIsSavingCVReview(false);
+    }
   };
 
   const handleGeneratePlan = async () => {
@@ -396,8 +452,14 @@ export function AnalyzePage() {
                 selectedCV={selectedCV}
                 recentCVs={recentCVs}
                 onSelectRecent={handleSelectRecent}
+                onDeleteRecent={handleDeleteRecent}
+                deletingCvId={deletingCvId}
                 isCvHumanVerified={isCvHumanVerified}
                 onConfirmCVReview={handleConfirmCVReview}
+                cvReviewProfile={structuredCVProfile}
+                onCvReviewProfileChange={handleStructuredCVProfileChange}
+                isCvEdited={isCvEdited}
+                isCvReviewSaving={isSavingCVReview}
                 validationMessage={pageStatus?.type === 'error' && pageStatus.title === 'Upload failed' ? pageStatus.message : null}
               />
             </div>

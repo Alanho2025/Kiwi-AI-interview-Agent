@@ -25,6 +25,9 @@ for (const item of dataset) {
     score: score.score,
     earned: score.earned,
     possible: score.possible,
+    careerDirection: profile.cvAnalysis?.careerDirection || '',
+    strongestEvidenceCount: profile.cvAnalysis?.strongestEvidence?.length || 0,
+    interviewHooks: profile.cvAnalysis?.suggestedInterviewHooks || [],
     failedChecks: score.checks.filter((check) => !check.passed).map((check) => check.label),
   });
 }

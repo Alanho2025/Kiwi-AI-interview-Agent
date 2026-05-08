@@ -34,6 +34,10 @@ for (const item of dataset) {
     score: score.score,
     earned: score.earned,
     possible: score.possible,
+    priorityTopics: result.matchingDetails?.questionPlanHints?.priorityTopics || [],
+    followUpTargets: result.matchingDetails?.questionPlanHints?.followUpTargets || [],
+    jdRelevantEvidenceCount: result.parsedCvProfile?.cvAnalysis?.jdRelevantEvidence?.length || 0,
+    interviewFocus: result.interviewFocus || [],
     failedChecks: score.checks.filter((check) => !check.passed).map((check) => check.label),
   });
 }

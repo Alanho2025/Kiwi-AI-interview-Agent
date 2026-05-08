@@ -12,7 +12,7 @@
 import { useState, useRef } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../common/Card.jsx';
 import { Button } from '../common/Button.jsx';
-import { FileText, Lock, CheckCircle2, Loader2 } from 'lucide-react';
+import { FileText, Lock, CheckCircle2, Loader2, PencilLine, Trash2 } from 'lucide-react';
 import { cn } from '../../utils/formatters.js';
 import { StatusBanner } from '../common/StatusBanner.jsx';
 import { buildCvReviewViewModel } from '../../utils/cvReviewViewModel.js';
@@ -28,6 +28,138 @@ const buildCvParseLabel = (confidence) => {
   return 'Review recommended';
 };
 
+const normalizeList = (items = []) => (Array.isArray(items) ? items : [])
+  .map((item) => (typeof item === 'string' ? item : item?.label || item?.name || ''))
+  .map((item) => item.trim())
+  .filter(Boolean);
+
+const splitListText = (value = '') => String(value || '')
+  .split('\n')
+  .map((line) => line.replace(/^[-•*]\s*/, '').trim())
+  .filter(Boolean);
+
+const joinListText = (items = []) => normalizeList(items).join('\n');
+const fieldClass = 'mt-2 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 outline-none transition focus:border-[#2eb886] focus:ring-2 focus:ring-[#2eb886]/15';
+
+const EditableCvTextArea = ({ label, value, onChange, rows = 4 }) => (
+  <label className="block text-xs font-semibold text-gray-600">
+    {label}
+    <textarea
+      className={`${fieldClass} min-h-[92px] resize-y leading-5`}
+      value={value || ''}
+      rows={rows}
+      onChange={(event) => onChange(event.target.value)}
+    />
+  </label>
+);
+
+const EditableCvListField = ({ label, value = [], onChange }) => (
+  <label className="block text-xs font-semibold text-gray-600">
+    {label}
+    <textarea
+      className={`${fieldClass} min-h-[92px] resize-y leading-5`}
+      value={joinListText(value)}
+      onChange={(event) => onChange(splitListText(event.target.value))}
+    />
+    <span className="mt-1 block text-[11px] font-normal text-gray-400">One item per line.</span>
+  </label>
+);
+
+const EditableCVReviewPanel = ({ reviewProfile = {}, onReviewProfileChange }) => {
+  const updateField = (field, value) => {
+    onReviewProfileChange?.({ ...reviewProfile, [field]: value });
+  };
+
+  return (
+    <div className="mt-4 rounded-xl border border-emerald-100 bg-white p-4 shadow-sm">
+      <div className="flex items-start gap-3">
+        <div className="rounded-full bg-[#eef8f4] p-2 text-[#1f7d59]"><PencilLine className="h-4 w-4" /></div>
+        <div>
+          <h4 className="text-sm font-semibold text-gray-900">Review and edit parsed CV</h4>
+          <p className="mt-1 text-xs leading-5 text-gray-500">Edit the parsed CV fields below. The match uses this reviewed profile.</p>
+        </div>
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+        <EditableCvTextArea label="Candidate summary" value={reviewProfile.candidateSummary} rows={4} onChange={(value) => updateField('candidateSummary', value)} />
+        <EditableCvListField label="Core skills" value={reviewProfile.coreSkills} onChange={(value) => updateField('coreSkills', value)} />
+        <EditableCvTextArea label="Experience evidence" value={reviewProfile.experienceEvidence} rows={5} onChange={(value) => updateField('experienceEvidence', value)} />
+        <EditableCvTextArea label="Project evidence" value={reviewProfile.projectEvidence} rows={5} onChange={(value) => updateField('projectEvidence', value)} />
+        <EditableCvTextArea label="Education and credentials" value={reviewProfile.educationCredentials} rows={4} onChange={(value) => updateField('educationCredentials', value)} />
+        <EditableCvListField label="Key competencies" value={reviewProfile.keyCompetencies} onChange={(value) => updateField('keyCompetencies', value)} />
+      </div>
+    </div>
+  );
+};
+
+const ChipList = ({ items = [] }) => {
+  if (!items.length) return <p className="text-sm text-gray-500">No clear signals detected yet.</p>;
+  return (
+    <div className="flex flex-wrap gap-2">
+      {items.map((item) => (
+        <span key={item} className="rounded-full bg-[#eef8f4] px-3 py-1 text-xs font-medium text-[#1f7d59]">{item}</span>
+      ))}
+    </div>
+  );
+};
+
+const EvidenceList = ({ items = [], emptyText }) => {
+  if (!items.length) return <p className="text-sm text-gray-500">{emptyText}</p>;
+  return (
+    <div className="space-y-2">
+      {items.slice(0, 4).map((item, index) => (
+        <div key={`${item.label || item.requirement || 'evidence'}-${index}`} className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">{item.label || item.requirement || 'Evidence'}</p>
+          <p className="mt-1 text-sm leading-5 text-gray-800">{item.text || item.evidence}</p>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const CVAnalysisSummary = ({ analysis = {}, coreSkills = [] }) => (
+  <div className="mt-4 space-y-4 rounded-xl border border-emerald-100 bg-white p-4 shadow-sm">
+    <div className="flex items-start gap-3">
+      <div className="rounded-full bg-[#eef8f4] p-2 text-[#1f7d59]"><PencilLine className="h-4 w-4" /></div>
+      <div>
+        <h4 className="text-sm font-semibold text-gray-900">CV analysis for matching</h4>
+        <p className="mt-1 text-xs leading-5 text-gray-500">Review the candidate story, evidence, and interview hooks before matching.</p>
+      </div>
+    </div>
+
+    <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Candidate intro angle</p>
+      <p className="mt-2 text-sm leading-6 text-gray-800">{analysis.candidateIntro || 'No candidate intro angle detected yet.'}</p>
+      {analysis.careerDirection ? <p className="mt-2 text-xs font-medium text-emerald-700">{analysis.careerDirection}</p> : null}
+    </div>
+
+    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+      <div className="rounded-lg border border-gray-100 bg-white p-3">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Core skills</p>
+        <ChipList items={coreSkills} />
+      </div>
+      <div className="rounded-lg border border-gray-100 bg-white p-3">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Interview hooks</p>
+        <ChipList items={analysis.suggestedInterviewHooks || []} />
+      </div>
+    </div>
+
+    <div>
+      <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Strongest evidence</p>
+      <EvidenceList items={analysis.strongestEvidence || []} emptyText="No strong evidence extracted yet." />
+    </div>
+
+    {(analysis.weakOrMissingEvidence || []).length ? (
+      <div className="rounded-lg border border-amber-100 bg-amber-50 p-3">
+        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-amber-700">Weak or missing evidence</p>
+        <ul className="mt-2 space-y-1 text-sm text-amber-800">
+          {analysis.weakOrMissingEvidence.slice(0, 4).map((item) => <li key={item}>• {item}</li>)}
+        </ul>
+      </div>
+    ) : null}
+  </div>
+);
+
 /**
  * Purpose: Execute the main responsibility for CVManagementCard.
  * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
@@ -39,8 +171,14 @@ export function CVManagementCard({
   selectedCV,
   recentCVs,
   onSelectRecent,
+  onDeleteRecent,
+  deletingCvId = '',
   isCvHumanVerified = false,
   onConfirmCVReview,
+  cvReviewProfile,
+  onCvReviewProfileChange,
+  isCvEdited = false,
+  isCvReviewSaving = false,
   validationMessage,
 }) {
   const [selectedRecent, setSelectedRecent] = useState(null);
@@ -52,6 +190,7 @@ export function CVManagementCard({
   const activeCvConfidence = getCvParseConfidence(selectedCV);
   const activeCvWarnings = selectedCV?.parseWarnings || selectedCV?.warnings || [];
   const cvReview = selectedCV ? buildCvReviewViewModel(selectedCV) : null;
+  const activeReviewProfile = cvReviewProfile || cvReview?.reviewProfile || {};
 
   const processUpload = async (file) => {
     setIsUploading(true);
@@ -201,26 +340,26 @@ export function CVManagementCard({
                 {isCvHumanVerified ? (
                   <span className="shrink-0 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">Reviewed</span>
                 ) : (
-                  <Button type="button" variant="secondary" size="sm" className="shrink-0" onClick={onConfirmCVReview}>
-                    Mark CV as reviewed
+                  <Button type="button" variant="secondary" size="sm" className="shrink-0" onClick={onConfirmCVReview} disabled={isCvReviewSaving}>
+                    {isCvReviewSaving ? <><Loader2 className="mr-2 inline h-3 w-3 animate-spin" /> Saving...</> : isCvEdited ? 'Mark edited CV as reviewed' : 'Mark CV as reviewed'}
                   </Button>
                 )}
               </div>
 
-              {cvReview?.fields?.length ? (
-                <div className="mt-4 grid grid-cols-1 gap-3">
-                  {cvReview.fields.map((field) => (
-                    <div key={field.label} className="rounded-lg border border-gray-100 bg-gray-50 p-3">
-                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">{field.label}</p>
-                      <p className="mt-2 text-sm leading-6 text-gray-800">{field.value}</p>
-                    </div>
-                  ))}
+              <CVAnalysisSummary analysis={cvReview?.cvAnalysis || {}} coreSkills={activeReviewProfile.coreSkills || []} />
+
+              <details className="mt-4 rounded-xl border border-gray-100 bg-white">
+                <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-gray-900">Edit parsed source fields</summary>
+                <div className="border-t border-gray-100 p-4">
+                  <EditableCVReviewPanel reviewProfile={activeReviewProfile} onReviewProfileChange={onCvReviewProfileChange} />
                 </div>
-              ) : (
+              </details>
+
+              {!cvReview?.fields?.some((field) => field.value) ? (
                 <p className="mt-4 rounded-lg border border-amber-100 bg-amber-50 p-3 text-sm text-amber-800">
                   KiwiCoach could not extract enough comparable CV fields. Review the uploaded file before matching.
                 </p>
-              )}
+              ) : null}
             </div>
           </div>
         ) : null}
@@ -240,17 +379,38 @@ export function CVManagementCard({
                       <p className="text-xs text-gray-500">Updated: {cv.updated} · {cv.size}</p>
                     </div>
                   </div>
-                  <Button 
-                    variant={selectedRecent === cv.id ? 'primary' : 'ghost'} 
-                    size="sm" 
-                    onClick={() => {
-                      setSelectedRecent(cv.id);
-                      onSelectRecent(cv.id);
-                    }}
-                    className="w-full sm:w-auto"
-                  >
-                    Use
-                  </Button>
+                  <div className="flex w-full items-center gap-2 sm:w-auto sm:justify-end">
+                    <Button
+                      variant={selectedRecent === cv.id ? 'primary' : 'ghost'}
+                      size="sm"
+                      disabled={deletingCvId === cv.id}
+                      onClick={() => {
+                        setSelectedRecent(cv.id);
+                        onSelectRecent(cv.id);
+                      }}
+                      className="flex-1 sm:flex-none"
+                    >
+                      Use
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="danger"
+                      size="sm"
+                      className="shrink-0 gap-2 px-3"
+                      title={`Delete ${cv.name}`}
+                      aria-label={`Delete ${cv.name}`}
+                      disabled={deletingCvId === cv.id}
+                      onClick={async () => {
+                        if (selectedRecent === cv.id) {
+                          setSelectedRecent(null);
+                        }
+                        await onDeleteRecent?.(cv);
+                      }}
+                    >
+                      {deletingCvId === cv.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                      <span className="sm:hidden">Delete</span>
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>

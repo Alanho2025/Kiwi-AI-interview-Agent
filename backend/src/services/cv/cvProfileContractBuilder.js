@@ -24,12 +24,19 @@ const normalizeWorkHistory = (workHistory = []) => ensureArray(workHistory).map(
 
 export const buildNormalizedCvProfile = (parsedCv = {}, session = {}) => {
   const signals = buildCvSignals(parsedCv);
+  const cvAnalysis = parsedCv.cvAnalysis || {};
   return {
     candidateHeadline: parsedCv.candidateHeadline || parsedCv.headline || parsedCv.candidateName || session.candidateName || 'Candidate',
+    candidateIntro: cvAnalysis.candidateIntro || parsedCv.summary || parsedCv.personalStatement || '',
+    careerDirection: cvAnalysis.careerDirection || '',
     roleSignals: signals.roleSignals,
     skills: unique(signals.skills),
     tools: unique(signals.tools),
     capabilities: unique([...ensureArray(parsedCv.capabilities), ...signals.capabilities]),
+    strongestEvidence: ensureArray(cvAnalysis.strongestEvidence),
+    jdRelevantEvidence: ensureArray(cvAnalysis.jdRelevantEvidence),
+    suggestedInterviewHooks: ensureArray(cvAnalysis.suggestedInterviewHooks),
+    weakOrMissingEvidence: ensureArray(cvAnalysis.weakOrMissingEvidence),
     projects: normalizeProjects(parsedCv.projects),
     achievements: ensureArray(parsedCv.achievements).map((item) => typeof item === 'string' ? item : item?.summary || item?.text || '').filter(Boolean),
     workHistory: normalizeWorkHistory(parsedCv.workHistory || parsedCv.experience || parsedCv.sections?.experience),

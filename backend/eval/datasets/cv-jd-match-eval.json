@@ -8,6 +8,10 @@
       "scoreRange": [60, 100],
       "matchedRequirementKeywords": ["c#", ".net", "sql", "git", "azure"],
       "strengthKeywords": ["sql", "git", "azure", "agile"],
+      "jdRelevantEvidenceKeywords": ["sql", "azure"],
+      "priorityTopicKeywords": ["sql", "c#"],
+      "followUpTargetKeywords": ["self introduction", "sql"],
+      "interviewFocusKeywords": ["sql"],
       "summaryKeywords": ["Top matched areas"],
       "enforceDistinctGapRisk": true,
       "requireEvidenceForStrengths": true
@@ -23,6 +27,10 @@
       "matchedRequirementKeywords": ["sql", "ambiguity", "communication"],
       "gapKeywords": ["snowflake", "dbt", "data modelling"],
       "riskKeywords": ["production"],
+      "jdRelevantEvidenceKeywords": ["sql", "communication"],
+      "priorityTopicKeywords": ["sql", "snowflake"],
+      "followUpTargetKeywords": ["self introduction", "sql"],
+      "interviewFocusKeywords": ["sql"],
       "summaryKeywords": ["project-based evidence"],
       "enforceDistinctGapRisk": true,
       "requireEvidenceForStrengths": true
@@ -37,6 +45,10 @@
       "scoreRange": [55, 100],
       "matchedRequirementKeywords": ["azure", "docker", "linux", "networking", "troubleshooting"],
       "strengthKeywords": ["docker", "documentation"],
+      "jdRelevantEvidenceKeywords": ["azure", "docker", "troubleshooting"],
+      "priorityTopicKeywords": ["azure", "docker"],
+      "followUpTargetKeywords": ["self introduction", "docker"],
+      "interviewFocusKeywords": ["azure"],
       "summaryKeywords": ["Top matched areas"],
       "enforceDistinctGapRisk": true,
       "requireEvidenceForStrengths": true
@@ -51,6 +63,10 @@
       "scoreRange": [0, 55],
       "gapKeywords": ["production backend", "node.js", "aws", "mentoring"],
       "riskKeywords": ["production backend", "mentoring"],
+      "priorityTopicKeywords": ["node.js", "aws"],
+      "followUpTargetKeywords": ["self introduction"],
+      "interviewFocusKeywords": ["node.js"],
+      "absentJdRelevantEvidenceKeywords": ["mentoring"],
       "enforceDistinctGapRisk": true,
       "requireEvidenceForStrengths": true
     }
