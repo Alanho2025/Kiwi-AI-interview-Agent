@@ -52,6 +52,21 @@ export function attachRealtimeVoiceSocketServer(server) {
   const wss = new WebSocketServer({ noServer: true });
   const allowUpgrade = createWebSocketUpgradeLimiter({ windowMs: 60 * 1000, max: 30 });
 
+  const pingInterval = setInterval(() => {
+    wss.clients.forEach((ws) => {
+      if (ws.isAlive === false) {
+        logger.warn('Realtime voice socket dead, terminating', { sessionId: ws.kiwiSessionId });
+        return ws.terminate();
+      }
+      ws.isAlive = false;
+      ws.ping();
+    });
+  }, 30000);
+
+  wss.on('close', () => {
+    clearInterval(pingInterval);
+  });
+
   server.on('upgrade', (request, socket, head) => {
     const context = buildSocketContext(request);
     if (!context) return;
@@ -70,6 +85,12 @@ export function attachRealtimeVoiceSocketServer(server) {
   });
 
   wss.on('connection', async (socket, request, context) => {
+    socket.isAlive = true;
+    socket.kiwiSessionId = context.sessionId;
+    socket.on('pong', () => {
+      socket.isAlive = true;
+    });
+
     let speechSession = null;
     let started = false;
 
