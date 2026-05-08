@@ -88,9 +88,9 @@ export function SessionHistorySection({ historyLoading, sessionHistoryRows, onOp
   );
 
   return (
-    <div className="rounded-3xl border border-gray-100 bg-white p-4 sm:p-8 shadow-[0_2px_10px_rgb(0,0,0,0.02)]">
+    <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-8">
       <div className="mb-6 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-        <h2 className="text-xl font-bold">Session History</h2>
+        <h2 className="text-xl font-bold">Session history</h2>
         <span className="text-sm text-gray-400">Your recent interview sessions</span>
       </div>
 

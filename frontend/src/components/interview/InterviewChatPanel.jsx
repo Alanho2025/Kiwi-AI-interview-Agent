@@ -13,7 +13,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Card, CardContent } from '../common/Card.jsx';
 import { Button } from '../common/Button.jsx';
 import { TextArea } from '../common/TextArea.jsx';
-import { Bird, Play, Send } from 'lucide-react';
+import { Bird, CirclePause, Play, RefreshCcw, Send, Square } from 'lucide-react';
 import { cn } from '../../utils/formatters.js';
 
 const INTERVIEWER_NAME = 'KiwiCoach';
@@ -99,10 +99,10 @@ export function InterviewChatPanel({ transcript, onStart, onReply, onPause, onRe
               {isNotStarted ? (
                 <div className="space-y-3">
                   <p className="text-base font-medium text-gray-900 sm:text-lg">Start the text interview when you are ready. The timer will begin after you start.</p>
-                  <Button type="button" onClick={onStart} disabled={isSubmitting}>
-                    <Play className="mr-2 h-4 w-4" />
-                    Start Text Interview
-                  </Button>
+              <Button type="button" onClick={onStart} disabled={isSubmitting}>
+                <Play className="mr-2 h-4 w-4" />
+                Start Text Interview
+              </Button>
                 </div>
               ) : (!isLastMessageAi || isSubmitting) ? (
                 <div className="flex items-center gap-2 text-gray-400">
@@ -146,14 +146,19 @@ export function InterviewChatPanel({ transcript, onStart, onReply, onPause, onRe
       </Card>
 
       {/* Action Bar */}
-      <div className="grid grid-cols-3 gap-2 px-2 shrink-0">
+      <div className="grid shrink-0 grid-cols-3 gap-2 px-2">
         <Button variant="secondary" className="px-3" onClick={onPause} disabled={isNotStarted || isCompleted}>
-            {isPaused ? 'Resume' : 'Pause'}
+          <CirclePause className="h-4 w-4" />
+          {isPaused ? 'Resume' : 'Pause'}
         </Button>
         <Button variant="secondary" className="px-3" onClick={onRepeat} disabled={isNotStarted || isPaused || isCompleted || isSubmitting}>
+          <RefreshCcw className="h-4 w-4" />
           Repeat
         </Button>
-        <Button variant="danger" className="px-3" onClick={onEnd} disabled={isSubmitting || isCompleted}>End</Button>
+        <Button variant="danger" className="px-3" onClick={onEnd} disabled={isSubmitting || isCompleted}>
+          <Square className="h-4 w-4" />
+          End
+        </Button>
       </div>
     </div>
   );

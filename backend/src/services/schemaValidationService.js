@@ -173,6 +173,42 @@ const normalizeTurnBreakdown = (item = {}) => ({
   dimensionReasons: normalizeDimensionReasons(item.dimensionReasons || item.scoreReasons),
 });
 
+const normalizeNzWorkplaceDimension = (item = {}) => ({
+  id: ensureString(item.id),
+  label: ensureString(item.label),
+  score: ensureNumber(item.score, 0),
+  observed: Boolean(item.observed),
+  riskDetected: Boolean(item.riskDetected),
+  evidenceQuote: ensureString(item.evidenceQuote),
+  riskQuote: ensureString(item.riskQuote),
+  feedback: ensureString(item.feedback),
+});
+
+const normalizeNzWorkplaceEvidence = (item = {}) => ({
+  dimension: ensureString(item.dimension),
+  quote: ensureString(item.quote),
+  signal: ensureString(item.signal),
+});
+
+const normalizeNzSuggestedRewrite = (item = null) => isObject(item)
+  ? {
+      weak: ensureString(item.weak),
+      better: ensureString(item.better),
+      reason: ensureString(item.reason),
+    }
+  : null;
+
+const normalizeNzWorkplaceFit = (value = {}) => ({
+  enabled: Boolean(value.enabled),
+  score: Number.isFinite(Number(value.score)) ? Number(value.score) : null,
+  summary: ensureString(value.summary),
+  dimensionScores: ensureArray(value.dimensionScores).map(normalizeNzWorkplaceDimension),
+  strengths: ensureArray(value.strengths).filter(Boolean),
+  gaps: ensureArray(value.gaps).filter(Boolean),
+  evidence: ensureArray(value.evidence).map(normalizeNzWorkplaceEvidence),
+  suggestedRewrite: normalizeNzSuggestedRewrite(value.suggestedRewrite),
+});
+
 /**
  * Purpose: Execute the main responsibility for validateReportOutput.
  * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
@@ -194,6 +230,7 @@ export const validateReportOutput = (report = {}) => ({
   evidenceReferences: ensureArray(report.evidenceReferences),
   interviewMetrics: isObject(report.interviewMetrics) ? report.interviewMetrics : {},
   evidenceDiagnostics: isObject(report.evidenceDiagnostics) ? report.evidenceDiagnostics : {},
+  nzWorkplaceFit: normalizeNzWorkplaceFit(report.nzWorkplaceFit || {}),
   candidateFeedback: isObject(report.candidateFeedback)
     ? {
         overallTakeaway: ensureString(report.candidateFeedback.overallTakeaway),

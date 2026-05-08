@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useMicrophonePermission } from '../useMicrophonePermission.js';
+import { MICROPHONE_AUDIO_CONSTRAINTS, useMicrophonePermission } from '../useMicrophonePermission.js';
 
 describe('useMicrophonePermission', () => {
   beforeEach(() => {
@@ -38,7 +38,7 @@ describe('useMicrophonePermission', () => {
       expect(response.ok).toBe(true);
     });
 
-    expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith({ audio: true });
+    expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith({ audio: MICROPHONE_AUDIO_CONSTRAINTS });
     expect(track.stop).toHaveBeenCalled();
     expect(result.current.permissionState).toBe('granted');
   });

@@ -14,6 +14,7 @@ const DEFAULT_THRESHOLDS = {
 const DEFAULT_ACCEPTANCE_RULES = {
   minWords: 2,
   minCharacters: 8,
+  minAcceptedSpeechMs: 900,
   mediumMinWords: 6,
   mediumMinSpeechMs: 2500,
   unknownMinWords: 8,
@@ -22,10 +23,33 @@ const DEFAULT_ACCEPTANCE_RULES = {
 
 const normalizeText = (value = '') => String(value || '').trim();
 const countWords = (value = '') => normalizeText(value).split(/\s+/).filter(Boolean).length;
+const normalizeForFillerCheck = (value = '') => normalizeText(value).toLowerCase().replace(/[^\w\s']/g, '').replace(/\s+/g, ' ');
 const getSpeechDurationMs = (vad = null) => {
   const duration = Number(vad?.speechDurationMs ?? vad?.durationMs ?? 0);
   return Number.isFinite(duration) ? Math.max(0, duration) : 0;
 };
+const getSttSegmentCount = (vad = null) => {
+  const segmentCount = Number(vad?.sttSegmentCount);
+  return Number.isFinite(segmentCount) ? segmentCount : null;
+};
+
+const FILLER_TRANSCRIPTS = new Set([
+  'ok',
+  'okay',
+  'yeah',
+  'yes',
+  'yep',
+  'no',
+  'nope',
+  'hello',
+  'hi',
+  'um',
+  'uh',
+  'thanks',
+  'thank you',
+]);
+
+const isFillerTranscript = (value = '') => FILLER_TRANSCRIPTS.has(normalizeForFillerCheck(value));
 
 export function getConfidenceStatus(confidence, thresholds = DEFAULT_THRESHOLDS) {
   if (typeof confidence !== 'number' || Number.isNaN(confidence)) {
@@ -53,12 +77,14 @@ export function assessRealtimeVoiceTranscript({
   const words = countWords(text);
   const confidenceGate = buildConfidenceGate(asrConfidence);
   const speechDurationMs = getSpeechDurationMs(vad);
+  const sttSegmentCount = getSttSegmentCount(vad);
   const basePayload = {
     confidenceGate,
     metrics: {
       words,
       characters: text.length,
       speechDurationMs,
+      sttSegmentCount,
     },
   };
 
@@ -80,11 +106,38 @@ export function assessRealtimeVoiceTranscript({
     };
   }
 
+  if (sttSegmentCount === 0) {
+    return {
+      ok: false,
+      reason: 'NO_FINAL_STT_SEGMENTS',
+      message: 'I did not catch your answer clearly. Please try again.',
+      ...basePayload,
+    };
+  }
+
   if (text.length < rules.minCharacters || words < rules.minWords) {
     return {
       ok: false,
       reason: 'TOO_SHORT_TRANSCRIPT',
       message: 'I only caught a very short answer. Please say a little more before I move to the next question.',
+      ...basePayload,
+    };
+  }
+
+  if (vad && speechDurationMs > 0 && speechDurationMs < rules.minAcceptedSpeechMs) {
+    return {
+      ok: false,
+      reason: 'SPEECH_TOO_SHORT',
+      message: 'I only heard a brief sound. Please give your full answer before I move on.',
+      ...basePayload,
+    };
+  }
+
+  if (isFillerTranscript(text)) {
+    return {
+      ok: false,
+      reason: 'FILLER_TRANSCRIPT',
+      message: 'I only caught a filler response. Please answer the interview question in a full sentence.',
       ...basePayload,
     };
   }

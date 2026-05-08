@@ -1,6 +1,11 @@
 export const DEFAULT_VAD_CONFIG = {
   speechThreshold: 0.018,
   silenceThreshold: 0.012,
+  calibrationMs: 700,
+  calibrationMaxRms: 0.022,
+  noiseFloorMultiplier: 2,
+  noiseFloorMargin: 0.006,
+  speechStartConfirmationMs: 150,
   minSpeechMs: 1500,
   silenceToStopMs: 2000,
   maxAnswerMs: 240000,
@@ -27,6 +32,46 @@ export function createVoiceActivityStateMachine(config = {}) {
   let speechStartedAt = null;
   let lastSpeechAt = null;
   let silenceStartedAt = null;
+  let speechCandidateStartedAt = null;
+  let calibrationSamples = [];
+  let noiseFloor = null;
+
+  const percentile = (values = [], target = 0.8) => {
+    if (!values.length) return null;
+    const sorted = [...values].sort((a, b) => a - b);
+    const index = Math.min(sorted.length - 1, Math.max(0, Math.floor((sorted.length - 1) * target)));
+    return sorted[index];
+  };
+
+  const getThresholds = () => {
+    const adaptiveSpeechThreshold = noiseFloor == null
+      ? mergedConfig.speechThreshold
+      : Math.max(
+        mergedConfig.speechThreshold,
+        noiseFloor * mergedConfig.noiseFloorMultiplier + mergedConfig.noiseFloorMargin
+      );
+    return {
+      speechThreshold: adaptiveSpeechThreshold,
+      silenceThreshold: Math.max(mergedConfig.silenceThreshold, adaptiveSpeechThreshold * 0.65),
+      noiseFloor,
+    };
+  };
+
+  const buildMetrics = (extra = {}) => ({
+    ...extra,
+    thresholds: getThresholds(),
+    calibrationSamples: calibrationSamples.length,
+  });
+
+  const updateNoiseFloor = (rms, nowMs) => {
+    const calibrationEndedAt = startedAt + mergedConfig.warmupIgnoreMs + mergedConfig.calibrationMs;
+    const isCalibrationWindow = mergedConfig.calibrationMs > 0 && nowMs <= calibrationEndedAt;
+    const isQuietCandidate = rms <= mergedConfig.calibrationMaxRms;
+    if (isCalibrationWindow && isQuietCandidate) {
+      calibrationSamples = [...calibrationSamples.slice(-40), rms];
+      noiseFloor = percentile(calibrationSamples, 0.8);
+    }
+  };
 
   const start = (nowMs = 0) => {
     state = 'listening';
@@ -34,6 +79,9 @@ export function createVoiceActivityStateMachine(config = {}) {
     speechStartedAt = null;
     lastSpeechAt = null;
     silenceStartedAt = null;
+    speechCandidateStartedAt = null;
+    calibrationSamples = [];
+    noiseFloor = null;
     return { state, event: 'vad_started' };
   };
 
@@ -45,6 +93,7 @@ export function createVoiceActivityStateMachine(config = {}) {
       silenceDetectedAt: nowMs,
       speechDurationMs: speechStartedAt ? Math.max(0, nowMs - speechStartedAt) : 0,
       silenceDurationMs: silenceStartedAt ? Math.max(0, nowMs - silenceStartedAt) : 0,
+      thresholds: getThresholds(),
     };
     state = 'idle';
     return { state, event: 'vad_stopped', metrics };
@@ -54,20 +103,28 @@ export function createVoiceActivityStateMachine(config = {}) {
     if (state === 'idle') return { state, event: null };
     if (nowMs - startedAt < mergedConfig.warmupIgnoreMs) return { state, event: 'warmup_ignored' };
 
-    const isSpeech = rms >= mergedConfig.speechThreshold;
-    const isSilence = rms <= mergedConfig.silenceThreshold;
+    updateNoiseFloor(rms, nowMs);
+    const thresholds = getThresholds();
+    const isSpeech = rms >= thresholds.speechThreshold;
+    const isSilence = rms <= thresholds.silenceThreshold;
 
     if (speechStartedAt == null && isSpeech) {
-      speechStartedAt = nowMs;
+      if (speechCandidateStartedAt == null) speechCandidateStartedAt = nowMs;
+      const confirmationMs = nowMs - speechCandidateStartedAt;
+      if (confirmationMs < mergedConfig.speechStartConfirmationMs) {
+        return { state, event: null, metrics: buildMetrics({ speechCandidateStartedAt, confirmationMs }) };
+      }
+      speechStartedAt = speechCandidateStartedAt;
       lastSpeechAt = nowMs;
       silenceStartedAt = null;
       state = 'user_speaking';
-      return { state, event: 'speech_start', metrics: { speechStartedAt } };
+      return { state, event: 'speech_start', metrics: buildMetrics({ speechStartedAt, confirmationMs }) };
     }
 
     if (speechStartedAt == null) {
+      if (!isSpeech) speechCandidateStartedAt = null;
       if (nowMs - startedAt >= mergedConfig.preSpeechGraceMs) {
-        return { state, event: 'no_speech_timeout', metrics: { waitedMs: nowMs - startedAt } };
+        return { state, event: 'no_speech_timeout', metrics: buildMetrics({ waitedMs: nowMs - startedAt }) };
       }
       return { state, event: null };
     }
@@ -84,6 +141,7 @@ export function createVoiceActivityStateMachine(config = {}) {
             speechStartedAt,
             speechEndedAt: nowMs,
             speechDurationMs: nowMs - speechStartedAt,
+            thresholds,
           },
         };
       }
@@ -99,22 +157,29 @@ export function createVoiceActivityStateMachine(config = {}) {
         return {
           state,
           event: 'speech_end',
-          metrics: {
+          metrics: buildMetrics({
             speechStartedAt,
             speechEndedAt: lastSpeechAt || nowMs,
             silenceDetectedAt: nowMs,
             speechDurationMs,
             silenceDurationMs,
-          },
+          }),
         };
       }
-      return { state, event: null, metrics: { speechDurationMs, silenceDurationMs } };
+      return { state, event: null, metrics: buildMetrics({ speechDurationMs, silenceDurationMs }) };
     }
 
     return { state, event: null };
   };
 
-  return { start, stop, update, getState: () => state, config: mergedConfig };
+  return {
+    start,
+    stop,
+    update,
+    getState: () => state,
+    getRuntimeMetrics: () => buildMetrics({ state }),
+    config: mergedConfig,
+  };
 }
 
 export function selectBestTranscript({ finalTranscript, partialTranscript, timeoutUsed = false }) {

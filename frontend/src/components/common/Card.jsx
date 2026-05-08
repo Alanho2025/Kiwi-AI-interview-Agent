@@ -19,7 +19,7 @@ import { cn } from '../../utils/formatters.js';
  */
 export function Card({ className, children, ...props }) {
   return (
-    <div className={cn("bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden", className)} {...props}>
+    <div className={cn("overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm", className)} {...props}>
       {children}
     </div>
   );
@@ -33,7 +33,7 @@ export function Card({ className, children, ...props }) {
  */
 export function CardHeader({ className, children, ...props }) {
   return (
-    <div className={cn("px-4 py-4 sm:px-6 sm:py-5 border-b border-gray-100 flex justify-between items-center gap-3", className)} {...props}>
+    <div className={cn("flex items-start justify-between gap-4 border-b border-gray-100 px-4 py-4 sm:px-6 sm:py-5", className)} {...props}>
       {children}
     </div>
   );

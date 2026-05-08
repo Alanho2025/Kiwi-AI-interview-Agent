@@ -78,8 +78,15 @@ export function useVoiceActivityDetection({
     intervalRef.current = window.setInterval(() => {
       analyser.getByteTimeDomainData(byteData);
       const rms = calculateRms(byteData);
-      callbacksRef.current.onVadFrame?.({ rms, at: performance.now() });
-      const result = machineRef.current.update(rms, performance.now());
+      const at = performance.now();
+      const result = machineRef.current.update(rms, at);
+      callbacksRef.current.onVadFrame?.({
+        rms,
+        at,
+        state: result.state,
+        event: result.event,
+        metrics: result.metrics || machineRef.current.getRuntimeMetrics?.() || null,
+      });
       if (result.state) setVadState(result.state);
 
       if (result.event === 'speech_start') {

@@ -20,6 +20,8 @@ import { formatNumber, titleCase } from '../../utils/reportViewBuilder.js';
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
 export function ReportDetailSections({ report, qa, interviewMetrics, evidenceDiagnostics, qaDiagnostics }) {
+  const visibleSections = (report.sections || []).filter((section) => section.id !== 'nz_workplace_fit');
+
   return (
     <>
       <Card>
@@ -28,7 +30,7 @@ export function ReportDetailSections({ report, qa, interviewMetrics, evidenceDia
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {(report.sections || []).map((section) => (
+            {visibleSections.map((section) => (
               <div key={section.id} className="rounded-2xl border border-gray-100 p-4">
                 <h3 className="text-base font-semibold text-gray-900">{section.title}</h3>
                 <p className="mt-2 text-sm leading-6 text-gray-700">{section.content}</p>
