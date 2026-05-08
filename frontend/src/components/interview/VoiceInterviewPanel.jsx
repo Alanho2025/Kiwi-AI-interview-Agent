@@ -16,6 +16,14 @@ const renderStatusTone = (type) => {
   return 'border-sky-200 bg-sky-50 text-sky-700';
 };
 
+const resolveUserFacingConnectionLabel = ({ isCompleted, permissionState, realtimeStatus }) => {
+  if (isCompleted) return 'Session saved';
+  if (permissionState !== 'granted') return 'Mic permission needed';
+  if (realtimeStatus === 'connected') return 'Voice connected';
+  if (realtimeStatus === 'connecting') return 'Connecting voice';
+  return 'Voice ready';
+};
+
 export function VoiceInterviewPanel({
   onPause,
   onRepeat,
@@ -59,6 +67,7 @@ export function VoiceInterviewPanel({
   const currentQuestionText = currentQuestion?.displayText || currentQuestion?.text || '';
   const statusBadgeLabel = isAutoLoopActive && !isRecording ? stateLabel : (isRecording ? 'Listening...' : stateLabel);
   const voiceActionDisabled = !canUseVoice || isCompleted;
+  const connectionLabel = resolveUserFacingConnectionLabel({ isCompleted, permissionState, realtimeStatus });
   const displayedVoiceStatus = isCompleted
     ? { type: 'success', title: 'Interview ended', message: 'Your voice session is saved. Review the report or export the transcript when ready.' }
     : voiceStatus;
@@ -89,20 +98,20 @@ export function VoiceInterviewPanel({
   return (
     <div className="flex h-full min-h-0 flex-col space-y-4">
       {!isCompleted ? (
-        <div className="shrink-0 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-xs leading-5 text-gray-600 shadow-sm">
+        <div className="shrink-0 rounded-xl border border-gray-200 bg-white px-4 py-3 text-xs leading-5 text-gray-600 shadow-sm">
           <span className="font-semibold text-gray-800">Scoring note:</span> KiwiCoach scores answer content and communication clarity, not whether you sound native. If voice recognition fails, you can retry or answer by text.
         </div>
       ) : null}
 
       {displayedVoiceStatus ? (
-        <div className={cn('shrink-0 rounded-2xl border px-4 py-3 text-sm shadow-sm', renderStatusTone(displayedVoiceStatus.type))}>
+        <div className={cn('shrink-0 rounded-xl border px-4 py-3 text-sm shadow-sm', renderStatusTone(displayedVoiceStatus.type))}>
           <p className="font-semibold">{displayedVoiceStatus.title}</p>
           <p className="mt-1">{displayedVoiceStatus.message}</p>
         </div>
       ) : null}
 
       {shouldShowNetworkWarning ? (
-        <div className={cn('shrink-0 rounded-2xl border px-4 py-3 text-sm shadow-sm', networkTone)}>
+        <div className={cn('shrink-0 rounded-xl border px-4 py-3 text-sm shadow-sm', networkTone)}>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
               <div className="flex items-center gap-2">
@@ -134,7 +143,7 @@ export function VoiceInterviewPanel({
           </div>
 
           {showTextFallback && !shouldShowRecovery ? (
-            <div className="mt-4 rounded-2xl border border-white/50 bg-white/50 p-3">
+            <div className="mt-4 rounded-xl border border-white/50 bg-white/50 p-3">
               <TextArea
                 value={textFallback}
                 onChange={(event) => setTextFallback(event.target.value)}
@@ -153,14 +162,14 @@ export function VoiceInterviewPanel({
       ) : null}
 
       {(permissionError && !displayedVoiceStatus) ? (
-        <div className="shrink-0 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 shadow-sm">
+        <div className="shrink-0 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 shadow-sm">
           <p className="font-semibold">Microphone error</p>
           <p className="mt-1">{permissionError}</p>
         </div>
       ) : null}
 
       {shouldShowRecovery ? (
-        <div className="shrink-0 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 shadow-sm">
+        <div className="shrink-0 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 shadow-sm">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
               <p className="font-semibold">{recoveryTitle}</p>
@@ -186,7 +195,7 @@ export function VoiceInterviewPanel({
           </div>
 
           {showTextFallback ? (
-            <div className="mt-4 rounded-2xl border border-amber-100 bg-white p-3">
+            <div className="mt-4 rounded-xl border border-amber-100 bg-white p-3">
               <TextArea
                 value={textFallback}
                 onChange={(event) => setTextFallback(event.target.value)}
@@ -213,8 +222,8 @@ export function VoiceInterviewPanel({
                 <span className={cn('h-2.5 w-2.5 rounded-full', isRecording ? 'bg-[#2eb886]' : (isCompleted ? 'bg-emerald-500' : 'bg-gray-300'))} />
                 {isCompleted ? 'Session ended' : statusBadgeLabel}
               </div>
-              <div className="rounded-full bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-gray-500 shadow-sm">
-                {permissionState} · {realtimeStatus || 'idle'}
+              <div className="rounded-xl bg-white px-4 py-2 text-xs font-semibold text-gray-600 shadow-sm">
+                {connectionLabel}
               </div>
             </div>
 
@@ -257,7 +266,7 @@ export function VoiceInterviewPanel({
               )}
             </div>
 
-            <div className="flex h-[58px] w-full items-end justify-between gap-1 overflow-hidden rounded-2xl bg-white px-4 py-3 shadow-sm">
+            <div className="flex h-[58px] w-full items-end justify-between gap-1 overflow-hidden rounded-xl bg-white px-4 py-3 shadow-sm">
               {waveBars.map((value, index) => (
                 <div
                   key={`wave-${index}`}
@@ -268,7 +277,7 @@ export function VoiceInterviewPanel({
             </div>
 
             {isCompleted ? (
-              <div className="w-full rounded-2xl border border-emerald-100 bg-white px-4 py-3 text-center text-sm text-emerald-700 shadow-sm">
+              <div className="w-full rounded-xl border border-emerald-100 bg-white px-4 py-3 text-center text-sm text-emerald-700 shadow-sm">
                 Session ended. Report, transcript, and recording actions are available outside the live voice controls.
               </div>
             ) : null}
