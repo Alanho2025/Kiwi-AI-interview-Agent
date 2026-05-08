@@ -41,6 +41,21 @@ const sanitizeSelectedCv = (selectedCV) => {
   };
 };
 
+const sanitizeCvReviewProfile = (profile) => {
+  if (!profile || typeof profile !== 'object') {
+    return null;
+  }
+
+  return {
+    candidateSummary: profile.candidateSummary || '',
+    coreSkills: Array.isArray(profile.coreSkills) ? profile.coreSkills : [],
+    experienceEvidence: profile.experienceEvidence || '',
+    projectEvidence: profile.projectEvidence || '',
+    educationCredentials: profile.educationCredentials || '',
+    keyCompetencies: Array.isArray(profile.keyCompetencies) ? profile.keyCompetencies : [],
+  };
+};
+
 export const resolveAnalyzeStep = (analysisStatus) => {
   if (analysisStatus === 'matching' || analysisStatus === 'summarizing') {
     return 2;
@@ -61,6 +76,7 @@ export const loadAnalyzeDraft = () => {
     if (!savedDraft) {
       return {
         selectedCV: null,
+        structuredCVProfile: null,
         rawJD: '',
         structuredJD: '',
         structuredJDRubric: null,
@@ -78,6 +94,7 @@ export const loadAnalyzeDraft = () => {
 
     return {
       selectedCV: sanitizeSelectedCv(parsed.selectedCV),
+      structuredCVProfile: sanitizeCvReviewProfile(parsed.structuredCVProfile),
       rawJD: parsed.rawJD || '',
       structuredJD: parsed.structuredJD || '',
       structuredJDRubric: parsed.structuredJDRubric || null,
@@ -93,6 +110,7 @@ export const loadAnalyzeDraft = () => {
     console.error('Failed to restore analyze draft', error);
     return {
       selectedCV: null,
+      structuredCVProfile: null,
       rawJD: '',
       structuredJD: '',
       structuredJDRubric: null,
@@ -113,5 +131,6 @@ export const persistAnalyzeDraft = (draft) => {
     settings: sanitizeSessionSettings(draft.settings),
     sessionMode: sanitizeSessionMode(draft.sessionMode),
     selectedCV: sanitizeSelectedCv(draft.selectedCV),
+    structuredCVProfile: sanitizeCvReviewProfile(draft.structuredCVProfile),
   }));
 };

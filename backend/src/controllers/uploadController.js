@@ -15,6 +15,7 @@ import { extractTextFromCV } from '../services/fileService.js';
 import { buildCvProfile } from '../services/cv/cvProfileBuilderService.js';
 import { buildCvDisplayView } from '../services/cv/cvDisplayViewService.js';
 import { rebuildOwnedCvProfile, softDeleteOwnedCv, exportOwnedCvData } from '../services/cv/cvLifecycleService.js';
+import { saveReviewedCvProfile } from '../services/cv/cvReviewedProfileService.js';
 import * as authService from '../services/authService.js';
 import { createAuditLog } from '../services/auditService.js';
 import { attachDocumentContent, createUploadedFileRecord, getCvRecordById, getRecentCvRecords } from '../services/fileRepositoryService.js';
@@ -126,6 +127,26 @@ export const rebuildCvProfile = asyncHandler(async (req, res) => {
   const user = await authService.resolveUserFromRequest(req);
   const updatedCv = await rebuildOwnedCvProfile({ cvId: req.params.cvId, userId: user.id });
   res.json(formatSuccess('CV profile rebuilt successfully', updatedCv));
+});
+
+export const reviewCvProfile = asyncHandler(async (req, res) => {
+  const user = await authService.resolveUserFromRequest(req);
+  const updatedCv = await saveReviewedCvProfile({
+    cvId: req.params.cvId,
+    userId: user.id,
+    reviewProfile: req.body?.reviewProfile || req.body || {},
+  });
+  await createAuditLog({
+    actorUserId: user.id,
+    targetUserId: user.id,
+    actionType: 'review_cv_profile',
+    resourceType: 'uploaded_file',
+    resourceId: req.params.cvId,
+    metadata: { profileStatus: 'human_reviewed' },
+    ipAddress: req.ip,
+    userAgent: req.get('user-agent'),
+  });
+  res.json(formatSuccess('CV profile reviewed successfully', updatedCv));
 });
 
 export const deleteCv = asyncHandler(async (req, res) => {

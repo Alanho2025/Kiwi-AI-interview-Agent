@@ -14,8 +14,37 @@
       "decision": "moderate_match",
       "overallScore": 77.01,
       "score": 1,
-      "earned": 23,
-      "possible": 23,
+      "earned": 32,
+      "possible": 32,
+      "priorityTopics": [
+        "Recent tertiary qualification in Computer Science or Software Engineering.",
+        "Foundations in C#, .NET, SQL, and Git.",
+        "Ability to communicate clearly and learn quickly.",
+        "C#",
+        ".NET",
+        "Git",
+        "SQL",
+        "Build and enhance quality applications using .NET and C#."
+      ],
+      "followUpTargets": [
+        "self introduction and career direction",
+        "Quantified evidence",
+        "Project: Inventory Portal Project",
+        "Recent tertiary qualification in Computer Science or Software Engineering.",
+        "Foundations in C#, .NET, SQL, and Git.",
+        "Ability to communicate clearly and learn quickly.",
+        "sql",
+        "api"
+      ],
+      "jdRelevantEvidenceCount": 8,
+      "interviewFocus": [
+        "Recent tertiary qualification in Computer Science or Software Engineering.",
+        "Foundations in C#, .NET, SQL, and Git.",
+        "Ability to communicate clearly and learn quickly.",
+        "C#",
+        ".NET",
+        "Git"
+      ],
       "failedChecks": []
     },
     {
@@ -25,8 +54,37 @@
       "decision": "not_qualified",
       "overallScore": 38.5,
       "score": 1,
-      "earned": 19,
-      "possible": 19,
+      "earned": 28,
+      "possible": 28,
+      "priorityTopics": [
+        "Strong SQL skills and hands-on experience with Snowflake.",
+        "Experience with dbt, including testing, documentation, and deployment.",
+        "Exposure to data modelling, including dimensional modelling or DV2.",
+        "SQL",
+        "Snowflake",
+        "Reporting",
+        "dbt",
+        "Partner with a leading banking client to deliver data engineering projects across New Zealand and Australia."
+      ],
+      "followUpTargets": [
+        "self introduction and career direction",
+        "Quantified evidence",
+        "Project: Data Warehouse Transition Project",
+        "Strong SQL skills and hands-on experience with Snowflake.",
+        "Experience with dbt, including testing, documentation, and deployment.",
+        "Exposure to data modelling, including dimensional modelling or DV2.",
+        "sql",
+        "python"
+      ],
+      "jdRelevantEvidenceCount": 12,
+      "interviewFocus": [
+        "Strong SQL skills and hands-on experience with Snowflake.",
+        "Experience with dbt, including testing, documentation, and deployment.",
+        "Exposure to data modelling, including dimensional modelling or DV2.",
+        "SQL",
+        "Snowflake",
+        "Reporting"
+      ],
       "failedChecks": []
     },
     {
@@ -34,10 +92,37 @@
       "cvFixture": "cloud-platform-engineer.txt",
       "jdFixture": "cloud-platform-engineer.txt",
       "decision": "moderate_match",
-      "overallScore": 64.76,
+      "overallScore": 68.97,
       "score": 1,
-      "earned": 21,
-      "possible": 21,
+      "earned": 32,
+      "possible": 32,
+      "priorityTopics": [
+        "Strong experience with Azure, Cloud Infrastructure, Docker, and Kubernetes.",
+        "Experience with Linux, networking, and troubleshooting.",
+        "Good communication and ownership.",
+        "Linux",
+        "Networking",
+        "Azure",
+        "Cloud Infrastructure",
+        "Build and support cloud infrastructure on Azure."
+      ],
+      "followUpTargets": [
+        "self introduction and career direction",
+        "Quantified evidence",
+        "Project: Platform Reliability Project",
+        "Strong experience with Azure, Cloud Infrastructure, Docker, and Kubernetes.",
+        "Experience with Linux, networking, and troubleshooting.",
+        "Good communication and ownership."
+      ],
+      "jdRelevantEvidenceCount": 6,
+      "interviewFocus": [
+        "Strong experience with Azure, Cloud Infrastructure, Docker, and Kubernetes.",
+        "Experience with Linux, networking, and troubleshooting.",
+        "Good communication and ownership.",
+        "Linux",
+        "Networking",
+        "Azure"
+      ],
       "failedChecks": []
     },
     {
@@ -47,8 +132,35 @@
       "decision": "not_qualified",
       "overallScore": 7,
       "score": 1,
-      "earned": 14,
-      "possible": 14,
+      "earned": 19,
+      "possible": 19,
+      "priorityTopics": [
+        "JavaScript",
+        "Node.js",
+        "REST APIs",
+        "SQL",
+        "Proven experience building production backend systems.",
+        "Strong skills in Node.js, SQL, AWS, Docker, and CI/CD.",
+        "Strong communication and stakeholder management.",
+        "Design and build scalable backend services and REST APIs."
+      ],
+      "followUpTargets": [
+        "self introduction and career direction",
+        "Project: Campus Events App",
+        "Competency signal",
+        "Proven experience building production backend systems.",
+        "Strong skills in Node.js, SQL, AWS, Docker, and CI/CD.",
+        "react"
+      ],
+      "jdRelevantEvidenceCount": 0,
+      "interviewFocus": [
+        "JavaScript",
+        "Node.js",
+        "REST APIs",
+        "Design and build scalable backend services and REST APIs.",
+        "Lead technical delivery for Node.js services in AWS.",
+        "Communication"
+      ],
       "failedChecks": []
     }
   ]
