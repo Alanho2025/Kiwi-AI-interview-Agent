@@ -61,6 +61,7 @@ export function createRealtimeSpeechSession({
   const pushStream = speechSdk.AudioInputStream.createPushStream(audioFormat);
   const audioConfig = speechSdk.AudioConfig.fromStreamInput(pushStream);
   const recognizer = new speechSdk.SpeechRecognizer(speechConfig, audioConfig);
+  console.log(`[STT-TRACE] Created Azure Speech Recognizer for ${language}`);
   const phraseGrammar = speechSdk.PhraseListGrammar.fromRecognizer(recognizer);
 
   for (const phrase of buildSpeechPhraseList(extraPhrases)) {
@@ -71,6 +72,7 @@ export function createRealtimeSpeechSession({
   recognizer.recognizing = (_, event) => {
     const text = String(event?.result?.text || '').trim();
     if (!text) return;
+    console.log(`[STT-TRACE] Partial transcript: "${text}"`);
     onPartialTranscript?.({
       type: 'partial_transcript',
       text,
@@ -81,10 +83,15 @@ export function createRealtimeSpeechSession({
 
   recognizer.recognized = (_, event) => {
     if (event?.result?.reason !== speechSdk.ResultReason.RecognizedSpeech) {
+      console.log(`[STT-TRACE] Recognized event skipped, reason: ${event?.result?.reason}`);
       return;
     }
     const rawText = String(event?.result?.text || '').trim();
-    if (!rawText) return;
+    if (!rawText) {
+      console.log(`[STT-TRACE] Recognized event had empty text.`);
+      return;
+    }
+    console.log(`[STT-TRACE] Final transcript: "${rawText}"`);
     const normalized = normalizeTranscript(rawText);
     const confidence = extractConfidence(event.result);
     const confidenceGate = buildConfidenceGate(confidence);
@@ -106,8 +113,10 @@ export function createRealtimeSpeechSession({
 
   recognizer.canceled = (_, event) => {
     const errorDetails = String(event?.errorDetails || '');
+    console.log(`[STT-TRACE] Canceled event. Reason: ${event?.reason}, Details: ${errorDetails}`);
     // Ignore 1006 timeout errors from Azure which happen normally when no audio is sent for 20s
     if (errorDetails.includes('1006')) {
+      console.log(`[STT-TRACE] Ignoring 1006 timeout error.`);
       return;
     }
     onError?.({
@@ -119,32 +128,47 @@ export function createRealtimeSpeechSession({
   };
 
   recognizer.sessionStarted = () => {
+    console.log(`[STT-TRACE] Session started on Azure backend.`);
     onSessionStarted?.({ type: 'speech_session_started', timestamp: new Date().toISOString() });
   };
 
   recognizer.sessionStopped = () => {
+    console.log(`[STT-TRACE] Session stopped on Azure backend.`);
     onSessionStopped?.({ type: 'speech_session_stopped', timestamp: new Date().toISOString() });
   };
 
   const start = () => new Promise((resolve, reject) => {
+    console.log(`[STT-TRACE] Starting continuous recognition async...`);
     recognizer.startContinuousRecognitionAsync(resolve, reject);
   });
 
+  let chunksReceived = 0;
   const writeAudio = (chunk) => {
     if (!chunk) return;
+    if (chunksReceived === 0) console.log(`[STT-TRACE] First audio chunk written to push stream.`);
+    chunksReceived++;
     pushStream.write(chunk);
   };
 
   const stop = () => new Promise((resolve) => {
+    console.log(`[STT-TRACE] Stop called. Closing pushStream. Waiting 800ms before stopContinuousRecognitionAsync.`);
     try {
       pushStream.close();
-      recognizer.stopContinuousRecognitionAsync(() => {
-        recognizer.close();
-        resolve();
-      }, () => {
-        recognizer.close();
-        resolve();
-      });
+      // Wait for Azure to process the remaining audio before stopping
+      setTimeout(() => {
+        try {
+          recognizer.stopContinuousRecognitionAsync(() => {
+            recognizer.close();
+            resolve();
+          }, () => {
+            recognizer.close();
+            resolve();
+          });
+        } catch {
+          try { recognizer.close(); } catch {}
+          resolve();
+        }
+      }, 800);
     } catch {
       try { recognizer.close(); } catch {}
       resolve();
