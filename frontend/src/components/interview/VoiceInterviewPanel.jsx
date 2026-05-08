@@ -57,6 +57,7 @@ export function VoiceInterviewPanel({
     handleToggleRecording,
     handleReplayAssistantAudio,
     handleResetShell,
+    handleRetryVoice,
   } = voiceShell;
 
   const [showTextFallback, setShowTextFallback] = useState(false);
@@ -176,10 +177,12 @@ export function VoiceInterviewPanel({
               <p className="mt-1 leading-6">{recoveryMessage}</p>
             </div>
             <div className="flex shrink-0 flex-wrap gap-2">
-              <Button variant="secondary" size="sm" onClick={handleResetShell}>
-                <RefreshCcw className="mr-2 h-4 w-4" />
-                Retry voice
-              </Button>
+              {!lastTranscriptRejection ? (
+                <Button variant="secondary" size="sm" onClick={handleRetryVoice}>
+                  <RefreshCcw className="mr-2 h-4 w-4" />
+                  Retry voice
+                </Button>
+              ) : null}
               <Button
                 variant="secondary"
                 size="sm"

@@ -340,6 +340,7 @@ export function useVoiceInterviewSession({
 
   const handleVadSpeechStart = useCallback((metrics = {}) => {
     stopLatencyAcknowledgement();
+    setLastTranscriptRejection(null);
     vadMetricsRef.current = { ...(vadMetricsRef.current || {}), ...metrics };
     voiceSessionTraceRef.current?.mark('vad_speech_start', metrics);
 
@@ -578,6 +579,15 @@ export function useVoiceInterviewSession({
     setReadyState();
   }, [audioQueue, clearPendingBargeIn, vad, realtimeMic, duplexSocket, setReadyState, sessionAudioRecorder, stopLatencyAcknowledgement, updateVoiceNetworkQuality]);
 
+  const handleRetryVoice = useCallback(async () => {
+    await handleResetShell();
+    if (!isCompleted && !isPaused) {
+      window.setTimeout(() => {
+        handleToggleRecording();
+      }, 300); // Give the sockets and mic a moment to fully close before reopening
+    }
+  }, [handleResetShell, handleToggleRecording, isCompleted, isPaused]);
+
   const uploadRecordingIfAvailable = useCallback(async () => {
     const recordingBlob = await sessionAudioRecorder.getCombinedRecording();
     if (!recordingBlob || !activeSessionId) return null;
@@ -756,10 +766,10 @@ export function useVoiceInterviewSession({
     isBackupExpanded: false,
     handleRequestPermission,
     handleToggleRecording,
-    handleUseRealtimeTranscript: () => {},
     handleRecordAgain: () => setReadyState(),
     handleReplayAssistantAudio,
     handleResetShell,
+    handleRetryVoice,
     stopVoiceSession,
     handleAudioFileSelect: () => {},
     handleSubmitSelectedAudio: () => {},
