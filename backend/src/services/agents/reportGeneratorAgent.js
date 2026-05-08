@@ -16,6 +16,7 @@ import { buildDeterministicCandidateFeedback } from './reportGenerator/reportFee
 import { buildReportDraft } from './reportGenerator/reportDraftBuilder.js';
 import { SessionAnalysis } from '../../db/models/sessionAnalysisModel.js';
 import { getUserCoachingMemory } from '../aiControl/userCoachingMemoryService.js';
+import { buildNzWorkplaceFit } from '../nzWorkplaceFitService.js';
 
 export const runReportGeneratorAgent = async ({ session = {}, analysisResult = {}, interviewPlan = {}, retrievalBundle = null } = {}) => {
   const transcript = session.transcript || [];
@@ -34,6 +35,7 @@ export const runReportGeneratorAgent = async ({ session = {}, analysisResult = {
 
   const analysisRecord = session.id ? await SessionAnalysis.findOne({ sessionId: session.id }).lean() : null;
   const userCoachingMemory = await getUserCoachingMemory(session.userId);
+  const nzWorkplaceFit = buildNzWorkplaceFit({ session });
 
   const candidateFeedback = await generateCandidateFeedback({
     session,
@@ -43,6 +45,7 @@ export const runReportGeneratorAgent = async ({ session = {}, analysisResult = {
     interviewMetrics,
     strongestExamples: evidenceSummary.strongestExamples,
     deterministicFeedback,
+    nzWorkplaceFit,
   });
 
   const draft = buildReportDraft({
@@ -58,6 +61,7 @@ export const runReportGeneratorAgent = async ({ session = {}, analysisResult = {
     trajectoryRecords: analysisRecord?.trajectoryRecords || [],
     reflectionRecords: analysisRecord?.reflectionRecords || [],
     userCoachingMemory,
+    nzWorkplaceFit,
   });
 
   return validateReportOutput(draft);
