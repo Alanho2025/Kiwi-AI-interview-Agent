@@ -105,10 +105,15 @@ export function createRealtimeSpeechSession({
   };
 
   recognizer.canceled = (_, event) => {
+    const errorDetails = String(event?.errorDetails || '');
+    // Ignore 1006 timeout errors from Azure which happen normally when no audio is sent for 20s
+    if (errorDetails.includes('1006')) {
+      return;
+    }
     onError?.({
       type: 'speech_error',
       reason: String(event?.reason || 'canceled'),
-      errorDetails: String(event?.errorDetails || 'Azure Speech recognition was canceled.'),
+      errorDetails: errorDetails || 'Azure Speech recognition was canceled.',
       timestamp: new Date().toISOString(),
     });
   };
