@@ -28,6 +28,15 @@ const ensureDir = async (dirPath) => {
   await fs.mkdir(dirPath, { recursive: true });
 };
 
+const resolveLocalStoragePath = (storageKey) => {
+  const absolutePath = path.resolve(uploadsRoot, storageKey || '');
+  const rootPath = path.resolve(uploadsRoot);
+  if (!absolutePath.startsWith(`${rootPath}${path.sep}`)) {
+    throw new Error('Storage key resolves outside uploads root');
+  }
+  return absolutePath;
+};
+
 /**
  * Purpose: Execute the main responsibility for saveBufferToLocalStorage.
  * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
@@ -47,6 +56,9 @@ export const saveBufferToLocalStorage = async ({ buffer, originalFilename, folde
     storageProvider: 'local',
     storageKey: relativePath.replace(/\\/g, '/'),
     absolutePath,
+    isEncrypted: false,
+    virusScanStatus: 'not_configured',
+    virusScannedAt: null,
   };
 };
 
@@ -68,5 +80,25 @@ export const saveTextToLocalStorage = async ({ text, suggestedFilename, folder }
     storageProvider: 'local',
     storageKey: relativePath.replace(/\\/g, '/'),
     absolutePath,
+    isEncrypted: false,
+    virusScanStatus: 'not_configured',
+    virusScannedAt: null,
   };
+};
+
+export const deleteLocalStorageObject = async (storageKey) => {
+  if (!storageKey) {
+    return false;
+  }
+
+  const absolutePath = resolveLocalStoragePath(storageKey);
+  try {
+    await fs.unlink(absolutePath);
+    return true;
+  } catch (error) {
+    if (error?.code === 'ENOENT') {
+      return false;
+    }
+    throw error;
+  }
 };

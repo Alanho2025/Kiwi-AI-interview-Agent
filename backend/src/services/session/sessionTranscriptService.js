@@ -10,6 +10,7 @@
  */
 
 import { SessionTranscript } from '../../db/models/sessionTranscriptModel.js';
+import { redactSensitiveText } from '../privacyRedactionService.js';
 import { buildFullTranscript } from './sessionShared.js';
 
 /**
@@ -57,7 +58,8 @@ export const appendTranscriptTurn = async (sessionId, turn) => {
   transcript.turns.push(nextTurn);
   transcript.lastTurnOrder = transcript.turns.length;
   transcript.fullTranscript = buildFullTranscript(transcript.turns);
-  transcript.redactedTranscript = transcript.fullTranscript;
+  transcript.redactedTranscript = redactSensitiveText(transcript.fullTranscript);
+  transcript.redactionStatus = transcript.redactedTranscript === transcript.fullTranscript ? 'no_sensitive_match' : 'redacted';
   await transcript.save();
 
   return mapSavedTranscriptTurn(nextTurn);
@@ -87,7 +89,8 @@ export const updateLatestTranscriptTurnMetadata = async (sessionId, role, metada
     },
   };
   transcript.fullTranscript = buildFullTranscript(transcript.turns);
-  transcript.redactedTranscript = transcript.fullTranscript;
+  transcript.redactedTranscript = redactSensitiveText(transcript.fullTranscript);
+  transcript.redactionStatus = transcript.redactedTranscript === transcript.fullTranscript ? 'no_sensitive_match' : 'redacted';
   await transcript.save();
 
   const savedTurn = transcript.turns[turnIndex];

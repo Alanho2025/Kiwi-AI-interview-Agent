@@ -11,17 +11,20 @@
 
 import express from 'express';
 import {
+  csrfToken,
   getMe,
   googleClientConfig,
   googleLogin,
   logout,
 } from '../../controllers/authController.js';
 import { requireAuth } from '../../middleware/authMiddleware.js';
+import { authRateLimit } from '../../middleware/rateLimitMiddleware.js';
 
 const router = express.Router();
 
+router.get('/csrf', csrfToken);
 router.get('/google/config', googleClientConfig);
-router.post('/google', googleLogin);
+router.post('/google', authRateLimit, googleLogin);
 router.get('/me', requireAuth, getMe);
 router.post('/logout', logout);
 

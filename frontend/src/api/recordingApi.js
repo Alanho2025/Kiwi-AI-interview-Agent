@@ -6,7 +6,7 @@
  * - Keep recording endpoints separate from interview turn APIs.
  */
 
-import { apiClient, buildApiUrl, getStoredAuthToken } from './client.js';
+import { apiClient, buildApiUrl } from './client.js';
 
 export const uploadSessionRecording = async ({ sessionId, audioBlob }) => {
   if (!sessionId || !audioBlob) return null;
@@ -27,9 +27,6 @@ export const downloadSessionRecording = async (sessionId) => {
   const response = await fetch(buildApiUrl(`/recordings/session-audio/${sessionId}/download`), {
     method: 'GET',
     credentials: 'include',
-    headers: {
-      ...(getStoredAuthToken() ? { Authorization: `Bearer ${getStoredAuthToken()}` } : {}),
-    },
   });
 
   if (!response.ok) {

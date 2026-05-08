@@ -64,6 +64,13 @@ export const getBooleanEnv = (name, defaultValue = false) => {
  */
 export const getServerPort = () => Number(getEnv('PORT') || 3000);
 
+export const assertRequiredEnv = (names = []) => {
+  const missing = names.filter((name) => !getEnv(name));
+  if (missing.length > 0) {
+    throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
+  }
+};
+
 /**
  * Normalize one CORS origin value. Render/Vercel sometimes provide domains without protocol.
  */

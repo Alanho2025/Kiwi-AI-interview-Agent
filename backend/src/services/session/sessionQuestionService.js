@@ -11,6 +11,7 @@
 
 import crypto from 'crypto';
 import { query } from '../../db/postgres.js';
+import { redactSensitiveText } from '../privacyRedactionService.js';
 
 /**
  * Purpose: Execute the main responsibility for countWords.
@@ -90,6 +91,7 @@ export const createInterviewResponse = async ({
   asrConfidence = null,
   providerPayload = null,
 }) => {
+  const redactedTranscriptText = redactSensitiveText(transcriptText);
   await query(
     `INSERT INTO interview_responses (
       id, session_id, question_id, response_mode, transcript_text,
@@ -103,7 +105,7 @@ export const createInterviewResponse = async ({
       questionId,
       responseMode,
       transcriptText,
-      transcriptText,
+      redactedTranscriptText,
       audioDurationSeconds,
       audioStorageKey,
       asrProvider,

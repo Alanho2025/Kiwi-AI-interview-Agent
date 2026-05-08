@@ -17,6 +17,7 @@ import { SessionAnalysis } from '../db/models/sessionAnalysisModel.js';
 import { InterviewPlan } from '../db/models/interviewPlanModel.js';
 import { SessionTranscript } from '../db/models/sessionTranscriptModel.js';
 import { RETRIEVAL_SOURCES } from './retrieval/retrievalSourceRegistry.js';
+import { redactSensitiveText } from './privacyRedactionService.js';
 
 const DEFAULT_CHUNK_SIZE = 900;
 const hasContent = (value) => {
@@ -287,13 +288,15 @@ export const indexSessionArtifacts = async (sessionId) => {
   }
 
   if (transcript?.turns?.length) {
+    const redactedTranscriptText = transcript.redactedTranscript
+      || redactSensitiveText(transcript.turns.map((turn) => `${turn.role}: ${turn.text}`).join('\n'));
     indexed.push(...await indexTextSource({
       sourceType: RETRIEVAL_SOURCES.SESSION_TRANSCRIPT,
       sourceId: sessionId,
       documentType: 'transcript',
       sessionId,
       userId: transcript.userId,
-      text: transcript.turns.map((turn) => `${turn.role}: ${turn.text}`).join('\n'),
+      text: redactedTranscriptText,
       metadata: { turnCount: transcript.turns.length },
     }));
   }

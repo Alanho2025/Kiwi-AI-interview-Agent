@@ -114,6 +114,9 @@ export const exportReport = asyncHandler(async (req, res) => {
     storageProvider: storage.storageProvider,
     storageKey: storage.storageKey,
     fileSizeBytes: Buffer.byteLength(fileContent, 'utf8'),
+    isEncrypted: storage.isEncrypted,
+    virusScanStatus: storage.virusScanStatus,
+    virusScannedAt: storage.virusScannedAt,
   });
   
   await createAuditLog({

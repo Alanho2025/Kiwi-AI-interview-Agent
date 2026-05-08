@@ -11,54 +11,29 @@
 
 const API_NAMESPACE = '/api';
 
-const AUTH_TOKEN_STORAGE_KEY = 'kiwi_auth_token';
-const LEGACY_AUTH_TOKEN_STORAGE_KEY = 'authToken';
+const CSRF_HEADER_NAME = 'X-CSRF-Token';
+const AUTH_TOKEN_STORAGE_KEYS = ['kiwi_auth_token', 'authToken'];
+
+let csrfToken = '';
+let csrfTokenPromise = null;
 
 /**
- * Read the stored JWT fallback token for browsers that block cross-site cookies.
- */
-export const getStoredAuthToken = () => {
-  if (typeof window === 'undefined') {
-    return '';
-  }
-
-  return (
-    window.localStorage.getItem(AUTH_TOKEN_STORAGE_KEY) ||
-    window.localStorage.getItem(LEGACY_AUTH_TOKEN_STORAGE_KEY) ||
-    ''
-  );
-};
-
-/**
- * Store the JWT fallback token after a successful login.
- */
-export const storeAuthToken = (token) => {
-  if (typeof window === 'undefined' || !token) {
-    return;
-  }
-
-  window.localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token);
-  window.localStorage.removeItem(LEGACY_AUTH_TOKEN_STORAGE_KEY);
-};
-
-/**
- * Clear all known browser-side auth token keys during logout.
+ * Clear legacy browser-side auth token keys during logout.
  */
 export const clearStoredAuthToken = () => {
   if (typeof window === 'undefined') {
     return;
   }
 
-  window.localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
-  window.localStorage.removeItem(LEGACY_AUTH_TOKEN_STORAGE_KEY);
+  AUTH_TOKEN_STORAGE_KEYS.forEach((key) => window.localStorage.removeItem(key));
 };
 
 /**
- * Build Authorization headers only when a fallback token exists.
+ * Clear the in-memory CSRF token when the session changes.
  */
-const buildAuthHeaders = () => {
-  const token = getStoredAuthToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
+export const clearCsrfToken = () => {
+  csrfToken = '';
+  csrfTokenPromise = null;
 };
 
 /**
@@ -103,6 +78,44 @@ export const buildApiUrl = (endpoint = '') => {
   return cleanEndpoint ? `${baseUrl}/${cleanEndpoint}` : baseUrl;
 };
 
+const isUnsafeMethod = (method = 'GET') =>
+  !['GET', 'HEAD', 'OPTIONS'].includes(String(method || 'GET').toUpperCase());
+
+const loadCsrfToken = async () => {
+  if (csrfToken) {
+    return csrfToken;
+  }
+
+  if (!csrfTokenPromise) {
+    csrfTokenPromise = fetch(buildApiUrl('/auth/csrf'), {
+      method: 'GET',
+      credentials: 'include',
+    })
+      .then(async (response) => {
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload.error?.details || payload.message || payload.msg || 'Could not load CSRF token');
+        }
+        csrfToken = payload.data?.csrfToken || '';
+        return csrfToken;
+      })
+      .finally(() => {
+        csrfTokenPromise = null;
+      });
+  }
+
+  return csrfTokenPromise;
+};
+
+const buildCsrfHeaders = async (method) => {
+  if (!isUnsafeMethod(method)) {
+    return {};
+  }
+
+  const token = await loadCsrfToken();
+  return token ? { [CSRF_HEADER_NAME]: token } : {};
+};
+
 /**
  * Build a full backend WebSocket URL for voice requests.
  */
@@ -121,6 +134,7 @@ export const buildApiWebSocketUrl = (endpoint = '') => {
  */
 export const apiClient = async (endpoint, options = {}) => {
   const url = buildApiUrl(endpoint);
+  const method = options.method || 'GET';
 
   const defaultHeaders = {};
   if (!(options.body instanceof FormData)) {
@@ -132,7 +146,7 @@ export const apiClient = async (endpoint, options = {}) => {
     ...options,
     headers: {
       ...defaultHeaders,
-      ...buildAuthHeaders(),
+      ...(await buildCsrfHeaders(method)),
       ...options.headers,
     },
   };
@@ -162,6 +176,7 @@ export const apiPost = (endpoint, body, options = {}) => apiClient(endpoint, { m
  */
 export const apiClientStream = async (endpoint, options = {}) => {
   const url = buildApiUrl(endpoint);
+  const method = options.method || 'GET';
 
   const defaultHeaders = {};
   if (!(options.body instanceof FormData)) {
@@ -173,7 +188,7 @@ export const apiClientStream = async (endpoint, options = {}) => {
     ...options,
     headers: {
       ...defaultHeaders,
-      ...buildAuthHeaders(),
+      ...(await buildCsrfHeaders(method)),
       ...options.headers,
     },
   };

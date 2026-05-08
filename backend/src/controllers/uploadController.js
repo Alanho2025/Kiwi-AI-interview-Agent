@@ -53,6 +53,9 @@ export const uploadCV = asyncHandler(async (req, res) => {
     storageKey: storage.storageKey,
     fileSizeBytes: req.file.size,
     checksum,
+    isEncrypted: storage.isEncrypted,
+    virusScanStatus: storage.virusScanStatus,
+    virusScannedAt: storage.virusScannedAt,
   });
 
   const displayProfile = buildCvDisplayView({

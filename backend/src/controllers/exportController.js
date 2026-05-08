@@ -46,6 +46,9 @@ export const exportTranscript = asyncHandler(async (req, res) => {
     storageProvider: storage.storageProvider,
     storageKey: storage.storageKey,
     fileSizeBytes: Buffer.byteLength(transcriptText, 'utf8'),
+    isEncrypted: storage.isEncrypted,
+    virusScanStatus: storage.virusScanStatus,
+    virusScannedAt: storage.virusScannedAt,
   });
   await createAuditLog({
     actorUserId: session.userId,
