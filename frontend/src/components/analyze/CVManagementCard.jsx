@@ -12,7 +12,7 @@
 import { useState, useRef } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../common/Card.jsx';
 import { Button } from '../common/Button.jsx';
-import { FileText, Lock, CheckCircle2, Loader2, PencilLine } from 'lucide-react';
+import { FileText, Lock, CheckCircle2, Loader2, PencilLine, Trash2 } from 'lucide-react';
 import { cn } from '../../utils/formatters.js';
 import { StatusBanner } from '../common/StatusBanner.jsx';
 import { buildCvReviewViewModel } from '../../utils/cvReviewViewModel.js';
@@ -103,6 +103,8 @@ export function CVManagementCard({
   selectedCV,
   recentCVs,
   onSelectRecent,
+  onDeleteRecent,
+  deletingCvId = '',
   isCvHumanVerified = false,
   onConfirmCVReview,
   cvReviewProfile,
@@ -302,17 +304,38 @@ export function CVManagementCard({
                       <p className="text-xs text-gray-500">Updated: {cv.updated} · {cv.size}</p>
                     </div>
                   </div>
-                  <Button 
-                    variant={selectedRecent === cv.id ? 'primary' : 'ghost'} 
-                    size="sm" 
-                    onClick={() => {
-                      setSelectedRecent(cv.id);
-                      onSelectRecent(cv.id);
-                    }}
-                    className="w-full sm:w-auto"
-                  >
-                    Use
-                  </Button>
+                  <div className="flex w-full items-center gap-2 sm:w-auto sm:justify-end">
+                    <Button
+                      variant={selectedRecent === cv.id ? 'primary' : 'ghost'}
+                      size="sm"
+                      disabled={deletingCvId === cv.id}
+                      onClick={() => {
+                        setSelectedRecent(cv.id);
+                        onSelectRecent(cv.id);
+                      }}
+                      className="flex-1 sm:flex-none"
+                    >
+                      Use
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="danger"
+                      size="sm"
+                      className="shrink-0 gap-2 px-3"
+                      title={`Delete ${cv.name}`}
+                      aria-label={`Delete ${cv.name}`}
+                      disabled={deletingCvId === cv.id}
+                      onClick={async () => {
+                        if (selectedRecent === cv.id) {
+                          setSelectedRecent(null);
+                        }
+                        await onDeleteRecent?.(cv);
+                      }}
+                    >
+                      {deletingCvId === cv.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                      <span className="sm:hidden">Delete</span>
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>

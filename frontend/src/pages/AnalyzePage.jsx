@@ -19,7 +19,7 @@ import { NZSettingsCard } from '../components/analyze/NZSettingsCard.jsx';
 import { AnalysisStatusCard } from '../components/analyze/AnalysisStatusCard.jsx';
 import { AnalyzeActionsCard } from '../components/analyze/AnalyzeActionsCard.jsx';
 import { StatusBanner } from '../components/common/StatusBanner.jsx';
-import { uploadCV, getRecentCVs, selectCV, saveReviewedCvProfile } from '../api/uploadApi.js';
+import { uploadCV, getRecentCVs, selectCV, saveReviewedCvProfile, deleteCv } from '../api/uploadApi.js';
 import { paraphraseJD, matchCV, generateInterviewPlan } from '../api/analyzeApi.js';
 import {
   DEFAULT_ANALYZE_MODE,
@@ -112,6 +112,7 @@ export function AnalyzePage() {
   const [generatedSessionId, setGeneratedSessionId] = useState(null);
   const [isSummarizingJD, setIsSummarizingJD] = useState(false);
   const [isSavingCVReview, setIsSavingCVReview] = useState(false);
+  const [deletingCvId, setDeletingCvId] = useState('');
   const [pageStatus, setPageStatus] = useState(null);
   const [voiceDeviceCheck, setVoiceDeviceCheck] = useState(DEFAULT_VOICE_DEVICE_CHECK);
 
@@ -252,6 +253,35 @@ export function AnalyzePage() {
       setPageStatus(buildStatusMessage('info', 'CV selected', `${activeCV.name} is now the active CV for JD matching.`));
     } catch (error) {
       setPageStatus(buildStatusMessage('error', 'Could not select CV', error.message));
+    }
+  };
+
+  const handleDeleteRecent = async (cv) => {
+    if (!cv?.id) {
+      return;
+    }
+
+    const confirmed = window.confirm(`Delete ${cv.name}? This removes it from your recent CV list.`);
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingCvId(cv.id);
+    try {
+      await deleteCv(cv.id);
+      if (selectedCV?.id === cv.id) {
+        setSelectedCV(null);
+        setStructuredCVProfile(null);
+        setCvHumanReviewedFileId('');
+        setCvReviewStatus('unreviewed');
+        resetAnalysisState();
+      }
+      await refreshRecentCVs();
+      setPageStatus(buildStatusMessage('success', 'CV deleted', `${cv.name} was removed from your recent CVs.`));
+    } catch (error) {
+      setPageStatus(buildStatusMessage('error', 'Could not delete CV', error.message));
+    } finally {
+      setDeletingCvId('');
     }
   };
 
@@ -422,6 +452,8 @@ export function AnalyzePage() {
                 selectedCV={selectedCV}
                 recentCVs={recentCVs}
                 onSelectRecent={handleSelectRecent}
+                onDeleteRecent={handleDeleteRecent}
+                deletingCvId={deletingCvId}
                 isCvHumanVerified={isCvHumanVerified}
                 onConfirmCVReview={handleConfirmCVReview}
                 cvReviewProfile={structuredCVProfile}
