@@ -20,6 +20,27 @@ const isMissingReportError = (error) => {
   return message.includes('report not found') || message.includes('no report exists');
 };
 
+const EXPORT_AUDIT_TIMEOUT_MS = 6000;
+
+/**
+ * Purpose: Bound non-critical export audit calls so browser downloads never look frozen.
+ * Inputs: A promise and timeout metadata.
+ * Returns: The promise result, or throws a timeout error.
+ */
+const withTimeout = (promise, timeoutMs, timeoutMessage) => {
+  let timeoutId;
+
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = window.setTimeout(() => {
+      reject(new Error(timeoutMessage));
+    }, timeoutMs);
+  });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    window.clearTimeout(timeoutId);
+  });
+};
+
 /**
  * Purpose: Format report as readable text (mirrors backend function).
  * Inputs: Report object from MongoDB.
@@ -244,27 +265,39 @@ export function useReportData(sessionId) {
 
   const handleExport = useCallback(async (format = 'json') => {
     setLoading(true);
+    setStatus(buildStatus('info', 'Preparing export', `Preparing ${String(format).toUpperCase()} download...`));
+
     try {
-      // For PDF, we don't need to call the backend API
+      if (!reportData) {
+        setStatus(buildStatus('error', 'Export failed', 'No report data available to export.'));
+        return;
+      }
+
       if (format === 'pdf') {
-        if (reportData) {
-          await generateReportPDF(reportData);
-          setStatus(buildStatus('success', 'Report exported', 'Report downloaded as PDF file.'));
-        } else {
-          setStatus(buildStatus('error', 'Export failed', 'No report data available to export.'));
-        }
-      } else {
-        // For JSON and TXT, call backend API
-        await exportReport({ sessionId, format });
-        if (reportData) {
-          const content = format === 'json' 
-            ? JSON.stringify(reportData, null, 2)
-            : formatReportAsText(reportData);
-          downloadReportFile({ content, sessionId, format });
-          setStatus(buildStatus('success', 'Report exported', `Report downloaded as ${format.toUpperCase()} file.`));
-        } else {
-          setStatus(buildStatus('error', 'Export failed', 'No report data available to export.'));
-        }
+        await generateReportPDF(reportData);
+        setStatus(buildStatus('success', 'Report exported', 'Report downloaded as PDF file.'));
+        return;
+      }
+
+      const content = format === 'json'
+        ? JSON.stringify(reportData, null, 2)
+        : formatReportAsText(reportData);
+
+      downloadReportFile({ content, sessionId, format });
+
+      try {
+        await withTimeout(
+          exportReport({ sessionId, format }),
+          EXPORT_AUDIT_TIMEOUT_MS,
+          'Export audit timed out. The file was downloaded, but the server did not confirm the export record.'
+        );
+        setStatus(buildStatus('success', 'Report exported', `Report downloaded as ${format.toUpperCase()} file.`));
+      } catch (auditError) {
+        setStatus(buildStatus(
+          'info',
+          'Report downloaded',
+          auditError.message || 'The file was downloaded, but the server export record could not be saved.'
+        ));
       }
     } catch (error) {
       setStatus(buildStatus('error', 'Export failed', error.message || 'Could not export the report.'));

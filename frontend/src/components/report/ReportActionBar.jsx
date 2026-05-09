@@ -53,7 +53,7 @@ export function ReportActionBar({ loading, onGenerate, onRunQa, onExport, onDown
   };
 
   return (
-    <div className="sticky top-16 z-20 -mx-4 flex gap-2 overflow-x-auto border-b border-gray-100 bg-gray-50/95 px-4 py-3 backdrop-blur sm:static sm:mx-0 sm:flex-wrap sm:border-0 sm:bg-transparent sm:px-0 sm:py-0">
+    <div className={`sticky top-16 z-20 -mx-4 flex gap-2 border-b border-gray-100 bg-gray-50/95 px-4 py-3 backdrop-blur sm:static sm:mx-0 sm:flex-wrap sm:border-0 sm:bg-transparent sm:px-0 sm:py-0 ${showExportMenu ? 'overflow-visible' : 'overflow-x-auto'}`}>
       <Button className="shrink-0" onClick={onGenerate} disabled={loading}>{loading ? 'Working...' : 'Generate report'}</Button>
       <Button className="shrink-0" onClick={onRunQa} variant="secondary" disabled={loading}>Run QA</Button>
       {onDownloadRecording ? (
