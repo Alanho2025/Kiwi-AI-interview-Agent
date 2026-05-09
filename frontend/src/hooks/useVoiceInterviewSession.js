@@ -662,6 +662,12 @@ export function useVoiceInterviewSession({
   }, [isCompleted]);
 
   useEffect(() => {
+    if (isPaused && isAutoLoopActive) {
+      handleResetShell();
+    }
+  }, [isPaused, isAutoLoopActive, handleResetShell]);
+
+  useEffect(() => {
     if (permissionState === 'granted' && voiceState === 'idle') setReadyState();
   }, [permissionState, voiceState, setReadyState]);
 
