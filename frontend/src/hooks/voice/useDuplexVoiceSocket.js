@@ -44,6 +44,7 @@ export function useDuplexVoiceSocket({
   const startedAtRef = useRef(0);
   const pingSentAtRef = useRef(null);
   const rttSamplesRef = useRef([]);
+  const chunksSentRef = useRef(0);
 
   const closeSocket = useCallback(() => {
     const socket = socketRef.current;
@@ -71,6 +72,7 @@ export function useDuplexVoiceSocket({
     setLatency({});
     pingSentAtRef.current = null;
     rttSamplesRef.current = [];
+    chunksSentRef.current = 0;
     setSocketState('connecting');
     startedAtRef.current = performance.now();
 
@@ -168,6 +170,10 @@ export function useDuplexVoiceSocket({
   const sendAudioChunk = useCallback((arrayBuffer) => {
     const socket = socketRef.current;
     if (!socket || socket.readyState !== WebSocket.OPEN || !arrayBuffer) return;
+    if (chunksSentRef.current === 0) {
+      console.log(`[FRONTEND-STT-TRACE] Sending FIRST audio chunk (${arrayBuffer.byteLength} bytes) to backend WebSocket.`);
+    }
+    chunksSentRef.current++;
     socket.send(arrayBuffer);
   }, []);
 
