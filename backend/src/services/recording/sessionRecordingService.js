@@ -9,6 +9,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { spawn } from 'child_process';
+import ffmpegStaticPath from 'ffmpeg-static';
 import { fileURLToPath } from 'url';
 import { badRequest, notFound } from '../../utils/appError.js';
 import { loadOwnedSessionOrThrow, requireSessionId } from '../interview/interviewSessionService.js';
@@ -27,8 +28,10 @@ const ensureRecordingDirs = async () => {
 
 const sanitizeSessionId = (sessionId) => String(sessionId || '').replace(/[^a-zA-Z0-9_-]/g, '');
 
+const getFfmpegExecutablePath = () => process.env.FFMPEG_PATH || ffmpegStaticPath || 'ffmpeg';
+
 const runFfmpegConversion = ({ inputPath, outputPath }) => new Promise((resolve, reject) => {
-  const ffmpeg = spawn('ffmpeg', [
+  const ffmpeg = spawn(getFfmpegExecutablePath(), [
     '-y',
     '-i', inputPath,
     '-vn',

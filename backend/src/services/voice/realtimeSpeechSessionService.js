@@ -61,6 +61,7 @@ export function createRealtimeSpeechSession({
   const pushStream = speechSdk.AudioInputStream.createPushStream(audioFormat);
   const audioConfig = speechSdk.AudioConfig.fromStreamInput(pushStream);
   const recognizer = new speechSdk.SpeechRecognizer(speechConfig, audioConfig);
+  let isStopping = false;
   console.log(`[STT-TRACE] Created Azure Speech Recognizer for ${language}`);
   const phraseGrammar = speechSdk.PhraseListGrammar.fromRecognizer(recognizer);
 
@@ -114,6 +115,12 @@ export function createRealtimeSpeechSession({
   recognizer.canceled = (_, event) => {
     const errorDetails = String(event?.errorDetails || '');
     console.log(`[STT-TRACE] Canceled event. Reason: ${event?.reason}, Details: ${errorDetails}`);
+    // Azure can emit a cancellation while we are deliberately closing the push stream.
+    // That is a normal shutdown signal after VAD speech_end, not a user-facing STT failure.
+    if (isStopping) {
+      console.log(`[STT-TRACE] Ignoring canceled event during intentional speech-session stop.`);
+      return;
+    }
     // Ignore 1006 timeout errors from Azure which happen normally when no audio is sent for 20s
     if (errorDetails.includes('1006')) {
       console.log(`[STT-TRACE] Ignoring 1006 timeout error.`);
@@ -152,6 +159,7 @@ export function createRealtimeSpeechSession({
 
   const stop = () => new Promise((resolve) => {
     console.log(`[STT-TRACE] Stop called. Closing pushStream. Waiting 800ms before stopContinuousRecognitionAsync.`);
+    isStopping = true;
     try {
       pushStream.close();
       // Wait for Azure to process the remaining audio before stopping
