@@ -45,6 +45,7 @@ export const createDuplexVoiceAgentSession = ({
 } = {}) => {
   let speechSession = null;
   let isSpeechSessionStarted = false;
+  let sessionStartPromise = null;
   let activeSession = session;
   const language = context?.language || 'en-NZ';
   const sampleRate = context?.sampleRate || 16000;
@@ -75,6 +76,9 @@ export const createDuplexVoiceAgentSession = ({
   };
 
   const stopSpeechSession = async () => {
+    if (sessionStartPromise) {
+      await sessionStartPromise;
+    }
     if (!speechSession) return;
     const current = speechSession;
     speechSession = null;
@@ -84,51 +88,62 @@ export const createDuplexVoiceAgentSession = ({
 
   const startSpeechSession = async () => {
     if (speechSession && isSpeechSessionStarted) return speechSession;
-    const extraPhrases = buildSessionSpeechPhraseList(activeSession);
-    speechSession = createRealtimeSpeechSession({
-      language,
-      sampleRate,
-      extraPhrases,
-      onPartialTranscript: (payload) => sendJson({
-        ...payload,
-        type: 'stt_partial',
-        tool: AGENT_TOOL_NAMES.TRANSCRIBE_REALTIME_SPEECH,
-      }),
-      onFinalTranscript: async (payload) => {
-        const text = normalizeTranscriptText(payload);
-        sendJson({
+    if (sessionStartPromise) {
+      await sessionStartPromise;
+      return speechSession;
+    }
+
+    sessionStartPromise = (async () => {
+      const extraPhrases = buildSessionSpeechPhraseList(activeSession);
+      const newSession = createRealtimeSpeechSession({
+        language,
+        sampleRate,
+        extraPhrases,
+        onPartialTranscript: (payload) => sendJson({
           ...payload,
-          type: 'stt_final',
+          type: 'stt_partial',
           tool: AGENT_TOOL_NAMES.TRANSCRIBE_REALTIME_SPEECH,
-        });
-        if (text) {
-          finalTranscriptSegments.push(payload);
-        }
-      },
-      onError: (payload) => sendJson({
-        ...payload,
-        type: 'error',
-        tool: AGENT_TOOL_NAMES.TRANSCRIBE_REALTIME_SPEECH,
-        code: 'STT_ERROR',
-        message: payload.errorDetails || payload.reason || 'Realtime speech recognition failed.',
-      }),
-      onSessionStarted: (payload) => sendJson({
-        ...payload,
-        type: 'speech_session_started',
-        tool: AGENT_TOOL_NAMES.TRANSCRIBE_REALTIME_SPEECH,
-      }),
-      onSessionStopped: (payload) => sendJson({
-        ...payload,
-        type: 'speech_session_stopped',
-        tool: AGENT_TOOL_NAMES.TRANSCRIBE_REALTIME_SPEECH,
-      }),
-    });
-    await speechSession.start();
-    isSpeechSessionStarted = true;
-    logger?.info?.('Duplex speech session started with phrase hints', {
-      sessionId: activeSession?.id || session?.id,
-      phraseCount: extraPhrases.length,
-    });
+        }),
+        onFinalTranscript: async (payload) => {
+          const text = normalizeTranscriptText(payload);
+          sendJson({
+            ...payload,
+            type: 'stt_final',
+            tool: AGENT_TOOL_NAMES.TRANSCRIBE_REALTIME_SPEECH,
+          });
+          if (text) {
+            finalTranscriptSegments.push(payload);
+          }
+        },
+        onError: (payload) => sendJson({
+          ...payload,
+          type: 'error',
+          tool: AGENT_TOOL_NAMES.TRANSCRIBE_REALTIME_SPEECH,
+          code: 'STT_ERROR',
+          message: payload.errorDetails || payload.reason || 'Realtime speech recognition failed.',
+        }),
+        onSessionStarted: (payload) => sendJson({
+          ...payload,
+          type: 'speech_session_started',
+          tool: AGENT_TOOL_NAMES.TRANSCRIBE_REALTIME_SPEECH,
+        }),
+        onSessionStopped: (payload) => sendJson({
+          ...payload,
+          type: 'speech_session_stopped',
+          tool: AGENT_TOOL_NAMES.TRANSCRIBE_REALTIME_SPEECH,
+        }),
+      });
+      speechSession = newSession;
+      await newSession.start();
+      isSpeechSessionStarted = true;
+      logger?.info?.('Duplex speech session started with phrase hints', {
+        sessionId: activeSession?.id || session?.id,
+        phraseCount: extraPhrases.length,
+      });
+    })();
+
+    await sessionStartPromise;
+    sessionStartPromise = null;
     return speechSession;
   };
 
