@@ -9,6 +9,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
+# Ensure cookies are configured for cross-origin (SameSite=None, Secure)
+ENV NODE_ENV=production
+
 # Copy package files and install dependencies
 COPY package*.json ./
 RUN npm ci --only=production
