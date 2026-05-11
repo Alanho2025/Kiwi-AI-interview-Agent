@@ -10,18 +10,18 @@ export function QuoteAnalysisSection({ quoteAnalyses }) {
     <Card>
       <CardHeader>
         <CardTitle>Interview Highlights & Critiques</CardTitle>
-        <p className="text-sm text-gray-500 mt-1">Based on your actual responses during the interview.</p>
+        <p className="text-sm text-faint mt-1">Based on your actual responses during the interview.</p>
       </CardHeader>
       <CardContent>
         <div className="space-y-6">
           {quoteAnalyses.map((analysis, index) => (
-            <div key={`${analysis.id}-${index}`} className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition-all hover:shadow-md">
+            <div key={`${analysis.id}-${index}`} className="overflow-hidden rounded-2xl border border-gray-100 glass shadow-sm transition-all hover:shadow-md">
               
               {/* Context Header */}
               {analysis.context && (
-                <div className="bg-gray-50 px-5 py-3 border-b border-gray-100">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Context</span>
-                  <p className="mt-1 text-sm font-medium text-gray-700">{analysis.context}</p>
+                <div className="bg-transparent px-5 py-3 border-b border-gray-100">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-faint">Context</span>
+                  <p className="mt-1 text-sm font-medium text-muted">{analysis.context}</p>
                 </div>
               )}
 

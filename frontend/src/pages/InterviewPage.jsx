@@ -123,7 +123,7 @@ export function InterviewPage() {
   const sharedBackupDisabled = isSubmitting || session.status === 'paused' || session.status === 'completed';
 
   return (
-    <div className="min-h-screen bg-[#f9fafb] flex flex-col lg:h-screen lg:overflow-hidden">
+    <div className="min-h-screen bg-transparent flex flex-col lg:h-screen lg:overflow-hidden">
       <InterviewPageHeader
         session={session}
         title={viewModel.title}

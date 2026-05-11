@@ -36,16 +36,16 @@ function ScoreBar({ label, score, colorClass, reason }) {
   const percentage = (safeScore / 10) * 100;
   
   return (
-    <div className="rounded-xl border border-slate-100 bg-white p-3">
+    <div className="rounded-xl border border-slate-100 glass p-3">
       <div className="flex items-center gap-3 text-sm">
-        <span className="w-20 shrink-0 text-gray-500 font-medium">{label}</span>
-        <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+        <span className="w-20 shrink-0 text-faint font-medium">{label}</span>
+        <div className="flex-1 h-2 bg-chip rounded-full overflow-hidden">
           <div 
             className={`h-full ${colorClass} transition-all duration-500`} 
             style={{ width: `${percentage}%` }}
           />
         </div>
-        <span className="w-8 shrink-0 text-right font-semibold text-gray-700">{safeScore}/10</span>
+        <span className="w-8 shrink-0 text-right font-semibold text-muted">{safeScore}/10</span>
       </div>
       <p className="mt-2 pl-0 text-xs leading-5 text-slate-600 sm:pl-20">{reason}</p>
     </div>
@@ -63,7 +63,7 @@ export function TurnBreakdownSection({ turnBreakdowns }) {
     <Card>
       <CardHeader>
         <CardTitle>Turn-by-Turn Breakdown</CardTitle>
-        <p className="text-sm text-gray-500 mt-1">Detailed feedback and scoring for each of your key answers.</p>
+        <p className="text-sm text-faint mt-1">Detailed feedback and scoring for each of your key answers.</p>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
@@ -74,7 +74,7 @@ export function TurnBreakdownSection({ turnBreakdowns }) {
               <div 
                 key={index} 
                 className={`overflow-hidden rounded-2xl border transition-all duration-200 ${
-                  isExpanded ? 'border-indigo-200 bg-white shadow-md' : 'border-gray-100 bg-gray-50 hover:border-gray-200 cursor-pointer'
+                  isExpanded ? 'border-indigo-200 glass shadow-md' : 'border-gray-100 bg-transparent hover:border-theme cursor-pointer'
                 }`}
                 onClick={() => !isExpanded && setExpandedIndex(index)}
               >
@@ -84,7 +84,7 @@ export function TurnBreakdownSection({ turnBreakdowns }) {
                       <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700">
                         Q{index + 1}
                       </span>
-                      <h4 className="min-w-0 break-words text-sm font-semibold text-gray-900 line-clamp-2">{turn.question}</h4>
+                      <h4 className="min-w-0 break-words text-sm font-semibold text-primary line-clamp-2">{turn.question}</h4>
                     </div>
                   </div>
                   
@@ -93,7 +93,7 @@ export function TurnBreakdownSection({ turnBreakdowns }) {
                       e.stopPropagation();
                       setExpandedIndex(isExpanded ? -1 : index);
                     }}
-                    className="shrink-0 rounded-full p-1 text-gray-400 transition-colors hover:bg-gray-200"
+                    className="shrink-0 rounded-full p-1 text-gray-400 transition-colors hover:bg-chip"
                     aria-label={isExpanded ? 'Collapse turn feedback' : 'Expand turn feedback'}
                   >
                     <svg 
@@ -135,8 +135,8 @@ export function TurnBreakdownSection({ turnBreakdowns }) {
                     )}
 
                     <div>
-                      <h5 className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">Your Answer Summary</h5>
-                      <p className="text-sm text-gray-700 leading-relaxed bg-gray-50 p-3 rounded-lg border border-gray-100">
+                      <h5 className="text-xs font-semibold uppercase tracking-wider text-faint mb-2">Your Answer Summary</h5>
+                      <p className="text-sm text-muted leading-relaxed bg-transparent p-3 rounded-lg border border-gray-100">
                         {turn.answer}
                       </p>
                     </div>

@@ -32,28 +32,28 @@ export function PrivacySecurityCard({ email = '', loginProvider = '' }) {
 
   return (
     <>
-      <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
-        <h3 className="text-lg font-bold mb-2 flex items-center gap-2 text-gray-900">
-          <ShieldCheck className="h-5 w-5 text-emerald-600" />
+      <div className="glass rounded-2xl p-5 sm:p-6">
+        <h3 className="mb-2 flex items-center gap-2 text-base font-bold text-primary">
+          <ShieldCheck className="h-4 w-4 text-accent" />
           Privacy & Security
         </h3>
-        <p className="text-sm text-gray-600 leading-6">
+        <p className="text-sm leading-relaxed text-muted">
           Google sign-in only uses your name and email. Practice recordings are encrypted in transit and storage, and voice data is used only for coaching under the current NZ compliance draft.
         </p>
 
         <div className="mt-4 flex flex-wrap gap-2">
-          <span className="rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">Google connection</span>
-          <span className="rounded-lg bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700">Encrypted recordings</span>
-          <span className="rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700">Retention controls</span>
+          <span className="rounded-full border [border-color:var(--accent)] bg-chip px-3 py-1 text-[11px] font-semibold text-accent/80">Google connection</span>
+          <span className="rounded-full border [border-color:var(--accent-soft)] [background:var(--accent-glow)] px-3 py-1 text-[11px] font-semibold text-accent/80">Encrypted recordings</span>
+          <span className="rounded-full border border-theme bg-chip px-3 py-1 text-[11px] font-semibold text-muted">Retention controls</span>
         </div>
 
         {showConnectionPanel ? (
-          <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+          <div className="mt-4 rounded-xl border border-theme bg-chip px-4 py-3">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="flex items-start gap-2 min-w-0">
-                <Lock className="mt-0.5 h-4 w-4 shrink-0 text-gray-500" />
-                <div className="text-xs leading-5 text-gray-600 min-w-0">
-                  <p className="font-semibold text-gray-700">
+                <Lock className="mt-0.5 h-4 w-4 shrink-0 text-faint" />
+                <div className="text-xs leading-5 text-muted min-w-0">
+                  <p className="font-semibold text-primary">
                     {isGoogleConnected ? 'Connected with Google' : `Connected with ${providerLabel}`}
                   </p>
                   {email ? <p className="truncate">{email}</p> : null}
@@ -64,7 +64,7 @@ export function PrivacySecurityCard({ email = '', loginProvider = '' }) {
               </div>
               <button
                 type="button"
-                className="shrink-0 rounded-xl border border-gray-300 px-3 py-2 text-[11px] font-semibold text-gray-700 transition hover:bg-gray-100"
+                className="shrink-0 rounded-xl border border-theme bg-chip px-3 py-2 text-[11px] font-semibold text-muted transition hover:bg-chip"
                 onClick={handleOpenGooglePermissions}
               >
                 Open Google Permissions
@@ -73,17 +73,17 @@ export function PrivacySecurityCard({ email = '', loginProvider = '' }) {
           </div>
         ) : null}
 
-        <div className="mt-6 grid gap-3 sm:grid-cols-2">
+        <div className="mt-5 grid gap-3 sm:grid-cols-2">
           <button
             type="button"
-            className="flex-1 rounded-xl border border-gray-300 py-2 text-xs font-semibold transition hover:bg-gray-50"
+            className="flex-1 rounded-xl border border-theme bg-chip py-2 text-xs font-semibold text-muted transition hover:bg-chip"
             onClick={() => setShowConnectionPanel((value) => !value)}
           >
             Manage Connection
           </button>
           <button
             type="button"
-            className="flex-1 rounded-xl bg-[#2eb886] py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-[#259a6f]"
+            className="flex-1 rounded-xl [background:var(--accent-bright)] py-2 text-xs font-bold text-primary transition hover:[background:#bef264]"
             onClick={() => setIsModalOpen(true)}
           >
             Privacy Details

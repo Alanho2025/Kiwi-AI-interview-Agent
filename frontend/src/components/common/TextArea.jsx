@@ -21,7 +21,7 @@ export function TextArea({ className, ...props }) {
   return (
     <textarea
       className={cn(
-        "flex w-full resize-none rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm leading-6 placeholder:text-gray-400 focus:border-[#2eb886] focus:outline-none focus:ring-2 focus:ring-[#2eb886]/20 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:opacity-70",
+        "flex w-full resize-none rounded-xl border border-theme glass px-4 py-3 text-sm leading-6 placeholder:text-gray-400 focus:[border-color:var(--accent)] focus:outline-none focus:ring-2 focus:ring-1 focus:ring-accent/20 disabled:cursor-not-allowed disabled:bg-transparent disabled:opacity-70",
         className
       )}
       {...props}

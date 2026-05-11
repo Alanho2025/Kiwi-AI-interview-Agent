@@ -43,11 +43,11 @@ export function InterviewRightRail({
       </div>
 
       {isVoiceMode ? (
-        <div className="shrink-0 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <div className="shrink-0 rounded-2xl border border-theme glass p-4 shadow-sm">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-sm font-semibold text-gray-900">Voice recording</p>
-              <p className="mt-1 text-xs text-gray-500">{resolveRecordingLabel({ isCompleted, recordingStatus })}</p>
+              <p className="text-sm font-semibold text-primary">Voice recording</p>
+              <p className="mt-1 text-xs text-faint">{resolveRecordingLabel({ isCompleted, recordingStatus })}</p>
             </div>
             <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700">MP3</span>
           </div>

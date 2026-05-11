@@ -15,32 +15,32 @@ const splitListText = (value = '') => String(value || '')
   .filter(Boolean);
 
 const joinListText = (items = []) => normalizeList(items).join('\n');
-const fieldClass = 'mt-2 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 outline-none transition focus:border-[#2eb886] focus:ring-2 focus:ring-[#2eb886]/15';
+const fieldClass = 'mt-2 w-full rounded-xl border border-theme glass px-3 py-2 text-sm text-primary outline-none transition focus:[border-color:var(--accent)] focus:ring-2 focus:ring-1 focus:ring-accent/15';
 
 const SummarySection = ({ title, items = [], emptyText = 'No clear items detected in this section.' }) => (
-  <div className="rounded-lg border border-gray-100 bg-white p-4">
-    <h5 className="text-sm font-semibold text-gray-900">{title}</h5>
+  <div className="rounded-lg border border-gray-100 glass p-4">
+    <h5 className="text-sm font-semibold text-primary">{title}</h5>
     {items.length > 0 ? (
-      <ul className="mt-3 space-y-2 text-sm text-gray-600">
+      <ul className="mt-3 space-y-2 text-sm text-muted">
         {items.map((item, index) => (
           <li key={`${title}-${index}`} className="flex gap-2">
-            <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#2eb886]" />
+            <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full [background:var(--accent)]" />
             <span>{item}</span>
           </li>
         ))}
       </ul>
     ) : (
-      <p className="mt-3 text-sm text-gray-500">{emptyText}</p>
+      <p className="mt-3 text-sm text-faint">{emptyText}</p>
     )}
   </div>
 );
 
 const TechnicalSkillGroup = ({ title, items }) => (
-  <div className="rounded-lg border border-gray-100 bg-white p-4">
-    <h5 className="text-sm font-semibold text-gray-900">{title}</h5>
+  <div className="rounded-lg border border-gray-100 glass p-4">
+    <h5 className="text-sm font-semibold text-primary">{title}</h5>
     <div className="mt-3 flex flex-wrap gap-2">
       {items.map((item) => (
-        <span key={`${title}-${item}`} className="rounded-lg bg-[#eef8f4] px-3 py-1.5 text-xs font-medium text-[#1f7d59]">
+        <span key={`${title}-${item}`} className="rounded-lg bg-chip px-3 py-1.5 text-xs font-medium text-accent">
           {item}
         </span>
       ))}
@@ -59,14 +59,14 @@ const TechnicalGroups = ({ groups }) => {
 };
 
 const EditableTextField = ({ label, value, onChange, placeholder = '' }) => (
-  <label className="block text-xs font-semibold text-gray-600">
+  <label className="block text-xs font-semibold text-muted">
     {label}
     <input className={fieldClass} value={value || ''} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} />
   </label>
 );
 
 const EditableListField = ({ label, value = [], onChange, placeholder = '' }) => (
-  <label className="block text-xs font-semibold text-gray-600">
+  <label className="block text-xs font-semibold text-muted">
     {label}
     <textarea
       className={`${fieldClass} min-h-[92px] resize-y leading-5`}
@@ -130,12 +130,12 @@ const EditableJDReviewPanel = ({ rubric, onRubricChange }) => {
     : [['softwareDevelopment', []], ['data', []], ['aiMl', []], ['itInfrastructure', []]];
 
   return (
-    <div className="rounded-xl border border-emerald-100 bg-white p-4 shadow-sm">
+    <div className="rounded-xl border border-emerald-100 glass p-4 shadow-sm">
       <div className="flex items-start gap-3">
-        <div className="rounded-full bg-[#eef8f4] p-2 text-[#1f7d59]"><PencilLine className="h-4 w-4" /></div>
+        <div className="rounded-full bg-chip p-2 text-accent"><PencilLine className="h-4 w-4" /></div>
         <div>
-          <h4 className="text-sm font-semibold text-gray-900">Review and edit parsed JD</h4>
-          <p className="mt-1 text-xs leading-5 text-gray-500">Edit the AI parsed fields below. The match uses this structured version, not only the raw pasted JD.</p>
+          <h4 className="text-sm font-semibold text-primary">Review and edit parsed JD</h4>
+          <p className="mt-1 text-xs leading-5 text-faint">Edit the AI parsed fields below. The match uses this structured version, not only the raw pasted JD.</p>
         </div>
       </div>
 
@@ -186,21 +186,21 @@ const AnalysisStatusBlock = ({
 }) => {
   const confidencePercent = Math.round((confidence || 0) * 100);
   const thresholdPercent = Math.round(confidenceThreshold * 100);
-  const statusTone = requiresJdHumanReview ? 'border-amber-200 bg-amber-50' : 'border-emerald-100 bg-white';
+  const statusTone = requiresJdHumanReview ? 'border-amber-200 bg-amber-50' : 'border-emerald-100 glass';
 
   return (
     <div className={`rounded-xl border p-4 ${statusTone}`}>
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-xs font-medium uppercase tracking-wide text-gray-400">Analysis Status</p>
-          <p className="mt-2 text-sm font-semibold text-gray-900">{analysisMode}</p>
-          <p className="mt-1 text-xs text-gray-500">AI confidence {confidencePercent}% · Gate {thresholdPercent}%</p>
+          <p className="mt-2 text-sm font-semibold text-primary">{analysisMode}</p>
+          <p className="mt-1 text-xs text-faint">AI confidence {confidencePercent}% · Gate {thresholdPercent}%</p>
         </div>
         {requiresJdHumanReview || warnings?.length ? <AlertTriangle className="h-5 w-5 text-amber-500" /> : <CheckCircle2 className="h-5 w-5 text-emerald-600" />}
       </div>
 
       {requiresJdHumanReview ? (
-        <div className="mt-3 rounded-xl border border-amber-200 bg-white/80 p-3">
+        <div className="mt-3 rounded-xl border border-amber-200 glass/80 p-3">
           <p className="text-sm font-semibold text-amber-900">{isJdEdited ? 'Review your edited JD before matching' : 'Human review required before matching'}</p>
           <p className="mt-1 text-xs leading-5 text-amber-800">Check and edit the parsed JD fields. When they look correct, mark the JD as reviewed to unlock CV-JD matching.</p>
           <Button type="button" variant="secondary" size="sm" className="mt-3" onClick={onConfirmJDSummary}>Mark JD as reviewed</Button>
@@ -212,7 +212,7 @@ const AnalysisStatusBlock = ({
       {warnings?.length ? (
         <ul className="mt-3 space-y-2 text-xs text-amber-700">{warnings.map((warning, index) => <li key={`warning-${index}`}>• {warning}</li>)}</ul>
       ) : null}
-      {missingSections?.length ? <p className="mt-3 text-xs text-gray-500">Missing sections: {missingSections.join(', ')}</p> : null}
+      {missingSections?.length ? <p className="mt-3 text-xs text-faint">Missing sections: {missingSections.join(', ')}</p> : null}
     </div>
   );
 };
@@ -238,16 +238,16 @@ export function JobContextCard({
       <CardHeader className="items-start">
         <div>
           <CardTitle>Job Context</CardTitle>
-          <p className="mt-1 text-sm text-gray-500">Paste the job description so AI can tailor interview questions and coaching tips.</p>
+          <p className="mt-1 text-sm text-faint">Paste the job description so AI can tailor interview questions and coaching tips.</p>
         </div>
         <div className="shrink-0 text-xs text-gray-400">NZ-focused analysis</div>
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
-          <h4 className="mb-3 text-sm font-medium text-gray-900">Paste Job Description (JD)</h4>
+          <h4 className="mb-3 text-sm font-medium text-primary">Paste Job Description (JD)</h4>
           <TextArea rows={structuredJD ? 6 : 12} placeholder="Copy the job requirements from SEEK or LinkedIn here..." value={rawJD} onChange={(e) => setRawJD(e.target.value)} maxLength={6000} />
           <div className="mt-2 flex items-start justify-between gap-3">
-            <p className="text-xs text-gray-500">Tip: include responsibilities, tech stack, and must-have skills.</p>
+            <p className="text-xs text-faint">Tip: include responsibilities, tech stack, and must-have skills.</p>
             <p className="shrink-0 text-xs text-gray-400">{rawJD.length}/6000</p>
           </div>
         </div>
@@ -257,10 +257,10 @@ export function JobContextCard({
         </Button>
 
         {structuredJD && structuredJDRubric && viewModel && (
-          <div className="mt-4 space-y-4 rounded-xl border border-gray-200 bg-gray-50 p-3 sm:p-4">
+          <div className="mt-4 space-y-4 rounded-xl border border-theme bg-transparent p-3 sm:p-4">
             <div>
-              <h4 className="text-sm font-medium text-gray-900">JD Summary</h4>
-              <p className="mt-1 text-xs text-gray-500">Review this structured JD before matching. Edits here directly change the rubric used by CV-JD matching.</p>
+              <h4 className="text-sm font-medium text-primary">JD Summary</h4>
+              <p className="mt-1 text-xs text-faint">Review this structured JD before matching. Edits here directly change the rubric used by CV-JD matching.</p>
             </div>
 
             <AnalysisStatusBlock
@@ -277,8 +277,8 @@ export function JobContextCard({
 
             <EditableJDReviewPanel rubric={structuredJDRubric} onRubricChange={onStructuredJDRubricChange} />
 
-            <details className="rounded-xl border border-gray-200 bg-white">
-              <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-gray-900">Preview current parsed JD</summary>
+            <details className="rounded-xl border border-theme glass">
+              <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-primary">Preview current parsed JD</summary>
               <div className="space-y-3 border-t border-gray-100 p-3">
                 <SummarySection title="Job Overview" items={[viewModel.title, ...viewModel.overviewItems]} emptyText="No overview details detected." />
                 <SummarySection title="Core Requirements" items={viewModel.coreRequirements} emptyText="Core requirements could not be confidently extracted." />

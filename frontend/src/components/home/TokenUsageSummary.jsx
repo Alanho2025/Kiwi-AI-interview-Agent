@@ -27,12 +27,12 @@ const SessionRow = ({ session, index }) => {
   return (
     <div className="flex items-center justify-between text-xs">
       <div className="flex items-center gap-1.5 truncate">
-        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-300" />
-        <span className="truncate text-gray-500" title={session.sessionId}>
+        <span className="h-1.5 w-1.5 shrink-0 rounded-full [background:var(--accent-bright)]" />
+        <span className="truncate text-muted" title={session.sessionId}>
           {label}
         </span>
       </div>
-      <div className="flex shrink-0 items-center gap-2 text-gray-400">
+      <div className="flex shrink-0 items-center gap-2 text-faint">
         <span>{formatTokens(session.totalTokens)} tok</span>
         <span className="font-mono">{formatCost(session.estimatedCost)}</span>
       </div>
@@ -72,11 +72,11 @@ export function TokenUsageSummary() {
 
   if (loading) {
     return (
-      <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+      <div className="glass rounded-2xl p-5 sm:p-6">
         <div className="animate-pulse space-y-3">
-          <div className="h-4 w-32 rounded bg-gray-100" />
-          <div className="h-3 w-full rounded bg-gray-50" />
-          <div className="h-3 w-3/4 rounded bg-gray-50" />
+          <div className="h-4 w-32 rounded-lg bg-chip" />
+          <div className="h-3 w-full rounded-lg bg-chip" />
+          <div className="h-3 w-3/4 rounded-lg bg-chip" />
         </div>
       </div>
     );
@@ -84,41 +84,41 @@ export function TokenUsageSummary() {
 
   if (error) {
     return (
-      <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
-        <p className="text-xs text-gray-400">Token usage data unavailable</p>
+      <div className="glass rounded-2xl p-5 sm:p-6">
+        <p className="text-xs text-faint">Token usage data unavailable</p>
       </div>
     );
   }
 
   if (!summary || summary.totalTokens === 0) {
     return (
-      <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
-        <h3 className="mb-3 text-sm font-bold">AI Token Usage</h3>
-        <p className="text-xs text-gray-400">No DeepSeek API calls recorded yet. Start an interview to see usage.</p>
+      <div className="glass rounded-2xl p-5 sm:p-6">
+        <h3 className="mb-3 text-sm font-bold text-primary">AI Token Usage</h3>
+        <p className="text-xs text-faint">No DeepSeek API calls recorded yet. Start an interview to see usage.</p>
       </div>
     );
   }
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+    <div className="glass rounded-2xl p-5 sm:p-6">
       <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-sm font-bold">AI Token Usage</h3>
-        <span className="text-[10px] text-gray-400">DeepSeek</span>
+        <h3 className="text-sm font-bold text-primary">AI Token Usage</h3>
+        <span className="text-[10px] font-bold uppercase tracking-widest text-accent">DeepSeek</span>
       </div>
 
       {/* Summary row */}
       <div className="mb-3 grid grid-cols-3 gap-2">
-        <div className="rounded-lg bg-gray-50 p-2 text-center">
-          <div className="text-xs font-semibold text-gray-800">{formatTokens(summary.totalTokens)}</div>
-          <div className="text-[10px] text-gray-400">Total tokens</div>
+        <div className="rounded-xl border border-theme bg-chip p-2 text-center">
+          <div className="text-xs font-bold text-primary">{formatTokens(summary.totalTokens)}</div>
+          <div className="text-[10px] text-faint">Tokens</div>
         </div>
-        <div className="rounded-lg bg-gray-50 p-2 text-center">
-          <div className="text-xs font-semibold text-gray-800">{formatCost(summary.totalCost)}</div>
-          <div className="text-[10px] text-gray-400">Est. cost</div>
+        <div className="rounded-xl border border-theme bg-chip p-2 text-center">
+          <div className="text-xs font-bold text-primary">{formatCost(summary.totalCost)}</div>
+          <div className="text-[10px] text-faint">Est. cost</div>
         </div>
-        <div className="rounded-lg bg-gray-50 p-2 text-center">
-          <div className="text-xs font-semibold text-gray-800">{summary.callCount}</div>
-          <div className="text-[10px] text-gray-400">API calls</div>
+        <div className="rounded-xl border border-theme bg-chip p-2 text-center">
+          <div className="text-xs font-bold text-primary">{summary.callCount}</div>
+          <div className="text-[10px] text-faint">API calls</div>
         </div>
       </div>
 
@@ -126,8 +126,8 @@ export function TokenUsageSummary() {
       {recentSessions.length > 0 && (
         <div className="space-y-2">
           <div className="mb-1 flex items-center gap-1">
-            <span className="text-[10px] font-medium uppercase tracking-wider text-gray-400">Recent sessions</span>
-            <span className="mt-px flex-1 border-t border-gray-100" />
+            <span className="text-[10px] font-bold uppercase tracking-widest text-faint">Recent sessions</span>
+            <span className="mt-px flex-1 border-t border-theme" />
           </div>
           {recentSessions.map((session, index) => (
             <SessionRow key={session.sessionId || index} session={session} index={index} />
@@ -136,7 +136,7 @@ export function TokenUsageSummary() {
       )}
 
       {/* Pricing footnote */}
-      <div className="mt-3 border-t border-gray-50 pt-2 text-[9px] text-gray-300">
+      <div className="mt-3 border-t border-theme pt-2 text-[9px] text-primary/20">
         pricing: input $0.14/1M tok · output $0.28/1M tok
       </div>
     </div>
