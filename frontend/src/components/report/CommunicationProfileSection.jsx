@@ -10,7 +10,7 @@ export function CommunicationProfileSection({ profile }) {
     <Card>
       <CardHeader>
         <CardTitle>Communication Style Profile</CardTitle>
-        <p className="text-sm text-gray-500 mt-1">An analysis of your personal communication patterns and delivery.</p>
+        <p className="text-sm text-faint mt-1">An analysis of your personal communication patterns and delivery.</p>
       </CardHeader>
       <CardContent>
         <div className="space-y-6">
@@ -25,15 +25,15 @@ export function CommunicationProfileSection({ profile }) {
           {/* Traits Grid */}
           {profile.keyTraits && profile.keyTraits.length > 0 && (
             <div>
-              <h4 className="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-4 px-1">Key Traits</h4>
+              <h4 className="text-xs font-semibold uppercase tracking-widest text-faint mb-4 px-1">Key Traits</h4>
               <div className="grid gap-4 sm:grid-cols-2">
                 {profile.keyTraits.map((trait, index) => (
-                  <div key={index} className="rounded-xl border border-gray-100 p-4 bg-white shadow-sm transition-all hover:shadow-md">
+                  <div key={index} className="rounded-xl border border-gray-100 p-4 glass shadow-sm transition-all hover:shadow-md">
                     <div className="flex items-center space-x-2 mb-2">
                       <div className="w-2 h-2 rounded-full bg-indigo-400"></div>
-                      <h5 className="text-sm font-semibold text-gray-900">{trait.label}</h5>
+                      <h5 className="text-sm font-semibold text-primary">{trait.label}</h5>
                     </div>
-                    <p className="text-sm text-gray-600 leading-relaxed">{trait.description}</p>
+                    <p className="text-sm text-muted leading-relaxed">{trait.description}</p>
                   </div>
                 ))}
               </div>

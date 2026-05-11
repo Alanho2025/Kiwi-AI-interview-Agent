@@ -99,8 +99,8 @@ export function VoiceInterviewPanel({
   return (
     <div className="flex h-full min-h-0 flex-col space-y-4">
       {!isCompleted ? (
-        <div className="shrink-0 rounded-xl border border-gray-200 bg-white px-4 py-3 text-xs leading-5 text-gray-600 shadow-sm">
-          <span className="font-semibold text-gray-800">Scoring note:</span> KiwiCoach scores answer content and communication clarity, not whether you sound native. If voice recognition fails, you can retry or answer by text.
+        <div className="shrink-0 rounded-xl border border-theme glass px-4 py-3 text-xs leading-5 text-muted shadow-sm">
+          <span className="font-semibold text-primary">Scoring note:</span> KiwiCoach scores answer content and communication clarity, not whether you sound native. If voice recognition fails, you can retry or answer by text.
         </div>
       ) : null}
 
@@ -118,7 +118,7 @@ export function VoiceInterviewPanel({
               <div className="flex items-center gap-2">
                 <p className="font-semibold">{voiceNetworkQuality.title}</p>
                 {voiceNetworkQuality.rttMs != null ? (
-                  <span className="shrink-0 rounded-full bg-white/60 px-2 py-0.5 text-[10px] font-semibold">
+                  <span className="shrink-0 rounded-full glass/60 px-2 py-0.5 text-[10px] font-semibold">
                     {voiceNetworkQuality.rttMs}ms
                   </span>
                 ) : null}
@@ -144,7 +144,7 @@ export function VoiceInterviewPanel({
           </div>
 
           {showTextFallback && !shouldShowRecovery ? (
-            <div className="mt-4 rounded-xl border border-white/50 bg-white/50 p-3">
+            <div className="mt-4 rounded-xl border border-white/50 glass/50 p-3">
               <TextArea
                 value={textFallback}
                 onChange={(event) => setTextFallback(event.target.value)}
@@ -198,7 +198,7 @@ export function VoiceInterviewPanel({
           </div>
 
           {showTextFallback ? (
-            <div className="mt-4 rounded-xl border border-amber-100 bg-white p-3">
+            <div className="mt-4 rounded-xl border border-amber-100 glass p-3">
               <TextArea
                 value={textFallback}
                 onChange={(event) => setTextFallback(event.target.value)}
@@ -217,26 +217,26 @@ export function VoiceInterviewPanel({
       ) : null}
 
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-        <div className="min-h-0 flex-1 overflow-y-auto bg-gray-50 p-4 flex flex-col justify-center">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-theme glass shadow-sm">
+        <div className="min-h-0 flex-1 overflow-y-auto bg-transparent p-4 flex flex-col justify-center">
           <div className="mx-auto flex w-full max-w-[520px] flex-col items-center justify-center gap-4 sm:gap-6 py-2">
             <div className="flex w-full flex-wrap items-center justify-between gap-3">
-              <div className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm">
-                <span className={cn('h-2.5 w-2.5 rounded-full', isRecording ? 'bg-[#2eb886]' : (isCompleted ? 'bg-emerald-500' : 'bg-gray-300'))} />
+              <div className="inline-flex items-center gap-2 rounded-full border border-theme glass px-4 py-2 text-sm font-medium text-muted shadow-sm">
+                <span className={cn('h-2.5 w-2.5 rounded-full', isRecording ? '[background:var(--accent)]' : (isCompleted ? 'bg-emerald-500' : 'bg-gray-300'))} />
                 {isCompleted ? 'Session ended' : statusBadgeLabel}
               </div>
-              <div className="rounded-xl bg-white px-4 py-2 text-xs font-semibold text-gray-600 shadow-sm">
+              <div className="rounded-xl glass px-4 py-2 text-xs font-semibold text-muted shadow-sm">
                 {connectionLabel}
               </div>
             </div>
 
-            <div className="relative flex h-[120px] w-[120px] items-center justify-center rounded-full border border-[#cfece0] bg-white sm:h-[132px] sm:w-[132px] xl:h-[160px] xl:w-[160px]">
-              <div className={cn('absolute inset-4 rounded-full transition-all duration-200', isRecording ? 'bg-[#2eb886]/20 animate-pulse' : 'bg-[#2eb886]/10')} />
+            <div className="relative flex h-[120px] w-[120px] items-center justify-center rounded-full border border-theme glass sm:h-[132px] sm:w-[132px] xl:h-[160px] xl:w-[160px]">
+              <div className={cn('absolute inset-4 rounded-full transition-all duration-200', isRecording ? '[background:var(--accent)]/20 animate-pulse' : '[background:var(--accent)]/10')} />
               <button
                 type="button"
                 onClick={handleToggleRecording}
                 disabled={voiceActionDisabled}
-                className={cn('relative z-10 flex h-[64px] w-[64px] items-center justify-center rounded-full text-white shadow-lg transition-all duration-200 sm:h-[68px] sm:w-[68px] xl:h-[78px] xl:w-[78px]', voiceActionDisabled ? 'cursor-not-allowed bg-gray-300' : 'bg-[#2eb886] hover:bg-[#24a673]')}
+                className={cn('relative z-10 flex h-[64px] w-[64px] items-center justify-center rounded-full text-primary shadow-lg transition-all duration-200 sm:h-[68px] sm:w-[68px] xl:h-[78px] xl:w-[78px]', voiceActionDisabled ? 'cursor-not-allowed bg-gray-300' : '[background:var(--accent)] hover:[background:var(--accent)]')}
                 aria-label={isCompleted ? 'Voice interview ended' : (isAutoLoopActive || isRecording ? 'Pause voice interview' : 'Start voice interview')}
               >
                 {isAutoLoopActive || isRecording ? <Square className="h-6 w-6" /> : <Mic className="h-6 w-6" />}
@@ -252,19 +252,19 @@ export function VoiceInterviewPanel({
               ) : isAutoLoopActive ? (
                 isRecording ? (
                   <>
-                    <p className="text-lg font-bold text-[#2eb886] animate-pulse">You can speak now</p>
-                    <p className="mt-1 text-sm text-gray-500">{stateLabel} · {recordingDurationLabel}</p>
+                    <p className="text-lg font-bold text-accent animate-pulse">You can speak now</p>
+                    <p className="mt-1 text-sm text-faint">{stateLabel} · {recordingDurationLabel}</p>
                   </>
                 ) : (
                   <>
                     <p className="text-lg font-bold text-sky-600">{stateLabel}</p>
-                    <p className="mt-1 text-sm text-gray-500">Please wait for your turn</p>
+                    <p className="mt-1 text-sm text-faint">Please wait for your turn</p>
                   </>
                 )
               ) : (
                 <>
-                  <p className="text-lg font-bold text-gray-700">Ready to begin</p>
-                  <p className="mt-1 text-sm text-gray-500">Click the microphone to start the interview</p>
+                  <p className="text-lg font-bold text-muted">Ready to begin</p>
+                  <p className="mt-1 text-sm text-faint">Click the microphone to start the interview</p>
                 </>
               )}
             </div>
@@ -272,9 +272,9 @@ export function VoiceInterviewPanel({
           </div>
         </div>
 
-        <div className="shrink-0 bg-gray-50 px-4 pb-4">
+        <div className="shrink-0 bg-transparent px-4 pb-4">
           <div className="mx-auto w-full max-w-[520px]">
-            <div className="flex h-[48px] sm:h-[58px] w-full items-end justify-between gap-1 overflow-hidden rounded-xl bg-white px-4 py-3 shadow-sm">
+            <div className="flex h-[48px] sm:h-[58px] w-full items-end justify-between gap-1 overflow-hidden rounded-xl glass px-4 py-3 shadow-sm">
               {waveBars.map((value, index) => (
                 <div
                   key={`wave-${index}`}
@@ -285,7 +285,7 @@ export function VoiceInterviewPanel({
             </div>
 
             {isCompleted ? (
-              <div className="mt-3 w-full rounded-xl border border-emerald-100 bg-white px-4 py-3 text-center text-sm text-emerald-700 shadow-sm">
+              <div className="mt-3 w-full rounded-xl border border-emerald-100 glass px-4 py-3 text-center text-sm text-emerald-700 shadow-sm">
                 Session ended. Report, transcript, and recording actions are available outside the live voice controls.
               </div>
             ) : null}
@@ -293,7 +293,7 @@ export function VoiceInterviewPanel({
         </div>
 
         {!isCompleted ? (
-          <div className={cn('shrink-0 border-t p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] transition-colors', isPaused ? 'bg-amber-50 border-amber-200' : 'bg-white border-gray-100')}>
+          <div className={cn('shrink-0 border-t p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] transition-colors', isPaused ? 'bg-amber-50 border-amber-200' : 'glass border-gray-100')}>
             {isPaused ? (
             <div className="flex flex-col items-center justify-center py-3">
               <p className="text-lg font-semibold text-amber-700">Interview Paused</p>
@@ -301,8 +301,8 @@ export function VoiceInterviewPanel({
             </div>
             ) : (
             <>
-              <p className="mb-2 text-xs font-medium uppercase tracking-wider text-gray-500">Voice-only question mode</p>
-              <p className="text-lg font-medium leading-7 text-gray-900 pr-2">
+              <p className="mb-2 text-xs font-medium uppercase tracking-wider text-faint">Voice-only question mode</p>
+              <p className="text-lg font-medium leading-7 text-primary pr-2">
                 {isNotStarted ? 'Click the mic button when you are ready. The timer starts only after Voice Interview begins.' : (currentQuestionText ? 'Listen to KiwiCoach. Start speaking if you need to interrupt, or answer when the listening state appears.' : 'Waiting for the interviewer voice.')}
               </p>
             </>
@@ -310,10 +310,10 @@ export function VoiceInterviewPanel({
           </div>
         ) : null}
 
-        <div className="sticky bottom-0 z-20 shrink-0 border-t border-gray-200 bg-white p-4 shadow-[0_-8px_20px_rgba(15,23,42,0.08)] lg:static lg:shadow-none">
+        <div className="sticky bottom-0 z-20 shrink-0 border-t border-theme glass p-4 shadow-[0_-8px_20px_rgba(15,23,42,0.08)] lg:static lg:shadow-none">
           {isCompleted ? (
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm text-gray-500">Live controls are closed.</p>
+              <p className="text-sm text-faint">Live controls are closed.</p>
               <Button variant="secondary" size="sm" onClick={handleReplayAssistantAudio} disabled={!assistantAudioUrl}>
                 <Volume2 className="mr-2 h-4 w-4" />
                 Replay audio

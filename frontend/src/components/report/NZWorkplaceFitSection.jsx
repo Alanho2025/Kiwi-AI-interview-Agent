@@ -10,7 +10,7 @@ const formatScore = (value) => {
 
 const getScoreBand = (score) => {
   const numeric = Number(score);
-  if (!Number.isFinite(numeric) || numeric <= 0) return { label: 'Evidence needed', className: 'bg-gray-100 text-gray-700' };
+  if (!Number.isFinite(numeric) || numeric <= 0) return { label: 'Evidence needed', className: 'bg-chip text-muted' };
   if (numeric >= 8) return { label: 'Strong', className: 'bg-emerald-50 text-emerald-700' };
   if (numeric >= 6) return { label: 'Developing', className: 'bg-sky-50 text-sky-700' };
   return { label: 'Needs clearer evidence', className: 'bg-amber-50 text-amber-800' };
@@ -35,9 +35,9 @@ const EvidenceList = ({ title, items, tone }) => {
       </h4>
       <div className="mt-3 space-y-3">
         {items.slice(0, 3).map((item, index) => (
-          <figure key={`${item.dimension}-${index}`} className="rounded-xl border border-gray-100 bg-white p-3">
-            <blockquote className="text-sm leading-6 text-gray-800">"{item.quote}"</blockquote>
-            <figcaption className="mt-2 text-xs font-medium text-gray-500">{item.dimension}</figcaption>
+          <figure key={`${item.dimension}-${index}`} className="rounded-xl border border-gray-100 glass p-3">
+            <blockquote className="text-sm leading-6 text-primary">"{item.quote}"</blockquote>
+            <figcaption className="mt-2 text-xs font-medium text-faint">{item.dimension}</figcaption>
           </figure>
         ))}
       </div>
@@ -59,7 +59,7 @@ export function NZWorkplaceFitSection({ fit }) {
       <CardHeader className="items-start">
         <div>
           <CardTitle>NZ Workplace Communication Fit</CardTitle>
-          <p className="mt-1 text-sm text-gray-500">Interview communication signals for New Zealand workplace expectations.</p>
+          <p className="mt-1 text-sm text-faint">Interview communication signals for New Zealand workplace expectations.</p>
         </div>
         <span className={cn('shrink-0 rounded-full px-3 py-1 text-xs font-semibold', scoreBand.className)}>
           {scoreBand.label}
@@ -78,8 +78,8 @@ export function NZWorkplaceFitSection({ fit }) {
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="rounded-xl border border-gray-100 p-4">
-              <h4 className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">Strengths</h4>
-              <ul className="mt-3 space-y-2 text-sm leading-6 text-gray-700">
+              <h4 className="text-xs font-semibold uppercase tracking-[0.14em] text-faint">Strengths</h4>
+              <ul className="mt-3 space-y-2 text-sm leading-6 text-muted">
                 {(fit.strengths || []).slice(0, 3).map((item) => <li key={item}>{item}</li>)}
                 {!(fit.strengths || []).length ? <li>More transcript evidence is needed before strengths can be identified.</li> : null}
               </ul>
@@ -95,21 +95,21 @@ export function NZWorkplaceFitSection({ fit }) {
         </div>
 
         {fit.suggestedRewrite?.weak && fit.suggestedRewrite?.better ? (
-          <div className="mt-5 rounded-xl border border-gray-200 bg-gray-50 p-4">
-            <h4 className="text-sm font-semibold text-gray-900">Suggested rewrite</h4>
+          <div className="mt-5 rounded-xl border border-theme bg-transparent p-4">
+            <h4 className="text-sm font-semibold text-primary">Suggested rewrite</h4>
             <div className="mt-3 grid gap-3 md:grid-cols-2">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">Instead of</p>
-                <p className="mt-2 text-sm leading-6 text-gray-700">"{fit.suggestedRewrite.weak}"</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-faint">Instead of</p>
+                <p className="mt-2 text-sm leading-6 text-muted">"{fit.suggestedRewrite.weak}"</p>
               </div>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700">Try</p>
-                <p className="mt-2 text-sm leading-6 text-gray-900">"{fit.suggestedRewrite.better}"</p>
+                <p className="mt-2 text-sm leading-6 text-primary">"{fit.suggestedRewrite.better}"</p>
               </div>
             </div>
             {fit.suggestedRewrite.reason ? (
-              <p className="mt-3 text-sm leading-6 text-gray-600">
-                <span className="font-semibold text-gray-800">Why this works:</span> {fit.suggestedRewrite.reason}
+              <p className="mt-3 text-sm leading-6 text-muted">
+                <span className="font-semibold text-primary">Why this works:</span> {fit.suggestedRewrite.reason}
               </p>
             ) : null}
           </div>
@@ -118,8 +118,8 @@ export function NZWorkplaceFitSection({ fit }) {
         {hasDetails ? (
           <details className="group mt-5 rounded-xl border border-gray-100">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
-              <span className="text-sm font-semibold text-gray-900">Communication signal details</span>
-              <ChevronDown className="h-4 w-4 text-gray-500 transition-transform group-open:rotate-180" aria-hidden="true" />
+              <span className="text-sm font-semibold text-primary">Communication signal details</span>
+              <ChevronDown className="h-4 w-4 text-faint transition-transform group-open:rotate-180" aria-hidden="true" />
             </summary>
             <div className="border-t border-gray-100 p-4">
               <div className="grid gap-3 md:grid-cols-2">
@@ -129,11 +129,11 @@ export function NZWorkplaceFitSection({ fit }) {
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
                           {getDimensionIcon(dimension)}
-                          <h4 className="text-sm font-semibold text-gray-900">{dimension.label}</h4>
+                          <h4 className="text-sm font-semibold text-primary">{dimension.label}</h4>
                         </div>
-                        <p className="mt-2 text-sm leading-6 text-gray-600">{dimension.feedback}</p>
+                        <p className="mt-2 text-sm leading-6 text-muted">{dimension.feedback}</p>
                       </div>
-                      <span className="shrink-0 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-700">
+                      <span className="shrink-0 rounded-full bg-chip px-2.5 py-1 text-xs font-semibold text-muted">
                         {formatScore(dimension.score)}
                       </span>
                     </div>

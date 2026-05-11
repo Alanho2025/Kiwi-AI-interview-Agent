@@ -28,13 +28,13 @@ export function InsightsSection({ dataInsights, strengthHighlights }) {
         <CardContent>
           <div className="space-y-4">
             {dataInsights.map((insight) => (
-              <div key={insight.title || insight.label || insight.id} className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+              <div key={insight.title || insight.label || insight.id} className="rounded-xl border border-gray-100 bg-transparent p-4">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                   <div>
-                    <h3 className="text-base font-semibold text-gray-900">{insight.title || insight.label}</h3>
-                    <p className="mt-1 text-sm leading-6 text-gray-700">{insight.description || insight.interpretation}</p>
+                    <h3 className="text-base font-semibold text-primary">{insight.title || insight.label}</h3>
+                    <p className="mt-1 text-sm leading-6 text-muted">{insight.description || insight.interpretation}</p>
                   </div>
-                  <div className="rounded-lg bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm">
+                  <div className="rounded-lg glass px-3 py-1.5 text-sm font-medium text-muted shadow-sm">
                     {insight.metric || insight.value || '-'}
                   </div>
                 </div>
@@ -59,7 +59,7 @@ export function InsightsSection({ dataInsights, strengthHighlights }) {
               ))}
             </div>
           ) : (
-            <p className="text-sm leading-6 text-gray-700">No standout strengths were captured yet. Generating a fresh report after a fuller interview may produce more useful highlights.</p>
+            <p className="text-sm leading-6 text-muted">No standout strengths were captured yet. Generating a fresh report after a fuller interview may produce more useful highlights.</p>
           )}
         </CardContent>
       </Card>

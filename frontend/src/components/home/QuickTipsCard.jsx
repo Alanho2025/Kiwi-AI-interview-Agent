@@ -20,21 +20,30 @@ import { TrendingUp } from 'lucide-react';
  */
 export function QuickTipsCard() {
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+    <div className="glass rounded-2xl p-5 sm:p-6">
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-lg font-bold">Quick Tips</h3>
-        <span className="text-xs text-gray-500">Bite-sized</span>
+        <h3 className="text-base font-bold text-primary">Quick Tips</h3>
+        <span className="text-[10px] font-bold uppercase tracking-widest text-accent">NZ Focus</span>
       </div>
-      <ul className="mb-6 space-y-4 text-sm leading-6 text-gray-600">
-        <li>Speak clearly at a steady pace. Aim for 140-160 wpm for technical answers.</li>
-        <li>Emphasize keywords in NZ English pronunciations: 'process', 'schedule', 'route'.</li>
-        <li>Use the timed mode to build concise answers under pressure.</li>
+      <ul className="mb-5 space-y-3 text-sm leading-relaxed text-muted">
+        <li className="flex items-start gap-2">
+          <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full [background:var(--accent-bright)]" />
+          Speak clearly at a steady pace. Aim for 140–160 wpm for technical answers.
+        </li>
+        <li className="flex items-start gap-2">
+          <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full [background:var(--accent-bright)]" />
+          Emphasize keywords in NZ English: 'process', 'schedule', 'route'.
+        </li>
+        <li className="flex items-start gap-2">
+          <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full [background:var(--accent-bright)]" />
+          Use timed mode to build concise answers under pressure.
+        </li>
       </ul>
-      <div className="mt-4 border-t border-gray-100 pt-4">
-        <div className="flex h-20 w-full items-end rounded-xl border border-emerald-100 bg-emerald-50 p-2">
-          <TrendingUp className="h-full w-full text-emerald-300 opacity-50" />
+      <div className="border-t border-theme pt-4">
+        <div className="flex h-16 w-full items-end rounded-xl border [border-color:var(--accent)] bg-chip p-2">
+          <TrendingUp className="h-full w-full text-accent opacity-30" />
         </div>
-        <div className="mt-2 text-[10px] text-gray-500">Weekly practice trend</div>
+        <div className="mt-2 text-[10px] font-semibold uppercase tracking-wider text-faint">Weekly practice trend</div>
       </div>
     </div>
   );

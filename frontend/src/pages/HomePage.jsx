@@ -202,7 +202,12 @@ export default function HomePage() {
   const userInitials = getUserInitials(user.name);
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] pb-12 font-sans text-gray-900">
+    <div className="relative min-h-screen overflow-hidden pb-16" style={{ background: 'var(--bg)', color: 'var(--text-primary)' }}>
+      {/* Floating ambient orbs */}
+      <div className="pointer-events-none absolute -top-32 -left-32 h-[500px] w-[500px] rounded-full blur-[120px] animate-float" style={{ background: 'var(--orb-1)' }} />
+      <div className="pointer-events-none absolute top-1/3 -right-40 h-[400px] w-[400px] rounded-full blur-[100px] animate-float-slow" style={{ background: 'var(--orb-2)' }} />
+      <div className="pointer-events-none absolute bottom-0 left-1/2 h-[300px] w-[300px] -translate-x-1/2 rounded-full blur-[80px] animate-float" style={{ background: 'var(--orb-3)', animationDelay: '3s' }} />
+
       <HomeHeader
         user={user}
         isAvatarBroken={isAvatarBroken}
@@ -212,8 +217,8 @@ export default function HomePage() {
         onStartTour={handleStartTour}
       />
 
-      <main className="mx-auto mt-5 sm:mt-8 grid max-w-[1600px] grid-cols-1 gap-5 sm:gap-6 px-4 sm:px-6 lg:px-8 xl:grid-cols-12">
-        <div className="flex flex-col gap-5 sm:gap-6 xl:col-span-8">
+      <main className="relative mx-auto mt-8 sm:mt-10 grid max-w-[1400px] grid-cols-1 gap-6 px-4 sm:px-8 lg:px-10 xl:grid-cols-12">
+        <div className="flex flex-col gap-6 xl:col-span-8 animate-fade-in-up">
           <div id="tour-start-card">
             <StartSessionCard
               summary={summary}
@@ -240,7 +245,7 @@ export default function HomePage() {
           </div>
         </div>
 
-        <div className="grid gap-5 sm:grid-cols-2 xl:col-span-4 xl:flex xl:flex-col xl:gap-6">
+        <div className="grid gap-6 sm:grid-cols-2 xl:col-span-4 xl:flex xl:flex-col xl:gap-6 animate-fade-in-up animate-delay-200">
           <RecentActivitySection
             historyLoading={historyLoading}
             recentActivity={recentActivity}
@@ -249,7 +254,6 @@ export default function HomePage() {
           <QuickTipsCard />
           <TokenUsageSummary />
           <PrivacySecurityCard email={user.email} loginProvider={user.loginProvider} />
-
         </div>
       </main>
     </div>

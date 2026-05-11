@@ -39,10 +39,10 @@ const splitListText = (value = '') => String(value || '')
   .filter(Boolean);
 
 const joinListText = (items = []) => normalizeList(items).join('\n');
-const fieldClass = 'mt-2 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 outline-none transition focus:border-[#2eb886] focus:ring-2 focus:ring-[#2eb886]/15';
+const fieldClass = 'mt-2 w-full rounded-xl border border-theme glass px-3 py-2 text-sm text-primary outline-none transition focus:[border-color:var(--accent)] focus:ring-2 focus:ring-1 focus:ring-accent/15';
 
 const EditableCvTextArea = ({ label, value, onChange, rows = 4 }) => (
-  <label className="block text-xs font-semibold text-gray-600">
+  <label className="block text-xs font-semibold text-muted">
     {label}
     <textarea
       className={`${fieldClass} min-h-[92px] resize-y leading-5`}
@@ -54,7 +54,7 @@ const EditableCvTextArea = ({ label, value, onChange, rows = 4 }) => (
 );
 
 const EditableCvListField = ({ label, value = [], onChange }) => (
-  <label className="block text-xs font-semibold text-gray-600">
+  <label className="block text-xs font-semibold text-muted">
     {label}
     <textarea
       className={`${fieldClass} min-h-[92px] resize-y leading-5`}
@@ -71,12 +71,12 @@ const EditableCVReviewPanel = ({ reviewProfile = {}, onReviewProfileChange }) =>
   };
 
   return (
-    <div className="mt-4 rounded-xl border border-emerald-100 bg-white p-4 shadow-sm">
+    <div className="mt-4 rounded-xl border border-emerald-100 glass p-4 shadow-sm">
       <div className="flex items-start gap-3">
-        <div className="rounded-full bg-[#eef8f4] p-2 text-[#1f7d59]"><PencilLine className="h-4 w-4" /></div>
+        <div className="rounded-full bg-chip p-2 text-accent"><PencilLine className="h-4 w-4" /></div>
         <div>
-          <h4 className="text-sm font-semibold text-gray-900">Review and edit parsed CV</h4>
-          <p className="mt-1 text-xs leading-5 text-gray-500">Edit the parsed CV fields below. The match uses this reviewed profile.</p>
+          <h4 className="text-sm font-semibold text-primary">Review and edit parsed CV</h4>
+          <p className="mt-1 text-xs leading-5 text-faint">Edit the parsed CV fields below. The match uses this reviewed profile.</p>
         </div>
       </div>
 
@@ -93,24 +93,24 @@ const EditableCVReviewPanel = ({ reviewProfile = {}, onReviewProfileChange }) =>
 };
 
 const ChipList = ({ items = [] }) => {
-  if (!items.length) return <p className="text-sm text-gray-500">No clear signals detected yet.</p>;
+  if (!items.length) return <p className="text-sm text-faint">No clear signals detected yet.</p>;
   return (
     <div className="flex flex-wrap gap-2">
       {items.map((item) => (
-        <span key={item} className="rounded-lg bg-[#eef8f4] px-3 py-1.5 text-xs font-medium text-[#1f7d59]">{item}</span>
+        <span key={item} className="rounded-lg bg-chip px-3 py-1.5 text-xs font-medium text-accent">{item}</span>
       ))}
     </div>
   );
 };
 
 const EvidenceList = ({ items = [], emptyText }) => {
-  if (!items.length) return <p className="text-sm text-gray-500">{emptyText}</p>;
+  if (!items.length) return <p className="text-sm text-faint">{emptyText}</p>;
   return (
     <div className="space-y-2">
       {items.slice(0, 4).map((item, index) => (
-        <div key={`${item.label || item.requirement || 'evidence'}-${index}`} className="rounded-lg border border-gray-100 bg-gray-50 p-3">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">{item.label || item.requirement || 'Evidence'}</p>
-          <p className="mt-1 text-sm leading-5 text-gray-800">{item.text || item.evidence}</p>
+        <div key={`${item.label || item.requirement || 'evidence'}-${index}`} className="rounded-lg border border-gray-100 bg-transparent p-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-faint">{item.label || item.requirement || 'Evidence'}</p>
+          <p className="mt-1 text-sm leading-5 text-primary">{item.text || item.evidence}</p>
         </div>
       ))}
     </div>
@@ -118,34 +118,34 @@ const EvidenceList = ({ items = [], emptyText }) => {
 };
 
 const CVAnalysisSummary = ({ analysis = {}, coreSkills = [] }) => (
-  <div className="mt-4 space-y-4 rounded-xl border border-emerald-100 bg-white p-4 shadow-sm">
+  <div className="mt-4 space-y-4 rounded-xl border border-emerald-100 glass p-4 shadow-sm">
     <div className="flex items-start gap-3">
-      <div className="rounded-full bg-[#eef8f4] p-2 text-[#1f7d59]"><PencilLine className="h-4 w-4" /></div>
+      <div className="rounded-full bg-chip p-2 text-accent"><PencilLine className="h-4 w-4" /></div>
       <div>
-        <h4 className="text-sm font-semibold text-gray-900">CV analysis for matching</h4>
-        <p className="mt-1 text-xs leading-5 text-gray-500">Review the candidate story, evidence, and interview hooks before matching.</p>
+        <h4 className="text-sm font-semibold text-primary">CV analysis for matching</h4>
+        <p className="mt-1 text-xs leading-5 text-faint">Review the candidate story, evidence, and interview hooks before matching.</p>
       </div>
     </div>
 
-    <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
-      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Candidate intro angle</p>
-      <p className="mt-2 text-sm leading-6 text-gray-800">{analysis.candidateIntro || 'No candidate intro angle detected yet.'}</p>
+    <div className="rounded-lg border border-gray-100 bg-transparent p-3">
+      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-faint">Candidate intro angle</p>
+      <p className="mt-2 text-sm leading-6 text-primary">{analysis.candidateIntro || 'No candidate intro angle detected yet.'}</p>
       {analysis.careerDirection ? <p className="mt-2 text-xs font-medium text-emerald-700">{analysis.careerDirection}</p> : null}
     </div>
 
     <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-      <div className="rounded-lg border border-gray-100 bg-white p-3">
-        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Core skills</p>
+      <div className="rounded-lg border border-gray-100 glass p-3">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-faint">Core skills</p>
         <ChipList items={coreSkills} />
       </div>
-      <div className="rounded-lg border border-gray-100 bg-white p-3">
-        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Interview hooks</p>
+      <div className="rounded-lg border border-gray-100 glass p-3">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-faint">Interview hooks</p>
         <ChipList items={analysis.suggestedInterviewHooks || []} />
       </div>
     </div>
 
     <div>
-      <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Strongest evidence</p>
+      <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-faint">Strongest evidence</p>
       <EvidenceList items={analysis.strongestEvidence || []} emptyText="No strong evidence extracted yet." />
     </div>
 
@@ -252,7 +252,7 @@ export function CVManagementCard({
       <CardHeader className="items-start">
         <div>
           <CardTitle>CV Management</CardTitle>
-          <p className="text-sm text-gray-500 mt-1">Provide a resume to let the AI match your background with the role.</p>
+          <p className="text-sm text-faint mt-1">Provide a resume to let the AI match your background with the role.</p>
         </div>
         <div className="flex shrink-0 items-center text-xs text-gray-400 gap-1">
           <Lock className="w-3 h-3" />
@@ -266,14 +266,14 @@ export function CVManagementCard({
         ) : null}
         <div>
           <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-            <h4 className="text-sm font-medium text-gray-900">Upload your CV</h4>
-            {isUploading && <span className="text-xs text-[#2eb886] flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin"/> Uploading...</span>}
+            <h4 className="text-sm font-medium text-primary">Upload your CV</h4>
+            {isUploading && <span className="text-xs text-accent flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin"/> Uploading...</span>}
             {uploadSuccess && <span className="text-xs text-green-600 flex items-center gap-1"><CheckCircle2 className="w-3 h-3"/> Upload successful!</span>}
           </div>
           <div 
             className={cn(
               "flex cursor-pointer flex-col gap-4 rounded-xl border-2 border-dashed p-4 transition-colors sm:flex-row sm:items-center sm:justify-between sm:p-6",
-              isDragging ? "border-[#2eb886] bg-[#e6f7f0]" : "border-gray-200 hover:bg-gray-50"
+              isDragging ? "[border-color:var(--accent)] [background:var(--accent-glow)]" : "border-theme hover:bg-transparent"
             )}
             onClick={requestPermissionAndOpenPicker}
             onDragOver={handleDragOver}
@@ -285,8 +285,8 @@ export function CVManagementCard({
                 <FileText className="w-6 h-6" />
               </div>
               <div className="min-w-0">
-                <p className="text-sm font-medium text-gray-900">Drop files here or click to upload</p>
-                <p className="text-xs text-gray-500 mt-1">PDF, DOCX · Max 5MB</p>
+                <p className="text-sm font-medium text-primary">Drop files here or click to upload</p>
+                <p className="text-xs text-faint mt-1">PDF, DOCX · Max 5MB</p>
               </div>
             </div>
             <Button 
@@ -314,8 +314,8 @@ export function CVManagementCard({
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">Active CV</p>
-                <p className="mt-1 break-words text-sm font-semibold text-gray-900">{selectedCV.name}</p>
-                <p className="mt-1 text-xs text-gray-600">
+                <p className="mt-1 break-words text-sm font-semibold text-primary">{selectedCV.name}</p>
+                <p className="mt-1 text-xs text-muted">
                   {buildCvParseLabel(activeCvConfidence)} · {Math.round(activeCvConfidence * 100)}%
                 </p>
               </div>
@@ -331,11 +331,11 @@ export function CVManagementCard({
               <p className="mt-3 text-xs text-emerald-800">No CV parser warnings were raised.</p>
             )}
 
-            <div className="mt-4 rounded-xl border border-emerald-100 bg-white p-4">
+            <div className="mt-4 rounded-xl border border-emerald-100 glass p-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <p className="text-sm font-semibold text-gray-900">Review CV fields used for matching</p>
-                  <p className="mt-1 text-xs leading-5 text-gray-500">Check only the parsed fields that affect CV-JD matching. Contact details are not shown here.</p>
+                  <p className="text-sm font-semibold text-primary">Review CV fields used for matching</p>
+                  <p className="mt-1 text-xs leading-5 text-faint">Check only the parsed fields that affect CV-JD matching. Contact details are not shown here.</p>
                 </div>
                 {isCvHumanVerified ? (
                   <span className="shrink-0 rounded-lg bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-800">Reviewed</span>
@@ -348,8 +348,8 @@ export function CVManagementCard({
 
               <CVAnalysisSummary analysis={cvReview?.cvAnalysis || {}} coreSkills={activeReviewProfile.coreSkills || []} />
 
-              <details className="mt-4 rounded-xl border border-gray-100 bg-white">
-                <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-gray-900">Edit parsed source fields</summary>
+              <details className="mt-4 rounded-xl border border-gray-100 glass">
+                <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-primary">Edit parsed source fields</summary>
                 <div className="border-t border-gray-100 p-4">
                   <EditableCVReviewPanel reviewProfile={activeReviewProfile} onReviewProfileChange={onCvReviewProfileChange} />
                 </div>
@@ -366,17 +366,17 @@ export function CVManagementCard({
 
         {recentCVs && recentCVs.length > 0 && (
           <div>
-            <h4 className="text-sm font-medium text-gray-900 mb-3">Recent CVs</h4>
+            <h4 className="text-sm font-medium text-primary mb-3">Recent CVs</h4>
             <div className="space-y-3">
               {recentCVs.map((cv) => (
-                <div key={cv.id} className="flex flex-col gap-3 p-3 border border-gray-100 rounded-lg hover:border-gray-200 transition-colors sm:flex-row sm:items-center sm:justify-between">
+                <div key={cv.id} className="flex flex-col gap-3 p-3 border border-gray-100 rounded-lg hover:border-theme transition-colors sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex min-w-0 items-center gap-3">
-                    <div className="w-10 h-10 shrink-0 bg-gray-100 rounded flex items-center justify-center text-gray-500">
+                    <div className="w-10 h-10 shrink-0 bg-chip rounded flex items-center justify-center text-faint">
                       <FileText className="w-5 h-5" />
                     </div>
                     <div className="min-w-0">
-                      <p className="break-words text-sm font-medium text-gray-900 sm:truncate">{cv.name}</p>
-                      <p className="text-xs text-gray-500">Updated: {cv.updated} · {cv.size}</p>
+                      <p className="break-words text-sm font-medium text-primary sm:truncate">{cv.name}</p>
+                      <p className="text-xs text-faint">Updated: {cv.updated} · {cv.size}</p>
                     </div>
                   </div>
                   <div className="flex w-full items-center gap-2 sm:w-auto sm:justify-end">

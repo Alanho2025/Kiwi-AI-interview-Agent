@@ -21,112 +21,113 @@ import { controlModeOptions, focusOptions, questionLimitOptions, seniorityOption
  */
 export function StartSessionCard({ summary, showSessionSettings, sessionDefaults, settingsSaved, voiceStartWarning, onOpenTextInterview, onOpenVoiceInterview, onToggleSettings, onChangeDefaults, onSaveDefaults, onResetDefaults }) {
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6 xl:p-8">
-      <div className="relative z-10 flex flex-col items-stretch justify-between gap-6 xl:flex-row xl:items-center">
-        <div className="max-w-md">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">Interview practice</p>
-          <h1 className="mb-3 text-3xl font-extrabold">Start a new session</h1>
-          <p className="mb-6 text-sm leading-6 text-gray-600">
+    <div className="relative overflow-hidden rounded-2xl glass p-6 sm:p-8">
+      <div className="relative z-10 flex flex-col items-stretch justify-between gap-8 xl:flex-row xl:items-start">
+        <div className="max-w-lg">
+          <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-accent">Interview Practice</p>
+          <h1 className="mb-4 text-3xl sm:text-4xl font-bold leading-tight text-primary tracking-tight">Start a new session</h1>
+          <p className="mb-6 text-sm leading-relaxed text-muted font-medium">
             Fast, NZ-focused interview practice for pronunciation, timing and clarity.
             Securely recorded to your Google account with NZ privacy compliance.
           </p>
-          <div className="mb-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Current setup</p>
-            <div className="mt-2 flex flex-wrap gap-2 text-xs">
-              <span className="rounded-lg bg-gray-100 px-3 py-1.5 font-semibold text-gray-700">Level: {summary.level}</span>
-              <span className="rounded-lg bg-gray-100 px-3 py-1.5 font-semibold text-gray-700">Focus: {summary.focus}</span>
-              <span className="rounded-lg bg-gray-100 px-3 py-1.5 font-semibold text-gray-700">Limit: {summary.limit}</span>
+          <div className="mb-6 border-l-2 [border-color:var(--accent)/50] pl-4">
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-faint mb-2">Current Parameters</p>
+            <div className="flex flex-wrap gap-2 text-xs font-semibold">
+              <span className="rounded-full border border-theme bg-chip px-3 py-1 text-primary">Level: {summary.level}</span>
+              <span className="rounded-full border border-theme bg-chip px-3 py-1 text-primary">Focus: {summary.focus}</span>
+              <span className="rounded-full border border-theme bg-chip px-3 py-1 text-primary">Limit: {summary.limit}</span>
             </div>
           </div>
           <div className="grid gap-3 sm:grid-cols-3 xl:flex xl:flex-wrap">
             <button
-              className="rounded-xl bg-emerald-500 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-600"
+              className="rounded-xl [background:var(--accent-bright)] px-6 py-3 text-sm font-bold text-primary shadow-[0_0_20px_rgba(163,230,53,0.3)] transition hover:[background:#bef264] hover:shadow-[0_0_30px_rgba(163,230,53,0.5)] active:scale-95"
               onClick={onOpenTextInterview}
             >
-              Start text interview
+              Text Interview
             </button>
             <button
-              className="rounded-xl bg-sky-500 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-600"
+              className="rounded-xl border [border-color:var(--accent)] [background:var(--accent-glow)] px-6 py-3 text-sm font-bold text-accent transition hover:[background:var(--accent-glow)] active:scale-95"
               onClick={onOpenVoiceInterview}
             >
-              Start voice interview
+              Voice Interview
             </button>
             <button
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-300 px-5 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-theme bg-chip px-5 py-3 text-sm font-semibold text-primary/70 transition hover:bg-chip"
               onClick={onToggleSettings}
             >
-              <Settings size={16} /> Session Settings
+              <Settings size={15} /> Settings
             </button>
           </div>
           {voiceStartWarning ? (
-            <p className="mt-3 rounded-2xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm font-medium text-yellow-800">
+            <p className="mt-4 rounded-xl border border-yellow-400/30 bg-yellow-400/10 px-4 py-3 text-xs font-semibold text-yellow-300">
               {voiceStartWarning}
             </p>
           ) : null}
         </div>
 
-        <div className="relative z-10 w-full rounded-2xl border border-gray-200 bg-gray-50 p-5 sm:p-6 xl:max-w-sm">
-          <div className="mb-4 flex items-center justify-between">
+        <div className="relative z-10 w-full rounded-2xl glass-darker p-6 sm:p-7 xl:max-w-xs">
+          <div className="mb-5 flex items-start justify-between border-b border-theme pb-4">
             <div>
-              <div className="text-sm font-bold text-gray-900">Practice Snapshot</div>
-              <div className="text-xs text-gray-400">Preview of the default session mode</div>
+              <div className="text-base font-bold text-primary">Snapshot</div>
+              <div className="text-[10px] uppercase tracking-widest text-faint mt-1">Default Config</div>
             </div>
-            <div className="rounded-lg bg-white px-3 py-1 text-xs font-semibold text-emerald-700 shadow-sm">Ready</div>
+            <div className="rounded-full border [border-color:var(--accent)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-accent">Ready</div>
           </div>
-          <div className="space-y-3 text-sm text-gray-600">
-            <div className="flex justify-between"><span>Delivery</span><span className="font-semibold text-gray-900">Choose at start</span></div>
-            <div className="flex justify-between"><span>Interview mode</span><span className="font-semibold text-gray-900">{summary.controlMode}</span></div>
-            <div className="flex justify-between"><span>Question type</span><span className="font-semibold text-gray-900">{summary.focus}</span></div>
-            <div className="flex justify-between"><span>Limit</span><span className="font-semibold text-gray-900">{summary.limit}</span></div>
+          <div className="space-y-3 text-xs font-medium text-muted uppercase tracking-wider">
+            <div className="flex justify-between border-b border-theme pb-2"><span>Delivery</span><span className="font-bold text-primary">At start</span></div>
+            <div className="flex justify-between border-b border-theme pb-2"><span>Mode</span><span className="font-bold text-primary">{summary.controlMode}</span></div>
+            <div className="flex justify-between border-b border-theme pb-2"><span>Focus</span><span className="font-bold text-primary">{summary.focus}</span></div>
+            <div className="flex justify-between pb-2"><span>Limit</span><span className="font-bold text-primary">{summary.limit}</span></div>
           </div>
-          <div className="mt-5 rounded-xl bg-white p-4 text-sm text-gray-600 shadow-sm">
-            <div className="mb-2 font-semibold text-gray-900">Coaching setup</div>
-            <div className="space-y-2">
-              <div>{summary.level} role simulation</div>
-              <div>{summary.focus} question mix</div>
-              <div>{summary.controlMode}: {summary.limit}</div>
-              <div>NZ culture fit: {summary.nzContext}</div>
+          <div className="mt-6 rounded-xl border border-theme bg-chip p-4 text-xs text-muted">
+            <div className="mb-2 text-sm font-semibold text-primary">Coaching Scope</div>
+            <div className="space-y-1.5 leading-relaxed">
+              <div>• {summary.level} role simulation</div>
+              <div>• {summary.focus} question mix</div>
+              <div>• {summary.controlMode}: {summary.limit}</div>
+              <div>• NZ culture fit: {summary.nzContext}</div>
             </div>
           </div>
         </div>
       </div>
 
       {showSessionSettings && (
-        <div className="relative z-10 mt-6 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4 sm:p-6">
+        <div className="relative z-10 mt-6 rounded-2xl border border-theme bg-chip p-5 sm:p-7 animate-fade-in-up">
+          <h3 className="mb-5 text-base font-bold text-primary">Configuration Settings</h3>
           <div className="grid gap-4 lg:grid-cols-3">
-            <label className="text-sm font-medium text-gray-700">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-muted">
               Seniority level
               <select
-                className="mt-2 w-full rounded-xl border border-emerald-100 bg-white px-4 py-3 text-sm shadow-sm outline-none"
+                className="mt-2 w-full rounded-xl border border-theme bg-chip px-4 py-3 text-sm text-primary outline-none focus:[border-color:var(--accent)]"
                 value={sessionDefaults.seniorityLevel}
                 onChange={(event) => onChangeDefaults('seniorityLevel', event.target.value)}
               >
                 {seniorityOptions.map((option) => (
-                  <option key={option} value={option}>{option}</option>
+                  <option key={option} value={option} className="[background:var(--text-primary)]">{option}</option>
                 ))}
               </select>
             </label>
-            <label className="text-sm font-medium text-gray-700">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-muted">
               Question type
               <select
-                className="mt-2 w-full rounded-xl border border-emerald-100 bg-white px-4 py-3 text-sm shadow-sm outline-none"
+                className="mt-2 w-full rounded-xl border border-theme bg-chip px-4 py-3 text-sm text-primary outline-none focus:[border-color:var(--accent)]"
                 value={sessionDefaults.focusArea}
                 onChange={(event) => onChangeDefaults('focusArea', event.target.value)}
               >
                 {focusOptions.map((option) => (
-                  <option key={option} value={option}>{option}</option>
+                  <option key={option} value={option} className="[background:var(--text-primary)]">{option}</option>
                 ))}
               </select>
             </label>
-            <label className="text-sm font-medium text-gray-700">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-muted">
               Interview mode
               <select
-                className="mt-2 w-full rounded-xl border border-emerald-100 bg-white px-4 py-3 text-sm shadow-sm outline-none"
+                className="mt-2 w-full rounded-xl border border-theme bg-chip px-4 py-3 text-sm text-primary outline-none focus:[border-color:var(--accent)]"
                 value={sessionDefaults.controlMode}
                 onChange={(event) => onChangeDefaults('controlMode', event.target.value)}
               >
                 {controlModeOptions.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
+                  <option key={option.value} value={option.value} className="[background:var(--text-primary)]">{option.label}</option>
                 ))}
               </select>
             </label>
@@ -134,60 +135,60 @@ export function StartSessionCard({ summary, showSessionSettings, sessionDefaults
 
           <div className="mt-4 grid gap-4 lg:grid-cols-3">
             {sessionDefaults.controlMode === 'time_limited' ? (
-              <label className="text-sm font-medium text-gray-700">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-muted">
                 Time limit
                 <select
-                  className="mt-2 w-full rounded-xl border border-emerald-100 bg-white px-4 py-3 text-sm shadow-sm outline-none"
+                  className="mt-2 w-full rounded-xl border border-theme bg-chip px-4 py-3 text-sm text-primary outline-none focus:[border-color:var(--accent)]"
                   value={sessionDefaults.timeLimitMinutes}
                   onChange={(event) => onChangeDefaults('timeLimitMinutes', Number(event.target.value))}
                 >
                   {timeLimitOptions.map((option) => (
-                    <option key={option} value={option}>{option} minutes total</option>
+                    <option key={option} value={option} className="[background:var(--text-primary)]">{option} minutes</option>
                   ))}
                 </select>
               </label>
             ) : (
-              <label className="text-sm font-medium text-gray-700">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-muted">
                 Question limit
                 <select
-                  className="mt-2 w-full rounded-xl border border-emerald-100 bg-white px-4 py-3 text-sm shadow-sm outline-none"
+                  className="mt-2 w-full rounded-xl border border-theme bg-chip px-4 py-3 text-sm text-primary outline-none focus:[border-color:var(--accent)]"
                   value={sessionDefaults.questionLimit}
                   onChange={(event) => onChangeDefaults('questionLimit', Number(event.target.value))}
                 >
                   {questionLimitOptions.map((option) => (
-                    <option key={option} value={option}>{option} questions</option>
+                    <option key={option} value={option} className="[background:var(--text-primary)]">{option} questions</option>
                   ))}
                 </select>
               </label>
             )}
-            <label className="flex items-center gap-3 rounded-xl border border-emerald-100 bg-white px-4 py-3 text-sm font-medium text-gray-700 shadow-sm">
+            <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-theme bg-chip px-4 py-3 text-xs font-semibold text-primary/70">
               <input
                 type="checkbox"
+                className="accent-[#a3e635]"
                 checked={sessionDefaults.enableNZCultureFit}
                 onChange={(event) => onChangeDefaults('enableNZCultureFit', event.target.checked)}
               />
-              Enable NZ culture fit prompts
+              Enable NZ culture fit
             </label>
           </div>
-          <div className="mt-4 rounded-xl border border-emerald-100 bg-white px-4 py-3 text-sm text-gray-600 shadow-sm">
-            Voice readiness check now runs inside the Voice Session screen. Text Session can use the same setup without microphone checks.
+          <div className="mt-4 rounded-xl border border-theme bg-chip px-4 py-3 text-xs text-muted">
+            Voice readiness check runs inside the Voice Session screen.
           </div>
 
-          <div className="mt-4 flex flex-wrap items-center gap-3">
-            <button className="rounded-xl bg-emerald-500 px-5 py-2 text-sm font-semibold text-white transition hover:bg-emerald-600" onClick={onSaveDefaults}>
+          <div className="mt-5 flex flex-wrap items-center gap-3">
+            <button className="rounded-xl [background:var(--accent-bright)] px-5 py-2 text-xs font-bold text-primary transition hover:[background:#bef264]" onClick={onSaveDefaults}>
               Save defaults
             </button>
-            <button className="rounded-xl border border-emerald-200 px-5 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-white" onClick={onResetDefaults}>
+            <button className="rounded-xl border border-theme bg-chip px-5 py-2 text-xs font-semibold text-primary/70 transition hover:bg-chip" onClick={onResetDefaults}>
               Reset defaults
             </button>
-            {settingsSaved ? <span className="text-sm font-medium text-emerald-700">{settingsSaved}</span> : null}
+            {settingsSaved ? <span className="text-[10px] font-bold uppercase tracking-widest text-accent">{settingsSaved}</span> : null}
           </div>
         </div>
       )}
 
-      <div className="absolute right-[-20px] top-[-20px] z-0 flex h-64 w-64 items-center justify-center rounded-full bg-gray-50 opacity-40">
-        <Mic size={100} className="text-gray-200" />
-      </div>
+      {/* Decorative glow accent */}
+      <div className="pointer-events-none absolute -right-16 -bottom-16 z-0 h-56 w-56 rounded-full bg-chip blur-[60px]" />
     </div>
   );
 }

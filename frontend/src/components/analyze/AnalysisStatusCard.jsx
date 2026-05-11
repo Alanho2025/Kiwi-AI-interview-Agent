@@ -41,16 +41,16 @@ const toneStyles = {
 const getTone = (tone = 'info') => toneStyles[tone] || toneStyles.info;
 
 const ScoreExplanationCard = ({ item }) => (
-  <div className="rounded-xl border border-gray-100 bg-white p-4">
+  <div className="rounded-xl border border-gray-100 glass p-4">
     <div className="flex items-start justify-between gap-3">
       <div>
-        <p className="text-sm font-semibold text-gray-900">{item.title}</p>
-        <p className="mt-1 text-xs text-gray-500">{item.description}</p>
+        <p className="text-sm font-semibold text-primary">{item.title}</p>
+        <p className="mt-1 text-xs text-faint">{item.description}</p>
       </div>
-      <span className="shrink-0 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-700">{item.label}</span>
+      <span className="shrink-0 rounded-full bg-chip px-2.5 py-1 text-xs font-semibold text-muted">{item.label}</span>
     </div>
-    <p className="mt-4 text-2xl font-semibold text-gray-900">{item.score}/100</p>
-    <p className="mt-2 text-xs leading-5 text-gray-600">{item.explanation}</p>
+    <p className="mt-4 text-2xl font-semibold text-primary">{item.score}/100</p>
+    <p className="mt-2 text-xs leading-5 text-muted">{item.explanation}</p>
   </div>
 );
 
@@ -58,14 +58,14 @@ const EvidenceBlock = ({ title, items, emptyText, tone = 'info' }) => {
   const styles = getTone(tone);
 
   return (
-    <div className="rounded-xl border border-gray-100 bg-white p-4">
-      <p className="text-sm font-semibold text-gray-900">{title}</p>
+    <div className="rounded-xl border border-gray-100 glass p-4">
+      <p className="text-sm font-semibold text-primary">{title}</p>
       {items.length ? (
         <div className="mt-3 space-y-3">
           {items.map((item) => (
-            <div key={item.id || item.label} className="rounded-lg bg-gray-50 p-3">
-              <p className="text-sm font-semibold text-gray-800">{item.label}</p>
-              <p className="mt-1 text-xs leading-5 text-gray-600">{item.detail}</p>
+            <div key={item.id || item.label} className="rounded-lg bg-transparent p-3">
+              <p className="text-sm font-semibold text-primary">{item.label}</p>
+              <p className="mt-1 text-xs leading-5 text-muted">{item.detail}</p>
               {item.evidence ? (
                 <p className={cn('mt-2 rounded-md px-2.5 py-2 text-xs leading-5', styles.badge)}>
                   Evidence: {item.evidence}
@@ -75,7 +75,7 @@ const EvidenceBlock = ({ title, items, emptyText, tone = 'info' }) => {
           ))}
         </div>
       ) : (
-        <p className="mt-3 text-sm text-gray-500">{emptyText}</p>
+        <p className="mt-3 text-sm text-faint">{emptyText}</p>
       )}
     </div>
   );
@@ -89,9 +89,9 @@ const RequirementStatusPill = ({ tone, children }) => {
 const RequirementChecks = ({ items }) => {
   if (!items.length) {
     return (
-      <div className="rounded-xl border border-gray-100 bg-white p-4">
-        <p className="text-sm font-semibold text-gray-900">Priority requirement checks</p>
-        <p className="mt-3 text-sm text-gray-500">No requirement checks were produced.</p>
+      <div className="rounded-xl border border-gray-100 glass p-4">
+        <p className="text-sm font-semibold text-primary">Priority requirement checks</p>
+        <p className="mt-3 text-sm text-faint">No requirement checks were produced.</p>
       </div>
     );
   }
@@ -100,32 +100,32 @@ const RequirementChecks = ({ items }) => {
   const hiddenItems = items.slice(5);
 
   const renderRequirement = (item) => (
-    <div key={item.id || item.label} className="rounded-lg bg-gray-50 p-3">
+    <div key={item.id || item.label} className="rounded-lg bg-transparent p-3">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="text-sm font-semibold text-gray-800">{item.label}</p>
-          <p className="mt-1 text-xs text-gray-500">{item.meta}</p>
+          <p className="text-sm font-semibold text-primary">{item.label}</p>
+          <p className="mt-1 text-xs text-faint">{item.meta}</p>
         </div>
         <RequirementStatusPill tone={item.tone}>{item.status}</RequirementStatusPill>
       </div>
-      <p className="mt-2 text-xs leading-5 text-gray-600">{item.reason}</p>
-      {item.evidence ? <p className="mt-2 text-xs leading-5 text-gray-500">Evidence: {item.evidence}</p> : null}
+      <p className="mt-2 text-xs leading-5 text-muted">{item.reason}</p>
+      {item.evidence ? <p className="mt-2 text-xs leading-5 text-faint">Evidence: {item.evidence}</p> : null}
     </div>
   );
 
   return (
-    <div className="rounded-xl border border-gray-100 bg-white p-4">
+    <div className="rounded-xl border border-gray-100 glass p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold text-gray-900">Priority requirement checks</p>
-          <p className="mt-1 text-xs text-gray-500">Highest-risk missing or partial requirements are shown first.</p>
+          <p className="text-sm font-semibold text-primary">Priority requirement checks</p>
+          <p className="mt-1 text-xs text-faint">Highest-risk missing or partial requirements are shown first.</p>
         </div>
         <ShieldCheck className="h-5 w-5 shrink-0 text-gray-400" />
       </div>
       <div className="mt-3 space-y-2">{visibleItems.map(renderRequirement)}</div>
       {hiddenItems.length ? (
-        <details className="mt-3 rounded-lg border border-gray-100 bg-white">
-          <summary className="cursor-pointer px-3 py-2 text-xs font-semibold text-gray-600">Show {hiddenItems.length} more checks</summary>
+        <details className="mt-3 rounded-lg border border-gray-100 glass">
+          <summary className="cursor-pointer px-3 py-2 text-xs font-semibold text-muted">Show {hiddenItems.length} more checks</summary>
           <div className="space-y-2 border-t border-gray-100 p-3">{hiddenItems.map(renderRequirement)}</div>
         </details>
       ) : null}
@@ -145,23 +145,23 @@ const MatchSummary = ({ viewModel }) => {
             <Icon className="h-5 w-5" />
           </div>
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">CV-JD Match</p>
-            <h3 className="mt-1 text-xl font-semibold text-gray-900">{viewModel.decision.label}</h3>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-700">{viewModel.summary}</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-faint">CV-JD Match</p>
+            <h3 className="mt-1 text-xl font-semibold text-primary">{viewModel.decision.label}</h3>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">{viewModel.summary}</p>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3 lg:min-w-56">
-          <div className="rounded-xl bg-white/80 p-4 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Match score</p>
-            <p className="mt-2 text-3xl font-semibold text-gray-900">{viewModel.overallScore}</p>
+          <div className="rounded-xl glass/80 p-4 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-faint">Match score</p>
+            <p className="mt-2 text-3xl font-semibold text-primary">{viewModel.overallScore}</p>
           </div>
-          <div className="rounded-xl bg-white/80 p-4 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Confidence</p>
-            <p className="mt-2 text-3xl font-semibold text-gray-900">{viewModel.confidencePercent}%</p>
+          <div className="rounded-xl glass/80 p-4 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-faint">Confidence</p>
+            <p className="mt-2 text-3xl font-semibold text-primary">{viewModel.confidencePercent}%</p>
           </div>
         </div>
       </div>
-      <p className="mt-4 rounded-lg bg-white/70 px-3 py-2 text-xs leading-5 text-gray-600">{viewModel.decision.summary}</p>
+      <p className="mt-4 rounded-lg glass/70 px-3 py-2 text-xs leading-5 text-muted">{viewModel.decision.summary}</p>
     </div>
   );
 };
@@ -180,11 +180,11 @@ export function AnalysisStatusCard({ status, matchRate, analysisResult }) {
       <CardHeader>
         <div>
           <CardTitle>Match Analysis</CardTitle>
-          <p className="mt-1 text-sm text-gray-500">Review the CV-JD fit before KiwiCoach builds the interview session.</p>
+          <p className="mt-1 text-sm text-faint">Review the CV-JD fit before KiwiCoach builds the interview session.</p>
         </div>
       </CardHeader>
       <CardContent>
-        {status === 'idle' && <div className="py-6 text-center text-sm text-gray-500">Upload a CV, paste the JD, and review the JD summary before matching.</div>}
+        {status === 'idle' && <div className="py-6 text-center text-sm text-faint">Upload a CV, paste the JD, and review the JD summary before matching.</div>}
 
         {status === 'summarizing' && (
           <LoadingInsightPanel
@@ -207,12 +207,12 @@ export function AnalysisStatusCard({ status, matchRate, analysisResult }) {
         {status === 'success' && (
           <div className="space-y-4">
             <div className="flex items-center gap-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-50">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full [background:var(--accent-glow)]">
                 <CheckCircle2 className="h-5 w-5 text-green-500" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-900">Match analysis complete</p>
-                <p className="text-xs text-gray-500">Use this as the quick read before starting the interview.</p>
+                <p className="text-sm font-medium text-primary">Match analysis complete</p>
+                <p className="text-xs text-faint">Use this as the quick read before starting the interview.</p>
               </div>
             </div>
 
