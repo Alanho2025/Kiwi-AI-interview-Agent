@@ -290,6 +290,8 @@ const buildReactTrace = ({ selectedAction, decisionContext, selectedQuestion, en
 };
 
 const generateConversationalTurn = async ({ baseQuestion, actionType, lastUserAnswer, decisionContext, retrievalBundle, focusArea = 'combined', onSentence }) => {
+  const environment = decisionContext?.environment || {};
+  const nzCoachingDirective = environment.nzCultureContext?.enabled ? `\n\n${environment.nzCultureContext.coachingDirective}` : '';
   const systemInstruction = `You are a professional, empathetic, and highly restrained Tech Lead conducting an interview.
 Your goal is to output the EXACT words you will say next to the candidate.
 DO NOT output any internal tags, XML, or json. Output ONLY the conversational text.
@@ -308,7 +310,7 @@ MODE_BOUNDARY:
 - Current selected mode: ${focusArea}.
 - If current selected mode is behavioral, ask only STAR-style behavioural evidence questions about situation, personal action, communication, conflict, pressure, result, or reflection.
 - If current selected mode is behavioral, do NOT ask about libraries, code, algorithms, architecture, database schema, SQL query, model accuracy, training/testing pipelines, scalability, latency, or implementation details.
-- If a technical project is mentioned in behavioral mode, use it only as context for behaviour. Do not turn it into a technical interview.`;
+- If a technical project is mentioned in behavioral mode, use it only as context for behaviour. Do not turn it into a technical interview.${nzCoachingDirective}`;
 
   const retrievedTexts = (retrievalBundle?.items || [])
     .map(i => i.text || i.metadata?.question || i.metadata?.skillTags?.join(', '))
