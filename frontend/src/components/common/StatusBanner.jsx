@@ -14,15 +14,15 @@ import { cn } from '../../utils/formatters.js';
 
 const stylesByVariant = {
   info: {
-    container: 'border-blue-200 bg-blue-50 text-blue-900',
+    container: 'border-theme bg-chip text-primary',
     icon: Info,
   },
   success: {
-    container: 'border-green-200 bg-green-50 text-green-900',
+    container: '[border-color:var(--accent-soft)] [background:var(--accent-glow)] text-primary',
     icon: CheckCircle2,
   },
   error: {
-    container: 'border-red-200 bg-red-50 text-red-900',
+    container: 'border-red-500/30 bg-red-500/10 text-red-500',
     icon: AlertCircle,
   },
 };

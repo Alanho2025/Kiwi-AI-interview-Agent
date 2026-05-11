@@ -34,18 +34,18 @@ export function SessionInfoCard({ totalQuestions, levelLabel, modeLabel, formatL
     <Card>
       <CardContent className="p-5 space-y-4">
         <div>
-          <h3 className="text-sm font-semibold text-gray-900 mb-2">Session Info</h3>
-          <p className="text-sm text-gray-600">Status: {formatStatus(status)}</p>
-          <p className="text-sm text-gray-600 mt-1">Questions: {answeredCount} answered / {totalQuestions || 8} planned</p>
-          <p className="text-sm text-gray-600 mt-1">Level: {levelLabel || 'Junior Combined'}</p>
-          <p className="text-sm text-gray-600 mt-1">Mode: {modeLabel || 'Combined'}</p>
-          {formatLabel ? <p className="text-sm text-gray-600 mt-1">Format: {formatLabel}</p> : null}
-          {matchedAreas.length ? <p className="text-sm text-gray-600 mt-1">Likely discussion areas: {matchedAreas.slice(0, 4).join(', ')}</p> : null}
+          <h3 className="text-sm font-semibold text-primary mb-2">Session Info</h3>
+          <p className="text-sm text-muted">Status: {formatStatus(status)}</p>
+          <p className="text-sm text-muted mt-1">Questions: {answeredCount} answered / {totalQuestions || 8} planned</p>
+          <p className="text-sm text-muted mt-1">Level: {levelLabel || 'Junior Combined'}</p>
+          <p className="text-sm text-muted mt-1">Mode: {modeLabel || 'Combined'}</p>
+          {formatLabel ? <p className="text-sm text-muted mt-1">Format: {formatLabel}</p> : null}
+          {matchedAreas.length ? <p className="text-sm text-muted mt-1">Likely discussion areas: {matchedAreas.slice(0, 4).join(', ')}</p> : null}
         </div>
         
         <div className="pt-4 border-t border-gray-100">
-          <h3 className="text-sm font-semibold text-gray-900 mb-2">Next steps</h3>
-          <ul className="text-sm text-gray-500 space-y-1">
+          <h3 className="text-sm font-semibold text-primary mb-2">Next steps</h3>
+          <ul className="text-sm text-faint space-y-1">
             <li>• Immediate text feedback</li>
             <li>• Submit session to review</li>
             <li>• Export transcript (.txt)</li>

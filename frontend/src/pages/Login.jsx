@@ -77,14 +77,14 @@ export default function Login() {
   };
 
   return (
-    <div className="relative flex min-h-screen flex-col overflow-hidden bg-[#f8fafc] font-sans text-gray-900">
+    <div className="relative flex min-h-screen flex-col overflow-hidden bg-transparent font-sans text-primary">
       <header className="absolute top-0 z-20 flex w-full items-center justify-between px-4 py-4 sm:px-8 sm:py-6">
         <div className="flex items-center gap-2 text-lg font-bold text-emerald-500 sm:text-xl">
           <Bird size={28} />
-          <span className="text-gray-900">Kiwi Voice Coach</span>
+          <span className="text-primary">Kiwi Voice Coach</span>
         </div>
-        <div className="hidden items-center gap-2 rounded-xl border border-gray-200 bg-white/80 px-3 py-2 text-sm text-gray-600 shadow-sm backdrop-blur sm:flex">
-          <ShieldCheck className="h-4 w-4 text-[#2eb886]" />
+        <div className="hidden items-center gap-2 rounded-xl border border-theme glass/80 px-3 py-2 text-sm text-muted shadow-sm backdrop-blur sm:flex">
+          <ShieldCheck className="h-4 w-4 text-accent" />
           Secure coaching workspace
         </div>
       </header>
@@ -99,35 +99,35 @@ export default function Login() {
           <img src={dataVizImg} alt="Data Visualization" className="w-[450px] object-contain drop-shadow-sm" />
         </div>
 
-        <div className="z-10 w-full max-w-lg rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
-          <h1 className="mb-4 text-3xl font-extrabold leading-tight text-gray-900">
+        <div className="z-10 w-full max-w-lg rounded-2xl border border-theme glass p-6 shadow-sm sm:p-8">
+          <h1 className="mb-4 text-3xl font-extrabold leading-tight text-primary">
             Practice for your next NZ Tech Interview.
           </h1>
-          <p className="mb-6 text-sm leading-6 text-gray-600">
+          <p className="mb-6 text-sm leading-6 text-muted">
             Sharpen pronunciation, timing and clarity with AI-guided feedback tailored for New Zealand tech roles.
           </p>
 
           {error && <p className="text-red-500 text-sm mb-4 font-medium">{error}</p>}
 
-          <div className="mb-4 text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Privacy & terms</div>
+          <div className="mb-4 text-xs font-semibold uppercase tracking-[0.16em] text-faint">Privacy & terms</div>
 
-          <div className="mb-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
-            <p className="text-sm leading-6 text-gray-600">
+          <div className="mb-4 rounded-xl border border-theme bg-transparent p-4">
+            <p className="text-sm leading-6 text-muted">
               Your interview audio and documents are used only to create coaching feedback for your account.
             </p>
           </div>
 
-          <label className="mb-5 flex cursor-pointer items-start gap-3 rounded-xl border border-gray-200 bg-white p-4 transition hover:border-gray-300">
+          <label className="mb-5 flex cursor-pointer items-start gap-3 rounded-xl border border-theme glass p-4 transition hover:border-theme">
             <input
               type="checkbox"
-              className="mt-1 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+              className="mt-1 h-4 w-4 rounded border-theme text-emerald-600 focus:ring-emerald-500"
               checked={isAgreed}
               onChange={(e) => {
                 setIsAgreed(e.target.checked);
                 if (e.target.checked) setError('');
               }}
             />
-            <span className="text-sm leading-6 text-gray-600">
+            <span className="text-sm leading-6 text-muted">
               I agree to the NZ Privacy Act 2020 data processing terms.
             </span>
           </label>
@@ -146,14 +146,14 @@ export default function Login() {
             </div>
           </div>
 
-          <p className="text-center text-xs leading-5 text-gray-500">
+          <p className="text-center text-xs leading-5 text-faint">
             {!isAgreed ? 'Accept the privacy terms to enable Google sign in.' : isSubmitting ? 'Signing you in...' : 'One click connects your Google account and opens your practice workspace.'}
           </p>
         </div>
       </main>
 
       <footer className="z-20 w-full px-4 pb-8 pt-4 text-center">
-        <p className="mx-auto max-w-md text-xs leading-5 text-gray-500">
+        <p className="mx-auto max-w-md text-xs leading-5 text-faint">
           Your voice data is encrypted and used only for coaching feedback.
         </p>
       </footer>

@@ -446,7 +446,7 @@ export function AnalyzePage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f9fafb] flex flex-col">
+    <div className="min-h-screen bg-transparent flex flex-col">
       <AppHeader>
         <StepProgress currentStep={currentStep} />
       </AppHeader>

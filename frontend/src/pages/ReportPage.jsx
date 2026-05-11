@@ -74,7 +74,7 @@ export function ReportPage() {
   }, [globalTourStep, loading, reportData, startTour, advanceGlobalTour]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-transparent">
       <AppHeader />
       <main className="mx-auto max-w-6xl space-y-4 sm:space-y-6 px-4 py-6 sm:px-6 sm:py-8">
         <StatusBanner {...status} />
@@ -88,7 +88,7 @@ export function ReportPage() {
         />
 
         {loading && !reportData ? (
-          <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
+          <div className="rounded-2xl border border-theme glass p-4 shadow-sm sm:p-6">
             <LoadingInsightPanel
               stage="report"
               skeletonLayout="report"

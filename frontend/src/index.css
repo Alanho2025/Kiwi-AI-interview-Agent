@@ -1,1 +1,105 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+
 @import "tailwindcss";
+
+/* ─── Light mode tokens (default) ─── */
+:root {
+  --bg:              #f4fcf6;
+  --bg-surface:      rgba(255, 255, 255, 0.90);
+  --bg-surface-alt:  rgba(240, 253, 244, 0.70);
+  --bg-chip:         rgba(20, 48, 30, 0.06);
+  --border:          rgba(20, 48, 30, 0.12);
+  --border-strong:   rgba(20, 48, 30, 0.20);
+  --text-primary:    #14301e;
+  --text-muted:      rgba(20, 48, 30, 0.50);
+  --text-faint:      rgba(20, 48, 30, 0.30);
+  --accent:          #5a8a3c;
+  --accent-glow:     rgba(90, 138, 60, 0.15);
+  --accent-bright:   #a3e635;
+  --accent-soft:     #4ade80;
+  --orb-1:           rgba(163, 230, 53, 0.18);
+  --orb-2:           rgba(74, 222, 128, 0.12);
+  --orb-3:           rgba(163, 230, 53, 0.08);
+  --shadow:          0 2px 20px rgba(20, 48, 30, 0.08);
+}
+
+/* ─── Dark mode tokens ─── */
+html.dark {
+  --bg:              #0d2218;
+  --bg-surface:      rgba(255, 255, 255, 0.07);
+  --bg-surface-alt:  rgba(0, 0, 0, 0.25);
+  --bg-chip:         rgba(255, 255, 255, 0.07);
+  --border:          rgba(255, 255, 255, 0.12);
+  --border-strong:   rgba(255, 255, 255, 0.20);
+  --text-primary:    #f0fdf4;
+  --text-muted:      rgba(240, 253, 244, 0.50);
+  --text-faint:      rgba(240, 253, 244, 0.30);
+  --accent:          #a3e635;
+  --accent-glow:     rgba(163, 230, 53, 0.20);
+  --accent-bright:   #a3e635;
+  --accent-soft:     #4ade80;
+  --orb-1:           rgba(163, 230, 53, 0.10);
+  --orb-2:           rgba(74, 222, 128, 0.10);
+  --orb-3:           rgba(163, 230, 53, 0.05);
+  --shadow:          none;
+}
+
+@layer base {
+  html { color-scheme: light; }
+  html.dark { color-scheme: dark; }
+
+  body {
+    background-color: var(--bg);
+    color: var(--text-primary);
+    font-family: 'Outfit', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+}
+
+@layer utilities {
+  /* Frosted glass card — adapts to both themes */
+  .glass {
+    background: var(--bg-surface);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+  }
+  .glass-darker {
+    background: var(--bg-surface-alt);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--border);
+  }
+
+  /* Semantic text helpers */
+  .text-primary   { color: var(--text-primary); }
+  .text-muted     { color: var(--text-muted); }
+  .text-faint     { color: var(--text-faint); }
+  .text-accent    { color: var(--accent); }
+  .border-theme   { border-color: var(--border); }
+  .bg-chip        { background: var(--bg-chip); }
+
+  /* Animations */
+  .animate-fade-in-up {
+    animation: fadeInUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .animate-float      { animation: float 8s ease-in-out infinite; }
+  .animate-float-slow { animation: float 12s ease-in-out infinite reverse; }
+  .animate-delay-100  { animation-delay: 100ms; }
+  .animate-delay-200  { animation-delay: 200ms; }
+  .animate-delay-300  { animation-delay: 300ms; }
+  .animate-delay-400  { animation-delay: 400ms; }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50%       { transform: translateY(-28px) scale(1.03); }
+}
