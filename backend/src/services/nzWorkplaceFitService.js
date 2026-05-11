@@ -6,6 +6,8 @@
  * - Produce grounded strengths, gaps, and rewrite guidance for reports.
  */
 
+import { findValueById } from '../data/nzWorkplaceCultureKB.js';
+
 const DIMENSIONS = [
   {
     id: 'friendly_professional',
@@ -133,6 +135,8 @@ const buildDimensionScore = ({ dimension, transcriptText, sentences }) => {
   const riskQuote = firstMatch(sentences, dimension.gap);
   const score = clampScore(4.5 + Math.min(3.5, positiveCount * 1.4) - Math.min(3, gapCount * 1.8));
 
+  const kbEntry = findValueById(dimension.id);
+
   return {
     id: dimension.id,
     label: dimension.label,
@@ -142,6 +146,9 @@ const buildDimensionScore = ({ dimension, transcriptText, sentences }) => {
     evidenceQuote,
     riskQuote,
     feedback: positiveCount > 0 && gapCount === 0 ? dimension.strength : dimension.gapText,
+    culturalContext: kbEntry?.whyItMatters || null,
+    exampleAnswer: kbEntry?.exampleAnswer || null,
+    interviewSignals: kbEntry?.interviewSignals || [],
   };
 };
 

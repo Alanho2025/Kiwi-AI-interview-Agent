@@ -56,6 +56,35 @@ const buildCoverageContext = (session = {}) => {
   };
 };
 
+const buildNzCultureContext = (session = {}) => {
+  const settings = session.settings || {};
+  if (!settings.enableNZCultureFit) return null;
+
+  const hints = session.analysisResult?.matchingDetails?.questionPlanHints || {};
+  const nzQuestions = ensureArray(hints.nzCultureQuestions);
+
+  return {
+    enabled: true,
+    questionBank: nzQuestions.map((q) => ({
+      id: q.id,
+      dimension: q.dimension,
+      question: q.question,
+      followUp: q.followUp,
+      scoringCriteria: q.scoringCriteria,
+    })),
+    coachingDirective:
+      'NZ WORKPLACE CULTURE COACHING (active):\n'
+      + 'When the candidate answers behavioural questions, also evaluate for NZ workplace communication signals:\n'
+      + '- Teamwork language ("we", shared outcomes) over solo heroics\n'
+      + '- Humility with evidence — avoid "I was the best" phrasing\n'
+      + '- Relationship awareness — mention stakeholders, users, teammates by role\n'
+      + '- Approachability — flat hierarchy, willingness to speak up\n'
+      + '- Sustainable work — prioritisation over glorified overwork\n'
+      + 'If the candidate\'s answer lacks NZ signals, gently probe with a follow-up like:\n'
+      + '"That\'s a good answer. Could you also tell me about how you worked with others on that, or how you communicated the outcome?"',
+  };
+};
+
 export const buildInterviewEnvironment = ({ session = {}, retrievalBundle = null, latestEvaluation = null } = {}) => {
   const questionContext = buildQuestionContext(session);
   const latestUserTurn = getLatestTurn(session.transcript, 'user');
@@ -69,6 +98,7 @@ export const buildInterviewEnvironment = ({ session = {}, retrievalBundle = null
     candidateContext: buildCandidateContext(session),
     roleContext: buildRoleContext(session),
     coverageContext: buildCoverageContext(session),
+    nzCultureContext: buildNzCultureContext(session),
     latestAnswer: {
       text: latestAnswerText,
       tokenCount: latestAnswerTokens.length,
@@ -89,3 +119,4 @@ export const buildInterviewEnvironment = ({ session = {}, retrievalBundle = null
     },
   };
 };
+
