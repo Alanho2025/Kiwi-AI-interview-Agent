@@ -33,15 +33,15 @@ export function MobileInterviewDetails({
 
   return (
     <div className="space-y-3 lg:hidden">
-      <details className="rounded-2xl border border-gray-200 bg-white shadow-sm">
-        <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-gray-900">Conversation History</summary>
+      <details className="rounded-2xl border border-theme glass shadow-sm">
+        <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-primary">Conversation History</summary>
         <div className="h-[360px] border-t border-gray-100">
           <TranscriptPanel transcript={transcript} onExport={onExport} candidateName={candidateName} modeLabel={transcriptModeLabel} />
         </div>
       </details>
 
-      <details className="rounded-2xl border border-gray-200 bg-white shadow-sm">
-        <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-gray-900">Session Info</summary>
+      <details className="rounded-2xl border border-theme glass shadow-sm">
+        <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-primary">Session Info</summary>
         <div className="border-t border-gray-100 p-3">
           <SessionInfoCard
             totalQuestions={session?.totalQuestions}
@@ -56,13 +56,13 @@ export function MobileInterviewDetails({
       </details>
 
       {isVoiceMode ? (
-        <details className="rounded-2xl border border-gray-200 bg-white shadow-sm">
-          <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-gray-900">Recording</summary>
+        <details className="rounded-2xl border border-theme glass shadow-sm">
+          <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-primary">Recording</summary>
           <div className="border-t border-gray-100 p-4">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-sm font-semibold text-gray-900">Voice recording</p>
-                <p className="mt-1 text-xs text-gray-500">{resolveRecordingLabel({ isCompleted, recordingStatus })}</p>
+                <p className="text-sm font-semibold text-primary">Voice recording</p>
+                <p className="mt-1 text-xs text-faint">{resolveRecordingLabel({ isCompleted, recordingStatus })}</p>
               </div>
               <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700">MP3</span>
             </div>
@@ -84,8 +84,8 @@ export function MobileInterviewDetails({
         </details>
       ) : null}
 
-      <details className="rounded-2xl border border-gray-200 bg-white shadow-sm">
-        <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-gray-900">Text Reply</summary>
+      <details className="rounded-2xl border border-theme glass shadow-sm">
+        <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-primary">Text Reply</summary>
         <div className="border-t border-gray-100 p-3">
           <TextBackupCard onSubmit={onSubmitBackup} disabled={backupDisabled} />
         </div>

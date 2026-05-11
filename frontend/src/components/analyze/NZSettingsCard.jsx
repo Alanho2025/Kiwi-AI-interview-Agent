@@ -33,13 +33,13 @@ export function NZSettingsCard({ settings, setSettings, sessionMode, setSessionM
       <CardHeader>
         <div>
           <CardTitle>Session Setup</CardTitle>
-          <p className="text-sm text-gray-500 mt-1">Use the same setup as the Home page, then choose text or voice before starting.</p>
+          <p className="text-sm text-faint mt-1">Use the same setup as the Home page, then choose text or voice before starting.</p>
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="grid gap-4 md:grid-cols-2">
           <div>
-            <h4 className="text-sm font-medium text-gray-900 mb-2">Delivery mode</h4>
+            <h4 className="text-sm font-medium text-primary mb-2">Delivery mode</h4>
             <Select
               options={sessionModeOptions}
               value={sessionMode}
@@ -47,7 +47,7 @@ export function NZSettingsCard({ settings, setSettings, sessionMode, setSessionM
             />
           </div>
           <div>
-            <h4 className="text-sm font-medium text-gray-900 mb-2">Seniority level</h4>
+            <h4 className="text-sm font-medium text-primary mb-2">Seniority level</h4>
             <Select
               options={toSelectOptions(seniorityOptions)}
               value={settings.seniorityLevel}
@@ -58,7 +58,7 @@ export function NZSettingsCard({ settings, setSettings, sessionMode, setSessionM
 
         <div className="grid gap-4 md:grid-cols-2">
           <div>
-            <h4 className="text-sm font-medium text-gray-900 mb-2">Interview mode</h4>
+            <h4 className="text-sm font-medium text-primary mb-2">Interview mode</h4>
             <Select
               options={controlModeOptions}
               value={settings.controlMode}
@@ -66,7 +66,7 @@ export function NZSettingsCard({ settings, setSettings, sessionMode, setSessionM
             />
           </div>
           <div>
-            <h4 className="text-sm font-medium text-gray-900 mb-2">
+            <h4 className="text-sm font-medium text-primary mb-2">
               {settings.controlMode === 'time_limited' ? 'Time limit' : 'Question limit'}
             </h4>
             {settings.controlMode === 'time_limited' ? (
@@ -86,7 +86,7 @@ export function NZSettingsCard({ settings, setSettings, sessionMode, setSessionM
         </div>
 
         <div>
-          <h4 className="text-sm font-medium text-gray-900 mb-3">Question type</h4>
+          <h4 className="text-sm font-medium text-primary mb-3">Question type</h4>
           <div className="flex flex-wrap gap-3">
             {focusOptions.map((area) => (
               <button
@@ -96,8 +96,8 @@ export function NZSettingsCard({ settings, setSettings, sessionMode, setSessionM
                 className={cn(
                   'rounded-xl border px-4 py-2 text-sm font-medium transition-colors',
                   settings.focusArea === area
-                    ? 'border-[#2eb886] text-[#2eb886] bg-[#e6f7f0]'
-                    : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                    ? '[border-color:var(--accent)] text-accent [background:var(--accent-glow)]'
+                    : 'border-theme text-muted hover:border-theme'
                 )}
               >
                 {area}
@@ -115,7 +115,7 @@ export function NZSettingsCard({ settings, setSettings, sessionMode, setSessionM
         {sessionMode === 'voice' ? (
           <VoiceDeviceCheckPanel value={voiceDeviceCheck} onChange={setVoiceDeviceCheck} />
         ) : (
-          <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm leading-6 text-gray-600">
+          <div className="rounded-xl border border-theme bg-transparent px-4 py-3 text-sm leading-6 text-muted">
             Text Session does not require microphone or speaker checks. Switch to Voice Session if you want to test your devices before starting.
           </div>
         )}

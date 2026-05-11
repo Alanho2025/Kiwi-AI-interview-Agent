@@ -106,16 +106,16 @@ export function AnalyzeActionsCard({
   };
 
   return (
-    <div className="sticky bottom-0 z-20 -mx-4 flex flex-col gap-4 border-t border-gray-200 bg-white/95 p-4 shadow-[0_-8px_20px_rgba(15,23,42,0.08)] backdrop-blur sm:static sm:mx-0 sm:rounded-2xl sm:border sm:p-6 sm:shadow-sm">
+    <div className="sticky bottom-0 z-20 -mx-4 flex flex-col gap-4 border-t border-theme glass/95 p-4 shadow-[0_-8px_20px_rgba(15,23,42,0.08)] backdrop-blur sm:static sm:mx-0 sm:rounded-2xl sm:border sm:p-6 sm:shadow-sm">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Setup checklist</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-faint">Setup checklist</p>
         <div className="mt-3 space-y-2">
           {workflowSteps.map((step) => (
-            <div key={step.label} className="flex gap-3 rounded-xl border border-gray-100 bg-gray-50 px-3 py-3">
+            <div key={step.label} className="flex gap-3 rounded-xl border border-gray-100 bg-transparent px-3 py-3">
               <StepIcon complete={step.complete} blocked={step.blocked} />
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-gray-900">{step.label}</p>
-                <p className="mt-1 truncate text-xs text-gray-600">{step.detail}</p>
+                <p className="text-sm font-semibold text-primary">{step.label}</p>
+                <p className="mt-1 truncate text-xs text-muted">{step.detail}</p>
               </div>
             </div>
           ))}
@@ -142,7 +142,7 @@ export function AnalyzeActionsCard({
           {buttonLabel}
         </Button>
       )}
-      <p className="text-center text-xs leading-5 text-gray-600">
+      <p className="text-center text-xs leading-5 text-muted">
         {helperText}
       </p>
     </div>
