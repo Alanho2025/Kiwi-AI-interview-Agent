@@ -53,7 +53,7 @@ export function ReportActionBar({ loading, onGenerate, onRunQa, onExport, onDown
   };
 
   return (
-    <div className={`sticky top-16 z-20 -mx-4 flex gap-2 border-b border-gray-100 bg-gray-50/95 px-4 py-3 backdrop-blur sm:static sm:mx-0 sm:flex-wrap sm:border-0 sm:bg-transparent sm:px-0 sm:py-0 ${showExportMenu ? 'overflow-visible' : 'overflow-x-auto'}`}>
+    <div className={`sticky top-16 z-40 -mx-4 flex gap-2 border-b border-theme bg-transparent px-4 py-3 backdrop-blur sm:relative sm:top-auto sm:mx-0 sm:flex-wrap sm:border-0 sm:bg-transparent sm:px-0 sm:py-0 ${showExportMenu ? 'overflow-visible' : 'overflow-x-auto'}`}>
       <Button className="shrink-0" onClick={onGenerate} disabled={loading}>{loading ? 'Working...' : 'Generate report'}</Button>
       <Button className="shrink-0" onClick={onRunQa} variant="secondary" disabled={loading}>Run QA</Button>
       {onDownloadRecording ? (
@@ -83,28 +83,28 @@ export function ReportActionBar({ loading, onGenerate, onRunQa, onExport, onDown
           </Button>
           
           {showExportMenu && (
-            <div className="absolute left-0 top-full z-30 mt-1 w-48 rounded-xl border border-gray-200 bg-white shadow-lg">
+            <div className="absolute left-0 top-full z-50 mt-1 w-48 rounded-xl border border-theme glass shadow-lg">
               <div className="py-1">
                 <button
                   onClick={() => handleExport('pdf')}
-                  className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-2"
+                  className="w-full px-4 py-2 text-left hover:bg-transparent flex items-center gap-2"
                 >
                   <span>PDF Document</span>
-                  <span className="text-xs text-gray-500 ml-auto">.pdf</span>
+                  <span className="text-xs text-faint ml-auto">.pdf</span>
                 </button>
                 <button
                   onClick={() => handleExport('txt')}
-                  className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-2"
+                  className="w-full px-4 py-2 text-left hover:bg-transparent flex items-center gap-2"
                 >
                   <span>Text Report</span>
-                  <span className="text-xs text-gray-500 ml-auto">.txt</span>
+                  <span className="text-xs text-faint ml-auto">.txt</span>
                 </button>
                 <button
                   onClick={() => handleExport('json')}
-                  className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-2"
+                  className="w-full px-4 py-2 text-left hover:bg-transparent flex items-center gap-2"
                 >
                   <span>JSON Format</span>
-                  <span className="text-xs text-gray-500 ml-auto">.json</span>
+                  <span className="text-xs text-faint ml-auto">.json</span>
                 </button>
               </div>
             </div>

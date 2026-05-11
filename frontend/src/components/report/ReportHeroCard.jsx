@@ -66,9 +66,9 @@ const resolveScoreExplanation = ({ key, score, candidateFeedback = {}, report = 
 function ExplanationChip({ label, value }) {
   if (!value) return null;
   return (
-    <div className="mt-3 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-500">{label}</p>
-      <p className="mt-1 text-xs leading-5 text-gray-700">{value}</p>
+    <div className="mt-3 rounded-xl border border-gray-100 bg-transparent px-3 py-2">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-faint">{label}</p>
+      <p className="mt-1 text-xs leading-5 text-muted">{value}</p>
     </div>
   );
 }
@@ -76,23 +76,23 @@ function ExplanationChip({ label, value }) {
 function ScoreExplanationCard({ title, score, subtitle, ringClass, accentClass, explanation }) {
   const safeScore = clampScore(score);
   return (
-    <div className={`rounded-2xl bg-white p-4 shadow-sm ring-1 ${ringClass}`}>
+    <div className={`rounded-2xl glass p-4 shadow-sm ring-1 ${ringClass}`}>
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className={`text-xs font-semibold uppercase tracking-[0.16em] ${accentClass}`}>{title}</p>
-          <p className="mt-2 text-3xl font-semibold text-gray-900">{formatNumber(safeScore)}</p>
-          <p className="mt-1 text-xs text-gray-500">{subtitle}</p>
+          <p className="mt-2 text-3xl font-semibold text-primary">{formatNumber(safeScore)}</p>
+          <p className="mt-1 text-xs text-faint">{subtitle}</p>
         </div>
-        <div className="h-12 w-12 rounded-full bg-gray-50 p-1 ring-1 ring-gray-100" aria-hidden="true">
+        <div className="h-12 w-12 rounded-full bg-transparent p-1 ring-1 ring-gray-100" aria-hidden="true">
           <div
-            className="h-full w-full rounded-full bg-white text-center text-[10px] font-semibold leading-[40px] text-gray-600 ring-1 ring-gray-100"
+            className="h-full w-full rounded-full glass text-center text-[10px] font-semibold leading-[40px] text-muted ring-1 ring-gray-100"
             title={`${Math.round(safeScore)} out of 100`}
           >
             {Math.round(safeScore)}%
           </div>
         </div>
       </div>
-      <p className="mt-3 text-sm leading-6 text-gray-700">{explanation.summary}</p>
+      <p className="mt-3 text-sm leading-6 text-muted">{explanation.summary}</p>
       <ExplanationChip label="Next lever" value={explanation.next} />
     </div>
   );
@@ -119,34 +119,34 @@ export function ReportHeroCard({ report, qa, takeaway, scoreBand, generationSour
   };
 
   return (
-    <Card className="border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-sky-50">
+    <Card className="border-theme glass">
       <CardContent className="p-5 sm:p-8">
         <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
             <div className="max-w-3xl">
-              <div className="mb-3 inline-flex rounded-lg bg-white/80 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">
+              <div className="mb-3 inline-flex rounded-lg bg-chip px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-accent">
                 Interview Report
               </div>
-              <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-gray-900">Your Interview Feedback</h1>
-              <p className="mt-3 max-w-2xl text-base leading-7 text-gray-700">{takeaway}</p>
+              <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-primary">Your Interview Feedback</h1>
+              <p className="mt-3 max-w-2xl text-base leading-7 text-muted">{takeaway}</p>
               <div className="mt-5 flex flex-wrap gap-2">
-                <span className="rounded-lg bg-emerald-100 px-3 py-1.5 text-sm font-medium text-emerald-800">{scoreBand}</span>
-                {generationSource === 'ai' ? <span className="rounded-lg bg-sky-100 px-3 py-1.5 text-sm font-medium text-sky-800">AI-generated coaching</span> : null}
-                {generationSource === 'fallback' ? <span className="rounded-lg bg-amber-100 px-3 py-1.5 text-sm font-medium text-amber-800">Fallback coaching</span> : null}
-                <span className="rounded-lg bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm">Decision: {titleCase(report.summary?.match(/Decision:\s*([^.]*)\./i)?.[1] || 'manual_review')}</span>
-                <span className="rounded-lg bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm">QA: {qa.passed ? 'Passed' : 'Needs review'}</span>
+                <span className="rounded-lg bg-chip px-3 py-1.5 text-sm font-medium text-primary">{scoreBand}</span>
+                {generationSource === 'ai' ? <span className="rounded-lg bg-chip px-3 py-1.5 text-sm font-medium text-primary">AI-generated coaching</span> : null}
+                {generationSource === 'fallback' ? <span className="rounded-lg bg-chip px-3 py-1.5 text-sm font-medium text-primary">Fallback coaching</span> : null}
+                <span className="rounded-lg glass px-3 py-1.5 text-sm font-medium text-muted shadow-sm">Decision: {titleCase(report.summary?.match(/Decision:\s*([^.]*)\./i)?.[1] || 'manual_review')}</span>
+                <span className="rounded-lg glass px-3 py-1.5 text-sm font-medium text-muted shadow-sm">QA: {qa.passed ? 'Passed' : 'Needs review'}</span>
               </div>
             </div>
           </div>
 
-          <div className="grid gap-3 rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm md:grid-cols-2">
+          <div className="grid gap-3 rounded-2xl border border-white/80 glass/70 p-4 shadow-sm md:grid-cols-2">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">Strongest signal</p>
-              <p className="mt-2 text-sm leading-6 text-gray-700">{explanations.overall.helped}</p>
+              <p className="mt-2 text-sm leading-6 text-muted">{explanations.overall.helped}</p>
             </div>
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-700">Next improvement</p>
-              <p className="mt-2 text-sm leading-6 text-gray-700">{explanations.overall.next}</p>
+              <p className="mt-2 text-sm leading-6 text-muted">{explanations.overall.next}</p>
             </div>
           </div>
 
@@ -164,7 +164,7 @@ export function ReportHeroCard({ report, qa, takeaway, scoreBand, generationSour
               score={scores.cvJdMatch}
               subtitle="Resume fit signal"
               ringClass="ring-gray-100"
-              accentClass="text-gray-500"
+              accentClass="text-faint"
               explanation={explanations.cvJdMatch}
             />
             <ScoreExplanationCard

@@ -32,47 +32,47 @@ export function ReportDetailSections({ report, qa, interviewMetrics, evidenceDia
           <div className="space-y-4">
             {visibleSections.map((section) => (
               <div key={section.id} className="rounded-2xl border border-gray-100 p-4">
-                <h3 className="text-base font-semibold text-gray-900">{section.title}</h3>
-                <p className="mt-2 text-sm leading-6 text-gray-700">{section.content}</p>
+                <h3 className="text-base font-semibold text-primary">{section.title}</h3>
+                <p className="mt-2 text-sm leading-6 text-muted">{section.content}</p>
               </div>
             ))}
           </div>
         </CardContent>
       </Card>
 
-      <details className="group rounded-2xl border border-gray-200 bg-white shadow-sm">
+      <details className="group rounded-2xl border border-theme glass shadow-sm">
         <summary className="flex cursor-pointer list-none items-center justify-between px-6 py-5">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">Detailed Metrics</h2>
-            <p className="mt-1 text-sm text-gray-600">For users who want the raw numbers behind the feedback.</p>
+            <h2 className="text-lg font-semibold text-primary">Detailed Metrics</h2>
+            <p className="mt-1 text-sm text-muted">For users who want the raw numbers behind the feedback.</p>
           </div>
-          <span className="text-sm font-medium text-gray-500 group-open:hidden">Show details</span>
-          <span className="hidden text-sm font-medium text-gray-500 group-open:block">Hide details</span>
+          <span className="text-sm font-medium text-faint group-open:hidden">Show details</span>
+          <span className="hidden text-sm font-medium text-faint group-open:block">Hide details</span>
         </summary>
         <div className="border-t border-gray-100 p-6">
           <div className="grid gap-6 lg:grid-cols-2">
             <div>
-              <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-gray-500">Scores</h3>
+              <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-faint">Scores</h3>
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                <div className="rounded-xl bg-gray-50 p-4 text-sm">Overall: {formatNumber(report.scores?.overall)}</div>
-                <div className="rounded-xl bg-gray-50 p-4 text-sm">Macro: {formatNumber(report.scores?.macro)}</div>
-                <div className="rounded-xl bg-gray-50 p-4 text-sm">Micro: {formatNumber(report.scores?.micro)}</div>
-                <div className="rounded-xl bg-gray-50 p-4 text-sm">Requirements: {formatNumber(report.scores?.requirements)}</div>
-                <div className="rounded-xl bg-gray-50 p-4 text-sm">Evidence strength: {formatNumber(report.scores?.evidenceStrength)}</div>
-                <div className="rounded-xl bg-gray-50 p-4 text-sm">Direct evidence turns: {report.scores?.directEvidenceTurns ?? '-'}</div>
-                <div className="rounded-xl bg-gray-50 p-4 text-sm">Hypothetical turns: {report.scores?.hypotheticalTurns ?? '-'}</div>
+                <div className="rounded-xl bg-transparent p-4 text-sm">Overall: {formatNumber(report.scores?.overall)}</div>
+                <div className="rounded-xl bg-transparent p-4 text-sm">Macro: {formatNumber(report.scores?.macro)}</div>
+                <div className="rounded-xl bg-transparent p-4 text-sm">Micro: {formatNumber(report.scores?.micro)}</div>
+                <div className="rounded-xl bg-transparent p-4 text-sm">Requirements: {formatNumber(report.scores?.requirements)}</div>
+                <div className="rounded-xl bg-transparent p-4 text-sm">Evidence strength: {formatNumber(report.scores?.evidenceStrength)}</div>
+                <div className="rounded-xl bg-transparent p-4 text-sm">Direct evidence turns: {report.scores?.directEvidenceTurns ?? '-'}</div>
+                <div className="rounded-xl bg-transparent p-4 text-sm">Hypothetical turns: {report.scores?.hypotheticalTurns ?? '-'}</div>
               </div>
             </div>
 
             <div>
-              <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-gray-500">Interview metrics</h3>
+              <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-faint">Interview metrics</h3>
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                <div className="rounded-xl bg-gray-50 p-4 text-sm">Planned questions: {interviewMetrics.plannedQuestionCount ?? '-'}</div>
-                <div className="rounded-xl bg-gray-50 p-4 text-sm">Scored questions: {interviewMetrics.interviewerQuestionCount ?? '-'}</div>
-                <div className="rounded-xl bg-gray-50 p-4 text-sm">Candidate turns: {interviewMetrics.candidateTurnCount ?? '-'}</div>
-                <div className="rounded-xl bg-gray-50 p-4 text-sm">Extra AI turns: {interviewMetrics.extraAiTurnCount ?? '-'}</div>
-                <div className="rounded-xl bg-gray-50 p-4 text-sm">Completed by limit: {interviewMetrics.interviewCompletedByLimit ? 'Yes' : 'No'}</div>
-                <div className="rounded-xl bg-gray-50 p-4 text-sm">Average evidence strength: {formatNumber(evidenceDiagnostics.averageStrength)}</div>
+                <div className="rounded-xl bg-transparent p-4 text-sm">Planned questions: {interviewMetrics.plannedQuestionCount ?? '-'}</div>
+                <div className="rounded-xl bg-transparent p-4 text-sm">Scored questions: {interviewMetrics.interviewerQuestionCount ?? '-'}</div>
+                <div className="rounded-xl bg-transparent p-4 text-sm">Candidate turns: {interviewMetrics.candidateTurnCount ?? '-'}</div>
+                <div className="rounded-xl bg-transparent p-4 text-sm">Extra AI turns: {interviewMetrics.extraAiTurnCount ?? '-'}</div>
+                <div className="rounded-xl bg-transparent p-4 text-sm">Completed by limit: {interviewMetrics.interviewCompletedByLimit ? 'Yes' : 'No'}</div>
+                <div className="rounded-xl bg-transparent p-4 text-sm">Average evidence strength: {formatNumber(evidenceDiagnostics.averageStrength)}</div>
               </div>
             </div>
           </div>
@@ -88,7 +88,7 @@ export function ReportDetailSections({ report, qa, interviewMetrics, evidenceDia
             {(qa.qualityFlags || []).length > 0 ? (
               <div className="mt-3 flex flex-wrap gap-2">
                 {(qa.qualityFlags || []).map((flag) => (
-                  <span key={flag} className="rounded-full bg-white px-3 py-1 text-xs font-medium text-amber-800 shadow-sm">
+                  <span key={flag} className="rounded-full glass px-3 py-1 text-xs font-medium text-amber-800 shadow-sm">
                     {titleCase(flag)}
                   </span>
                 ))}

@@ -12,10 +12,10 @@
 import React, { useState } from 'react';
 
 const STATUS_STYLES = {
-  Completed: 'bg-emerald-50 text-emerald-600',
-  'In Progress': 'bg-sky-50 text-sky-600',
-  Paused: 'bg-amber-50 text-amber-700',
-  Draft: 'bg-orange-50 text-orange-600',
+  Completed: '[border-color:var(--accent)] bg-chip text-accent',
+  'In Progress': '[border-color:var(--accent-soft)] [background:var(--accent-glow)] text-accent',
+  Paused: 'border-amber-400/30 bg-amber-400/10 text-amber-400',
+  Draft: 'border-orange-400/30 bg-orange-400/10 text-orange-400',
 };
 
 /**
@@ -51,7 +51,7 @@ export function SessionHistorySection({ historyLoading, sessionHistoryRows, onOp
   const renderSessionActions = (item, isDeleting, isConfirming, isMobile = false) => (
     <>
       <button
-        className={`${isMobile ? 'bg-white px-3 py-2' : 'px-4 py-1'} whitespace-nowrap rounded-full border border-emerald-200 text-xs font-semibold text-emerald-600 transition hover:bg-emerald-50 disabled:opacity-50`}
+        className={`${isMobile ? 'px-3 py-2' : 'px-4 py-1'} whitespace-nowrap rounded-full border [border-color:var(--accent)] bg-chip text-xs font-semibold text-accent transition hover:bg-chip disabled:opacity-50`}
         onClick={() => onOpenSession(item)}
         disabled={isDeleting || isConfirming}
       >
@@ -60,14 +60,14 @@ export function SessionHistorySection({ historyLoading, sessionHistoryRows, onOp
       {isConfirming ? (
         <>
           <button
-            className={`${isMobile ? 'px-3 py-2' : 'px-3 py-1'} rounded-full border border-red-200 bg-red-50 text-xs font-semibold text-red-600 transition hover:bg-red-100`}
+            className={`${isMobile ? 'px-3 py-2' : 'px-3 py-1'} rounded-full border border-red-400/30 bg-red-400/10 text-xs font-semibold text-red-400 transition hover:bg-red-400/20`}
             onClick={() => handleConfirmDelete(item.id)}
             disabled={isDeleting}
           >
             {isDeleting ? 'Deleting...' : 'Confirm'}
           </button>
           <button
-            className={`${isMobile ? 'col-span-2 bg-white px-3 py-2' : 'px-3 py-1'} rounded-full border border-gray-200 text-xs font-semibold text-gray-600 transition hover:bg-gray-100`}
+            className={`${isMobile ? 'col-span-2 px-3 py-2' : 'px-3 py-1'} rounded-full border border-theme bg-chip text-xs font-semibold text-muted transition hover:bg-chip`}
             onClick={handleCancelDelete}
             disabled={isDeleting}
           >
@@ -76,7 +76,7 @@ export function SessionHistorySection({ historyLoading, sessionHistoryRows, onOp
         </>
       ) : (
         <button
-          className={`${isMobile ? 'bg-white px-3 py-2' : 'px-3 py-1'} rounded-full border border-gray-200 text-xs font-semibold text-gray-600 transition hover:bg-gray-100 disabled:opacity-50`}
+          className={`${isMobile ? 'px-3 py-2' : 'px-3 py-1'} rounded-full border border-theme bg-chip text-xs font-semibold text-muted transition hover:bg-chip disabled:opacity-50`}
           onClick={() => handleDeleteClick(item.id)}
           disabled={isDeleting || isConfirming}
           title="Delete session"
@@ -88,19 +88,19 @@ export function SessionHistorySection({ historyLoading, sessionHistoryRows, onOp
   );
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-8">
+    <div className="glass rounded-2xl p-4 sm:p-8">
       <div className="mb-6 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-        <h2 className="text-xl font-bold">Session history</h2>
-        <span className="text-sm text-gray-400">Your recent interview sessions</span>
+        <h2 className="text-xl font-bold text-primary">Session History</h2>
+        <span className="text-sm text-faint">Your recent interview sessions</span>
       </div>
 
       {historyLoading ? (
-        <div className="py-10 text-sm text-gray-400">Loading session history...</div>
+        <div className="py-10 text-sm text-faint">Loading session history...</div>
       ) : sessionHistoryRows.length === 0 ? (
-        <div className="py-10 text-sm text-gray-400">No interview sessions yet. Start a new session to build your history.</div>
+        <div className="py-10 text-sm text-faint">No interview sessions yet. Start a new session to build your history.</div>
       ) : (
         <>
-          <div className="space-y-3 sm:hidden">
+          <div className="space-y-2 sm:hidden">
             {sessionHistoryRows.map((item) => {
               const ItemIcon = item.icon;
               const statusClassName = STATUS_STYLES[item.displayStatus] || STATUS_STYLES.Draft;
@@ -108,19 +108,19 @@ export function SessionHistorySection({ historyLoading, sessionHistoryRows, onOp
               const isConfirming = showConfirm === item.id;
 
               return (
-                <div key={item.id} className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+                <div key={item.id} className="rounded-xl border border-theme bg-chip p-4">
                   <div className="flex items-start gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-gray-500">
-                      <ItemIcon size={18} />
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-chip text-accent">
+                      <ItemIcon size={16} />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="break-words text-sm font-bold text-gray-900">{item.displayTitle || item.targetRole || 'Interview Session'}</div>
-                      <div className="mt-1 text-xs text-gray-500">{item.formattedDate} · {item.summary}</div>
+                      <div className="break-words text-sm font-bold text-primary">{item.displayTitle || item.targetRole || 'Interview Session'}</div>
+                      <div className="mt-1 text-xs text-faint">{item.formattedDate} · {item.summary}</div>
                     </div>
                   </div>
                   <div className="mt-3 flex items-center justify-between gap-3">
-                    <span className="text-sm font-bold text-gray-900">{item.scoreLabel}</span>
-                    <span className={`rounded-full bg-white px-2 py-1 text-xs font-semibold ${statusClassName}`}>{item.displayStatus}</span>
+                    <span className="text-sm font-bold text-primary">{item.scoreLabel}</span>
+                    <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${statusClassName}`}>{item.displayStatus}</span>
                   </div>
                   <div className="mt-3 grid grid-cols-2 gap-2">
                     {renderSessionActions(item, isDeleting, isConfirming, true)}
@@ -132,14 +132,14 @@ export function SessionHistorySection({ historyLoading, sessionHistoryRows, onOp
 
           <div className="hidden overflow-x-auto sm:block">
             <div className="min-w-[600px]">
-              <div className="mb-4 grid grid-cols-12 border-b border-gray-100 pb-3 text-xs font-semibold text-gray-400">
+              <div className="mb-4 grid grid-cols-12 border-b border-theme pb-3 text-[10px] font-bold uppercase tracking-widest text-faint">
                 <div className="col-span-2">Date</div>
                 <div className="col-span-5">Job Title</div>
-                <div className="col-span-2 text-center">Overall Score</div>
+                <div className="col-span-2 text-center">Score</div>
                 <div className="col-span-3 text-right">Actions</div>
               </div>
 
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-1">
                 {sessionHistoryRows.map((item) => {
                   const ItemIcon = item.icon;
                   const statusClassName = STATUS_STYLES[item.displayStatus] || STATUS_STYLES.Draft;
@@ -147,20 +147,20 @@ export function SessionHistorySection({ historyLoading, sessionHistoryRows, onOp
                   const isConfirming = showConfirm === item.id;
 
                   return (
-                    <div key={item.id} className="-mx-2 grid grid-cols-12 items-center rounded-xl border-b border-gray-50 px-2 py-3 transition last:border-0 hover:bg-gray-50">
-                      <div className="col-span-2 text-sm font-medium">{item.formattedDate}</div>
+                    <div key={item.id} className="-mx-2 grid grid-cols-12 items-center rounded-xl border-b border-theme px-2 py-3 transition last:border-0 hover:bg-chip">
+                      <div className="col-span-2 text-sm font-medium text-muted">{item.formattedDate}</div>
                       <div className="col-span-5 flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-gray-500">
-                          <ItemIcon size={18} />
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-chip text-accent">
+                          <ItemIcon size={15} />
                         </div>
                         <div className="min-w-0">
-                          <div className="truncate text-sm font-bold text-gray-900">{item.displayTitle || item.targetRole || 'Interview Session'}</div>
-                          <div className="truncate text-xs text-gray-400">{item.summary}</div>
+                          <div className="truncate text-sm font-bold text-primary">{item.displayTitle || item.targetRole || 'Interview Session'}</div>
+                          <div className="truncate text-xs text-faint">{item.summary}</div>
                         </div>
                       </div>
-                      <div className="col-span-2 text-center text-sm font-bold">{item.scoreLabel}</div>
+                      <div className="col-span-2 text-center text-sm font-bold text-primary">{item.scoreLabel}</div>
                       <div className="col-span-3 flex items-center justify-end gap-2">
-                        <span className={`rounded-md px-2 py-1 text-xs font-semibold ${statusClassName}`}>{item.displayStatus}</span>
+                        <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${statusClassName}`}>{item.displayStatus}</span>
                         {renderSessionActions(item, isDeleting, isConfirming)}
                       </div>
                     </div>

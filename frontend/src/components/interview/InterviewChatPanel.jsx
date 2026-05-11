@@ -54,20 +54,20 @@ export function InterviewChatPanel({ transcript, onStart, onReply, onPause, onRe
 
   return (
     <div className="flex h-full min-h-0 flex-col space-y-4">
-      <Card className="flex-1 flex flex-col min-h-0 overflow-hidden border-gray-200 shadow-sm">
+      <Card className="flex-1 flex flex-col min-h-0 overflow-hidden border-theme shadow-sm">
         {/* Chat History Area */}
-        <CardContent className="max-h-[300px] flex-1 overflow-y-auto space-y-4 bg-gray-50 p-4 sm:max-h-none sm:space-y-6 sm:p-6 lg:min-h-0">
+        <CardContent className="max-h-[300px] flex-1 overflow-y-auto space-y-4 bg-transparent p-4 sm:max-h-none sm:space-y-6 sm:p-6 lg:min-h-0">
           {historyTranscript.map((msg, idx) => (
             <div key={idx} className={cn("flex max-w-[92%] gap-3 sm:max-w-[85%] sm:gap-4", msg.role === 'user' ? "ml-auto flex-row-reverse" : "")}>
               <div className={cn(
                 "w-8 h-8 rounded-full flex items-center justify-center shrink-0 sm:h-10 sm:w-10",
-                msg.role === 'ai' ? "bg-[#e6f7f0] text-[#2eb886]" : "bg-gray-200 text-gray-600"
+                msg.role === 'ai' ? "[background:var(--accent-glow)] text-accent" : "bg-chip text-muted"
               )}>
                 {msg.role === 'ai' ? <Bird className="w-5 h-5" /> : <span className="text-sm font-medium">{initials}</span>}
               </div>
               <div className={cn(
                 "break-words p-3 sm:p-4 rounded-2xl text-sm shadow-sm whitespace-pre-line",
-                msg.role === 'ai' ? "bg-white text-gray-900 rounded-tl-none border border-gray-100" : "bg-[#2eb886] text-white rounded-tr-none"
+                msg.role === 'ai' ? "glass text-primary rounded-tl-none border border-gray-100" : "[background:var(--accent)] text-primary rounded-tr-none"
               )}>
                 {msg.displayText || msg.text}
               </div>
@@ -79,7 +79,7 @@ export function InterviewChatPanel({ transcript, onStart, onReply, onPause, onRe
         {/* Current Question Highlight */}
         <div className={cn(
           "border-t p-4 sm:p-6 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-10 transition-colors shrink-0",
-          isPaused ? "bg-amber-50 border-amber-200" : "bg-white border-gray-100"
+          isPaused ? "bg-amber-50 border-amber-200" : "glass border-gray-100"
         )}>
           {isPaused ? (
             <div className="flex flex-col items-center justify-center py-4">
@@ -93,12 +93,12 @@ export function InterviewChatPanel({ transcript, onStart, onReply, onPause, onRe
             </div>
           ) : (
             <>
-              <p className="text-xs font-medium text-gray-500 mb-2 uppercase tracking-wider">
+              <p className="text-xs font-medium text-faint mb-2 uppercase tracking-wider">
                 {isNotStarted ? 'Ready to start' : ((!isLastMessageAi || isSubmitting) ? `${INTERVIEWER_NAME} is thinking...` : 'Current Question')}
               </p>
               {isNotStarted ? (
                 <div className="space-y-3">
-                  <p className="text-base font-medium text-gray-900 sm:text-lg">Start the text interview when you are ready. The timer will begin after you start.</p>
+                  <p className="text-base font-medium text-primary sm:text-lg">Start the text interview when you are ready. The timer will begin after you start.</p>
               <Button type="button" onClick={onStart} disabled={isSubmitting}>
                 <Play className="mr-2 h-4 w-4" />
                 Start Text Interview
@@ -111,14 +111,14 @@ export function InterviewChatPanel({ transcript, onStart, onReply, onPause, onRe
                   <div className="w-2 h-2 bg-gray-300 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                 </div>
               ) : (
-                <p className="whitespace-pre-line break-words text-base font-medium text-gray-900 sm:text-lg">{currentQuestion?.displayText || currentQuestion?.text}</p>
+                <p className="whitespace-pre-line break-words text-base font-medium text-primary sm:text-lg">{currentQuestion?.displayText || currentQuestion?.text}</p>
               )}
             </>
           )}
         </div>
 
         {/* Input Area */}
-        <div className="sticky bottom-0 z-20 shrink-0 border-t border-gray-200 bg-white p-4 shadow-[0_-8px_20px_rgba(15,23,42,0.08)] lg:static lg:shadow-none">
+        <div className="sticky bottom-0 z-20 shrink-0 border-t border-theme glass p-4 shadow-[0_-8px_20px_rgba(15,23,42,0.08)] lg:static lg:shadow-none">
           <div className="relative">
             <TextArea 
               value={draft}
@@ -137,7 +137,7 @@ export function InterviewChatPanel({ transcript, onStart, onReply, onPause, onRe
             <button 
               onClick={handleSend}
               disabled={!draft.trim() || isNotStarted || isPaused || isCompleted || isSubmitting}
-              className="absolute bottom-3 right-3 p-2 bg-[#2eb886] text-white rounded-lg hover:bg-[#259a6f] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="absolute bottom-3 right-3 p-2 [background:var(--accent)] text-primary rounded-lg hover:[background:var(--accent)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <Send className="w-4 h-4" />
             </button>
