@@ -30,19 +30,19 @@ export function StepProgress({ currentStep = 1 }) {
         <div key={step.id} className="flex items-center">
           <div className={cn(
             "flex h-7 w-7 items-center justify-center rounded-full border-2 text-xs font-medium transition-colors sm:h-8 sm:w-8 sm:text-sm",
-            currentStep === step.id ? "border-gray-900 text-gray-900" : 
-            currentStep > step.id ? "border-[#2eb886] text-[#2eb886] bg-[#e6f7f0]" : "border-gray-300 text-gray-400"
+            currentStep === step.id ? "border-gray-900 text-primary" : 
+            currentStep > step.id ? "[border-color:var(--accent)] text-accent [background:var(--accent-glow)]" : "border-theme text-gray-400"
           )}>
             {step.id}
           </div>
           <span className={cn(
             "ml-2 hidden text-sm font-medium sm:inline",
-            currentStep === step.id ? "text-gray-900" : "text-gray-500"
+            currentStep === step.id ? "text-primary" : "text-faint"
           )}>
             {step.label}
           </span>
           {index < steps.length - 1 && (
-            <div className="mx-2 h-px w-6 bg-gray-200 sm:mx-4 sm:w-16" />
+            <div className="mx-2 h-px w-6 bg-chip sm:mx-4 sm:w-16" />
           )}
         </div>
       ))}

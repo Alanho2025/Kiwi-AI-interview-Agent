@@ -23,12 +23,15 @@ const InterviewPage = lazyNamedPage(() => import('./pages/InterviewPage.jsx'), '
 const ReportPage = lazyNamedPage(() => import('./pages/ReportPage.jsx'), 'ReportPage');
 const Login = lazy(() => import('./pages/Login.jsx'));
 const HomePage = lazy(() => import('./pages/HomePage.jsx'));
+const LandingPage = lazy(() => import('./pages/LandingPage.jsx'));
+
+import { useTheme } from './hooks/useTheme.js';
 
 function PageLoadingFallback() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 text-gray-600">
-      <div className="flex items-center gap-3 rounded-lg bg-white px-4 py-3 shadow-sm ring-1 ring-gray-100">
-        <Loader2 className="h-5 w-5 animate-spin text-[#2eb886]" />
+    <div className="flex min-h-screen items-center justify-center bg-transparent text-muted">
+      <div className="flex items-center gap-3 rounded-lg glass px-4 py-3 shadow-sm ring-1 ring-accent">
+        <Loader2 className="h-5 w-5 animate-spin text-accent" />
         <span className="text-sm font-medium">Loading page...</span>
       </div>
     </div>
@@ -36,16 +39,19 @@ function PageLoadingFallback() {
 }
 
 export default function App() {
+  useTheme(); // Initialize theme context globally
   return (
     <TourProvider>
       <TourGuide />
       <Router>
         <Suspense fallback={<PageLoadingFallback />}>
           <Routes>
-            <Route path="/" element={<Navigate to="/home" replace />} />
+            <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<Login />} />
             <Route element={<ProtectedRoute />}>
-              <Route path="/home" element={<HomePage />} />
+              {/* Alias /home to /dashboard for backwards compatibility */}
+              <Route path="/home" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/dashboard" element={<HomePage />} />
               <Route path="/analysis" element={<AnalyzePage />} />
               <Route path="/interview/:sessionId" element={<InterviewPage />} />
               <Route path="/report/:sessionId" element={<ReportPage />} />

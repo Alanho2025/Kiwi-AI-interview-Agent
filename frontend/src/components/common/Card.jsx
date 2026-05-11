@@ -19,7 +19,7 @@ import { cn } from '../../utils/formatters.js';
  */
 export function Card({ className, children, ...props }) {
   return (
-    <div className={cn("overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm", className)} {...props}>
+    <div className={cn("overflow-hidden rounded-2xl border border-theme glass shadow-sm", className)} {...props}>
       {children}
     </div>
   );
@@ -47,7 +47,7 @@ export function CardHeader({ className, children, ...props }) {
  */
 export function CardTitle({ className, children, ...props }) {
   return (
-    <h3 className={cn("text-lg font-semibold text-gray-900", className)} {...props}>
+    <h3 className={cn("text-lg font-semibold text-primary", className)} {...props}>
       {children}
     </h3>
   );
