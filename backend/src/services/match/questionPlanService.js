@@ -1,4 +1,5 @@
 import { unique } from './matchShared.js';
+import { pickNzCultureQuestions } from '../../data/nzCultureQuestions.js';
 
 export const buildQuestionPlanHints = ({ rubric, requirementChecks, microScores, settings = {}, cvEvidenceProfile = {}, transitionProfile = {}, cvAnalysis = {} }) => {
   const projectStack = (cvEvidenceProfile.sections?.projects || []).flatMap((item) => item.techStack || []).slice(0, 4);
@@ -19,11 +20,17 @@ export const buildQuestionPlanHints = ({ rubric, requirementChecks, microScores,
     ...(transitionProfile.careerTransitionSignal >= 0.7 ? ['career transition story', 'recent project depth'] : []),
   ]).slice(0, 6);
 
+  const nzEnabled = Boolean(settings.enableNZCultureFit);
+  const nzQuestions = nzEnabled
+    ? pickNzCultureQuestions({ difficulty: rubric.roleLevel || 'all', count: 2 })
+    : [];
+  const nzBehaviouralHints = nzQuestions.map((q) => q.dimension.replace(/_/g, ' '));
+
   const mustProbeBehavioural = unique([
     ...(rubric.interviewTargets?.behaviouralFocus || []).slice(0, 4),
-    ...(settings.enableNZCultureFit ? ['teamwork', 'communication', 'adaptability'] : []),
+    ...nzBehaviouralHints,
     ...((cvEvidenceProfile.behaviouralCapabilities || []).map((item) => item.replace(/_/g, ' '))),
-  ]).slice(0, 6);
+  ]).slice(0, 8);
 
   return {
     roleCanonical: rubric.roleCanonical,
@@ -37,5 +44,6 @@ export const buildQuestionPlanHints = ({ rubric, requirementChecks, microScores,
     avoidTopics: [],
     followUpAnchors: unique([...jdEvidenceTargets.slice(0, 3), ...mustProbeSkills.slice(0, 3), ...mustProbeExperience.slice(0, 2), ...projectStack.slice(0, 2)]),
     orderedStages: ['opening', 'technical_core', 'experience_deep_dive', 'project_validation', 'behavioural', 'gap_probe', 'wrap_up'],
+    nzCultureQuestions: nzQuestions,
   };
 };
