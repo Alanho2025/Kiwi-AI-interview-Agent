@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="50" viewBox="0 0 200 50">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@700&amp;display=swap');
+      .text-base { font-family: 'Outfit', sans-serif; font-size: 24px; font-weight: 700; fill: #14301e; letter-spacing: -0.5px; }
+      .text-accent { fill: #5a8a3c; }
+    </style>
+  </defs>
+
+  <!-- Icon Background Circle -->
+  <circle cx="25" cy="25" r="18" fill="rgba(90, 138, 60, 0.15)" />
+
+  <!-- Lucide Bird Icon (scaled to fit nicely inside the circle) -->
+  <g transform="translate(16, 16) scale(0.75)" fill="none" stroke="#5a8a3c" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M16 7h.01"/>
+    <path d="M3.4 18H12a8 8 0 0 0 8-8V7a4 4 0 0 0-7.28-2.3L2 20"/>
+    <path d="m20 7 2 .5-2 .5"/>
+    <path d="M10 18v3"/>
+    <path d="M14 17.75V21"/>
+    <path d="M7 18a6 6 0 0 0 3.84-10.61"/>
+  </g>
+
+  <!-- Text -->
+  <text x="52" y="33" class="text-base">Kiwi <tspan class="text-accent">Coach</tspan></text>
+</svg>
