@@ -1,0 +1,159 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">High-level System Architecture - Kiwi AI Interview Agent</title>
+  <desc id="desc">Clear high-level architecture diagram for Kiwi AI Interview Agent, showing the user, React frontend, Express backend, AI agent orchestration, databases, external services, and final outputs.</desc>
+
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f7fbff"/>
+      <stop offset="55%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#f2fff7"/>
+    </linearGradient>
+    <linearGradient id="greenSoft" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#f2fff6"/>
+      <stop offset="100%" stop-color="#eafff6"/>
+    </linearGradient>
+    <linearGradient id="blueSoft" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#eef8ff"/>
+      <stop offset="100%" stop-color="#f4fbff"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#0f172a" flood-opacity="0.10"/>
+    </filter>
+    <marker id="arrowGreen" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#0a8f52"/>
+    </marker>
+    <marker id="arrowBlue" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#0b6f93"/>
+    </marker>
+    <style>
+      .title { font: 700 46px Arial, Helvetica, sans-serif; fill: #08122c; letter-spacing: -0.4px; }
+      .brand { font: 700 28px Arial, Helvetica, sans-serif; fill: #10203b; }
+      .brandGreen { fill: #0a944f; }
+      .layerTitle { font: 700 25px Arial, Helvetica, sans-serif; fill: #0f172a; }
+      .layerSub { font: 500 17px Arial, Helvetica, sans-serif; fill: #334155; }
+      .cardTitle { font: 700 18px Arial, Helvetica, sans-serif; fill: #10203b; }
+      .cardText { font: 500 15px Arial, Helvetica, sans-serif; fill: #334155; }
+      .small { font: 500 13px Arial, Helvetica, sans-serif; fill: #475569; }
+      .dbTitle { font: 700 22px Arial, Helvetica, sans-serif; fill: #087847; }
+      .output { font: 700 22px Arial, Helvetica, sans-serif; fill: #10203b; }
+      .greenStroke { stroke: #0a944f; }
+      .blueStroke { stroke: #0b6f93; }
+      .mutedStroke { stroke: #cbd5e1; }
+      .dash { stroke-dasharray: 8 8; }
+    </style>
+  </defs>
+
+  <rect width="1600" height="900" fill="url(#bg)"/>
+
+  <!-- Header -->
+  <text x="800" y="58" text-anchor="middle" class="title">High-level System Architecture</text>
+  <line x1="720" y1="76" x2="790" y2="76" stroke="#0a944f" stroke-width="3" stroke-linecap="round"/>
+  <line x1="810" y1="76" x2="880" y2="76" stroke="#0a944f" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="615" cy="106" r="22" fill="#a6e84f" stroke="#0a944f" stroke-width="3"/>
+  <circle cx="615" cy="106" r="10" fill="#0a944f"/>
+  <text x="650" y="117" class="brand"><tspan class="brandGreen">Kiwi</tspan> AI Interview Agent</text>
+
+  <!-- User -->
+  <rect x="360" y="138" width="880" height="72" rx="16" fill="#ffffff" stroke="#bdc9d8" stroke-width="1.5" filter="url(#shadow)"/>
+  <circle cx="416" cy="174" r="23" fill="#0a944f"/>
+  <circle cx="416" cy="166" r="8" fill="#ffffff"/>
+  <path d="M400 190 C403 177, 429 177, 432 190 Z" fill="#ffffff"/>
+  <text x="465" y="181" class="layerTitle">User</text>
+  <text x="610" y="166" class="cardTitle">Student / Job Seeker</text>
+  <text x="610" y="192" class="cardText">Uploads CV and JD, completes mock interview, reviews feedback report</text>
+  <path d="M800 210 L800 244" fill="none" class="greenStroke" stroke-width="3" marker-end="url(#arrowGreen)"/>
+
+  <!-- Main left architecture column -->
+  <rect x="90" y="248" width="1160" height="116" rx="16" fill="url(#greenSoft)" stroke="#0a944f" stroke-width="2"/>
+  <text x="130" y="293" class="layerTitle">Frontend Web App</text>
+  <text x="130" y="322" class="layerSub">React + Vite + Tailwind</text>
+  <rect x="370" y="270" width="190" height="72" rx="12" fill="#ffffff" stroke="#d7e8df" filter="url(#shadow)"/>
+  <text x="465" y="301" text-anchor="middle" class="cardTitle">CV / JD Review</text>
+  <text x="465" y="326" text-anchor="middle" class="cardText">Human review gates</text>
+  <rect x="590" y="270" width="190" height="72" rx="12" fill="#ffffff" stroke="#d7e8df" filter="url(#shadow)"/>
+  <text x="685" y="301" text-anchor="middle" class="cardTitle">Match Analysis</text>
+  <text x="685" y="326" text-anchor="middle" class="cardText">Fit, gaps, risks</text>
+  <rect x="810" y="270" width="190" height="72" rx="12" fill="#ffffff" stroke="#d7e8df" filter="url(#shadow)"/>
+  <text x="905" y="301" text-anchor="middle" class="cardTitle">Interview UI</text>
+  <text x="905" y="326" text-anchor="middle" class="cardText">Text + voice mode</text>
+  <rect x="1030" y="270" width="170" height="72" rx="12" fill="#ffffff" stroke="#d7e8df" filter="url(#shadow)"/>
+  <text x="1115" y="301" text-anchor="middle" class="cardTitle">Report Page</text>
+  <text x="1115" y="326" text-anchor="middle" class="cardText">Coaching output</text>
+
+  <path d="M800 364 L800 398" fill="none" class="greenStroke" stroke-width="3" marker-end="url(#arrowGreen)"/>
+
+  <rect x="90" y="400" width="1160" height="116" rx="16" fill="url(#blueSoft)" stroke="#0b6f93" stroke-width="2"/>
+  <text x="130" y="445" class="layerTitle">Backend API</text>
+  <text x="130" y="474" class="layerSub">Node.js + Express</text>
+  <rect x="370" y="422" width="220" height="72" rx="12" fill="#ffffff" stroke="#c9dfec" filter="url(#shadow)"/>
+  <text x="480" y="453" text-anchor="middle" class="cardTitle">Auth + Sessions</text>
+  <text x="480" y="478" text-anchor="middle" class="cardText">Google OAuth, JWT</text>
+  <rect x="620" y="422" width="220" height="72" rx="12" fill="#ffffff" stroke="#c9dfec" filter="url(#shadow)"/>
+  <text x="730" y="453" text-anchor="middle" class="cardTitle">Upload + Parsing</text>
+  <text x="730" y="478" text-anchor="middle" class="cardText">CV, JD, match APIs</text>
+  <rect x="870" y="422" width="220" height="72" rx="12" fill="#ffffff" stroke="#c9dfec" filter="url(#shadow)"/>
+  <text x="980" y="453" text-anchor="middle" class="cardTitle">Interview APIs</text>
+  <text x="980" y="478" text-anchor="middle" class="cardText">Replies + WebSocket</text>
+  <rect x="1120" y="422" width="92" height="72" rx="12" fill="#ffffff" stroke="#c9dfec" filter="url(#shadow)"/>
+  <text x="1166" y="453" text-anchor="middle" class="cardTitle">Report</text>
+  <text x="1166" y="478" text-anchor="middle" class="cardText">Export</text>
+
+  <path d="M800 516 L800 550" fill="none" class="greenStroke" stroke-width="3" marker-end="url(#arrowGreen)"/>
+
+  <rect x="90" y="552" width="1160" height="132" rx="16" fill="url(#greenSoft)" stroke="#0a944f" stroke-width="2"/>
+  <text x="130" y="603" class="layerTitle">AI Agent Layer</text>
+  <text x="130" y="632" class="layerSub">Master controller + specialist agents</text>
+  <rect x="370" y="575" width="170" height="86" rx="12" fill="#ffffff" stroke="#d7e8df" filter="url(#shadow)"/>
+  <text x="455" y="608" text-anchor="middle" class="cardTitle">Master AI</text>
+  <text x="455" y="633" text-anchor="middle" class="cardText">Plans next action</text>
+  <rect x="570" y="575" width="170" height="86" rx="12" fill="#ffffff" stroke="#d7e8df" filter="url(#shadow)"/>
+  <text x="655" y="608" text-anchor="middle" class="cardTitle">RAG Retrieval</text>
+  <text x="655" y="633" text-anchor="middle" class="cardText">Grounds evidence</text>
+  <rect x="770" y="575" width="170" height="86" rx="12" fill="#ffffff" stroke="#d7e8df" filter="url(#shadow)"/>
+  <text x="855" y="608" text-anchor="middle" class="cardTitle">Interviewer</text>
+  <text x="855" y="633" text-anchor="middle" class="cardText">Adaptive questions</text>
+  <rect x="970" y="575" width="220" height="86" rx="12" fill="#ffffff" stroke="#d7e8df" filter="url(#shadow)"/>
+  <text x="1080" y="608" text-anchor="middle" class="cardTitle">Report + QA</text>
+  <text x="1080" y="633" text-anchor="middle" class="cardText">Feedback and safeguards</text>
+
+  <!-- External services column -->
+  <rect x="1310" y="264" width="210" height="390" rx="16" fill="#f9fffb" stroke="#b8d8c8" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="1415" y="302" text-anchor="middle" class="dbTitle">External Services</text>
+  <rect x="1335" y="326" width="160" height="58" rx="12" fill="#ffffff" stroke="#d7e2ea"/>
+  <text x="1415" y="362" text-anchor="middle" class="cardTitle">DeepSeek LLM</text>
+  <rect x="1335" y="404" width="160" height="58" rx="12" fill="#ffffff" stroke="#d7e2ea"/>
+  <text x="1415" y="440" text-anchor="middle" class="cardTitle">Azure STT</text>
+  <rect x="1335" y="482" width="160" height="58" rx="12" fill="#ffffff" stroke="#d7e2ea"/>
+  <text x="1415" y="518" text-anchor="middle" class="cardTitle">Azure TTS</text>
+  <rect x="1335" y="560" width="160" height="58" rx="12" fill="#ffffff" stroke="#d7e2ea"/>
+  <text x="1415" y="596" text-anchor="middle" class="cardTitle">Google OAuth</text>
+
+  <path d="M1250 458 L1302 458" fill="none" class="greenStroke dash" stroke-width="2.5" marker-end="url(#arrowGreen)"/>
+  <path d="M1250 616 L1302 616" fill="none" class="greenStroke dash" stroke-width="2.5" marker-end="url(#arrowGreen)"/>
+
+  <!-- Data stores -->
+  <path d="M560 684 L560 716" fill="none" class="greenStroke" stroke-width="3" marker-end="url(#arrowGreen)"/>
+  <path d="M930 684 L930 716" fill="none" class="greenStroke" stroke-width="3" marker-end="url(#arrowGreen)"/>
+  <path d="M1215 684 L1215 716" fill="none" class="greenStroke" stroke-width="3" marker-end="url(#arrowGreen)"/>
+
+  <rect x="250" y="720" width="330" height="104" rx="16" fill="#ffffff" stroke="#cbd5e1" filter="url(#shadow)"/>
+  <text x="285" y="756" class="dbTitle">MongoDB</text>
+  <text x="285" y="784" class="cardText">AI artifacts, transcripts,</text>
+  <text x="285" y="808" class="cardText">reports, eval data, diagnostics</text>
+
+  <rect x="650" y="720" width="380" height="104" rx="16" fill="#ffffff" stroke="#cbd5e1" filter="url(#shadow)"/>
+  <text x="685" y="756" class="dbTitle">PostgreSQL + pgvector</text>
+  <text x="685" y="784" class="cardText">Users, sessions, questions, responses</text>
+  <text x="685" y="808" class="cardText">RAG document_chunks with vector(256)</text>
+
+  <rect x="1100" y="720" width="260" height="104" rx="16" fill="#ffffff" stroke="#cbd5e1" filter="url(#shadow)"/>
+  <text x="1135" y="756" class="dbTitle">Local Storage</text>
+  <text x="1135" y="784" class="cardText">CV files, recordings,</text>
+  <text x="1135" y="808" class="cardText">transcript/report exports</text>
+
+  <!-- Output -->
+  <rect x="390" y="848" width="820" height="44" rx="18" fill="#f1fff6" stroke="#0a944f" stroke-width="1.8" filter="url(#shadow)"/>
+  <circle cx="432" cy="870" r="15" fill="none" stroke="#0a944f" stroke-width="3"/>
+  <path d="M424 870 L431 877 L442 862" fill="none" stroke="#0a944f" stroke-width="4" stroke-linecap="round"/>
+  <text x="470" y="878" class="output">Outputs: Match Insights, Adaptive Questions, Coaching Report</text>
+</svg>
