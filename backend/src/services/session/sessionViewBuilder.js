@@ -20,6 +20,61 @@ import {
 } from './sessionShared.js';
 
 const sanitizeQuestionPoolForClient = (questionPool = []) => questionPool.map(({ sourceType, sourceId, matchedRequirementId, matchedSkill, cvEvidenceRefs, generationReason, confidence, planPriority, ...safeItem }) => safeItem);
+const isNonEmptyObject = (value) => Boolean(value && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length);
+const buildAnalysisSetupCv = (cvDocument) => {
+  if (!cvDocument) return null;
+
+  const display = cvDocument.displayProfile || {};
+  const profile = cvDocument.cvProfile || null;
+  const fileId = cvDocument.fileId || display.fileId || null;
+  if (!fileId) return null;
+
+  return {
+    id: fileId,
+    name: display.name || 'Selected CV',
+    size: '',
+    updated: display.uploadedAt || '',
+    type: display.type || '',
+    parseStatus: cvDocument.parseStatus || display.parseStatus || 'completed',
+    profileStatus: profile ? 'completed' : display.profileStatus || 'pending',
+    parseConfidence: cvDocument.parseConfidence ?? profile?.confidence ?? null,
+    parseWarnings: cvDocument.parseWarnings || [],
+    candidateName: profile?.candidateName || display.candidateName || 'Candidate',
+    topSkills: display.topSkills || [],
+    summary: display.summary || profile?.summary || '',
+    warnings: display.warnings || cvDocument.parseWarnings || [],
+    profile,
+    display,
+  };
+};
+
+const resolveStructuredJdRubric = (normalizedAnalysis = {}, analysis = {}) => [
+  normalizedAnalysis?.parsedJdProfile,
+  normalizedAnalysis?.matchingDetails?.rubric,
+  analysis?.jdRubric,
+].find(isNonEmptyObject) || {};
+
+const buildAnalysisSetup = ({ baseSession, plan, analysis, normalizedAnalysis, cvDocument, jobDescriptionInput }) => {
+  const selectedCV = buildAnalysisSetupCv(cvDocument);
+  const rawJD = jobDescriptionInput?.raw_text || jobDescriptionInput?.redacted_text || '';
+  const structuredJD = analysis?.jdStructuredText || '';
+  const structuredJDRubric = resolveStructuredJdRubric(normalizedAnalysis, analysis);
+
+  return {
+    selectedCV,
+    rawJD,
+    structuredJD,
+    structuredJDRubric,
+    summarizedRawJD: rawJD,
+    cvReviewStatus: selectedCV ? 'verified' : 'unreviewed',
+    cvHumanReviewedFileId: selectedCV?.id || baseSession.cvFileId || '',
+    jdReviewStatus: Object.keys(structuredJDRubric).length ? 'verified' : 'unreviewed',
+    jdHumanReviewedRawJD: rawJD,
+    settings: plan?.settingsSnapshot || baseSession.settings,
+    sessionMode: baseSession.mode || 'text',
+  };
+};
+
 const buildTranscriptDisplayText = (turn = {}) => {
   const preamble = String(turn?.metadata?.preamble || '').trim();
   const text = String(turn?.text || '').trim();
@@ -38,7 +93,7 @@ const mapTranscriptTurns = (transcript) => transcript?.turns?.map((turn) => ({
   metadata: turn.metadata || {},
 })) || [];
 
-export const buildSessionDetails = ({ row, plan, transcript, analysis, report, cvDocument }) => {
+export const buildSessionDetails = ({ row, plan, transcript, analysis, report, cvDocument, jobDescriptionInput }) => {
   const baseSession = mapSessionRow(row);
   const normalizedAnalysis = normalizeAnalysisResult(analysis);
   const roleMeta = buildCanonicalRoleMeta({
@@ -61,6 +116,7 @@ export const buildSessionDetails = ({ row, plan, transcript, analysis, report, c
     reportStatus: report?.latestStatus || null,
     cvProfile: cvDocument?.cvProfile || null,
     cvDisplay: cvDocument?.displayProfile || null,
+    analysisSetup: buildAnalysisSetup({ baseSession, plan, analysis, normalizedAnalysis, cvDocument, jobDescriptionInput }),
     transcript: mapTranscriptTurns(transcript),
   };
 };
