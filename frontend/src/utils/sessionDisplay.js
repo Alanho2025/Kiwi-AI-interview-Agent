@@ -260,6 +260,24 @@ export const buildSessionHistoryRows = (sessionHistory = []) => dedupeSessionsBy
   };
 });
 
+export const resolveSessionOpenPath = (session = {}) => {
+  if (!session?.id) {
+    return '/dashboard';
+  }
+
+  const isCompleted = session.displayStatus === 'Completed' || session.status === 'completed';
+
+  if (session.hasReport && isCompleted) {
+    return `/report/${session.id}`;
+  }
+
+  if (session.status === 'ready') {
+    return `/analysis?sessionId=${encodeURIComponent(session.id)}`;
+  }
+
+  return `/interview/${session.id}`;
+};
+
 /**
  * Purpose: Execute the main responsibility for getUserInitials.
  * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.

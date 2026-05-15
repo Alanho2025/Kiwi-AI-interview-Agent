@@ -4,6 +4,7 @@ import {
   buildRecentActivity,
   buildSessionHistoryRows,
   dedupeSessionsById,
+  resolveSessionOpenPath,
 } from '../sessionDisplay.js';
 
 const buildSession = (overrides = {}) => ({
@@ -61,5 +62,11 @@ describe('sessionDisplay', () => {
     expect(stats.totalSessionsLabel).toBe('2');
     expect(stats.averageScoreLabel).toBe('90');
     expect(recentActivity.map((item) => item.id)).toEqual(['session-1', 'session-2']);
+  });
+
+  it('routes ready sessions back to analysis before the interview starts', () => {
+    expect(resolveSessionOpenPath(buildSession({ status: 'ready', hasReport: false }))).toBe('/analysis?sessionId=session-1');
+    expect(resolveSessionOpenPath(buildSession({ status: 'in_progress', hasReport: false }))).toBe('/interview/session-1');
+    expect(resolveSessionOpenPath(buildSession({ status: 'completed', hasReport: true }))).toBe('/report/session-1');
   });
 });
