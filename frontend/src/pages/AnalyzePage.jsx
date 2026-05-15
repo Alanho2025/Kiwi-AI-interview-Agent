@@ -9,7 +9,7 @@
  * - Prefer composition and small helpers over repeated inline logic.
  */
 
-import { useRef, useState, useEffect } from 'react';
+import { useCallback, useRef, useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AppHeader } from '../components/layout/AppHeader.jsx';
 import { StepProgress } from '../components/layout/StepProgress.jsx';
@@ -21,6 +21,7 @@ import { AnalyzeActionsCard } from '../components/analyze/AnalyzeActionsCard.jsx
 import { StatusBanner } from '../components/common/StatusBanner.jsx';
 import { uploadCV, getRecentCVs, selectCV, saveReviewedCvProfile, deleteCv } from '../api/uploadApi.js';
 import { paraphraseJD, matchCV, generateInterviewPlan } from '../api/analyzeApi.js';
+import { getSession } from '../api/sessionApi.js';
 import {
   DEFAULT_ANALYZE_MODE,
   DEFAULT_ANALYZE_SETTINGS,
@@ -68,6 +69,9 @@ const getJDParseConfidence = (rubric) => {
   const confidence = Number(rubric?.diagnostics?.confidence ?? rubric?.metadata?.confidence ?? 0);
   return Number.isFinite(confidence) ? confidence : 0;
 };
+
+const isNonEmptyObject = (value) => Boolean(value && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length);
+const firstNonEmptyObject = (...values) => values.find(isNonEmptyObject) || null;
 
 const ANALYZE_TOUR_STEPS = [
   {
@@ -188,8 +192,47 @@ export function AnalyzePage() {
     setJdReviewStatus('unreviewed');
   };
 
+  const restoreReadySessionAnalysis = useCallback((session) => {
+    const setup = session?.analysisSetup || {};
+    const restoredSelectedCV = setup.selectedCV || null;
+    const restoredRubric = firstNonEmptyObject(
+      setup.structuredJDRubric,
+      session?.analysisResult?.parsedJdProfile,
+      session?.analysisResult?.matchingDetails?.rubric
+    );
+    const restoredStructuredJD = setup.structuredJD || (restoredRubric ? formatStructuredJobDescription(restoredRubric) : '');
+    const restoredRawJD = setup.rawJD || restoredStructuredJD;
+    const restoredAnalysisResult = session?.analysisResult || null;
+    const restoredSettings = sanitizeAnalyzeSettings(setup.settings || session?.settings || DEFAULT_ANALYZE_SETTINGS);
+
+    setSelectedCV(restoredSelectedCV);
+    setStructuredCVProfile(restoredSelectedCV ? buildCvReviewFormModel(restoredSelectedCV) : null);
+    setCvHumanReviewedFileId(setup.cvHumanReviewedFileId || restoredSelectedCV?.id || session?.cvFileId || '');
+    setCvReviewStatus(setup.cvReviewStatus || (restoredSelectedCV ? 'verified' : 'unreviewed'));
+    setRawJD(restoredRawJD);
+    setStructuredJD(restoredStructuredJD);
+    setStructuredJDRubric(restoredRubric);
+    setSummarizedRawJD(setup.summarizedRawJD || restoredRawJD);
+    setJdHumanReviewedRawJD(setup.jdHumanReviewedRawJD || restoredRawJD);
+    setJdReviewStatus(setup.jdReviewStatus || (restoredRubric ? 'verified' : 'unreviewed'));
+    setSettings(restoredSettings);
+    setSessionMode(sanitizeAnalyzeMode(setup.sessionMode || session?.mode || DEFAULT_ANALYZE_MODE));
+    setVoiceDeviceCheck(DEFAULT_VOICE_DEVICE_CHECK);
+    setAnalysisResult(restoredAnalysisResult);
+    setMatchRate(restoredAnalysisResult?.matchScore || null);
+    setGeneratedSessionId(session?.id || null);
+    setAnalysisStatus('success');
+    setPageStatus(buildStatusMessage('success', 'Match analysis complete', 'Review the score breakdown before starting the interview session.'));
+  }, []);
+
   useEffect(() => {
+    let isActive = true;
+    const resumeSessionId = new URLSearchParams(location.search).get('sessionId');
     const restoredDraft = loadAnalyzeDraft();
+    const homeSessionSettings = location.state?.sessionDefaults
+      ? sanitizeAnalyzeSettings(location.state.sessionDefaults)
+      : null;
+
     setSelectedCV(restoredDraft.selectedCV);
     setStructuredCVProfile(restoredDraft.structuredCVProfile || (restoredDraft.selectedCV ? buildCvReviewFormModel(restoredDraft.selectedCV) : null));
     setCvHumanReviewedFileId(restoredDraft.cvHumanReviewedFileId || '');
@@ -200,14 +243,48 @@ export function AnalyzePage() {
     setSummarizedRawJD(restoredDraft.summarizedRawJD);
     setJdHumanReviewedRawJD(restoredDraft.jdHumanReviewedRawJD);
     setJdReviewStatus(restoredDraft.jdReviewStatus || 'unreviewed');
-    const homeSessionSettings = location.state?.sessionDefaults
-      ? sanitizeAnalyzeSettings(location.state.sessionDefaults)
-      : null;
     setSettings(homeSessionSettings || restoredDraft.settings);
     setSessionMode(sanitizeAnalyzeMode(location.state?.sessionMode || restoredDraft.sessionMode));
 
-    getRecentCVs().then(setRecentCVs).catch(console.error);
-  }, [location.state]);
+    const loadResumeSession = async () => {
+      if (!resumeSessionId) {
+        return;
+      }
+
+      try {
+        const data = await getSession(resumeSessionId);
+        if (!isActive) {
+          return;
+        }
+
+        const session = data.session;
+        if (session?.status === 'completed' && session?.hasReport) {
+          navigate(`/report/${session.id}`, { replace: true });
+          return;
+        }
+
+        if (session?.status && session.status !== 'ready') {
+          navigate(`/interview/${session.id}`, { replace: true });
+          return;
+        }
+
+        restoreReadySessionAnalysis(session);
+      } catch (error) {
+        if (isActive) {
+          setPageStatus(buildStatusMessage('error', 'Could not restore analysis', error.message || 'Open the session from dashboard again.'));
+        }
+      }
+    };
+
+    getRecentCVs().then((items) => {
+      if (isActive) setRecentCVs(items);
+    }).catch(console.error);
+    loadResumeSession();
+
+    return () => {
+      isActive = false;
+    };
+  }, [location.search, location.state, navigate, restoreReadySessionAnalysis]);
 
   useEffect(() => {
     persistAnalyzeDraft({
