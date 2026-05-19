@@ -29,6 +29,25 @@ export const clearStoredAuthToken = () => {
   AUTH_TOKEN_STORAGE_KEYS.forEach((key) => window.localStorage.removeItem(key));
 };
 
+export const getStoredAuthToken = () => {
+  if (typeof window === 'undefined') {
+    return '';
+  }
+
+  return AUTH_TOKEN_STORAGE_KEYS
+    .map((key) => window.localStorage.getItem(key))
+    .find(Boolean) || '';
+};
+
+export const storeAuthToken = (token) => {
+  if (typeof window === 'undefined' || !token) {
+    return;
+  }
+
+  window.localStorage.setItem(AUTH_TOKEN_STORAGE_KEYS[0], token);
+  window.localStorage.removeItem(AUTH_TOKEN_STORAGE_KEYS[1]);
+};
+
 /**
  * Clear the in-memory CSRF token when the session changes.
  */
@@ -126,8 +145,17 @@ const buildCsrfHeaders = async (method) => {
     return {};
   }
 
+  if (getStoredAuthToken()) {
+    return {};
+  }
+
   const token = await loadCsrfToken();
   return token ? { [CSRF_HEADER_NAME]: token } : {};
+};
+
+const buildAuthHeaders = () => {
+  const token = getStoredAuthToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
 /**
@@ -160,6 +188,7 @@ export const apiClient = async (endpoint, options = {}) => {
     ...options,
     headers: {
       ...defaultHeaders,
+      ...buildAuthHeaders(),
       ...(await buildCsrfHeaders(method)),
       ...options.headers,
     },
@@ -202,6 +231,7 @@ export const apiClientStream = async (endpoint, options = {}) => {
     ...options,
     headers: {
       ...defaultHeaders,
+      ...buildAuthHeaders(),
       ...(await buildCsrfHeaders(method)),
       ...options.headers,
     },

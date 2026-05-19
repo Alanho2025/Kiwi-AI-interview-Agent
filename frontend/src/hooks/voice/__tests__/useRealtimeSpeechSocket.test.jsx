@@ -25,12 +25,12 @@ describe('buildSocketUrl', () => {
     window.history.pushState({}, '', 'http://localhost:5173/interview/session-1');
   });
 
-  it('builds a websocket URL from the relative API base without exposing auth tokens', () => {
+  it('builds a websocket URL from the relative API base with bearer fallback for cookie-limited browsers', () => {
     window.localStorage.setItem('authToken', 'token-123');
 
     const url = buildSocketUrl({ sessionId: 'abc 123', language: 'en-NZ', sampleRate: 16000 });
 
-    expect(url).toBe('ws://localhost:5173/api/interview/abc%20123/voice/live?language=en-NZ&sampleRate=16000');
+    expect(url).toBe('ws://localhost:5173/api/interview/abc%20123/voice/live?language=en-NZ&sampleRate=16000&token=token-123');
   });
 });
 

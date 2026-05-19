@@ -7,7 +7,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { buildApiWebSocketUrl } from '../../api/client.js';
+import { buildApiWebSocketUrl, getStoredAuthToken } from '../../api/client.js';
 
 const DEFAULT_LANGUAGE = 'en-NZ';
 const DEFAULT_SAMPLE_RATE = 16000;
@@ -24,6 +24,10 @@ export const buildDuplexSocketUrl = ({
   baseUrl.searchParams.set('language', language);
   baseUrl.searchParams.set('sampleRate', String(sampleRate));
   baseUrl.searchParams.set('voiceName', voiceName);
+  const token = getStoredAuthToken();
+  if (token) {
+    baseUrl.searchParams.set('token', token);
+  }
   return baseUrl.toString();
 };
 

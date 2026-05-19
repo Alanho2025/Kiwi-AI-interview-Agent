@@ -41,6 +41,12 @@ const parseCookies = (cookieHeader = '') =>
 const isUnsafeMethod = (method = 'GET') =>
   !['GET', 'HEAD', 'OPTIONS'].includes(method.toUpperCase());
 
+const isGoogleLoginRequest = (req) =>
+  req.method.toUpperCase() === 'POST' && req.path === '/auth/google';
+
+const hasBearerAuthHeader = (req) =>
+  String(req.headers.authorization || '').toLowerCase().startsWith('bearer ');
+
 export const createCsrfToken = () => crypto.randomBytes(32).toString('hex');
 
 export const getCsrfTokenFromRequest = (req) => {
@@ -55,6 +61,10 @@ export const setCsrfCookie = (res, token = createCsrfToken()) => {
 
 export const csrfProtection = (req, res, next) => {
   if (!isUnsafeMethod(req.method)) {
+    return next();
+  }
+
+  if (isGoogleLoginRequest(req) || hasBearerAuthHeader(req)) {
     return next();
   }
 
