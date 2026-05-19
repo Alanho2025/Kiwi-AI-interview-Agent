@@ -107,11 +107,11 @@ export default function LandingPage() {
 
         <h1 className="mt-8 max-w-4xl text-4xl font-extrabold tracking-tight sm:text-6xl lg:text-7xl">
           Land your dream job with{' '}
-          <span style={{ color: 'var(--accent)' }}>turn-by-turn AI coaching</span>
+          <span style={{ color: 'var(--accent)' }}>real-time AI coaching</span>
         </h1>
 
         <p className="mt-6 max-w-2xl text-lg leading-relaxed sm:text-xl" style={{ color: 'var(--text-muted)' }}>
-          Upload your CV, paste the job description, and practice with a voice AI that gives turn-by-turn feedback - then get a detailed performance report.
+          Upload your CV, paste the job description, and practice with a voice AI that coaches you turn-by-turn - then get a detailed performance report.
         </p>
 
         <div className="mt-10 flex flex-col gap-4 sm:flex-row">
