@@ -13,6 +13,7 @@ const API_NAMESPACE = '/api';
 
 const CSRF_HEADER_NAME = 'X-CSRF-Token';
 const AUTH_TOKEN_STORAGE_KEYS = ['kiwi_auth_token', 'authToken'];
+const VERCEL_HOST_SUFFIX = '.vercel.app';
 
 let csrfToken = '';
 let csrfTokenPromise = null;
@@ -50,7 +51,20 @@ const trimLeadingSlashes = (value) => String(value || '').replace(/^\/+/, '');
  * Resolve the configured backend origin.
  * In local development, an empty env value keeps using Vite's /api proxy.
  */
-export const getApiOrigin = () => trimTrailingSlashes(import.meta.env.VITE_API_BASE_URL || '');
+const shouldUseSameOriginApiProxy = () => {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  return Boolean(import.meta.env.PROD)
+    && import.meta.env.VITE_USE_EXTERNAL_API_BASE_URL !== 'true'
+    && window.location.hostname.endsWith(VERCEL_HOST_SUFFIX);
+};
+
+const getConfiguredApiBaseUrl = () =>
+  shouldUseSameOriginApiProxy() ? '' : import.meta.env.VITE_API_BASE_URL;
+
+export const getApiOrigin = () => trimTrailingSlashes(getConfiguredApiBaseUrl() || '');
 
 /**
  * Normalize the configured backend URL so HTTP calls always include /api.
@@ -73,7 +87,7 @@ export const normalizeBaseUrl = (value) => {
  * Build a full API URL for fetch requests.
  */
 export const buildApiUrl = (endpoint = '') => {
-  const baseUrl = normalizeBaseUrl(import.meta.env.VITE_API_BASE_URL);
+  const baseUrl = normalizeBaseUrl(getConfiguredApiBaseUrl());
   const cleanEndpoint = trimLeadingSlashes(endpoint);
   return cleanEndpoint ? `${baseUrl}/${cleanEndpoint}` : baseUrl;
 };

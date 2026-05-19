@@ -1,20 +1,24 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "routes": [
+  "rewrites": [
     {
-      "src": "/api/(.*)",
-      "dest": "${BACKEND_URL}/api/$1",
-      "env": ["BACKEND_URL"],
-      "headers": {
-        "x-vercel-enable-rewrite-caching": "0"
-      }
+      "source": "/api/:path*",
+      "destination": "https://kiwi-ai-interview-agent-1.onrender.com/api/:path*"
     },
     {
-      "handle": "filesystem"
-    },
+      "source": "/((?!api/).*)",
+      "destination": "/index.html"
+    }
+  ],
+  "headers": [
     {
-      "src": "/(.*)",
-      "dest": "/index.html"
+      "source": "/api/:path*",
+      "headers": [
+        {
+          "key": "x-vercel-enable-rewrite-caching",
+          "value": "0"
+        }
+      ]
     }
   ]
 }
