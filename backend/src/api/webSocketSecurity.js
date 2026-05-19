@@ -31,6 +31,12 @@ export const parseCookieAuth = (request = {}) => {
   const token = cookies.auth_token || '';
   if (!token) return null;
 
+  return parseJwtAuthToken(token);
+};
+
+export const parseJwtAuthToken = (token = '') => {
+  if (!token) return null;
+
   try {
     return verifyAuthToken(token);
   } catch {
