@@ -13,6 +13,7 @@ import {
   createWebSocketUpgradeLimiter,
   isAllowedWebSocketOrigin,
   parseCookieAuth,
+  parseJwtAuthToken,
   rejectUpgrade,
 } from './webSocketSecurity.js';
 
@@ -30,8 +31,7 @@ export const sendJson = (socket, payload) => {
 };
 
 const parseAuthToken = (requestUrl, request = {}) => {
-  if (requestUrl.searchParams.has('token')) return null;
-  return parseCookieAuth(request);
+  return parseCookieAuth(request) || parseJwtAuthToken(requestUrl.searchParams.get('token') || '');
 };
 
 export const buildSocketContext = (request) => {

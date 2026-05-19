@@ -38,7 +38,7 @@ describe('duplex voice robustness', () => {
     expect(context.auth).toEqual(expect.objectContaining({ id: 'user-123' }));
   });
 
-  it('rejects query-string JWTs during WebSocket upgrade context building', () => {
+  it('accepts query-string JWTs during WebSocket upgrade for cookie-limited browsers', () => {
     process.env.JWT_SECRET = 'test-secret';
     const token = jwt.sign({ id: 'user-123' }, process.env.JWT_SECRET);
 
@@ -47,7 +47,7 @@ describe('duplex voice robustness', () => {
       headers: { host: 'localhost:3000' },
     });
 
-    expect(context.auth).toBeNull();
+    expect(context.auth).toEqual(expect.objectContaining({ id: 'user-123' }));
   });
 
   it('does not send JSON to closed sockets and ignores malformed socket messages', () => {
