@@ -11,8 +11,9 @@
 
 import crypto from 'crypto';
 import { formatSuccess } from '../utils/responseFormatter.js';
-import { extractTextFromCV } from '../services/fileService.js';
+import { extractCvTextWithMetadata } from '../services/fileService.js';
 import { buildCvProfile } from '../services/cv/cvProfileBuilderService.js';
+import { analyzeTextWithSpacy } from '../services/pythonNlpService.js';
 import { buildCvDisplayView } from '../services/cv/cvDisplayViewService.js';
 import { rebuildOwnedCvProfile, softDeleteOwnedCv, exportOwnedCvData } from '../services/cv/cvLifecycleService.js';
 import { saveReviewedCvProfile } from '../services/cv/cvReviewedProfileService.js';
@@ -29,12 +30,17 @@ export const uploadCV = asyncHandler(async (req, res) => {
     throw badRequest('No file uploaded', 'Please upload a PDF or DOCX file');
   }
 
-  const text = await extractTextFromCV(req.file.buffer, req.file.mimetype);
+  const extraction = await extractCvTextWithMetadata(req.file.buffer, req.file.mimetype);
+  const text = extraction.text;
   if (!text) {
     throw badRequest('Text extraction failed', 'Could not extract readable text from the uploaded file');
   }
 
-  const cvProfile = buildCvProfile(text);
+  const nlpSignals = await analyzeTextWithSpacy({ kind: 'cv', text });
+  const cvProfile = buildCvProfile(text, {
+    parserMetadata: extraction.metadata,
+    nlpSignals,
+  });
 
   const user = await authService.resolveUserFromRequest(req);
   const checksum = crypto.createHash('sha256').update(req.file.buffer).digest('hex');

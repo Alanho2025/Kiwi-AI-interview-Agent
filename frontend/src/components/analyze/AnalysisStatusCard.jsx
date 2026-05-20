@@ -109,6 +109,7 @@ const RequirementChecks = ({ items }) => {
         <RequirementStatusPill tone={item.tone}>{item.status}</RequirementStatusPill>
       </div>
       <p className="mt-2 text-xs leading-5 text-muted">{item.reason}</p>
+      {item.evidenceStrength ? <p className="mt-2 text-xs font-semibold text-muted">Evidence strength: {item.evidenceStrength}</p> : null}
       {item.evidence ? <p className="mt-2 text-xs leading-5 text-faint">Evidence: {item.evidence}</p> : null}
     </div>
   );
@@ -128,6 +129,57 @@ const RequirementChecks = ({ items }) => {
           <summary className="cursor-pointer px-3 py-2 text-xs font-semibold text-muted">Show {hiddenItems.length} more checks</summary>
           <div className="space-y-2 border-t border-gray-100 p-3">{hiddenItems.map(renderRequirement)}</div>
         </details>
+      ) : null}
+    </div>
+  );
+};
+
+const EvidenceStrengthSummary = ({ breakdown = {}, semanticEvidenceMatches = [], semanticEvidenceModel = null }) => {
+  const hasBreakdown = Object.values(breakdown || {}).some((value) => Number(value) > 0);
+  const visibleMatches = semanticEvidenceMatches
+    .map((item) => ({
+      label: item.label,
+      match: (item.matches || [])[0],
+    }))
+    .filter((item) => item.label && item.match);
+
+  if (!hasBreakdown && !visibleMatches.length) {
+    return null;
+  }
+
+  return (
+    <div className="rounded-xl border border-gray-100 glass p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-sm font-semibold text-primary">Evidence strength diagnostics</p>
+          <p className="mt-1 text-xs text-faint">Semantic matching explains which CV lines support the JD requirements.</p>
+        </div>
+        {semanticEvidenceModel?.scorer ? (
+          <span className="rounded-lg bg-chip px-2.5 py-1 text-xs font-semibold text-muted">{semanticEvidenceModel.scorer}</span>
+        ) : null}
+      </div>
+
+      {hasBreakdown ? (
+        <div className="mt-3 flex flex-wrap gap-2">
+          <span className="rounded-lg bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-800">Strong {breakdown.strong || 0}</span>
+          <span className="rounded-lg bg-sky-100 px-3 py-1.5 text-xs font-semibold text-sky-800">Partial {breakdown.partial || 0}</span>
+          <span className="rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-800">Weak {breakdown.weak || 0}</span>
+          <span className="rounded-lg bg-red-100 px-3 py-1.5 text-xs font-semibold text-red-800">Missing {breakdown.missing || 0}</span>
+        </div>
+      ) : null}
+
+      {visibleMatches.length ? (
+        <div className="mt-4 space-y-2">
+          {visibleMatches.slice(0, 3).map((item) => (
+            <div key={item.label} className="rounded-lg bg-transparent p-3">
+              <p className="text-sm font-semibold text-primary">{item.label}</p>
+              <p className="mt-1 text-xs leading-5 text-muted">
+                {item.match.evidenceStrength || 'weak'} evidence · {Math.round(Number(item.match.score || 0) * 100)}% semantic similarity
+              </p>
+              <p className="mt-2 text-xs leading-5 text-faint">{item.match.text}</p>
+            </div>
+          ))}
+        </div>
       ) : null}
     </div>
   );
@@ -204,6 +256,20 @@ export function AnalysisStatusCard({ status, matchRate, analysisResult }) {
           />
         )}
 
+        {status === 'error' && (
+          <div className="rounded-xl border border-red-100 bg-red-50 p-4">
+            <div className="flex items-start gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-700">
+                <AlertTriangle className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-red-900">Match analysis could not finish</p>
+                <p className="mt-1 text-sm leading-6 text-red-700">Check the page message, then rerun the analysis after fixing the input or service issue.</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {status === 'success' && (
           <div className="space-y-4">
             <div className="flex items-center gap-4">
@@ -236,6 +302,12 @@ export function AnalysisStatusCard({ status, matchRate, analysisResult }) {
                 tone="warning"
               />
             </div>
+
+            <EvidenceStrengthSummary
+              breakdown={matchViewModel.evidenceStrengthBreakdown}
+              semanticEvidenceMatches={matchViewModel.semanticEvidenceMatches}
+              semanticEvidenceModel={matchViewModel.semanticEvidenceModel}
+            />
 
             <RequirementChecks items={matchViewModel.requirementChecks} />
           </div>

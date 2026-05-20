@@ -11,6 +11,7 @@
 
 import mammoth from 'mammoth';
 import { PDFParse } from 'pdf-parse';
+import { extractPdfWithPdfplumber, isOpenSourceNlpEnabled } from './pythonNlpService.js';
 
 /**
  * Purpose: Execute the main responsibility for normalizeExtractedText.
@@ -32,15 +33,60 @@ const normalizeExtractedText = (text) =>
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-const extractTextFromPdf = async (fileBuffer) => {
+const extractTextFromPdfWithPdfParse = async (fileBuffer) => {
   const parser = new PDFParse({ data: new Uint8Array(fileBuffer) });
 
   try {
     const result = await parser.getText();
-    return normalizeExtractedText(result.text || '');
+    return {
+      text: normalizeExtractedText(result.text || ''),
+      metadata: {
+        parser: 'pdf-parse',
+        openSourceTools: {
+          pdfplumber: { enabled: false, used: false },
+        },
+      },
+    };
   } finally {
     await parser.destroy();
   }
+};
+
+const extractTextFromPdf = async (fileBuffer) => {
+  const pdfplumberResult = isOpenSourceNlpEnabled()
+    ? await extractPdfWithPdfplumber(fileBuffer)
+    : null;
+  if (pdfplumberResult?.text) {
+    return {
+      text: normalizeExtractedText(pdfplumberResult.text),
+      metadata: {
+        parser: 'pdfplumber',
+        openSourceTools: {
+          pdfplumber: {
+            enabled: true,
+            used: true,
+            pageCount: pdfplumberResult.metadata.pageCount,
+            layoutWarnings: pdfplumberResult.metadata.layoutWarnings,
+          },
+        },
+      },
+    };
+  }
+
+  const fallback = await extractTextFromPdfWithPdfParse(fileBuffer);
+  return {
+    ...fallback,
+    metadata: {
+      ...fallback.metadata,
+      openSourceTools: {
+        pdfplumber: {
+          enabled: isOpenSourceNlpEnabled(),
+          used: false,
+          fallback: 'pdf-parse',
+        },
+      },
+    },
+  };
 };
 
 /**
@@ -51,7 +97,13 @@ const extractTextFromPdf = async (fileBuffer) => {
  */
 const extractTextFromDocx = async (fileBuffer) => {
   const result = await mammoth.extractRawText({ buffer: fileBuffer });
-  return normalizeExtractedText(result.value || '');
+  return {
+    text: normalizeExtractedText(result.value || ''),
+    metadata: {
+      parser: 'mammoth',
+      openSourceTools: {},
+    },
+  };
 };
 
 /**
@@ -60,7 +112,7 @@ const extractTextFromDocx = async (fileBuffer) => {
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-export const extractTextFromCV = async (fileBuffer, mimeType) => {
+export const extractCvTextWithMetadata = async (fileBuffer, mimeType) => {
   if (!fileBuffer?.length) {
     throw new Error('Uploaded file is empty');
   }
@@ -74,4 +126,9 @@ export const extractTextFromCV = async (fileBuffer, mimeType) => {
   }
 
   throw new Error('Unsupported file type');
+};
+
+export const extractTextFromCV = async (fileBuffer, mimeType) => {
+  const result = await extractCvTextWithMetadata(fileBuffer, mimeType);
+  return result.text;
 };

@@ -23,8 +23,8 @@
         "Experience evidence",
         "c#",
         ".net",
-        "javascript",
         "sql",
+        "git",
         "automation"
       ],
       "failedChecks": []
@@ -42,9 +42,9 @@
         "Quantified evidence",
         "Project: Data Warehouse Transition Project",
         "Experience evidence",
-        "python",
         "sql",
-        "data analysis",
+        "excel",
+        "reporting",
         "power bi",
         "process improvement",
         "stakeholder collaboration"
@@ -64,10 +64,10 @@
         "Quantified evidence",
         "Project: Platform Reliability Project",
         "Experience evidence",
+        "cloud infrastructure",
         "azure",
-        "docker",
-        "kubernetes",
         "linux",
+        "docker",
         "automation",
         "process improvement"
       ],
@@ -84,12 +84,12 @@
       "interviewHooks": [
         "self introduction and career direction",
         "Project: Campus Events App",
-        "Competency signal",
+        "CV evidence",
         "Measured achievement",
-        "javascript",
         "react",
-        "git",
         "html",
+        "css",
+        "javascript",
         "automation",
         "process improvement"
       ],
