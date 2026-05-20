@@ -24,6 +24,7 @@ import { ROLE_KEYWORDS, cleanLineLabel, firstMatchingLine, unique } from './jobD
 import { normalizeBenefitPoints } from './normalizers/normalizeBenefit.js';
 import { normalizeSoftSkillPoints } from './normalizers/normalizeSoftSkill.js';
 import { normalizeApplicationInstructionPoints } from './normalizers/normalizeApplicationInstruction.js';
+import { analyzeTextWithSpacy } from '../pythonNlpService.js';
 
 const buildRoleSummary = ({ normalizedSections = {}, sections, diagnostics }) => {
   if ((normalizedSections.responsibilities || []).length > 0) return normalizedSections.responsibilities.slice(0, 6);
@@ -133,6 +134,38 @@ const buildMacroCriteria = ({ roleFamily, title, technicalSkills }) => {
   return mergeUniqueLabels(entries);
 };
 
+const TECHNICAL_NOUN_PHRASE_PATTERN = /\b(api|endpoint|backend|frontend|full stack|data|pipeline|platform|cloud|database|sql|python|javascript|typescript|react|node|model|semantic|vector|retrieval|analytics|dashboard|automation|integration|deployment|testing)\b/i;
+
+const normalizeNlpPhrase = (value = '') => String(value || '')
+  .replace(/^[^a-z0-9+#.]+|[^a-z0-9+#.]+$/gi, '')
+  .replace(/\s+/g, ' ')
+  .trim();
+
+const extractNlpTechnicalPhrases = (nlpSignals = null) => {
+  if (!nlpSignals) return [];
+  return unique((nlpSignals.nounChunks || [])
+    .map(normalizeNlpPhrase)
+    .filter((phrase) => phrase.length >= 4 && phrase.length <= 80)
+    .filter((phrase) => TECHNICAL_NOUN_PHRASE_PATTERN.test(phrase))
+    .filter((phrase) => !/^(the|our|your|this|that|these|those|we|you)\b/i.test(phrase)))
+    .slice(0, 12);
+};
+
+const withNlpTechnicalPhrases = (technicalSkills = {}, nlpPhrases = []) => {
+  if (!nlpPhrases.length) return technicalSkills;
+  return {
+    ...technicalSkills,
+    nlpPhrases: nlpPhrases.map((label) => ({
+      name: label,
+      label,
+      family: 'nlpPhrases',
+      importance: 'supporting',
+      category: 'technical_noun_phrase',
+      sourceType: 'spacy_noun_chunk',
+    })),
+  };
+};
+
 const buildRawSectionView = ({ sections, requirementGroups, technicalSkills, softSkills }) => ({
   introduction: (sections.introduction || []).map((item) => item.text),
   responsibilities: (requirementGroups.responsibilities || []).map((item) => item.label),
@@ -238,16 +271,19 @@ export const buildStructuredJobDescriptionRubric = async (rawJD = '', options = 
   const normalized = normalizeJobDescriptionText(rawJD);
   const fallbackTitle = extractTitle(normalized);
   const header = extractJobDescriptionHeader({ rawJD, fallbackTitle, normalized });
+  const nlpSignals = await analyzeTextWithSpacy({ kind: 'jd', text: rawJD });
 
   const aiSkills = await extractSkillsWithAI(rawJD);
   const detectedHeadings = detectJobDescriptionHeadings(normalized.blocks);
   const sections = collectJobDescriptionSections({ blocks: normalized.blocks, detectedHeadings });
   const requirementGroups = classifyJobDescriptionRequirements(sections);
   const extractedSkills = extractJobDescriptionSkills({ sections, requirementGroups, aiSkills });
+  const nlpTechnicalPhrases = extractNlpTechnicalPhrases(nlpSignals);
+  const technicalSkillsForRubric = withNlpTechnicalPhrases(extractedSkills.technicalSkills, nlpTechnicalPhrases);
   const roleFamily = detectJobDescriptionRoleFamily({
     title: header.title,
     flatText: normalized.flatText,
-    groupedTechnicalSkills: extractedSkills.technicalSkills,
+    groupedTechnicalSkills: technicalSkillsForRubric,
   });
   const roleInfo = canonicalizeRole(header.title, rawJD);
   const roleLevelDetail = resolveRoleLevel({ title: header.title, flatText: normalized.flatText });
@@ -255,14 +291,14 @@ export const buildStructuredJobDescriptionRubric = async (rawJD = '', options = 
   const diagnostics = buildJobDescriptionDiagnostics({
     sections,
     requirementGroups,
-    technicalSkills: extractedSkills.technicalSkills,
+    technicalSkills: technicalSkillsForRubric,
     softSkills: extractedSkills.softSkills,
     aiSkills,
   });
   const { normalized: baseNormalizedSections, evidenceMap } = normalizeSectionView({
     sections,
     requirementGroups,
-    technicalSkills: extractedSkills.technicalSkills,
+    technicalSkills: technicalSkillsForRubric,
     softSkills: extractedSkills.softSkills,
   });
   const normalizedSections = applySectionOverrides(baseNormalizedSections, options.sectionOverrides?.sections || options.sectionOverrides || {});
@@ -274,16 +310,16 @@ export const buildStructuredJobDescriptionRubric = async (rawJD = '', options = 
   };
   const interviewTargets = buildJobDescriptionInterviewTargets({
     roleFamily: roleFamily.primary,
-    groupedTechnicalSkills: extractedSkills.technicalSkills,
+    groupedTechnicalSkills: technicalSkillsForRubric,
     softSkills: extractedSkills.softSkills,
     requirementGroups,
     title: header.title,
   });
 
-  const technicalSkillRequirements = flattenTechnicalGroups(extractedSkills.technicalSkills);
+  const technicalSkillRequirements = flattenTechnicalGroups(technicalSkillsForRubric);
   const softSkillRequirements = extractedSkills.softSkills.map((item) => item.label || item.name);
-  const macroCriteria = buildMacroCriteria({ roleFamily, title: header.title, technicalSkills: extractedSkills.technicalSkills });
-  const microCriteria = buildMicroCriteria({ technicalSkills: extractedSkills.technicalSkills, softSkills: extractedSkills.softSkills });
+  const macroCriteria = buildMacroCriteria({ roleFamily, title: header.title, technicalSkills: technicalSkillsForRubric });
+  const microCriteria = buildMicroCriteria({ technicalSkills: technicalSkillsForRubric, softSkills: extractedSkills.softSkills });
   const requirements = options.reparseMode
     ? buildRequirementListFromSectionLabels(normalizedSections)
     : buildRequirementList(requirementGroups);
@@ -339,6 +375,10 @@ export const buildStructuredJobDescriptionRubric = async (rawJD = '', options = 
       fieldEvidence,
       companyResolution: header.companyResolution,
       normalizedEvidenceMap: evidenceMap,
+      openSourceTools: {
+        ...(nlpSignals ? { spaCy: { enabled: true, used: true, model: nlpSignals.model } } : {}),
+      },
+      nlpSignals,
       agenticSafeguard: {
         reparseMode: Boolean(options.reparseMode),
         feedbackApplied: Boolean(options.criticFeedback),
@@ -357,7 +397,7 @@ export const buildStructuredJobDescriptionRubric = async (rawJD = '', options = 
       salaryText: header.salaryText,
     },
     sections: normalizedSections,
-    rawSections: buildRawSectionView({ sections, requirementGroups, technicalSkills: extractedSkills.technicalSkills, softSkills: extractedSkills.softSkills }),
+    rawSections: buildRawSectionView({ sections, requirementGroups, technicalSkills: technicalSkillsForRubric, softSkills: extractedSkills.softSkills }),
     normalized: normalizedSections,
     evidenceMap,
     diagnostics: {
