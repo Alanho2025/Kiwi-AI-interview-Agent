@@ -11,6 +11,7 @@ const truncate = (value = '', maxLength = 220) => {
 const skillLabels = (skills = []) => ensureArray(skills)
   .map((item) => (typeof item === 'string' ? item : item?.label || item?.name || ''))
   .map(normalizeText)
+  .map((item) => item.toLowerCase())
   .filter(Boolean);
 
 const evidenceText = (item) => (typeof item === 'string' ? item : item?.text || item?.evidence || item?.summary || '');
@@ -49,7 +50,10 @@ const buildStrongestEvidence = (evidenceProfile = {}) => {
   const evidenceItems = ensureArray(evidenceProfile.evidenceItems);
   const projectItems = evidenceItems.filter((item) => /project/i.test(item.sourceType || ''));
   const experienceItems = evidenceItems.filter((item) => item.sourceType === 'experience');
-  const otherItems = evidenceItems.filter((item) => !/project/i.test(item.sourceType || '') && item.sourceType !== 'experience');
+  const otherItems = evidenceItems.filter((item) =>
+    !/project/i.test(item.sourceType || '')
+    && item.sourceType !== 'experience'
+    && item.evidenceStrength !== 'weak');
   const orderedEvidenceItems = [...projectItems, ...experienceItems, ...otherItems].map((item) => ({
     label: evidenceLabel(item),
     sourceType: item.sourceType || 'cv',

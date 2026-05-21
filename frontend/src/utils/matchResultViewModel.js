@@ -27,8 +27,14 @@ const getDetail = (item = {}) => {
   return detail
     .replace(/section=[^;]+;\s*/i, '')
     .replace(/capabilities=[^;]+;\s*/i, '')
+    .replace(/evidenceStrength=[^;]+;\s*/i, '')
     .replace(/\s+/g, ' ')
     .trim();
+};
+
+const extractEvidenceStrength = (item = {}) => {
+  const match = String(item.notes || item.detail || '').match(/evidenceStrength=([^;]+)/i);
+  return match?.[1]?.trim() || '';
 };
 
 const joinLabels = (items = [], limit = 2) => items
@@ -183,6 +189,7 @@ export const buildMatchResultViewModel = (analysisResult = {}, matchRate = 0) =>
   const gaps = Array.isArray(explanation.gaps) ? explanation.gaps : [];
   const risks = Array.isArray(explanation.risks) ? explanation.risks : [];
   const rawRequirementChecks = Array.isArray(analysisResult?.requirementChecks) ? analysisResult.requirementChecks : [];
+  const matchingDetails = analysisResult?.matchingDetails || {};
   const decisionKey = analysisResult?.decision?.label || 'manual_review';
   const decision = decisionCopy[decisionKey] || {
     label: sentenceCase(decisionKey || 'manual_review'),
@@ -216,6 +223,7 @@ export const buildMatchResultViewModel = (analysisResult = {}, matchRate = 0) =>
         meta: `${sentenceCase(item.type || 'requirement')} · ${sentenceCase(item.importance || 'medium')} importance`,
         reason: getDetail(item) || status.reason,
         evidence: getEvidence(item),
+        evidenceStrength: extractEvidenceStrength(item),
       };
     });
 
@@ -236,5 +244,10 @@ export const buildMatchResultViewModel = (analysisResult = {}, matchRate = 0) =>
       .slice(0, 3)
       .map((item) => buildEvidenceItem(item, 'This is the main area to strengthen or validate in interview.')),
     requirementChecks,
+    evidenceStrengthBreakdown: matchingDetails.evidenceStrengthBreakdown || {},
+    semanticEvidenceMatches: Array.isArray(matchingDetails.semanticEvidenceMatches)
+      ? matchingDetails.semanticEvidenceMatches.slice(0, 5)
+      : [],
+    semanticEvidenceModel: matchingDetails.semanticEvidenceModel || null,
   };
 };

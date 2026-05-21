@@ -34,6 +34,7 @@ export const buildAnalyzeResult = ({
   transitionProfile = {},
   cvEvidenceProfile = {},
   cvAnalysis = {},
+  semanticEvidenceContext = {},
 }) => {
   const confidence = calculateConfidence({ parsedCvProfile, macroScores, microScores, requirementChecks, cvEvidenceProfile });
   const decision = deriveDecision({ overallScore: scoreBreakdown.overallScore, confidence, hardGateFailed: hasHardGateFailure(requirementChecks) });
@@ -66,6 +67,12 @@ export const buildAnalyzeResult = ({
     },
     capabilityMatches: unique(requirementChecks.flatMap((item) => item.notes ? [item.notes] : [])),
     achievementSignals: cvEvidenceProfile.achievements || [],
+    semanticEvidenceMatches: semanticEvidenceContext.matches || [],
+    semanticEvidenceModel: {
+      model: semanticEvidenceContext.model || 'none',
+      scorer: semanticEvidenceContext.scorer || 'none',
+    },
+    evidenceStrengthBreakdown: semanticEvidenceContext.evidenceStrengthBreakdown || {},
     transitionProfile,
     scoreDimensions: {
       technicalReadiness: transitionProfile.technicalReadiness ?? 0,

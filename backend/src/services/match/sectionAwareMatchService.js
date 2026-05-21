@@ -44,6 +44,7 @@ const LABEL_ALIASES = {
   'software engineering': ['software developer', 'software development', 'engineering'],
   'computer science': ['software engineering', 'information technology', 'information systems'],
   'tertiary qualification': ['bachelor', 'master', 'degree', 'university'],
+  'api development': ['rest endpoints', 'rest api', 'rest apis', 'api endpoints', 'backend endpoints'],
 };
 
 export const inferMatchKind = (label = '', criterionType = 'micro') => {
