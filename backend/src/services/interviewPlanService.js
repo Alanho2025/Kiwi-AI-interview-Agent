@@ -50,7 +50,9 @@ Settings: ${JSON.stringify(settings)}
 CV Text:\n${String(cvText || '').slice(0, 1800)}\n\nJD Text:\n${String(jdText || '').slice(0, 1800)}`;
 
   try {
-    const { content: responseText } = await callDeepSeek(prompt, 'You output valid JSON only.');
+    const { content: responseText } = await callDeepSeek(prompt, 'You output valid JSON only.', {
+      usageMetadata: { stage: 'cv_jd_match', operation: 'llm_chat', feature: 'interview_plan' },
+    });
     const result = JSON.parse(extractJsonObject(responseText));
 
     return validateInterviewPlan({

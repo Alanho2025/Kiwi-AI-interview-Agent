@@ -1,5 +1,7 @@
 ## 1) PostgreSQL 適合放什麼
 
+Current code alignment: PostgreSQL schema setup is implemented in `backend/src/db/initPostgresSchema.js`. The current tables include the stable business entities listed below plus privacy/security support tables and pgvector `document_chunks`.
+
 適合放這種：
 
 - user account
@@ -23,6 +25,8 @@
 
 ## 2) MongoDB 適合放什麼
 
+Current code alignment: MongoDB/Mongoose models are implemented under `backend/src/db/models/`. The project currently stores AI artifacts including document content, normalized CV/JD records, match analysis records, interview plans, transcripts, reports, feedback detail, AI logs, token usage, user coaching memory, and AI usage events.
+
 適合放這種：
 
 - 原始 parsing 結果
@@ -45,6 +49,8 @@
 ---
 
 ## 3) PDF / file storage 適合放什麼
+
+Current code alignment: local file storage is implemented through `backend/src/services/storageService.js`, with metadata persisted through `backend/src/services/fileRepositoryService.js`.
 
 適合放：
 
@@ -507,6 +513,8 @@ interview_sessions.session_id
 ---
 
 # 四、你這個專案最推薦的拆法
+
+Current status: this split is now the implemented direction, not only a recommendation. Remaining work is retention cleanup, account-wide deletion, encryption-at-rest guarantees, and full ownership/security test coverage.
 
 如果你要我直接幫你做可開發版本，我會推薦：
 

@@ -5,18 +5,14 @@
  */
 
 import { TokenUsage } from '../db/models/tokenUsageModel.js';
+import { DEEPSEEK_CHAT_PRICING, calculateDeepSeekCost } from '../config/aiUsagePricing.js';
 
-// DeepSeek Chat pricing (as of 2025): https://api-docs.deepseek.com/quick_start/pricing
 const PRICING = {
-  inputPer1M:  0.14,   // $0.14 / 1M prompt tokens
-  outputPer1M: 0.28,   // $0.28 / 1M completion tokens
+  inputPer1M: DEEPSEEK_CHAT_PRICING.inputCacheMissPer1M,
+  outputPer1M: DEEPSEEK_CHAT_PRICING.outputPer1M,
 };
 
-const calcCost = (promptTokens, completionTokens) => {
-  const inputCost  = (promptTokens     / 1_000_000) * PRICING.inputPer1M;
-  const outputCost = (completionTokens  / 1_000_000) * PRICING.outputPer1M;
-  return Number((inputCost + outputCost).toFixed(8));
-};
+const calcCost = (promptTokens, completionTokens) => calculateDeepSeekCost({ promptTokens, completionTokens });
 
 /**
  * Record a single DeepSeek API call's token usage.

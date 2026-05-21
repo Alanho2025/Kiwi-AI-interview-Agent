@@ -24,6 +24,7 @@ import { saveBufferToLocalStorage } from '../services/storageService.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { badRequest, notFound } from '../utils/appError.js';
 import { logger, getRequestLogMeta } from '../utils/logger.js';
+import { recordLocalUsage } from '../services/aiUsageTrackingService.js';
 
 export const uploadCV = asyncHandler(async (req, res) => {
   if (!req.file) {
@@ -89,6 +90,17 @@ export const uploadCV = asyncHandler(async (req, res) => {
   });
 
   const fileMetadata = await getCvRecordById(fileId, user.id);
+  await recordLocalUsage({
+    userId: user.id,
+    stage: 'cv_parse',
+    operation: 'local_parse',
+    metadata: {
+      cvId: fileId,
+      fileSizeBytes: req.file.size,
+      parser: extraction.metadata?.parser || null,
+      parseConfidence: cvProfile.confidence || null,
+    },
+  });
   await createAuditLog({
     actorUserId: user.id,
     targetUserId: user.id,
