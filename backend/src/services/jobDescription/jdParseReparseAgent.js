@@ -93,6 +93,7 @@ export const buildJdReparseOverridesWithDeepSeek = async ({ rawJD = '', previous
     systemInstruction: 'You are a strict JD reparse agent. Return valid JSON only. No prose.',
     fallback,
     maxRetries: 1,
+    usageMetadata: { stage: 'jd_parse', feature: 'jd_reparse' },
   });
 
   const normalized = normalizeOverrides(aiOverrides);

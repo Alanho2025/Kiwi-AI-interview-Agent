@@ -168,7 +168,16 @@ export const processRealtimeVoiceTurn = async ({
       const questionId = latestAiTurn?.questionId || null;
       enqueueBackgroundJob('archive-realtime-assistant-audio', async () => {
         try {
-          const synthesis = await synthesizeSpeech({ text: assistantText, voiceName });
+          const synthesis = await synthesizeSpeech({
+            text: assistantText,
+            voiceName,
+            usageContext: {
+              userId,
+              sessionId: session.id,
+              stage: 'interview',
+              source: 'realtime_background_archive',
+            },
+          });
           const savedOutputAudio = await saveBufferToLocalStorage({
             buffer: synthesis.audioBuffer,
             originalFilename: 'assistant-realtime-reply.mp3',
@@ -185,7 +194,16 @@ export const processRealtimeVoiceTurn = async ({
       }, { sessionId: session.id, questionId });
     } else {
       try {
-        const synthesis = await trace.measure('tts_synthesis', () => synthesizeSpeech({ text: assistantText, voiceName }));
+        const synthesis = await trace.measure('tts_synthesis', () => synthesizeSpeech({
+          text: assistantText,
+          voiceName,
+          usageContext: {
+            userId,
+            sessionId: session.id,
+            stage: 'interview',
+            source: 'realtime_voice_turn',
+          },
+        }));
         trace.mark('adaptive.tts_first_audio', { mode: 'full_synthesis' });
         const aiTurns = updatedSession?.transcript?.filter((turn) => turn.role === 'ai') || [];
         const latestAiTurn = aiTurns[aiTurns.length - 1] || null;

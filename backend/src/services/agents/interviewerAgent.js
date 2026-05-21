@@ -349,12 +349,16 @@ GENERAL GUIDELINES:
 Generate your verbal response now:`;
 
   if (!onSentence) {
-    const result = await callDeepSeek(prompt, systemInstruction);
+    const result = await callDeepSeek(prompt, systemInstruction, {
+      usageMetadata: { stage: 'interview', operation: 'llm_chat', feature: 'interviewer_response' },
+    });
     return result.content;
   }
 
 
-  const stream = callDeepSeekStream(prompt, systemInstruction);
+  const stream = callDeepSeekStream(prompt, systemInstruction, {
+    usageMetadata: { stage: 'interview', operation: 'llm_chat', feature: 'interviewer_stream_response' },
+  });
   let fullText = '';
   let currentSentence = '';
   let sentenceIndex = 0;

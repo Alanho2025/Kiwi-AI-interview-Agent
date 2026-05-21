@@ -90,6 +90,7 @@ export const reviewMatchWithDeepSeek = async ({ jdRubric = {}, cvProfile = {}, m
     systemInstruction: 'You are a strict CV-JD match output controller. Return valid JSON only. No prose.',
     fallback,
     maxRetries: 1,
+    usageMetadata: { stage: 'cv_jd_match', feature: 'match_critic' },
   });
 
   return normalizeSafeguardReview(aiReview, fallback);

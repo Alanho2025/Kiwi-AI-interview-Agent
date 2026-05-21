@@ -2,6 +2,8 @@
 
 Review date: 2026-03-31
 
+Status note: this is now a historical review. Several high-risk items below have since been implemented or partially implemented. For current status, use `docs/code-document-alignment.md` and `README.md`.
+
 ## Summary
 
 The project is now in a workable split frontend/backend state and the core CV-to-JD comparison uses parsed document text instead of mock text. The highest remaining risks are persistence, automated testing, and UX-level error handling.
@@ -12,13 +14,20 @@ The project is now in a workable split frontend/backend state and the core CV-to
 
 Severity: High
 
-- Sessions and uploaded CV metadata are stored in memory only.
-- Restarting the backend loses all session state and recent CVs.
+Current status: largely resolved, with remaining lifecycle hardening gaps.
 
-Affected files:
+- PostgreSQL schema setup now exists in `backend/src/db/initPostgresSchema.js`.
+- MongoDB models now exist under `backend/src/db/models/`.
+- Uploaded file metadata, sessions, CV document content, transcripts, reports, usage events, and audit logs now have persistence paths.
+- Remaining gaps are retention cleanup, account-wide deletion, encryption-at-rest guarantees, and complete ownership tests.
 
-- `backend/services/sessionService.js`
-- `backend/controllers/uploadController.js`
+Current references:
+
+- `backend/src/db/initPostgresSchema.js`
+- `backend/src/controllers/uploadController.js`
+- `backend/src/services/sessionService.js`
+- `backend/src/services/fileRepositoryService.js`
+- `backend/src/db/models/`
 
 Recommendation:
 
@@ -29,13 +38,16 @@ Recommendation:
 
 Severity: Medium
 
-- The match score now compares actual uploaded CV text and JD text.
-- However, the scoring model is still based on keyword, skill, phrase, and seniority heuristics.
-- It is more reliable than a model-only estimate, but it is not yet a semantic ranking engine.
+Current status: still relevant, but the implementation is more structured than this original note.
 
-Affected file:
+- The match layer now includes guarded matching, capability matching, semantic evidence, transition-aware scoring, achievement boosting, explanation building, and validation target construction.
+- It still should not be presented as universally calibrated across all industries or random JDs.
 
-- `backend/services/matchService.js`
+Current references:
+
+- `backend/src/services/match/`
+- `backend/src/services/cv/cvAnalysisService.js`
+- `backend/src/services/cv/matchAnalysisRecordService.js`
 
 Recommendation:
 
@@ -46,8 +58,10 @@ Recommendation:
 
 Severity: Medium
 
-- Errors and confirmations in the frontend still rely heavily on `alert()` and `window.confirm()`.
-- This makes the product feel less professional and harder to scale.
+Current status: partially resolved.
+
+- The analysis and interview pages now use product UI components such as status banners, workflow cards, panels, and report sections.
+- This should still be reviewed before final submission because privacy and compliance text is ahead of some backend guarantees.
 
 Affected files:
 
@@ -63,7 +77,12 @@ Recommendation:
 
 Severity: Medium
 
-- The repo currently has no unit, integration, or API tests for the parsing, matching, or interview flows.
+Current status: resolved for core robustness coverage, still incomplete for full E2E/live-provider coverage.
+
+- Backend robustness tests exist under `backend/tests/robustness/`.
+- Frontend tests exist under `frontend/src/**/__tests__/` and `frontend/src/**/*.test.*`.
+- Real/mocked eval runners exist under `backend/eval/runners/`.
+- Missing coverage remains around live browser + Azure voice E2E, wider CV-JD match calibration, and route-complete ownership tests.
 
 Recommendation:
 
@@ -77,11 +96,16 @@ Recommendation:
 
 Severity: Low
 
-- Interviews can continue conceptually beyond the intended scripted flow because there is no final enforcement around question exhaustion or completion criteria.
+Current status: partially resolved.
 
-Affected file:
+- Session start, reply, pause, resume, repeat, end, elapsed time, question limits, time-limited capacity, and completion state now exist in the interview/session services.
+- Further hardening is still useful around ownership tests and live voice edge cases.
 
-- `backend/controllers/interviewController.js`
+Current references:
+
+- `backend/src/controllers/interviewController.js`
+- `backend/src/services/interview/`
+- `backend/src/config/interviewBlueprints.js`
 
 Recommendation:
 

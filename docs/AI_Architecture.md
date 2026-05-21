@@ -2,44 +2,62 @@
 
 ## 1. Executive Summary
 
-This document describes the **Compound AI System** architecture of the Kiwi AI Interview Agent. The system goes beyond simple "prompt-in / prompt-out" wrappers by orchestrating multiple distinct AI components to form an autonomous, agentic interview experience.
+This document describes the **Compound AI System** architecture of the Kiwi AI Interview Agent as it exists in the current codebase. The system goes beyond simple "prompt-in / prompt-out" wrappers by orchestrating parsing, retrieval, interview planning, voice transport, report generation, report QA, and usage-cost tracking across multiple services.
 
-Our solution integrates three major AI/Data components:
-1. **Large Language Model (LLM)**: DeepSeek (via direct JSON API) handles complex reasoning, conversation flow planning, question generation, and candidate evaluation.
-2. **Vector Database**: PostgreSQL with the `pgvector` extension (hosted on Neon) provides persistent semantic memory and fast Retrieval-Augmented Generation (RAG).
-3. **External Cognitive APIs**: Azure Speech Services provide real-time duplex Speech-to-Text (STT) and Text-to-Speech (TTS) to interface with users in a highly natural, voice-driven way.
+The implementation integrates four major AI/Data components:
+1. **Large Language Model (LLM)**: DeepSeek handles structured JSON generation, interview turn planning, report drafting, report QA, and safeguard critic/reparse paths.
+2. **Vector/Retrieval Store**: PostgreSQL with `pgvector` stores runtime `document_chunks` and supports session/global retrieval.
+3. **Flexible AI Artifact Store**: MongoDB stores AI logs, reports, transcripts, plans, match records, normalized CV/JD artifacts, and usage events.
+4. **External Speech API**: Azure Speech Services provide realtime STT and TTS for the product-wired voice flow.
 
-By combining an LLM planner with a dedicated Vector Database and real-time sensory inputs (Azure Voice), the system creates a deeply integrated, stateful, and "hard-to-replicate" technical architecture.
+By combining an LLM planner, deterministic service-layer guards, pgvector retrieval, MongoDB AI artifacts, and Azure voice transport, the system creates a stateful interview workflow rather than a generic chatbot.
 
 ---
 
 ## 2. Component Integration Details
 
 ### A. Vector Database (pgvector on PostgreSQL)
-Instead of relying purely on an LLM's finite context window, we employ a true Vector Database to store and retrieve contextual knowledge (CVs, Job Descriptions, past interview turns). 
+Instead of relying purely on an LLM's finite context window, the system uses PostgreSQL `document_chunks` for runtime retrieval over CV, JD, session, and imported interview knowledge chunks.
 
 **Implementation Strategy:**
-- **Schema**: A dedicated `document_chunks` table using the `vector(32)` type.
-- **Embedding**: Text features are embedded and mapped to a 32-dimensional vector space (designed to be highly localized and fast).
-- **Retrieval Mechanism**: We use PostgreSQL's native cosine distance operator (`<=>`) to semantically match the candidate's speech to the rubric in real time.
-- **Code Reference**: See `backend/src/services/ragRetrievalService.js` for the exact SQL querying mechanism:
+- **Schema**: `backend/src/db/initPostgresSchema.js` creates `document_chunks` with `embedding vector(256)`.
+- **Embedding**: `backend/src/services/embeddingService.js` uses a deterministic 256-dimensional weighted hash embedding. This is appropriate for an MVP retrieval experiment, but should not be described as equivalent to a production semantic embedding model.
+- **Retrieval Mechanism**: `backend/src/services/ragRetrievalService.js` and the newer retrieval services use PostgreSQL cosine distance plus keyword/source-quality logic to retrieve relevant context.
+- **Code Reference**: Runtime vector retrieval uses SQL shaped like:
   ```sql
   SELECT id, text_content, 1 - (embedding <=> $1) AS semantic
-  FROM document_chunks ORDER BY embedding <=> $1 LIMIT 100
+  FROM document_chunks
+  ORDER BY embedding <=> $1
+  LIMIT 100
   ```
 
 ### B. LLM & Custom Agentic Framework (DeepSeek)
-While off-the-shelf frameworks like LangChain or AutoGen exist, we have developed our own **Custom Agentic Framework** to maintain strict control over latency, determinism, and business logic. As approved by the course requirements, our customized LLM-based agentic approach focuses on *true need* rather than framework lock-in.
+The codebase uses a custom service-layer agentic framework rather than depending on LangChain or AutoGen as the primary control layer. This keeps latency-sensitive interview behavior, ownership checks, persistence, and deterministic product rules close to the application code.
 
 Our Custom Agentic Framework features:
-- **Master-Sub Agent Orchestration**: A Master Planner (`actionPlanner.js`) controls specialized sub-agents (`interviewerAgent.js`, `reportQaAgent.js`).
-- **ReAct-style Reasoning**: Agents use thought-action-observation loops to decide whether to probe, move on, or correct the transcript.
-- **Agentic Self-Correction (Safeguards)**: We implement a strict Critic-Gate-Reparse pattern. When a Job Description is parsed, a `CriticAgent` evaluates the output against heuristic rules. If it detects hallucinations, a `GateService` rejects the output and triggers a `ReparseAgent` to correct the errors autonomously.
+- **Master task coordination**: `backend/src/services/masterAiService.js` routes high-level tasks such as next interview turn, report generation, and report QA.
+- **AI control layer**: `backend/src/services/aiControl/` contains action planning, evidence bundle construction, trajectory tracking, reflection, memory, mode guards, and action execution.
+- **Specialized agents**: `backend/src/services/agents/` contains interviewer, retrieval, report generator, and report QA agents.
+- **JD safeguard loop**: `backend/src/services/jobDescription/` implements critic/gate/reparse safeguards for structured JD parsing.
+- **Match safeguard loop**: `backend/src/services/match/` contains guarded matching, scoring, explanation, validation target building, and critic support.
 
 ### C. External API (Azure Speech Services)
-To simulate a real interview, the LLM must "hear" and "speak". 
-- **Duplex Voice WebSocket**: We integrate `Azure Speech SDK` via a custom WebSocket (`duplexVoiceSocket.js`) that streams raw PCM audio.
-- **Latency Control**: Azure provides <500ms TTFB (Time to First Byte) audio streaming, keeping the conversation fluid and realistic.
+To simulate a real interview, the product-wired voice mode lets the system listen and speak through Azure Speech.
+- **Live STT WebSocket**: `backend/src/api/realtimeVoiceSocket.js` exposes `/api/interview/:sessionId/voice/live`.
+- **Duplex Voice WebSocket**: `backend/src/api/duplexVoiceSocket.js` exposes `/api/interview/:sessionId/voice/duplex` and delegates STT, adaptive turn processing, TTS, and barge-in behavior to `backend/src/services/voice/`.
+- **Frontend voice shell**: `frontend/src/hooks/useVoiceInterviewSession.js` combines microphone permission, realtime PCM streaming, VAD, duplex socket control, TTS playback queue, network-quality checks, latency trace summaries, and session recording upload.
+- **Current status**: voice is product-wired, but full proof still depends on live Azure Speech credentials, authenticated WebSocket access, browser microphone permission, and an in-progress interview session.
+
+### D. Usage Cost and Commercial Stress Test
+
+The current codebase also tracks measured AI/service usage for report-ready commercial analysis.
+
+- `backend/src/db/models/aiUsageEventModel.js` stores usage events for DeepSeek, Azure Speech, and local stages.
+- `backend/src/services/aiUsageTrackingService.js` aggregates session/user cost, provider breakdown, stage breakdown, and commercial stress payloads.
+- `backend/src/config/aiUsagePricing.js` centralizes DeepSeek and Azure Speech pricing assumptions.
+- `frontend/src/components/report/CommercialStressTestSection.jsx` displays the execution cost and human-time comparison in the report page.
+
+This is implemented as an estimation layer based on recorded events. It should not be described as a full finance-grade billing system.
 
 ---
 
@@ -92,5 +110,13 @@ Provide a JSON response with:
 - "failure_reasons": array of strings explaining exactly what went wrong.
 ```
 
-## 4. Conclusion
-By strictly enforcing the separation between Memory (`pgvector`), Logic (`DeepSeek LLM`), and Senses (`Azure Speech`), Kiwi AI Interview Agent demonstrates a robust, enterprise-grade Compound AI Architecture that acts autonomously and self-corrects based on predefined guardrails.
+## 4. Current Implementation Boundaries
+
+- Text interview mode is the safest demo path.
+- Voice mode is wired through frontend and backend, but still needs live E2E verification in the target deployment environment.
+- The retrieval embedding is deterministic and local; production-grade semantic retrieval would require a real embedding model migration plan.
+- Privacy and compliance claims must stay conservative because retention workers, account-wide deletion, and encryption-at-rest guarantees are not fully implemented.
+
+## 5. Conclusion
+
+Kiwi AI Interview Agent is best framed as a compound AI interview coaching workflow: it combines CV/JD parsing, retrieval, guarded matching, adaptive interview control, voice transport, report generation, QA, and cost tracking. The core product value is not "voice chatbot"; it is personalised, evidence-based interview practice grounded in the user's CV and target JD.

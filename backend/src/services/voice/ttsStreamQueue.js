@@ -16,6 +16,7 @@ export const streamAssistantSpeech = async ({
   bargeInController,
   index = 0,
   speechToken = null,
+  usageContext = null,
 } = {}) => {
   const cleanText = String(text || '').trim();
   if (!cleanText || !sendJson) return null;
@@ -23,7 +24,7 @@ export const streamAssistantSpeech = async ({
 
   try {
     console.log(`[TTS-TRACE] Requesting speech synthesis for text: "${cleanText.substring(0, 30)}..."`);
-    const synthesis = await synthesizeSpeech({ text: cleanText, voiceName });
+    const synthesis = await synthesizeSpeech({ text: cleanText, voiceName, usageContext });
     console.log(`[TTS-TRACE] Synthesis received, audio length: ${synthesis.audioBuffer.length} bytes`);
     if (speechToken && !bargeInController?.isTokenActive?.(speechToken)) {
       console.log(`[TTS-TRACE] Token inactive after synthesis, discarding audio.`);
