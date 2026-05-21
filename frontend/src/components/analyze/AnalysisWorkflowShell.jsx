@@ -17,8 +17,8 @@ const StepIcon = ({ complete, active, blocked, warning }) => {
 
 export function AnalysisWorkflowShell({ steps = [], activeStepId, onStepChange }) {
   return (
-    <div className="rounded-2xl border border-theme glass p-3 shadow-sm">
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-6">
+    <div className="rounded-2xl border border-theme glass px-3 py-2 shadow-sm">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         {steps.map((step) => {
           const active = step.id === activeStepId;
           const tone = step.blocked ? 'blocked' : step.warning ? 'warning' : step.complete ? 'complete' : active ? 'active' : 'blocked';
@@ -29,18 +29,18 @@ export function AnalysisWorkflowShell({ steps = [], activeStepId, onStepChange }
               disabled={step.blocked}
               onClick={() => onStepChange?.(step.id)}
               className={cn(
-                'flex min-h-20 items-start gap-3 rounded-xl border px-3 py-3 text-left transition-colors',
+                'flex min-h-14 items-center gap-2.5 rounded-xl border px-3 py-2 text-left transition-colors',
                 toneStyles[tone],
                 active && 'ring-2 ring-accent/15',
                 !step.blocked && 'hover:border-theme'
               )}
             >
-              <span className="mt-0.5 shrink-0">
+              <span className="shrink-0">
                 <StepIcon complete={step.complete} active={active} blocked={step.blocked} warning={step.warning} />
               </span>
               <span className="min-w-0">
                 <span className="block text-sm font-semibold">{step.label}</span>
-                <span className="mt-1 block text-xs leading-5 opacity-80">{step.detail}</span>
+                <span className="mt-0.5 block truncate text-xs opacity-80">{step.detail}</span>
               </span>
             </button>
           );
