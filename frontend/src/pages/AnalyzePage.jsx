@@ -18,6 +18,7 @@ import { JobContextCard } from '../components/analyze/JobContextCard.jsx';
 import { NZSettingsCard } from '../components/analyze/NZSettingsCard.jsx';
 import { AnalysisStatusCard } from '../components/analyze/AnalysisStatusCard.jsx';
 import { AnalyzeActionsCard } from '../components/analyze/AnalyzeActionsCard.jsx';
+import { AnalysisWorkflowShell } from '../components/analyze/AnalysisWorkflowShell.jsx';
 import { StatusBanner } from '../components/common/StatusBanner.jsx';
 import { uploadCV, getRecentCVs, selectCV, saveReviewedCvProfile, deleteCv } from '../api/uploadApi.js';
 import { paraphraseJD, matchCV, generateInterviewPlan } from '../api/analyzeApi.js';
@@ -27,7 +28,6 @@ import {
   DEFAULT_ANALYZE_SETTINGS,
   loadAnalyzeDraft,
   persistAnalyzeDraft,
-  resolveAnalyzeStep,
   sanitizeAnalyzeMode,
   sanitizeAnalyzeSettings,
 } from '../utils/analyzeDraft.js';
@@ -76,22 +76,64 @@ const firstNonEmptyObject = (...values) => values.find(isNonEmptyObject) || null
 const ANALYZE_TOUR_STEPS = [
   {
     target: '#tour-analyze-cv',
-    content: 'First, upload your CV or select a recent one. The AI will use this to understand your background.',
+    content: 'Start by uploading a CV or choosing a recent one. Then review the parsed CV fields before moving to the JD step.',
     placement: 'bottom',
     disableBeacon: true,
   },
   {
-    target: '#tour-analyze-jd',
-    content: 'Next, paste the Job Description. KiwiCoach will compare this with your CV to generate tailored interview questions.',
+    target: '#tour-analyze-workflow',
+    content: 'Use this preparation pipeline to move through CV review, JD review, session setup, device check for voice mode, and the final match result.',
     placement: 'bottom',
   },
   {
     target: '#tour-analyze-actions',
-    content: 'Once both are ready, click "Generate Plan". After it finishes matching, you can click "Start Interview". Go ahead and upload a CV now!',
+    content: 'The checklist shows what is still blocking the match. Once every required item is ready, generate the match analysis and start the interview.',
     placement: 'top',
     spotlightClicks: true,
   }
 ];
+
+const WORKFLOW_STEP_IDS = {
+  CV_UPLOAD: 'cv_upload',
+  CV_REVIEW: 'cv_review',
+  JD_INPUT: 'jd_input',
+  JD_REVIEW: 'jd_review',
+  SESSION_SETUP: 'session_setup',
+  MATCH_RESULT: 'match_result',
+};
+
+const workflowHeaderSteps = (sessionMode) => [
+  { id: 1, label: 'CV' },
+  { id: 2, label: 'CV Check' },
+  { id: 3, label: 'JD' },
+  { id: 4, label: 'JD Check' },
+  { id: 5, label: sessionMode === 'voice' ? 'Device' : 'Setup' },
+  { id: 6, label: 'Match' },
+];
+
+const resolveDraftWorkflowStep = (draft = {}) => {
+  const selectedCvId = draft.selectedCV?.id;
+  const hasSelectedCV = Boolean(selectedCvId);
+  const isDraftCvVerified = Boolean(
+    hasSelectedCV
+    && draft.cvReviewStatus === 'verified'
+    && draft.cvHumanReviewedFileId === selectedCvId
+  );
+  const rawJDText = normalizeJDText(draft.rawJD);
+  const hasDraftJDSummary = Boolean(
+    draft.structuredJD
+    && draft.structuredJDRubric
+    && rawJDText
+    && rawJDText === normalizeJDText(draft.summarizedRawJD)
+  );
+  const isDraftJDVerified = Boolean(hasDraftJDSummary && draft.jdReviewStatus === 'verified');
+
+  if (!hasSelectedCV) return WORKFLOW_STEP_IDS.CV_UPLOAD;
+  if (!isDraftCvVerified) return WORKFLOW_STEP_IDS.CV_REVIEW;
+  if (!rawJDText) return WORKFLOW_STEP_IDS.JD_INPUT;
+  if (!isDraftJDVerified) return hasDraftJDSummary ? WORKFLOW_STEP_IDS.JD_REVIEW : WORKFLOW_STEP_IDS.JD_INPUT;
+  return WORKFLOW_STEP_IDS.SESSION_SETUP;
+};
 
 export function AnalyzePage() {
   const navigate = useNavigate();
@@ -119,11 +161,11 @@ export function AnalyzePage() {
   const [deletingCvId, setDeletingCvId] = useState('');
   const [pageStatus, setPageStatus] = useState(null);
   const [voiceDeviceCheck, setVoiceDeviceCheck] = useState(DEFAULT_VOICE_DEVICE_CHECK);
+  const [activeWorkflowStep, setActiveWorkflowStep] = useState(WORKFLOW_STEP_IDS.CV_UPLOAD);
   const isGeneratingPlanRef = useRef(false);
 
   const { startTour, globalTourStep, advanceGlobalTour } = useTour();
 
-  const currentStep = resolveAnalyzeStep(analysisStatus);
   const isVoiceReady = voiceDeviceCheck?.browser?.status === 'ok'
     && voiceDeviceCheck?.mic?.status === 'ok'
     && voiceDeviceCheck?.speaker?.status === 'ok';
@@ -144,6 +186,65 @@ export function AnalyzePage() {
   const isJdHumanVerified = Boolean(hasCurrentJDSummary && jdReviewStatus === 'verified');
   const canUseCurrentJDSummary = Boolean(hasCurrentJDSummary && jdReviewStatus === 'verified');
   const isCvHumanVerified = Boolean(selectedCV?.id && cvReviewStatus === 'verified' && cvHumanReviewedFileId === selectedCV.id);
+  const isSessionSetupReady = sessionMode !== 'voice' || isVoiceReady;
+  const workflowStepOrder = [
+    WORKFLOW_STEP_IDS.CV_UPLOAD,
+    WORKFLOW_STEP_IDS.CV_REVIEW,
+    WORKFLOW_STEP_IDS.JD_INPUT,
+    WORKFLOW_STEP_IDS.JD_REVIEW,
+    WORKFLOW_STEP_IDS.SESSION_SETUP,
+    WORKFLOW_STEP_IDS.MATCH_RESULT,
+  ];
+  const currentStep = workflowStepOrder.indexOf(activeWorkflowStep) + 1 || 1;
+  const workflowSteps = [
+    {
+      id: WORKFLOW_STEP_IDS.CV_UPLOAD,
+      label: 'Upload CV',
+      detail: selectedCV ? selectedCV.name : 'Upload or choose a recent CV.',
+      complete: Boolean(selectedCV),
+      blocked: false,
+    },
+    {
+      id: WORKFLOW_STEP_IDS.CV_REVIEW,
+      label: 'Check CV Parse',
+      detail: isCvHumanVerified ? 'Reviewed CV profile is ready.' : 'Review extracted evidence before JD matching.',
+      complete: isCvHumanVerified,
+      blocked: !selectedCV,
+      warning: Boolean(selectedCV && !isCvHumanVerified),
+    },
+    {
+      id: WORKFLOW_STEP_IDS.JD_INPUT,
+      label: 'Paste JD',
+      detail: rawJD.trim() ? 'JD text is ready to summarise.' : 'Paste the target job description.',
+      complete: Boolean(rawJD.trim()),
+      blocked: !isCvHumanVerified,
+    },
+    {
+      id: WORKFLOW_STEP_IDS.JD_REVIEW,
+      label: 'Check JD Parse',
+      detail: isJdHumanVerified ? 'Reviewed JD summary is ready.' : 'Summarise and review parsed JD fields.',
+      complete: isJdHumanVerified,
+      blocked: !rawJD.trim() || !isCvHumanVerified,
+      warning: Boolean(hasCurrentJDSummary && !isJdHumanVerified),
+    },
+    {
+      id: WORKFLOW_STEP_IDS.SESSION_SETUP,
+      label: sessionMode === 'voice' ? 'Device Check' : 'Session Setup',
+      detail: sessionMode === 'voice'
+        ? isVoiceReady ? 'Voice devices are ready.' : 'Check microphone and speaker.'
+        : 'Choose interview mode and question settings.',
+      complete: isSessionSetupReady,
+      blocked: !isJdHumanVerified,
+      warning: Boolean(sessionMode === 'voice' && !isVoiceReady && isJdHumanVerified),
+    },
+    {
+      id: WORKFLOW_STEP_IDS.MATCH_RESULT,
+      label: 'Match Result',
+      detail: generatedSessionId ? 'Interview plan is ready.' : 'Generate match analysis.',
+      complete: Boolean(generatedSessionId),
+      blocked: !isJdHumanVerified || !isSessionSetupReady,
+    },
+  ];
 
   useEffect(() => {
     // Trigger if the tour is meant for this page, or if user jumped here from Home via spotlight click
@@ -162,6 +263,15 @@ export function AnalyzePage() {
     setGeneratedSessionId(null);
   };
 
+  const handleWorkflowStepChange = (stepId) => {
+    const nextStep = workflowSteps.find((step) => step.id === stepId);
+    if (!nextStep || nextStep.blocked) {
+      return;
+    }
+
+    setActiveWorkflowStep(stepId);
+  };
+
   const clearJDSummary = () => {
     setStructuredJD('');
     setStructuredJDRubric(null);
@@ -176,6 +286,10 @@ export function AnalyzePage() {
 
     if (value.trim() !== summarizedRawJD.trim()) {
       clearJDSummary();
+    }
+
+    if ([WORKFLOW_STEP_IDS.JD_REVIEW, WORKFLOW_STEP_IDS.SESSION_SETUP, WORKFLOW_STEP_IDS.MATCH_RESULT].includes(activeWorkflowStep)) {
+      setActiveWorkflowStep(WORKFLOW_STEP_IDS.JD_INPUT);
     }
   };
 
@@ -222,6 +336,7 @@ export function AnalyzePage() {
     setMatchRate(restoredAnalysisResult?.matchScore || null);
     setGeneratedSessionId(session?.id || null);
     setAnalysisStatus('success');
+    setActiveWorkflowStep(WORKFLOW_STEP_IDS.MATCH_RESULT);
     setPageStatus(buildStatusMessage('success', 'Match analysis complete', 'Review the score breakdown before starting the interview session.'));
   }, []);
 
@@ -245,6 +360,7 @@ export function AnalyzePage() {
     setJdReviewStatus(restoredDraft.jdReviewStatus || 'unreviewed');
     setSettings(homeSessionSettings || restoredDraft.settings);
     setSessionMode(sanitizeAnalyzeMode(location.state?.sessionMode || restoredDraft.sessionMode));
+    setActiveWorkflowStep(resolveDraftWorkflowStep(restoredDraft));
 
     const loadResumeSession = async () => {
       if (!resumeSessionId) {
@@ -311,6 +427,7 @@ export function AnalyzePage() {
       setStructuredCVProfile(buildCvReviewFormModel(uploadedCV));
       setCvHumanReviewedFileId('');
       setCvReviewStatus('unreviewed');
+      setActiveWorkflowStep(WORKFLOW_STEP_IDS.CV_REVIEW);
       setPageStatus(buildStatusMessage('success', 'CV uploaded', `${uploadedCV.name} was parsed into a CV profile and is ready for matching.`));
       await refreshRecentCVs();
       return true;
@@ -328,6 +445,7 @@ export function AnalyzePage() {
       setStructuredCVProfile(buildCvReviewFormModel(activeCV));
       setCvHumanReviewedFileId('');
       setCvReviewStatus('unreviewed');
+      setActiveWorkflowStep(WORKFLOW_STEP_IDS.CV_REVIEW);
       setPageStatus(buildStatusMessage('info', 'CV selected', `${activeCV.name} is now the active CV for JD matching.`));
     } catch (error) {
       setPageStatus(buildStatusMessage('error', 'Could not select CV', error.message));
@@ -353,6 +471,7 @@ export function AnalyzePage() {
         setCvHumanReviewedFileId('');
         setCvReviewStatus('unreviewed');
         resetAnalysisState();
+        setActiveWorkflowStep(WORKFLOW_STEP_IDS.CV_UPLOAD);
       }
       await refreshRecentCVs();
       setPageStatus(buildStatusMessage('success', 'CV deleted', `${cv.name} was removed from your recent CVs.`));
@@ -375,6 +494,7 @@ export function AnalyzePage() {
       const jdResponse = await paraphraseJD(rawJD);
       applyStructuredJD(jdResponse, rawJD);
       setAnalysisStatus('idle');
+      setActiveWorkflowStep(WORKFLOW_STEP_IDS.JD_REVIEW);
       const confidence = getJDParseConfidence(jdResponse.structuredJDRubric);
       if (confidence < JD_CONFIDENCE_THRESHOLD) {
         setPageStatus(buildStatusMessage(
@@ -402,11 +522,13 @@ export function AnalyzePage() {
     resetAnalysisState();
     setSettings(safeSettings);
     saveSessionDefaults(safeSettings);
+    setActiveWorkflowStep(WORKFLOW_STEP_IDS.SESSION_SETUP);
   };
 
   const handleSessionModeChange = (nextMode) => {
     resetAnalysisState();
     setSessionMode(sanitizeAnalyzeMode(nextMode));
+    setActiveWorkflowStep(WORKFLOW_STEP_IDS.SESSION_SETUP);
   };
 
   const handleStructuredJDRubricChange = (nextRubric) => {
@@ -416,6 +538,7 @@ export function AnalyzePage() {
     setJdReviewStatus('edited');
     setJdHumanReviewedRawJD('');
     resetAnalysisState();
+    setActiveWorkflowStep(WORKFLOW_STEP_IDS.JD_REVIEW);
   };
 
   const handleStructuredCVProfileChange = (nextProfile) => {
@@ -423,6 +546,7 @@ export function AnalyzePage() {
     setCvReviewStatus('edited');
     setCvHumanReviewedFileId('');
     resetAnalysisState();
+    setActiveWorkflowStep(WORKFLOW_STEP_IDS.CV_REVIEW);
   };
 
   const handleConfirmJDSummary = () => {
@@ -436,6 +560,7 @@ export function AnalyzePage() {
     setStructuredJD(formatStructuredJobDescription(verifiedRubric));
     setJdHumanReviewedRawJD(rawJD);
     setJdReviewStatus('verified');
+    setActiveWorkflowStep(WORKFLOW_STEP_IDS.SESSION_SETUP);
     setPageStatus(buildStatusMessage('success', 'JD summary reviewed', 'KiwiCoach will use this human-reviewed JD summary for CV-JD matching.'));
   };
 
@@ -454,6 +579,7 @@ export function AnalyzePage() {
       setCvHumanReviewedFileId(reviewedCV.id);
       setCvReviewStatus('verified');
       resetAnalysisState();
+      setActiveWorkflowStep(WORKFLOW_STEP_IDS.JD_INPUT);
       setPageStatus(buildStatusMessage('success', 'CV parse reviewed', 'KiwiCoach will use this reviewed CV profile for CV-JD matching.'));
     } catch (error) {
       setPageStatus(buildStatusMessage('error', 'CV review failed', error.message));
@@ -489,6 +615,7 @@ export function AnalyzePage() {
 
     isGeneratingPlanRef.current = true;
     setAnalysisStatus('matching');
+    setActiveWorkflowStep(WORKFLOW_STEP_IDS.MATCH_RESULT);
 
     try {
       const finalStructuredJDRubric = stampHumanReviewMetadata(structuredJDRubric, isJdHumanVerified ? 'verified' : 'unreviewed');
@@ -511,6 +638,7 @@ export function AnalyzePage() {
 
       setGeneratedSessionId(planResponse.sessionId);
       setAnalysisStatus('success');
+      setActiveWorkflowStep(WORKFLOW_STEP_IDS.MATCH_RESULT);
       const modeLabel = sessionMode === 'voice' ? 'voice' : 'text';
       setPageStatus(buildStatusMessage('success', 'Match analysis complete', `Review the score breakdown before continuing to the ${modeLabel} interview session.`));
     } catch (error) {
@@ -522,88 +650,115 @@ export function AnalyzePage() {
     }
   };
 
+  const isCvWorkflowStep = [WORKFLOW_STEP_IDS.CV_UPLOAD, WORKFLOW_STEP_IDS.CV_REVIEW].includes(activeWorkflowStep);
+  const isJdWorkflowStep = [WORKFLOW_STEP_IDS.JD_INPUT, WORKFLOW_STEP_IDS.JD_REVIEW].includes(activeWorkflowStep);
+  const isSetupWorkflowStep = activeWorkflowStep === WORKFLOW_STEP_IDS.SESSION_SETUP;
+  const isMatchWorkflowStep = activeWorkflowStep === WORKFLOW_STEP_IDS.MATCH_RESULT;
+
   return (
     <div className="min-h-screen bg-transparent flex flex-col">
       <AppHeader>
-        <StepProgress currentStep={currentStep} />
+        <StepProgress currentStep={currentStep} steps={workflowHeaderSteps(sessionMode)} />
       </AppHeader>
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-8">
-        <div className="grid grid-cols-1 gap-5 sm:gap-6 xl:grid-cols-2 xl:gap-8">
-          <div className="space-y-5 sm:space-y-6 xl:space-y-8">
-            <div id="tour-analyze-cv">
-              <CVManagementCard
-                onUpload={handleUpload}
-                selectedCV={selectedCV}
-                recentCVs={recentCVs}
-                onSelectRecent={handleSelectRecent}
-                onDeleteRecent={handleDeleteRecent}
-                deletingCvId={deletingCvId}
-                isCvHumanVerified={isCvHumanVerified}
-                onConfirmCVReview={handleConfirmCVReview}
-                cvReviewProfile={structuredCVProfile}
-                onCvReviewProfileChange={handleStructuredCVProfileChange}
-                isCvEdited={isCvEdited}
-                isCvReviewSaving={isSavingCVReview}
-                validationMessage={pageStatus?.type === 'error' && pageStatus.title === 'Upload failed' ? pageStatus.message : null}
-              />
-            </div>
-            <div id="tour-analyze-jd">
-              <JobContextCard
-                rawJD={rawJD}
-                setRawJD={handleRawJDChange}
-                structuredJD={structuredJD}
-                structuredJDRubric={structuredJDRubric}
-                onStructuredJDRubricChange={handleStructuredJDRubricChange}
-                onSummarize={handleSummarizeJD}
-                isSummarizing={isSummarizingJD}
-                jdConfidenceThreshold={JD_CONFIDENCE_THRESHOLD}
-                isJdHumanVerified={isJdHumanVerified}
-                requiresJdHumanReview={requiresJdHumanReview}
-                isJdEdited={isJdEdited}
-                onConfirmJDSummary={handleConfirmJDSummary}
-              />
-            </div>
+        <div className="space-y-5 sm:space-y-6">
+          <div id="tour-analyze-workflow">
+            <AnalysisWorkflowShell
+              steps={workflowSteps}
+              activeStepId={activeWorkflowStep}
+              onStepChange={handleWorkflowStepChange}
+            />
           </div>
 
-          <div className="space-y-5 sm:space-y-6 xl:space-y-8">
-            {pageStatus ? (
-              <StatusBanner
-                variant={pageStatus.type}
-                title={pageStatus.title}
-                message={pageStatus.message}
-              />
-            ) : null}
-            <NZSettingsCard
-              settings={settings}
-              setSettings={handleSettingsChange}
-              sessionMode={sessionMode}
-              setSessionMode={handleSessionModeChange}
-              voiceDeviceCheck={voiceDeviceCheck}
-              setVoiceDeviceCheck={setVoiceDeviceCheck}
-            />
-            <AnalysisStatusCard
-              status={analysisStatus}
-              matchRate={matchRate}
-              analysisResult={analysisResult}
-            />
-            <div id="tour-analyze-actions">
-              <AnalyzeActionsCard
-                analysisStatus={analysisStatus}
-                generatedSessionId={generatedSessionId}
-                selectedCV={selectedCV}
-                rawJD={rawJD}
-                hasCurrentJDSummary={hasCurrentJDSummary}
-                jdParseConfidence={jdParseConfidence}
-                jdConfidenceThreshold={JD_CONFIDENCE_THRESHOLD}
-                requiresJdHumanReview={requiresJdHumanReview}
-                canUseJDSummary={canUseCurrentJDSummary}
-                isCvHumanVerified={isCvHumanVerified}
-                onGeneratePlan={handleGeneratePlan}
-                onStartInterview={handleStartInterview}
-                sessionMode={sessionMode}
-                isVoiceReady={isVoiceReady}
-              />
+          <div className="grid grid-cols-1 gap-5 sm:gap-6 xl:grid-cols-[minmax(0,1fr)_380px] xl:gap-8">
+            <div className="space-y-5 sm:space-y-6 xl:space-y-8">
+              {isCvWorkflowStep ? (
+                <div id="tour-analyze-cv">
+                  <CVManagementCard
+                    onUpload={handleUpload}
+                    selectedCV={selectedCV}
+                    recentCVs={recentCVs}
+                    onSelectRecent={handleSelectRecent}
+                    onDeleteRecent={handleDeleteRecent}
+                    deletingCvId={deletingCvId}
+                    isCvHumanVerified={isCvHumanVerified}
+                    onConfirmCVReview={handleConfirmCVReview}
+                    cvReviewProfile={structuredCVProfile}
+                    onCvReviewProfileChange={handleStructuredCVProfileChange}
+                    isCvEdited={isCvEdited}
+                    isCvReviewSaving={isSavingCVReview}
+                    validationMessage={pageStatus?.type === 'error' && pageStatus.title === 'Upload failed' ? pageStatus.message : null}
+                  />
+                </div>
+              ) : null}
+
+              {isJdWorkflowStep ? (
+                <div id="tour-analyze-jd">
+                  <JobContextCard
+                    rawJD={rawJD}
+                    setRawJD={handleRawJDChange}
+                    structuredJD={structuredJD}
+                    structuredJDRubric={structuredJDRubric}
+                    onStructuredJDRubricChange={handleStructuredJDRubricChange}
+                    onSummarize={handleSummarizeJD}
+                    isSummarizing={isSummarizingJD}
+                    jdConfidenceThreshold={JD_CONFIDENCE_THRESHOLD}
+                    isJdHumanVerified={isJdHumanVerified}
+                    requiresJdHumanReview={requiresJdHumanReview}
+                    isJdEdited={isJdEdited}
+                    onConfirmJDSummary={handleConfirmJDSummary}
+                  />
+                </div>
+              ) : null}
+
+              {isSetupWorkflowStep ? (
+                <NZSettingsCard
+                  settings={settings}
+                  setSettings={handleSettingsChange}
+                  sessionMode={sessionMode}
+                  setSessionMode={handleSessionModeChange}
+                  voiceDeviceCheck={voiceDeviceCheck}
+                  setVoiceDeviceCheck={setVoiceDeviceCheck}
+                />
+              ) : null}
+
+              {isMatchWorkflowStep ? (
+                <AnalysisStatusCard
+                  status={analysisStatus}
+                  matchRate={matchRate}
+                  analysisResult={analysisResult}
+                />
+              ) : null}
+            </div>
+
+            <div className="space-y-5 sm:space-y-6 xl:sticky xl:top-24 xl:self-start">
+              {pageStatus ? (
+                <StatusBanner
+                  variant={pageStatus.type}
+                  title={pageStatus.title}
+                  message={pageStatus.message}
+                />
+              ) : null}
+
+              <div id="tour-analyze-actions">
+                <AnalyzeActionsCard
+                  analysisStatus={analysisStatus}
+                  generatedSessionId={generatedSessionId}
+                  selectedCV={selectedCV}
+                  rawJD={rawJD}
+                  hasCurrentJDSummary={hasCurrentJDSummary}
+                  jdParseConfidence={jdParseConfidence}
+                  jdConfidenceThreshold={JD_CONFIDENCE_THRESHOLD}
+                  requiresJdHumanReview={requiresJdHumanReview}
+                  canUseJDSummary={canUseCurrentJDSummary}
+                  isCvHumanVerified={isCvHumanVerified}
+                  onGeneratePlan={handleGeneratePlan}
+                  onStartInterview={handleStartInterview}
+                  sessionMode={sessionMode}
+                  isVoiceReady={isVoiceReady}
+                />
+              </div>
             </div>
           </div>
         </div>
