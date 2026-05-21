@@ -51,9 +51,15 @@ export const createDuplexTurnCoordinator = ({
       voiceName,
       sendJson,
       bargeInController,
-      index: 0,
-      speechToken,
-    });
+        index: 0,
+        speechToken,
+        usageContext: {
+          userId,
+          sessionId: session?.id || null,
+          stage: 'interview',
+          source: 'duplex_repair_prompt',
+        },
+      });
     bargeInController?.finishAssistantSpeech?.(speechToken);
     sendJson?.({
       type: 'assistant_speech_done',
@@ -121,6 +127,12 @@ export const createDuplexTurnCoordinator = ({
             bargeInController,
             index: nextIndex,
             speechToken,
+            usageContext: {
+              userId,
+              sessionId: session?.id || null,
+              stage: 'interview',
+              source: 'duplex_interview_sentence',
+            },
           });
         } catch (error) {
           logger?.error?.('Failed to process sentence in duplex turn', { sessionId: session?.id, index, text, error: error.message });

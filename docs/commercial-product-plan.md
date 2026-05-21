@@ -284,6 +284,8 @@ The system already has a meaningful AI architecture:
 - interview question generation support
 - report generation
 - report QA stage
+- AI usage event tracking
+- session-level commercial stress-test summaries
 
 That is a strong base. The next step is not “add AI”. It is “make AI product-grade”.
 
@@ -321,6 +323,7 @@ Users and developers should be able to answer:
 - Split retrieval into global-bank retrieval and session-scoped retrieval
 - Add source weighting and stage-aware weighting
 - Return analysis mode and warning metadata to the frontend
+- Keep `AiUsageEvent` and commercial stress-test summaries documented as estimated provider-cost telemetry, not finance-grade billing
 
 ### Phase 2
 - Add evidence references to report sections

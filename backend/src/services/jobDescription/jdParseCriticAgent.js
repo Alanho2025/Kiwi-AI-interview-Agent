@@ -59,6 +59,7 @@ export const reviewJdParseWithDeepSeek = async ({ rawJD = '', parsedJD = {} } = 
     systemInstruction: 'You are a strict output controller. Return valid JSON only. No prose.',
     fallback: heuristicFallback,
     maxRetries: 1,
+    usageMetadata: { stage: 'jd_parse', feature: 'jd_parse_critic' },
   });
 
   return normalizeSafeguardReview(aiReview, heuristicFallback);

@@ -21,6 +21,7 @@ import { saveTextToLocalStorage } from '../services/storageService.js';
 import { createUploadedFileRecord } from '../services/fileRepositoryService.js';
 import { createAuditLog } from '../services/auditService.js';
 import { logger, getRequestLogMeta } from '../utils/logger.js';
+import { getSessionExecutionCost } from '../services/aiUsageTrackingService.js';
 
 export const generateReport = asyncHandler(async (req, res) => {
   const sessionId = requireBodyField(req, 'sessionId', 'sessionId is required');
@@ -30,6 +31,9 @@ export const generateReport = asyncHandler(async (req, res) => {
     throw notFound('Session not found or access denied', 'Invalid session ID or you do not have permission to generate this report');
   }
   const result = await runTask({ taskType: 'generate_report', sessionId });
+  const executionCost = await getSessionExecutionCost({ userId: user.id, sessionId });
+  result.executionCost = executionCost;
+  result.commercialStressTest = executionCost?.commercialStressTest || null;
   res.json(formatSuccess('Report generated', result));
 });
 
@@ -41,6 +45,9 @@ export const qaReport = asyncHandler(async (req, res) => {
     throw notFound('Session not found or access denied', 'Invalid session ID or you do not have permission to QA this report');
   }
   const result = await runTask({ taskType: 'qa_report', sessionId });
+  const executionCost = await getSessionExecutionCost({ userId: user.id, sessionId });
+  result.executionCost = executionCost;
+  result.commercialStressTest = executionCost?.commercialStressTest || null;
   res.json(formatSuccess('Report QA completed', result));
 });
 
@@ -58,7 +65,13 @@ export const getReport = asyncHandler(async (req, res) => {
   if (!report) {
     throw notFound('Report not found', 'No report exists for this session');
   }
-  res.json(formatSuccess('Report retrieved', report));
+  const executionCost = await getSessionExecutionCost({ userId: user.id, sessionId });
+  const reportWithCost = {
+    ...report,
+    executionCost,
+    commercialStressTest: executionCost?.commercialStressTest || null,
+  };
+  res.json(formatSuccess('Report retrieved', reportWithCost));
 });
 
 /**
@@ -85,16 +98,22 @@ export const exportReport = asyncHandler(async (req, res) => {
   if (!report) {
     throw notFound('Report not found', 'No report exists for this session');
   }
+  const executionCost = await getSessionExecutionCost({ userId: user.id, sessionId });
+  const reportWithCost = {
+    ...report,
+    executionCost,
+    commercialStressTest: executionCost?.commercialStressTest || null,
+  };
   
   let fileContent, fileExtension, mimeType;
   
   if (format === 'json') {
-    fileContent = JSON.stringify(report, null, 2);
+    fileContent = JSON.stringify(reportWithCost, null, 2);
     fileExtension = 'json';
     mimeType = 'application/json';
   } else {
     // Format as text report
-    fileContent = formatReportAsText(report);
+    fileContent = formatReportAsText(reportWithCost);
     fileExtension = 'txt';
     mimeType = 'text/plain';
   }
@@ -143,6 +162,7 @@ function formatReportAsText(report) {
   const lines = [];
   const r = report.report || {};
   const qa = report.qaResult || {};
+  const commercialStressTest = report.commercialStressTest || r.commercialStressTest || null;
   
   lines.push('KIWI AI INTERVIEW AGENT - INTERVIEW REPORT');
   lines.push('==========================================');
@@ -180,6 +200,19 @@ function formatReportAsText(report) {
     if (r.scores.evidenceStrength !== undefined) lines.push(`Evidence Strength: ${r.scores.evidenceStrength}/4`);
     if (r.scores.directEvidenceTurns !== undefined) lines.push(`Direct Evidence Turns: ${r.scores.directEvidenceTurns}`);
     if (r.scores.hypotheticalTurns !== undefined) lines.push(`Hypothetical Turns: ${r.scores.hypotheticalTurns}`);
+    lines.push('');
+  }
+
+  if (commercialStressTest) {
+    lines.push('COMMERCIAL STRESS TEST');
+    lines.push('======================');
+    lines.push(`Total Execution Cost: $${commercialStressTest.totalExecutionCost ?? 0}`);
+    lines.push(`LLM Tokens: ${commercialStressTest.totalLlmTokens ?? 0}`);
+    lines.push(`Speech Usage Seconds: ${commercialStressTest.speechAudioSeconds ?? 0}`);
+    const minutes = commercialStressTest.estimatedHumanMinutesReplaced || {};
+    lines.push(`Estimated Human Time Replaced: ${minutes.min ?? 0}-${minutes.max ?? 0} minutes`);
+    if (commercialStressTest.conclusion) lines.push(commercialStressTest.conclusion);
+    if (commercialStressTest.assumptions) lines.push(`Assumptions: ${commercialStressTest.assumptions}`);
     lines.push('');
   }
   

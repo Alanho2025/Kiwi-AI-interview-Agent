@@ -10,9 +10,9 @@ Each feature stage should be reflected here before you start coding.
 
 An AI-powered mock interview web app that helps users practise job interviews based on their CV and a target job description.
 
-The system allows users to sign in, upload their CV and job description, and complete a short AI-led interview session using voice input. The AI generates interview questions based on the match between the user's background and the job requirements, then produces a feedback report after the session.
+The system allows users to sign in, upload their CV, paste a job description, and complete a short AI-led interview session using text mode or the product-wired voice mode. The AI generates interview questions based on the match between the user's background and the job requirements, then produces a feedback report after the session.
 
-This MVP is focused on delivering a simple, working end-to-end interview experience. It should prioritise usability, basic voice interaction, document upload, question generation, timed interview flow, and report output.
+This MVP is focused on delivering a simple, working end-to-end interview experience. The current safest product flow is CV upload, pasted JD parsing, human review gates, CV-JD match, interview planning, text interview, and report output. Voice is product-wired but still depends on live Azure Speech credentials, authenticated WebSocket access, microphone permission, and E2E verification.
 
 ---
 
@@ -25,9 +25,9 @@ This MVP is focused on delivering a simple, working end-to-end interview experie
 - Requests permission to access the user's microphone
 - Allows users to upload:
     - one CV file
-    - one job description file, or pasted job description text
+    - pasted job description text
 - Supports both desktop and mobile-friendly file upload
-- Parses the uploaded CV and job description
+- Parses the uploaded CV and pasted job description
 - Extracts key information from both documents, such as:
     - skills
     - work experience
@@ -42,9 +42,10 @@ This MVP is focused on delivering a simple, working end-to-end interview experie
     - the uploaded CV
     - the uploaded job description
 - Asks a small number of role-related or technical questions
-- Limits the interview session to around 5 minutes
-- Ends the interview automatically when time is up
-- Generates a basic feedback report after the interview
+- Supports question-limited and time-limited session setup
+- Ends the interview by configured completion rules
+- Generates a grounded feedback report after the interview
+- Supports report QA and a commercial stress-test cost summary
 - Displays the report in the web interface
 
 ### What it does NOT do (yet)
@@ -59,6 +60,9 @@ This MVP is focused on delivering a simple, working end-to-end interview experie
 - Does not support collaborative reviewer feedback
 - Does not provide deeply customised company-specific question banks
 - Does not support multilingual interview mode unless added later
+- Does not currently implement JD file upload; current JD flow is pasted text
+- Does not guarantee live voice readiness without Azure Speech credentials and browser/device setup
+- Does not provide production-grade retention cleanup or account-wide deletion yet
 
 ---
 
@@ -66,17 +70,18 @@ This MVP is focused on delivering a simple, working end-to-end interview experie
 
 1. User enters the landing page
 2. User signs in
-3. User grants microphone permission
-4. User uploads CV and job description
-5. System parses both files
-6. System extracts and matches key information
-7. System generates a simple interview plan
-8. AI starts the interview
-9. AI asks self-introduction first
-10. AI asks follow-up and role-related questions
-11. Interview runs for up to 5 minutes
-12. Session ends
+3. User uploads or selects a CV
+4. User reviews parsed CV match fields
+5. User pastes a job description
+6. System parses the JD into a structured rubric
+7. User reviews the parsed JD rubric
+8. System extracts and matches key information
+9. System generates an interview plan
+10. AI starts the interview with a self-introduction question
+11. AI asks follow-up and role-related questions
+12. Session ends by configured question or time rules
 13. System generates and displays a feedback report
+14. User can run report QA and view commercial stress-test cost summary where usage events were recorded
 
 ---
 
@@ -92,19 +97,20 @@ This MVP is focused on delivering a simple, working end-to-end interview experie
 
 - The system must ask for microphone permission before starting voice interaction
 - If permission is denied, the system must show a clear error or fallback message
-- The system should allow a text-based fallback later if needed, but this is optional for MVP
+- The system supports text interview mode. Text mode remains the safest demo path when voice dependencies are unavailable.
 
 ### CV and Job Description Input
 
 - The system must allow users to upload a CV file
-- The system must allow users to upload a job description file or paste job description text
+- The system must allow users to paste job description text
+- JD file upload is a backlog item, not current implementation
 - The system must support common file upload interactions on both desktop and mobile
 - The system should validate file type and file size
 - The system should show upload success or failure messages clearly
 
 ### Document Processing
 
-- The system must parse the CV and job description after upload
+- The system must parse the CV after upload and parse the job description after pasted text input
 - The system must extract useful structured information from both documents
 - The system should identify overlaps and gaps between the CV and job description
 - The system must use this information to guide interview question generation
@@ -126,8 +132,8 @@ This MVP is focused on delivering a simple, working end-to-end interview experie
 - The system must begin with a self-introduction question
 - The system must ask follow-up questions based on the user's previous answer
 - The system should ask a limited number of technical or job-fit questions
-- The system must keep the whole interview within about 5 minutes
-- The system should stop asking new questions when time is nearly finished
+- The system must support configured question and time limits
+- The system should stop asking new questions when the configured completion rule is reached
 - The system must end the session cleanly when time is up
 
 ### Feedback Report
@@ -139,6 +145,7 @@ This MVP is focused on delivering a simple, working end-to-end interview experie
     - gaps or weak areas
     - job-fit observations
     - suggested improvements
+- The report may include report QA and commercial cost summary data when available
 - The system must display the report in a readable format on the web page
 
 ---

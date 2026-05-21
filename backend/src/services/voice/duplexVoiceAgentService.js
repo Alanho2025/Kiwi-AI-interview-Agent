@@ -99,6 +99,12 @@ export const createDuplexVoiceAgentSession = ({
         language,
         sampleRate,
         extraPhrases,
+        usageContext: {
+          userId,
+          sessionId: activeSession?.id || session?.id,
+          stage: 'interview',
+          source: 'duplex_voice_stt',
+        },
         onPartialTranscript: (payload) => sendJson({
           ...payload,
           type: 'stt_partial',
@@ -213,6 +219,12 @@ export const createDuplexVoiceAgentSession = ({
         bargeInController,
         index: Number(payload.index || 0),
         speechToken,
+        usageContext: {
+          userId,
+          sessionId: activeSession?.id || session?.id,
+          stage: 'interview',
+          source: 'duplex_speak_text',
+        },
       });
       bargeInController.finishAssistantSpeech(speechToken);
       sendJson({

@@ -35,3 +35,38 @@ Used for recent CV lists, preview cards, and safe UI rendering.
 - no automated retention cleanup worker yet
 - no account-wide delete workflow yet
 - no encrypted-at-rest local storage yet
+
+## Current code references
+
+- CV upload controller: `backend/src/controllers/uploadController.js`
+- CV file extraction: `backend/src/services/fileService.js`
+- CV profile builder: `backend/src/services/cv/cvProfileBuilderService.js`
+- CV display redaction/view model: `backend/src/services/cv/cvDisplayViewService.js`
+- CV ownership checks: `backend/src/services/cv/cvOwnershipService.js`
+- CV lifecycle controls: `backend/src/services/cv/cvLifecycleService.js`
+- Human-reviewed CV profile save path: `backend/src/services/cv/cvReviewedProfileService.js`
+- File metadata and document content persistence: `backend/src/services/fileRepositoryService.js`
+- Frontend CV review view model: `frontend/src/utils/cvReviewViewModel.js`
+
+## Current implementation status
+
+Implemented:
+
+- PDF/DOCX CV text extraction
+- local file storage for uploaded CV files
+- uploaded file metadata records
+- document content attachment with raw, normalized, redacted, profile, and display-profile data
+- recent CV list
+- selected CV lookup by owner
+- human-reviewed match-field profile save path
+- soft delete for one CV
+- rebuild one CV profile
+- safe export package for one CV
+- audit logs for upload, review, delete, and export actions
+
+Partial or missing:
+
+- automated retention cleanup worker
+- account-wide delete workflow
+- encrypted-at-rest local storage guarantee
+- full route-level ownership test coverage across every CV-adjacent path

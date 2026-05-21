@@ -1,5 +1,15 @@
 # Version History
 
+## Documentation Alignment - Notion Architecture and Current Code
+
+### Code-document alignment
+
+- Added `docs/code-document-alignment.md` as the current implementation map for the Notion "GAI Voice Agent - Systematic Knowledge Architecture" page.
+- Updated architecture docs to reflect `document_chunks.embedding vector(256)`, pgvector runtime retrieval, MongoDB AI artifacts, and the current DeepSeek/Azure Speech/service-layer agent design.
+- Reclassified voice from "missing" to product-wired but requiring live E2E verification.
+- Reclassified commercial stress testing from proposed to implemented/partial based on `AiUsageEvent`, usage aggregation, report controller payloads, and frontend report display.
+- Updated data and product requirement docs to keep JD file upload, retention cleanup, account-wide deletion, and encryption-at-rest guarantees in backlog/partial status.
+
 ## Current Gap Closure - Human Review Gates, RAG Hardening, Recording Guardrails, and Eval Alignment
 
 ### Analyze flow trust gates

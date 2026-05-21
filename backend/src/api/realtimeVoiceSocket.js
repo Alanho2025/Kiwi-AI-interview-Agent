@@ -90,6 +90,12 @@ export function attachRealtimeVoiceSocketServer(server) {
       speechSession = createRealtimeSpeechSession({
         language: context.language,
         sampleRate: context.sampleRate,
+        usageContext: {
+          userId: context.auth.id,
+          sessionId: context.sessionId,
+          stage: 'interview',
+          source: 'realtime_voice_socket',
+        },
         onPartialTranscript: safeSend,
         onFinalTranscript: safeSend,
         onError: safeSend,
