@@ -23,6 +23,7 @@ import { InsightsSection } from '../components/report/InsightsSection.jsx';
 import { ReportActionBar } from '../components/report/ReportActionBar.jsx';
 import { ReportDetailSections } from '../components/report/ReportDetailSections.jsx';
 import { ReportHeroCard } from '../components/report/ReportHeroCard.jsx';
+import { CommercialStressTestSection } from '../components/report/CommercialStressTestSection.jsx';
 import { LoadingInsightPanel } from '../components/common/LoadingInsightPanel.jsx';
 import { useReportData } from '../hooks/useReportData.js';
 import { buildReportViewModel } from '../utils/reportView/index.js';
@@ -107,7 +108,8 @@ export function ReportPage() {
                 generationSource={viewModel.generationSource}
               />
             </div>
-            <div id="tour-report-insights">
+            <div id="tour-report-insights" className="space-y-6">
+              <CommercialStressTestSection commercialStressTest={viewModel.commercialStressTest} />
               <InsightsSection dataInsights={viewModel.dataInsights} strengthHighlights={viewModel.strengthHighlights} />
             </div>
             <NZWorkplaceFitSection fit={viewModel.nzWorkplaceFit} />

@@ -14,6 +14,19 @@ The goal is to design a database structure that is practical for the current MVP
 
 ---
 
+## Current Code Alignment Snapshot
+
+Status as of the current codebase:
+
+- PostgreSQL schema initialization is implemented in `backend/src/db/initPostgresSchema.js`.
+- PostgreSQL tables include `users`, `interview_sessions`, `uploaded_files`, `job_description_inputs`, `parsed_profiles`, `parsed_skills`, `interview_questions`, `interview_responses`, `report_summaries`, `user_consents`, `audit_logs`, `deletion_requests`, `data_access_grants`, and `document_chunks`.
+- Runtime RAG uses PostgreSQL `document_chunks.embedding vector(256)` with pgvector indexes.
+- MongoDB/Mongoose models exist under `backend/src/db/models/` for AI artifacts such as document content, normalized CV/JD records, match analysis records, session transcripts, reports, feedback details, AI logs, token usage, user coaching memory, and AI usage events.
+- Local file storage is implemented through `backend/src/services/storageService.js` and file metadata is persisted through `backend/src/services/fileRepositoryService.js`.
+- The original architecture recommendation is now partly implemented. Remaining gaps are less about initial persistence and more about retention workers, account-wide deletion, encryption-at-rest guarantees, complete ownership test coverage, and final deployment policy.
+
+---
+
 ## Architecture Summary
 
 The recommended architecture is:
@@ -75,13 +88,13 @@ The current codebase already creates or uses the following data:
 - question progress
 - transcript export
 
-Right now, much of this data is only stored:
+Earlier versions stored much of this data:
 
 - in memory
 - in frontend local storage
 - in request/response payloads
 
-That is the main architecture gap. The system already has meaningful domain data, but it is not persisted properly.
+That was the main architecture gap. The current codebase now persists the main operational and AI artifact data across PostgreSQL, MongoDB, and local file storage. Frontend draft state still exists for analysis setup, so privacy wording should continue to mention browser-side draft behavior where relevant.
 
 ---
 
@@ -755,7 +768,7 @@ Recommended storage:
 
 From an engineering perspective, the right first priority is not to build every possible feature table.
 
-The right first priority is to persist the data that the current app already creates but currently loses.
+The right first priority was to persist the data that the app already created but previously lost. That direction is now substantially implemented.
 
 That means the most important first persistence targets are:
 
@@ -780,9 +793,13 @@ The next layer after that is:
 
 This order is better because it stabilizes the current MVP data flow first.
 
+Current implementation note: the code now follows this hybrid direction. PostgreSQL owns stable operational data and pgvector chunks, MongoDB owns flexible AI artifacts and usage events, and local storage owns file/export binaries.
+
 ---
 
 ## Recommended Implementation Phases
+
+Status note: these phases are retained for historical planning context. Phase 1 and Phase 2 are substantially implemented. Several later-phase capabilities are also implemented, but product-grade retention, deletion, encryption, and complete authorization test coverage remain open.
 
 ## Phase 1. Database Connection Layer
 

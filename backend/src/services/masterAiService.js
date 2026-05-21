@@ -32,6 +32,7 @@ import { buildReflectionRecord, shouldWriteReflection, persistReflectionRecord }
 import { persistUserCoachingMemory } from './aiControl/userCoachingMemoryService.js';
 import { rebuildBoundedMemory } from './aiControl/experienceMemoryService.js';
 import { enqueueBackgroundJob } from '../jobs/backgroundJobQueue.js';
+import { recordLocalUsage } from './aiUsageTrackingService.js';
 
 const persistControllerSnapshot = async ({ sessionId, decisionContext = null, evidenceBundle = null } = {}) => {
   await SessionAnalysis.findOneAndUpdate(
@@ -384,6 +385,22 @@ decisionType: AGENT_DECISION_TYPES.SELECT_ACTION,
     session,
     retrievalBundle,
   });
+  await Promise.all([
+    recordLocalUsage({
+      userId: session.userId,
+      sessionId: session.id,
+      stage: 'report_generated',
+      operation: 'local_parse',
+      metadata: { source: 'report_controller' },
+    }),
+    recordLocalUsage({
+      userId: session.userId,
+      sessionId: session.id,
+      stage: 'report_qa',
+      operation: 'local_parse',
+      metadata: { source: 'report_controller' },
+    }),
+  ]);
 
   await createDecisionRecord({
     sessionId: session.id,
@@ -477,6 +494,13 @@ export const runTask = async ({ taskType, sessionId, payload = {}, onSentence = 
       report: stored.report,
       analysisResult: session.analysisResult || {},
       retrievalBundle,
+    });
+    await recordLocalUsage({
+      userId: session.userId,
+      sessionId: session.id,
+      stage: 'report_qa',
+      operation: 'local_parse',
+      metadata: { source: 'manual_report_qa' },
     });
     const updated = await persistReportArtifact({ sessionId: session.id, report: stored.report, qaResult });
     return { report: stored.report, qaResult, stored: updated };

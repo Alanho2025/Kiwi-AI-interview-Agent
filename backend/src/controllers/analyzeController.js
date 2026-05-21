@@ -19,6 +19,7 @@ import { createAuditLog } from '../services/auditService.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { badRequest } from '../utils/appError.js';
 import { logger, getRequestLogMeta } from '../utils/logger.js';
+import { recordLocalUsage } from '../services/aiUsageTrackingService.js';
 
 export const matchCV = asyncHandler(async (req, res) => {
   const { cvId, rawJD, jdRubric, settings } = req.body;
@@ -29,6 +30,16 @@ export const matchCV = asyncHandler(async (req, res) => {
   }
 
   const matchData = await runCvJdMatchAnalysis({ cvId, userId: user.id, rawJD, jdRubric, settings });
+  await recordLocalUsage({
+    userId: user.id,
+    stage: 'cv_jd_match',
+    operation: 'local_match',
+    metadata: {
+      cvId,
+      rawJdLength: String(rawJD || '').length,
+      hasJdRubric: Boolean(jdRubric),
+    },
+  });
   const cvDocument = await getOwnedCvDocumentOrThrow({ cvId, userId: user.id });
   const persisted = await createMatchAnalysisRecord({ userId: user.id, cvFileId: cvId, jdStructuredText: rawJD || '', jdRubric, matchData, cvDocument });
   logger.info('CV and JD match completed', getRequestLogMeta(req, {
@@ -73,6 +84,37 @@ export const generateInterviewPlan = asyncHandler(async (req, res) => {
     currentQuestionIndex: 1,
     candidateName: resolvedAnalysis?.candidateName || 'Candidate',
   });
+  await Promise.all([
+    recordLocalUsage({
+      userId: user.id,
+      sessionId: session.id,
+      stage: 'cv_parse',
+      operation: 'local_parse',
+      metadata: { cvId: cvId || null, source: 'session_creation' },
+    }),
+    recordLocalUsage({
+      userId: user.id,
+      sessionId: session.id,
+      stage: 'jd_parse',
+      operation: 'local_parse',
+      metadata: {
+        rawJdLength: String(rawJD || jdText || '').length,
+        hasJdRubric: Boolean(jdRubric),
+        source: 'session_creation',
+      },
+    }),
+    recordLocalUsage({
+      userId: user.id,
+      sessionId: session.id,
+      stage: 'cv_jd_match',
+      operation: 'local_match',
+      metadata: {
+        matchAnalysisId: matchAnalysisId || null,
+        matchScore: resolvedAnalysis?.matchScore || null,
+        source: 'session_creation',
+      },
+    }),
+  ]);
 
   await createAuditLog({
     actorUserId: user.id,

@@ -30,7 +30,9 @@ Return JSON only with this schema:
 }
 Technical skills may include software development, data, AI/ML, IT infrastructure, and common engineering skills.
 Job description:\n${rawJD.slice(0, 5000)}`;
-    const { content: response } = await callDeepSeek(prompt, 'Return valid JSON only. No prose.');
+    const { content: response } = await callDeepSeek(prompt, 'Return valid JSON only. No prose.', {
+      usageMetadata: { stage: 'jd_parse', operation: 'llm_chat', feature: 'jd_skill_extraction' },
+    });
     const parsed = safeJsonParse(response);
 
     return {

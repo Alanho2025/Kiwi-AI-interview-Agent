@@ -41,6 +41,8 @@ export const extractUsage = (data) => {
     return {
       promptTokens:     data.usage.prompt_tokens,
       completionTokens: data.usage.completion_tokens,
+      promptCacheHitTokens: data.usage.prompt_cache_hit_tokens || data.usage.prompt_tokens_details?.cached_tokens || 0,
+      promptCacheMissTokens: data.usage.prompt_cache_miss_tokens ?? null,
     };
   }
   return null;
@@ -61,24 +63,43 @@ export const usageContextMiddleware = (req, _res, next) => {
 };
 
 
-export const autoRecordUsage = (usage, action = 'callDeepSeek') => {
+export const autoRecordUsage = async (usage, action = 'callDeepSeek', metadata = {}) => {
   if (!usage) return;
   const ctx = getUsageContextStore();
   if (!ctx?.userId) return;
+  const stage = metadata.stage || ctx.stage || 'interview';
+  const operation = metadata.operation || (action === 'callDeepSeekJson' ? 'llm_json' : 'llm_chat');
 
-  // Dynamic import to avoid circular dependency
-  import('./usageTrackingService.js').then(({ recordTokenUsage }) => {
-    recordTokenUsage({
-      userId: ctx.userId,
-      sessionId: ctx.sessionId || null,
-      action,
-      promptTokens: usage.promptTokens,
-      completionTokens: usage.completionTokens,
-    }).catch((err) => console.warn('Failed to record token usage:', err?.message));
-  });
+  try {
+    const [{ recordTokenUsage }, { recordLlmUsage }] = await Promise.all([
+      import('./usageTrackingService.js'),
+      import('./aiUsageTrackingService.js'),
+    ]);
+
+    await Promise.all([
+      recordTokenUsage({
+        userId: ctx.userId,
+        sessionId: ctx.sessionId || null,
+        action,
+        promptTokens: usage.promptTokens,
+        completionTokens: usage.completionTokens,
+      }),
+      recordLlmUsage({
+        userId: ctx.userId,
+        sessionId: ctx.sessionId || null,
+        stage,
+        operation,
+        action,
+        usage,
+        metadata,
+      }),
+    ]);
+  } catch (err) {
+    console.warn('Failed to record AI usage:', err?.message);
+  }
 };
 
-export const callDeepSeek = async (prompt, systemInstruction = '', { skipAutoRecord = false } = {}) => {
+export const callDeepSeek = async (prompt, systemInstruction = '', { skipAutoRecord = false, usageMetadata = {} } = {}) => {
   try {
     const apiKey = resolveDeepSeekApiKey();
     if (!apiKey) {
@@ -106,7 +127,7 @@ export const callDeepSeek = async (prompt, systemInstruction = '', { skipAutoRec
 
     const data = await response.json();
     const usage = extractUsage(data);
-    if (!skipAutoRecord) autoRecordUsage(usage);
+    if (!skipAutoRecord) await autoRecordUsage(usage, 'callDeepSeek', usageMetadata);
     return {
       content: data.choices[0].message.content,
       usage,
@@ -122,7 +143,7 @@ export const callDeepSeek = async (prompt, systemInstruction = '', { skipAutoRec
  * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
  * Returns: Returns an async generator yielding text chunks as they arrive from the DeepSeek stream.
  */
-export const callDeepSeekStream = async function* (prompt, systemInstruction = '') {
+export const callDeepSeekStream = async function* (prompt, systemInstruction = '', { usageMetadata = {} } = {}) {
   const apiKey = resolveDeepSeekApiKey();
   if (!apiKey) {
     yield buildMockDeepSeekResponse();
@@ -182,5 +203,5 @@ export const callDeepSeekStream = async function* (prompt, systemInstruction = '
   }
 
   // Record streaming usage after the generator completes
-  autoRecordUsage(streamUsage, 'callDeepSeek');
+  await autoRecordUsage(streamUsage, 'callDeepSeek', usageMetadata);
 };

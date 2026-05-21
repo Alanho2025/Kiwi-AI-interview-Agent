@@ -254,7 +254,16 @@ export const replyInterviewWithRealtimeVoiceStream = asyncHandler(async (req, re
 
   const onSentence = async (text, index) => {
     try {
-      const synthesis = await synthesizeSpeech({ text, voiceName });
+      const synthesis = await synthesizeSpeech({
+        text,
+        voiceName,
+        usageContext: {
+          userId: user.id,
+          sessionId,
+          stage: 'interview',
+          source: 'realtime_voice_turn_stream',
+        },
+      });
       const payload = {
         type: 'audio',
         base64: synthesis.audioBuffer.toString('base64'),
@@ -375,9 +384,15 @@ export const synthesizeInterviewText = asyncHandler(async (req, res) => {
     return res.status(400).json(formatError('Text is required', 'VALIDATION_ERROR', 'Text to synthesize cannot be empty'));
   }
 
-  const result = await synthesizeSpeech({ 
-    text: cleanText, 
-    voiceName: String(voiceName || '').trim() || undefined 
+  const result = await synthesizeSpeech({
+    text: cleanText,
+    voiceName: String(voiceName || '').trim() || undefined,
+    usageContext: {
+      userId: user.id,
+      sessionId,
+      stage: 'interview',
+      source: 'interview_synthesize_endpoint',
+    },
   });
   
   logger.info('Synthesized text to speech', getRequestLogMeta(req, {

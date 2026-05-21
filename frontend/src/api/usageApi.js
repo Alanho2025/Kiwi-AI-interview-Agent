@@ -1,6 +1,6 @@
 /**
  * File responsibility: Token usage API helpers.
- * Provides access to DeepSeek token consumption data and cost estimation.
+ * Provides access to AI usage and execution cost data.
  */
 
 import { apiGet } from './client.js';
@@ -17,3 +17,8 @@ export const getUsageSummary = () => apiGet('usage/summary');
  * @param {number} limit - number of recent sessions (default 5, max 20)
  */
 export const getRecentSessionUsage = (limit = 5) => apiGet(`usage/recent-sessions?limit=${limit}`);
+
+/**
+ * Get execution-cost breakdown for one session.
+ */
+export const getSessionExecutionCost = (sessionId) => apiGet(`usage/execution/${sessionId}`);
