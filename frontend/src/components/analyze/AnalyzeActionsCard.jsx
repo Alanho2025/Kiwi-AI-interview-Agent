@@ -46,7 +46,7 @@ export function AnalyzeActionsCard({
   const buttonLabel = (() => {
     if (analysisStatus === 'summarizing') return 'Summarizing JD...';
     if (analysisStatus === 'matching') return 'Generating Match Analysis...';
-    if (!selectedCV) return 'Select a CV first';
+    if (!selectedCV) return 'Select or upload a CV to continue';
     if (!isCvHumanVerified) return 'Review CV parse before matching';
     if (!hasRawJD) return 'Paste a JD first';
     if (!hasCurrentJDSummary) return 'Summarise JD before matching';
@@ -91,8 +91,14 @@ export function AnalyzeActionsCard({
       blocked: Boolean(selectedCV && !isCvHumanVerified),
     },
     {
-      label: 'JD summary reviewed',
-      detail: canUseJDSummary ? 'Reviewed JD summary is ready.' : hasRawJD ? 'Summarise and review the current JD before matching.' : 'Paste the target job description.',
+      label: 'JD selected',
+      detail: hasRawJD ? 'Target job description is ready.' : 'Paste or choose the target job description.',
+      complete: hasRawJD,
+      blocked: false,
+    },
+    {
+      label: 'JD parse reviewed',
+      detail: canUseJDSummary ? 'Extracted requirements are reviewed.' : hasRawJD ? 'Review the extracted job requirements.' : 'Add a JD before reviewing the parse.',
       complete: Boolean(canUseJDSummary),
       blocked: Boolean(hasRawJD && (!hasCurrentJDSummary || requiresJdHumanReview)),
     },
@@ -148,7 +154,7 @@ export function AnalyzeActionsCard({
         <Button
           variant="primary"
           size="lg"
-          className="w-full"
+          className="w-full disabled:border disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-400 disabled:shadow-none"
           onClick={onGeneratePlan}
           disabled={!canGenerate}
         >

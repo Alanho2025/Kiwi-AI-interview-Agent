@@ -421,7 +421,7 @@ export function CVManagementCard({
                   </div>
                   <div className="flex w-full items-center gap-2 sm:w-auto sm:justify-end">
                     <Button
-                      variant={selectedRecent === cv.id ? 'primary' : 'ghost'}
+                      variant={selectedRecent === cv.id ? 'primary' : 'outline'}
                       size="sm"
                       disabled={deletingCvId === cv.id}
                       onClick={() => {
@@ -430,7 +430,7 @@ export function CVManagementCard({
                       }}
                       className="flex-1 sm:flex-none"
                     >
-                      Use
+                      Use this CV
                     </Button>
                     <Button
                       type="button"

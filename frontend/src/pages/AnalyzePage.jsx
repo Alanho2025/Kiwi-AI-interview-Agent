@@ -76,18 +76,18 @@ const firstNonEmptyObject = (...values) => values.find(isNonEmptyObject) || null
 const ANALYZE_TOUR_STEPS = [
   {
     target: '#tour-analyze-cv',
-    content: 'First, upload your CV or select a recent one. The AI will use this to understand your background.',
+    content: 'Start by uploading a CV or choosing a recent one. Then review the parsed CV fields before moving to the JD step.',
     placement: 'bottom',
     disableBeacon: true,
   },
   {
-    target: '#tour-analyze-jd',
-    content: 'Next, paste the Job Description. KiwiCoach will compare this with your CV to generate tailored interview questions.',
+    target: '#tour-analyze-workflow',
+    content: 'Use this preparation pipeline to move through CV review, JD review, session setup, device check for voice mode, and the final match result.',
     placement: 'bottom',
   },
   {
     target: '#tour-analyze-actions',
-    content: 'Once both are ready, click "Generate Plan". After it finishes matching, you can click "Start Interview". Go ahead and upload a CV now!',
+    content: 'The checklist shows what is still blocking the match. Once every required item is ready, generate the match analysis and start the interview.',
     placement: 'top',
     spotlightClicks: true,
   }
@@ -663,11 +663,13 @@ export function AnalyzePage() {
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-8">
         <div className="space-y-5 sm:space-y-6">
-          <AnalysisWorkflowShell
-            steps={workflowSteps}
-            activeStepId={activeWorkflowStep}
-            onStepChange={handleWorkflowStepChange}
-          />
+          <div id="tour-analyze-workflow">
+            <AnalysisWorkflowShell
+              steps={workflowSteps}
+              activeStepId={activeWorkflowStep}
+              onStepChange={handleWorkflowStepChange}
+            />
+          </div>
 
           <div className="grid grid-cols-1 gap-5 sm:gap-6 xl:grid-cols-[minmax(0,1fr)_380px] xl:gap-8">
             <div className="space-y-5 sm:space-y-6 xl:space-y-8">
