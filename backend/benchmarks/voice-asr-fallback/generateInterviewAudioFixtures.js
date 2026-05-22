@@ -69,10 +69,16 @@ const fileExists = async (filePath) => {
 };
 
 const ensureMacSayAvailable = async () => {
+  if (process.platform !== 'darwin') {
+    throw new Error('The fixture generator uses the macOS `say` command. Run it on macOS, or manually place 16 kHz mono PCM WAV files in the fixtures directory.');
+  }
+
   try {
-    await execFileAsync('say', ['--version']);
+    const { stdout } = await execFileAsync('/usr/bin/which', ['say']);
+    const sayPath = String(stdout || '').trim();
+    if (!sayPath) throw new Error('say not found');
   } catch {
-    throw new Error('The macOS `say` command is required to generate spoken fixtures. Run this on macOS, or manually place 16 kHz mono PCM WAV files in the fixtures directory.');
+    throw new Error('The macOS `say` command was not found. Run `which say` to verify it, or manually place 16 kHz mono PCM WAV files in the fixtures directory.');
   }
 };
 
