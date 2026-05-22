@@ -3,7 +3,8 @@
  * Benchmark-only spike for live interview ASR fallback choices.
  *
  * Purpose:
- * - Vosk and Sherpa-ONNX are the Plan B candidates for when Azure Speech is unavailable.
+ * - Vosk and Sherpa-ONNX are local Plan B candidates for when Azure Speech is unavailable.
+ * - ElevenLabs realtime STT is a cloud fallback candidate when network access is available.
  * - Azure is kept only as an optional baseline and must be requested explicitly.
  * - This file is intentionally not imported by production code.
  */
@@ -15,6 +16,7 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
 import { createSubprocessAsrProvider } from './adapters/subprocessAsrProvider.js';
+import { createElevenLabsRealtimeSttProvider } from './adapters/elevenlabsRealtimeSttProvider.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -77,6 +79,7 @@ const loadBenchmarkEnv = () => {
       missing,
       hasAzureKey: Boolean(process.env.AZURE_SPEECH_KEY || process.env.AZURE_SPEECH_SUBSCRIPTION_KEY),
       azureRegion: process.env.AZURE_SPEECH_REGION || null,
+      hasElevenLabsKey: Boolean(process.env.ELEVENLABS_API_KEY),
       hasVoskModelPath: Boolean(process.env.VOSK_MODEL_PATH),
       sherpaModule: process.env.SHERPA_ONNX_NODE_MODULE || null,
     }, null, 2));
@@ -243,8 +246,8 @@ const buildAcceptance = ({ firstPartialMs, speechEndMs, finalTranscriptDelayAfte
     noProviderErrors,
     pass,
     recommendation: pass
-      ? 'local fallback candidate can continue to deeper live test'
-      : 'do not add as live local fallback yet',
+      ? 'streaming STT fallback candidate can continue to deeper live test'
+      : 'do not add as live STT fallback yet',
   };
 };
 
@@ -370,6 +373,7 @@ const providerFactories = {
   azure: createAzureProvider,
   vosk: createVoskProvider,
   'sherpa-onnx': createSherpaOnnxProvider,
+  'elevenlabs-realtime': createElevenLabsRealtimeSttProvider,
 };
 
 const runProviderFixture = async ({ providerName, fixture, options }) => {
@@ -408,7 +412,7 @@ const runProviderFixture = async ({ providerName, fixture, options }) => {
   if (!factory) throw new Error(`Unknown provider: ${providerName}`);
 
   const before = getResourceSnapshot();
-  const provider = await factory({ sampleRate: wav.sampleRate, language: fixture.language || 'en-NZ', callbacks });
+  const provider = await factory({ sampleRate: wav.sampleRate, language: fixture.language || 'en-NZ', callbacks, fixture });
 
   for (const chunk of chunks) {
     provider.write(chunk);
@@ -460,6 +464,7 @@ const runProviderFixture = async ({ providerName, fixture, options }) => {
     },
     errors,
     integrationComplexity: provider.integrationComplexity,
+    benchmarkMetadata: provider.benchmarkMetadata || null,
     acceptance,
   };
 };
@@ -489,7 +494,7 @@ const main = async () => {
             werAtMost30Percent: false,
             noProviderErrors: false,
             pass: false,
-            recommendation: 'benchmark failed before metrics were collected; check local provider setup, model path, package install, or fixture loading',
+            recommendation: 'benchmark failed before metrics were collected; check provider setup, credentials, model path, package install, or fixture loading',
           },
         });
       }
@@ -498,7 +503,7 @@ const main = async () => {
 
   const summary = {
     generatedAt: new Date().toISOString(),
-    benchmarkIntent: 'Evaluate Vosk and Sherpa-ONNX as local Plan B streaming ASR candidates. Azure is baseline-only when explicitly requested.',
+    benchmarkIntent: 'Evaluate Vosk and Sherpa-ONNX as local Plan B streaming ASR candidates and ElevenLabs realtime STT as a cloud fallback candidate. Azure is baseline-only when explicitly requested.',
     hardAcceptance: {
       finalTranscriptDelayAfterSpeechEndMs: HARD_FINAL_DELAY_MS,
       aiFirstAudioPossibleAfterSpeechEndMs: HARD_AI_AUDIO_WINDOW_MS,
