@@ -76,7 +76,7 @@
       "roleTerms": ["Backend", "distributed", "event-driven"],
       "nzTerms": [],
       "adaptiveTerms": ["growth area", "bridge", "clearly naming"],
-      "forbiddenClaims": ["production Kafka experience", "Redis expert", "PostgreSQL architect"]
+      "forbiddenClaims": ["I have production Kafka experience", "I am a Redis expert", "I am a PostgreSQL architect"]
     }
   }
 ]
