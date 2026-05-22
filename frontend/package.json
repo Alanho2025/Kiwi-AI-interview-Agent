@@ -12,6 +12,11 @@
     "lint": "eslint .",
     "test": "vitest run --passWithNoTests=false",
     "test:all": "vitest run --passWithNoTests=false",
+    "test:components": "vitest run src/components --passWithNoTests=false",
+    "test:hooks": "vitest run src/hooks --passWithNoTests=false",
+    "test:pages": "vitest run src/pages --passWithNoTests=false",
+    "test:utils": "vitest run src/utils --passWithNoTests=false",
+    "test:voice": "vitest run src/hooks/voice src/hooks/__tests__/useVoiceInterviewSession.test.jsx src/components/interview/__tests__/VoiceInterviewPanel.test.jsx src/pages/__tests__/InterviewPage.voiceMode.test.jsx src/utils/__tests__/voiceActivityDetectionCore.test.js src/utils/__tests__/voiceLatencySummary.test.js src/utils/__tests__/voiceLatencyTrace.test.js src/utils/__tests__/voiceRuntimeNetwork.test.js --passWithNoTests=false",
     "quality:all": "npm run lint && npm run test:all && npm run build"
   },
   "dependencies": {

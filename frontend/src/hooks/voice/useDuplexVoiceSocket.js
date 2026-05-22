@@ -49,6 +49,23 @@ export function useDuplexVoiceSocket({
   const pingSentAtRef = useRef(null);
   const rttSamplesRef = useRef([]);
   const chunksSentRef = useRef(0);
+  const callbacksRef = useRef({
+    onAudioChunk,
+    onAssistantText,
+    onTurnDone,
+    onBargeInAck,
+    onSpeechDone,
+    onTranscriptRejected,
+  });
+
+  callbacksRef.current = {
+    onAudioChunk,
+    onAssistantText,
+    onTurnDone,
+    onBargeInAck,
+    onSpeechDone,
+    onTranscriptRejected,
+  };
 
   const closeSocket = useCallback(() => {
     const socket = socketRef.current;
@@ -128,27 +145,27 @@ export function useDuplexVoiceSocket({
         return;
       }
       if (payload.type === 'assistant_text_delta') {
-        onAssistantText?.(payload);
+        callbacksRef.current.onAssistantText?.(payload);
         return;
       }
       if (payload.type === 'tts_audio_chunk') {
-        onAudioChunk?.(payload);
+        callbacksRef.current.onAudioChunk?.(payload);
         return;
       }
       if (payload.type === 'assistant_speech_done') {
-        onSpeechDone?.(payload);
+        callbacksRef.current.onSpeechDone?.(payload);
         return;
       }
       if (payload.type === 'transcript_rejected') {
-        onTranscriptRejected?.(payload);
+        callbacksRef.current.onTranscriptRejected?.(payload);
         return;
       }
       if (payload.type === 'barge_in_ack') {
-        onBargeInAck?.(payload);
+        callbacksRef.current.onBargeInAck?.(payload);
         return;
       }
       if (payload.type === 'turn_done') {
-        onTurnDone?.(payload);
+        callbacksRef.current.onTurnDone?.(payload);
         return;
       }
       if (payload.type === 'error' || payload.type === 'speech_error') {
@@ -169,7 +186,7 @@ export function useDuplexVoiceSocket({
       if (socketRef.current === socket) socketRef.current = null;
       setSocketState((current) => (current === 'error' ? current : 'closed'));
     };
-  }), [closeSocket, onAssistantText, onAudioChunk, onBargeInAck, onSpeechDone, onTranscriptRejected, onTurnDone]);
+  }), [closeSocket]);
 
   const sendAudioChunk = useCallback((arrayBuffer) => {
     const socket = socketRef.current;
