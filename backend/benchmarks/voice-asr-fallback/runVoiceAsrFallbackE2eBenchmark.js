@@ -3,7 +3,7 @@
  * End-to-end benchmark spike for local ASR Plan B candidates.
  *
  * This measures the real path that matters for live interviews:
- * PCM fixture chunks -> local streaming ASR candidate -> transcript -> existing realtime voice turn service
+ * PCM fixture chunks -> local ASR command adapter -> transcript -> existing realtime voice turn service
  * -> adaptive interview engine / RAG / DeepSeek -> TTS audio buffer.
  *
  * It intentionally mutates the supplied interview session, because the production service persists transcript
@@ -16,6 +16,7 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
+import { createSubprocessAsrProvider } from './adapters/subprocessAsrProvider.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -33,7 +34,6 @@ const MAX_WER = 0.3;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const nowMs = () => Number(process.hrtime.bigint() / 1000000n);
-const unwrapDefaultExport = (moduleNamespace) => moduleNamespace?.default || moduleNamespace;
 
 const loadBenchmarkEnv = () => {
   const explicitEnvPath = process.env.ASR_BENCHMARK_ENV_FILE;
@@ -52,9 +52,7 @@ const loadBenchmarkEnv = () => {
     const resolvedPath = path.resolve(envPath);
     if (seen.has(resolvedPath)) continue;
     seen.add(resolvedPath);
-    if (fsSync.existsSync(resolvedPath)) {
-      dotenv.config({ path: resolvedPath, override: false, quiet: true });
-    }
+    if (fsSync.existsSync(resolvedPath)) dotenv.config({ path: resolvedPath, override: false, quiet: true });
   }
 };
 
@@ -100,13 +98,7 @@ const readJson = async (filePath) => JSON.parse(await fs.readFile(filePath, 'utf
 const readWavAsPcm = async (audioPath) => {
   const buffer = await fs.readFile(audioPath);
   if (buffer.toString('ascii', 0, 4) !== 'RIFF' || buffer.toString('ascii', 8, 12) !== 'WAVE') {
-    return {
-      pcm: buffer,
-      sampleRate: DEFAULT_SAMPLE_RATE,
-      channels: 1,
-      bitsPerSample: 16,
-      sourceFormat: 'raw-pcm',
-    };
+    return { pcm: buffer, sampleRate: DEFAULT_SAMPLE_RATE, channels: 1, bitsPerSample: 16, sourceFormat: 'raw-pcm' };
   }
 
   let offset = 12;
@@ -137,13 +129,7 @@ const readWavAsPcm = async (audioPath) => {
     throw new Error(`Fixture must be PCM 16 kHz mono 16-bit WAV: ${audioPath}`);
   }
 
-  return {
-    pcm: data,
-    sampleRate: fmt.sampleRate,
-    channels: fmt.channels,
-    bitsPerSample: fmt.bitsPerSample,
-    sourceFormat: 'wav-pcm',
-  };
+  return { pcm: data, sampleRate: fmt.sampleRate, channels: fmt.channels, bitsPerSample: fmt.bitsPerSample, sourceFormat: 'wav-pcm' };
 };
 
 const splitPcmChunks = ({ pcm, sampleRate, chunkMs }) => {
@@ -189,18 +175,10 @@ const keywordRecall = ({ expectedKeywords = [], actual }) => {
   const keywords = expectedKeywords.map((item) => String(item).toLowerCase()).filter(Boolean);
   if (!keywords.length) return null;
   const hits = keywords.filter((keyword) => actualText.includes(keyword));
-  return {
-    score: hits.length / keywords.length,
-    hits,
-    misses: keywords.filter((keyword) => !hits.includes(keyword)),
-  };
+  return { score: hits.length / keywords.length, hits, misses: keywords.filter((keyword) => !hits.includes(keyword)) };
 };
 
-const getResourceSnapshot = () => ({
-  rssBytes: process.memoryUsage().rss,
-  heapUsedBytes: process.memoryUsage().heapUsed,
-  cpuUsage: process.cpuUsage(),
-});
+const getResourceSnapshot = () => ({ rssBytes: process.memoryUsage().rss, heapUsedBytes: process.memoryUsage().heapUsed, cpuUsage: process.cpuUsage() });
 
 const diffResourceSnapshot = (before, after) => ({
   rssDeltaMb: Number(((after.rssBytes - before.rssBytes) / 1024 / 1024).toFixed(2)),
@@ -209,85 +187,29 @@ const diffResourceSnapshot = (before, after) => ({
   cpuSystemMs: Number(((after.cpuUsage.system - before.cpuUsage.system) / 1000).toFixed(2)),
 });
 
-const createVoskProvider = async ({ sampleRate, callbacks }) => {
-  const modelPath = process.env.VOSK_MODEL_PATH;
-  if (!modelPath) throw new Error('Set VOSK_MODEL_PATH to a local Vosk model directory.');
-  const vosk = unwrapDefaultExport(await import('vosk'));
-  vosk.setLogLevel?.(-1);
-  const model = new vosk.Model(modelPath);
-  const recognizer = new vosk.Recognizer({ model, sampleRate });
-  recognizer.setWords?.(true);
-  let lastPartial = '';
-
-  return {
-    name: 'vosk',
-    write: (chunk) => {
-      const accepted = recognizer.acceptWaveform(chunk);
-      if (accepted) {
-        const result = recognizer.result();
-        if (result?.text) callbacks.onFinal({ text: result.text, provider: 'vosk' });
-        return;
-      }
-      const partial = recognizer.partialResult?.();
-      if (partial?.partial && partial.partial !== lastPartial) {
-        lastPartial = partial.partial;
-        callbacks.onPartial({ text: partial.partial, provider: 'vosk' });
-      }
-    },
-    finalize: async () => {
-      const result = recognizer.finalResult();
-      if (result?.text) callbacks.onFinal({ text: result.text, provider: 'vosk' });
-      recognizer.free?.();
-      model.free?.();
-    },
-    integrationComplexity: 'medium: consumes existing PCM chunks, but requires native Vosk package and local model files',
-  };
+const resolveProviderCommand = (providerName) => {
+  if (providerName === 'vosk') return process.env.VOSK_STREAMING_COMMAND || process.env.VOSK_ASR_COMMAND;
+  if (providerName === 'sherpa-onnx') return process.env.SHERPA_ONNX_STREAMING_COMMAND || process.env.SHERPA_ONNX_ASR_COMMAND;
+  return null;
 };
 
-const createSherpaOnnxProvider = async ({ sampleRate, callbacks }) => {
-  const moduleName = process.env.SHERPA_ONNX_NODE_MODULE || 'sherpa-onnx-node';
-  const factoryName = process.env.SHERPA_ONNX_STREAMING_FACTORY || 'createOnlineRecognizer';
-  const sherpa = unwrapDefaultExport(await import(moduleName));
-  const factory = sherpa[factoryName];
-  if (typeof factory !== 'function') {
-    throw new Error(`Sherpa-ONNX module ${moduleName} does not export ${factoryName}. Set SHERPA_ONNX_NODE_MODULE and SHERPA_ONNX_STREAMING_FACTORY.`);
+const createProvider = async ({ providerName, sampleRate, callbacks }) => {
+  const commandLine = resolveProviderCommand(providerName);
+  if (!commandLine) {
+    throw new Error(`Set ${providerName === 'vosk' ? 'VOSK_STREAMING_COMMAND' : 'SHERPA_ONNX_STREAMING_COMMAND'} to a command that reads raw PCM from stdin and writes JSONL partial/final events.`);
   }
-
-  const recognizer = factory({
+  return createSubprocessAsrProvider({
+    providerName,
+    commandLine,
     sampleRate,
-    tokens: process.env.SHERPA_ONNX_TOKENS,
-    encoder: process.env.SHERPA_ONNX_ENCODER,
-    decoder: process.env.SHERPA_ONNX_DECODER,
-    joiner: process.env.SHERPA_ONNX_JOINER,
-    model: process.env.SHERPA_ONNX_MODEL,
+    callbacks,
+    integrationComplexity: `${providerName} command adapter: avoids Node native packages; command must read raw PCM stdin and emit JSONL events`,
   });
-
-  let lastPartial = '';
-  return {
-    name: 'sherpa-onnx',
-    write: (chunk) => {
-      const int16 = new Int16Array(chunk.buffer, chunk.byteOffset, Math.floor(chunk.byteLength / 2));
-      const float32 = Float32Array.from(int16, (sample) => sample / 32768);
-      recognizer.acceptWaveform?.(sampleRate, float32);
-      const text = String(recognizer.text || recognizer.getResult?.()?.text || '').trim();
-      if (text && text !== lastPartial) {
-        lastPartial = text;
-        callbacks.onPartial({ text, provider: 'sherpa-onnx' });
-      }
-    },
-    finalize: async () => {
-      recognizer.inputFinished?.();
-      const text = String(recognizer.text || recognizer.getResult?.()?.text || '').trim();
-      if (text) callbacks.onFinal({ text, provider: 'sherpa-onnx' });
-      recognizer.free?.();
-    },
-    integrationComplexity: 'medium-high: compatible with PCM chunks only after Node package and streaming model API are pinned',
-  };
 };
 
 const providerFactories = {
-  vosk: createVoskProvider,
-  'sherpa-onnx': createSherpaOnnxProvider,
+  vosk: (args) => createProvider({ providerName: 'vosk', ...args }),
+  'sherpa-onnx': (args) => createProvider({ providerName: 'sherpa-onnx', ...args }),
 };
 
 const runAsrFixture = async ({ providerName, fixture, options }) => {
@@ -317,9 +239,7 @@ const runAsrFixture = async ({ providerName, fixture, options }) => {
       if (text) finalSegments.push(text);
       events.push({ type: 'final', atMs: eventTime, text });
     },
-    onError: (payload) => {
-      errors.push(payload?.errorDetails || payload?.message || payload?.reason || String(payload));
-    },
+    onError: (payload) => errors.push(payload?.errorDetails || payload?.message || payload?.reason || String(payload)),
   };
 
   const factory = providerFactories[providerName];
@@ -340,9 +260,7 @@ const runAsrFixture = async ({ providerName, fixture, options }) => {
 
   const finalTranscriptText = finalSegments.join(' ').replace(/\s+/g, ' ').trim();
   const finalTranscriptDelayAfterSpeechEndMs = latestFinalMs === null ? null : Math.max(0, latestFinalMs - speechEndMs);
-  const wer = fixture.expectedTranscript
-    ? wordErrorRate({ expected: fixture.expectedTranscript, actual: finalTranscriptText })
-    : null;
+  const wer = fixture.expectedTranscript ? wordErrorRate({ expected: fixture.expectedTranscript, actual: finalTranscriptText }) : null;
   const recall = keywordRecall({ expectedKeywords: fixture.keywords || [], actual: finalTranscriptText });
 
   return {
@@ -360,10 +278,7 @@ const runAsrFixture = async ({ providerName, fixture, options }) => {
     keywordRecall: recall,
     wer,
     resourceUse: diffResourceSnapshot(before, after),
-    eventCounts: {
-      partial: events.filter((event) => event.type === 'partial').length,
-      final: events.filter((event) => event.type === 'final').length,
-    },
+    eventCounts: { partial: events.filter((event) => event.type === 'partial').length, final: events.filter((event) => event.type === 'final').length },
     errors,
     integrationComplexity: provider.integrationComplexity,
   };
@@ -373,15 +288,9 @@ const runRealAiPipeline = async ({ asrResult, options }) => {
   const { getSessionById } = await import('../../src/services/sessionService.js');
   const { processRealtimeVoiceTurn } = await import('../../src/services/voice/realtimeVoiceTurnService.js');
 
-  if (!options.allowSessionMutation) {
-    throw new Error('Refusing to run real E2E pipeline without --allow-session-mutation. Use a disposable test session.');
-  }
-  if (!options.sessionId) {
-    throw new Error('Missing --session-id or ASR_BENCHMARK_SESSION_ID for E2E benchmark.');
-  }
-  if (!asrResult.finalTranscriptText) {
-    throw new Error('ASR produced empty transcript; refusing to call DeepSeek/RAG pipeline.');
-  }
+  if (!options.allowSessionMutation) throw new Error('Refusing to run real E2E pipeline without --allow-session-mutation. Use a disposable test session.');
+  if (!options.sessionId) throw new Error('Missing --session-id or ASR_BENCHMARK_SESSION_ID for E2E benchmark.');
+  if (!asrResult.finalTranscriptText) throw new Error('ASR produced empty transcript; refusing to call DeepSeek/RAG pipeline.');
 
   const sessionBefore = await getSessionById(options.sessionId);
   if (!sessionBefore) throw new Error(`Session not found: ${options.sessionId}`);
@@ -398,7 +307,7 @@ const runRealAiPipeline = async ({ asrResult, options }) => {
     transcriptText: asrResult.finalTranscriptText,
     language: 'en-NZ',
     asrConfidence: null,
-    asrSource: `${asrResult.provider}_local_fallback_benchmark`,
+    asrSource: `${asrResult.provider}_command_fallback_benchmark`,
     inputMode: 'local_fallback_e2e_benchmark',
     voiceName: process.env.ASR_BENCHMARK_VOICE_NAME,
     tryGenerateReportForCompletedSession: null,
@@ -413,12 +322,7 @@ const runRealAiPipeline = async ({ asrResult, options }) => {
   });
 
   const pipelineDoneMs = nowMs() - startedAt;
-  const assistantText = String(
-    result.agentResult?.displayText
-    || result.agentResult?.interviewerTurn?.displayText
-    || result.agentResult?.nextQuestion
-    || ''
-  ).trim();
+  const assistantText = String(result.agentResult?.displayText || result.agentResult?.interviewerTurn?.displayText || result.agentResult?.nextQuestion || '').trim();
   const hasAssistantAudio = Boolean(result.assistantAudio?.base64 || result.assistantAudio?.audioBuffer || result.assistantAudio);
 
   return {
@@ -437,28 +341,15 @@ const runRealAiPipeline = async ({ asrResult, options }) => {
 };
 
 const buildAcceptance = ({ asrResult, e2eResult }) => {
-  const hasPartialBeforeSpeechEnd = Number.isFinite(asrResult.firstPartialMs)
-    && Number.isFinite(asrResult.speechEndMs)
-    && asrResult.firstPartialMs < asrResult.speechEndMs;
-  const finalReadyWithin1s = Number.isFinite(asrResult.finalTranscriptDelayAfterSpeechEndMs)
-    && asrResult.finalTranscriptDelayAfterSpeechEndMs <= HARD_FINAL_DELAY_MS;
+  const hasPartialBeforeSpeechEnd = Number.isFinite(asrResult.firstPartialMs) && Number.isFinite(asrResult.speechEndMs) && asrResult.firstPartialMs < asrResult.speechEndMs;
+  const finalReadyWithin1s = Number.isFinite(asrResult.finalTranscriptDelayAfterSpeechEndMs) && asrResult.finalTranscriptDelayAfterSpeechEndMs <= HARD_FINAL_DELAY_MS;
   const keywordRecallPass = asrResult.keywordRecall === null || asrResult.keywordRecall.score >= MIN_KEYWORD_RECALL;
   const werPass = asrResult.wer === null || asrResult.wer <= MAX_WER;
   const noAsrErrors = !asrResult.errors.length;
-  const aiFirstAudioActualAfterSpeechEndMs = e2eResult
-    ? asrResult.finalTranscriptDelayAfterSpeechEndMs + e2eResult.pipelineDoneMs
-    : null;
-  const aiFirstAudioActualWithin5s = Number.isFinite(aiFirstAudioActualAfterSpeechEndMs)
-    && aiFirstAudioActualAfterSpeechEndMs <= HARD_AI_FIRST_AUDIO_MS;
-  const aiPipelineProducedOutput = Boolean(e2eResult?.assistantTextLength)
-    && (e2eResult.mode === 'rag_deepseek_text_only' || e2eResult.assistantAudioReady === true);
-  const pass = hasPartialBeforeSpeechEnd
-    && finalReadyWithin1s
-    && keywordRecallPass
-    && werPass
-    && noAsrErrors
-    && aiFirstAudioActualWithin5s
-    && aiPipelineProducedOutput;
+  const aiFirstAudioActualAfterSpeechEndMs = e2eResult ? asrResult.finalTranscriptDelayAfterSpeechEndMs + e2eResult.pipelineDoneMs : null;
+  const aiFirstAudioActualWithin5s = Number.isFinite(aiFirstAudioActualAfterSpeechEndMs) && aiFirstAudioActualAfterSpeechEndMs <= HARD_AI_FIRST_AUDIO_MS;
+  const aiPipelineProducedOutput = Boolean(e2eResult?.assistantTextLength) && (e2eResult.mode === 'rag_deepseek_text_only' || e2eResult.assistantAudioReady === true);
+  const pass = hasPartialBeforeSpeechEnd && finalReadyWithin1s && keywordRecallPass && werPass && noAsrErrors && aiFirstAudioActualWithin5s && aiPipelineProducedOutput;
 
   return {
     hasPartialBeforeSpeechEnd,
@@ -470,9 +361,7 @@ const buildAcceptance = ({ asrResult, e2eResult }) => {
     aiFirstAudioActualAfterSpeechEndMs,
     aiFirstAudioActualWithin5s,
     pass,
-    recommendation: pass
-      ? 'local ASR fallback can continue toward live integration spike'
-      : 'do not add as live local fallback yet',
+    recommendation: pass ? 'local ASR fallback can continue toward live integration spike' : 'do not add as live local fallback yet',
   };
 };
 
@@ -488,23 +377,14 @@ const main = async () => {
       try {
         const asr = await runAsrFixture({ providerName, fixture, options });
         const e2e = await runRealAiPipeline({ asrResult: asr, options });
-        results.push({
-          provider: providerName,
-          fixture: fixture.id,
-          asr,
-          e2e,
-          acceptance: buildAcceptance({ asrResult: asr, e2eResult: e2e }),
-        });
+        results.push({ provider: providerName, fixture: fixture.id, asr, e2e, acceptance: buildAcceptance({ asrResult: asr, e2eResult: e2e }) });
       } catch (error) {
         results.push({
           provider: providerName,
           fixture: fixture.id,
           skipped: true,
           error: error?.message || String(error),
-          acceptance: {
-            pass: false,
-            recommendation: 'E2E benchmark failed before complete measurement; fix local ASR setup, model path, session id, DB, DeepSeek, RAG, or TTS config',
-          },
+          acceptance: { pass: false, recommendation: 'E2E benchmark failed before complete measurement; fix ASR command, session id, DB, DeepSeek, RAG, or TTS config' },
         });
       }
     }
@@ -512,8 +392,9 @@ const main = async () => {
 
   const summary = {
     generatedAt: new Date().toISOString(),
-    benchmarkIntent: 'Actual E2E check for Vosk/Sherpa-ONNX Plan B: local ASR -> existing RAG/adaptive engine/DeepSeek -> TTS audio readiness.',
+    benchmarkIntent: 'Actual E2E check for Vosk/Sherpa-ONNX Plan B: command ASR adapter -> existing RAG/adaptive engine/DeepSeek -> TTS audio readiness.',
     warning: 'This benchmark mutates the supplied interview session. Use a disposable test session.',
+    commandProtocol: 'ASR command must read raw 16 kHz mono 16-bit PCM from stdin and write JSONL events: {"type":"partial","text":"..."} and {"type":"final","text":"..."}.',
     hardAcceptance: {
       finalTranscriptDelayAfterSpeechEndMs: HARD_FINAL_DELAY_MS,
       aiFirstAudioActualAfterSpeechEndMs: HARD_AI_FIRST_AUDIO_MS,
@@ -521,10 +402,7 @@ const main = async () => {
       werMaximum: MAX_WER,
       partialRequiredBeforeSpeechEnd: true,
     },
-    options: {
-      ...options,
-      userId: options.userId ? '[provided]' : null,
-    },
+    options: { ...options, userId: options.userId ? '[provided]' : null },
     results,
   };
 
