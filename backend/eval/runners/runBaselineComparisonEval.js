@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { parseEvalArgs, exitIfGateFailed } from '../helpers/evalCli.js';
@@ -10,7 +11,10 @@ const reportRoot = path.join(repoRoot, 'eval/reports');
 const options = parseEvalArgs({ argv: process.argv.slice(2), gateName: 'baselineComparison' });
 
 const scenarios = JSON.parse(await fs.readFile(datasetPath, 'utf8'));
-const results = await Promise.all(scenarios.map((scenario) => runBaselineComparisonCase(scenario)));
+const results = [];
+for (const scenario of scenarios) {
+  results.push(await runBaselineComparisonCase(scenario));
+}
 const summary = summarizeBaselineComparison({ results, thresholds: options, label: 'Baseline Comparison Eval' });
 
 await fs.mkdir(reportRoot, { recursive: true });

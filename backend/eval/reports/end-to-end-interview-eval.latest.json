@@ -1,6 +1,7 @@
 {
   "label": "End-to-End Interview Eval",
   "casesRun": 3,
+  "evaluationMethod": "Fixed interview scenario evaluation covering flow validity, question quality, and report grounding. It does not call production routes, databases, voice runtime, or live AI services.",
   "average": 0.98,
   "weakestCases": [],
   "thresholds": {
