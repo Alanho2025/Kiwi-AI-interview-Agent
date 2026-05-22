@@ -34,7 +34,7 @@ import { asyncHandler } from '../middleware/asyncHandler.js';
 import { logger, getRequestLogMeta } from '../utils/logger.js';
 import { createLatencyTrace } from '../utils/latencyTrace.js';
 import { processRealtimeVoiceTurn } from '../services/voice/realtimeVoiceTurnService.js';
-import { synthesizeSpeech } from '../services/voice/azureSpeechService.js';
+import { synthesizeSpeech } from '../services/voice/ttsProviderRouter.js';
 import { withSessionTurnLock } from '../utils/sessionTurnLock.js';
 
 const tryGenerateReportForCompletedSession = async (req, sessionId) => {
@@ -267,6 +267,10 @@ export const replyInterviewWithRealtimeVoiceStream = asyncHandler(async (req, re
       const payload = {
         type: 'audio',
         base64: synthesis.audioBuffer.toString('base64'),
+        provider: synthesis.provider,
+        contentType: synthesis.contentType,
+        voiceName: synthesis.voiceName,
+        outputFormat: synthesis.outputFormat,
         index,
         text,
       };
@@ -404,6 +408,9 @@ export const synthesizeInterviewText = asyncHandler(async (req, res) => {
     assistantAudio: {
       base64: result.audioBuffer.toString('base64'),
       contentType: result.contentType,
+      provider: result.provider,
+      voiceName: result.voiceName,
+      outputFormat: result.outputFormat,
     }
   }));
 });

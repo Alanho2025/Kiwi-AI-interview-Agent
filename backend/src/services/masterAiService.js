@@ -27,6 +27,7 @@ import { evaluateInterviewTurn, persistEvaluatorRecord } from './aiControl/inter
 import { buildTrajectoryStep, persistTrajectoryStep } from './aiControl/trajectoryService.js';
 import { executeReportAction } from './aiControl/reportActionExecutor.js';
 import { buildEvidenceBundle } from './aiControl/evidenceBundleService.js';
+import { resolveFastAnswerUnderstanding } from './aiControl/fastAnswerUnderstandingService.js';
 import { persistDynamicSlotState } from './aiControl/dynamicSlotService.js';
 import { buildReflectionRecord, shouldWriteReflection, persistReflectionRecord } from './aiControl/reflectionWriterService.js';
 import { persistUserCoachingMemory } from './aiControl/userCoachingMemoryService.js';
@@ -148,7 +149,16 @@ const runInterviewController = async ({ session, payload = {}, onSentence = null
     buildInterviewRetrievalInput({ session, payload, objective: 'bootstrap_interview_context' })
   ));
 
-  const environment = await measureAdaptiveStep(trace, 'adaptive.environment_build', () => buildInterviewEnvironment({ session, retrievalBundle: initialRetrievalBundle }));
+  const baseEnvironment = await measureAdaptiveStep(trace, 'adaptive.environment_build', () => buildInterviewEnvironment({ session, retrievalBundle: initialRetrievalBundle }));
+  const latestAnswerUnderstanding = await measureAdaptiveStep(trace, 'adaptive.fast_answer_understanding', () => resolveFastAnswerUnderstanding({
+    session,
+    environment: baseEnvironment,
+    answerText: payload.answer || baseEnvironment.latestAnswer?.text || '',
+  }));
+  const environment = {
+    ...baseEnvironment,
+    latestAnswerUnderstanding,
+  };
   const evaluatorOutput = await measureAdaptiveStep(trace, 'adaptive.turn_evaluation', () => evaluateInterviewTurn({ environment }));
   enqueueBackgroundJob('persist-evaluator-record', () => persistEvaluatorRecord({ sessionId: session.id, evaluation: evaluatorOutput }), { sessionId: session.id });
 
@@ -158,6 +168,7 @@ const runInterviewController = async ({ session, payload = {}, onSentence = null
     session,
     retrievalBundle: initialRetrievalBundle,
     latestEvaluation: evaluatorOutput,
+    latestAnswerUnderstanding,
   }));
   enqueueBackgroundJob('persist-controller-context', async () => {
     await persistDynamicSlotState({ sessionId: session.id, dynamicSlots: decisionContext.dynamicSlotState });

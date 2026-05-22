@@ -1,0 +1,164 @@
+name: ElevenLabs Cloud Voice Benchmark
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_e2e:
+        description: Run the real E2E benchmark that mutates then restores the supplied disposable session
+        required: true
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+      providers:
+        description: Comma-separated STT providers for the benchmark
+        required: true
+        default: elevenlabs-realtime
+  push:
+    branches: [Alan-workplace]
+    paths:
+      - .github/workflows/benchmark-elevenlabs-realtime.yml
+      - backend/benchmarks/voice-asr-fallback/**
+
+permissions:
+  contents: read
+
+env:
+  BENCHMARK_MANIFEST: benchmarks/voice-asr-fallback/fixtures.local.json
+  ASR_ONLY_OUTPUT: benchmarks/voice-asr-fallback/results.github.elevenlabs-realtime-stt.json
+  E2E_OUTPUT: benchmarks/voice-asr-fallback/results.github.e2e-elevenlabs-realtime-stt-and-tts.json
+
+jobs:
+  asr-only:
+    name: Generate fixture and run ASR-only benchmark
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+      ELEVENLABS_VOICE_ID: ${{ secrets.ELEVENLABS_VOICE_ID }}
+      ELEVENLABS_MODEL_ID: ${{ secrets.ELEVENLABS_MODEL_ID || 'eleven_turbo_v2_5' }}
+      ELEVENLABS_OUTPUT_FORMAT: ${{ secrets.ELEVENLABS_OUTPUT_FORMAT || 'mp3_44100_128' }}
+      ELEVENLABS_STT_MODEL_ID: ${{ secrets.ELEVENLABS_STT_MODEL_ID || 'scribe_v2_realtime' }}
+      ELEVENLABS_STT_AUDIO_FORMAT: pcm_16000
+      ELEVENLABS_STT_COMMIT_STRATEGY: manual
+      ELEVENLABS_STT_INCLUDE_TIMESTAMPS: 'false'
+      ELEVENLABS_STT_FINAL_TIMEOUT_MS: '5000'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: Alan-workplace
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        run: npm ci
+
+      - name: Check benchmark JavaScript syntax
+        run: |
+          node --check benchmarks/voice-asr-fallback/adapters/elevenlabsRealtimeSttProvider.js
+          node --check benchmarks/voice-asr-fallback/benchmarkSessionState.js
+          node --check benchmarks/voice-asr-fallback/generateSelfIntroductionAudioFixture.js
+          node --check benchmarks/voice-asr-fallback/runVoiceAsrFallbackBenchmark.js
+          node --check benchmarks/voice-asr-fallback/runVoiceAsrFallbackE2eBenchmark.js
+
+      - name: Generate self-introduction audio fixture
+        run: node benchmarks/voice-asr-fallback/generateSelfIntroductionAudioFixture.js
+
+      - name: Run ElevenLabs realtime STT ASR-only benchmark
+        run: |
+          PROVIDERS="${{ github.event.inputs.providers || 'elevenlabs-realtime' }}"
+          node benchmarks/voice-asr-fallback/runVoiceAsrFallbackBenchmark.js \
+            --manifest "$BENCHMARK_MANIFEST" \
+            --providers "$PROVIDERS" \
+            --output "$ASR_ONLY_OUTPUT"
+
+      - name: Upload ASR-only benchmark result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: elevenlabs-realtime-stt-asr-only-result
+          path: |
+            backend/benchmarks/voice-asr-fallback/results.github.elevenlabs-realtime-stt.json
+            backend/benchmarks/voice-asr-fallback/fixtures.local.json
+          if-no-files-found: warn
+          retention-days: 7
+
+  e2e:
+    name: E2E speech-end to first-audio benchmark
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: ${{ github.event_name == 'push' || github.event.inputs.run_e2e == 'true' }}
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      NODE_ENV: benchmark
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+      ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+      ELEVENLABS_VOICE_ID: ${{ secrets.ELEVENLABS_VOICE_ID }}
+      ELEVENLABS_MODEL_ID: ${{ secrets.ELEVENLABS_MODEL_ID || 'eleven_turbo_v2_5' }}
+      ELEVENLABS_OUTPUT_FORMAT: ${{ secrets.ELEVENLABS_OUTPUT_FORMAT || 'mp3_44100_128' }}
+      ELEVENLABS_STT_MODEL_ID: ${{ secrets.ELEVENLABS_STT_MODEL_ID || 'scribe_v2_realtime' }}
+      ELEVENLABS_STT_AUDIO_FORMAT: pcm_16000
+      ELEVENLABS_STT_COMMIT_STRATEGY: manual
+      ELEVENLABS_STT_INCLUDE_TIMESTAMPS: 'false'
+      ELEVENLABS_STT_FINAL_TIMEOUT_MS: '5000'
+      MONGODB_URI: ${{ secrets.MONGODB_URI }}
+      POSTGRES_URL: ${{ secrets.POSTGRES_URL }}
+      ASR_BENCHMARK_SESSION_ID: ${{ secrets.SESSION_ID }}
+      ASR_BENCHMARK_USER_ID: ${{ secrets.USER_ID }}
+      ASR_BENCHMARK_ALLOW_SESSION_MUTATION: 'true'
+      ASR_BENCHMARK_RESTORE_SESSION: 'true'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: Alan-workplace
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        run: npm ci
+
+      - name: Generate self-introduction audio fixture
+        run: node benchmarks/voice-asr-fallback/generateSelfIntroductionAudioFixture.js
+
+      - name: Run ElevenLabs realtime STT plus ElevenLabs TTS E2E benchmark
+        run: |
+          PROVIDERS="${{ github.event.inputs.providers || 'elevenlabs-realtime' }}"
+          node benchmarks/voice-asr-fallback/runVoiceAsrFallbackE2eBenchmark.js \
+            --manifest "$BENCHMARK_MANIFEST" \
+            --providers "$PROVIDERS" \
+            --allow-session-mutation \
+            --tts-provider local-command \
+            --local-tts-command "python3 benchmarks/voice-asr-fallback/adapters/elevenlabs_tts_worker.py" \
+            --local-tts-provider-name elevenlabs-command \
+            --local-tts-content-type audio/mpeg \
+            --local-tts-output-format mp3_44100_128 \
+            --output "$E2E_OUTPUT"
+
+      - name: Upload E2E benchmark result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: elevenlabs-realtime-stt-e2e-result
+          path: |
+            backend/benchmarks/voice-asr-fallback/results.github.e2e-elevenlabs-realtime-stt-and-tts.json
+            backend/benchmarks/voice-asr-fallback/fixtures.local.json
+          if-no-files-found: warn
+          retention-days: 7

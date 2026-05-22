@@ -145,12 +145,31 @@ const suggestNextMode = ({ misunderstandingFlag = false, evidenceGainScore = 0, 
   return 'advance';
 };
 
+const mergeSuggestedNextMode = ({ baseMode, answerUnderstanding = null, misunderstandingFlag = false } = {}) => {
+  if (misunderstandingFlag) return 'rephrase';
+  const understandingMode = answerUnderstanding?.suggestedFollowUp?.mode;
+  const confidence = Number(answerUnderstanding?.confidence || 0);
+  if (confidence < 0.58 || !understandingMode) return baseMode;
+  if (understandingMode === 'rephrase') return 'rephrase';
+  if (understandingMode === 'probe' && baseMode !== 'rephrase') return 'probe';
+  if (
+    understandingMode === 'deepen'
+    && (
+      ['advance', 'deepen'].includes(baseMode)
+      || (answerUnderstanding?.technologies?.length && answerUnderstanding?.ownershipSignals?.length)
+    )
+  ) return 'deepen';
+  return baseMode;
+};
+
 export const evaluateInterviewTurn = ({ environment = {}, decisionContext = null } = {}) => {
   const answerText = environment?.latestAnswer?.text || '';
   const currentTopic = environment?.questionContext?.latestQuestionTopic || decisionContext?.currentTopic || '';
   const requiredSkills = environment?.roleContext?.requiredSkills || [];
+  const answerUnderstanding = environment?.latestAnswerUnderstanding || null;
   const specificity = classifySpecificity(answerText);
-  const misunderstandingFlag = detectMisunderstanding(answerText, currentTopic);
+  const misunderstandingFlag = detectMisunderstanding(answerText, currentTopic)
+    || answerUnderstanding?.suggestedFollowUp?.mode === 'rephrase';
   const hasCandidateQuestion = detectCandidateQuestion(answerText);
   const evidenceGainScore = computeEvidenceGainScore({ answerText, topic: currentTopic, requiredSkills });
   const engagementScore = scoreEngagement({ answerText, misunderstandingFlag });
@@ -161,9 +180,22 @@ export const evaluateInterviewTurn = ({ environment = {}, decisionContext = null
   const interactionStatus = classifyInteractionStatus({ overallInteractionScore, misunderstandingFlag, turnTakingScore });
   const repetitionRisk = detectRepetitionRisk({ previousTopics: environment?.questionContext?.previousQuestionTopics || [], currentTopic });
   const gapClosure = detectGapClosure({ answerText, topic: currentTopic });
-  const suggestedNextMode = suggestNextMode({ misunderstandingFlag, evidenceGainScore, repetitionRisk, closeCurrentIntent: gapClosure.closeCurrentIntent });
-  const frictionState = detectFrictionSignals(answerText);
-  const mentionedEntities = extractMentionedEntities(answerText);
+  const baseSuggestedNextMode = suggestNextMode({ misunderstandingFlag, evidenceGainScore, repetitionRisk, closeCurrentIntent: gapClosure.closeCurrentIntent });
+  const suggestedNextMode = mergeSuggestedNextMode({ baseMode: baseSuggestedNextMode, answerUnderstanding, misunderstandingFlag });
+  const rawFrictionState = detectFrictionSignals(answerText);
+  const frictionKeywords = [...new Set([
+    ...(rawFrictionState.frictionKeywords || []),
+    ...(answerUnderstanding?.frictionSignals || []),
+  ])];
+  const frictionState = {
+    frictionDetected: rawFrictionState.frictionDetected || frictionKeywords.length > 0,
+    frictionLevel: frictionKeywords.length >= 3 ? 'high' : frictionKeywords.length >= 1 ? 'medium' : 'low',
+    frictionKeywords,
+  };
+  const mentionedEntities = [...new Set([
+    ...extractMentionedEntities(answerText),
+    ...(answerUnderstanding?.mentionedEntities || []),
+  ])];
   const reflectionNeeded = misunderstandingFlag || (evidenceGainScore < 0.45 && repetitionRisk) || overallInteractionScore < 0.5;
 
   return {
@@ -189,8 +221,20 @@ export const evaluateInterviewTurn = ({ environment = {}, decisionContext = null
     closeCurrentIntent: gapClosure.closeCurrentIntent,
     suggestedNextMode,
     successStatus: evidenceGainScore >= 0.55 && !misunderstandingFlag ? 'usable' : 'weak',
+    fastAnswerUnderstanding: answerUnderstanding,
+    answerUnderstandingSummary: answerUnderstanding
+      ? {
+          intent: answerUnderstanding.intent,
+          suggestedFollowUp: answerUnderstanding.suggestedFollowUp,
+          technologies: answerUnderstanding.technologies || [],
+          missingEvidence: answerUnderstanding.missingEvidence || [],
+          confidence: answerUnderstanding.confidence,
+        }
+      : null,
     rationale: misunderstandingFlag
       ? 'The latest answer likely did not address the question clearly enough.'
+      : suggestedNextMode !== baseSuggestedNextMode && answerUnderstanding?.suggestedFollowUp?.questionGoal
+        ? `Fast answer understanding found concrete facts to preserve: ${answerUnderstanding.suggestedFollowUp.questionGoal}.`
       : evidenceGainScore >= 0.7
         ? 'The latest answer added concrete evidence that can support downstream scoring and reporting.'
         : 'The latest answer added some evidence, but the next turn should still tighten specificity or coverage.',

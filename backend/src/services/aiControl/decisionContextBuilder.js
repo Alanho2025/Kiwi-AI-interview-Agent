@@ -47,7 +47,7 @@ const buildCoverageState = ({ session = {}, evidenceBundle = {} } = {}) => {
   };
 };
 
-export const buildDecisionContext = async ({ taskType, session = {}, retrievalBundle = null, latestEvaluation = null } = {}) => {
+export const buildDecisionContext = async ({ taskType, session = {}, retrievalBundle = null, latestEvaluation = null, latestAnswerUnderstanding = null } = {}) => {
   const latestAnswer = getLastUserAnswer(session.transcript || []);
   const evidenceBundle = buildEvidenceBundle({ session, retrievalBundle });
   const [agentMemory, resolvedLatestEvaluation, storedDynamicSlotState, sessionReflectionMemory, userCoachingMemory] = await Promise.all([
@@ -58,7 +58,13 @@ export const buildDecisionContext = async ({ taskType, session = {}, retrievalBu
     getUserCoachingMemory(session.userId),
   ]);
 
-  const environment = buildInterviewEnvironment({ session, retrievalBundle, latestEvaluation: resolvedLatestEvaluation });
+  const resolvedAnswerUnderstanding = latestAnswerUnderstanding || resolvedLatestEvaluation?.fastAnswerUnderstanding || null;
+  const environment = buildInterviewEnvironment({
+    session,
+    retrievalBundle,
+    latestEvaluation: resolvedLatestEvaluation,
+    latestAnswerUnderstanding: resolvedAnswerUnderstanding,
+  });
   const currentStage = inferCurrentStage(session);
   const coverageState = buildCoverageState({ session, evidenceBundle });
   const candidateSpecificity = inferSpecificityLevel(latestAnswer, resolvedLatestEvaluation);
@@ -73,6 +79,7 @@ export const buildDecisionContext = async ({ taskType, session = {}, retrievalBu
     && resolvedLatestEvaluation?.suggestedNextMode !== 'shift_section',
   );
   const currentTopic = (shouldPreferEvaluationTopic ? resolvedLatestEvaluation?.currentTopic : null)
+    || resolvedAnswerUnderstanding?.suggestedFollowUp?.topic
     || environment.questionContext.latestQuestionTopic
     || resolvedLatestEvaluation?.currentTopic
     || dynamicSlotState.activeSlotTopics?.[0]
@@ -121,6 +128,10 @@ export const buildDecisionContext = async ({ taskType, session = {}, retrievalBu
           reflectionNeeded: resolvedLatestEvaluation.reflectionNeeded,
           suggestedNextMode: resolvedLatestEvaluation.suggestedNextMode,
           currentTopic: resolvedLatestEvaluation.currentTopic,
+          frictionState: resolvedLatestEvaluation.frictionState || null,
+          mentionedEntities: ensureArray(resolvedLatestEvaluation.mentionedEntities),
+          answerUnderstandingSummary: resolvedLatestEvaluation.answerUnderstandingSummary || null,
+          fastAnswerUnderstanding: resolvedAnswerUnderstanding,
           gapClosure: resolvedLatestEvaluation.gapClosure || null,
           closeCurrentIntent: Boolean(resolvedLatestEvaluation.closeCurrentIntent),
         }
@@ -159,6 +170,7 @@ export const buildDecisionContext = async ({ taskType, session = {}, retrievalBu
       avoidRedundantTopics: true,
     },
     evidenceBundle,
+    latestAnswerUnderstanding: resolvedAnswerUnderstanding,
     latestAnswer,
   };
 };
