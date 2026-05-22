@@ -29,6 +29,7 @@ export const createSubprocessAsrProvider = async ({ providerName, commandLine, s
   let stderrBuffer = '';
   let closeCode = null;
   let closeSignal = null;
+  let stdinError = null;
 
   child.stdout.on('data', (chunk) => {
     stdoutBuffer += chunk.toString('utf8');
@@ -47,6 +48,10 @@ export const createSubprocessAsrProvider = async ({ providerName, commandLine, s
     stderrBuffer += chunk.toString('utf8');
   });
 
+  child.stdin.on('error', (error) => {
+    stdinError = error;
+  });
+
   const closePromise = new Promise((resolve, reject) => {
     child.once('error', reject);
     child.once('close', (code, signal) => {
@@ -59,10 +64,15 @@ export const createSubprocessAsrProvider = async ({ providerName, commandLine, s
   return {
     name: providerName,
     write: (chunk) => {
-      if (child.stdin.writable) child.stdin.write(chunk);
+      if (stdinError || closeCode !== null || !child.stdin.writable) return;
+      try {
+        child.stdin.write(chunk);
+      } catch (error) {
+        stdinError = error;
+      }
     },
     finalize: async () => {
-      if (child.stdin.writable) child.stdin.end();
+      if (!stdinError && child.stdin.writable) child.stdin.end();
       await closePromise;
       if (stdoutBuffer.trim()) {
         try {
@@ -72,7 +82,8 @@ export const createSubprocessAsrProvider = async ({ providerName, commandLine, s
         }
       }
       if (closeCode !== 0) {
-        throw new Error(`${providerName} subprocess exited with code ${closeCode}${closeSignal ? ` signal ${closeSignal}` : ''}${stderrBuffer ? `: ${stderrBuffer.slice(-1000)}` : ''}`);
+        const stdinDetails = stdinError ? `; stdin error: ${stdinError.message}` : '';
+        throw new Error(`${providerName} subprocess exited with code ${closeCode}${closeSignal ? ` signal ${closeSignal}` : ''}${stdinDetails}${stderrBuffer ? `: ${stderrBuffer.slice(-1000)}` : ''}`);
       }
     },
     integrationComplexity,

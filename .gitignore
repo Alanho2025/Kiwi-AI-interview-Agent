@@ -7,3 +7,5 @@ coverage/
 .env*
 !.env.example
 backend/uploads/
+backend/.venv-asr/
+backend/benchmarks/voice-asr-fallback/models/

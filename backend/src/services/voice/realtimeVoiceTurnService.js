@@ -61,6 +61,7 @@ export const processRealtimeVoiceTurn = async ({
   tryGenerateReportForCompletedSession,
   req = null,
   onSentence = null,
+  synthesizeAssistantSpeech = synthesizeSpeech,
 }) => {
   const normalizedAnswer = String(transcriptText || '').trim();
   const transcriptGate = validateRealtimeVoiceTranscript({ transcriptText: normalizedAnswer, asrConfidence, vad });
@@ -168,7 +169,7 @@ export const processRealtimeVoiceTurn = async ({
       const questionId = latestAiTurn?.questionId || null;
       enqueueBackgroundJob('archive-realtime-assistant-audio', async () => {
         try {
-          const synthesis = await synthesizeSpeech({
+          const synthesis = await synthesizeAssistantSpeech({
             text: assistantText,
             voiceName,
             usageContext: {
@@ -194,7 +195,7 @@ export const processRealtimeVoiceTurn = async ({
       }, { sessionId: session.id, questionId });
     } else {
       try {
-        const synthesis = await trace.measure('tts_synthesis', () => synthesizeSpeech({
+        const synthesis = await trace.measure('tts_synthesis', () => synthesizeAssistantSpeech({
           text: assistantText,
           voiceName,
           usageContext: {

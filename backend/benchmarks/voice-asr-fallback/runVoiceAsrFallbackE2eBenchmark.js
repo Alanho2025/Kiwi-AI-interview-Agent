@@ -14,6 +14,7 @@ import fs from 'node:fs/promises';
 import fsSync from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
+import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
 import { createSubprocessAsrProvider } from './adapters/subprocessAsrProvider.js';
@@ -75,6 +76,11 @@ const parseArgs = () => {
     userId: process.env.ASR_BENCHMARK_USER_ID || null,
     allowSessionMutation: process.env.ASR_BENCHMARK_ALLOW_SESSION_MUTATION === 'true',
     textOnlyAi: process.env.ASR_BENCHMARK_TEXT_ONLY_AI === 'true',
+    ttsProvider: process.env.ASR_BENCHMARK_TTS_PROVIDER || 'azure',
+    localTtsCommand: process.env.ASR_BENCHMARK_LOCAL_TTS_COMMAND || process.env.LOCAL_TTS_COMMAND || null,
+    localTtsProviderName: process.env.ASR_BENCHMARK_LOCAL_TTS_PROVIDER_NAME || 'local-tts-command',
+    localTtsContentType: process.env.ASR_BENCHMARK_LOCAL_TTS_CONTENT_TYPE || 'audio/wav',
+    localTtsOutputFormat: process.env.ASR_BENCHMARK_LOCAL_TTS_OUTPUT_FORMAT || 'wav',
   };
 
   for (let index = 0; index < args.length; index += 1) {
@@ -88,6 +94,11 @@ const parseArgs = () => {
     if (arg === '--user-id') options.userId = args[++index];
     if (arg === '--allow-session-mutation') options.allowSessionMutation = true;
     if (arg === '--text-only-ai') options.textOnlyAi = true;
+    if (arg === '--tts-provider') options.ttsProvider = args[++index];
+    if (arg === '--local-tts-command') options.localTtsCommand = args[++index];
+    if (arg === '--local-tts-provider-name') options.localTtsProviderName = args[++index];
+    if (arg === '--local-tts-content-type') options.localTtsContentType = args[++index];
+    if (arg === '--local-tts-output-format') options.localTtsOutputFormat = args[++index];
   }
 
   return options;
@@ -193,6 +204,24 @@ const resolveProviderCommand = (providerName) => {
   return null;
 };
 
+const createAzureProvider = async ({ sampleRate, language = 'en-NZ', callbacks }) => {
+  const { createRealtimeSpeechSession } = await import('../../src/services/voice/realtimeSpeechSessionService.js');
+  const session = createRealtimeSpeechSession({
+    language,
+    sampleRate,
+    onPartialTranscript: callbacks.onPartial,
+    onFinalTranscript: callbacks.onFinal,
+    onError: callbacks.onError,
+  });
+  await session.start();
+  return {
+    name: 'azure',
+    write: (chunk) => session.writeAudio(chunk),
+    finalize: () => session.stop(),
+    integrationComplexity: 'baseline: existing Azure streaming STT path',
+  };
+};
+
 const createProvider = async ({ providerName, sampleRate, callbacks }) => {
   const commandLine = resolveProviderCommand(providerName);
   if (!commandLine) {
@@ -207,7 +236,61 @@ const createProvider = async ({ providerName, sampleRate, callbacks }) => {
   });
 };
 
+const splitCommand = (value) => String(value || '').trim().split(/\s+/).filter(Boolean);
+
+const synthesizeWithLocalCommand = ({
+  commandLine,
+  providerName = 'local-tts-command',
+  contentType = 'audio/wav',
+  outputFormat = 'wav',
+}) => async ({ text, voiceName } = {}) => {
+  const trimmedText = String(text || '').trim();
+  if (!trimmedText) throw new Error('Local TTS requires non-empty text.');
+
+  const parts = splitCommand(commandLine);
+  if (!parts.length) throw new Error('Set ASR_BENCHMARK_LOCAL_TTS_COMMAND to a command that reads text from stdin and writes WAV bytes to stdout.');
+
+  const [command, ...args] = parts;
+  const child = spawn(command, args, {
+    env: process.env,
+    stdio: ['pipe', 'pipe', 'pipe'],
+  });
+
+  const stdoutChunks = [];
+  let stderr = '';
+  child.stdout.on('data', (chunk) => stdoutChunks.push(chunk));
+  child.stderr.on('data', (chunk) => {
+    stderr += chunk.toString('utf8');
+  });
+
+  const closePromise = new Promise((resolve, reject) => {
+    child.once('error', reject);
+    child.once('close', (code, signal) => {
+      if (code !== 0) {
+        reject(new Error(`${providerName} exited with code ${code}${signal ? ` signal ${signal}` : ''}${stderr ? `: ${stderr.slice(-1000)}` : ''}`));
+        return;
+      }
+      resolve();
+    });
+  });
+
+  child.stdin.end(`${trimmedText}\n`);
+  await closePromise;
+
+  const audioBuffer = Buffer.concat(stdoutChunks);
+  if (!audioBuffer.length) throw new Error(`${providerName} produced empty audio.`);
+
+  return {
+    audioBuffer,
+    contentType,
+    voiceName: voiceName || providerName,
+    outputFormat,
+    provider: providerName,
+  };
+};
+
 const providerFactories = {
+  azure: createAzureProvider,
   vosk: (args) => createProvider({ providerName: 'vosk', ...args }),
   'sherpa-onnx': (args) => createProvider({ providerName: 'sherpa-onnx', ...args }),
 };
@@ -223,7 +306,7 @@ const runAsrFixture = async ({ providerName, fixture, options }) => {
   const startedAt = nowMs();
   let firstPartialMs = null;
   let latestFinalMs = null;
-  let speechEndMs = null;
+  let speechEndMs;
 
   const callbacks = {
     onPartial: (payload) => {
@@ -300,6 +383,25 @@ const runRealAiPipeline = async ({ asrResult, options }) => {
   const startedAt = nowMs();
   let firstSentenceReadyMs = null;
   const sentenceEvents = [];
+  const useLocalTts = options.ttsProvider === 'local-command';
+  const synthesizeAssistantSpeech = useLocalTts
+    ? synthesizeWithLocalCommand({
+        commandLine: options.localTtsCommand,
+        providerName: options.localTtsProviderName,
+        contentType: options.localTtsContentType,
+        outputFormat: options.localTtsOutputFormat,
+      })
+    : undefined;
+  const vad = {
+    isFinal: true,
+    final: true,
+    speechDurationMs: asrResult.measuredAudioDurationMs || asrResult.speechEndMs,
+    durationMs: asrResult.measuredAudioDurationMs || asrResult.speechEndMs,
+    sttSegmentCount: asrResult.eventCounts?.final ?? null,
+    asrFinishedAtMs: asrResult.asrFinishedAtMs,
+    finalTranscriptDelayAfterSpeechEndMs: asrResult.finalTranscriptDelayAfterSpeechEndMs,
+    source: 'local_fallback_e2e_benchmark',
+  };
 
   const result = await processRealtimeVoiceTurn({
     session: sessionBefore,
@@ -309,9 +411,11 @@ const runRealAiPipeline = async ({ asrResult, options }) => {
     asrConfidence: null,
     asrSource: `${asrResult.provider}_command_fallback_benchmark`,
     inputMode: 'local_fallback_e2e_benchmark',
+    vad,
     voiceName: process.env.ASR_BENCHMARK_VOICE_NAME,
     tryGenerateReportForCompletedSession: null,
     req: null,
+    synthesizeAssistantSpeech,
     onSentence: options.textOnlyAi
       ? async (text, index) => {
           const atMs = nowMs() - startedAt;
@@ -326,7 +430,8 @@ const runRealAiPipeline = async ({ asrResult, options }) => {
   const hasAssistantAudio = Boolean(result.assistantAudio?.base64 || result.assistantAudio?.audioBuffer || result.assistantAudio);
 
   return {
-    mode: options.textOnlyAi ? 'rag_deepseek_text_only' : 'rag_deepseek_full_tts',
+    mode: options.textOnlyAi ? 'rag_deepseek_text_only' : `rag_deepseek_${useLocalTts ? 'local_tts' : 'azure_tts'}`,
+    ttsProvider: options.textOnlyAi ? null : options.ttsProvider,
     sessionId: options.sessionId,
     userId: resolvedUserId,
     pipelineDoneMs,
@@ -367,47 +472,56 @@ const buildAcceptance = ({ asrResult, e2eResult }) => {
 
 const main = async () => {
   const options = parseArgs();
-  const manifest = await readJson(options.manifest);
-  const fixtures = manifest.fixtures || [];
-  if (!fixtures.length) throw new Error('Benchmark manifest has no fixtures.');
+  const { bootstrapDatabases } = await import('../../src/db/bootstrap.js');
+  const { disconnectMongo } = await import('../../src/db/mongo.js');
+  const { closePostgres } = await import('../../src/db/postgres.js');
+  await bootstrapDatabases({ mongoRequired: true, postgresRequired: true });
 
-  const results = [];
-  for (const providerName of options.providers) {
-    for (const fixture of fixtures) {
-      try {
-        const asr = await runAsrFixture({ providerName, fixture, options });
-        const e2e = await runRealAiPipeline({ asrResult: asr, options });
-        results.push({ provider: providerName, fixture: fixture.id, asr, e2e, acceptance: buildAcceptance({ asrResult: asr, e2eResult: e2e }) });
-      } catch (error) {
-        results.push({
-          provider: providerName,
-          fixture: fixture.id,
-          skipped: true,
-          error: error?.message || String(error),
-          acceptance: { pass: false, recommendation: 'E2E benchmark failed before complete measurement; fix ASR command, session id, DB, DeepSeek, RAG, or TTS config' },
-        });
+  try {
+    const manifest = await readJson(options.manifest);
+    const fixtures = manifest.fixtures || [];
+    if (!fixtures.length) throw new Error('Benchmark manifest has no fixtures.');
+
+    const results = [];
+    for (const providerName of options.providers) {
+      for (const fixture of fixtures) {
+        try {
+          const asr = await runAsrFixture({ providerName, fixture, options });
+          const e2e = await runRealAiPipeline({ asrResult: asr, options });
+          results.push({ provider: providerName, fixture: fixture.id, asr, e2e, acceptance: buildAcceptance({ asrResult: asr, e2eResult: e2e }) });
+        } catch (error) {
+          results.push({
+            provider: providerName,
+            fixture: fixture.id,
+            skipped: true,
+            error: error?.message || String(error),
+            acceptance: { pass: false, recommendation: 'E2E benchmark failed before complete measurement; fix ASR command, session id, DB, DeepSeek, RAG, or TTS config' },
+          });
+        }
       }
     }
+
+    const summary = {
+      generatedAt: new Date().toISOString(),
+      benchmarkIntent: 'Actual E2E check for Vosk/Sherpa-ONNX Plan B: command ASR adapter -> existing RAG/adaptive engine/DeepSeek -> TTS audio readiness. Use --tts-provider local-command to test without Azure Speech.',
+      warning: 'This benchmark mutates the supplied interview session. Use a disposable test session.',
+      commandProtocol: 'ASR command must read raw 16 kHz mono 16-bit PCM from stdin and write JSONL events: {"type":"partial","text":"..."} and {"type":"final","text":"..."}.',
+      hardAcceptance: {
+        finalTranscriptDelayAfterSpeechEndMs: HARD_FINAL_DELAY_MS,
+        aiFirstAudioActualAfterSpeechEndMs: HARD_AI_FIRST_AUDIO_MS,
+        keywordRecallMinimum: MIN_KEYWORD_RECALL,
+        werMaximum: MAX_WER,
+        partialRequiredBeforeSpeechEnd: true,
+      },
+      options: { ...options, userId: options.userId ? '[provided]' : null },
+      results,
+    };
+
+    await fs.writeFile(options.output, `${JSON.stringify(summary, null, 2)}\n`, 'utf8');
+    console.log(JSON.stringify(summary, null, 2));
+  } finally {
+    await Promise.allSettled([disconnectMongo(), closePostgres()]);
   }
-
-  const summary = {
-    generatedAt: new Date().toISOString(),
-    benchmarkIntent: 'Actual E2E check for Vosk/Sherpa-ONNX Plan B: command ASR adapter -> existing RAG/adaptive engine/DeepSeek -> TTS audio readiness.',
-    warning: 'This benchmark mutates the supplied interview session. Use a disposable test session.',
-    commandProtocol: 'ASR command must read raw 16 kHz mono 16-bit PCM from stdin and write JSONL events: {"type":"partial","text":"..."} and {"type":"final","text":"..."}.',
-    hardAcceptance: {
-      finalTranscriptDelayAfterSpeechEndMs: HARD_FINAL_DELAY_MS,
-      aiFirstAudioActualAfterSpeechEndMs: HARD_AI_FIRST_AUDIO_MS,
-      keywordRecallMinimum: MIN_KEYWORD_RECALL,
-      werMaximum: MAX_WER,
-      partialRequiredBeforeSpeechEnd: true,
-    },
-    options: { ...options, userId: options.userId ? '[provided]' : null },
-    results,
-  };
-
-  await fs.writeFile(options.output, `${JSON.stringify(summary, null, 2)}\n`, 'utf8');
-  console.log(JSON.stringify(summary, null, 2));
 };
 
 main().catch((error) => {
