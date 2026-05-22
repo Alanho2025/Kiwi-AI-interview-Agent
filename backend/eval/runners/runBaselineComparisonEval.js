@@ -10,7 +10,7 @@ const reportRoot = path.join(repoRoot, 'eval/reports');
 const options = parseEvalArgs({ argv: process.argv.slice(2), gateName: 'baselineComparison' });
 
 const scenarios = JSON.parse(await fs.readFile(datasetPath, 'utf8'));
-const results = scenarios.map((scenario) => runBaselineComparisonCase(scenario));
+const results = await Promise.all(scenarios.map((scenario) => runBaselineComparisonCase(scenario)));
 const summary = summarizeBaselineComparison({ results, thresholds: options, label: 'Baseline Comparison Eval' });
 
 await fs.mkdir(reportRoot, { recursive: true });
@@ -19,6 +19,8 @@ await fs.writeFile(path.join(reportRoot, 'baseline-comparison.latest.md'), `${re
 
 console.log('Baseline comparison eval complete.');
 console.log(`Cases run: ${summary.casesRun}`);
+console.log(`Evaluation method: ${summary.evaluationMethod}`);
+console.log(`Judge model: ${(summary.judgeModels || []).join(', ') || '-'}`);
 console.log(`Kiwi Agent average score: ${summary.average}`);
 console.log(`Generic baseline average score: ${summary.baselineAverage}`);
 console.log(`Average gain: ${summary.averageGain}`);
