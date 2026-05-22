@@ -75,6 +75,8 @@ export const runBaselineComparisonCase = (scenario = {}) => {
   return {
     id: scenario.id,
     role: scenario.role,
+    baselineModel: scenario.baselineModel || 'ChatGPT GPT-5.5 Thinking generated baseline fixture',
+    baselinePromptType: scenario.baselinePromptType || 'generic interview coach prompt',
     score: kiwi.score,
     baselineScore: generic.score,
     scoreGain,
@@ -104,10 +106,12 @@ export const summarizeBaselineComparison = ({ results = [], thresholds = {}, lab
   const weakestCases = results
     .filter((item) => item.score < Number(thresholds.failBelow || 0.7))
     .map((item) => ({ id: item.id, score: item.score, failedChecks: item.failedChecks }));
+  const baselineModels = Array.from(new Set(results.map((item) => item.baselineModel).filter(Boolean)));
 
   return {
     label,
     casesRun: results.length,
+    baselineModels,
     average,
     baselineAverage,
     averageGain,
