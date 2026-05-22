@@ -228,6 +228,19 @@ const createSimulatedProvider = ({ providerName, fixture, callbacks }) => {
   };
 };
 
+const assertBenchmarkOutputSchema = (results) => {
+  const invalid = results.filter((result) => (
+    !Number.isFinite(result.finalTranscriptDelayAfterSpeechEndMs)
+    || !Number.isFinite(result.aiFirstAudioPossibleAfterSpeechEndMs)
+    || typeof result.acceptance?.finalReadyWithin1s !== 'boolean'
+    || typeof result.acceptance?.aiFirstAudioPossibleWithin3To5s !== 'boolean'
+  ));
+
+  if (invalid.length) {
+    throw new Error(`Benchmark output schema regression: ${invalid.length} result(s) are missing required timing or acceptance fields.`);
+  }
+};
+
 const runOne = async ({ providerName, fixture, options }) => {
   const wav = createSyntheticWav({ durationMs: fixture.durationMs });
   const pcm = wav.subarray(44);
@@ -267,12 +280,13 @@ const runOne = async ({ providerName, fixture, options }) => {
   await provider.finalize();
   const after = getResourceSnapshot();
 
-  const finalDelayAfterSpeechEndMs = finalTranscriptMs === null ? null : finalTranscriptMs - speechEndMs;
+  const finalTranscriptDelayAfterSpeechEndMs = finalTranscriptMs === null ? null : finalTranscriptMs - speechEndMs;
+  const aiFirstAudioPossibleAfterSpeechEndMs = finalTranscriptDelayAfterSpeechEndMs;
   const recall = keywordRecall({ expectedKeywords: fixture.keywords, actual: finalTranscriptText });
   const wer = wordErrorRate({ expected: fixture.expectedTranscript, actual: finalTranscriptText });
   const hasPartial = firstPartialMs !== null && firstPartialMs < speechEndMs;
-  const finalReadyPass = finalDelayAfterSpeechEndMs !== null && finalDelayAfterSpeechEndMs <= HARD_FINAL_DELAY_MS;
-  const aiFirstAudioPossiblePass = finalReadyPass && finalDelayAfterSpeechEndMs <= HARD_AI_AUDIO_WINDOW_MS;
+  const finalReadyPass = Number.isFinite(finalTranscriptDelayAfterSpeechEndMs) && finalTranscriptDelayAfterSpeechEndMs <= HARD_FINAL_DELAY_MS;
+  const aiFirstAudioPossiblePass = Number.isFinite(aiFirstAudioPossibleAfterSpeechEndMs) && aiFirstAudioPossibleAfterSpeechEndMs <= HARD_AI_AUDIO_WINDOW_MS;
   const keywordRecallPass = recall.score >= 0.8;
   const pass = hasPartial && finalReadyPass && aiFirstAudioPossiblePass && keywordRecallPass;
 
@@ -282,7 +296,8 @@ const runOne = async ({ providerName, fixture, options }) => {
     durationMs: fixture.durationMs,
     firstPartialMs,
     speechEndMs,
-    finalTranscriptDelayAfterSpeechEndMs: finalDelayAfterSpeechEndMs,
+    finalTranscriptDelayAfterSpeechEndMs,
+    aiFirstAudioPossibleAfterSpeechEndMs,
     finalTranscriptText,
     keywordRecall: recall,
     wer,
@@ -319,6 +334,8 @@ const main = async () => {
       results.push(await runOne({ providerName, fixture, options }));
     }
   }
+
+  assertBenchmarkOutputSchema(results);
 
   const summary = {
     generatedAt: new Date().toISOString(),
