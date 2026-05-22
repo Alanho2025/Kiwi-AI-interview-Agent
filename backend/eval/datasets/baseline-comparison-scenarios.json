@@ -1,0 +1,82 @@
+[
+  {
+    "id": "data-ai-engineer-vague-star",
+    "role": "Data and AI Engineer",
+    "cvEvidence": [
+      "electrical engineer background",
+      "data analysis for Apple client failure cases",
+      "SQL database interest"
+    ],
+    "jdEvidence": [
+      "PostgreSQL",
+      "AWS",
+      "AI initiatives",
+      "API development"
+    ],
+    "candidateAnswer": "I worked on data analysis before and solved problems for business clients. I think I can learn the cloud part quickly.",
+    "genericBaselineOutput": "Your answer is good but could be more specific. Try using the STAR method and explain what you did, what tools you used, and what result you achieved. You should also show confidence and connect your experience to the role.",
+    "kiwiAgentOutput": "Your answer has useful evidence, but it is missing a clear STAR structure. Situation: you worked as an electrical engineer supporting Apple client failure cases. Action: you used data analysis to identify causes. Result: explain the business or quality impact. For this Data and AI Engineer role, connect that experience to PostgreSQL, APIs, and AI initiatives. A stronger follow-up answer should clarify what data you analysed, what decision it supported, and how you will close the AWS gap.",
+    "expected": {
+      "cvEvidenceTerms": ["electrical engineer", "Apple", "data analysis"],
+      "jdEvidenceTerms": ["PostgreSQL", "API", "AI", "AWS"],
+      "starTerms": ["Situation", "Action", "Result"],
+      "roleTerms": ["Data and AI Engineer", "PostgreSQL", "API"],
+      "nzTerms": [],
+      "adaptiveTerms": ["follow-up", "clarify", "gap"],
+      "forbiddenClaims": ["certified AWS architect", "managed a data engineering team"]
+    }
+  },
+  {
+    "id": "nz-cultural-fit-international-student",
+    "role": "Graduate Software Developer in New Zealand",
+    "cvEvidence": [
+      "Master of Information Technology student",
+      "AI agent project",
+      "team project leadership"
+    ],
+    "jdEvidence": [
+      "Agile team collaboration",
+      "communication",
+      "customer-focused software solutions"
+    ],
+    "candidateAnswer": "I usually work hard and finish tasks. In my team project, I helped the group build the AI agent and fix problems.",
+    "genericBaselineOutput": "This is a positive answer. You should add more details about teamwork, communication, and how you solved problems. Use the STAR method and mention a measurable outcome if possible.",
+    "kiwiAgentOutput": "This answer fits a New Zealand graduate software role, but it needs stronger workplace communication evidence. Use STAR: Situation: your Master of Information Technology team built an AI agent. Task: explain your responsibility in the Agile team. Action: describe how you coordinated teammates, clarified requirements, or fixed blockers. Result: mention a working feature, demo improvement, or team delivery outcome. This would better show collaboration, communication, and customer-focused software thinking.",
+    "expected": {
+      "cvEvidenceTerms": ["Master of Information Technology", "AI agent", "team"],
+      "jdEvidenceTerms": ["Agile", "communication", "customer"],
+      "starTerms": ["Situation", "Task", "Action", "Result"],
+      "roleTerms": ["graduate software", "software", "team"],
+      "nzTerms": ["New Zealand", "workplace communication"],
+      "adaptiveTerms": ["responsibility", "clarified", "blockers"],
+      "forbiddenClaims": ["industry software engineer for five years", "native English speaker"]
+    }
+  },
+  {
+    "id": "niche-technical-role-domain-terms",
+    "role": "Backend Platform Engineer",
+    "cvEvidence": [
+      "JavaScript backend project",
+      "MongoDB Atlas",
+      "voice WebSocket integration"
+    ],
+    "jdEvidence": [
+      "Kafka",
+      "Redis",
+      "distributed systems",
+      "PostgreSQL"
+    ],
+    "candidateAnswer": "I have not used Kafka in production, but I built a backend with WebSocket voice flow and MongoDB. I understand event-driven design and want to improve distributed system experience.",
+    "genericBaselineOutput": "This is honest and shows growth mindset. You should explain your transferable experience and say how you will learn Kafka and distributed systems. Use examples from your backend project.",
+    "kiwiAgentOutput": "This is a credible answer because it does not claim production Kafka experience. Ground it in your real evidence: JavaScript backend work, MongoDB Atlas, and WebSocket voice integration. Then bridge to the JD: Kafka, Redis, PostgreSQL, and distributed systems. A stronger answer should explain how your WebSocket event flow gave you a base for event-driven design, while clearly naming Kafka as a growth area rather than an existing production skill.",
+    "expected": {
+      "cvEvidenceTerms": ["JavaScript", "MongoDB", "WebSocket"],
+      "jdEvidenceTerms": ["Kafka", "Redis", "PostgreSQL", "distributed systems"],
+      "starTerms": ["evidence", "answer", "experience"],
+      "roleTerms": ["Backend", "distributed", "event-driven"],
+      "nzTerms": [],
+      "adaptiveTerms": ["growth area", "bridge", "clearly naming"],
+      "forbiddenClaims": ["production Kafka experience", "Redis expert", "PostgreSQL architect"]
+    }
+  }
+]
