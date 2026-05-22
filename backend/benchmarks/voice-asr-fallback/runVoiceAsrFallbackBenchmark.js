@@ -20,10 +20,11 @@ import dotenv from 'dotenv';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const BACKEND_ROOT = path.resolve(__dirname, '../..');
+const BACKEND_ROOT = path.resolve(__dirname, '../../..');
 
-// The benchmark is executed directly, outside backend/index.js, so it must load
-// backend/.env itself before importing Azure/Vosk/Sherpa provider adapters.
+// The benchmark is executed directly from backend/benchmarks/voice-asr-fallback,
+// outside backend/index.js, so it must load backend/.env itself before importing
+// Azure/Vosk/Sherpa provider adapters.
 dotenv.config({ path: path.join(BACKEND_ROOT, '.env') });
 dotenv.config({ path: path.join(BACKEND_ROOT, '.env.local'), override: true });
 
