@@ -113,7 +113,6 @@ jobs:
       ELEVENLABS_STT_INCLUDE_TIMESTAMPS: 'false'
       ELEVENLABS_STT_FINAL_TIMEOUT_MS: '5000'
       MONGODB_URI: ${{ secrets.MONGODB_URI }}
-      MongoDB_URI: ${{ secrets.MONGODB_URI }}
       POSTGRES_URL: ${{ secrets.POSTGRES_URL }}
       ASR_BENCHMARK_SESSION_ID: ${{ secrets.SESSION_ID }}
       ASR_BENCHMARK_USER_ID: ${{ secrets.USER_ID }}
