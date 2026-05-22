@@ -1,13 +1,12 @@
 #!/usr/bin/env node
 /**
- * End-to-end benchmark spike for ASR fallback candidates.
+ * End-to-end benchmark spike for the cloud realtime voice path.
  *
- * This measures the real path that matters for live interviews:
- * PCM fixture chunks -> streaming ASR candidate -> transcript -> existing realtime voice turn service
- * -> adaptive interview engine / RAG / DeepSeek -> TTS audio buffer.
+ * Measures the product latency that matters for live interviews:
+ * speech_end -> STT final transcript -> adaptive AI next question -> assistant audio readiness.
  *
- * It intentionally mutates the supplied interview session, because the production service persists transcript
- * turns and advances interview state. Use a dedicated disposable test session.
+ * This mutates the supplied disposable interview session because the production service persists transcript
+ * turns and advances interview state.
  */
 
 import fs from 'node:fs/promises';
@@ -17,7 +16,6 @@ import process from 'node:process';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
-import { createSubprocessAsrProvider } from './adapters/subprocessAsrProvider.js';
 import { createElevenLabsRealtimeSttProvider } from './adapters/elevenlabsRealtimeSttProvider.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -28,9 +26,9 @@ const BACKEND_ROOT = path.resolve(__dirname, '../../..');
 const DEFAULT_SAMPLE_RATE = 16000;
 const DEFAULT_CHUNK_MS = 20;
 const DEFAULT_FIXTURE_MANIFEST = path.join(__dirname, 'fixtures.example.json');
-const DEFAULT_FALLBACK_PROVIDERS = 'vosk,sherpa-onnx';
+const DEFAULT_PROVIDERS = 'elevenlabs-realtime';
 const HARD_FINAL_DELAY_MS = 1000;
-const HARD_AI_FIRST_AUDIO_MS = 5000;
+const HARD_FIRST_AUDIO_MS = 5000;
 const MIN_KEYWORD_RECALL = 0.8;
 const MAX_WER = 0.3;
 
@@ -38,9 +36,8 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const nowMs = () => Number(process.hrtime.bigint() / 1000000n);
 
 const loadBenchmarkEnv = () => {
-  const explicitEnvPath = process.env.ASR_BENCHMARK_ENV_FILE;
   const candidatePaths = [
-    explicitEnvPath,
+    process.env.ASR_BENCHMARK_ENV_FILE,
     path.join(BACKEND_ROOT, '.env'),
     path.join(BACKEND_ROOT, '.env.local'),
     path.join(REPO_ROOT, '.env'),
@@ -69,14 +66,13 @@ const parseArgs = () => {
   const args = process.argv.slice(2);
   const options = {
     manifest: process.env.ASR_BENCHMARK_MANIFEST || DEFAULT_FIXTURE_MANIFEST,
-    providers: parseProviderList(process.env.ASR_BENCHMARK_PROVIDERS || DEFAULT_FALLBACK_PROVIDERS),
+    providers: parseProviderList(process.env.ASR_BENCHMARK_PROVIDERS || DEFAULT_PROVIDERS),
     chunkMs: Number(process.env.ASR_BENCHMARK_CHUNK_MS || DEFAULT_CHUNK_MS),
     realtime: process.env.ASR_BENCHMARK_REALTIME !== 'false',
-    output: process.env.ASR_BENCHMARK_OUTPUT || path.join(__dirname, 'results.e2e-local-fallback.json'),
+    output: process.env.ASR_BENCHMARK_OUTPUT || path.join(__dirname, 'results.e2e-cloud-voice.json'),
     sessionId: process.env.ASR_BENCHMARK_SESSION_ID || null,
     userId: process.env.ASR_BENCHMARK_USER_ID || null,
     allowSessionMutation: process.env.ASR_BENCHMARK_ALLOW_SESSION_MUTATION === 'true',
-    textOnlyAi: process.env.ASR_BENCHMARK_TEXT_ONLY_AI === 'true',
     ttsProvider: process.env.ASR_BENCHMARK_TTS_PROVIDER || 'azure',
     localTtsCommand: process.env.ASR_BENCHMARK_LOCAL_TTS_COMMAND || process.env.LOCAL_TTS_COMMAND || null,
     localTtsProviderName: process.env.ASR_BENCHMARK_LOCAL_TTS_PROVIDER_NAME || 'local-tts-command',
@@ -94,7 +90,6 @@ const parseArgs = () => {
     if (arg === '--session-id') options.sessionId = args[++index];
     if (arg === '--user-id') options.userId = args[++index];
     if (arg === '--allow-session-mutation') options.allowSessionMutation = true;
-    if (arg === '--text-only-ai') options.textOnlyAi = true;
     if (arg === '--tts-provider') options.ttsProvider = args[++index];
     if (arg === '--local-tts-command') options.localTtsCommand = args[++index];
     if (arg === '--local-tts-provider-name') options.localTtsProviderName = args[++index];
@@ -199,12 +194,6 @@ const diffResourceSnapshot = (before, after) => ({
   cpuSystemMs: Number(((after.cpuUsage.system - before.cpuUsage.system) / 1000).toFixed(2)),
 });
 
-const resolveProviderCommand = (providerName) => {
-  if (providerName === 'vosk') return process.env.VOSK_STREAMING_COMMAND || process.env.VOSK_ASR_COMMAND;
-  if (providerName === 'sherpa-onnx') return process.env.SHERPA_ONNX_STREAMING_COMMAND || process.env.SHERPA_ONNX_ASR_COMMAND;
-  return null;
-};
-
 const createAzureProvider = async ({ sampleRate, language = 'en-NZ', callbacks }) => {
   const { createRealtimeSpeechSession } = await import('../../src/services/voice/realtimeSpeechSessionService.js');
   const session = createRealtimeSpeechSession({
@@ -223,42 +212,20 @@ const createAzureProvider = async ({ sampleRate, language = 'en-NZ', callbacks }
   };
 };
 
-const createProvider = async ({ providerName, sampleRate, callbacks }) => {
-  const commandLine = resolveProviderCommand(providerName);
-  if (!commandLine) {
-    throw new Error(`Set ${providerName === 'vosk' ? 'VOSK_STREAMING_COMMAND' : 'SHERPA_ONNX_STREAMING_COMMAND'} to a command that reads raw PCM from stdin and writes JSONL partial/final events.`);
-  }
-  return createSubprocessAsrProvider({
-    providerName,
-    commandLine,
-    sampleRate,
-    callbacks,
-    integrationComplexity: `${providerName} command adapter: avoids Node native packages; command must read raw PCM stdin and emit JSONL events`,
-  });
-};
-
 const splitCommand = (value) => String(value || '').trim().split(/\s+/).filter(Boolean);
 
-const synthesizeWithLocalCommand = ({
-  commandLine,
-  providerName = 'local-tts-command',
-  contentType = 'audio/wav',
-  outputFormat = 'wav',
-}) => async ({ text, voiceName } = {}) => {
+const synthesizeWithLocalCommand = ({ commandLine, providerName, contentType, outputFormat }) => async ({ text, voiceName } = {}) => {
   const trimmedText = String(text || '').trim();
-  if (!trimmedText) throw new Error('Local TTS requires non-empty text.');
+  if (!trimmedText) throw new Error('Command TTS requires non-empty text.');
 
   const parts = splitCommand(commandLine);
-  if (!parts.length) throw new Error('Set ASR_BENCHMARK_LOCAL_TTS_COMMAND to a command that reads text from stdin and writes WAV bytes to stdout.');
+  if (!parts.length) throw new Error('Set ASR_BENCHMARK_LOCAL_TTS_COMMAND to a command that reads text from stdin and writes audio bytes to stdout.');
 
   const [command, ...args] = parts;
-  const child = spawn(command, args, {
-    env: process.env,
-    stdio: ['pipe', 'pipe', 'pipe'],
-  });
-
+  const child = spawn(command, args, { env: process.env, stdio: ['pipe', 'pipe', 'pipe'] });
   const stdoutChunks = [];
   let stderr = '';
+
   child.stdout.on('data', (chunk) => stdoutChunks.push(chunk));
   child.stderr.on('data', (chunk) => {
     stderr += chunk.toString('utf8');
@@ -281,19 +248,11 @@ const synthesizeWithLocalCommand = ({
   const audioBuffer = Buffer.concat(stdoutChunks);
   if (!audioBuffer.length) throw new Error(`${providerName} produced empty audio.`);
 
-  return {
-    audioBuffer,
-    contentType,
-    voiceName: voiceName || providerName,
-    outputFormat,
-    provider: providerName,
-  };
+  return { audioBuffer, contentType, voiceName: voiceName || providerName, outputFormat, provider: providerName };
 };
 
 const providerFactories = {
   azure: createAzureProvider,
-  vosk: (args) => createProvider({ providerName: 'vosk', ...args }),
-  'sherpa-onnx': (args) => createProvider({ providerName: 'sherpa-onnx', ...args }),
   'elevenlabs-realtime': createElevenLabsRealtimeSttProvider,
 };
 
@@ -328,7 +287,7 @@ const runAsrFixture = async ({ providerName, fixture, options }) => {
   };
 
   const factory = providerFactories[providerName];
-  if (!factory) throw new Error(`Unknown STT fallback provider: ${providerName}`);
+  if (!factory) throw new Error(`Unknown cloud STT provider: ${providerName}`);
 
   const before = getResourceSnapshot();
   const provider = await factory({ sampleRate: wav.sampleRate, language: fixture.language || 'en-NZ', callbacks, fixture });
@@ -370,6 +329,16 @@ const runAsrFixture = async ({ providerName, fixture, options }) => {
   };
 };
 
+const buildTtsSynthesizer = (options) => {
+  if (options.ttsProvider !== 'local-command') return undefined;
+  return synthesizeWithLocalCommand({
+    commandLine: options.localTtsCommand,
+    providerName: options.localTtsProviderName,
+    contentType: options.localTtsContentType,
+    outputFormat: options.localTtsOutputFormat,
+  });
+};
+
 const runRealAiPipeline = async ({ asrResult, options }) => {
   const { getSessionById } = await import('../../src/services/sessionService.js');
   const { processRealtimeVoiceTurn } = await import('../../src/services/voice/realtimeVoiceTurnService.js');
@@ -384,48 +353,29 @@ const runRealAiPipeline = async ({ asrResult, options }) => {
   if (!resolvedUserId) throw new Error('Missing --user-id and session has no userId field.');
 
   const startedAt = nowMs();
-  let firstSentenceReadyMs = null;
-  const sentenceEvents = [];
   const useLocalTts = options.ttsProvider === 'local-command';
-  const synthesizeAssistantSpeech = useLocalTts
-    ? synthesizeWithLocalCommand({
-        commandLine: options.localTtsCommand,
-        providerName: options.localTtsProviderName,
-        contentType: options.localTtsContentType,
-        outputFormat: options.localTtsOutputFormat,
-      })
-    : undefined;
-  const vad = {
-    isFinal: true,
-    final: true,
-    speechDurationMs: asrResult.measuredAudioDurationMs || asrResult.speechEndMs,
-    durationMs: asrResult.measuredAudioDurationMs || asrResult.speechEndMs,
-    sttSegmentCount: asrResult.eventCounts?.final ?? null,
-    asrFinishedAtMs: asrResult.asrFinishedAtMs,
-    finalTranscriptDelayAfterSpeechEndMs: asrResult.finalTranscriptDelayAfterSpeechEndMs,
-    source: 'stt_fallback_e2e_benchmark',
-  };
-
   const result = await processRealtimeVoiceTurn({
     session: sessionBefore,
     userId: resolvedUserId,
     transcriptText: asrResult.finalTranscriptText,
     language: 'en-NZ',
     asrConfidence: null,
-    asrSource: `${asrResult.provider}_fallback_benchmark`,
-    inputMode: 'stt_fallback_e2e_benchmark',
-    vad,
+    asrSource: `${asrResult.provider}_cloud_benchmark`,
+    inputMode: 'cloud_voice_e2e_benchmark',
+    vad: {
+      isFinal: true,
+      final: true,
+      speechDurationMs: asrResult.measuredAudioDurationMs || asrResult.speechEndMs,
+      durationMs: asrResult.measuredAudioDurationMs || asrResult.speechEndMs,
+      sttSegmentCount: asrResult.eventCounts?.final ?? null,
+      asrFinishedAtMs: asrResult.asrFinishedAtMs,
+      finalTranscriptDelayAfterSpeechEndMs: asrResult.finalTranscriptDelayAfterSpeechEndMs,
+      source: 'cloud_voice_e2e_benchmark',
+    },
     voiceName: process.env.ASR_BENCHMARK_VOICE_NAME,
     tryGenerateReportForCompletedSession: null,
     req: null,
-    synthesizeAssistantSpeech,
-    onSentence: options.textOnlyAi
-      ? async (text, index) => {
-          const atMs = nowMs() - startedAt;
-          if (firstSentenceReadyMs === null) firstSentenceReadyMs = atMs;
-          sentenceEvents.push({ index, atMs, textLength: String(text || '').length });
-        }
-      : null,
+    synthesizeAssistantSpeech: buildTtsSynthesizer(options),
   });
 
   const pipelineDoneMs = nowMs() - startedAt;
@@ -433,17 +383,15 @@ const runRealAiPipeline = async ({ asrResult, options }) => {
   const hasAssistantAudio = Boolean(result.assistantAudio?.base64 || result.assistantAudio?.audioBuffer || result.assistantAudio);
 
   return {
-    mode: options.textOnlyAi ? 'rag_deepseek_text_only' : `rag_deepseek_${useLocalTts ? 'local_tts' : 'azure_tts'}`,
-    ttsProvider: options.textOnlyAi ? null : options.ttsProvider,
+    mode: `rag_deepseek_${useLocalTts ? 'command_tts' : 'azure_tts'}`,
+    ttsProvider: options.ttsProvider,
     sessionId: options.sessionId,
     userId: resolvedUserId,
     pipelineDoneMs,
-    firstSentenceReadyMs,
     assistantTextLength: assistantText.length,
     assistantTextPreview: assistantText.slice(0, 240),
-    assistantAudioReady: options.textOnlyAi ? null : hasAssistantAudio,
+    assistantAudioReady: hasAssistantAudio,
     assistantAudioProvider: result.assistantAudio?.provider || null,
-    sentenceEvents,
     latency: result.latency || null,
   };
 };
@@ -454,10 +402,10 @@ const buildAcceptance = ({ asrResult, e2eResult }) => {
   const keywordRecallPass = asrResult.keywordRecall === null || asrResult.keywordRecall.score >= MIN_KEYWORD_RECALL;
   const werPass = asrResult.wer === null || asrResult.wer <= MAX_WER;
   const noAsrErrors = !asrResult.errors.length;
-  const aiFirstAudioActualAfterSpeechEndMs = e2eResult ? asrResult.finalTranscriptDelayAfterSpeechEndMs + e2eResult.pipelineDoneMs : null;
-  const aiFirstAudioActualWithin5s = Number.isFinite(aiFirstAudioActualAfterSpeechEndMs) && aiFirstAudioActualAfterSpeechEndMs <= HARD_AI_FIRST_AUDIO_MS;
-  const aiPipelineProducedOutput = Boolean(e2eResult?.assistantTextLength) && (e2eResult.mode === 'rag_deepseek_text_only' || e2eResult.assistantAudioReady === true);
-  const pass = hasPartialBeforeSpeechEnd && finalReadyWithin1s && keywordRecallPass && werPass && noAsrErrors && aiFirstAudioActualWithin5s && aiPipelineProducedOutput;
+  const speechEndToFirstAudioReadyMs = e2eResult ? asrResult.finalTranscriptDelayAfterSpeechEndMs + e2eResult.pipelineDoneMs : null;
+  const firstAudioReadyWithin5s = Number.isFinite(speechEndToFirstAudioReadyMs) && speechEndToFirstAudioReadyMs <= HARD_FIRST_AUDIO_MS;
+  const aiPipelineProducedOutput = Boolean(e2eResult?.assistantTextLength) && e2eResult.assistantAudioReady === true;
+  const pass = hasPartialBeforeSpeechEnd && finalReadyWithin1s && keywordRecallPass && werPass && noAsrErrors && firstAudioReadyWithin5s && aiPipelineProducedOutput;
 
   return {
     hasPartialBeforeSpeechEnd,
@@ -466,10 +414,11 @@ const buildAcceptance = ({ asrResult, e2eResult }) => {
     werAtMost30Percent: werPass,
     noAsrErrors,
     aiPipelineProducedOutput,
-    aiFirstAudioActualAfterSpeechEndMs,
-    aiFirstAudioActualWithin5s,
+    speechEndToAsrFinalMs: asrResult.finalTranscriptDelayAfterSpeechEndMs,
+    speechEndToFirstAudioReadyMs,
+    firstAudioReadyWithin5s,
     pass,
-    recommendation: pass ? 'STT fallback can continue toward live integration spike' : 'do not add as live STT fallback yet',
+    recommendation: pass ? 'cloud voice path can continue toward live integration spike' : 'do not add as live STT fallback yet',
   };
 };
 
@@ -498,7 +447,7 @@ const main = async () => {
             fixture: fixture.id,
             skipped: true,
             error: error?.message || String(error),
-            acceptance: { pass: false, recommendation: 'E2E benchmark failed before complete measurement; fix STT provider config, session id, DB, DeepSeek, RAG, or TTS config' },
+            acceptance: { pass: false, recommendation: 'E2E benchmark failed before complete measurement; fix provider config, session id, DB, DeepSeek, RAG, or TTS config' },
           });
         }
       }
@@ -506,12 +455,11 @@ const main = async () => {
 
     const summary = {
       generatedAt: new Date().toISOString(),
-      benchmarkIntent: 'Actual E2E check for STT fallback candidates: streaming ASR adapter -> existing RAG/adaptive engine/DeepSeek -> TTS audio readiness. Use --tts-provider local-command to test without Azure Speech.',
-      warning: 'This benchmark mutates the supplied interview session. Use a disposable test session.',
-      commandProtocol: 'Vosk/Sherpa command providers must read raw 16 kHz mono 16-bit PCM from stdin and write JSONL events. ElevenLabs realtime uses its WebSocket STT API directly.',
+      benchmarkIntent: 'Measure speech_end to first assistant audio readiness for the cloud voice interview path.',
+      warning: 'This benchmark mutates the supplied interview session. Use a disposable active test session.',
       hardAcceptance: {
         finalTranscriptDelayAfterSpeechEndMs: HARD_FINAL_DELAY_MS,
-        aiFirstAudioActualAfterSpeechEndMs: HARD_AI_FIRST_AUDIO_MS,
+        speechEndToFirstAudioReadyMs: HARD_FIRST_AUDIO_MS,
         keywordRecallMinimum: MIN_KEYWORD_RECALL,
         werMaximum: MAX_WER,
         partialRequiredBeforeSpeechEnd: true,
