@@ -1,0 +1,29 @@
+{
+  "description": "Copy this file to fixtures.local.json and point audioPath to local 16 kHz mono 16-bit PCM WAV interview answers. Do not commit real interview recordings.",
+  "fixtures": [
+    {
+      "id": "interview-answer-30s",
+      "audioPath": "fixtures/interview-answer-30s.wav",
+      "expectedDurationMs": 30000,
+      "language": "en-NZ",
+      "expectedTranscript": "",
+      "keywords": ["React", "Node", "PostgreSQL", "WebSocket", "latency"]
+    },
+    {
+      "id": "interview-answer-60s",
+      "audioPath": "fixtures/interview-answer-60s.wav",
+      "expectedDurationMs": 60000,
+      "language": "en-NZ",
+      "expectedTranscript": "",
+      "keywords": ["Azure", "speech recognition", "retrieval augmented generation", "rubric", "STAR"]
+    },
+    {
+      "id": "interview-answer-90s",
+      "audioPath": "fixtures/interview-answer-90s.wav",
+      "expectedDurationMs": 90000,
+      "language": "en-NZ",
+      "expectedTranscript": "",
+      "keywords": ["Kafka", "Redis", "MongoDB", "system design", "authentication"]
+    }
+  ]
+}
