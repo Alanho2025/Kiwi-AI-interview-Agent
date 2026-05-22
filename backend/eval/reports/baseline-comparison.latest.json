@@ -1,0 +1,702 @@
+{
+  "label": "Baseline Comparison Eval",
+  "casesRun": 10,
+  "evaluationMethod": "DeepSeek semantic judge as primary score; keyword matching retained as diagnostics; forbidden claims retained as safety penalty.",
+  "baselineModels": [
+    "ChatGPT GPT-5.5 Thinking same-input baseline run"
+  ],
+  "judgeModels": [
+    "deepseek-chat"
+  ],
+  "average": 1,
+  "baselineAverage": 0.9,
+  "averageGain": 0.1,
+  "winRate": 1,
+  "weakestCases": [],
+  "thresholds": {
+    "minAverage": 0.78,
+    "failBelow": 0.6
+  },
+  "results": [
+    {
+      "id": "data-ai-engineer-vague-star",
+      "role": "Data and AI Engineer",
+      "baselineModel": "ChatGPT GPT-5.5 Thinking same-input baseline run",
+      "baselinePromptType": "same-input generic interview coach prompt",
+      "judgeModel": "deepseek-chat",
+      "score": 1,
+      "baselineScore": 0.8,
+      "scoreGain": 0.2,
+      "passed": true,
+      "subScores": {
+        "evidenceGrounding": 1,
+        "starCoverage": 1,
+        "roleRelevance": 1,
+        "actionableImprovement": 1,
+        "contextualFit": 1,
+        "adaptiveness": 1
+      },
+      "baselineSubScores": {
+        "evidenceGrounding": 1,
+        "starCoverage": 1,
+        "roleRelevance": 1,
+        "actionableImprovement": 1,
+        "contextualFit": 0,
+        "adaptiveness": 0
+      },
+      "failedChecks": [],
+      "baselineFailedChecks": [],
+      "diagnostics": {
+        "method": "deepseek_semantic_judge_with_keyword_diagnostics_and_forbidden_claim_penalty",
+        "keywordDiagnostics": {
+          "evidenceGrounding": 1,
+          "starCoverage": 1,
+          "roleRelevance": 1,
+          "nzContextualisation": 1,
+          "adaptiveness": 1,
+          "unsupportedClaims": [],
+          "unsupportedClaimPenalty": 0
+        },
+        "baselineKeywordDiagnostics": {
+          "evidenceGrounding": 0.54,
+          "starCoverage": 1,
+          "roleRelevance": 0.67,
+          "nzContextualisation": 1,
+          "adaptiveness": 0,
+          "unsupportedClaims": [],
+          "unsupportedClaimPenalty": 0
+        },
+        "kiwiRationale": "Directly uses CV and JD evidence; provides clear STAR prompts; explicitly connects to role; offers concrete next steps and addresses gap.",
+        "baselineRationale": "Moderately grounded but vague; suggests STAR structure and role relevance but lacks specificity and follow-up.",
+        "deepseekUsage": {
+          "promptTokens": 626,
+          "completionTokens": 198,
+          "promptCacheHitTokens": 0,
+          "promptCacheMissTokens": 626
+        },
+        "semanticScores": {
+          "kiwi": 1,
+          "baseline": 0.8
+        },
+        "safetyPenalty": {
+          "kiwi": 0,
+          "baseline": 0
+        },
+        "genericUnsupportedClaims": [],
+        "kiwiUnsupportedClaims": []
+      }
+    },
+    {
+      "id": "nz-cultural-fit-international-student",
+      "role": "Graduate Software Developer in New Zealand",
+      "baselineModel": "ChatGPT GPT-5.5 Thinking same-input baseline run",
+      "baselinePromptType": "same-input generic interview coach prompt",
+      "judgeModel": "deepseek-chat",
+      "score": 1,
+      "baselineScore": 0.8,
+      "scoreGain": 0.2,
+      "passed": true,
+      "subScores": {
+        "evidenceGrounding": 1,
+        "starCoverage": 1,
+        "roleRelevance": 1,
+        "actionableImprovement": 1,
+        "contextualFit": 1,
+        "adaptiveness": 1
+      },
+      "baselineSubScores": {
+        "evidenceGrounding": 1,
+        "starCoverage": 1,
+        "roleRelevance": 1,
+        "actionableImprovement": 1,
+        "contextualFit": 0,
+        "adaptiveness": 0
+      },
+      "failedChecks": [],
+      "baselineFailedChecks": [],
+      "diagnostics": {
+        "method": "deepseek_semantic_judge_with_keyword_diagnostics_and_forbidden_claim_penalty",
+        "keywordDiagnostics": {
+          "evidenceGrounding": 1,
+          "starCoverage": 1,
+          "roleRelevance": 1,
+          "nzContextualisation": 1,
+          "adaptiveness": 1,
+          "unsupportedClaims": [],
+          "unsupportedClaimPenalty": 0
+        },
+        "baselineKeywordDiagnostics": {
+          "evidenceGrounding": 0.83,
+          "starCoverage": 1,
+          "roleRelevance": 1,
+          "nzContextualisation": 0,
+          "adaptiveness": 0,
+          "unsupportedClaims": [],
+          "unsupportedClaimPenalty": 0
+        },
+        "kiwiRationale": "Kiwi feedback explicitly anchors to CV (Master of IT, AI agent) and JD (Agile, communication, customer-focused), provides concrete STAR guidance with examples, and addresses market context (New Zealand graduate role). It could include follow-up questions for further adaptiveness.",
+        "baselineRationale": "The baseline feedback identifies the need for STAR structure and links the AI agent to Agile and communication, but it does not reference specific CV or JD details and lacks actionable advice on how to improve.",
+        "deepseekUsage": {
+          "promptTokens": 619,
+          "completionTokens": 244,
+          "promptCacheHitTokens": 0,
+          "promptCacheMissTokens": 619
+        },
+        "semanticScores": {
+          "kiwi": 1,
+          "baseline": 0.8
+        },
+        "safetyPenalty": {
+          "kiwi": 0,
+          "baseline": 0
+        },
+        "genericUnsupportedClaims": [],
+        "kiwiUnsupportedClaims": []
+      }
+    },
+    {
+      "id": "niche-technical-role-domain-terms",
+      "role": "Backend Platform Engineer",
+      "baselineModel": "ChatGPT GPT-5.5 Thinking same-input baseline run",
+      "baselinePromptType": "same-input generic interview coach prompt",
+      "judgeModel": "deepseek-chat",
+      "score": 1,
+      "baselineScore": 1,
+      "scoreGain": 0,
+      "passed": true,
+      "subScores": {
+        "evidenceGrounding": 1,
+        "starCoverage": 1,
+        "roleRelevance": 1,
+        "actionableImprovement": 1,
+        "contextualFit": 1,
+        "adaptiveness": 1
+      },
+      "baselineSubScores": {
+        "evidenceGrounding": 1,
+        "starCoverage": 1,
+        "roleRelevance": 1,
+        "actionableImprovement": 1,
+        "contextualFit": 1,
+        "adaptiveness": 1
+      },
+      "failedChecks": [],
+      "baselineFailedChecks": [],
+      "diagnostics": {
+        "method": "deepseek_semantic_judge_with_keyword_diagnostics_and_forbidden_claim_penalty",
+        "keywordDiagnostics": {
+          "evidenceGrounding": 1,
+          "starCoverage": 1,
+          "roleRelevance": 1,
+          "nzContextualisation": 1,
+          "adaptiveness": 1,
+          "unsupportedClaims": [],
+          "unsupportedClaimPenalty": 0
+        },
+        "baselineKeywordDiagnostics": {
+          "evidenceGrounding": 0.58,
+          "starCoverage": 1,
+          "roleRelevance": 1,
+          "nzContextualisation": 1,
+          "adaptiveness": 0,
+          "unsupportedClaims": [],
+          "unsupportedClaimPenalty": 0
+        },
+        "kiwiRationale": "Excellent evidence grounding, explicitly names CV evidence and JD keywords, bridges WebSocket to event-driven design, advises naming gap honestly, gives clear actionable structure, and shows adaptiveness by addressing growth areas.",
+        "baselineRationale": "Strong evidence grounding, identifies STAR weakness and gives specific advice to add challenge/action/result, connects WebSocket to JD technologies, gives concrete next step for improvement; slightly weaker on context and adaptiveness.",
+        "deepseekUsage": {
+          "promptTokens": 619,
+          "completionTokens": 232,
+          "promptCacheHitTokens": 0,
+          "promptCacheMissTokens": 619
+        },
+        "semanticScores": {
+          "kiwi": 1,
+          "baseline": 1
+        },
+        "safetyPenalty": {
+          "kiwi": 0,
+          "baseline": 0
+        },
+        "genericUnsupportedClaims": [],
+        "kiwiUnsupportedClaims": []
+      }
+    },
+    {
+      "id": "weak-cv-jd-match-cloud-gap",
+      "role": "Cloud Data Engineer",
+      "baselineModel": "ChatGPT GPT-5.5 Thinking same-input baseline run",
+      "baselinePromptType": "same-input generic interview coach prompt",
+      "judgeModel": "deepseek-chat",
+      "score": 1,
+      "baselineScore": 1,
+      "scoreGain": 0,
+      "passed": true,
+      "subScores": {
+        "evidenceGrounding": 1,
+        "starCoverage": 1,
+        "roleRelevance": 1,
+        "actionableImprovement": 1,
+        "contextualFit": 1,
+        "adaptiveness": 1
+      },
+      "baselineSubScores": {
+        "evidenceGrounding": 1,
+        "starCoverage": 1,
+        "roleRelevance": 1,
+        "actionableImprovement": 1,
+        "contextualFit": 1,
+        "adaptiveness": 1
+      },
+      "failedChecks": [],
+      "baselineFailedChecks": [],
+      "diagnostics": {
+        "method": "deepseek_semantic_judge_with_keyword_diagnostics_and_forbidden_claim_penalty",
+        "keywordDiagnostics": {
+          "evidenceGrounding": 0.83,
+          "starCoverage": 1,
+          "roleRelevance": 1,
+          "nzContextualisation": 1,
+          "adaptiveness": 1,
+          "unsupportedClaims": [],
+          "unsupportedClaimPenalty": 0
+        },
+        "baselineKeywordDiagnostics": {
+          "evidenceGrounding": 0.71,
+          "starCoverage": 0,
+          "roleRelevance": 0.67,
+          "nzContextualisation": 1,
+          "adaptiveness": 0,
+          "unsupportedClaims": [],
+          "unsupportedClaimPenalty": 0
+        },
+        "kiwiRationale": "Directly uses provided evidence, explicitly guides STAR structure, connects to JD requirements, offers actionable steps, contextually relevant, but lacks adaptive follow-up or next-step coaching.",
+        "baselineRationale": "Grounds advice in CV/JD, suggests structuring with example and learning plan, connects to role, concrete advice, context-aware, lacks explicit STAR framework or follow-up coaching.",
+        "deepseekUsage": {
+          "promptTokens": 612,
+          "completionTokens": 221,
+          "promptCacheHitTokens": 0,
+          "promptCacheMissTokens": 612
+        },
+        "semanticScores": {
+          "kiwi": 1,
+          "baseline": 1
+        },
+        "safetyPenalty": {
+          "kiwi": 0,
+          "baseline": 0
+        },
+        "genericUnsupportedClaims": [],
+        "kiwiUnsupportedClaims": []
+      }
+    },
+    {
+      "id": "strong-answer-missing-jd-alignment",
+      "role": "AI Product Engineer",
+      "baselineModel": "ChatGPT GPT-5.5 Thinking same-input baseline run",
+      "baselinePromptType": "same-input generic interview coach prompt",
+      "judgeModel": "deepseek-chat",
+      "score": 1,
+      "baselineScore": 1,
+      "scoreGain": 0,
+      "passed": true,
+      "subScores": {
+        "evidenceGrounding": 1,
+        "starCoverage": 1,
+        "roleRelevance": 1,
+        "actionableImprovement": 1,
+        "contextualFit": 1,
+        "adaptiveness": 1
+      },
+      "baselineSubScores": {
+        "evidenceGrounding": 1,
+        "starCoverage": 1,
+        "roleRelevance": 1,
+        "actionableImprovement": 1,
+        "contextualFit": 1,
+        "adaptiveness": 1
+      },
+      "failedChecks": [],
+      "baselineFailedChecks": [],
+      "diagnostics": {
+        "method": "deepseek_semantic_judge_with_keyword_diagnostics_and_forbidden_claim_penalty",
+        "keywordDiagnostics": {
+          "evidenceGrounding": 1,
+          "starCoverage": 1,
+          "roleRelevance": 1,
+          "nzContextualisation": 1,
+          "adaptiveness": 1,
+          "unsupportedClaims": [],
+          "unsupportedClaimPenalty": 0
+        },
+        "baselineKeywordDiagnostics": {
+          "evidenceGrounding": 0.88,
+          "starCoverage": 0.5,
+          "roleRelevance": 0.67,
+          "nzContextualisation": 1,
+          "adaptiveness": 0,
+          "unsupportedClaims": [],
+          "unsupportedClaimPenalty": 0
+        },
+        "kiwiRationale": "Kiwi provides a complete STAR structure tailored to the candidate's context, directly integrates JD requirements (API integration, LLM orchestration, product thinking), and offers concrete next steps (explain feedback). It demonstrates adaptiveness by linking technical actions to product thinking.",
+        "baselineRationale": "Baseline acknowledges the project evidence and identifies missing JD elements, suggests STAR structure, and gives clear advice on adding LLM orchestration, API integration, and user feedback. It lacks deeper contextualization and adaptiveness for follow-up.",
+        "deepseekUsage": {
+          "promptTokens": 641,
+          "completionTokens": 250,
+          "promptCacheHitTokens": 0,
+          "promptCacheMissTokens": 641
+        },
+        "semanticScores": {
+          "kiwi": 1,
+          "baseline": 1
+        },
+        "safetyPenalty": {
+          "kiwi": 0,
+          "baseline": 0
+        },
+        "genericUnsupportedClaims": [],
+        "kiwiUnsupportedClaims": []
+      }
+    },
+    {
+      "id": "unsupported-claim-risk",
+      "role": "Machine Learning Intern",
+      "baselineModel": "ChatGPT GPT-5.5 Thinking same-input baseline run",
+      "baselinePromptType": "same-input generic interview coach prompt",
+      "judgeModel": "deepseek-chat",
+      "score": 1,
+      "baselineScore": 0.8,
+      "scoreGain": 0.2,
+      "passed": true,
+      "subScores": {
+        "evidenceGrounding": 1,
+        "starCoverage": 1,
+        "roleRelevance": 1,
+        "actionableImprovement": 1,
+        "contextualFit": 1,
+        "adaptiveness": 1
+      },
+      "baselineSubScores": {
+        "evidenceGrounding": 1,
+        "starCoverage": 1,
+        "roleRelevance": 1,
+        "actionableImprovement": 1,
+        "contextualFit": 0,
+        "adaptiveness": 0
+      },
+      "failedChecks": [],
+      "baselineFailedChecks": [],
+      "diagnostics": {
+        "method": "deepseek_semantic_judge_with_keyword_diagnostics_and_forbidden_claim_penalty",
+        "keywordDiagnostics": {
+          "evidenceGrounding": 0.83,
+          "starCoverage": 1,
+          "roleRelevance": 1,
+          "nzContextualisation": 1,
+          "adaptiveness": 1,
+          "unsupportedClaims": [],
+          "unsupportedClaimPenalty": 0
+        },
+        "baselineKeywordDiagnostics": {
+          "evidenceGrounding": 0.67,
+          "starCoverage": 0.67,
+          "roleRelevance": 0.33,
+          "nzContextualisation": 1,
+          "adaptiveness": 0.33,
+          "unsupportedClaims": [],
+          "unsupportedClaimPenalty": 0
+        },
+        "kiwiRationale": "Good grounding and role relevance, hints at adaptiveness and contextual fit, but STAR coverage indirect.",
+        "baselineRationale": "Strong grounding, relevant advice, suggests STAR framing, but lacks market context and follow-up.",
+        "deepseekUsage": {
+          "promptTokens": 607,
+          "completionTokens": 189,
+          "promptCacheHitTokens": 0,
+          "promptCacheMissTokens": 607
+        },
+        "semanticScores": {
+          "kiwi": 1,
+          "baseline": 0.8
+        },
+        "safetyPenalty": {
+          "kiwi": 0,
+          "baseline": 0
+        },
+        "genericUnsupportedClaims": [],
+        "kiwiUnsupportedClaims": []
+      }
+    },
+    {
+      "id": "entry-level-migrant-confidence",
+      "role": "Business Analyst Graduate",
+      "baselineModel": "ChatGPT GPT-5.5 Thinking same-input baseline run",
+      "baselinePromptType": "same-input generic interview coach prompt",
+      "judgeModel": "deepseek-chat",
+      "score": 1,
+      "baselineScore": 1,
+      "scoreGain": 0,
+      "passed": true,
+      "subScores": {
+        "evidenceGrounding": 1,
+        "starCoverage": 1,
+        "roleRelevance": 1,
+        "actionableImprovement": 1,
+        "contextualFit": 1,
+        "adaptiveness": 1
+      },
+      "baselineSubScores": {
+        "evidenceGrounding": 1,
+        "starCoverage": 1,
+        "roleRelevance": 1,
+        "actionableImprovement": 1,
+        "contextualFit": 1,
+        "adaptiveness": 1
+      },
+      "failedChecks": [],
+      "baselineFailedChecks": [],
+      "diagnostics": {
+        "method": "deepseek_semantic_judge_with_keyword_diagnostics_and_forbidden_claim_penalty",
+        "keywordDiagnostics": {
+          "evidenceGrounding": 1,
+          "starCoverage": 1,
+          "roleRelevance": 1,
+          "nzContextualisation": 1,
+          "adaptiveness": 1,
+          "unsupportedClaims": [],
+          "unsupportedClaimPenalty": 0
+        },
+        "baselineKeywordDiagnostics": {
+          "evidenceGrounding": 0.67,
+          "starCoverage": 0,
+          "roleRelevance": 1,
+          "nzContextualisation": 0.33,
+          "adaptiveness": 0.33,
+          "unsupportedClaims": [],
+          "unsupportedClaimPenalty": 0
+        },
+        "kiwiRationale": "Fully grounds in CV and JD, provides explicit STAR guidance, directly relevant to BA role, actionable steps, explicitly fits New Zealand context, and offers adaptiveness by reframing the weakness as a managed skill.",
+        "baselineRationale": "Strongly grounded in CV and JD, uses STAR structure, ties to role, gives concrete actionable advice, but context/location not explicitly addressed and lacks follow-up next steps.",
+        "deepseekUsage": {
+          "promptTokens": 626,
+          "completionTokens": 230,
+          "promptCacheHitTokens": 0,
+          "promptCacheMissTokens": 626
+        },
+        "semanticScores": {
+          "kiwi": 1,
+          "baseline": 1
+        },
+        "safetyPenalty": {
+          "kiwi": 0,
+          "baseline": 0
+        },
+        "genericUnsupportedClaims": [],
+        "kiwiUnsupportedClaims": []
+      }
+    },
+    {
+      "id": "senior-technical-leadership",
+      "role": "Senior Software Engineer",
+      "baselineModel": "ChatGPT GPT-5.5 Thinking same-input baseline run",
+      "baselinePromptType": "same-input generic interview coach prompt",
+      "judgeModel": "deepseek-chat",
+      "score": 1,
+      "baselineScore": 1,
+      "scoreGain": 0,
+      "passed": true,
+      "subScores": {
+        "evidenceGrounding": 1,
+        "starCoverage": 1,
+        "roleRelevance": 1,
+        "actionableImprovement": 1,
+        "contextualFit": 1,
+        "adaptiveness": 1
+      },
+      "baselineSubScores": {
+        "evidenceGrounding": 1,
+        "starCoverage": 1,
+        "roleRelevance": 1,
+        "actionableImprovement": 1,
+        "contextualFit": 1,
+        "adaptiveness": 1
+      },
+      "failedChecks": [],
+      "baselineFailedChecks": [],
+      "diagnostics": {
+        "method": "deepseek_semantic_judge_with_keyword_diagnostics_and_forbidden_claim_penalty",
+        "keywordDiagnostics": {
+          "evidenceGrounding": 0.83,
+          "starCoverage": 1,
+          "roleRelevance": 1,
+          "nzContextualisation": 1,
+          "adaptiveness": 1,
+          "unsupportedClaims": [],
+          "unsupportedClaimPenalty": 0
+        },
+        "baselineKeywordDiagnostics": {
+          "evidenceGrounding": 0.67,
+          "starCoverage": 0.5,
+          "roleRelevance": 0.67,
+          "nzContextualisation": 1,
+          "adaptiveness": 0,
+          "unsupportedClaims": [],
+          "unsupportedClaimPenalty": 0
+        },
+        "kiwiRationale": "Kiwi feedback is similarly grounded and STAR-focused, offering more concrete action examples, but lacks explicit contextual or adaptive follow-up.",
+        "baselineRationale": "Baseline feedback is well-grounded in CV and JD, explicitly mentions STAR and role requirements, but provides only generic advice without specific follow-up or context.",
+        "deepseekUsage": {
+          "promptTokens": 624,
+          "completionTokens": 208,
+          "promptCacheHitTokens": 0,
+          "promptCacheMissTokens": 624
+        },
+        "semanticScores": {
+          "kiwi": 1,
+          "baseline": 1
+        },
+        "safetyPenalty": {
+          "kiwi": 0,
+          "baseline": 0
+        },
+        "genericUnsupportedClaims": [],
+        "kiwiUnsupportedClaims": []
+      }
+    },
+    {
+      "id": "behavioural-conflict-resolution",
+      "role": "Agile Software Developer",
+      "baselineModel": "ChatGPT GPT-5.5 Thinking same-input baseline run",
+      "baselinePromptType": "same-input generic interview coach prompt",
+      "judgeModel": "deepseek-chat",
+      "score": 1,
+      "baselineScore": 0.8,
+      "scoreGain": 0.2,
+      "passed": true,
+      "subScores": {
+        "evidenceGrounding": 1,
+        "starCoverage": 1,
+        "roleRelevance": 1,
+        "actionableImprovement": 1,
+        "contextualFit": 1,
+        "adaptiveness": 1
+      },
+      "baselineSubScores": {
+        "evidenceGrounding": 1,
+        "starCoverage": 1,
+        "roleRelevance": 1,
+        "actionableImprovement": 1,
+        "contextualFit": 0,
+        "adaptiveness": 0
+      },
+      "failedChecks": [],
+      "baselineFailedChecks": [],
+      "diagnostics": {
+        "method": "deepseek_semantic_judge_with_keyword_diagnostics_and_forbidden_claim_penalty",
+        "keywordDiagnostics": {
+          "evidenceGrounding": 1,
+          "starCoverage": 1,
+          "roleRelevance": 1,
+          "nzContextualisation": 1,
+          "adaptiveness": 1,
+          "unsupportedClaims": [],
+          "unsupportedClaimPenalty": 0
+        },
+        "baselineKeywordDiagnostics": {
+          "evidenceGrounding": 0.5,
+          "starCoverage": 0.25,
+          "roleRelevance": 0.67,
+          "nzContextualisation": 1,
+          "adaptiveness": 0,
+          "unsupportedClaims": [],
+          "unsupportedClaimPenalty": 0
+        },
+        "kiwiRationale": "Kiwi uses CV-specific context (weekly meetings, GitHub workflow) and links directly to job requirements, with clear STAR guidance and next-step suggestion.",
+        "baselineRationale": "Baseline suggests STAR structure but is generic and lacks specific evidence or adaptation.",
+        "deepseekUsage": {
+          "promptTokens": 587,
+          "completionTokens": 196,
+          "promptCacheHitTokens": 0,
+          "promptCacheMissTokens": 587
+        },
+        "semanticScores": {
+          "kiwi": 1,
+          "baseline": 0.8
+        },
+        "safetyPenalty": {
+          "kiwi": 0,
+          "baseline": 0
+        },
+        "genericUnsupportedClaims": [],
+        "kiwiUnsupportedClaims": []
+      }
+    },
+    {
+      "id": "privacy-security-commercial-risk",
+      "role": "AI SaaS Product Engineer",
+      "baselineModel": "ChatGPT GPT-5.5 Thinking same-input baseline run",
+      "baselinePromptType": "same-input generic interview coach prompt",
+      "judgeModel": "deepseek-chat",
+      "score": 1,
+      "baselineScore": 0.8,
+      "scoreGain": 0.2,
+      "passed": true,
+      "subScores": {
+        "evidenceGrounding": 1,
+        "starCoverage": 1,
+        "roleRelevance": 1,
+        "actionableImprovement": 1,
+        "contextualFit": 1,
+        "adaptiveness": 1
+      },
+      "baselineSubScores": {
+        "evidenceGrounding": 1,
+        "starCoverage": 1,
+        "roleRelevance": 1,
+        "actionableImprovement": 1,
+        "contextualFit": 0,
+        "adaptiveness": 0
+      },
+      "failedChecks": [],
+      "baselineFailedChecks": [],
+      "diagnostics": {
+        "method": "deepseek_semantic_judge_with_keyword_diagnostics_and_forbidden_claim_penalty",
+        "keywordDiagnostics": {
+          "evidenceGrounding": 1,
+          "starCoverage": 1,
+          "roleRelevance": 1,
+          "nzContextualisation": 1,
+          "adaptiveness": 1,
+          "unsupportedClaims": [],
+          "unsupportedClaimPenalty": 0
+        },
+        "baselineKeywordDiagnostics": {
+          "evidenceGrounding": 1,
+          "starCoverage": 0,
+          "roleRelevance": 0.67,
+          "nzContextualisation": 1,
+          "adaptiveness": 0.67,
+          "unsupportedClaims": [],
+          "unsupportedClaimPenalty": 0
+        },
+        "kiwiRationale": "Fully grounded, explicit STAR walkthrough, role-specific connection, concrete advice, and adds a contextual note about not claiming compliance readiness, showing some adaptiveness in next-step guidance.",
+        "baselineRationale": "Strongly grounded in CV evidence, mentions STAR structure and role relevance, provides specific actionable advice, but no contextual or adaptive guidance.",
+        "deepseekUsage": {
+          "promptTokens": 618,
+          "completionTokens": 214,
+          "promptCacheHitTokens": 0,
+          "promptCacheMissTokens": 618
+        },
+        "semanticScores": {
+          "kiwi": 1,
+          "baseline": 0.8
+        },
+        "safetyPenalty": {
+          "kiwi": 0,
+          "baseline": 0
+        },
+        "genericUnsupportedClaims": [],
+        "kiwiUnsupportedClaims": []
+      }
+    }
+  ]
+}
