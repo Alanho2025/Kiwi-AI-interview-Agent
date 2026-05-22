@@ -50,9 +50,37 @@ backend/benchmarks/voice-asr-fallback/simulation.results.json
 
 This simulation does not measure real ASR accuracy. It only confirms that the acceptance gates catch the correct failure modes.
 
+## Generate local interview audio fixtures
+
+On macOS, generate spoken 30s, 60s, and 90s style benchmark fixtures automatically:
+
+```bash
+node benchmarks/voice-asr-fallback/generateInterviewAudioFixtures.js
+```
+
+The script uses the built-in macOS `say` command, then converts the audio with `ffmpeg-static` into 16 kHz mono 16-bit PCM WAV files.
+
+It writes:
+
+```text
+backend/benchmarks/voice-asr-fallback/fixtures/interview-answer-30s.wav
+backend/benchmarks/voice-asr-fallback/fixtures/interview-answer-60s.wav
+backend/benchmarks/voice-asr-fallback/fixtures/interview-answer-90s.wav
+backend/benchmarks/voice-asr-fallback/fixtures.local.json
+```
+
+Optional voice settings:
+
+```bash
+ASR_FIXTURE_SAY_VOICE=Daniel ASR_FIXTURE_SAY_RATE=150 \
+node benchmarks/voice-asr-fallback/generateInterviewAudioFixtures.js
+```
+
+Do not commit generated audio files. They are local benchmark fixtures.
+
 ## Fixture requirements for real provider benchmark
 
-Create local fixtures under:
+If you do not use the generator, create local fixtures manually under:
 
 ```text
 backend/benchmarks/voice-asr-fallback/fixtures/
@@ -77,6 +105,15 @@ node benchmarks/voice-asr-fallback/runVoiceAsrFallbackBenchmark.js \
   --manifest benchmarks/voice-asr-fallback/fixtures.local.json \
   --providers azure,vosk,sherpa-onnx \
   --output benchmarks/voice-asr-fallback/results.local.json
+```
+
+For Azure baseline only:
+
+```bash
+node benchmarks/voice-asr-fallback/runVoiceAsrFallbackBenchmark.js \
+  --manifest benchmarks/voice-asr-fallback/fixtures.local.json \
+  --providers azure \
+  --output benchmarks/voice-asr-fallback/results.azure.local.json
 ```
 
 Fast mode skips real-time sleeps and is useful only for CPU and adapter smoke tests:
