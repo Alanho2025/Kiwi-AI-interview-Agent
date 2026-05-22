@@ -9,7 +9,7 @@
 import { appendTranscriptTurn, updateLatestTranscriptTurnMetadata, updateSession } from '../sessionService.js';
 import { runTask } from '../masterAiService.js';
 import { saveBufferToLocalStorage } from '../storageService.js';
-import { synthesizeSpeech } from './azureSpeechService.js';
+import { synthesizeSpeech } from './ttsProviderRouter.js';
 import { getLatestQuestionForSession } from '../session/sessionQuestionService.js';
 import { badRequest } from '../../utils/appError.js';
 import { applyElapsedSeconds, saveInterviewAnswerWithDetails } from '../interview/interviewSessionService.js';
