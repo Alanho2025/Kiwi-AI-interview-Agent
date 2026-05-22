@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /**
- * End-to-end benchmark spike for local ASR Plan B candidates.
+ * End-to-end benchmark spike for ASR fallback candidates.
  *
  * This measures the real path that matters for live interviews:
- * PCM fixture chunks -> local ASR command adapter -> transcript -> existing realtime voice turn service
+ * PCM fixture chunks -> streaming ASR candidate -> transcript -> existing realtime voice turn service
  * -> adaptive interview engine / RAG / DeepSeek -> TTS audio buffer.
  *
  * It intentionally mutates the supplied interview session, because the production service persists transcript
@@ -18,6 +18,7 @@ import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
 import { createSubprocessAsrProvider } from './adapters/subprocessAsrProvider.js';
+import { createElevenLabsRealtimeSttProvider } from './adapters/elevenlabsRealtimeSttProvider.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -293,6 +294,7 @@ const providerFactories = {
   azure: createAzureProvider,
   vosk: (args) => createProvider({ providerName: 'vosk', ...args }),
   'sherpa-onnx': (args) => createProvider({ providerName: 'sherpa-onnx', ...args }),
+  'elevenlabs-realtime': createElevenLabsRealtimeSttProvider,
 };
 
 const runAsrFixture = async ({ providerName, fixture, options }) => {
@@ -326,10 +328,10 @@ const runAsrFixture = async ({ providerName, fixture, options }) => {
   };
 
   const factory = providerFactories[providerName];
-  if (!factory) throw new Error(`Unknown local fallback provider: ${providerName}`);
+  if (!factory) throw new Error(`Unknown STT fallback provider: ${providerName}`);
 
   const before = getResourceSnapshot();
-  const provider = await factory({ sampleRate: wav.sampleRate, language: fixture.language || 'en-NZ', callbacks });
+  const provider = await factory({ sampleRate: wav.sampleRate, language: fixture.language || 'en-NZ', callbacks, fixture });
 
   for (const chunk of chunks) {
     provider.write(chunk);
@@ -364,6 +366,7 @@ const runAsrFixture = async ({ providerName, fixture, options }) => {
     eventCounts: { partial: events.filter((event) => event.type === 'partial').length, final: events.filter((event) => event.type === 'final').length },
     errors,
     integrationComplexity: provider.integrationComplexity,
+    benchmarkMetadata: provider.benchmarkMetadata || null,
   };
 };
 
@@ -400,7 +403,7 @@ const runRealAiPipeline = async ({ asrResult, options }) => {
     sttSegmentCount: asrResult.eventCounts?.final ?? null,
     asrFinishedAtMs: asrResult.asrFinishedAtMs,
     finalTranscriptDelayAfterSpeechEndMs: asrResult.finalTranscriptDelayAfterSpeechEndMs,
-    source: 'local_fallback_e2e_benchmark',
+    source: 'stt_fallback_e2e_benchmark',
   };
 
   const result = await processRealtimeVoiceTurn({
@@ -409,8 +412,8 @@ const runRealAiPipeline = async ({ asrResult, options }) => {
     transcriptText: asrResult.finalTranscriptText,
     language: 'en-NZ',
     asrConfidence: null,
-    asrSource: `${asrResult.provider}_command_fallback_benchmark`,
-    inputMode: 'local_fallback_e2e_benchmark',
+    asrSource: `${asrResult.provider}_fallback_benchmark`,
+    inputMode: 'stt_fallback_e2e_benchmark',
     vad,
     voiceName: process.env.ASR_BENCHMARK_VOICE_NAME,
     tryGenerateReportForCompletedSession: null,
@@ -466,7 +469,7 @@ const buildAcceptance = ({ asrResult, e2eResult }) => {
     aiFirstAudioActualAfterSpeechEndMs,
     aiFirstAudioActualWithin5s,
     pass,
-    recommendation: pass ? 'local ASR fallback can continue toward live integration spike' : 'do not add as live local fallback yet',
+    recommendation: pass ? 'STT fallback can continue toward live integration spike' : 'do not add as live STT fallback yet',
   };
 };
 
@@ -495,7 +498,7 @@ const main = async () => {
             fixture: fixture.id,
             skipped: true,
             error: error?.message || String(error),
-            acceptance: { pass: false, recommendation: 'E2E benchmark failed before complete measurement; fix ASR command, session id, DB, DeepSeek, RAG, or TTS config' },
+            acceptance: { pass: false, recommendation: 'E2E benchmark failed before complete measurement; fix STT provider config, session id, DB, DeepSeek, RAG, or TTS config' },
           });
         }
       }
@@ -503,9 +506,9 @@ const main = async () => {
 
     const summary = {
       generatedAt: new Date().toISOString(),
-      benchmarkIntent: 'Actual E2E check for Vosk/Sherpa-ONNX Plan B: command ASR adapter -> existing RAG/adaptive engine/DeepSeek -> TTS audio readiness. Use --tts-provider local-command to test without Azure Speech.',
+      benchmarkIntent: 'Actual E2E check for STT fallback candidates: streaming ASR adapter -> existing RAG/adaptive engine/DeepSeek -> TTS audio readiness. Use --tts-provider local-command to test without Azure Speech.',
       warning: 'This benchmark mutates the supplied interview session. Use a disposable test session.',
-      commandProtocol: 'ASR command must read raw 16 kHz mono 16-bit PCM from stdin and write JSONL events: {"type":"partial","text":"..."} and {"type":"final","text":"..."}.',
+      commandProtocol: 'Vosk/Sherpa command providers must read raw 16 kHz mono 16-bit PCM from stdin and write JSONL events. ElevenLabs realtime uses its WebSocket STT API directly.',
       hardAcceptance: {
         finalTranscriptDelayAfterSpeechEndMs: HARD_FINAL_DELAY_MS,
         aiFirstAudioActualAfterSpeechEndMs: HARD_AI_FIRST_AUDIO_MS,
