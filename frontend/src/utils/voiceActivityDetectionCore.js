@@ -7,7 +7,7 @@ export const DEFAULT_VAD_CONFIG = {
   noiseFloorMargin: 0.006,
   speechStartConfirmationMs: 150,
   minSpeechMs: 1500,
-  silenceToStopMs: 2000,
+  silenceToStopMs: 1700,
   maxAnswerMs: 240000,
   preSpeechGraceMs: 15000,
   micArmDelayMs: 350,

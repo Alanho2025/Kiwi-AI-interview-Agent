@@ -25,6 +25,7 @@ const DEFAULT_STAGE_LABELS = {
 const PROVIDER_LABELS = {
   deepseek: 'DeepSeek',
   azure_speech: 'Azure Speech',
+  elevenlabs: 'ElevenLabs',
   local: 'Local',
 };
 
@@ -127,6 +128,7 @@ export const recordLlmUsage = async ({
 export const recordSpeechUsage = async ({
   userId,
   sessionId = null,
+  provider = 'azure_speech',
   stage = 'interview',
   operation,
   audioSeconds = 0,
@@ -135,14 +137,16 @@ export const recordSpeechUsage = async ({
   requestCount = 1,
   metadata = {},
 } = {}) => {
-  const estimatedCost = operation === 'speech_to_text'
-    ? calculateAzureSttCost({ audioSeconds })
-    : calculateAzureTtsCost({ textCharacters });
+  const estimatedCost = provider === 'azure_speech'
+    ? (operation === 'speech_to_text'
+        ? calculateAzureSttCost({ audioSeconds })
+        : calculateAzureTtsCost({ textCharacters }))
+    : 0;
 
   return recordAiUsageEvent({
     userId,
     sessionId,
-    provider: 'azure_speech',
+    provider,
     modality: 'speech',
     stage,
     operation,

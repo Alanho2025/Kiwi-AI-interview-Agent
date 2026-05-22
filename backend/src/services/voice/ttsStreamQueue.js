@@ -6,7 +6,7 @@
  * - Add formal tool names to all emitted TTS messages.
  */
 
-import { synthesizeSpeech } from './azureSpeechService.js';
+import { synthesizeSpeech } from './ttsProviderRouter.js';
 import { AGENT_TOOL_NAMES } from '../../constants/agentToolNames.js';
 
 export const streamAssistantSpeech = async ({
@@ -38,6 +38,7 @@ export const streamAssistantSpeech = async ({
       contentType: synthesis.contentType,
       voiceName: synthesis.voiceName,
       outputFormat: synthesis.outputFormat,
+      provider: synthesis.provider,
       index,
       text: cleanText,
       timestamp: new Date().toISOString(),
