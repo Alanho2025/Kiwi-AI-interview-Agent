@@ -24,7 +24,33 @@ If a provider cannot pass these gates, keep Azure streaming STT as the live path
 
 Piper is intentionally not part of the STT benchmark. Use it only for TTS fallback benchmarking.
 
-## Fixture requirements
+## Run simulation test first
+
+Use this test before installing any ASR provider. It validates the benchmark gate logic with generated 30s, 60s, and 90s PCM audio and simulated providers.
+
+From `backend/`:
+
+```bash
+node benchmarks/voice-asr-fallback/runVoiceAsrFallbackSimulationTest.js --fast
+```
+
+Expected behaviour:
+
+- `mock-streaming-fast-pass` passes.
+- `mock-streaming-borderline-pass` passes.
+- `mock-streaming-slow-final-fail` fails because final transcript delay is over 1 second after `speech_end`.
+- `mock-no-partial-fail` fails because no partial transcript appears before `speech_end`.
+- `mock-low-recall-fail` fails because technical keyword recall is too low.
+
+The simulation writes:
+
+```text
+backend/benchmarks/voice-asr-fallback/simulation.results.json
+```
+
+This simulation does not measure real ASR accuracy. It only confirms that the acceptance gates catch the correct failure modes.
+
+## Fixture requirements for real provider benchmark
 
 Create local fixtures under:
 
@@ -42,7 +68,7 @@ interview-answer-90s.wav
 
 Copy `fixtures.example.json` to `fixtures.local.json`, then fill in expected transcripts and technical keywords. Do not commit real interview recordings.
 
-## Run
+## Run real provider benchmark
 
 From `backend/`:
 
