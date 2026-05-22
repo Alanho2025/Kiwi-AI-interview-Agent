@@ -3,10 +3,9 @@
  * End-to-end benchmark spike for the cloud realtime voice path.
  *
  * Measures the product latency that matters for live interviews:
- * speech_end -> STT final transcript -> adaptive AI next question -> assistant audio readiness.
+ * speech_end -> STT final transcript -> first generated sentence -> first assistant audio readiness.
  *
- * This mutates the supplied disposable interview session because the production service persists transcript
- * turns and advances interview state.
+ * The benchmark restores the supplied session after every fixture by default so repeated runs keep fixed state.
  */
 
 import fs from 'node:fs/promises';
@@ -17,6 +16,11 @@ import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
 import { createElevenLabsRealtimeSttProvider } from './adapters/elevenlabsRealtimeSttProvider.js';
+import {
+  createSessionBenchmarkSnapshot,
+  restoreSessionBenchmarkSnapshot,
+  summarizeBenchmarkSnapshot,
+} from './benchmarkSessionState.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -73,6 +77,7 @@ const parseArgs = () => {
     sessionId: process.env.ASR_BENCHMARK_SESSION_ID || null,
     userId: process.env.ASR_BENCHMARK_USER_ID || null,
     allowSessionMutation: process.env.ASR_BENCHMARK_ALLOW_SESSION_MUTATION === 'true',
+    restoreSession: process.env.ASR_BENCHMARK_RESTORE_SESSION !== 'false',
     ttsProvider: process.env.ASR_BENCHMARK_TTS_PROVIDER || 'azure',
     localTtsCommand: process.env.ASR_BENCHMARK_LOCAL_TTS_COMMAND || process.env.LOCAL_TTS_COMMAND || null,
     localTtsProviderName: process.env.ASR_BENCHMARK_LOCAL_TTS_PROVIDER_NAME || 'local-tts-command',
@@ -90,6 +95,7 @@ const parseArgs = () => {
     if (arg === '--session-id') options.sessionId = args[++index];
     if (arg === '--user-id') options.userId = args[++index];
     if (arg === '--allow-session-mutation') options.allowSessionMutation = true;
+    if (arg === '--no-restore-session') options.restoreSession = false;
     if (arg === '--tts-provider') options.ttsProvider = args[++index];
     if (arg === '--local-tts-command') options.localTtsCommand = args[++index];
     if (arg === '--local-tts-provider-name') options.localTtsProviderName = args[++index];
@@ -251,6 +257,25 @@ const synthesizeWithLocalCommand = ({ commandLine, providerName, contentType, ou
   return { audioBuffer, contentType, voiceName: voiceName || providerName, outputFormat, provider: providerName };
 };
 
+const createNoopArchiveSynthesizer = () => async ({ voiceName } = {}) => ({
+  audioBuffer: Buffer.from('benchmark-audio-archive-skipped'),
+  contentType: 'text/plain',
+  voiceName: voiceName || 'benchmark-noop-archive',
+  outputFormat: 'noop',
+  provider: 'benchmark-noop-archive',
+});
+
+const waitForBackgroundQueueToSettle = async () => {
+  const { getBackgroundJobQueueSize } = await import('../../src/jobs/backgroundJobQueue.js');
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    await sleep(100);
+    if (getBackgroundJobQueueSize() === 0) {
+      await sleep(100);
+      if (getBackgroundJobQueueSize() === 0) return;
+    }
+  }
+};
+
 const providerFactories = {
   azure: createAzureProvider,
   'elevenlabs-realtime': createElevenLabsRealtimeSttProvider,
@@ -329,8 +354,8 @@ const runAsrFixture = async ({ providerName, fixture, options }) => {
   };
 };
 
-const buildTtsSynthesizer = (options) => {
-  if (options.ttsProvider !== 'local-command') return undefined;
+const buildSentenceSynthesizer = (options) => {
+  if (options.ttsProvider !== 'local-command') return null;
   return synthesizeWithLocalCommand({
     commandLine: options.localTtsCommand,
     providerName: options.localTtsProviderName,
@@ -343,7 +368,7 @@ const runRealAiPipeline = async ({ asrResult, options }) => {
   const { getSessionById } = await import('../../src/services/sessionService.js');
   const { processRealtimeVoiceTurn } = await import('../../src/services/voice/realtimeVoiceTurnService.js');
 
-  if (!options.allowSessionMutation) throw new Error('Refusing to run real E2E pipeline without --allow-session-mutation. Use a disposable test session.');
+  if (!options.allowSessionMutation) throw new Error('Refusing to run real E2E pipeline without --allow-session-mutation. The benchmark restores session state after each fixture by default.');
   if (!options.sessionId) throw new Error('Missing --session-id or ASR_BENCHMARK_SESSION_ID for E2E benchmark.');
   if (!asrResult.finalTranscriptText) throw new Error('ASR produced empty transcript; refusing to call DeepSeek/RAG pipeline.');
 
@@ -352,8 +377,12 @@ const runRealAiPipeline = async ({ asrResult, options }) => {
   const resolvedUserId = options.userId || sessionBefore.userId || sessionBefore.user_id;
   if (!resolvedUserId) throw new Error('Missing --user-id and session has no userId field.');
 
+  const sentenceSynthesizer = buildSentenceSynthesizer(options);
   const startedAt = nowMs();
-  const useLocalTts = options.ttsProvider === 'local-command';
+  let firstSentenceReadyMs = null;
+  let firstAudioReadyMs = null;
+  const sentenceEvents = [];
+
   const result = await processRealtimeVoiceTurn({
     session: sessionBefore,
     userId: resolvedUserId,
@@ -375,23 +404,46 @@ const runRealAiPipeline = async ({ asrResult, options }) => {
     voiceName: process.env.ASR_BENCHMARK_VOICE_NAME,
     tryGenerateReportForCompletedSession: null,
     req: null,
-    synthesizeAssistantSpeech: buildTtsSynthesizer(options),
+    synthesizeAssistantSpeech: createNoopArchiveSynthesizer(),
+    onSentence: async (text, index) => {
+      const sentenceReadyMs = nowMs() - startedAt;
+      if (firstSentenceReadyMs === null) firstSentenceReadyMs = sentenceReadyMs;
+      let audioReadyMs = null;
+      let audioBytes = null;
+      if (sentenceSynthesizer) {
+        const synthesis = await sentenceSynthesizer({ text, voiceName: process.env.ASR_BENCHMARK_VOICE_NAME });
+        audioReadyMs = nowMs() - startedAt;
+        audioBytes = synthesis.audioBuffer.length;
+        if (firstAudioReadyMs === null) firstAudioReadyMs = audioReadyMs;
+      }
+      sentenceEvents.push({
+        index,
+        sentenceReadyMs,
+        audioReadyMs,
+        audioBytes,
+        textLength: String(text || '').length,
+        textPreview: String(text || '').slice(0, 160),
+      });
+    },
   });
 
   const pipelineDoneMs = nowMs() - startedAt;
+  await waitForBackgroundQueueToSettle();
   const assistantText = String(result.agentResult?.displayText || result.agentResult?.interviewerTurn?.displayText || result.agentResult?.nextQuestion || '').trim();
-  const hasAssistantAudio = Boolean(result.assistantAudio?.base64 || result.assistantAudio?.audioBuffer || result.assistantAudio);
 
   return {
-    mode: `rag_deepseek_${useLocalTts ? 'command_tts' : 'azure_tts'}`,
+    mode: `product_like_streaming_${options.ttsProvider}`,
     ttsProvider: options.ttsProvider,
     sessionId: options.sessionId,
     userId: resolvedUserId,
     pipelineDoneMs,
+    firstSentenceReadyMs,
+    firstAudioReadyMs,
     assistantTextLength: assistantText.length,
     assistantTextPreview: assistantText.slice(0, 240),
-    assistantAudioReady: hasAssistantAudio,
-    assistantAudioProvider: result.assistantAudio?.provider || null,
+    assistantAudioReady: Number.isFinite(firstAudioReadyMs),
+    assistantAudioProvider: options.localTtsProviderName || options.ttsProvider,
+    sentenceEvents,
     latency: result.latency || null,
   };
 };
@@ -402,7 +454,8 @@ const buildAcceptance = ({ asrResult, e2eResult }) => {
   const keywordRecallPass = asrResult.keywordRecall === null || asrResult.keywordRecall.score >= MIN_KEYWORD_RECALL;
   const werPass = asrResult.wer === null || asrResult.wer <= MAX_WER;
   const noAsrErrors = !asrResult.errors.length;
-  const speechEndToFirstAudioReadyMs = e2eResult ? asrResult.finalTranscriptDelayAfterSpeechEndMs + e2eResult.pipelineDoneMs : null;
+  const speechEndToFirstSentenceReadyMs = e2eResult?.firstSentenceReadyMs === null ? null : asrResult.finalTranscriptDelayAfterSpeechEndMs + e2eResult.firstSentenceReadyMs;
+  const speechEndToFirstAudioReadyMs = e2eResult?.firstAudioReadyMs === null ? null : asrResult.finalTranscriptDelayAfterSpeechEndMs + e2eResult.firstAudioReadyMs;
   const firstAudioReadyWithin5s = Number.isFinite(speechEndToFirstAudioReadyMs) && speechEndToFirstAudioReadyMs <= HARD_FIRST_AUDIO_MS;
   const aiPipelineProducedOutput = Boolean(e2eResult?.assistantTextLength) && e2eResult.assistantAudioReady === true;
   const pass = hasPartialBeforeSpeechEnd && finalReadyWithin1s && keywordRecallPass && werPass && noAsrErrors && firstAudioReadyWithin5s && aiPipelineProducedOutput;
@@ -415,11 +468,38 @@ const buildAcceptance = ({ asrResult, e2eResult }) => {
     noAsrErrors,
     aiPipelineProducedOutput,
     speechEndToAsrFinalMs: asrResult.finalTranscriptDelayAfterSpeechEndMs,
+    speechEndToFirstSentenceReadyMs,
     speechEndToFirstAudioReadyMs,
     firstAudioReadyWithin5s,
     pass,
     recommendation: pass ? 'cloud voice path can continue toward live integration spike' : 'do not add as live STT fallback yet',
   };
+};
+
+const runE2eFixtureWithRestore = async ({ providerName, fixture, options }) => {
+  const snapshot = options.restoreSession
+    ? await createSessionBenchmarkSnapshot(options.sessionId)
+    : null;
+
+  try {
+    const asr = await runAsrFixture({ providerName, fixture, options });
+    const e2e = await runRealAiPipeline({ asrResult: asr, options });
+    return {
+      provider: providerName,
+      fixture: fixture.id,
+      asr,
+      e2e,
+      sessionState: {
+        restoredAfterRun: Boolean(snapshot),
+        snapshot: snapshot ? summarizeBenchmarkSnapshot(snapshot) : null,
+      },
+      acceptance: buildAcceptance({ asrResult: asr, e2eResult: e2e }),
+    };
+  } finally {
+    if (snapshot) {
+      await restoreSessionBenchmarkSnapshot(snapshot);
+    }
+  }
 };
 
 const main = async () => {
@@ -438,9 +518,7 @@ const main = async () => {
     for (const providerName of options.providers) {
       for (const fixture of fixtures) {
         try {
-          const asr = await runAsrFixture({ providerName, fixture, options });
-          const e2e = await runRealAiPipeline({ asrResult: asr, options });
-          results.push({ provider: providerName, fixture: fixture.id, asr, e2e, acceptance: buildAcceptance({ asrResult: asr, e2eResult: e2e }) });
+          results.push(await runE2eFixtureWithRestore({ providerName, fixture, options }));
         } catch (error) {
           results.push({
             provider: providerName,
@@ -455,8 +533,8 @@ const main = async () => {
 
     const summary = {
       generatedAt: new Date().toISOString(),
-      benchmarkIntent: 'Measure speech_end to first assistant audio readiness for the cloud voice interview path.',
-      warning: 'This benchmark mutates the supplied interview session. Use a disposable active test session.',
+      benchmarkIntent: 'Measure product-like speech_end to first assistant audio readiness for the cloud voice interview path.',
+      warning: 'This benchmark mutates the supplied interview session during the run, then restores it by default.',
       hardAcceptance: {
         finalTranscriptDelayAfterSpeechEndMs: HARD_FINAL_DELAY_MS,
         speechEndToFirstAudioReadyMs: HARD_FIRST_AUDIO_MS,
