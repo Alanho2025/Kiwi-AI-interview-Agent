@@ -7,18 +7,25 @@
  * - first partial transcript availability
  * - final transcript readiness after speech_end
  * - keyword recall
- * - WER when expected transcript is provided
- * - CPU and memory deltas
- * - integration notes for the existing PCM WebSocket chunk flow
+ * - WER when expected transcript exists
+ * - CPU/memory use
+ * - integration complexity with existing PCM WebSocket chunks
  */
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
+import dotenv from 'dotenv';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const BACKEND_ROOT = path.resolve(__dirname, '../..');
+
+// The benchmark is executed directly, outside backend/index.js, so it must load
+// backend/.env itself before importing Azure/Vosk/Sherpa provider adapters.
+dotenv.config({ path: path.join(BACKEND_ROOT, '.env') });
+dotenv.config({ path: path.join(BACKEND_ROOT, '.env.local'), override: true });
 
 const DEFAULT_SAMPLE_RATE = 16000;
 const DEFAULT_CHUNK_MS = 20;
@@ -333,7 +340,7 @@ const runProviderFixture = async ({ providerName, fixture, options }) => {
     chunkMs: options.chunkMs,
     realtimeFeed: options.realtime,
     firstPartialMs,
-    finalTranscriptDelayAfterSpeechEndMs: finalDelayAfterSpeechEndMs,
+    finalTranscriptDelayAfterSpeechEndMs,
     totalWallTimeMs: finishedAt,
     finalTranscriptText: latestFinalText,
     keywordRecall: recall,
