@@ -2,27 +2,50 @@
 
 This is a benchmark-only spike. It must not be imported by production code.
 
+## Real decision being tested
+
+The goal is not to prove Azure works. Azure is the current primary STT path.
+
+The goal is to decide whether a local open-source streaming ASR provider can be used as Plan B when Azure Speech is unavailable:
+
+- Vosk streaming ASR
+- Sherpa-ONNX streaming ASR
+
+A local fallback must pass the real live-interview path, not only an isolated ASR timing test:
+
+```text
+PCM WebSocket-style chunks
+-> local streaming ASR
+-> final transcript after speech_end
+-> existing realtime voice turn service
+-> adaptive interview engine / RAG / DeepSeek
+-> assistant response text
+-> TTS audio readiness
+```
+
 ## Decision rule
 
 Do not add a local STT fallback for live interviews unless a streaming or near-streaming provider can pass all hard gates:
 
 1. Interview answer length: 30, 60, and 90 seconds.
-2. Final transcript is ready within 1 second after `speech_end`.
-3. AI first audio remains possible within 3 to 5 seconds after `speech_end`.
-4. Partial transcript appears before the speaker finishes.
-5. Technical keyword recall is acceptable for interview terms.
-6. CPU and memory use are acceptable for the deployment target.
-7. The provider can consume the existing 16 kHz mono PCM WebSocket chunks without changing the live voice product flow.
+2. Partial transcript appears before the speaker finishes.
+3. Final transcript is ready within 1 second after `speech_end`.
+4. Technical keyword recall is at least 80 percent when keywords are provided.
+5. WER is at most 30 percent when expected transcript is provided.
+6. The existing RAG / adaptive interview / DeepSeek path produces an assistant response.
+7. AI first audio is ready within 3 to 5 seconds after `speech_end`.
+8. CPU and memory use are acceptable for the deployment target.
+9. The provider can consume the existing 16 kHz mono PCM WebSocket chunks without changing the live voice product flow.
 
-If a provider cannot pass these gates, keep Azure streaming STT as the live path. Use faster-whisper only for optional post-interview transcript cleanup.
+If a provider cannot pass these gates, do not wire it into live interviews. Keep Azure streaming STT as the primary path. Use faster-whisper only for optional post-interview transcript cleanup.
 
 ## Providers compared
 
-- Azure streaming STT: current baseline. It already uses `createRealtimeSpeechSession()` and the existing PCM WebSocket chunk flow.
-- Vosk streaming ASR: local candidate. Requires a local Vosk model and native package support.
-- Sherpa-ONNX streaming ASR: local candidate. Requires pinned model files and a pinned Node integration package or CLI wrapper.
+- Vosk streaming ASR: local Plan B candidate. Requires a local Vosk model and native package support.
+- Sherpa-ONNX streaming ASR: local Plan B candidate. Requires pinned model files and a pinned Node integration package or CLI wrapper.
+- Azure streaming STT: optional baseline only. It is not Plan B.
 
-Piper is intentionally not part of the STT benchmark. Use it only for TTS fallback benchmarking.
+Piper is intentionally not part of the STT benchmark. Use it only for a separate TTS fallback benchmark.
 
 ## Run simulation test first
 
@@ -96,24 +119,35 @@ interview-answer-90s.wav
 
 Copy `fixtures.example.json` to `fixtures.local.json`, then fill in expected transcripts and technical keywords. Do not commit real interview recordings.
 
-## Run real provider benchmark
+## Run local ASR-only benchmark
+
+This checks whether Vosk or Sherpa-ONNX can consume the current PCM chunk format and produce usable transcripts. It does not call DeepSeek, RAG, or TTS.
 
 From `backend/`:
 
 ```bash
 node benchmarks/voice-asr-fallback/runVoiceAsrFallbackBenchmark.js \
   --manifest benchmarks/voice-asr-fallback/fixtures.local.json \
-  --providers azure,vosk,sherpa-onnx \
-  --output benchmarks/voice-asr-fallback/results.local.json
+  --providers vosk,sherpa-onnx \
+  --output benchmarks/voice-asr-fallback/results.local-fallback.json
 ```
 
-For Azure baseline only:
+Run one provider at a time if setup is incomplete:
+
+```bash
+node benchmarks/voice-asr-fallback/runVoiceAsrFallbackBenchmark.js \
+  --manifest benchmarks/voice-asr-fallback/fixtures.local.json \
+  --providers vosk \
+  --output benchmarks/voice-asr-fallback/results.vosk.local.json
+```
+
+Azure baseline can still be run explicitly if needed:
 
 ```bash
 node benchmarks/voice-asr-fallback/runVoiceAsrFallbackBenchmark.js \
   --manifest benchmarks/voice-asr-fallback/fixtures.local.json \
   --providers azure \
-  --output benchmarks/voice-asr-fallback/results.azure.local.json
+  --output benchmarks/voice-asr-fallback/results.azure.baseline.json
 ```
 
 Fast mode skips real-time sleeps and is useful only for CPU and adapter smoke tests:
@@ -124,16 +158,58 @@ ASR_BENCHMARK_REALTIME=false node benchmarks/voice-asr-fallback/runVoiceAsrFallb
   --providers vosk
 ```
 
-## Provider setup
+## Run real end-to-end fallback benchmark
 
-### Azure
+This is the important benchmark for the product decision.
 
-Requires the same backend env vars as the existing app:
+It runs:
+
+```text
+local ASR transcript
+-> processRealtimeVoiceTurn()
+-> runTask({ taskType: 'interview_next_turn' })
+-> existing adaptive interview / RAG / DeepSeek path
+-> Azure TTS full synthesis unless --text-only-ai is used
+```
+
+Because it uses the real realtime voice service, it writes transcript turns, saves interview answers, and advances the selected interview session. Use a disposable test session.
+
+Required inputs:
+
+- Local ASR provider setup, such as Vosk or Sherpa-ONNX.
+- A valid existing interview session id.
+- The user id that owns the test session, unless the session object already exposes it.
+- DeepSeek and database environment variables required by the normal backend.
+- Azure Speech env vars if you want full TTS audio synthesis.
+
+Full E2E with TTS:
 
 ```bash
-AZURE_SPEECH_KEY=...
-AZURE_SPEECH_REGION=...
+node benchmarks/voice-asr-fallback/runVoiceAsrFallbackE2eBenchmark.js \
+  --manifest benchmarks/voice-asr-fallback/fixtures.local.json \
+  --providers vosk,sherpa-onnx \
+  --session-id <disposable-session-id> \
+  --user-id <test-user-id> \
+  --allow-session-mutation \
+  --output benchmarks/voice-asr-fallback/results.e2e-local-fallback.json
 ```
+
+Text-only E2E for isolating ASR + RAG + DeepSeek without waiting for TTS:
+
+```bash
+node benchmarks/voice-asr-fallback/runVoiceAsrFallbackE2eBenchmark.js \
+  --manifest benchmarks/voice-asr-fallback/fixtures.local.json \
+  --providers vosk \
+  --session-id <disposable-session-id> \
+  --user-id <test-user-id> \
+  --allow-session-mutation \
+  --text-only-ai \
+  --output benchmarks/voice-asr-fallback/results.e2e-vosk-text-only.json
+```
+
+The script refuses to run the real pipeline unless `--allow-session-mutation` is provided. This prevents accidentally mutating a real demo or production session.
+
+## Provider setup
 
 ### Vosk
 
@@ -160,20 +236,45 @@ export SHERPA_ONNX_JOINER=/absolute/path/joiner.onnx
 
 If a selected Sherpa package uses a different API, adapt only the benchmark adapter first. Do not wire it into live voice until this benchmark passes.
 
+### Azure baseline and TTS
+
+Azure is not the local Plan B candidate. It is used only for baseline STT or full TTS synthesis in the E2E benchmark:
+
+```bash
+AZURE_SPEECH_KEY=...
+AZURE_SPEECH_REGION=...
+```
+
 ## Output fields
 
-Each provider-fixture row reports:
+ASR-only benchmark rows report:
 
 - `firstPartialMs`
+- `speechEndMs`
 - `finalTranscriptDelayAfterSpeechEndMs`
 - `keywordRecall`
 - `wer`
 - `resourceUse`
 - `integrationComplexity`
-- `acceptance.finalReadyWithin1s`
-- `acceptance.aiFirstAudioPossibleWithin3To5s`
+- `acceptance.pass`
 - `acceptance.recommendation`
 
-## Current hypothesis before real fixture results
+E2E benchmark rows report:
 
-Azure remains the safest live STT option because it is already integrated with continuous recognition and current PCM chunks. Local fallback is only worth adding if Sherpa-ONNX or Vosk proves that it can produce final text within 1 second after `speech_end` on 30 to 90 second answers. A turn-level faster-whisper fallback should not be added to live interviews because it starts too late and cannot provide partial transcript availability during the answer.
+- `asr.finalTranscriptDelayAfterSpeechEndMs`
+- `asr.finalTranscriptText`
+- `asr.keywordRecall`
+- `asr.wer`
+- `e2e.mode`
+- `e2e.pipelineDoneMs`
+- `e2e.firstSentenceReadyMs`
+- `e2e.assistantAudioReady`
+- `e2e.assistantTextPreview`
+- `e2e.latency`
+- `acceptance.aiFirstAudioActualAfterSpeechEndMs`
+- `acceptance.aiFirstAudioActualWithin5s`
+- `acceptance.pass`
+
+## Current hypothesis before real E2E results
+
+Azure remains the safest primary STT option because it is already integrated with continuous recognition and current PCM chunks. Local fallback is only worth adding if Sherpa-ONNX or Vosk proves that it can produce final text within 1 second after `speech_end` and the existing RAG / DeepSeek / TTS pipeline can still produce first audio within 3 to 5 seconds. A turn-level faster-whisper fallback should not be added to live interviews because it starts too late and cannot provide partial transcript availability during the answer.
