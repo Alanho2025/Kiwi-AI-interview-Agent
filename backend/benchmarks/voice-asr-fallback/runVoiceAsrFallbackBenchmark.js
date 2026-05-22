@@ -28,6 +28,7 @@ const HARD_AI_AUDIO_WINDOW_MS = 5000;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const nowMs = () => Number(process.hrtime.bigint() / 1000000n);
+const unwrapDefaultExport = (moduleNamespace) => moduleNamespace?.default || moduleNamespace;
 
 const parseArgs = () => {
   const args = process.argv.slice(2);
@@ -190,7 +191,7 @@ const createAzureProvider = async ({ sampleRate, language = 'en-NZ', callbacks }
 const createVoskProvider = async ({ sampleRate, callbacks }) => {
   const modelPath = process.env.VOSK_MODEL_PATH;
   if (!modelPath) throw new Error('Set VOSK_MODEL_PATH to a local Vosk model directory.');
-  const vosk = await import('vosk');
+  const vosk = unwrapDefaultExport(await import('vosk'));
   vosk.setLogLevel?.(-1);
   const model = new vosk.Model(modelPath);
   const recognizer = new vosk.Recognizer({ model, sampleRate });
@@ -225,7 +226,7 @@ const createVoskProvider = async ({ sampleRate, callbacks }) => {
 const createSherpaOnnxProvider = async ({ sampleRate, callbacks }) => {
   const moduleName = process.env.SHERPA_ONNX_NODE_MODULE || 'sherpa-onnx-node';
   const factoryName = process.env.SHERPA_ONNX_STREAMING_FACTORY || 'createOnlineRecognizer';
-  const sherpa = await import(moduleName);
+  const sherpa = unwrapDefaultExport(await import(moduleName));
   const factory = sherpa[factoryName];
   if (typeof factory !== 'function') {
     throw new Error(`Sherpa-ONNX module ${moduleName} does not export ${factoryName}. Set SHERPA_ONNX_NODE_MODULE and SHERPA_ONNX_STREAMING_FACTORY.`);
