@@ -85,7 +85,7 @@ const buildNzCultureContext = (session = {}) => {
   };
 };
 
-export const buildInterviewEnvironment = ({ session = {}, retrievalBundle = null, latestEvaluation = null } = {}) => {
+export const buildInterviewEnvironment = ({ session = {}, retrievalBundle = null, latestEvaluation = null, latestAnswerUnderstanding = null } = {}) => {
   const questionContext = buildQuestionContext(session);
   const latestUserTurn = getLatestTurn(session.transcript, 'user');
   const latestAnswerText = normalizeText(latestUserTurn?.text);
@@ -111,6 +111,7 @@ export const buildInterviewEnvironment = ({ session = {}, retrievalBundle = null
       sourceQuality: retrievalBundle?.sourceQuality || 'limited',
     },
     latestEvaluation: latestEvaluation || null,
+    latestAnswerUnderstanding: latestAnswerUnderstanding || null,
     constraints: {
       totalQuestions: Number(session.totalQuestions || 0),
       currentQuestionIndex: Number(session.currentQuestionIndex || 1),
@@ -119,4 +120,3 @@ export const buildInterviewEnvironment = ({ session = {}, retrievalBundle = null
     },
   };
 };
-
