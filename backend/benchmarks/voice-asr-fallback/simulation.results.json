@@ -1,0 +1,617 @@
+{
+  "generatedAt": "2026-05-22T02:31:16.106Z",
+  "type": "simulation-only",
+  "note": "This validates benchmark gate logic. It does not measure real ASR accuracy.",
+  "hardAcceptance": {
+    "finalTranscriptDelayAfterSpeechEndMs": 1000,
+    "aiFirstAudioPossibleAfterSpeechEndMs": 5000,
+    "keywordRecallMinimum": 0.8,
+    "partialRequiredBeforeSpeechEnd": true
+  },
+  "options": {
+    "realtime": false,
+    "output": "/Users/heminghan/Kiwi-AI-interview-Agent/backend/benchmarks/voice-asr-fallback/simulation.results.json"
+  },
+  "results": [
+    {
+      "provider": "mock-streaming-fast-pass",
+      "fixture": "synthetic-30s",
+      "durationMs": 30000,
+      "firstPartialMs": 1200,
+      "speechEndMs": 30000,
+      "finalTranscriptDelayAfterSpeechEndMs": 250,
+      "finalTranscriptText": "I used React Node PostgreSQL WebSocket and latency tracing to improve the interview agent.",
+      "keywordRecall": {
+        "score": 1,
+        "hits": [
+          "react",
+          "node",
+          "postgresql",
+          "websocket",
+          "latency"
+        ],
+        "misses": []
+      },
+      "wer": 0,
+      "resourceUse": {
+        "rssDeltaMb": 0.05,
+        "heapDeltaMb": 0.26,
+        "cpuUserMs": 0.8,
+        "cpuSystemMs": 0.03
+      },
+      "eventCounts": {
+        "partial": 1,
+        "final": 1
+      },
+      "integrationComplexity": "low simulation: behaves like a healthy streaming ASR provider",
+      "acceptance": {
+        "hasPartialBeforeSpeechEnd": true,
+        "finalReadyWithin1s": true,
+        "aiFirstAudioPossibleWithin3To5s": true,
+        "keywordRecallAtLeast80Percent": true,
+        "pass": true,
+        "recommendation": "candidate behaviour passes harness gate"
+      }
+    },
+    {
+      "provider": "mock-streaming-fast-pass",
+      "fixture": "synthetic-60s",
+      "durationMs": 60000,
+      "firstPartialMs": 1200,
+      "speechEndMs": 60000,
+      "finalTranscriptDelayAfterSpeechEndMs": 250,
+      "finalTranscriptText": "I improved Azure speech recognition, retrieval augmented generation, interview rubric scoring, and STAR feedback.",
+      "keywordRecall": {
+        "score": 1,
+        "hits": [
+          "azure",
+          "speech recognition",
+          "retrieval augmented generation",
+          "rubric",
+          "star"
+        ],
+        "misses": []
+      },
+      "wer": 0,
+      "resourceUse": {
+        "rssDeltaMb": 0.31,
+        "heapDeltaMb": -0.03,
+        "cpuUserMs": 3.27,
+        "cpuSystemMs": 0.21
+      },
+      "eventCounts": {
+        "partial": 1,
+        "final": 1
+      },
+      "integrationComplexity": "low simulation: behaves like a healthy streaming ASR provider",
+      "acceptance": {
+        "hasPartialBeforeSpeechEnd": true,
+        "finalReadyWithin1s": true,
+        "aiFirstAudioPossibleWithin3To5s": true,
+        "keywordRecallAtLeast80Percent": true,
+        "pass": true,
+        "recommendation": "candidate behaviour passes harness gate"
+      }
+    },
+    {
+      "provider": "mock-streaming-fast-pass",
+      "fixture": "synthetic-90s",
+      "durationMs": 90000,
+      "firstPartialMs": 1200,
+      "speechEndMs": 90000,
+      "finalTranscriptDelayAfterSpeechEndMs": 250,
+      "finalTranscriptText": "I designed Kafka Redis MongoDB authentication and system design checks for a production interview platform.",
+      "keywordRecall": {
+        "score": 1,
+        "hits": [
+          "kafka",
+          "redis",
+          "mongodb",
+          "authentication",
+          "system design"
+        ],
+        "misses": []
+      },
+      "wer": 0,
+      "resourceUse": {
+        "rssDeltaMb": 0.3,
+        "heapDeltaMb": -0.06,
+        "cpuUserMs": 2.04,
+        "cpuSystemMs": 0.2
+      },
+      "eventCounts": {
+        "partial": 1,
+        "final": 1
+      },
+      "integrationComplexity": "low simulation: behaves like a healthy streaming ASR provider",
+      "acceptance": {
+        "hasPartialBeforeSpeechEnd": true,
+        "finalReadyWithin1s": true,
+        "aiFirstAudioPossibleWithin3To5s": true,
+        "keywordRecallAtLeast80Percent": true,
+        "pass": true,
+        "recommendation": "candidate behaviour passes harness gate"
+      }
+    },
+    {
+      "provider": "mock-streaming-borderline-pass",
+      "fixture": "synthetic-30s",
+      "durationMs": 30000,
+      "firstPartialMs": 2500,
+      "speechEndMs": 30000,
+      "finalTranscriptDelayAfterSpeechEndMs": 950,
+      "finalTranscriptText": "I used React Node PostgreSQL WebSocket and latency tracing to improve the interview agent.",
+      "keywordRecall": {
+        "score": 1,
+        "hits": [
+          "react",
+          "node",
+          "postgresql",
+          "websocket",
+          "latency"
+        ],
+        "misses": []
+      },
+      "wer": 0,
+      "resourceUse": {
+        "rssDeltaMb": 0.02,
+        "heapDeltaMb": 0.17,
+        "cpuUserMs": 2.28,
+        "cpuSystemMs": 0.05
+      },
+      "eventCounts": {
+        "partial": 1,
+        "final": 1
+      },
+      "integrationComplexity": "medium simulation: barely passes the 1s final transcript gate",
+      "acceptance": {
+        "hasPartialBeforeSpeechEnd": true,
+        "finalReadyWithin1s": true,
+        "aiFirstAudioPossibleWithin3To5s": true,
+        "keywordRecallAtLeast80Percent": true,
+        "pass": true,
+        "recommendation": "candidate behaviour passes harness gate"
+      }
+    },
+    {
+      "provider": "mock-streaming-borderline-pass",
+      "fixture": "synthetic-60s",
+      "durationMs": 60000,
+      "firstPartialMs": 2500,
+      "speechEndMs": 60000,
+      "finalTranscriptDelayAfterSpeechEndMs": 950,
+      "finalTranscriptText": "I improved Azure speech recognition, retrieval augmented generation, interview rubric scoring, and STAR feedback.",
+      "keywordRecall": {
+        "score": 1,
+        "hits": [
+          "azure",
+          "speech recognition",
+          "retrieval augmented generation",
+          "rubric",
+          "star"
+        ],
+        "misses": []
+      },
+      "wer": 0,
+      "resourceUse": {
+        "rssDeltaMb": 0.38,
+        "heapDeltaMb": 0.37,
+        "cpuUserMs": 2.95,
+        "cpuSystemMs": 0.14
+      },
+      "eventCounts": {
+        "partial": 1,
+        "final": 1
+      },
+      "integrationComplexity": "medium simulation: barely passes the 1s final transcript gate",
+      "acceptance": {
+        "hasPartialBeforeSpeechEnd": true,
+        "finalReadyWithin1s": true,
+        "aiFirstAudioPossibleWithin3To5s": true,
+        "keywordRecallAtLeast80Percent": true,
+        "pass": true,
+        "recommendation": "candidate behaviour passes harness gate"
+      }
+    },
+    {
+      "provider": "mock-streaming-borderline-pass",
+      "fixture": "synthetic-90s",
+      "durationMs": 90000,
+      "firstPartialMs": 2500,
+      "speechEndMs": 90000,
+      "finalTranscriptDelayAfterSpeechEndMs": 950,
+      "finalTranscriptText": "I designed Kafka Redis MongoDB authentication and system design checks for a production interview platform.",
+      "keywordRecall": {
+        "score": 1,
+        "hits": [
+          "kafka",
+          "redis",
+          "mongodb",
+          "authentication",
+          "system design"
+        ],
+        "misses": []
+      },
+      "wer": 0,
+      "resourceUse": {
+        "rssDeltaMb": 0.02,
+        "heapDeltaMb": 0.31,
+        "cpuUserMs": 0.59,
+        "cpuSystemMs": 0.05
+      },
+      "eventCounts": {
+        "partial": 1,
+        "final": 1
+      },
+      "integrationComplexity": "medium simulation: barely passes the 1s final transcript gate",
+      "acceptance": {
+        "hasPartialBeforeSpeechEnd": true,
+        "finalReadyWithin1s": true,
+        "aiFirstAudioPossibleWithin3To5s": true,
+        "keywordRecallAtLeast80Percent": true,
+        "pass": true,
+        "recommendation": "candidate behaviour passes harness gate"
+      }
+    },
+    {
+      "provider": "mock-streaming-slow-final-fail",
+      "fixture": "synthetic-30s",
+      "durationMs": 30000,
+      "firstPartialMs": 1400,
+      "speechEndMs": 30000,
+      "finalTranscriptDelayAfterSpeechEndMs": 1800,
+      "finalTranscriptText": "I used React Node PostgreSQL WebSocket and latency tracing to improve the interview agent.",
+      "keywordRecall": {
+        "score": 1,
+        "hits": [
+          "react",
+          "node",
+          "postgresql",
+          "websocket",
+          "latency"
+        ],
+        "misses": []
+      },
+      "wer": 0,
+      "resourceUse": {
+        "rssDeltaMb": 0.11,
+        "heapDeltaMb": 0.11,
+        "cpuUserMs": 0.48,
+        "cpuSystemMs": 0.04
+      },
+      "eventCounts": {
+        "partial": 1,
+        "final": 1
+      },
+      "integrationComplexity": "high simulation: partials are fine, but final text arrives too late",
+      "acceptance": {
+        "hasPartialBeforeSpeechEnd": true,
+        "finalReadyWithin1s": false,
+        "aiFirstAudioPossibleWithin3To5s": false,
+        "keywordRecallAtLeast80Percent": true,
+        "pass": false,
+        "recommendation": "do not add as live local fallback"
+      }
+    },
+    {
+      "provider": "mock-streaming-slow-final-fail",
+      "fixture": "synthetic-60s",
+      "durationMs": 60000,
+      "firstPartialMs": 1400,
+      "speechEndMs": 60000,
+      "finalTranscriptDelayAfterSpeechEndMs": 1800,
+      "finalTranscriptText": "I improved Azure speech recognition, retrieval augmented generation, interview rubric scoring, and STAR feedback.",
+      "keywordRecall": {
+        "score": 1,
+        "hits": [
+          "azure",
+          "speech recognition",
+          "retrieval augmented generation",
+          "rubric",
+          "star"
+        ],
+        "misses": []
+      },
+      "wer": 0,
+      "resourceUse": {
+        "rssDeltaMb": 0.19,
+        "heapDeltaMb": -1.24,
+        "cpuUserMs": 0.74,
+        "cpuSystemMs": 0.1
+      },
+      "eventCounts": {
+        "partial": 1,
+        "final": 1
+      },
+      "integrationComplexity": "high simulation: partials are fine, but final text arrives too late",
+      "acceptance": {
+        "hasPartialBeforeSpeechEnd": true,
+        "finalReadyWithin1s": false,
+        "aiFirstAudioPossibleWithin3To5s": false,
+        "keywordRecallAtLeast80Percent": true,
+        "pass": false,
+        "recommendation": "do not add as live local fallback"
+      }
+    },
+    {
+      "provider": "mock-streaming-slow-final-fail",
+      "fixture": "synthetic-90s",
+      "durationMs": 90000,
+      "firstPartialMs": 1400,
+      "speechEndMs": 90000,
+      "finalTranscriptDelayAfterSpeechEndMs": 1800,
+      "finalTranscriptText": "I designed Kafka Redis MongoDB authentication and system design checks for a production interview platform.",
+      "keywordRecall": {
+        "score": 1,
+        "hits": [
+          "kafka",
+          "redis",
+          "mongodb",
+          "authentication",
+          "system design"
+        ],
+        "misses": []
+      },
+      "wer": 0,
+      "resourceUse": {
+        "rssDeltaMb": -3.89,
+        "heapDeltaMb": -1.42,
+        "cpuUserMs": 25.6,
+        "cpuSystemMs": 1.93
+      },
+      "eventCounts": {
+        "partial": 1,
+        "final": 1
+      },
+      "integrationComplexity": "high simulation: partials are fine, but final text arrives too late",
+      "acceptance": {
+        "hasPartialBeforeSpeechEnd": true,
+        "finalReadyWithin1s": false,
+        "aiFirstAudioPossibleWithin3To5s": false,
+        "keywordRecallAtLeast80Percent": true,
+        "pass": false,
+        "recommendation": "do not add as live local fallback"
+      }
+    },
+    {
+      "provider": "mock-no-partial-fail",
+      "fixture": "synthetic-30s",
+      "durationMs": 30000,
+      "firstPartialMs": null,
+      "speechEndMs": 30000,
+      "finalTranscriptDelayAfterSpeechEndMs": 300,
+      "finalTranscriptText": "I used React Node PostgreSQL WebSocket and latency tracing to improve the interview agent.",
+      "keywordRecall": {
+        "score": 1,
+        "hits": [
+          "react",
+          "node",
+          "postgresql",
+          "websocket",
+          "latency"
+        ],
+        "misses": []
+      },
+      "wer": 0,
+      "resourceUse": {
+        "rssDeltaMb": 0,
+        "heapDeltaMb": 0.06,
+        "cpuUserMs": 0.37,
+        "cpuSystemMs": 0.04
+      },
+      "eventCounts": {
+        "partial": 0,
+        "final": 1
+      },
+      "integrationComplexity": "bad simulation: final is fast, but no partial transcript is available during speech",
+      "acceptance": {
+        "hasPartialBeforeSpeechEnd": false,
+        "finalReadyWithin1s": true,
+        "aiFirstAudioPossibleWithin3To5s": true,
+        "keywordRecallAtLeast80Percent": true,
+        "pass": false,
+        "recommendation": "do not add as live local fallback"
+      }
+    },
+    {
+      "provider": "mock-no-partial-fail",
+      "fixture": "synthetic-60s",
+      "durationMs": 60000,
+      "firstPartialMs": null,
+      "speechEndMs": 60000,
+      "finalTranscriptDelayAfterSpeechEndMs": 300,
+      "finalTranscriptText": "I improved Azure speech recognition, retrieval augmented generation, interview rubric scoring, and STAR feedback.",
+      "keywordRecall": {
+        "score": 1,
+        "hits": [
+          "azure",
+          "speech recognition",
+          "retrieval augmented generation",
+          "rubric",
+          "star"
+        ],
+        "misses": []
+      },
+      "wer": 0,
+      "resourceUse": {
+        "rssDeltaMb": 0.03,
+        "heapDeltaMb": -0.17,
+        "cpuUserMs": 2.31,
+        "cpuSystemMs": 0.12
+      },
+      "eventCounts": {
+        "partial": 0,
+        "final": 1
+      },
+      "integrationComplexity": "bad simulation: final is fast, but no partial transcript is available during speech",
+      "acceptance": {
+        "hasPartialBeforeSpeechEnd": false,
+        "finalReadyWithin1s": true,
+        "aiFirstAudioPossibleWithin3To5s": true,
+        "keywordRecallAtLeast80Percent": true,
+        "pass": false,
+        "recommendation": "do not add as live local fallback"
+      }
+    },
+    {
+      "provider": "mock-no-partial-fail",
+      "fixture": "synthetic-90s",
+      "durationMs": 90000,
+      "firstPartialMs": null,
+      "speechEndMs": 90000,
+      "finalTranscriptDelayAfterSpeechEndMs": 300,
+      "finalTranscriptText": "I designed Kafka Redis MongoDB authentication and system design checks for a production interview platform.",
+      "keywordRecall": {
+        "score": 1,
+        "hits": [
+          "kafka",
+          "redis",
+          "mongodb",
+          "authentication",
+          "system design"
+        ],
+        "misses": []
+      },
+      "wer": 0,
+      "resourceUse": {
+        "rssDeltaMb": 0.59,
+        "heapDeltaMb": -0.08,
+        "cpuUserMs": 0.74,
+        "cpuSystemMs": 0.23
+      },
+      "eventCounts": {
+        "partial": 0,
+        "final": 1
+      },
+      "integrationComplexity": "bad simulation: final is fast, but no partial transcript is available during speech",
+      "acceptance": {
+        "hasPartialBeforeSpeechEnd": false,
+        "finalReadyWithin1s": true,
+        "aiFirstAudioPossibleWithin3To5s": true,
+        "keywordRecallAtLeast80Percent": true,
+        "pass": false,
+        "recommendation": "do not add as live local fallback"
+      }
+    },
+    {
+      "provider": "mock-low-recall-fail",
+      "fixture": "synthetic-30s",
+      "durationMs": 30000,
+      "firstPartialMs": 1200,
+      "speechEndMs": 30000,
+      "finalTranscriptDelayAfterSpeechEndMs": 300,
+      "finalTranscriptText": "I built a general application with database and cloud features.",
+      "keywordRecall": {
+        "score": 0,
+        "hits": [],
+        "misses": [
+          "react",
+          "node",
+          "postgresql",
+          "websocket",
+          "latency"
+        ]
+      },
+      "wer": 0.9285714285714286,
+      "resourceUse": {
+        "rssDeltaMb": 0.17,
+        "heapDeltaMb": 0.17,
+        "cpuUserMs": 0.47,
+        "cpuSystemMs": 0.06
+      },
+      "eventCounts": {
+        "partial": 1,
+        "final": 1
+      },
+      "integrationComplexity": "bad simulation: timing passes, but technical keyword recall fails",
+      "acceptance": {
+        "hasPartialBeforeSpeechEnd": true,
+        "finalReadyWithin1s": true,
+        "aiFirstAudioPossibleWithin3To5s": true,
+        "keywordRecallAtLeast80Percent": false,
+        "pass": false,
+        "recommendation": "do not add as live local fallback"
+      }
+    },
+    {
+      "provider": "mock-low-recall-fail",
+      "fixture": "synthetic-60s",
+      "durationMs": 60000,
+      "firstPartialMs": 1200,
+      "speechEndMs": 60000,
+      "finalTranscriptDelayAfterSpeechEndMs": 300,
+      "finalTranscriptText": "I built a general application with database and cloud features.",
+      "keywordRecall": {
+        "score": 0,
+        "hits": [],
+        "misses": [
+          "azure",
+          "speech recognition",
+          "retrieval augmented generation",
+          "rubric",
+          "star"
+        ]
+      },
+      "wer": 0.8571428571428571,
+      "resourceUse": {
+        "rssDeltaMb": 0.34,
+        "heapDeltaMb": 0.35,
+        "cpuUserMs": 2.16,
+        "cpuSystemMs": 0.1
+      },
+      "eventCounts": {
+        "partial": 1,
+        "final": 1
+      },
+      "integrationComplexity": "bad simulation: timing passes, but technical keyword recall fails",
+      "acceptance": {
+        "hasPartialBeforeSpeechEnd": true,
+        "finalReadyWithin1s": true,
+        "aiFirstAudioPossibleWithin3To5s": true,
+        "keywordRecallAtLeast80Percent": false,
+        "pass": false,
+        "recommendation": "do not add as live local fallback"
+      }
+    },
+    {
+      "provider": "mock-low-recall-fail",
+      "fixture": "synthetic-90s",
+      "durationMs": 90000,
+      "firstPartialMs": 1200,
+      "speechEndMs": 90000,
+      "finalTranscriptDelayAfterSpeechEndMs": 300,
+      "finalTranscriptText": "I built a general application with database and cloud features.",
+      "keywordRecall": {
+        "score": 0,
+        "hits": [],
+        "misses": [
+          "kafka",
+          "redis",
+          "mongodb",
+          "authentication",
+          "system design"
+        ]
+      },
+      "wer": 0.9333333333333333,
+      "resourceUse": {
+        "rssDeltaMb": 0.3,
+        "heapDeltaMb": -1.12,
+        "cpuUserMs": 0.79,
+        "cpuSystemMs": 0.15
+      },
+      "eventCounts": {
+        "partial": 1,
+        "final": 1
+      },
+      "integrationComplexity": "bad simulation: timing passes, but technical keyword recall fails",
+      "acceptance": {
+        "hasPartialBeforeSpeechEnd": true,
+        "finalReadyWithin1s": true,
+        "aiFirstAudioPossibleWithin3To5s": true,
+        "keywordRecallAtLeast80Percent": false,
+        "pass": false,
+        "recommendation": "do not add as live local fallback"
+      }
+    }
+  ]
+}

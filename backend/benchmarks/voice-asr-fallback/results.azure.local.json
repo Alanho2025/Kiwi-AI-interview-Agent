@@ -1,0 +1,51 @@
+{
+  "generatedAt": "2026-05-22T02:48:08.699Z",
+  "hardAcceptance": {
+    "finalTranscriptDelayAfterSpeechEndMs": 1000,
+    "aiFirstAudioPossibleAfterSpeechEndMs": 5000
+  },
+  "options": {
+    "manifest": "benchmarks/voice-asr-fallback/fixtures.local.json",
+    "providers": [
+      "azure"
+    ],
+    "chunkMs": 20,
+    "realtime": true,
+    "output": "benchmarks/voice-asr-fallback/results.azure.local.json"
+  },
+  "results": [
+    {
+      "provider": "azure",
+      "fixture": "interview-answer-30s",
+      "skipped": true,
+      "error": "finalTranscriptDelayAfterSpeechEndMs is not defined",
+      "acceptance": {
+        "finalReadyWithin1s": false,
+        "aiFirstAudioPossibleWithin3To5s": false,
+        "recommendation": "not benchmarked, do not add as live local fallback"
+      }
+    },
+    {
+      "provider": "azure",
+      "fixture": "interview-answer-60s",
+      "skipped": true,
+      "error": "finalTranscriptDelayAfterSpeechEndMs is not defined",
+      "acceptance": {
+        "finalReadyWithin1s": false,
+        "aiFirstAudioPossibleWithin3To5s": false,
+        "recommendation": "not benchmarked, do not add as live local fallback"
+      }
+    },
+    {
+      "provider": "azure",
+      "fixture": "interview-answer-90s",
+      "skipped": true,
+      "error": "finalTranscriptDelayAfterSpeechEndMs is not defined",
+      "acceptance": {
+        "finalReadyWithin1s": false,
+        "aiFirstAudioPossibleWithin3To5s": false,
+        "recommendation": "not benchmarked, do not add as live local fallback"
+      }
+    }
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "description": "Generated local interview-style speech fixtures for ASR fallback benchmarking. Do not commit generated audio.",
+  "generatedAt": "2026-05-22T02:38:16.411Z",
+  "generatedBy": "generateInterviewAudioFixtures.js",
+  "voice": "Daniel",
+  "rate": "150",
+  "fixtures": [
+    {
+      "id": "interview-answer-30s",
+      "audioPath": "fixtures/interview-answer-30s.wav",
+      "expectedDurationMs": 30000,
+      "language": "en-NZ",
+      "expectedTranscript": "In my recent project, I used React, Node, PostgreSQL, WebSocket streaming, and latency tracing to improve the interview agent. The main challenge was keeping the voice interaction responsive while still producing useful feedback. I focused on the speech end event, the partial transcript, and the final transcript delay because these directly affect the user experience.",
+      "keywords": [
+        "React",
+        "Node",
+        "PostgreSQL",
+        "WebSocket",
+        "latency",
+        "partial transcript",
+        "final transcript"
+      ]
+    },
+    {
+      "id": "interview-answer-60s",
+      "audioPath": "fixtures/interview-answer-60s.wav",
+      "expectedDurationMs": 60000,
+      "language": "en-NZ",
+      "expectedTranscript": "One technical improvement I made was the voice interview pipeline. I used Azure speech recognition for streaming transcription, then connected the transcript to the interview controller. The system can use retrieval augmented generation to collect evidence from the CV, the job description, the rubric, and the previous conversation. After that, the agent can ask a better follow up question using the STAR method. I also added latency tracing so I could measure the time from speech end to the first assistant audio. This helped me separate speech recognition delay from language model delay and text to speech delay.",
+      "keywords": [
+        "Azure",
+        "speech recognition",
+        "retrieval augmented generation",
+        "rubric",
+        "STAR",
+        "latency tracing",
+        "speech end"
+      ]
+    },
+    {
+      "id": "interview-answer-90s",
+      "audioPath": "fixtures/interview-answer-90s.wav",
+      "expectedDurationMs": 90000,
+      "language": "en-NZ",
+      "expectedTranscript": "If I were scaling this interview platform, I would separate the real time voice path from the post interview analysis path. The live path should stay lightweight. It should handle WebSocket audio chunks, streaming speech recognition, authentication, barge in control, and fast text to speech. The slower path can handle transcript cleanup, report generation, and deeper scoring. For the data layer, MongoDB can store sessions and transcripts, while PostgreSQL can support structured reporting if needed. Redis could help with short lived session state, and Kafka could support event based processing when the traffic becomes larger. The key design goal is not adding every tool. The key goal is keeping speech end to first audio within three to five seconds while still giving useful interview feedback.",
+      "keywords": [
+        "WebSocket",
+        "speech recognition",
+        "authentication",
+        "MongoDB",
+        "PostgreSQL",
+        "Redis",
+        "Kafka",
+        "system design",
+        "speech end"
+      ]
+    }
+  ]
+}
