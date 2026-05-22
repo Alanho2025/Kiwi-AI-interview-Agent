@@ -2,14 +2,10 @@
 /**
  * Benchmark-only spike for live interview ASR fallback choices.
  *
- * This file is intentionally not imported by production code.
- * It feeds 16 kHz mono PCM chunks into candidate ASR providers and records:
- * - first partial transcript availability
- * - final transcript readiness after speech_end
- * - keyword recall
- * - WER when expected transcript exists
- * - CPU/memory use
- * - integration complexity with existing PCM WebSocket chunks
+ * Purpose:
+ * - Vosk and Sherpa-ONNX are the Plan B candidates for when Azure Speech is unavailable.
+ * - Azure is kept only as an optional baseline and must be requested explicitly.
+ * - This file is intentionally not imported by production code.
  */
 
 import fs from 'node:fs/promises';
@@ -23,6 +19,19 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const REPO_ROOT = path.resolve(__dirname, '../../../..');
 const BACKEND_ROOT = path.resolve(__dirname, '../../..');
+
+const DEFAULT_SAMPLE_RATE = 16000;
+const DEFAULT_CHUNK_MS = 20;
+const DEFAULT_FIXTURE_MANIFEST = path.join(__dirname, 'fixtures.example.json');
+const DEFAULT_FALLBACK_PROVIDERS = 'vosk,sherpa-onnx';
+const HARD_FINAL_DELAY_MS = 1000;
+const HARD_AI_AUDIO_WINDOW_MS = 5000;
+const MIN_KEYWORD_RECALL = 0.8;
+const MAX_WER = 0.3;
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const nowMs = () => Number(process.hrtime.bigint() / 1000000n);
+const unwrapDefaultExport = (moduleNamespace) => moduleNamespace?.default || moduleNamespace;
 
 const loadBenchmarkEnv = () => {
   const explicitEnvPath = process.env.ASR_BENCHMARK_ENV_FILE;
@@ -58,53 +67,42 @@ const loadBenchmarkEnv = () => {
     });
   }
 
-  const hasAzureKey = Boolean(process.env.AZURE_SPEECH_KEY || process.env.AZURE_SPEECH_SUBSCRIPTION_KEY);
-  const azureRegion = process.env.AZURE_SPEECH_REGION || null;
-  if (process.env.ASR_BENCHMARK_ENV_DEBUG === 'true' || !hasAzureKey || !azureRegion) {
+  if (process.env.ASR_BENCHMARK_ENV_DEBUG === 'true') {
     console.warn('[asr-benchmark-env]', JSON.stringify({
       cwd: process.cwd(),
       backendRoot: path.relative(process.cwd(), BACKEND_ROOT),
       repoRoot: path.relative(process.cwd(), REPO_ROOT),
       loaded,
       missing,
-      hasAzureKey,
-      hasAzureSubscriptionKey: Boolean(process.env.AZURE_SPEECH_SUBSCRIPTION_KEY),
-      azureRegion,
+      hasAzureKey: Boolean(process.env.AZURE_SPEECH_KEY || process.env.AZURE_SPEECH_SUBSCRIPTION_KEY),
+      azureRegion: process.env.AZURE_SPEECH_REGION || null,
+      hasVoskModelPath: Boolean(process.env.VOSK_MODEL_PATH),
+      sherpaModule: process.env.SHERPA_ONNX_NODE_MODULE || null,
     }, null, 2));
   }
 };
 
-// The benchmark is executed directly, outside backend/index.js, so it must load
-// env files itself before importing Azure/Vosk/Sherpa provider adapters.
 loadBenchmarkEnv();
 
-const DEFAULT_SAMPLE_RATE = 16000;
-const DEFAULT_CHUNK_MS = 20;
-const DEFAULT_FIXTURE_MANIFEST = path.join(__dirname, 'fixtures.example.json');
-const HARD_FINAL_DELAY_MS = 1000;
-const HARD_AI_AUDIO_WINDOW_MS = 5000;
-
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-const nowMs = () => Number(process.hrtime.bigint() / 1000000n);
-const unwrapDefaultExport = (moduleNamespace) => moduleNamespace?.default || moduleNamespace;
+const parseProviderList = (value) => String(value || '')
+  .split(',')
+  .map((item) => item.trim())
+  .filter(Boolean);
 
 const parseArgs = () => {
   const args = process.argv.slice(2);
   const options = {
     manifest: process.env.ASR_BENCHMARK_MANIFEST || DEFAULT_FIXTURE_MANIFEST,
-    providers: (process.env.ASR_BENCHMARK_PROVIDERS || 'azure,vosk,sherpa-onnx')
-      .split(',')
-      .map((item) => item.trim())
-      .filter(Boolean),
+    providers: parseProviderList(process.env.ASR_BENCHMARK_PROVIDERS || DEFAULT_FALLBACK_PROVIDERS),
     chunkMs: Number(process.env.ASR_BENCHMARK_CHUNK_MS || DEFAULT_CHUNK_MS),
     realtime: process.env.ASR_BENCHMARK_REALTIME !== 'false',
-    output: process.env.ASR_BENCHMARK_OUTPUT || path.join(__dirname, 'results.latest.json'),
+    output: process.env.ASR_BENCHMARK_OUTPUT || path.join(__dirname, 'results.local-fallback.json'),
   };
 
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
     if (arg === '--manifest') options.manifest = args[++index];
-    if (arg === '--providers') options.providers = args[++index].split(',').map((item) => item.trim()).filter(Boolean);
+    if (arg === '--providers') options.providers = parseProviderList(args[++index]);
     if (arg === '--chunk-ms') options.chunkMs = Number(args[++index]);
     if (arg === '--fast') options.realtime = false;
     if (arg === '--output') options.output = args[++index];
@@ -149,9 +147,7 @@ const readWavAsPcm = async (audioPath) => {
     offset = chunkStart + chunkSize + (chunkSize % 2);
   }
 
-  if (!fmt || !data) {
-    throw new Error(`Invalid WAV fixture: ${audioPath}`);
-  }
+  if (!fmt || !data) throw new Error(`Invalid WAV fixture: ${audioPath}`);
   if (fmt.audioFormat !== 1 || fmt.channels !== 1 || fmt.sampleRate !== DEFAULT_SAMPLE_RATE || fmt.bitsPerSample !== 16) {
     throw new Error(`Fixture must be PCM 16 kHz mono 16-bit WAV: ${audioPath}`);
   }
@@ -228,21 +224,26 @@ const diffResourceSnapshot = (before, after) => ({
   cpuSystemMs: Number(((after.cpuUsage.system - before.cpuUsage.system) / 1000).toFixed(2)),
 });
 
-const buildAcceptance = ({ finalTranscriptDelayAfterSpeechEndMs, aiFirstAudioPossibleAfterSpeechEndMs }) => {
-  const hasValidFinalDelay = Number.isFinite(finalTranscriptDelayAfterSpeechEndMs);
-  const hasValidAiAudioDelay = Number.isFinite(aiFirstAudioPossibleAfterSpeechEndMs);
-  const finalReadyWithin1s = hasValidFinalDelay && finalTranscriptDelayAfterSpeechEndMs <= HARD_FINAL_DELAY_MS;
-  const aiFirstAudioPossibleWithin3To5s = hasValidAiAudioDelay && aiFirstAudioPossibleAfterSpeechEndMs <= HARD_AI_AUDIO_WINDOW_MS;
-  const metricsAvailable = hasValidFinalDelay && hasValidAiAudioDelay;
+const buildAcceptance = ({ firstPartialMs, speechEndMs, finalTranscriptDelayAfterSpeechEndMs, aiFirstAudioPossibleAfterSpeechEndMs, keywordRecallResult, wer, errors }) => {
+  const hasPartialBeforeSpeechEnd = Number.isFinite(firstPartialMs) && Number.isFinite(speechEndMs) && firstPartialMs < speechEndMs;
+  const finalReadyWithin1s = Number.isFinite(finalTranscriptDelayAfterSpeechEndMs) && finalTranscriptDelayAfterSpeechEndMs <= HARD_FINAL_DELAY_MS;
+  const aiFirstAudioPossibleWithin3To5s = Number.isFinite(aiFirstAudioPossibleAfterSpeechEndMs) && aiFirstAudioPossibleAfterSpeechEndMs <= HARD_AI_AUDIO_WINDOW_MS;
+  const keywordRecallPass = keywordRecallResult === null || keywordRecallResult.score >= MIN_KEYWORD_RECALL;
+  const werPass = wer === null || wer <= MAX_WER;
+  const noProviderErrors = !errors.length;
+  const pass = hasPartialBeforeSpeechEnd && finalReadyWithin1s && aiFirstAudioPossibleWithin3To5s && keywordRecallPass && werPass && noProviderErrors;
 
   return {
+    hasPartialBeforeSpeechEnd,
     finalReadyWithin1s,
     aiFirstAudioPossibleWithin3To5s,
-    recommendation: metricsAvailable
-      ? (finalReadyWithin1s && aiFirstAudioPossibleWithin3To5s
-        ? 'candidate can continue to deeper live test'
-        : 'fails hard acceptance')
-      : 'metrics missing, benchmark invalid',
+    keywordRecallAtLeast80Percent: keywordRecallPass,
+    werAtMost30Percent: werPass,
+    noProviderErrors,
+    pass,
+    recommendation: pass
+      ? 'local fallback candidate can continue to deeper live test'
+      : 'do not add as live local fallback yet',
   };
 };
 
@@ -260,7 +261,7 @@ const createAzureProvider = async ({ sampleRate, language = 'en-NZ', callbacks }
     name: 'azure',
     write: (chunk) => session.writeAudio(chunk),
     finalize: () => session.stop(),
-    integrationComplexity: 'low: already matches existing PCM WebSocket chunks through createRealtimeSpeechSession()',
+    integrationComplexity: 'baseline only: existing Azure streaming STT path, not the Plan B candidate',
   };
 };
 
@@ -353,23 +354,25 @@ const runProviderFixture = async ({ providerName, fixture, options }) => {
   const audioDurationMs = Math.round((wav.pcm.length / (wav.sampleRate * 2)) * 1000);
   const events = [];
   const errors = [];
+  const finalSegments = [];
   const startedAt = nowMs();
   let firstPartialMs = null;
   let latestFinalMs = null;
-  let latestFinalText = '';
   let speechEndMs = null;
 
   const callbacks = {
     onPartial: (payload) => {
       const eventTime = nowMs() - startedAt;
+      const text = String(payload.text || payload.displayText || '').trim();
       if (firstPartialMs === null) firstPartialMs = eventTime;
-      events.push({ type: 'partial', atMs: eventTime, text: payload.text || payload.displayText || '' });
+      events.push({ type: 'partial', atMs: eventTime, text });
     },
     onFinal: (payload) => {
       const eventTime = nowMs() - startedAt;
+      const text = String(payload.displayText || payload.normalizedText || payload.rawText || payload.text || '').trim();
       latestFinalMs = eventTime;
-      latestFinalText = String(payload.displayText || payload.normalizedText || payload.rawText || payload.text || '').trim();
-      events.push({ type: 'final', atMs: eventTime, text: latestFinalText });
+      if (text) finalSegments.push(text);
+      events.push({ type: 'final', atMs: eventTime, text });
     },
     onError: (payload) => {
       errors.push(payload?.errorDetails || payload?.message || payload?.reason || String(payload));
@@ -392,17 +395,22 @@ const runProviderFixture = async ({ providerName, fixture, options }) => {
   const finishedAt = nowMs() - startedAt;
   const after = getResourceSnapshot();
 
+  const finalTranscriptText = finalSegments.join(' ').replace(/\s+/g, ' ').trim();
   const finalTranscriptDelayAfterSpeechEndMs = latestFinalMs === null ? null : Math.max(0, latestFinalMs - speechEndMs);
-  // ASR benchmark can only measure when the transcript is available. This value is the lower-bound
-  // timing that downstream AI/TTS can build on, not a full end-to-end voice synthesis benchmark.
+  // This benchmark measures ASR readiness. Downstream LLM/TTS must still fit inside the remaining budget.
   const aiFirstAudioPossibleAfterSpeechEndMs = finalTranscriptDelayAfterSpeechEndMs;
   const wer = fixture.expectedTranscript
-    ? wordErrorRate({ expected: fixture.expectedTranscript, actual: latestFinalText })
+    ? wordErrorRate({ expected: fixture.expectedTranscript, actual: finalTranscriptText })
     : null;
-  const recall = keywordRecall({ expectedKeywords: fixture.keywords || [], actual: latestFinalText });
+  const recall = keywordRecall({ expectedKeywords: fixture.keywords || [], actual: finalTranscriptText });
   const acceptance = buildAcceptance({
+    firstPartialMs,
+    speechEndMs,
     finalTranscriptDelayAfterSpeechEndMs,
     aiFirstAudioPossibleAfterSpeechEndMs,
+    keywordRecallResult: recall,
+    wer,
+    errors,
   });
 
   return {
@@ -413,10 +421,11 @@ const runProviderFixture = async ({ providerName, fixture, options }) => {
     chunkMs: options.chunkMs,
     realtimeFeed: options.realtime,
     firstPartialMs,
+    speechEndMs,
     finalTranscriptDelayAfterSpeechEndMs,
     aiFirstAudioPossibleAfterSpeechEndMs,
     totalWallTimeMs: finishedAt,
-    finalTranscriptText: latestFinalText,
+    finalTranscriptText,
     keywordRecall: recall,
     wer,
     resourceUse: diffResourceSnapshot(before, after),
@@ -440,7 +449,6 @@ const main = async () => {
   for (const providerName of options.providers) {
     for (const fixture of fixtures) {
       try {
-        // Keep one provider-fixture failure from hiding the rest of the matrix.
         results.push(await runProviderFixture({ providerName, fixture, options }));
       } catch (error) {
         results.push({
@@ -449,9 +457,14 @@ const main = async () => {
           skipped: true,
           error: error?.message || String(error),
           acceptance: {
+            hasPartialBeforeSpeechEnd: false,
             finalReadyWithin1s: false,
             aiFirstAudioPossibleWithin3To5s: false,
-            recommendation: 'benchmark failed before metrics were collected; check provider setup, credentials, or fixture loading',
+            keywordRecallAtLeast80Percent: false,
+            werAtMost30Percent: false,
+            noProviderErrors: false,
+            pass: false,
+            recommendation: 'benchmark failed before metrics were collected; check local provider setup, model path, package install, or fixture loading',
           },
         });
       }
@@ -460,9 +473,13 @@ const main = async () => {
 
   const summary = {
     generatedAt: new Date().toISOString(),
+    benchmarkIntent: 'Evaluate Vosk and Sherpa-ONNX as local Plan B streaming ASR candidates. Azure is baseline-only when explicitly requested.',
     hardAcceptance: {
       finalTranscriptDelayAfterSpeechEndMs: HARD_FINAL_DELAY_MS,
       aiFirstAudioPossibleAfterSpeechEndMs: HARD_AI_AUDIO_WINDOW_MS,
+      keywordRecallMinimum: MIN_KEYWORD_RECALL,
+      werMaximum: MAX_WER,
+      partialRequiredBeforeSpeechEnd: true,
     },
     options,
     results,
