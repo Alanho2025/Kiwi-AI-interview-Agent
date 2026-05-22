@@ -209,6 +209,55 @@ node benchmarks/voice-asr-fallback/runVoiceAsrFallbackE2eBenchmark.js \
 
 The script refuses to run the real pipeline unless `--allow-session-mutation` is provided. This prevents accidentally mutating a real demo or production session.
 
+Local command TTS E2E for testing without Azure Speech:
+
+```bash
+ASR_BENCHMARK_TTS_PROVIDER=local-command \
+ASR_BENCHMARK_LOCAL_TTS_COMMAND="./.venv-asr/bin/python benchmarks/voice-asr-fallback/adapters/piper_tts_worker.py" \
+ASR_BENCHMARK_LOCAL_TTS_PROVIDER_NAME=local-piper-command \
+ASR_BENCHMARK_LOCAL_TTS_CONTENT_TYPE=audio/wav \
+ASR_BENCHMARK_LOCAL_TTS_OUTPUT_FORMAT=wav \
+PIPER_TTS_MODEL=/absolute/path/en_US-lessac-medium.onnx \
+PIPER_TTS_CONFIG=/absolute/path/en_US-lessac-medium.onnx.json \
+node benchmarks/voice-asr-fallback/runVoiceAsrFallbackE2eBenchmark.js \
+  --manifest benchmarks/voice-asr-fallback/fixtures.local.json \
+  --providers vosk,sherpa-onnx \
+  --session-id <disposable-session-id> \
+  --user-id <test-user-id> \
+  --allow-session-mutation \
+  --tts-provider local-command \
+  --local-tts-command "./.venv-asr/bin/python benchmarks/voice-asr-fallback/adapters/piper_tts_worker.py" \
+  --local-tts-provider-name local-piper-command \
+  --local-tts-content-type audio/wav \
+  --local-tts-output-format wav \
+  --output benchmarks/voice-asr-fallback/results.e2e-local-piper.json
+```
+
+High-quality third-party command TTS E2E using ElevenLabs:
+
+```bash
+ELEVENLABS_API_KEY=... \
+ELEVENLABS_VOICE_ID=<voice-id-from-voice-library> \
+ELEVENLABS_MODEL_ID=eleven_turbo_v2_5 \
+ELEVENLABS_OUTPUT_FORMAT=mp3_44100_128 \
+ELEVENLABS_STABILITY=0.55 \
+ELEVENLABS_SIMILARITY_BOOST=0.8 \
+ELEVENLABS_STYLE=0.25 \
+ELEVENLABS_USE_SPEAKER_BOOST=true \
+node benchmarks/voice-asr-fallback/runVoiceAsrFallbackE2eBenchmark.js \
+  --manifest benchmarks/voice-asr-fallback/fixtures.local.json \
+  --providers vosk,sherpa-onnx \
+  --session-id <disposable-session-id> \
+  --user-id <test-user-id> \
+  --allow-session-mutation \
+  --tts-provider local-command \
+  --local-tts-command "./.venv-asr/bin/python benchmarks/voice-asr-fallback/adapters/elevenlabs_tts_worker.py" \
+  --local-tts-provider-name elevenlabs-command \
+  --local-tts-content-type audio/mpeg \
+  --local-tts-output-format mp3_44100_128 \
+  --output benchmarks/voice-asr-fallback/results.e2e-elevenlabs.json
+```
+
 ## Provider setup
 
 ### Vosk
@@ -244,6 +293,37 @@ Azure is not the local Plan B candidate. It is used only for baseline STT or ful
 AZURE_SPEECH_KEY=...
 AZURE_SPEECH_REGION=...
 ```
+
+Run Azure as the baseline STT provider:
+
+```bash
+node benchmarks/voice-asr-fallback/runVoiceAsrFallbackE2eBenchmark.js \
+  --manifest benchmarks/voice-asr-fallback/fixtures.local.json \
+  --providers azure \
+  --session-id <disposable-session-id> \
+  --user-id <test-user-id> \
+  --allow-session-mutation \
+  --output benchmarks/voice-asr-fallback/results.e2e-azure.json
+```
+
+### ElevenLabs high-quality TTS
+
+The `elevenlabs_tts_worker.py` adapter is benchmark-only. It reads text from stdin and writes MP3 bytes to stdout. Use it to compare a natural third-party voice against Azure Speech without changing production code.
+
+For low-latency conversational use, start with:
+
+```bash
+ELEVENLABS_MODEL_ID=eleven_turbo_v2_5
+ELEVENLABS_OUTPUT_FORMAT=mp3_44100_128
+```
+
+For the least robotic delivery, choose or create an ElevenLabs voice with a prompt such as:
+
+```text
+Warm professional New Zealand female interviewer, natural conversational pacing, clear but not overly formal, friendly coaching tone.
+```
+
+Use the resulting voice id as `ELEVENLABS_VOICE_ID`.
 
 ## Output fields
 

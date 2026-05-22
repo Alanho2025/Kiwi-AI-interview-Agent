@@ -14,6 +14,7 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
+import { createSubprocessAsrProvider } from './adapters/subprocessAsrProvider.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -265,7 +266,28 @@ const createAzureProvider = async ({ sampleRate, language = 'en-NZ', callbacks }
   };
 };
 
+const resolveProviderCommand = (providerName) => {
+  if (providerName === 'vosk') return process.env.VOSK_STREAMING_COMMAND || process.env.VOSK_ASR_COMMAND;
+  if (providerName === 'sherpa-onnx') return process.env.SHERPA_ONNX_STREAMING_COMMAND || process.env.SHERPA_ONNX_ASR_COMMAND;
+  return null;
+};
+
+const createCommandProvider = ({ providerName, sampleRate, callbacks }) => {
+  const commandLine = resolveProviderCommand(providerName);
+  if (!commandLine) return null;
+  return createSubprocessAsrProvider({
+    providerName,
+    commandLine,
+    sampleRate,
+    callbacks,
+    integrationComplexity: `${providerName} command adapter: consumes raw PCM stdin and emits JSONL partial/final events`,
+  });
+};
+
 const createVoskProvider = async ({ sampleRate, callbacks }) => {
+  const commandProvider = createCommandProvider({ providerName: 'vosk', sampleRate, callbacks });
+  if (commandProvider) return commandProvider;
+
   const modelPath = process.env.VOSK_MODEL_PATH;
   if (!modelPath) throw new Error('Set VOSK_MODEL_PATH to a local Vosk model directory.');
   const vosk = unwrapDefaultExport(await import('vosk'));
@@ -301,6 +323,9 @@ const createVoskProvider = async ({ sampleRate, callbacks }) => {
 };
 
 const createSherpaOnnxProvider = async ({ sampleRate, callbacks }) => {
+  const commandProvider = createCommandProvider({ providerName: 'sherpa-onnx', sampleRate, callbacks });
+  if (commandProvider) return commandProvider;
+
   const moduleName = process.env.SHERPA_ONNX_NODE_MODULE || 'sherpa-onnx-node';
   const factoryName = process.env.SHERPA_ONNX_STREAMING_FACTORY || 'createOnlineRecognizer';
   const sherpa = unwrapDefaultExport(await import(moduleName));
@@ -358,7 +383,7 @@ const runProviderFixture = async ({ providerName, fixture, options }) => {
   const startedAt = nowMs();
   let firstPartialMs = null;
   let latestFinalMs = null;
-  let speechEndMs = null;
+  let speechEndMs;
 
   const callbacks = {
     onPartial: (payload) => {
