@@ -1,0 +1,238 @@
+{
+  "label": "Voice Robustness Eval",
+  "casesRun": 8,
+  "average": 1,
+  "acceptedCases": 2,
+  "rejectedCases": 6,
+  "weakestCases": [],
+  "thresholds": {
+    "minAverage": 0.9,
+    "failBelow": 0.75
+  },
+  "results": [
+    {
+      "id": "empty-transcript-rejected",
+      "score": 1,
+      "expectedOutcome": "rejected",
+      "actualOutcome": "rejected",
+      "expectedReason": "EMPTY_TRANSCRIPT",
+      "actualReason": "EMPTY_TRANSCRIPT",
+      "subScores": {
+        "decision": 1,
+        "reason": 1,
+        "message": 1
+      },
+      "failedChecks": [],
+      "diagnostics": {
+        "message": "I did not catch your answer. Please try again.",
+        "metrics": {
+          "words": 0,
+          "characters": 0,
+          "speechDurationMs": 0,
+          "sttSegmentCount": 0
+        },
+        "confidenceGate": {
+          "status": "high",
+          "shouldConfirm": false,
+          "shouldRecordAgain": false
+        }
+      }
+    },
+    {
+      "id": "short-filler-rejected",
+      "score": 1,
+      "expectedOutcome": "rejected",
+      "actualOutcome": "rejected",
+      "expectedReason": "TOO_SHORT_TRANSCRIPT",
+      "actualReason": "TOO_SHORT_TRANSCRIPT",
+      "subScores": {
+        "decision": 1,
+        "reason": 1,
+        "message": 1
+      },
+      "failedChecks": [],
+      "diagnostics": {
+        "message": "I only caught a very short answer. Please say a little more before I move to the next question.",
+        "metrics": {
+          "words": 1,
+          "characters": 4,
+          "speechDurationMs": 1200,
+          "sttSegmentCount": 1
+        },
+        "confidenceGate": {
+          "status": "high",
+          "shouldConfirm": false,
+          "shouldRecordAgain": false
+        }
+      }
+    },
+    {
+      "id": "low-confidence-rejected",
+      "score": 1,
+      "expectedOutcome": "rejected",
+      "actualOutcome": "rejected",
+      "expectedReason": "LOW_CONFIDENCE_TRANSCRIPT",
+      "actualReason": "LOW_CONFIDENCE_TRANSCRIPT",
+      "subScores": {
+        "decision": 1,
+        "reason": 1,
+        "message": 1
+      },
+      "failedChecks": [],
+      "diagnostics": {
+        "message": "Voice recognition was not confident it heard that correctly. Please repeat your answer from the start.",
+        "metrics": {
+          "words": 9,
+          "characters": 52,
+          "speechDurationMs": 4200,
+          "sttSegmentCount": 1
+        },
+        "confidenceGate": {
+          "status": "low",
+          "shouldConfirm": true,
+          "shouldRecordAgain": true
+        }
+      }
+    },
+    {
+      "id": "medium-confidence-too-short-rejected",
+      "score": 1,
+      "expectedOutcome": "rejected",
+      "actualOutcome": "rejected",
+      "expectedReason": "MEDIUM_CONFIDENCE_INSUFFICIENT_EVIDENCE",
+      "actualReason": "MEDIUM_CONFIDENCE_INSUFFICIENT_EVIDENCE",
+      "subScores": {
+        "decision": 1,
+        "reason": 1,
+        "message": 1
+      },
+      "failedChecks": [],
+      "diagnostics": {
+        "message": "I only caught part of that. Please repeat your answer with a bit more detail.",
+        "metrics": {
+          "words": 5,
+          "characters": 21,
+          "speechDurationMs": 1400,
+          "sttSegmentCount": 1
+        },
+        "confidenceGate": {
+          "status": "medium",
+          "shouldConfirm": true,
+          "shouldRecordAgain": false
+        }
+      }
+    },
+    {
+      "id": "accented-clear-answer-accepted",
+      "score": 1,
+      "expectedOutcome": "accepted",
+      "actualOutcome": "accepted",
+      "expectedReason": "VALID_TRANSCRIPT",
+      "actualReason": "VALID_TRANSCRIPT",
+      "subScores": {
+        "decision": 1,
+        "reason": 1,
+        "message": 1
+      },
+      "failedChecks": [],
+      "diagnostics": {
+        "message": null,
+        "metrics": {
+          "words": 20,
+          "characters": 135,
+          "speechDurationMs": 9600,
+          "sttSegmentCount": 2
+        },
+        "confidenceGate": {
+          "status": "medium",
+          "shouldConfirm": true,
+          "shouldRecordAgain": false
+        }
+      }
+    },
+    {
+      "id": "domain-terms-accepted-when-clear",
+      "score": 1,
+      "expectedOutcome": "accepted",
+      "actualOutcome": "accepted",
+      "expectedReason": "VALID_TRANSCRIPT",
+      "actualReason": "VALID_TRANSCRIPT",
+      "subScores": {
+        "decision": 1,
+        "reason": 1,
+        "message": 1
+      },
+      "failedChecks": [],
+      "diagnostics": {
+        "message": null,
+        "metrics": {
+          "words": 20,
+          "characters": 116,
+          "speechDurationMs": 8600,
+          "sttSegmentCount": 2
+        },
+        "confidenceGate": {
+          "status": "high",
+          "shouldConfirm": false,
+          "shouldRecordAgain": false
+        }
+      }
+    },
+    {
+      "id": "non-final-vad-rejected",
+      "score": 1,
+      "expectedOutcome": "rejected",
+      "actualOutcome": "rejected",
+      "expectedReason": "NON_FINAL_VAD_TRANSCRIPT",
+      "actualReason": "NON_FINAL_VAD_TRANSCRIPT",
+      "subScores": {
+        "decision": 1,
+        "reason": 1,
+        "message": 1
+      },
+      "failedChecks": [],
+      "diagnostics": {
+        "message": "Your answer still sounds incomplete. Please finish your answer before moving on.",
+        "metrics": {
+          "words": 8,
+          "characters": 45,
+          "speechDurationMs": 3000,
+          "sttSegmentCount": 1
+        },
+        "confidenceGate": {
+          "status": "high",
+          "shouldConfirm": false,
+          "shouldRecordAgain": false
+        }
+      }
+    },
+    {
+      "id": "no-final-stt-segment-rejected",
+      "score": 1,
+      "expectedOutcome": "rejected",
+      "actualOutcome": "rejected",
+      "expectedReason": "NO_FINAL_STT_SEGMENTS",
+      "actualReason": "NO_FINAL_STT_SEGMENTS",
+      "subScores": {
+        "decision": 1,
+        "reason": 1,
+        "message": 1
+      },
+      "failedChecks": [],
+      "diagnostics": {
+        "message": "I did not catch your answer clearly. Please try again.",
+        "metrics": {
+          "words": 9,
+          "characters": 54,
+          "speechDurationMs": 5200,
+          "sttSegmentCount": 0
+        },
+        "confidenceGate": {
+          "status": "high",
+          "shouldConfirm": false,
+          "shouldRecordAgain": false
+        }
+      }
+    }
+  ]
+}

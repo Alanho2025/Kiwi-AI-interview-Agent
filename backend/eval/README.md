@@ -5,7 +5,7 @@ This folder contains deterministic regression tests and agent-evaluation runners
 The evaluation design follows an agent benchmark style:
 
 - Module evals check individual components such as CV parsing, JD parsing, CV-JD matching, interview control, and report QA.
-- End-to-end scenario evals check whether the product flow obeys interview settings, keeps multi-turn structure, asks grounded questions, and writes evidence-based reports.
+- End-to-end scenario evals check fixed interview scenarios for setting adherence, multi-turn structure, grounded questions, and evidence-based reports. They do not execute production routes, databases, voice runtime, or live product UI.
 - The Kiwi Green Agent runner acts as an evaluator layer. It loads benchmark tasks, prepares the environment, runs checks, aggregates metrics, and writes reports.
 
 ## Available commands
@@ -19,8 +19,10 @@ The evaluation design follows an agent benchmark style:
 - `npm run eval:report` → report QA evaluation
 - `npm run eval:e2e` → end-to-end interview scenario benchmark
 - `npm run eval:green` → Kiwi Green Agent benchmark runner
-- `npm run eval:all` → runs all evaluation scripts with quality gates
-- `npm run quality:all` → runs robustness tests, then all evals
+- `npm run eval:all` → runs all evaluation scripts with quality gates, including real AI evals
+- `npm run quality:local` → runs lint, robustness tests, and mock/static evals
+- `npm run quality:real` → runs real AI evals that require configured credentials and cost/rate-limit awareness
+- `npm run quality:all` → runs local quality first, then real AI evals
 
 ## Quality gates
 
@@ -53,8 +55,12 @@ Module datasets live in `eval/datasets/*-eval.json`. They use flexible expectati
 
 `eval/datasets/end-to-end-interview-scenarios.json` contains realistic interview flows. Each case includes interview settings, CV profile, JD profile, transcript, report, expected flow, and grounding rules.
 
-The runner checks first question, planned question count, required or blocked categories, required topics, duplicate questions, question quality, report grounding, and hallucination risk.
+The runner checks first question, planned question count, required or blocked categories, required topics, duplicate questions, question quality, report grounding, and hallucination risk against the fixed scenario artifacts.
 
 ### Kiwi Green Agent
 
 `eval/greenAgent/kiwiGreenAgent.js` is the orchestration layer. It is deterministic and local. It does not call production routes, databases, or paid LLM APIs, so the benchmark stays repeatable and CI-friendly.
+
+### Baseline comparison
+
+`eval:baseline` is a feedback-level benchmark. It compares same-input generic ChatGPT-style baseline feedback against Kiwi Agent feedback using DeepSeek semantic judge as the primary score, keyword matching as diagnostics, and forbidden claims as a safety penalty. It does not evaluate the full product flow.
