@@ -6,15 +6,25 @@
  */
 
 import { spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
+
+const backendRoot = resolve(new URL('../..', import.meta.url).pathname);
+const vitestCli = resolve(backendRoot, 'node_modules/vitest/vitest.mjs');
 
 const requestedGroups = process.argv.slice(2);
 const groups = requestedGroups.length > 0 ? requestedGroups : ['tests/robustness'];
 const failures = [];
 
+if (!existsSync(vitestCli)) {
+  console.error(`Vitest CLI not found at ${vitestCli}. Run npm install in backend first.`);
+  process.exit(1);
+}
+
 for (const group of groups) {
   console.log(`\n\n=== Running backend test group: ${group} ===`);
-  const result = spawnSync('npx', ['vitest', 'run', group, '--passWithNoTests=false'], {
-    cwd: new URL('../..', import.meta.url),
+  const result = spawnSync(process.execPath, [vitestCli, 'run', group, '--passWithNoTests=false'], {
+    cwd: backendRoot,
     stdio: 'inherit',
     shell: process.platform === 'win32',
   });
