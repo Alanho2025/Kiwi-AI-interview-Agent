@@ -13,6 +13,7 @@
  */
 
 import fs from 'node:fs/promises';
+import fsSync from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
@@ -20,12 +21,62 @@ import dotenv from 'dotenv';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const BACKEND_ROOT = path.resolve(__dirname, '../..');
+const REPO_ROOT = path.resolve(__dirname, '../../../..');
+const BACKEND_ROOT = path.resolve(__dirname, '../../..');
 
-// The benchmark is executed directly from backend/benchmarks/voice-asr-fallback,
-// outside backend/index.js, so it must load backend/.env itself before importing
-// Azure/Vosk/Sherpa provider adapters.
-dotenv.config({ path: path.join(BACKEND_ROOT, '.env') });
+const loadBenchmarkEnv = () => {
+  const explicitEnvPath = process.env.ASR_BENCHMARK_ENV_FILE;
+  const candidatePaths = [
+    explicitEnvPath,
+    path.join(BACKEND_ROOT, '.env'),
+    path.join(BACKEND_ROOT, '.env.local'),
+    path.join(REPO_ROOT, '.env'),
+    path.join(REPO_ROOT, '.env.local'),
+    path.resolve(process.cwd(), '.env'),
+    path.resolve(process.cwd(), '.env.local'),
+  ].filter(Boolean);
+
+  const seen = new Set();
+  const loaded = [];
+  const missing = [];
+
+  for (const envPath of candidatePaths) {
+    const resolvedPath = path.resolve(envPath);
+    if (seen.has(resolvedPath)) continue;
+    seen.add(resolvedPath);
+
+    if (!fsSync.existsSync(resolvedPath)) {
+      missing.push(path.relative(process.cwd(), resolvedPath));
+      continue;
+    }
+
+    const result = dotenv.config({ path: resolvedPath, override: false, quiet: true });
+    loaded.push({
+      path: path.relative(process.cwd(), resolvedPath),
+      keysLoaded: result.parsed ? Object.keys(result.parsed).length : 0,
+      error: result.error?.message || null,
+    });
+  }
+
+  const hasAzureKey = Boolean(process.env.AZURE_SPEECH_KEY || process.env.AZURE_SPEECH_SUBSCRIPTION_KEY);
+  const azureRegion = process.env.AZURE_SPEECH_REGION || null;
+  if (process.env.ASR_BENCHMARK_ENV_DEBUG === 'true' || !hasAzureKey || !azureRegion) {
+    console.warn('[asr-benchmark-env]', JSON.stringify({
+      cwd: process.cwd(),
+      backendRoot: path.relative(process.cwd(), BACKEND_ROOT),
+      repoRoot: path.relative(process.cwd(), REPO_ROOT),
+      loaded,
+      missing,
+      hasAzureKey,
+      hasAzureSubscriptionKey: Boolean(process.env.AZURE_SPEECH_SUBSCRIPTION_KEY),
+      azureRegion,
+    }, null, 2));
+  }
+};
+
+// The benchmark is executed directly, outside backend/index.js, so it must load
+// env files itself before importing Azure/Vosk/Sherpa provider adapters.
+loadBenchmarkEnv();
 
 const DEFAULT_SAMPLE_RATE = 16000;
 const DEFAULT_CHUNK_MS = 20;
@@ -177,6 +228,24 @@ const diffResourceSnapshot = (before, after) => ({
   cpuSystemMs: Number(((after.cpuUsage.system - before.cpuUsage.system) / 1000).toFixed(2)),
 });
 
+const buildAcceptance = ({ finalTranscriptDelayAfterSpeechEndMs, aiFirstAudioPossibleAfterSpeechEndMs }) => {
+  const hasValidFinalDelay = Number.isFinite(finalTranscriptDelayAfterSpeechEndMs);
+  const hasValidAiAudioDelay = Number.isFinite(aiFirstAudioPossibleAfterSpeechEndMs);
+  const finalReadyWithin1s = hasValidFinalDelay && finalTranscriptDelayAfterSpeechEndMs <= HARD_FINAL_DELAY_MS;
+  const aiFirstAudioPossibleWithin3To5s = hasValidAiAudioDelay && aiFirstAudioPossibleAfterSpeechEndMs <= HARD_AI_AUDIO_WINDOW_MS;
+  const metricsAvailable = hasValidFinalDelay && hasValidAiAudioDelay;
+
+  return {
+    finalReadyWithin1s,
+    aiFirstAudioPossibleWithin3To5s,
+    recommendation: metricsAvailable
+      ? (finalReadyWithin1s && aiFirstAudioPossibleWithin3To5s
+        ? 'candidate can continue to deeper live test'
+        : 'fails hard acceptance')
+      : 'metrics missing, benchmark invalid',
+  };
+};
+
 const createAzureProvider = async ({ sampleRate, language = 'en-NZ', callbacks }) => {
   const { createRealtimeSpeechSession } = await import('../../src/services/voice/realtimeSpeechSessionService.js');
   const session = createRealtimeSpeechSession({
@@ -323,14 +392,18 @@ const runProviderFixture = async ({ providerName, fixture, options }) => {
   const finishedAt = nowMs() - startedAt;
   const after = getResourceSnapshot();
 
-  const finalDelayAfterSpeechEndMs = latestFinalMs === null ? null : Math.max(0, latestFinalMs - speechEndMs);
+  const finalTranscriptDelayAfterSpeechEndMs = latestFinalMs === null ? null : Math.max(0, latestFinalMs - speechEndMs);
+  // ASR benchmark can only measure when the transcript is available. This value is the lower-bound
+  // timing that downstream AI/TTS can build on, not a full end-to-end voice synthesis benchmark.
+  const aiFirstAudioPossibleAfterSpeechEndMs = finalTranscriptDelayAfterSpeechEndMs;
   const wer = fixture.expectedTranscript
     ? wordErrorRate({ expected: fixture.expectedTranscript, actual: latestFinalText })
     : null;
   const recall = keywordRecall({ expectedKeywords: fixture.keywords || [], actual: latestFinalText });
-
-  const finalReadyPass = finalDelayAfterSpeechEndMs !== null && finalDelayAfterSpeechEndMs <= HARD_FINAL_DELAY_MS;
-  const aiFirstAudioPossiblePass = finalReadyPass && finalDelayAfterSpeechEndMs <= HARD_AI_AUDIO_WINDOW_MS;
+  const acceptance = buildAcceptance({
+    finalTranscriptDelayAfterSpeechEndMs,
+    aiFirstAudioPossibleAfterSpeechEndMs,
+  });
 
   return {
     provider: providerName,
@@ -341,6 +414,7 @@ const runProviderFixture = async ({ providerName, fixture, options }) => {
     realtimeFeed: options.realtime,
     firstPartialMs,
     finalTranscriptDelayAfterSpeechEndMs,
+    aiFirstAudioPossibleAfterSpeechEndMs,
     totalWallTimeMs: finishedAt,
     finalTranscriptText: latestFinalText,
     keywordRecall: recall,
@@ -352,11 +426,7 @@ const runProviderFixture = async ({ providerName, fixture, options }) => {
     },
     errors,
     integrationComplexity: provider.integrationComplexity,
-    acceptance: {
-      finalReadyWithin1s: finalReadyPass,
-      aiFirstAudioPossibleWithin3To5s: aiFirstAudioPossiblePass,
-      recommendation: finalReadyPass ? 'candidate can continue to deeper live test' : 'do not add as live local fallback',
-    },
+    acceptance,
   };
 };
 
@@ -381,7 +451,7 @@ const main = async () => {
           acceptance: {
             finalReadyWithin1s: false,
             aiFirstAudioPossibleWithin3To5s: false,
-            recommendation: 'not benchmarked, do not add as live local fallback',
+            recommendation: 'benchmark failed before metrics were collected; check provider setup, credentials, or fixture loading',
           },
         });
       }
