@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       run_e2e:
-        description: Run the real E2E benchmark that mutates the supplied disposable session
+        description: Run the real E2E benchmark that mutates then restores the supplied disposable session
         required: true
         default: 'true'
         type: choice
@@ -66,6 +66,7 @@ jobs:
       - name: Check benchmark JavaScript syntax
         run: |
           node --check benchmarks/voice-asr-fallback/adapters/elevenlabsRealtimeSttProvider.js
+          node --check benchmarks/voice-asr-fallback/benchmarkSessionState.js
           node --check benchmarks/voice-asr-fallback/generateSelfIntroductionAudioFixture.js
           node --check benchmarks/voice-asr-fallback/runVoiceAsrFallbackBenchmark.js
           node --check benchmarks/voice-asr-fallback/runVoiceAsrFallbackE2eBenchmark.js
@@ -113,10 +114,12 @@ jobs:
       ELEVENLABS_STT_INCLUDE_TIMESTAMPS: 'false'
       ELEVENLABS_STT_FINAL_TIMEOUT_MS: '5000'
       MONGODB_URI: ${{ secrets.MONGODB_URI }}
+      MongoDB_URI: ${{ secrets.MONGODB_URI }}
       POSTGRES_URL: ${{ secrets.POSTGRES_URL }}
       ASR_BENCHMARK_SESSION_ID: ${{ secrets.SESSION_ID }}
       ASR_BENCHMARK_USER_ID: ${{ secrets.USER_ID }}
       ASR_BENCHMARK_ALLOW_SESSION_MUTATION: 'true'
+      ASR_BENCHMARK_RESTORE_SESSION: 'true'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
