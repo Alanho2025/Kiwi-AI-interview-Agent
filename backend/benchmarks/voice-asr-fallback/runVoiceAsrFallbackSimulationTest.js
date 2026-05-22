@@ -156,10 +156,20 @@ const diffResourceSnapshot = (before, after) => ({
   cpuSystemMs: Number(((after.cpuUsage.system - before.cpuUsage.system) / 1000).toFixed(2)),
 });
 
+const createSimulatedClock = ({ realtime, startedAt }) => ({
+  audioMs: 0,
+  getEventMs() {
+    return realtime ? nowMs() - startedAt : this.audioMs;
+  },
+  advanceAudioMs(value) {
+    this.audioMs += value;
+  },
+});
+
 const createSimulatedProvider = ({ providerName, fixture, callbacks }) => {
-  let bytesReceived = 0;
+  let audioMsReceived = 0;
   let partialSent = false;
-  const bytesPerMs = SAMPLE_RATE * BYTES_PER_SAMPLE;
+  const bytesPerSecond = SAMPLE_RATE * BYTES_PER_SAMPLE;
 
   const config = {
     'mock-streaming-fast-pass': {
@@ -198,16 +208,21 @@ const createSimulatedProvider = ({ providerName, fixture, callbacks }) => {
 
   return {
     write: (chunk) => {
-      bytesReceived += chunk.byteLength;
-      const audioMsReceived = bytesReceived / bytesPerMs;
+      audioMsReceived += (chunk.byteLength / bytesPerSecond) * 1000;
       if (!partialSent && config.firstPartialAtMs !== null && audioMsReceived >= config.firstPartialAtMs) {
         partialSent = true;
-        callbacks.onPartial({ text: config.finalText.split(' ').slice(0, 6).join(' ') });
+        callbacks.onPartial({
+          text: config.finalText.split(' ').slice(0, 6).join(' '),
+          simulatedAtMs: audioMsReceived,
+        });
       }
     },
     finalize: async () => {
       await sleep(config.finalDelayAfterSpeechEndMs);
-      callbacks.onFinal({ text: config.finalText });
+      callbacks.onFinal({
+        text: config.finalText,
+        simulatedAtMs: audioMsReceived + config.finalDelayAfterSpeechEndMs,
+      });
     },
     integrationComplexity: config.integrationComplexity,
   };
@@ -219,6 +234,7 @@ const runOne = async ({ providerName, fixture, options }) => {
   const chunks = splitPcmChunks({ pcm });
   const events = [];
   const startedAt = nowMs();
+  const clock = createSimulatedClock({ realtime: options.realtime, startedAt });
   let firstPartialMs = null;
   let finalTranscriptMs = null;
   let speechEndMs = null;
@@ -226,12 +242,12 @@ const runOne = async ({ providerName, fixture, options }) => {
 
   const callbacks = {
     onPartial: (payload) => {
-      const atMs = nowMs() - startedAt;
+      const atMs = options.realtime ? nowMs() - startedAt : Math.round(payload.simulatedAtMs ?? clock.getEventMs());
       if (firstPartialMs === null) firstPartialMs = atMs;
       events.push({ type: 'partial', atMs, text: payload.text });
     },
     onFinal: (payload) => {
-      const atMs = nowMs() - startedAt;
+      const atMs = options.realtime ? nowMs() - startedAt : Math.round(payload.simulatedAtMs ?? clock.getEventMs());
       finalTranscriptMs = atMs;
       finalTranscriptText = payload.text;
       events.push({ type: 'final', atMs, text: payload.text });
@@ -243,10 +259,11 @@ const runOne = async ({ providerName, fixture, options }) => {
 
   for (const chunk of chunks) {
     provider.write(chunk);
+    clock.advanceAudioMs((chunk.byteLength / (SAMPLE_RATE * BYTES_PER_SAMPLE)) * 1000);
     if (options.realtime) await sleep(CHUNK_MS);
   }
 
-  speechEndMs = nowMs() - startedAt;
+  speechEndMs = options.realtime ? nowMs() - startedAt : Math.round(clock.audioMs);
   await provider.finalize();
   const after = getResourceSnapshot();
 
