@@ -49,7 +49,13 @@ const verifyToken = (token) => {
  */
 const getRequestAuthToken = (req) => {
   const cookies = parseCookies(req.headers.cookie || '');
-  return cookies.auth_token || '';
+  if (cookies.auth_token) {
+    return cookies.auth_token;
+  }
+
+  const authorization = String(req.headers.authorization || '');
+  const [scheme, token] = authorization.split(' ');
+  return scheme?.toLowerCase() === 'bearer' && token ? token : '';
 };
 
 /**

@@ -11,6 +11,23 @@ const extractKeyCompetencies = (sections = []) => {
 
 const extractSectionEntries = (text = '') => String(text || '').split('\n').map((line) => line.trim()).filter(Boolean);
 
+const EVIDENCE_STRENGTH_BY_SOURCE = {
+  experience: 'strong',
+  project_outcome: 'strong',
+  project_responsibility: 'strong',
+  achievement: 'strong',
+  education: 'partial',
+  volunteer: 'partial',
+  key_competency: 'weak',
+  skill: 'weak',
+  summary: 'weak',
+};
+
+const withEvidenceStrength = (item = {}) => ({
+  ...item,
+  evidenceStrength: EVIDENCE_STRENGTH_BY_SOURCE[item.sourceType] || 'weak',
+});
+
 const extractQuantifiedEvidence = ({ achievements = [], evidenceItems = [], normalizedText = '' } = {}) => {
   const achievementTexts = achievements.map((item) => item?.text || item).filter(Boolean);
   const evidenceTexts = evidenceItems.map((item) => item?.text || item).filter(Boolean);
@@ -31,7 +48,7 @@ const inferRoleSignals = ({ projects = [], achievements = [], hardSkills = [], c
   careerTransitionSignal: capabilities.includes('adaptability') || hardSkills.length >= 4 ? 0.8 : 0.45,
 });
 
-export const buildCvEvidenceProfile = (cvProfile = {}, normalizedText = '') => {
+export const buildCvEvidenceProfile = (cvProfile = {}, normalizedText = '', options = {}) => {
   const sections = Array.isArray(cvProfile.sections) ? cvProfile.sections : [];
   const personalStatement = sectionByKey(sections, 'personal_statement') || cvProfile.summary || '';
   const keyCompetencies = extractKeyCompetencies(sections);
@@ -47,14 +64,23 @@ export const buildCvEvidenceProfile = (cvProfile = {}, normalizedText = '') => {
   });
 
   const evidenceItems = [
+    ...(personalStatement ? [{ sourceType: 'summary', text: personalStatement }] : []),
     ...experienceEntries.map((text) => ({ sourceType: 'experience', text })),
-    ...projects.flatMap((project) => [
-      ...project.responsibilities.map((text) => ({ sourceType: 'project_responsibility', projectTitle: project.title, text })),
-      ...project.outcomes.map((text) => ({ sourceType: 'project_outcome', projectTitle: project.title, text })),
-    ]),
+    ...projects.flatMap((project) => {
+      const projectEvidence = [
+        ...project.responsibilities.map((text) => ({ sourceType: 'project_responsibility', projectTitle: project.title, text })),
+        ...project.outcomes.map((text) => ({ sourceType: 'project_outcome', projectTitle: project.title, text })),
+      ];
+      return projectEvidence.length
+        ? projectEvidence
+        : [{ sourceType: 'project_responsibility', projectTitle: project.title, text: project.rawText || project.title }];
+    }),
     ...keyCompetencies.map((text) => ({ sourceType: 'key_competency', text })),
+    ...educationEntries.map((text) => ({ sourceType: 'education', text })),
+    ...volunteerEntries.map((text) => ({ sourceType: 'volunteer', text })),
+    ...hardSkills.map((text) => ({ sourceType: 'skill', text })),
     ...achievements.map((item) => ({ sourceType: 'achievement', text: item.text, achievementType: item.type })),
-  ];
+  ].map(withEvidenceStrength);
 
   return {
     schemaVersion: 'cv_evidence_profile_v1',
@@ -81,5 +107,6 @@ export const buildCvEvidenceProfile = (cvProfile = {}, normalizedText = '') => {
     achievements,
     quantifiedEvidence: extractQuantifiedEvidence({ achievements, evidenceItems, normalizedText }),
     evidenceItems,
+    nlpSignals: options.nlpSignals || null,
   };
 };

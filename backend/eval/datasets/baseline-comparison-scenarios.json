@@ -1,0 +1,122 @@
+[
+  {
+    "id": "data-ai-engineer-vague-star",
+    "role": "Data and AI Engineer",
+    "baselineModel": "ChatGPT GPT-5.5 Thinking same-input baseline run",
+    "baselinePromptType": "same-input generic interview coach prompt",
+    "cvEvidence": ["electrical engineer background", "data analysis for Apple client failure cases", "SQL database interest"],
+    "jdEvidence": ["PostgreSQL", "AWS", "AI initiatives", "API development"],
+    "candidateAnswer": "I worked on data analysis before and solved problems for business clients. I think I can learn the cloud part quickly.",
+    "genericBaselineOutput": "The answer is relevant but too vague. It gives a Situation in broad terms, but lacks a clear Task, Action, and Result. You mention data analysis and business clients, which aligns with the CV, but you should connect it more directly to PostgreSQL, APIs, AI initiatives, or cloud readiness. Improve this by giving one concrete example of a failure analysis case, your specific role, the tools used, and the measurable outcome.",
+    "kiwiAgentOutput": "Your answer has useful evidence, but it is missing a clear STAR structure. Situation: you worked as an electrical engineer supporting Apple client failure cases. Action: you used data analysis to identify causes. Result: explain the business or quality impact. For this Data and AI Engineer role, connect that experience to PostgreSQL, APIs, and AI initiatives. A stronger follow-up answer should clarify what data you analysed, what decision it supported, and how you will close the AWS gap.",
+    "expected": { "cvEvidenceTerms": ["electrical engineer", "Apple", "data analysis"], "jdEvidenceTerms": ["PostgreSQL", "API", "AI", "AWS"], "starTerms": ["Situation", "Action", "Result"], "roleTerms": ["Data and AI Engineer", "PostgreSQL", "API"], "nzTerms": [], "adaptiveTerms": ["follow-up", "clarify", "gap"], "forbiddenClaims": ["certified AWS architect", "managed a data engineering team"] }
+  },
+  {
+    "id": "nz-cultural-fit-international-student",
+    "role": "Graduate Software Developer in New Zealand",
+    "baselineModel": "ChatGPT GPT-5.5 Thinking same-input baseline run",
+    "baselinePromptType": "same-input generic interview coach prompt",
+    "cvEvidence": ["Master of Information Technology student", "AI agent project", "team project leadership"],
+    "jdEvidence": ["Agile team collaboration", "communication", "customer-focused software solutions"],
+    "candidateAnswer": "I usually work hard and finish tasks. In my team project, I helped the group build the AI agent and fix problems.",
+    "genericBaselineOutput": "The answer shows effort and teamwork, but it is too general for a graduate software role. It needs stronger STAR structure. Explain the project situation, your leadership or collaboration task, the actions you took, and the result for the team or product. Link the AI agent project to Agile collaboration, communication, and customer-focused software. Avoid only saying you work hard. Employers need evidence of how you work with others.",
+    "kiwiAgentOutput": "This answer fits a New Zealand graduate software role, but it needs stronger workplace communication evidence. Use STAR: Situation: your Master of Information Technology team built an AI agent. Task: explain your responsibility in the Agile team. Action: describe how you coordinated teammates, clarified requirements, or fixed blockers. Result: mention a working feature, demo improvement, or team delivery outcome. This would better show collaboration, communication, and customer-focused software thinking.",
+    "expected": { "cvEvidenceTerms": ["Master of Information Technology", "AI agent", "team"], "jdEvidenceTerms": ["Agile", "communication", "customer"], "starTerms": ["Situation", "Task", "Action", "Result"], "roleTerms": ["graduate software", "software", "team"], "nzTerms": ["New Zealand", "workplace communication"], "adaptiveTerms": ["responsibility", "clarified", "blockers"], "forbiddenClaims": ["industry software engineer for five years", "native English speaker"] }
+  },
+  {
+    "id": "niche-technical-role-domain-terms",
+    "role": "Backend Platform Engineer",
+    "baselineModel": "ChatGPT GPT-5.5 Thinking same-input baseline run",
+    "baselinePromptType": "same-input generic interview coach prompt",
+    "cvEvidence": ["JavaScript backend project", "MongoDB Atlas", "voice WebSocket integration"],
+    "jdEvidence": ["Kafka", "Redis", "distributed systems", "PostgreSQL"],
+    "candidateAnswer": "I have not used Kafka in production, but I built a backend with WebSocket voice flow and MongoDB. I understand event-driven design and want to improve distributed system experience.",
+    "genericBaselineOutput": "This is a reasonable answer because it is honest about the Kafka gap while still showing relevant backend experience. The WebSocket voice flow and MongoDB evidence support technical credibility. However, the STAR structure is still weak. Add a specific backend challenge, your action in designing the flow, and the result. To improve JD alignment, explain how WebSocket or event-driven thinking relates to Redis, Kafka, or distributed system concepts.",
+    "kiwiAgentOutput": "This is a credible answer because it does not claim production Kafka experience. Ground it in your real evidence: JavaScript backend work, MongoDB Atlas, and WebSocket voice integration. Then bridge to the JD: Kafka, Redis, PostgreSQL, and distributed systems. A stronger answer should explain how your WebSocket event flow gave you a base for event-driven design, while clearly naming Kafka as a growth area rather than an existing production skill.",
+    "expected": { "cvEvidenceTerms": ["JavaScript", "MongoDB", "WebSocket"], "jdEvidenceTerms": ["Kafka", "Redis", "PostgreSQL", "distributed systems"], "starTerms": ["evidence", "answer", "experience"], "roleTerms": ["Backend", "distributed", "event-driven"], "nzTerms": [], "adaptiveTerms": ["growth area", "bridge", "clearly naming"], "forbiddenClaims": ["I have production Kafka experience", "I am a Redis expert", "I am a PostgreSQL architect"] }
+  },
+  {
+    "id": "weak-cv-jd-match-cloud-gap",
+    "role": "Cloud Data Engineer",
+    "baselineModel": "ChatGPT GPT-5.5 Thinking same-input baseline run",
+    "baselinePromptType": "same-input generic interview coach prompt",
+    "cvEvidence": ["SQL coursework", "data mining project", "limited cloud experience"],
+    "jdEvidence": ["AWS", "ETL pipelines", "PostgreSQL", "production monitoring"],
+    "candidateAnswer": "I know SQL and data mining. I have not used AWS much, but I am confident I can learn it quickly if I get the role.",
+    "genericBaselineOutput": "The answer is honest, but it sounds too dependent on future learning. SQL and data mining are useful, but the JD asks for AWS, ETL pipelines, PostgreSQL, and monitoring. You need to reduce the perceived risk. Give one example of using SQL or data preparation in a structured project, then explain a concrete learning plan for AWS and ETL. Avoid relying only on confidence. Show evidence, not just attitude.",
+    "kiwiAgentOutput": "This answer should be honest about the AWS gap while still using evidence. Use STAR: Situation: you completed SQL and data mining work. Action: describe how you cleaned data, built models, or queried datasets. Result: explain the outcome. Then connect it to the Cloud Data Engineer JD by saying PostgreSQL and ETL concepts are relevant, while AWS and production monitoring are growth areas you are actively addressing.",
+    "expected": { "cvEvidenceTerms": ["SQL", "data mining", "limited cloud"], "jdEvidenceTerms": ["AWS", "ETL", "PostgreSQL", "production monitoring"], "starTerms": ["Situation", "Action", "Result"], "roleTerms": ["Cloud Data Engineer", "ETL", "PostgreSQL"], "nzTerms": [], "adaptiveTerms": ["gap", "growth areas", "actively addressing"], "forbiddenClaims": ["I have strong AWS production experience", "I managed production cloud monitoring"] }
+  },
+  {
+    "id": "strong-answer-missing-jd-alignment",
+    "role": "AI Product Engineer",
+    "baselineModel": "ChatGPT GPT-5.5 Thinking same-input baseline run",
+    "baselinePromptType": "same-input generic interview coach prompt",
+    "cvEvidence": ["Forkcast Food AI Assistant", "React", "Node.js", "MongoDB"],
+    "jdEvidence": ["LLM orchestration", "product thinking", "API integration", "user feedback"],
+    "candidateAnswer": "I built a food recommendation app with React, Node.js and MongoDB. It helped students choose food around campus and included a chatbot feature.",
+    "genericBaselineOutput": "The answer has strong project evidence, but it undersells the JD match. React, Node.js, MongoDB, and the chatbot feature are relevant, yet you do not clearly mention LLM orchestration, API integration, product thinking, or user feedback. Add STAR structure by explaining the user problem, your technical actions, and the product result. Improve the answer by showing how the chatbot made recommendations, how APIs or data were integrated, and how feedback shaped improvements.",
+    "kiwiAgentOutput": "This answer has strong project evidence but needs tighter JD alignment. Use STAR: Situation: students needed fast food decisions around campus. Task: build Forkcast Food AI Assistant. Action: explain React, Node.js, MongoDB, API integration, and LLM orchestration for recommendations. Result: describe the user value or demo outcome. Then link it to product thinking by explaining how feedback or user needs shaped the feature design. For an AI Product Engineer role, this shows both technical delivery and product thinking.",
+    "expected": { "cvEvidenceTerms": ["Forkcast", "React", "Node.js", "MongoDB"], "jdEvidenceTerms": ["LLM", "product", "API", "feedback"], "starTerms": ["Situation", "Task", "Action", "Result"], "roleTerms": ["AI Product Engineer", "product", "LLM"], "nzTerms": [], "adaptiveTerms": ["JD alignment", "link", "user needs"], "forbiddenClaims": ["launched to thousands of users", "raised funding"] }
+  },
+  {
+    "id": "unsupported-claim-risk",
+    "role": "Machine Learning Intern",
+    "baselineModel": "ChatGPT GPT-5.5 Thinking same-input baseline run",
+    "baselinePromptType": "same-input generic interview coach prompt",
+    "cvEvidence": ["data mining coursework", "SPSS modelling", "LLM-assisted skill extraction"],
+    "jdEvidence": ["Python", "model evaluation", "machine learning experiments"],
+    "candidateAnswer": "I have done data mining coursework and used SPSS. I also worked with LLMs for skill extraction in my project.",
+    "genericBaselineOutput": "The answer is grounded and avoids unsupported claims, which is good. However, it is still too short and does not fully align with the JD. SPSS modelling and LLM-assisted skill extraction are relevant, but the role also asks for Python, model evaluation, and ML experiments. Strengthen the answer by describing one modelling task, how you evaluated results, and what you learned. Be careful not to imply production ML experience unless the CV evidence supports it.",
+    "kiwiAgentOutput": "Do not overclaim production ML experience. Ground the answer in real evidence: data mining coursework, SPSS modelling, and LLM-assisted skill extraction. To fit a Machine Learning Intern role, explain how you evaluated models, compared results, and learned experiment design. If Python is required, frame it as a current skill to demonstrate through portfolio work rather than claiming unsupported production deployment.",
+    "expected": { "cvEvidenceTerms": ["data mining", "SPSS", "LLM"], "jdEvidenceTerms": ["Python", "model evaluation", "machine learning"], "starTerms": ["evidence", "answer", "explain"], "roleTerms": ["Machine Learning Intern", "models", "experiment"], "nzTerms": [], "adaptiveTerms": ["Do not overclaim", "portfolio", "unsupported"], "forbiddenClaims": ["production model deployment", "experienced machine learning engineer", "deep learning projects"] }
+  },
+  {
+    "id": "entry-level-migrant-confidence",
+    "role": "Business Analyst Graduate",
+    "baselineModel": "ChatGPT GPT-5.5 Thinking same-input baseline run",
+    "baselinePromptType": "same-input generic interview coach prompt",
+    "cvEvidence": ["international student", "requirements clarification", "team presentation"],
+    "jdEvidence": ["stakeholder communication", "documentation", "process improvement"],
+    "candidateAnswer": "I am not very confident because English is not my first language, but I can work hard and communicate with the team.",
+    "genericBaselineOutput": "The answer is honest, but it frames the candidate too negatively. For a Business Analyst Graduate role, communication, documentation, and process improvement matter. Instead of focusing on low confidence, use a STAR example about requirements clarification or team presentation. Show how you asked questions, confirmed understanding, documented decisions, or helped the team align. You can mention English as an area you keep improving, but balance it with evidence of effective communication.",
+    "kiwiAgentOutput": "This answer should not apologise for being an international student. In a New Zealand interview, focus on evidence of communication. Use STAR: Situation: you worked in a team project. Task: clarify requirements or prepare documentation. Action: explain how you communicated with teammates and presented ideas. Result: show how this improved delivery. This frames English as a managed communication skill, not a weakness. For a Business Analyst Graduate role, this can show stakeholder communication, documentation, and process improvement through your requirements clarification and team presentation experience.",
+    "expected": { "cvEvidenceTerms": ["international student", "requirements", "presentation"], "jdEvidenceTerms": ["stakeholder communication", "documentation", "process improvement"], "starTerms": ["Situation", "Task", "Action", "Result"], "roleTerms": ["Business Analyst", "communication", "documentation"], "nzTerms": ["New Zealand", "international student", "communication"], "adaptiveTerms": ["not apologise", "managed communication", "evidence"], "forbiddenClaims": ["English is my native language", "senior business analyst"] }
+  },
+  {
+    "id": "senior-technical-leadership",
+    "role": "Senior Software Engineer",
+    "baselineModel": "ChatGPT GPT-5.5 Thinking same-input baseline run",
+    "baselinePromptType": "same-input generic interview coach prompt",
+    "cvEvidence": ["team leader", "backend architecture", "code review"],
+    "jdEvidence": ["technical leadership", "mentoring", "system design", "quality standards"],
+    "candidateAnswer": "I led parts of the project and reviewed code. I also helped decide backend structure and made sure the team fixed issues before demo.",
+    "genericBaselineOutput": "The answer is relevant to technical leadership, code review, and quality standards, but it needs more senior-level depth. It mentions actions but not enough impact. Use STAR structure to explain the project situation, the leadership challenge, how you guided technical decisions or code quality, and what improved before the demo. For a senior role, also mention mentoring, trade-off decisions, or system design reasoning if supported by the evidence.",
+    "kiwiAgentOutput": "This answer needs stronger senior-level evidence. Use STAR: Situation: the project needed stable backend architecture before demo. Task: you led parts of delivery, reviewed code, and supported quality standards. Action: explain how you made design decisions, gave feedback, or helped teammates resolve blockers. Result: state the demo or quality outcome. Then connect this to the Senior Software Engineer JD: technical leadership, mentoring, system design, and quality standards. This frames your team leader experience as evidence of technical leadership.",
+    "expected": { "cvEvidenceTerms": ["team leader", "backend architecture", "code review"], "jdEvidenceTerms": ["technical leadership", "mentoring", "system design", "quality standards"], "starTerms": ["Situation", "Task", "Action", "Result"], "roleTerms": ["Senior Software Engineer", "technical leadership", "system design"], "nzTerms": [], "adaptiveTerms": ["senior-level evidence", "connect", "blockers"], "forbiddenClaims": ["managed a professional engineering department", "ten years of senior experience"] }
+  },
+  {
+    "id": "behavioural-conflict-resolution",
+    "role": "Agile Software Developer",
+    "baselineModel": "ChatGPT GPT-5.5 Thinking same-input baseline run",
+    "baselinePromptType": "same-input generic interview coach prompt",
+    "cvEvidence": ["group project", "weekly meetings", "GitHub workflow"],
+    "jdEvidence": ["Agile collaboration", "conflict resolution", "delivery ownership"],
+    "candidateAnswer": "Sometimes teammates had different opinions. I tried to talk with them and make sure we could still finish the work.",
+    "genericBaselineOutput": "The answer addresses conflict resolution, but it is too generic. It needs a clearer STAR example. Describe the conflict context, what decision or delivery risk existed, what action you took to discuss options, and how the team reached agreement. Link this to Agile collaboration and delivery ownership. Avoid only saying you talked with them. Show how you managed disagreement while keeping the project moving.",
+    "kiwiAgentOutput": "This answer needs a specific STAR example. Situation: your group project had different opinions during weekly meetings or GitHub workflow decisions. Task: keep delivery moving. Action: describe how you clarified the issue, listened to teammates, and agreed on a practical next step. Result: explain how this protected delivery ownership. For an Agile Software Developer role, link the answer to Agile collaboration and conflict resolution.",
+    "expected": { "cvEvidenceTerms": ["group project", "weekly meetings", "GitHub"], "jdEvidenceTerms": ["Agile", "conflict resolution", "delivery"], "starTerms": ["Situation", "Task", "Action", "Result"], "roleTerms": ["Agile Software Developer", "Agile", "collaboration"], "nzTerms": [], "adaptiveTerms": ["specific", "clarified", "next step"], "forbiddenClaims": ["formal scrum master certification", "managed enterprise agile transformation"] }
+  },
+  {
+    "id": "privacy-security-commercial-risk",
+    "role": "AI SaaS Product Engineer",
+    "baselineModel": "ChatGPT GPT-5.5 Thinking same-input baseline run",
+    "baselinePromptType": "same-input generic interview coach prompt",
+    "cvEvidence": ["httpOnly cookie auth", "CSRF double-submit", "WebSocket origin checks"],
+    "jdEvidence": ["security awareness", "SaaS reliability", "user data protection"],
+    "candidateAnswer": "I improved security by changing auth and adding checks. I think privacy is important for AI products.",
+    "genericBaselineOutput": "The answer has strong security evidence, but it needs clearer explanation and STAR structure. httpOnly cookie auth, CSRF double-submit, and WebSocket origin checks align well with user data protection and SaaS reliability. Improve by stating the security risk, the specific changes you made, and how they reduced exposure. Avoid broad claims like privacy is important unless you support them with concrete design choices and their practical impact.",
+    "kiwiAgentOutput": "This answer should use concrete security evidence. Use STAR: Situation: the AI interview product handled sensitive CV, JD, and interview transcript data. Task: reduce authentication and request risks. Action: explain httpOnly cookie auth, CSRF double-submit, and WebSocket origin checks. Result: describe how these controls reduce token exposure and unsafe cross-origin access. For an AI SaaS Product Engineer role, connect this to SaaS reliability and user data protection without claiming full compliance readiness.",
+    "expected": { "cvEvidenceTerms": ["httpOnly", "CSRF", "WebSocket origin"], "jdEvidenceTerms": ["security", "SaaS", "user data"], "starTerms": ["Situation", "Task", "Action", "Result"], "roleTerms": ["AI SaaS Product Engineer", "SaaS", "security"], "nzTerms": [], "adaptiveTerms": ["concrete", "without claiming", "reduce"], "forbiddenClaims": ["fully GDPR compliant", "enterprise certified security", "bank-grade encryption"] }
+  }
+]

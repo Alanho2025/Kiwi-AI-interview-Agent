@@ -27,6 +27,7 @@ export const callDeepSeekJson = async ({
   systemInstruction = 'Return valid JSON only. No prose.',
   fallback = {},
   maxRetries = 1,
+  usageMetadata = {},
 } = {}) => {
   let lastError = null;
 
@@ -34,7 +35,7 @@ export const callDeepSeekJson = async ({
     try {
       const { content, usage } = await callDeepSeek(prompt, systemInstruction, { skipAutoRecord: true });
       // Record with distinct action so we can distinguish JSON-wrapper calls
-      autoRecordUsage(usage, 'callDeepSeekJson');
+      await autoRecordUsage(usage, 'callDeepSeekJson', { operation: 'llm_json', ...usageMetadata });
       const parsed = parseJsonSafely(content, null);
       if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
         return parsed;

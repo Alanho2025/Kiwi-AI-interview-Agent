@@ -12,13 +12,7 @@
 import { extractCvSections } from './cvSectionParser.js';
 import { buildCvEvidenceProfile } from './cvEvidenceProfileBuilder.js';
 import { buildCvAnalysis } from './cvAnalysisBuilderService.js';
-
-const COMMON_SKILLS = [
-  'c#', '.net', 'python', 'java', 'javascript', 'typescript', 'react', 'node', 'node.js', 'express', 'sql', 'postgresql', 'mongodb',
-  'aws', 'azure', 'docker', 'kubernetes', 'linux', 'networking', 'troubleshooting', 'git', 'html', 'css', 'tailwind',
-  'machine learning', 'data analysis', 'power bi', 'excel', 'reporting', 'api', 'rest', 'ci/cd', 'agile', 'scrum',
-  'testing', 'pytest', 'jest', 'pandas', 'numpy', 'spark',
-];
+import { CV_TECHNICAL_SKILLS } from './cvSkillTaxonomy.js';
 
 const normalizeText = (text = '') => String(text || '').replace(/\s+/g, ' ').trim();
 const normalizeLineBreaks = (text = '') => String(text || '').replace(/\r/g, '');
@@ -44,24 +38,36 @@ const extractContactInfo = (text = '') => ({
 
 const escapeRegex = (value = '') => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-const skillPattern = (skill = '') => {
-  if (skill === 'node.js') return /(^|[^a-z0-9+#.])node(?:\.js)?([^a-z0-9+#.]|$)/i;
-  if (skill === 'api') return /(^|[^a-z0-9+#.])apis?([^a-z0-9+#.]|$)/i;
-  return new RegExp(`(^|[^a-z0-9+#.])${escapeRegex(skill)}([^a-z0-9+#.]|$)`, 'i');
+const skillPattern = (alias = '') => {
+  if (alias === 'node.js' || alias === 'node js') return /(^|[^a-z0-9+#.])node(?:\.js)?([^a-z0-9+#.]|$)/i;
+  if (alias === 'api' || alias === 'apis') return /(^|[^a-z0-9+#.])apis?([^a-z0-9+#.]|$)/i;
+  return new RegExp(`(^|[^a-z0-9+#.])${escapeRegex(alias)}([^a-z0-9+#.]|$)`, 'i');
 };
 
 const extractSkillItems = (text = '') => {
-  return COMMON_SKILLS.filter((skill) => skillPattern(skill).test(text)).map((skill) => ({
-    label: skill,
-    sourceType: 'keyword_match',
-    confidence: 0.7,
-  }));
+  return CV_TECHNICAL_SKILLS
+    .map((skill) => {
+      const matchedIndexes = skill.aliases
+        .map((alias) => text.search(skillPattern(alias)))
+        .filter((index) => index >= 0);
+      return matchedIndexes.length
+        ? { skill, firstIndex: Math.min(...matchedIndexes) }
+        : null;
+    })
+    .filter(Boolean)
+    .sort((left, right) => left.firstIndex - right.firstIndex)
+    .map(({ skill }) => skill)
+    .map((skill) => ({
+      label: skill.label,
+      sourceType: 'taxonomy_keyword_match',
+      confidence: 0.7,
+    }));
 };
 
 const sectionTextByKey = (sections = [], key) => sections.find((section) => section.key === key)?.content || '';
 
 const buildEvidenceMap = (sections = [], skillItems = []) => skillItems.map((skill) => {
-  const sourceSection = sections.find((section) => section.content.toLowerCase().includes(skill.label)) || null;
+  const sourceSection = sections.find((section) => section.content.toLowerCase().includes(String(skill.label || '').toLowerCase())) || null;
   return {
     label: skill.label,
     sourceSection: sourceSection?.key || 'full_text',
@@ -88,7 +94,7 @@ const buildWarnings = (sections = [], skillItems = []) => {
   return warnings;
 };
 
-export const buildCvProfile = (text = '') => {
+export const buildCvProfile = (text = '', options = {}) => {
   const normalizedText = normalizeLineBreaks(text);
   const sections = extractCvSections(normalizedText);
   const skillItems = extractSkillItems(normalizedText);
@@ -112,11 +118,20 @@ export const buildCvProfile = (text = '') => {
     skills: skillItems,
     sections,
     evidenceMap,
+    parserMetadata: {
+      ...(options.parserMetadata || {}),
+      openSourceTools: {
+        ...(options.parserMetadata?.openSourceTools || {}),
+        ...(options.nlpSignals ? { spaCy: { enabled: true, used: true, model: options.nlpSignals.model } } : {}),
+      },
+    },
     warnings: buildWarnings(sections, skillItems),
     confidence: skillItems.length ? 0.72 : 0.48,
   };
 
-  const evidenceProfile = buildCvEvidenceProfile(profile, normalizedText);
+  const evidenceProfile = buildCvEvidenceProfile(profile, normalizedText, {
+    nlpSignals: options.nlpSignals,
+  });
 
   return {
     ...profile,

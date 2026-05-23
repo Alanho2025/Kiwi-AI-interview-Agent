@@ -6,7 +6,7 @@
  * - Add formal tool names to all emitted TTS messages.
  */
 
-import { synthesizeSpeech } from './azureSpeechService.js';
+import { synthesizeSpeech } from './ttsProviderRouter.js';
 import { AGENT_TOOL_NAMES } from '../../constants/agentToolNames.js';
 
 export const streamAssistantSpeech = async ({
@@ -16,6 +16,7 @@ export const streamAssistantSpeech = async ({
   bargeInController,
   index = 0,
   speechToken = null,
+  usageContext = null,
 } = {}) => {
   const cleanText = String(text || '').trim();
   if (!cleanText || !sendJson) return null;
@@ -23,7 +24,7 @@ export const streamAssistantSpeech = async ({
 
   try {
     console.log(`[TTS-TRACE] Requesting speech synthesis for text: "${cleanText.substring(0, 30)}..."`);
-    const synthesis = await synthesizeSpeech({ text: cleanText, voiceName });
+    const synthesis = await synthesizeSpeech({ text: cleanText, voiceName, usageContext });
     console.log(`[TTS-TRACE] Synthesis received, audio length: ${synthesis.audioBuffer.length} bytes`);
     if (speechToken && !bargeInController?.isTokenActive?.(speechToken)) {
       console.log(`[TTS-TRACE] Token inactive after synthesis, discarding audio.`);
@@ -37,6 +38,7 @@ export const streamAssistantSpeech = async ({
       contentType: synthesis.contentType,
       voiceName: synthesis.voiceName,
       outputFormat: synthesis.outputFormat,
+      provider: synthesis.provider,
       index,
       text: cleanText,
       timestamp: new Date().toISOString(),

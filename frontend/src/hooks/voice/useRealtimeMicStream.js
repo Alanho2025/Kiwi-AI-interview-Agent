@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { MICROPHONE_AUDIO_CONSTRAINTS } from '../useMicrophonePermission.js';
 
 const TARGET_SAMPLE_RATE = 16000;
@@ -48,11 +48,14 @@ export function useRealtimeMicStream({ onAudioChunk }) {
   const processorRef = useRef(null);
   const startedAtRef = useRef(0);
   const durationTimerRef = useRef(null);
+  const onAudioChunkRef = useRef(onAudioChunk);
   const [isStreaming, setIsStreaming] = useState(false);
   const [levelHistory, setLevelHistory] = useState([]);
   const [durationMs, setDurationMs] = useState(0);
   const modeRef = useRef({ sendAudio: true });
   const [mediaStream, setMediaStream] = useState(null);
+
+  onAudioChunkRef.current = onAudioChunk;
 
   const stopStream = useCallback(async () => {
     if (durationTimerRef.current) window.clearInterval(durationTimerRef.current);
@@ -90,7 +93,7 @@ export function useRealtimeMicStream({ onAudioChunk }) {
       const input = event.inputBuffer.getChannelData(0);
       const downsampled = downsampleBuffer(input, audioContext.sampleRate, TARGET_SAMPLE_RATE);
       if (modeRef.current.sendAudio) {
-        onAudioChunk?.(floatTo16BitPcm(downsampled));
+        onAudioChunkRef.current?.(floatTo16BitPcm(downsampled));
       }
       const rms = calculateRmsLevel(input);
       setLevelHistory((history) => [...history.slice(-41), Math.min(1, rms * 18)]);
@@ -111,9 +114,9 @@ export function useRealtimeMicStream({ onAudioChunk }) {
       setDurationMs(Math.round(performance.now() - startedAtRef.current));
     }, 250);
     return stream;
-  }, [onAudioChunk, stopStream]);
+  }, [stopStream]);
 
-  return {
+  return useMemo(() => ({
     isStreaming,
     levelHistory,
     durationMs,
@@ -121,5 +124,5 @@ export function useRealtimeMicStream({ onAudioChunk }) {
     startStream,
     stopStream,
     setSendAudio,
-  };
+  }), [isStreaming, levelHistory, durationMs, mediaStream, startStream, stopStream, setSendAudio]);
 }

@@ -13,6 +13,7 @@ import {
   createWebSocketUpgradeLimiter,
   isAllowedWebSocketOrigin,
   parseCookieAuth,
+  parseJwtAuthToken,
   rejectUpgrade,
 } from './webSocketSecurity.js';
 
@@ -30,8 +31,7 @@ export const sendJson = (socket, payload) => {
 };
 
 const parseAuthToken = (requestUrl, request = {}) => {
-  if (requestUrl.searchParams.has('token')) return null;
-  return parseCookieAuth(request);
+  return parseCookieAuth(request) || parseJwtAuthToken(requestUrl.searchParams.get('token') || '');
 };
 
 export const buildSocketContext = (request) => {
@@ -90,6 +90,12 @@ export function attachRealtimeVoiceSocketServer(server) {
       speechSession = createRealtimeSpeechSession({
         language: context.language,
         sampleRate: context.sampleRate,
+        usageContext: {
+          userId: context.auth.id,
+          sessionId: context.sessionId,
+          stage: 'interview',
+          source: 'realtime_voice_socket',
+        },
         onPartialTranscript: safeSend,
         onFinalTranscript: safeSend,
         onError: safeSend,

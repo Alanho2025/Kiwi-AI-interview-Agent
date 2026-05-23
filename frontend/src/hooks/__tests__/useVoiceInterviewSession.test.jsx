@@ -146,22 +146,33 @@ describe('useVoiceInterviewSession', () => {
   });
 
   it('starts the duplex socket and sends the current question through voice mode', async () => {
-    const { result } = renderHook(() => useVoiceInterviewSession({
-      enabled: true,
-      session: buildSession(),
-      sessionId: 'session-1',
-      isPaused: false,
-      isCompleted: false,
-      isSubmitting: false,
-    }));
+    vi.useFakeTimers();
+    try {
+      const { result } = renderHook(() => useVoiceInterviewSession({
+        enabled: true,
+        session: buildSession(),
+        sessionId: 'session-1',
+        isPaused: false,
+        isCompleted: false,
+        isSubmitting: false,
+      }));
 
-    await act(async () => {
-      await result.current.handleToggleRecording();
-    });
+      await act(async () => {
+        await result.current.handleToggleRecording();
+      });
 
-    expect(duplexSocketMock.connect).toHaveBeenCalledWith(expect.objectContaining({ sessionId: 'session-1' }));
-    expect(duplexSocketMock.speakText).toHaveBeenCalledWith('Why this role?');
-    expect(result.current.voiceMode).toBe('duplex');
+      expect(duplexSocketMock.connect).toHaveBeenCalledWith(expect.objectContaining({ sessionId: 'session-1' }));
+      expect(duplexSocketMock.speakText).not.toHaveBeenCalled();
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1200);
+      });
+
+      expect(duplexSocketMock.speakText).toHaveBeenCalledWith('Why this role?');
+      expect(result.current.voiceMode).toBe('duplex');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('does not expose batch upload handlers as active features', () => {

@@ -347,15 +347,23 @@ export const initializeTranscript = async ({ id, userId }) => {
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
 export const fetchSessionDependencies = async ({ id, cvFileId }) => {
-  const [plan, transcript, analysis, report, cvDocument] = await Promise.all([
+  const [plan, transcript, analysis, report, cvDocument, jobDescriptionInput] = await Promise.all([
     InterviewPlan.findOne({ sessionId: id }).lean(),
     SessionTranscript.findOne({ sessionId: id }).lean(),
     SessionAnalysis.findOne({ sessionId: id }).lean(),
     SessionReport.findOne({ sessionId: id }).lean(),
     cvFileId ? DocumentContent.findOne({ fileId: cvFileId }).lean() : Promise.resolve(null),
+    query(
+      `SELECT raw_text, redacted_text, created_at, updated_at
+       FROM job_description_inputs
+       WHERE session_id = $1
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [id]
+    ).then((result) => result.rows[0] || null),
   ]);
 
-  return { plan, transcript, analysis, report, cvDocument };
+  return { plan, transcript, analysis, report, cvDocument, jobDescriptionInput };
 };
 
 /**

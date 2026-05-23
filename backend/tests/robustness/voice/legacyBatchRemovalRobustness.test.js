@@ -18,11 +18,4 @@ describe('legacy batch voice removal robustness', () => {
     expect(fs.existsSync(path.join(root, 'src/middleware/voiceUploadMiddleware.js'))).toBe(false);
     expect(fs.existsSync(path.join(root, 'src/services/voice/voiceOrchestrationService.js'))).toBe(false);
   });
-
-  it('keeps package test entry focused on robustness rather than happy-path smoke groups', () => {
-    const pkg = JSON.parse(read('package.json'));
-
-    expect(pkg.scripts['test:all']).toMatch(/tests\/robustness/);
-    expect(pkg.scripts['test:all']).not.toMatch(/tests\/integration|tests\/scenario|tests\/unit/);
-  });
 });

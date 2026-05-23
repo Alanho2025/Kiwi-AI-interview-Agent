@@ -34,7 +34,7 @@ import { asyncHandler } from '../middleware/asyncHandler.js';
 import { logger, getRequestLogMeta } from '../utils/logger.js';
 import { createLatencyTrace } from '../utils/latencyTrace.js';
 import { processRealtimeVoiceTurn } from '../services/voice/realtimeVoiceTurnService.js';
-import { synthesizeSpeech } from '../services/voice/azureSpeechService.js';
+import { synthesizeSpeech } from '../services/voice/ttsProviderRouter.js';
 import { withSessionTurnLock } from '../utils/sessionTurnLock.js';
 
 const tryGenerateReportForCompletedSession = async (req, sessionId) => {
@@ -254,10 +254,23 @@ export const replyInterviewWithRealtimeVoiceStream = asyncHandler(async (req, re
 
   const onSentence = async (text, index) => {
     try {
-      const synthesis = await synthesizeSpeech({ text, voiceName });
+      const synthesis = await synthesizeSpeech({
+        text,
+        voiceName,
+        usageContext: {
+          userId: user.id,
+          sessionId,
+          stage: 'interview',
+          source: 'realtime_voice_turn_stream',
+        },
+      });
       const payload = {
         type: 'audio',
         base64: synthesis.audioBuffer.toString('base64'),
+        provider: synthesis.provider,
+        contentType: synthesis.contentType,
+        voiceName: synthesis.voiceName,
+        outputFormat: synthesis.outputFormat,
         index,
         text,
       };
@@ -375,9 +388,15 @@ export const synthesizeInterviewText = asyncHandler(async (req, res) => {
     return res.status(400).json(formatError('Text is required', 'VALIDATION_ERROR', 'Text to synthesize cannot be empty'));
   }
 
-  const result = await synthesizeSpeech({ 
-    text: cleanText, 
-    voiceName: String(voiceName || '').trim() || undefined 
+  const result = await synthesizeSpeech({
+    text: cleanText,
+    voiceName: String(voiceName || '').trim() || undefined,
+    usageContext: {
+      userId: user.id,
+      sessionId,
+      stage: 'interview',
+      source: 'interview_synthesize_endpoint',
+    },
   });
   
   logger.info('Synthesized text to speech', getRequestLogMeta(req, {
@@ -389,6 +408,9 @@ export const synthesizeInterviewText = asyncHandler(async (req, res) => {
     assistantAudio: {
       base64: result.audioBuffer.toString('base64'),
       contentType: result.contentType,
+      provider: result.provider,
+      voiceName: result.voiceName,
+      outputFormat: result.outputFormat,
     }
   }));
 });

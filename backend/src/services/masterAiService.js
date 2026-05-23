@@ -27,11 +27,13 @@ import { evaluateInterviewTurn, persistEvaluatorRecord } from './aiControl/inter
 import { buildTrajectoryStep, persistTrajectoryStep } from './aiControl/trajectoryService.js';
 import { executeReportAction } from './aiControl/reportActionExecutor.js';
 import { buildEvidenceBundle } from './aiControl/evidenceBundleService.js';
+import { resolveFastAnswerUnderstanding } from './aiControl/fastAnswerUnderstandingService.js';
 import { persistDynamicSlotState } from './aiControl/dynamicSlotService.js';
 import { buildReflectionRecord, shouldWriteReflection, persistReflectionRecord } from './aiControl/reflectionWriterService.js';
 import { persistUserCoachingMemory } from './aiControl/userCoachingMemoryService.js';
 import { rebuildBoundedMemory } from './aiControl/experienceMemoryService.js';
 import { enqueueBackgroundJob } from '../jobs/backgroundJobQueue.js';
+import { recordLocalUsage } from './aiUsageTrackingService.js';
 
 const persistControllerSnapshot = async ({ sessionId, decisionContext = null, evidenceBundle = null } = {}) => {
   await SessionAnalysis.findOneAndUpdate(
@@ -147,7 +149,16 @@ const runInterviewController = async ({ session, payload = {}, onSentence = null
     buildInterviewRetrievalInput({ session, payload, objective: 'bootstrap_interview_context' })
   ));
 
-  const environment = await measureAdaptiveStep(trace, 'adaptive.environment_build', () => buildInterviewEnvironment({ session, retrievalBundle: initialRetrievalBundle }));
+  const baseEnvironment = await measureAdaptiveStep(trace, 'adaptive.environment_build', () => buildInterviewEnvironment({ session, retrievalBundle: initialRetrievalBundle }));
+  const latestAnswerUnderstanding = await measureAdaptiveStep(trace, 'adaptive.fast_answer_understanding', () => resolveFastAnswerUnderstanding({
+    session,
+    environment: baseEnvironment,
+    answerText: payload.answer || baseEnvironment.latestAnswer?.text || '',
+  }));
+  const environment = {
+    ...baseEnvironment,
+    latestAnswerUnderstanding,
+  };
   const evaluatorOutput = await measureAdaptiveStep(trace, 'adaptive.turn_evaluation', () => evaluateInterviewTurn({ environment }));
   enqueueBackgroundJob('persist-evaluator-record', () => persistEvaluatorRecord({ sessionId: session.id, evaluation: evaluatorOutput }), { sessionId: session.id });
 
@@ -157,6 +168,7 @@ const runInterviewController = async ({ session, payload = {}, onSentence = null
     session,
     retrievalBundle: initialRetrievalBundle,
     latestEvaluation: evaluatorOutput,
+    latestAnswerUnderstanding,
   }));
   enqueueBackgroundJob('persist-controller-context', async () => {
     await persistDynamicSlotState({ sessionId: session.id, dynamicSlots: decisionContext.dynamicSlotState });
@@ -384,6 +396,22 @@ decisionType: AGENT_DECISION_TYPES.SELECT_ACTION,
     session,
     retrievalBundle,
   });
+  await Promise.all([
+    recordLocalUsage({
+      userId: session.userId,
+      sessionId: session.id,
+      stage: 'report_generated',
+      operation: 'local_parse',
+      metadata: { source: 'report_controller' },
+    }),
+    recordLocalUsage({
+      userId: session.userId,
+      sessionId: session.id,
+      stage: 'report_qa',
+      operation: 'local_parse',
+      metadata: { source: 'report_controller' },
+    }),
+  ]);
 
   await createDecisionRecord({
     sessionId: session.id,
@@ -477,6 +505,13 @@ export const runTask = async ({ taskType, sessionId, payload = {}, onSentence = 
       report: stored.report,
       analysisResult: session.analysisResult || {},
       retrievalBundle,
+    });
+    await recordLocalUsage({
+      userId: session.userId,
+      sessionId: session.id,
+      stage: 'report_qa',
+      operation: 'local_parse',
+      metadata: { source: 'manual_report_qa' },
     });
     const updated = await persistReportArtifact({ sessionId: session.id, report: stored.report, qaResult });
     return { report: stored.report, qaResult, stored: updated };

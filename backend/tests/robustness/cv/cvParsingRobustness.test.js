@@ -47,6 +47,37 @@ describe('CV parsing robustness', () => {
     expect(sections[0].content).toMatch(/food recommendation API/i);
   });
 
+  it('extracts expanded open-source NLP and data taxonomy skills from CV text', () => {
+    const profile = buildCvProfile(`Jordan Lee
+AI Engineer
+
+Skills
+Semantic Retrieval
+Vector Search
+Data Modelling
+Python`);
+
+    expect(skillLabels(profile)).toEqual(expect.arrayContaining([
+      'semantic retrieval',
+      'vector search',
+      'data modelling',
+      'python',
+    ]));
+  });
+
+  it('keeps skills-list evidence as weak supporting evidence', () => {
+    const profile = buildCvProfile(`Morgan Ng
+Software Developer
+
+Skills
+Python
+SQL`);
+
+    const skillEvidence = profile.evidenceProfile.evidenceItems.filter((item) => item.sourceType === 'skill');
+    expect(skillEvidence.map((item) => item.text)).toEqual(expect.arrayContaining(['Python', 'SQL']));
+    expect(skillEvidence.every((item) => item.evidenceStrength === 'weak')).toBe(true);
+  });
+
   it('normalizes mixed project and work evidence into separate downstream fields', () => {
     const normalized = buildNormalizedCvProfile({
       candidateName: 'Mia Wong',

@@ -6,7 +6,7 @@
  * - Emit formal tool names for report-friendly traces and logs.
  */
 
-import { createRealtimeSpeechSession } from './realtimeSpeechSessionService.js';
+import { createRoutedRealtimeSpeechSession } from './realtimeSpeechProviderRouter.js';
 import { streamAssistantSpeech } from './ttsStreamQueue.js';
 import { createBargeInController } from './bargeInController.js';
 import { createDuplexTurnCoordinator } from './duplexTurnCoordinator.js';
@@ -95,10 +95,16 @@ export const createDuplexVoiceAgentSession = ({
 
     sessionStartPromise = (async () => {
       const extraPhrases = buildSessionSpeechPhraseList(activeSession);
-      const newSession = createRealtimeSpeechSession({
+      const newSession = createRoutedRealtimeSpeechSession({
         language,
         sampleRate,
         extraPhrases,
+        usageContext: {
+          userId,
+          sessionId: activeSession?.id || session?.id,
+          stage: 'interview',
+          source: 'duplex_voice_stt',
+        },
         onPartialTranscript: (payload) => sendJson({
           ...payload,
           type: 'stt_partial',
@@ -124,7 +130,7 @@ export const createDuplexVoiceAgentSession = ({
         }),
         onSessionStarted: (payload) => sendJson({
           ...payload,
-          type: 'speech_session_started',
+          type: payload.type || 'speech_session_started',
           tool: AGENT_TOOL_NAMES.TRANSCRIBE_REALTIME_SPEECH,
         }),
         onSessionStopped: (payload) => sendJson({
@@ -138,6 +144,7 @@ export const createDuplexVoiceAgentSession = ({
       isSpeechSessionStarted = true;
       logger?.info?.('Duplex speech session started with phrase hints', {
         sessionId: activeSession?.id || session?.id,
+        sttProvider: newSession.providerName,
         phraseCount: extraPhrases.length,
       });
     })();
@@ -213,6 +220,12 @@ export const createDuplexVoiceAgentSession = ({
         bargeInController,
         index: Number(payload.index || 0),
         speechToken,
+        usageContext: {
+          userId,
+          sessionId: activeSession?.id || session?.id,
+          stage: 'interview',
+          source: 'duplex_speak_text',
+        },
       });
       bargeInController.finishAssistantSpeech(speechToken);
       sendJson({

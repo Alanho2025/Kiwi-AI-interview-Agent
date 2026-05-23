@@ -1,0 +1,90 @@
+[
+  {
+    "id": "empty-transcript-rejected",
+    "transcriptText": "",
+    "asrConfidence": 0.92,
+    "vad": { "speechDurationMs": 0, "sttSegmentCount": 0, "isFinal": true },
+    "expected": {
+      "ok": false,
+      "reason": "EMPTY_TRANSCRIPT",
+      "messageIncludes": ["try again"]
+    }
+  },
+  {
+    "id": "short-filler-rejected",
+    "transcriptText": "yeah",
+    "asrConfidence": 0.91,
+    "vad": { "speechDurationMs": 1200, "sttSegmentCount": 1, "isFinal": true },
+    "expected": {
+      "ok": false,
+      "reason": "TOO_SHORT_TRANSCRIPT",
+      "messageIncludes": ["short answer"]
+    }
+  },
+  {
+    "id": "low-confidence-rejected",
+    "transcriptText": "I improved the backend queue for the interview agent",
+    "asrConfidence": 0.31,
+    "vad": { "speechDurationMs": 4200, "sttSegmentCount": 1, "isFinal": true },
+    "expected": {
+      "ok": false,
+      "reason": "LOW_CONFIDENCE_TRANSCRIPT",
+      "messageIncludes": ["not confident", "repeat"]
+    }
+  },
+  {
+    "id": "medium-confidence-too-short-rejected",
+    "transcriptText": "I fixed the API issue",
+    "asrConfidence": 0.61,
+    "vad": { "speechDurationMs": 1400, "sttSegmentCount": 1, "isFinal": true },
+    "expected": {
+      "ok": false,
+      "reason": "MEDIUM_CONFIDENCE_INSUFFICIENT_EVIDENCE",
+      "messageIncludes": ["repeat", "detail"]
+    }
+  },
+  {
+    "id": "accented-clear-answer-accepted",
+    "transcriptText": "In my university team project I coordinated the backend voice agent, clarified blockers, and helped deliver the final demo successfully",
+    "asrConfidence": 0.72,
+    "vad": { "speechDurationMs": 9600, "sttSegmentCount": 2, "isFinal": true },
+    "expected": {
+      "ok": true,
+      "reason": "VALID_TRANSCRIPT",
+      "messageIncludes": []
+    }
+  },
+  {
+    "id": "domain-terms-accepted-when-clear",
+    "transcriptText": "I have not used Kafka in production, but I built a WebSocket backend with MongoDB and understand event driven design",
+    "asrConfidence": 0.82,
+    "vad": { "speechDurationMs": 8600, "sttSegmentCount": 2, "isFinal": true },
+    "expected": {
+      "ok": true,
+      "reason": "VALID_TRANSCRIPT",
+      "messageIncludes": []
+    }
+  },
+  {
+    "id": "non-final-vad-rejected",
+    "transcriptText": "I was responsible for the database design and",
+    "asrConfidence": 0.79,
+    "vad": { "speechDurationMs": 3000, "sttSegmentCount": 1, "isFinal": false },
+    "expected": {
+      "ok": false,
+      "reason": "NON_FINAL_VAD_TRANSCRIPT",
+      "messageIncludes": ["incomplete"]
+    }
+  },
+  {
+    "id": "no-final-stt-segment-rejected",
+    "transcriptText": "I worked on PostgreSQL database design for the project",
+    "asrConfidence": 0.83,
+    "vad": { "speechDurationMs": 5200, "sttSegmentCount": 0, "isFinal": true },
+    "expected": {
+      "ok": false,
+      "reason": "NO_FINAL_STT_SEGMENTS",
+      "messageIncludes": ["clearly", "try again"]
+    }
+  }
+]

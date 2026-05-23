@@ -11,8 +11,9 @@
 
 import crypto from 'crypto';
 import { formatSuccess } from '../utils/responseFormatter.js';
-import { extractTextFromCV } from '../services/fileService.js';
+import { extractCvTextWithMetadata } from '../services/fileService.js';
 import { buildCvProfile } from '../services/cv/cvProfileBuilderService.js';
+import { analyzeTextWithSpacy } from '../services/pythonNlpService.js';
 import { buildCvDisplayView } from '../services/cv/cvDisplayViewService.js';
 import { rebuildOwnedCvProfile, softDeleteOwnedCv, exportOwnedCvData } from '../services/cv/cvLifecycleService.js';
 import { saveReviewedCvProfile } from '../services/cv/cvReviewedProfileService.js';
@@ -23,18 +24,24 @@ import { saveBufferToLocalStorage } from '../services/storageService.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { badRequest, notFound } from '../utils/appError.js';
 import { logger, getRequestLogMeta } from '../utils/logger.js';
+import { recordLocalUsage } from '../services/aiUsageTrackingService.js';
 
 export const uploadCV = asyncHandler(async (req, res) => {
   if (!req.file) {
     throw badRequest('No file uploaded', 'Please upload a PDF or DOCX file');
   }
 
-  const text = await extractTextFromCV(req.file.buffer, req.file.mimetype);
+  const extraction = await extractCvTextWithMetadata(req.file.buffer, req.file.mimetype);
+  const text = extraction.text;
   if (!text) {
     throw badRequest('Text extraction failed', 'Could not extract readable text from the uploaded file');
   }
 
-  const cvProfile = buildCvProfile(text);
+  const nlpSignals = await analyzeTextWithSpacy({ kind: 'cv', text });
+  const cvProfile = buildCvProfile(text, {
+    parserMetadata: extraction.metadata,
+    nlpSignals,
+  });
 
   const user = await authService.resolveUserFromRequest(req);
   const checksum = crypto.createHash('sha256').update(req.file.buffer).digest('hex');
@@ -83,6 +90,17 @@ export const uploadCV = asyncHandler(async (req, res) => {
   });
 
   const fileMetadata = await getCvRecordById(fileId, user.id);
+  await recordLocalUsage({
+    userId: user.id,
+    stage: 'cv_parse',
+    operation: 'local_parse',
+    metadata: {
+      cvId: fileId,
+      fileSizeBytes: req.file.size,
+      parser: extraction.metadata?.parser || null,
+      parseConfidence: cvProfile.confidence || null,
+    },
+  });
   await createAuditLog({
     actorUserId: user.id,
     targetUserId: user.id,
