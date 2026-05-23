@@ -10,6 +10,7 @@ import * as speechSdk from 'microsoft-cognitiveservices-speech-sdk';
 import { buildSpeechPhraseList } from '../../config/speechPhraseList.js';
 import { normalizeTranscript } from './transcriptNormalizer.js';
 import { buildConfidenceGate } from './speechConfidenceGate.js';
+import { recordSpeechUsage } from '../aiUsageTrackingService.js';
 
 const DEFAULT_LANGUAGE = 'en-NZ';
 const DEFAULT_SAMPLE_RATE = 16000;
@@ -46,6 +47,7 @@ export function createRealtimeSpeechSession({
   language = DEFAULT_LANGUAGE,
   sampleRate = DEFAULT_SAMPLE_RATE,
   extraPhrases = [],
+  usageContext = null,
   onPartialTranscript,
   onFinalTranscript,
   onError,
@@ -62,6 +64,8 @@ export function createRealtimeSpeechSession({
   const audioConfig = speechSdk.AudioConfig.fromStreamInput(pushStream);
   const recognizer = new speechSdk.SpeechRecognizer(speechConfig, audioConfig);
   let isStopping = false;
+  let audioBytesReceived = 0;
+  let finalSegmentCount = 0;
   console.log(`[STT-TRACE] Created Azure Speech Recognizer for ${language}`);
   const phraseGrammar = speechSdk.PhraseListGrammar.fromRecognizer(recognizer);
 
@@ -94,6 +98,7 @@ export function createRealtimeSpeechSession({
     }
     console.log(`[STT-TRACE] Final transcript: "${rawText}"`);
     const normalized = normalizeTranscript(rawText);
+    finalSegmentCount += 1;
     const confidence = extractConfidence(event.result);
     const confidenceGate = buildConfidenceGate(confidence);
     onFinalTranscript?.({
@@ -154,6 +159,7 @@ export function createRealtimeSpeechSession({
     if (!chunk) return;
     if (chunksReceived === 0) console.log(`[STT-TRACE] First audio chunk written to push stream.`);
     chunksReceived++;
+    audioBytesReceived += Buffer.byteLength(chunk);
     pushStream.write(chunk);
   };
 
@@ -166,6 +172,24 @@ export function createRealtimeSpeechSession({
       setTimeout(() => {
         try {
           recognizer.stopContinuousRecognitionAsync(() => {
+            if (usageContext?.userId && audioBytesReceived > 0) {
+              const audioSeconds = audioBytesReceived / ((Number(sampleRate) || DEFAULT_SAMPLE_RATE) * 2);
+              recordSpeechUsage({
+                userId: usageContext.userId,
+                sessionId: usageContext.sessionId || null,
+                stage: usageContext.stage || 'interview',
+                operation: 'speech_to_text',
+                audioSeconds,
+                audioBytes: audioBytesReceived,
+                requestCount: 1,
+                metadata: {
+                  language,
+                  sampleRate,
+                  finalSegmentCount,
+                  source: usageContext.source || 'azure_realtime_speech',
+                },
+              }).catch((error) => console.warn('Failed to record realtime STT usage:', error?.message));
+            }
             recognizer.close();
             resolve();
           }, () => {

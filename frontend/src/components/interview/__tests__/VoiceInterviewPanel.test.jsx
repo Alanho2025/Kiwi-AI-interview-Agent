@@ -114,7 +114,7 @@ describe('VoiceInterviewPanel', () => {
     expect(screen.queryByText('Edit transcript')).not.toBeInTheDocument();
   });
 
-  it('offers recovery actions when speech recognition is unclear', () => {
+  it('offers text recovery when speech recognition is unclear after automatic voice retry', () => {
     const onSubmitBackup = vi.fn();
     const handleResetShell = vi.fn();
 
@@ -137,7 +137,7 @@ describe('VoiceInterviewPanel', () => {
     );
 
     expect(screen.getByText('Voice did not catch that clearly')).toBeInTheDocument();
-    expect(screen.getByText('Retry voice')).toBeInTheDocument();
+    expect(screen.queryByText('Retry voice')).not.toBeInTheDocument();
     expect(screen.getByText('Answer by text')).toBeInTheDocument();
 
     fireEvent.click(screen.getByText('Answer by text'));
@@ -148,6 +148,55 @@ describe('VoiceInterviewPanel', () => {
 
     expect(handleResetShell).toHaveBeenCalled();
     expect(onSubmitBackup).toHaveBeenCalledWith('I used SQL to clean the dataset and checked the result with tests.');
+  });
+
+  it('keeps text recovery disabled when no backup submit handler exists', () => {
+    render(
+      <VoiceInterviewPanel
+        isPaused={false}
+        isCompleted={false}
+        isSubmitting={false}
+        onPause={vi.fn()}
+        onRepeat={vi.fn()}
+        onEnd={vi.fn()}
+        voiceShell={buildVoiceShell({
+          lastTranscriptRejection: {
+            message: 'Voice recognition was not confident it heard that correctly.',
+          },
+        })}
+      />
+    );
+
+    expect(screen.getByText('Answer by text')).toBeDisabled();
+  });
+
+  it('offers manual voice retry for connection issues that are not transcript auto-retries', () => {
+    const handleRetryVoice = vi.fn();
+
+    render(
+      <VoiceInterviewPanel
+        isPaused={false}
+        isCompleted={false}
+        isSubmitting={false}
+        onPause={vi.fn()}
+        onRepeat={vi.fn()}
+        onEnd={vi.fn()}
+        onSubmitBackup={vi.fn()}
+        voiceShell={buildVoiceShell({
+          voiceState: 'error',
+          voiceStatus: {
+            type: 'error',
+            title: 'Voice failed',
+            message: 'Could not start duplex voice.',
+          },
+          handleRetryVoice,
+        })}
+      />
+    );
+
+    fireEvent.click(screen.getByText('Retry voice'));
+
+    expect(handleRetryVoice).toHaveBeenCalledTimes(1);
   });
 
   it('shows runtime connection guidance during a slow voice session', () => {

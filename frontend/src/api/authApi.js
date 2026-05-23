@@ -9,7 +9,7 @@
  * - Prefer composition and small helpers over repeated inline logic.
  */
 
-import { apiClient, clearCsrfToken, clearStoredAuthToken } from './client.js';
+import { apiClient, clearCsrfToken, clearStoredAuthToken, storeAuthToken } from './client.js';
 
 /**
  * Purpose: Execute the main responsibility for getGoogleClientConfig.
@@ -53,6 +53,7 @@ export const loginWithGoogle = async (idToken, { termsAccepted = false } = {}) =
     credentials: 'include',
   });
 
+  storeAuthToken(data.token);
   return data;
 };
 

@@ -33,7 +33,7 @@ const cookieOptions = {
   httpOnly: true,
   sameSite: isProduction ? 'none' : 'lax',
   secure: isProduction,
-  maxAge: 24 * 60 * 60 * 1000,
+  maxAge: 30 * 24 * 60 * 60 * 1000,
   path: '/'
 };
 
@@ -175,6 +175,7 @@ export const googleLogin = async (req, res) => {
       res,
       {
         user: serializeUser(user),
+        token,
       },
       'Google login successful'
     );

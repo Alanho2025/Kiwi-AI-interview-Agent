@@ -28,6 +28,26 @@ const buildCvParseLabel = (confidence) => {
   return 'Review recommended';
 };
 
+const countEvidenceStrength = (selectedCV) => {
+  const evidenceItems = selectedCV?.profile?.evidenceProfile?.evidenceItems || [];
+  return evidenceItems.reduce((summary, item) => {
+    const key = item?.evidenceStrength || 'weak';
+    return { ...summary, [key]: (summary[key] || 0) + 1 };
+  }, { strong: 0, partial: 0, weak: 0 });
+};
+
+const getParserTools = (selectedCV) => {
+  const metadata = selectedCV?.profile?.parserMetadata || {};
+  const tools = metadata.openSourceTools || {};
+  const activeTools = Object.entries(tools)
+    .filter(([, value]) => value?.used)
+    .map(([key]) => key);
+  return {
+    parser: metadata.parser || 'default parser',
+    activeTools,
+  };
+};
+
 const normalizeList = (items = []) => (Array.isArray(items) ? items : [])
   .map((item) => (typeof item === 'string' ? item : item?.label || item?.name || ''))
   .map((item) => item.trim())
@@ -191,6 +211,8 @@ export function CVManagementCard({
   const activeCvWarnings = selectedCV?.parseWarnings || selectedCV?.warnings || [];
   const cvReview = selectedCV ? buildCvReviewViewModel(selectedCV) : null;
   const activeReviewProfile = cvReviewProfile || cvReview?.reviewProfile || {};
+  const evidenceStrength = countEvidenceStrength(selectedCV);
+  const parserTools = getParserTools(selectedCV);
 
   const processUpload = async (file) => {
     setIsUploading(true);
@@ -331,6 +353,24 @@ export function CVManagementCard({
               <p className="mt-3 text-xs text-emerald-800">No CV parser warnings were raised.</p>
             )}
 
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="rounded-xl border border-emerald-100 glass p-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-faint">Parser</p>
+                <p className="mt-2 text-sm font-semibold text-primary">{parserTools.parser}</p>
+                <p className="mt-1 text-xs leading-5 text-muted">
+                  {parserTools.activeTools.length ? `Open-source tools used: ${parserTools.activeTools.join(', ')}` : 'Open-source NLP tools are currently inactive or not needed for this file.'}
+                </p>
+              </div>
+              <div className="rounded-xl border border-emerald-100 glass p-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-faint">Evidence strength</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <span className="rounded-lg bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800">Strong {evidenceStrength.strong || 0}</span>
+                  <span className="rounded-lg bg-sky-100 px-2.5 py-1 text-xs font-semibold text-sky-800">Partial {evidenceStrength.partial || 0}</span>
+                  <span className="rounded-lg bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">Weak {evidenceStrength.weak || 0}</span>
+                </div>
+              </div>
+            </div>
+
             <div className="mt-4 rounded-xl border border-emerald-100 glass p-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
@@ -381,7 +421,7 @@ export function CVManagementCard({
                   </div>
                   <div className="flex w-full items-center gap-2 sm:w-auto sm:justify-end">
                     <Button
-                      variant={selectedRecent === cv.id ? 'primary' : 'ghost'}
+                      variant={selectedRecent === cv.id ? 'primary' : 'outline'}
                       size="sm"
                       disabled={deletingCvId === cv.id}
                       onClick={() => {
@@ -390,7 +430,7 @@ export function CVManagementCard({
                       }}
                       className="flex-1 sm:flex-none"
                     >
-                      Use
+                      Use this CV
                     </Button>
                     <Button
                       type="button"

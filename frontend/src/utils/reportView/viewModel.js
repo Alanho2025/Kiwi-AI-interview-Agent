@@ -27,6 +27,7 @@ export const buildReportViewModel = (reportData) => {
   const qaDiagnostics = qa.diagnostics || {};
   const candidateFeedback = report.candidateFeedback || {};
   const nzWorkplaceFit = report.nzWorkplaceFit || {};
+  const commercialStressTest = reportData?.commercialStressTest || report.commercialStressTest || null;
 
   return {
     report,
@@ -36,6 +37,7 @@ export const buildReportViewModel = (reportData) => {
     qaDiagnostics,
     candidateFeedback,
     nzWorkplaceFit,
+    commercialStressTest,
     takeaway: candidateFeedback.overallTakeaway || buildTakeaway({ report, qa, evidenceDiagnostics }),
     scoreBand: candidateFeedback.scoreBand || getScoreBand(Number(report.scores?.overall || 0)),
     generationSource: candidateFeedback.generationSource || '',

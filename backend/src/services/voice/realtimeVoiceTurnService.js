@@ -9,7 +9,7 @@
 import { appendTranscriptTurn, updateLatestTranscriptTurnMetadata, updateSession } from '../sessionService.js';
 import { runTask } from '../masterAiService.js';
 import { saveBufferToLocalStorage } from '../storageService.js';
-import { synthesizeSpeech } from './azureSpeechService.js';
+import { synthesizeSpeech } from './ttsProviderRouter.js';
 import { getLatestQuestionForSession } from '../session/sessionQuestionService.js';
 import { badRequest } from '../../utils/appError.js';
 import { applyElapsedSeconds, saveInterviewAnswerWithDetails } from '../interview/interviewSessionService.js';
@@ -61,6 +61,7 @@ export const processRealtimeVoiceTurn = async ({
   tryGenerateReportForCompletedSession,
   req = null,
   onSentence = null,
+  synthesizeAssistantSpeech = synthesizeSpeech,
 }) => {
   const normalizedAnswer = String(transcriptText || '').trim();
   const transcriptGate = validateRealtimeVoiceTranscript({ transcriptText: normalizedAnswer, asrConfidence, vad });
@@ -168,7 +169,16 @@ export const processRealtimeVoiceTurn = async ({
       const questionId = latestAiTurn?.questionId || null;
       enqueueBackgroundJob('archive-realtime-assistant-audio', async () => {
         try {
-          const synthesis = await synthesizeSpeech({ text: assistantText, voiceName });
+          const synthesis = await synthesizeAssistantSpeech({
+            text: assistantText,
+            voiceName,
+            usageContext: {
+              userId,
+              sessionId: session.id,
+              stage: 'interview',
+              source: 'realtime_background_archive',
+            },
+          });
           const savedOutputAudio = await saveBufferToLocalStorage({
             buffer: synthesis.audioBuffer,
             originalFilename: 'assistant-realtime-reply.mp3',
@@ -185,7 +195,16 @@ export const processRealtimeVoiceTurn = async ({
       }, { sessionId: session.id, questionId });
     } else {
       try {
-        const synthesis = await trace.measure('tts_synthesis', () => synthesizeSpeech({ text: assistantText, voiceName }));
+        const synthesis = await trace.measure('tts_synthesis', () => synthesizeAssistantSpeech({
+          text: assistantText,
+          voiceName,
+          usageContext: {
+            userId,
+            sessionId: session.id,
+            stage: 'interview',
+            source: 'realtime_voice_turn',
+          },
+        }));
         trace.mark('adaptive.tts_first_audio', { mode: 'full_synthesis' });
         const aiTurns = updatedSession?.transcript?.filter((turn) => turn.role === 'ai') || [];
         const latestAiTurn = aiTurns[aiTurns.length - 1] || null;

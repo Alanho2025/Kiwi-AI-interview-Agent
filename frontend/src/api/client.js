@@ -13,6 +13,7 @@ const API_NAMESPACE = '/api';
 
 const CSRF_HEADER_NAME = 'X-CSRF-Token';
 const AUTH_TOKEN_STORAGE_KEYS = ['kiwi_auth_token', 'authToken'];
+const VERCEL_HOST_SUFFIX = '.vercel.app';
 
 let csrfToken = '';
 let csrfTokenPromise = null;
@@ -26,6 +27,25 @@ export const clearStoredAuthToken = () => {
   }
 
   AUTH_TOKEN_STORAGE_KEYS.forEach((key) => window.localStorage.removeItem(key));
+};
+
+export const getStoredAuthToken = () => {
+  if (typeof window === 'undefined') {
+    return '';
+  }
+
+  return AUTH_TOKEN_STORAGE_KEYS
+    .map((key) => window.localStorage.getItem(key))
+    .find(Boolean) || '';
+};
+
+export const storeAuthToken = (token) => {
+  if (typeof window === 'undefined' || !token) {
+    return;
+  }
+
+  window.localStorage.setItem(AUTH_TOKEN_STORAGE_KEYS[0], token);
+  window.localStorage.removeItem(AUTH_TOKEN_STORAGE_KEYS[1]);
 };
 
 /**
@@ -50,7 +70,20 @@ const trimLeadingSlashes = (value) => String(value || '').replace(/^\/+/, '');
  * Resolve the configured backend origin.
  * In local development, an empty env value keeps using Vite's /api proxy.
  */
-export const getApiOrigin = () => trimTrailingSlashes(import.meta.env.VITE_API_BASE_URL || '');
+const shouldUseSameOriginApiProxy = () => {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  return Boolean(import.meta.env.PROD)
+    && import.meta.env.VITE_USE_EXTERNAL_API_BASE_URL !== 'true'
+    && window.location.hostname.endsWith(VERCEL_HOST_SUFFIX);
+};
+
+const getConfiguredApiBaseUrl = () =>
+  shouldUseSameOriginApiProxy() ? '' : import.meta.env.VITE_API_BASE_URL;
+
+export const getApiOrigin = () => trimTrailingSlashes(getConfiguredApiBaseUrl() || '');
 
 /**
  * Normalize the configured backend URL so HTTP calls always include /api.
@@ -73,7 +106,7 @@ export const normalizeBaseUrl = (value) => {
  * Build a full API URL for fetch requests.
  */
 export const buildApiUrl = (endpoint = '') => {
-  const baseUrl = normalizeBaseUrl(import.meta.env.VITE_API_BASE_URL);
+  const baseUrl = normalizeBaseUrl(getConfiguredApiBaseUrl());
   const cleanEndpoint = trimLeadingSlashes(endpoint);
   return cleanEndpoint ? `${baseUrl}/${cleanEndpoint}` : baseUrl;
 };
@@ -112,8 +145,17 @@ const buildCsrfHeaders = async (method) => {
     return {};
   }
 
+  if (getStoredAuthToken()) {
+    return {};
+  }
+
   const token = await loadCsrfToken();
   return token ? { [CSRF_HEADER_NAME]: token } : {};
+};
+
+const buildAuthHeaders = () => {
+  const token = getStoredAuthToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
 /**
@@ -146,6 +188,7 @@ export const apiClient = async (endpoint, options = {}) => {
     ...options,
     headers: {
       ...defaultHeaders,
+      ...buildAuthHeaders(),
       ...(await buildCsrfHeaders(method)),
       ...options.headers,
     },
@@ -188,6 +231,7 @@ export const apiClientStream = async (endpoint, options = {}) => {
     ...options,
     headers: {
       ...defaultHeaders,
+      ...buildAuthHeaders(),
       ...(await buildCsrfHeaders(method)),
       ...options.headers,
     },

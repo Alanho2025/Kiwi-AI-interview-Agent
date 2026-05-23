@@ -1,6 +1,6 @@
 /**
  * File responsibility: Reusable UI component.
- * Shows DeepSeek API token usage summary and recent session breakdown.
+ * Shows compact AI service usage and execution cost summary.
  * Placed below QuickTips on the home page.
  */
 
@@ -90,11 +90,19 @@ export function TokenUsageSummary() {
     );
   }
 
-  if (!summary || summary.totalTokens === 0) {
+  const aiSummary = summary?.ai || {};
+  const hasAiUsage = Boolean(aiSummary.measuredSessions || aiSummary.callCount || aiSummary.totalCost);
+  const displaySummary = hasAiUsage ? aiSummary : summary || {};
+  const totalTokens = displaySummary.totalTokens ?? summary?.totalTokens ?? 0;
+  const totalCost = displaySummary.totalCost ?? summary?.totalCost ?? 0;
+  const measuredSessions = displaySummary.measuredSessions ?? recentSessions.length;
+  const lastSessionCost = recentSessions[0]?.estimatedCost ?? 0;
+
+  if (!summary || (totalTokens === 0 && totalCost === 0 && measuredSessions === 0)) {
     return (
       <div className="glass rounded-2xl p-5 sm:p-6">
-        <h3 className="mb-3 text-sm font-bold text-primary">AI Token Usage</h3>
-        <p className="text-xs text-faint">No DeepSeek API calls recorded yet. Start an interview to see usage.</p>
+        <h3 className="mb-3 text-sm font-bold text-primary">AI Usage & Execution Cost</h3>
+        <p className="text-xs text-faint">No measured AI usage yet. Start an interview to see execution cost.</p>
       </div>
     );
   }
@@ -102,23 +110,26 @@ export function TokenUsageSummary() {
   return (
     <div className="glass rounded-2xl p-5 sm:p-6">
       <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-sm font-bold text-primary">AI Token Usage</h3>
-        <span className="text-[10px] font-bold uppercase tracking-widest text-accent">DeepSeek</span>
+        <h3 className="text-sm font-bold text-primary">AI Usage & Execution Cost</h3>
+        <span className="text-[10px] font-bold uppercase tracking-widest text-accent">DeepSeek + Azure</span>
       </div>
 
-      {/* Summary row */}
-      <div className="mb-3 grid grid-cols-3 gap-2">
+      <div className="mb-3 grid grid-cols-2 gap-2">
         <div className="rounded-xl border border-theme bg-chip p-2 text-center">
-          <div className="text-xs font-bold text-primary">{formatTokens(summary.totalTokens)}</div>
-          <div className="text-[10px] text-faint">Tokens</div>
+          <div className="text-xs font-bold text-primary">{formatCost(totalCost)}</div>
+          <div className="text-[10px] text-faint">Total cost</div>
         </div>
         <div className="rounded-xl border border-theme bg-chip p-2 text-center">
-          <div className="text-xs font-bold text-primary">{formatCost(summary.totalCost)}</div>
-          <div className="text-[10px] text-faint">Est. cost</div>
+          <div className="text-xs font-bold text-primary">{formatTokens(totalTokens)}</div>
+          <div className="text-[10px] text-faint">LLM tokens</div>
         </div>
         <div className="rounded-xl border border-theme bg-chip p-2 text-center">
-          <div className="text-xs font-bold text-primary">{summary.callCount}</div>
-          <div className="text-[10px] text-faint">API calls</div>
+          <div className="text-xs font-bold text-primary">{measuredSessions}</div>
+          <div className="text-[10px] text-faint">Sessions</div>
+        </div>
+        <div className="rounded-xl border border-theme bg-chip p-2 text-center">
+          <div className="text-xs font-bold text-primary">{formatCost(lastSessionCost)}</div>
+          <div className="text-[10px] text-faint">Last session</div>
         </div>
       </div>
 
@@ -137,7 +148,7 @@ export function TokenUsageSummary() {
 
       {/* Pricing footnote */}
       <div className="mt-3 border-t border-theme pt-2 text-[9px] text-primary/20">
-        pricing: input $0.14/1M tok · output $0.28/1M tok
+        Includes measured LLM tokens and speech usage. Detailed breakdown appears in reports.
       </div>
     </div>
   );

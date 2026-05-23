@@ -26,6 +26,7 @@ import {
   buildRecentActivity,
   buildSessionHistoryRows,
   getUserInitials,
+  resolveSessionOpenPath,
 } from '../utils/sessionDisplay.js';
 import {
   DEFAULT_SESSION_SETTINGS,
@@ -174,7 +175,7 @@ export default function HomePage() {
   };
 
   const handleOpenSession = (session) => {
-    navigate(session.hasReport && session.displayStatus === 'Completed' ? `/report/${session.id}` : `/interview/${session.id}`);
+    navigate(resolveSessionOpenPath(session));
   };
 
   const handleDeleteSession = async (sessionId) => {

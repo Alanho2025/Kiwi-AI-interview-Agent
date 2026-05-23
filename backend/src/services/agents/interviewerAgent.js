@@ -322,6 +322,16 @@ MODE_BOUNDARY:
   const reflectionText = reflections.length > 0 
     ? `\nPerformance Reflections to obey:\n${reflections.slice(-2).map(r => r.lesson || r.summary).join('\n')}` 
     : '';
+  const answerUnderstanding = environment?.latestAnswerUnderstanding || decisionContext?.latestAnswerUnderstanding || decisionContext?.evaluatorState?.fastAnswerUnderstanding || null;
+  const answerUnderstandingText = answerUnderstanding
+    ? `\nFast Answer Understanding:
+- Intent: ${answerUnderstanding.intent || 'unknown'}
+- Key facts to preserve: ${(answerUnderstanding.keyFacts || []).slice(0, 5).join('; ') || 'none'}
+- Technologies/entities mentioned: ${(answerUnderstanding.technologies || answerUnderstanding.mentionedEntities || []).slice(0, 6).join(', ') || 'none'}
+- Missing evidence to probe: ${(answerUnderstanding.missingEvidence || []).slice(0, 4).join(', ') || 'none'}
+- Suggested follow-up goal: ${answerUnderstanding.suggestedFollowUp?.questionGoal || 'stay grounded in the latest answer'}
+Use these facts to avoid a generic next question. Do not mention this analysis to the candidate.`
+    : '';
 
   const prompt = `Here is the interview context:
 Candidate's last answer:
@@ -331,6 +341,7 @@ Strategic Intent of your next turn: [${actionType}]
 Target Topic: "${baseQuestion.topic}"
 Base Goal: "${baseQuestion.text}"
 ${reflectionText}
+${answerUnderstandingText}
 ${retrievedTexts ? `\nReference Context from Knowledge Base:\n- ${retrievedTexts}` : ''}
 
 INSTRUCTIONS FOR [${actionType}]:
@@ -349,12 +360,16 @@ GENERAL GUIDELINES:
 Generate your verbal response now:`;
 
   if (!onSentence) {
-    const result = await callDeepSeek(prompt, systemInstruction);
+    const result = await callDeepSeek(prompt, systemInstruction, {
+      usageMetadata: { stage: 'interview', operation: 'llm_chat', feature: 'interviewer_response' },
+    });
     return result.content;
   }
 
 
-  const stream = callDeepSeekStream(prompt, systemInstruction);
+  const stream = callDeepSeekStream(prompt, systemInstruction, {
+    usageMetadata: { stage: 'interview', operation: 'llm_chat', feature: 'interviewer_stream_response' },
+  });
   let fullText = '';
   let currentSentence = '';
   let sentenceIndex = 0;

@@ -105,6 +105,7 @@ export const mapSessionRow = (row) => ({
   userId: row.user_id,
   status: row.status,
   mode: row.mode,
+  cvFileId: row.cv_file_id,
   targetRole: row.target_role,
   candidateName: row.candidate_name,
   totalQuestions: row.total_questions,

@@ -111,7 +111,7 @@ export default function LandingPage() {
         </h1>
 
         <p className="mt-6 max-w-2xl text-lg leading-relaxed sm:text-xl" style={{ color: 'var(--text-muted)' }}>
-          Upload your CV, paste the job description, and practice with a voice AI that coaches you turn-by-turn — then get a detailed performance report.
+          Upload your CV, paste the job description, and practice with a voice AI that coaches you turn-by-turn - then get a detailed performance report.
         </p>
 
         <div className="mt-10 flex flex-col gap-4 sm:flex-row">
@@ -130,7 +130,7 @@ export default function LandingPage() {
           <span>·</span>
           <span>Voice-first AI coaching</span>
           <span>·</span>
-          <span>100% free to practice</span>
+          <span>Free practice access</span>
         </div>
 
         {/* Hero video */}
@@ -159,7 +159,7 @@ export default function LandingPage() {
         <div className="grid gap-8 sm:grid-cols-3">
           {[
             { step: '01', icon: Upload, title: 'Upload & Match', desc: 'Upload your CV and paste the job description. Our AI instantly compares your skills against the role requirements and identifies gap areas to focus on.' },
-            { step: '02', icon: Mic, title: 'Voice Interview', desc: 'Practice with a real-time AI interviewer that asks tailored questions via voice, listens to your answers, and provides live coaching cues as you speak.' },
+            { step: '02', icon: Mic, title: 'Voice Interview', desc: 'Practice with an AI interviewer that asks tailored questions via voice, listens to your answers, and adapts the next turn after each response.' },
             { step: '03', icon: BarChart3, title: 'Get Your Report', desc: 'Receive a comprehensive performance report with turn-by-turn scoring, answer rewrites, coaching advice, and NZ workplace culture fit analysis.' },
           ].map((item, i) => (
             <div key={i} className="rounded-3xl glass p-8 transition hover:-translate-y-2">
@@ -187,10 +187,10 @@ export default function LandingPage() {
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             <FeatureCard icon={BrainCircuit} title="AI CV–JD Matching" desc="Automatically extracts and compares your skills with job requirements, highlighting gaps and strengths before you even start practicing." />
             <FeatureCard icon={Headphones} title="Voice-Native Coaching" desc="Full-duplex voice AI that speaks, listens, and interrupts naturally — just like a real interviewer. No typing required." />
-            <FeatureCard icon={MessageSquare} title="Real-Time Transcription" desc="Every word transcribed live during your session, with AI annotations highlighting key moments and coaching opportunities." />
+            <FeatureCard icon={MessageSquare} title="Session Transcription" desc="Your spoken answers are transcribed during voice sessions so your conversation history can support review, scoring, and report generation." />
             <FeatureCard icon={ClipboardCheck} title="Turn-by-Turn Scoring" desc="Each answer scored individually with evidence analysis, communication profiling, and specific rewrite suggestions." />
-            <FeatureCard icon={Globe2} title="NZ Workplace Fit" desc="Specialized coaching on New Zealand workplace culture, Kiwi English pronunciation, and local interview norms." />
-            <FeatureCard icon={Lock} title="Privacy First" desc="Recordings encrypted in transit and at rest. Google sign-in only uses your name and email. Your data stays yours." />
+            <FeatureCard icon={Globe2} title="NZ Workplace Fit" desc="Specialized coaching on New Zealand workplace communication signals, local interview norms, and role-appropriate answer style." />
+            <FeatureCard icon={Lock} title="Privacy First" desc="Recordings are tied to your signed-in account for session review. Google sign-in only uses your name and email." />
           </div>
         </div>
       </section>
@@ -210,8 +210,8 @@ export default function LandingPage() {
                   'Junior / Graduate combined interviews',
                   'Mid-level technical deep-dives',
                   'Behavioural & situational questions',
-                  'NZ English pronunciation coaching',
-                  'Real-time speech pace monitoring',
+                  'NZ workplace communication guidance',
+                  'Speech clarity and answer structure feedback',
                 ].map((f, i) => (
                   <li key={i} className="flex items-center gap-3 font-medium">
                     <CheckCircle2 size={18} style={{ color: 'var(--accent)' }} /> {f}
@@ -248,10 +248,10 @@ export default function LandingPage() {
             <h2 className="text-3xl font-bold sm:text-5xl">Built for real interview preparation</h2>
           </div>
           <div className="grid grid-cols-2 gap-8 sm:grid-cols-4">
-            <StatCard value="100%" label="Free to practice" />
-            <StatCard value="<2s" label="Voice AI latency" />
+            <StatCard value="Free" label="Practice access" />
+            <StatCard value="Live" label="Voice session flow" />
             <StatCard value="NZ" label="Locale-specific coaching" />
-            <StatCard value="E2E" label="Encrypted recordings" />
+            <StatCard value="Auth" label="Account-based access" />
           </div>
           <div className="mt-16 grid gap-6 sm:grid-cols-2">
             <div className="rounded-3xl glass p-8">
@@ -278,12 +278,12 @@ export default function LandingPage() {
             <h2 className="text-3xl font-bold sm:text-4xl">Frequently asked questions</h2>
           </div>
           <div>
-            <FAQItem q="What is Kiwi Coach?" a="Kiwi Coach is an AI-powered voice interview coaching platform. It uses your CV and the target job description to generate tailored mock interviews, provides real-time coaching during your practice session, and delivers a comprehensive performance report afterwards." />
-            <FAQItem q="How does the voice interview work?" a="Once you upload your CV and paste the job description, Kiwi Coach generates a personalized interview plan. You then enter a voice session where the AI asks questions out loud, listens to your spoken answers in real-time, and provides live coaching cues. It's full-duplex — you can interrupt naturally, just like a real conversation." />
-            <FAQItem q="Is my data secure?" a="Yes. We use Google Sign-In which only accesses your name and email. All voice recordings are encrypted both in transit and at rest. Your data is never shared with third parties, and you can delete your recordings at any time." />
+            <FAQItem q="What is Kiwi Coach?" a="Kiwi Coach is an AI-powered voice interview coaching platform. It uses your CV and the target job description to generate tailored mock interviews, supports voice-based practice, and delivers a comprehensive performance report afterwards." />
+            <FAQItem q="How does the voice interview work?" a="Once you upload your CV and paste the job description, Kiwi Coach generates a personalized interview plan. You then enter a voice session where the AI asks questions out loud, listens to your spoken answers, and adapts the next turn after each response. It supports interruption during assistant speech for a more natural conversation flow." />
+            <FAQItem q="Is my data secure?" a="We use Google Sign-In which only accesses your name and email. Voice recordings are tied to your signed-in account for session review, and session history can be removed from your dashboard." />
             <FAQItem q="What's included in the interview report?" a="Your report includes an overall score, CV–JD match rate, turn-by-turn answer analysis, communication profiling, NZ workplace culture fit assessment, coaching priorities, answer rewrite suggestions, and evidence diagnostics." />
-            <FAQItem q="Is Kiwi Coach free?" a="Yes — the core practice experience is completely free. Upload your CV, run mock interviews, and get full coaching reports at no cost." />
-            <FAQItem q="Why NZ-specific coaching?" a="Kiwi Coach is built with New Zealand's job market in mind. It includes coaching on Kiwi English pronunciation, local workplace culture norms, and interview expectations specific to the NZ hiring landscape." />
+            <FAQItem q="Is Kiwi Coach free?" a="The current practice flow does not require payment details. You can upload your CV, run mock interviews, and generate coaching reports as part of the demo experience." />
+            <FAQItem q="Why NZ-specific coaching?" a="Kiwi Coach is built with New Zealand's job market in mind. It includes coaching on workplace communication signals, local interview norms, and expectations specific to the NZ hiring landscape." />
           </div>
         </div>
       </section>
@@ -295,7 +295,7 @@ export default function LandingPage() {
         </div>
         <div className="relative z-10 mx-auto max-w-2xl px-6">
           <h2 className="text-3xl font-bold sm:text-5xl">Ready to ace your next interview?</h2>
-          <p className="mt-5 text-lg" style={{ color: 'var(--text-muted)' }}>Start practicing for free — no credit card, no commitment.</p>
+          <p className="mt-5 text-lg" style={{ color: 'var(--text-muted)' }}>Start with the current free practice flow - no payment details required.</p>
           <button onClick={goLogin} className="group mt-10 inline-flex items-center gap-2 rounded-full px-10 py-4 text-lg font-bold shadow-xl transition hover:scale-105 active:scale-95" style={{ background: 'var(--accent)', color: '#000' }}>
             Get Started Free
             <ArrowRight size={20} className="transition group-hover:translate-x-1" />

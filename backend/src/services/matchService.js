@@ -15,6 +15,7 @@ import { buildAnalyzeResult } from './match/matchResultBuilder.js';
 import { buildCvAnalysis, buildJdMatchedCvAnalysis } from './cv/cvAnalysisBuilderService.js';
 import { buildCvEvidenceProfile } from './cv/cvEvidenceProfileBuilder.js';
 import { buildTransitionProfile } from './match/transitionAwareScoring.js';
+import { buildSemanticEvidenceContext } from './match/semanticEvidenceService.js';
 
 export const compareCvToJobDescription = async (cvInput, rawJD, jdRubric, settings = {}) => {
   const rubric = await normalizeRubric(rawJD, jdRubric);
@@ -22,10 +23,11 @@ export const compareCvToJobDescription = async (cvInput, rawJD, jdRubric, settin
   const parsedCvProfile = cvInput?.cvProfile || buildCvProfile(rawCvText);
   const cvEvidenceProfile = cvInput?.evidenceProfile || parsedCvProfile.evidenceProfile || buildCvEvidenceProfile(parsedCvProfile, rawCvText);
   const baseCvAnalysis = parsedCvProfile.cvAnalysis || buildCvAnalysis({ cvProfile: parsedCvProfile, evidenceProfile: cvEvidenceProfile, normalizedText: rawCvText });
+  const semanticEvidenceContext = await buildSemanticEvidenceContext({ rubric, evidenceProfile: cvEvidenceProfile });
 
-  const macroScores = buildMacroScores(rubric.macroCriteria, rawCvText, rubric.weights, cvEvidenceProfile);
-  const microScores = buildMicroScores(rubric.microCriteria, rawCvText, rubric.weights, cvEvidenceProfile);
-  const requirementChecks = buildRequirementChecks(rubric.requirements, rawCvText, cvEvidenceProfile);
+  const macroScores = buildMacroScores(rubric.macroCriteria, rawCvText, rubric.weights, cvEvidenceProfile, semanticEvidenceContext);
+  const microScores = buildMicroScores(rubric.microCriteria, rawCvText, rubric.weights, cvEvidenceProfile, semanticEvidenceContext);
+  const requirementChecks = buildRequirementChecks(rubric.requirements, rawCvText, cvEvidenceProfile, semanticEvidenceContext);
   const scoreBreakdown = calculateScoreBreakdown({ rubric, macroScores, microScores, requirementChecks });
   const transitionProfile = buildTransitionProfile({ evidenceProfile: cvEvidenceProfile, parsedCvProfile });
   const { strengths, gaps, risks, explanation } = buildExplanation({ microScores, requirementChecks, cvEvidenceProfile });
@@ -51,5 +53,6 @@ export const compareCvToJobDescription = async (cvInput, rawJD, jdRubric, settin
     transitionProfile,
     cvEvidenceProfile,
     cvAnalysis,
+    semanticEvidenceContext,
   });
 };

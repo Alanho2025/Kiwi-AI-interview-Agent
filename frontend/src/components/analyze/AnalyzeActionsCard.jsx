@@ -36,8 +36,9 @@ export function AnalyzeActionsCard({
 }) {
   const isGenerating = analysisStatus === 'matching' || analysisStatus === 'summarizing';
   const hasRawJD = Boolean(rawJD?.trim());
-  const canGenerate = Boolean(selectedCV && isCvHumanVerified && hasRawJD && hasCurrentJDSummary && canUseJDSummary && !isGenerating);
   const isVoiceSession = sessionMode === 'voice';
+  const setupReady = !isVoiceSession || isVoiceReady;
+  const canGenerate = Boolean(selectedCV && isCvHumanVerified && hasRawJD && hasCurrentJDSummary && canUseJDSummary && setupReady && !isGenerating);
   const canContinue = Boolean(generatedSessionId && (!isVoiceSession || isVoiceReady));
   const confidencePercent = Math.round((jdParseConfidence || 0) * 100);
   const thresholdPercent = Math.round(jdConfidenceThreshold * 100);
@@ -45,11 +46,12 @@ export function AnalyzeActionsCard({
   const buttonLabel = (() => {
     if (analysisStatus === 'summarizing') return 'Summarizing JD...';
     if (analysisStatus === 'matching') return 'Generating Match Analysis...';
-    if (!selectedCV) return 'Select a CV first';
+    if (!selectedCV) return 'Select or upload a CV to continue';
     if (!isCvHumanVerified) return 'Review CV parse before matching';
     if (!hasRawJD) return 'Paste a JD first';
     if (!hasCurrentJDSummary) return 'Summarise JD before matching';
     if (requiresJdHumanReview) return 'Review JD summary before matching';
+    if (isVoiceSession && !isVoiceReady) return 'Complete device check first';
     return 'Generate Match Analysis';
   })();
 
@@ -65,6 +67,9 @@ export function AnalyzeActionsCard({
     }
     if (requiresJdHumanReview) {
       return `JD confidence is ${confidencePercent}%. Gate target is ${thresholdPercent}%, but every JD still needs one human review before matching.`;
+    }
+    if (isVoiceSession && !isVoiceReady) {
+      return 'Run the device check in Session Setup before generating the match analysis for a voice interview.';
     }
     if (isVoiceSession) {
       return 'Voice devices are ready. Your interview plan will use the selected CV, reviewed JD, and session setup above.';
@@ -86,10 +91,24 @@ export function AnalyzeActionsCard({
       blocked: Boolean(selectedCV && !isCvHumanVerified),
     },
     {
-      label: 'JD summary reviewed',
-      detail: canUseJDSummary ? 'Reviewed JD summary is ready.' : hasRawJD ? 'Summarise and review the current JD before matching.' : 'Paste the target job description.',
+      label: 'JD selected',
+      detail: hasRawJD ? 'Target job description is ready.' : 'Paste or choose the target job description.',
+      complete: hasRawJD,
+      blocked: false,
+    },
+    {
+      label: 'JD parse reviewed',
+      detail: canUseJDSummary ? 'Extracted requirements are reviewed.' : hasRawJD ? 'Review the extracted job requirements.' : 'Add a JD before reviewing the parse.',
       complete: Boolean(canUseJDSummary),
       blocked: Boolean(hasRawJD && (!hasCurrentJDSummary || requiresJdHumanReview)),
+    },
+    {
+      label: isVoiceSession ? 'Device check' : 'Session setup',
+      detail: isVoiceSession
+        ? isVoiceReady ? 'Microphone and speaker checks passed.' : 'Run the voice readiness check before starting.'
+        : 'Text session setup is ready.',
+      complete: setupReady,
+      blocked: Boolean(isVoiceSession && !isVoiceReady),
     },
     {
       label: 'Match analysis',
@@ -135,7 +154,7 @@ export function AnalyzeActionsCard({
         <Button
           variant="primary"
           size="lg"
-          className="w-full"
+          className="w-full disabled:border disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-400 disabled:shadow-none"
           onClick={onGeneratePlan}
           disabled={!canGenerate}
         >

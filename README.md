@@ -23,6 +23,8 @@ Login
 
 ## Current feature status
 
+For the full Notion-to-code documentation map, see `docs/code-document-alignment.md`.
+
 ### Implemented
 
 - Google login flow

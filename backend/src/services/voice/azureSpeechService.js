@@ -7,6 +7,7 @@
  */
 
 import { AppError, badRequest } from '../../utils/appError.js';
+import { recordSpeechUsage } from '../aiUsageTrackingService.js';
 
 const DEFAULT_TTS_VOICE = process.env.AZURE_SPEECH_TTS_VOICE || 'en-NZ-MollyNeural';
 const DEFAULT_STT_LANGUAGE = process.env.AZURE_SPEECH_STT_LANGUAGE || 'en-NZ';
@@ -105,7 +106,18 @@ const validateAudioFile = ({ buffer, mimetype, originalname }) => {
   }
 };
 
-export const synthesizeSpeech = async ({ text, voiceName = DEFAULT_TTS_VOICE, outputFormat = DEFAULT_OUTPUT_FORMAT }) => {
+const estimatePcmAudioSeconds = ({ byteLength = 0, sampleRate = 16000, bytesPerSample = 2, channels = 1 } = {}) => {
+  const bytesPerSecond = Number(sampleRate) * Number(bytesPerSample) * Number(channels);
+  if (!bytesPerSecond) return 0;
+  return Math.max(0, Number(byteLength || 0) / bytesPerSecond);
+};
+
+export const synthesizeSpeech = async ({
+  text,
+  voiceName = DEFAULT_TTS_VOICE,
+  outputFormat = DEFAULT_OUTPUT_FORMAT,
+  usageContext = null,
+} = {}) => {
   const trimmedText = String(text || '').trim();
   if (!trimmedText) {
     throw badRequest('Text is required', 'Provide text for speech synthesis');
@@ -135,6 +147,23 @@ export const synthesizeSpeech = async ({ text, voiceName = DEFAULT_TTS_VOICE, ou
   }
 
   const audioBuffer = Buffer.from(await response.arrayBuffer());
+  if (usageContext?.userId) {
+    await recordSpeechUsage({
+      userId: usageContext.userId,
+      sessionId: usageContext.sessionId || null,
+      stage: usageContext.stage || 'interview',
+      operation: 'text_to_speech',
+      textCharacters: trimmedText.length,
+      audioBytes: audioBuffer.length,
+      requestCount: 1,
+      metadata: {
+        voiceName,
+        outputFormat,
+        source: usageContext.source || 'azure_speech_rest',
+      },
+    });
+  }
+
   return {
     audioBuffer,
     contentType: 'audio/mpeg',
@@ -144,7 +173,13 @@ export const synthesizeSpeech = async ({ text, voiceName = DEFAULT_TTS_VOICE, ou
   };
 };
 
-export const transcribeShortAudio = async ({ buffer, mimetype, originalname, language = DEFAULT_STT_LANGUAGE }) => {
+export const transcribeShortAudio = async ({
+  buffer,
+  mimetype,
+  originalname,
+  language = DEFAULT_STT_LANGUAGE,
+  usageContext = null,
+} = {}) => {
   validateAudioFile({ buffer, mimetype, originalname });
   const token = await issueAccessToken();
   const response = await fetch(getSttUrl({ language, format: 'detailed', profanity: 'raw' }), {
@@ -176,6 +211,22 @@ export const transcribeShortAudio = async ({ buffer, mimetype, originalname, lan
   const bestN = Array.isArray(parsed?.NBest) ? parsed.NBest : [];
   const primaryResult = bestN[0] || null;
   const text = primaryResult?.Display || parsed?.DisplayText || '';
+  if (usageContext?.userId) {
+    await recordSpeechUsage({
+      userId: usageContext.userId,
+      sessionId: usageContext.sessionId || null,
+      stage: usageContext.stage || 'interview',
+      operation: 'speech_to_text',
+      audioSeconds: estimatePcmAudioSeconds({ byteLength: buffer.length }),
+      audioBytes: buffer.length,
+      requestCount: 1,
+      metadata: {
+        language,
+        originalname,
+        source: usageContext.source || 'azure_speech_rest',
+      },
+    });
+  }
 
   return {
     text,
