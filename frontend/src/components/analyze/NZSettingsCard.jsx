@@ -32,14 +32,14 @@ export function NZSettingsCard({ settings, setSettings, sessionMode, setSessionM
     <Card>
       <CardHeader>
         <div>
-          <CardTitle>Session Setup</CardTitle>
-          <p className="text-sm text-faint mt-1">Use the same setup as the Home page, then choose text or voice before starting.</p>
+          <CardTitle>Session setup</CardTitle>
+          <p className="text-sm text-faint mt-1">Choose how this practice session should run before generating the match.</p>
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="grid gap-4 md:grid-cols-2">
           <div>
-            <h4 className="text-sm font-medium text-primary mb-2">Delivery mode</h4>
+            <h4 className="text-sm font-medium text-primary mb-2">Practice mode</h4>
             <Select
               options={sessionModeOptions}
               value={sessionMode}
@@ -58,7 +58,7 @@ export function NZSettingsCard({ settings, setSettings, sessionMode, setSessionM
 
         <div className="grid gap-4 md:grid-cols-2">
           <div>
-            <h4 className="text-sm font-medium text-primary mb-2">Interview mode</h4>
+            <h4 className="text-sm font-medium text-primary mb-2">Session limit</h4>
             <Select
               options={controlModeOptions}
               value={settings.controlMode}
@@ -86,7 +86,7 @@ export function NZSettingsCard({ settings, setSettings, sessionMode, setSessionM
         </div>
 
         <div>
-          <h4 className="text-sm font-medium text-primary mb-3">Question type</h4>
+          <h4 className="text-sm font-medium text-primary mb-3">Question focus</h4>
           <div className="flex flex-wrap gap-3">
             {focusOptions.map((area) => (
               <button
@@ -107,7 +107,7 @@ export function NZSettingsCard({ settings, setSettings, sessionMode, setSessionM
         </div>
 
         <Checkbox
-          label="Enable NZ culture fit prompts"
+          label="Include NZ workplace fit prompts"
           checked={settings.enableNZCultureFit}
           onChange={(event) => updateSetting('enableNZCultureFit', event.target.checked)}
         />
@@ -116,7 +116,7 @@ export function NZSettingsCard({ settings, setSettings, sessionMode, setSessionM
           <VoiceDeviceCheckPanel value={voiceDeviceCheck} onChange={setVoiceDeviceCheck} />
         ) : (
           <div className="rounded-xl border border-theme bg-transparent px-4 py-3 text-sm leading-6 text-muted">
-            Text Session does not require microphone or speaker checks. Switch to Voice Session if you want to test your devices before starting.
+            Text practice is ready. Switch to voice mode if you want to test your microphone and speaker first.
           </div>
         )}
       </CardContent>
