@@ -20,6 +20,12 @@ import { asyncHandler } from '../middleware/asyncHandler.js';
 import { badRequest } from '../utils/appError.js';
 import { logger, getRequestLogMeta } from '../utils/logger.js';
 import { recordLocalUsage } from '../services/aiUsageTrackingService.js';
+import { extractCompanyValuesContextFromJd } from '../services/company/companyValuesFingerprintService.js';
+import {
+  attachCompanyValuesProfileToSession,
+  getCompanyValuesProfileByFingerprint,
+} from '../services/company/companyValuesRepository.js';
+import { startCompanyValuesEnrichment } from '../services/company/companyValuesEnrichmentService.js';
 
 export const matchCV = asyncHandler(async (req, res) => {
   const { cvId, rawJD, jdRubric, settings } = req.body;
@@ -67,6 +73,10 @@ export const generateInterviewPlan = asyncHandler(async (req, res) => {
     : null;
 
   const resolvedAnalysis = persistedAnalysis?.matchAnalysis || analysisResult || {};
+  const companyValuesContext = extractCompanyValuesContextFromJd({
+    rawJD: rawJD || jdText || '',
+    jdRubric: jdRubric || resolvedAnalysis?.parsedJdProfile || {},
+  });
   const session = await createSession({
     userId: user.id,
     cvFileId: cvId || null,
@@ -84,6 +94,27 @@ export const generateInterviewPlan = asyncHandler(async (req, res) => {
     currentQuestionIndex: 1,
     candidateName: resolvedAnalysis?.candidateName || 'Candidate',
   });
+  const existingCompanyValuesProfile = await getCompanyValuesProfileByFingerprint({
+    userId: user.id,
+    jdFingerprint: companyValuesContext.jdFingerprint,
+  });
+  if (existingCompanyValuesProfile) {
+    await attachCompanyValuesProfileToSession({
+      userId: user.id,
+      jdFingerprint: companyValuesContext.jdFingerprint,
+      sessionId: session.id,
+    });
+  } else if (jdRubric?.metadata?.inputTrustLevel === 'human_reviewed') {
+    await startCompanyValuesEnrichment({
+      userId: user.id,
+      jdFingerprint: companyValuesContext.jdFingerprint,
+      sessionId: session.id,
+      companyName: companyValuesContext.companyName,
+      location: companyValuesContext.location,
+      jdText: companyValuesContext.jdText,
+      manualWebsiteUrl: companyValuesContext.websiteUrl,
+    });
+  }
   await Promise.all([
     recordLocalUsage({
       userId: user.id,

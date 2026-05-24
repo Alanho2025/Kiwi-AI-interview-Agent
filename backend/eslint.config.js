@@ -5,6 +5,7 @@ import { defineConfig, globalIgnores } from 'eslint/config';
 export default defineConfig([
   globalIgnores([
     'node_modules',
+    '.venv-asr',
     'coverage',
     'uploads',
     'eval/reports',

@@ -209,6 +209,32 @@ const normalizeNzWorkplaceFit = (value = {}) => ({
   suggestedRewrite: normalizeNzSuggestedRewrite(value.suggestedRewrite),
 });
 
+const normalizeCompanyMotivationSignal = (value = {}) => ({
+  score: ensureNumber(value.score, 0),
+  comment: ensureString(value.comment),
+});
+
+const normalizeCompanyMotivationFit = (value = {}) => ({
+  source: ensureString(value.source, 'general_fallback'),
+  score: ensureNumber(value.score, 0),
+  summary: ensureString(value.summary),
+  matchedValues: ensureArray(value.matchedValues).map((item) => ({
+    value: ensureString(item.value),
+    candidateQuote: ensureString(item.candidateQuote),
+    comment: ensureString(item.comment),
+  })),
+  missingValues: ensureArray(value.missingValues).map((item) => ({
+    value: ensureString(item.value),
+    whyItMatters: ensureString(item.whyItMatters),
+    suggestion: ensureString(item.suggestion),
+  })),
+  candidateResearchSignal: normalizeCompanyMotivationSignal(value.candidateResearchSignal),
+  roleMotivationSignal: normalizeCompanyMotivationSignal(value.roleMotivationSignal),
+  suggestedRewrite: ensureString(value.suggestedRewrite),
+  fallbackReason: ensureString(value.fallbackReason),
+  evidenceStrength: ensureString(value.evidenceStrength),
+});
+
 /**
  * Purpose: Execute the main responsibility for validateReportOutput.
  * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
@@ -231,6 +257,7 @@ export const validateReportOutput = (report = {}) => ({
   interviewMetrics: isObject(report.interviewMetrics) ? report.interviewMetrics : {},
   evidenceDiagnostics: isObject(report.evidenceDiagnostics) ? report.evidenceDiagnostics : {},
   nzWorkplaceFit: normalizeNzWorkplaceFit(report.nzWorkplaceFit || {}),
+  companyMotivationFit: normalizeCompanyMotivationFit(report.companyMotivationFit || {}),
   candidateFeedback: isObject(report.candidateFeedback)
     ? {
         overallTakeaway: ensureString(report.candidateFeedback.overallTakeaway),

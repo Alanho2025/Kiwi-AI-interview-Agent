@@ -19,6 +19,8 @@ import { requireBodyField } from '../utils/controllerHelpers.js';
 import { logger, getRequestLogMeta } from '../utils/logger.js';
 import { resolveUserFromRequest } from '../services/authService.js';
 import { recordLocalUsage } from '../services/aiUsageTrackingService.js';
+import { extractCompanyValuesContextFromJd } from '../services/company/companyValuesFingerprintService.js';
+import { startCompanyValuesEnrichment } from '../services/company/companyValuesEnrichmentService.js';
 
 export const paraphraseJD = asyncHandler(async (req, res) => {
   const rawJD = requireBodyField(req, 'rawJD', 'Please provide raw job description text');
@@ -44,5 +46,42 @@ export const paraphraseJD = asyncHandler(async (req, res) => {
     structuredJD,
     structuredJDRubric,
     safeguard: structuredJDRubric.safeguard,
+  }));
+});
+
+export const startCompanyValuesForReviewedJD = asyncHandler(async (req, res) => {
+  const rawJD = requireBodyField(req, 'rawJD', 'Please provide raw job description text');
+  const user = await resolveUserFromRequest(req);
+  const jdRubric = req.body?.jdRubric || {};
+  const context = extractCompanyValuesContextFromJd({
+    rawJD,
+    jdRubric,
+    companyWebsiteUrl: req.body?.companyWebsiteUrl,
+  });
+
+  const profile = await startCompanyValuesEnrichment({
+    userId: user.id,
+    jdFingerprint: context.jdFingerprint,
+    companyName: context.companyName,
+    location: context.location,
+    jdText: context.jdText,
+    manualWebsiteUrl: context.websiteUrl,
+  });
+
+  logger.info('Company values enrichment queued for reviewed JD', getRequestLogMeta(req, {
+    jdFingerprint: context.jdFingerprint,
+    companyName: context.companyName,
+    hasManualWebsiteUrl: Boolean(context.websiteUrl),
+  }));
+
+  res.json(formatSuccess('Company values enrichment started', {
+    jdFingerprint: context.jdFingerprint,
+    status: profile?.status || 'pending',
+    companyName: context.companyName,
+    hasCompanyName: Boolean(context.companyName),
+    hasManualWebsiteUrl: Boolean(context.websiteUrl),
+    expectedSearchProvider: context.websiteUrl ? 'manual_website' : 'serper',
+    searchQueued: Boolean(context.companyName || context.websiteUrl),
+    fallbackReason: context.companyName || context.websiteUrl ? null : 'missing_company_name',
   }));
 });

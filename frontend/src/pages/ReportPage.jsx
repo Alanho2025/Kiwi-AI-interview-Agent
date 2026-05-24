@@ -18,6 +18,7 @@ import { CoachingSection } from '../components/report/CoachingSection.jsx';
 import { QuoteAnalysisSection } from '../components/report/QuoteAnalysisSection.jsx';
 import { CommunicationProfileSection } from '../components/report/CommunicationProfileSection.jsx';
 import { NZWorkplaceFitSection } from '../components/report/NZWorkplaceFitSection.jsx';
+import { CompanyMotivationFitSection } from '../components/report/CompanyMotivationFitSection.jsx';
 import { TurnBreakdownSection } from '../components/report/TurnBreakdownSection.jsx';
 import { InsightsSection } from '../components/report/InsightsSection.jsx';
 import { ReportActionBar } from '../components/report/ReportActionBar.jsx';
@@ -113,6 +114,7 @@ export function ReportPage() {
               <InsightsSection dataInsights={viewModel.dataInsights} strengthHighlights={viewModel.strengthHighlights} />
             </div>
             <NZWorkplaceFitSection fit={viewModel.nzWorkplaceFit} />
+            <CompanyMotivationFitSection fit={viewModel.companyMotivationFit} />
             <CommunicationProfileSection profile={viewModel.communicationProfile} />
             <CoachingSection improvementPriorities={viewModel.improvementPriorities} coachingAdvice={viewModel.coachingAdvice} />
             <QuoteAnalysisSection quoteAnalyses={viewModel.quoteAnalyses} />
