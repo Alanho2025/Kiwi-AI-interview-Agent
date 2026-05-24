@@ -21,7 +21,7 @@ import { AnalyzeActionsCard } from '../components/analyze/AnalyzeActionsCard.jsx
 import { AnalysisWorkflowShell } from '../components/analyze/AnalysisWorkflowShell.jsx';
 import { StatusBanner } from '../components/common/StatusBanner.jsx';
 import { uploadCV, getRecentCVs, selectCV, saveReviewedCvProfile, deleteCv } from '../api/uploadApi.js';
-import { paraphraseJD, matchCV, generateInterviewPlan } from '../api/analyzeApi.js';
+import { paraphraseJD, matchCV, generateInterviewPlan, startCompanyValuesEnrichment } from '../api/analyzeApi.js';
 import { getSession } from '../api/sessionApi.js';
 import {
   DEFAULT_ANALYZE_MODE,
@@ -59,6 +59,7 @@ const formatStructuredJobDescription = (rubric = {}) => {
 
   return `# ${overview.title || rubric.title || 'Target Role'}\n\n## Job Overview\n${formatList([
     overview.companyName && `Company: ${overview.companyName}`,
+    overview.companyWebsiteUrl && `Company website: ${overview.companyWebsiteUrl}`,
     overview.location && `Location: ${overview.location}`,
     overview.contractType && `Contract type: ${overview.contractType}`,
     overview.employmentType && `Employment type: ${overview.employmentType}`,
@@ -549,7 +550,7 @@ export function AnalyzePage() {
     setActiveWorkflowStep(WORKFLOW_STEP_IDS.CV_REVIEW);
   };
 
-  const handleConfirmJDSummary = () => {
+  const handleConfirmJDSummary = async () => {
     if (!hasCurrentJDSummary) {
       setPageStatus(buildStatusMessage('error', 'Summarise current JD first', 'The JD text has changed. Summarise it again before confirming.'));
       return;
@@ -561,7 +562,21 @@ export function AnalyzePage() {
     setJdHumanReviewedRawJD(rawJD);
     setJdReviewStatus('verified');
     setActiveWorkflowStep(WORKFLOW_STEP_IDS.SESSION_SETUP);
-    setPageStatus(buildStatusMessage('success', 'JD summary reviewed', 'KiwiCoach will use this human-reviewed JD summary for CV-JD matching.'));
+    try {
+      const enrichment = await startCompanyValuesEnrichment({
+        rawJD,
+        jdRubric: verifiedRubric,
+        companyWebsiteUrl: verifiedRubric.jobOverview?.companyWebsiteUrl || '',
+      });
+      const backgroundMessage = enrichment?.searchQueued
+        ? enrichment.expectedSearchProvider === 'manual_website'
+          ? 'Company-specific coaching will use the provided company website.'
+          : 'Company-specific coaching is being prepared with Serper search in the background.'
+        : 'Company-specific search could not start because no company name or website was available.';
+      setPageStatus(buildStatusMessage('success', 'JD summary reviewed', `KiwiCoach will use this human-reviewed JD summary for CV-JD matching. ${backgroundMessage}`));
+    } catch (error) {
+      setPageStatus(buildStatusMessage('warning', 'JD summary reviewed', `The JD is ready for matching, but company-specific coaching search did not start: ${error.message}`));
+    }
   };
 
   const handleConfirmCVReview = async () => {

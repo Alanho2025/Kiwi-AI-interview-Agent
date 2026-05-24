@@ -142,6 +142,7 @@ const EditableJDReviewPanel = ({ rubric, onRubricChange }) => {
       <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
         <EditableTextField label="Role title" value={overview.title || rubric?.title || ''} onChange={(value) => updateOverview('title', value)} />
         <EditableTextField label="Company" value={overview.companyName || ''} onChange={(value) => updateOverview('companyName', value)} />
+        <EditableTextField label="Company website URL (optional)" value={overview.companyWebsiteUrl || ''} onChange={(value) => updateOverview('companyWebsiteUrl', value)} placeholder="https://example.com" />
         <EditableTextField label="Location" value={overview.location || ''} onChange={(value) => updateOverview('location', value)} />
         <EditableTextField label="Employment type" value={overview.employmentType || ''} onChange={(value) => updateOverview('employmentType', value)} />
       </div>

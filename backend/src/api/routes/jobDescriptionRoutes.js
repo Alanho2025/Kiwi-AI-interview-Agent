@@ -10,10 +10,11 @@
  */
 
 import express from 'express';
-import { paraphraseJD } from '../../controllers/jobDescriptionController.js';
+import { paraphraseJD, startCompanyValuesForReviewedJD } from '../../controllers/jobDescriptionController.js';
 
 const router = express.Router();
 
 router.post('/paraphrase', paraphraseJD);
+router.post('/company-values/enrichment', startCompanyValuesForReviewedJD);
 
 export default router;

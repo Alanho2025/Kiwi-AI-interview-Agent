@@ -17,6 +17,8 @@ import { buildReportDraft } from './reportGenerator/reportDraftBuilder.js';
 import { SessionAnalysis } from '../../db/models/sessionAnalysisModel.js';
 import { getUserCoachingMemory } from '../aiControl/userCoachingMemoryService.js';
 import { buildNzWorkplaceFit } from '../nzWorkplaceFitService.js';
+import { getCompanyValuesProfile } from '../company/companyValuesRepository.js';
+import { buildCompanyMotivationFit } from '../company/companyMotivationFitService.js';
 
 export const runReportGeneratorAgent = async ({ session = {}, analysisResult = {}, interviewPlan = {}, retrievalBundle = null } = {}) => {
   const transcript = session.transcript || [];
@@ -36,6 +38,12 @@ export const runReportGeneratorAgent = async ({ session = {}, analysisResult = {
   const analysisRecord = session.id ? await SessionAnalysis.findOne({ sessionId: session.id }).lean() : null;
   const userCoachingMemory = await getUserCoachingMemory(session.userId);
   const nzWorkplaceFit = buildNzWorkplaceFit({ session });
+  const companyValuesProfile = session.id ? await getCompanyValuesProfile(session.id) : null;
+  const companyMotivationFit = await buildCompanyMotivationFit({
+    session,
+    transcript,
+    companyValuesProfile,
+  });
 
   const candidateFeedback = await generateCandidateFeedback({
     session,
@@ -62,6 +70,7 @@ export const runReportGeneratorAgent = async ({ session = {}, analysisResult = {
     reflectionRecords: analysisRecord?.reflectionRecords || [],
     userCoachingMemory,
     nzWorkplaceFit,
+    companyMotivationFit,
   });
 
   return validateReportOutput(draft);

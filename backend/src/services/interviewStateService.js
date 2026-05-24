@@ -28,6 +28,18 @@ const buildQuestionRootKey = (question = {}) => {
   return [topic || 'topic', category || 'category', type || 'type'].join(':');
 };
 
+const isCompanyMotivationQuestion = (question = {}) =>
+  question?.type === 'company_motivation' ||
+  question?.topic === 'company_and_role_motivation' ||
+  String(question?.text || '').toLowerCase().includes('what attracted you to this company and role');
+
+const hasAskedCompanyMotivationQuestion = (session = {}) => (session?.transcript || [])
+  .some((turn) => turn?.role === 'ai' && (
+    turn.metadata?.questionType === 'company_motivation' ||
+    turn.metadata?.topic === 'company_and_role_motivation' ||
+    String(turn?.text || '').toLowerCase().includes('what attracted you to this company and role')
+  ));
+
 export const getQuestionPool = (session = {}) => session?.interviewPlan?.questionPool || [];
 
 const toPositiveInteger = (value) => {
@@ -143,6 +155,10 @@ export const getNextPoolQuestion = (session = {}, options = {}) => {
   }
   const questionPool = getQuestionPool(session);
   const structure = buildInterviewStructure(session);
+  if (!hasAskedCompanyMotivationQuestion(session)) {
+    const motivationQuestion = questionPool.find(isCompanyMotivationQuestion);
+    if (motivationQuestion) return motivationQuestion;
+  }
   const recentTexts = structure.askedQuestionTexts.slice(-3).map((item) => normalizeKey(item));
   const askedRootQuestionKeys = new Set((structure.askedRootQuestionKeys || []).map((item) => normalizeKey(item)));
   const startIndex = isRecoverySearch ? 1 : Math.max(1, getResolvedCurrentQuestionIndex(session));

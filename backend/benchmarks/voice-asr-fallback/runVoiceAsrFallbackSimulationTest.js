@@ -250,7 +250,7 @@ const runOne = async ({ providerName, fixture, options }) => {
   const clock = createSimulatedClock({ realtime: options.realtime, startedAt });
   let firstPartialMs = null;
   let finalTranscriptMs = null;
-  let speechEndMs = null;
+  let speechEndMs;
   let finalTranscriptText = '';
 
   const callbacks = {
