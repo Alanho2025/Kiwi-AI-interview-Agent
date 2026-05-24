@@ -30,6 +30,7 @@ router.get('/summary', async (req, res, next) => {
     const summary = {
       ...tokenSummary,
       ai: aiSummary,
+      currency: aiSummary.currency || tokenSummary.currency,
       totalCost: aiSummary.totalCost || tokenSummary.totalCost,
       providerBreakdown: aiSummary.providerBreakdown,
       measuredSessions: aiSummary.measuredSessions,

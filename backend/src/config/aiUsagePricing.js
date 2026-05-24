@@ -9,14 +9,28 @@ const numberFromEnv = (key, fallback) => {
 };
 
 export const AI_USAGE_PRICING_VERSION = process.env.AI_USAGE_PRICING_VERSION || '2026-05-default';
+export const AI_USAGE_COST_CURRENCY = process.env.AI_USAGE_COST_CURRENCY || 'NZD';
+export const AI_USAGE_USD_TO_COST_CURRENCY_RATE = numberFromEnv('AI_USAGE_USD_TO_COST_CURRENCY_RATE', 1.65);
+
+export const convertUsdCostToUsageCurrency = (cost = 0) => {
+  const normalizedCost = Math.max(0, Number(cost) || 0);
+  const exchangeRate = AI_USAGE_COST_CURRENCY === 'USD' ? 1 : AI_USAGE_USD_TO_COST_CURRENCY_RATE;
+  return Number((normalizedCost * exchangeRate).toFixed(8));
+};
+
+export const getCurrencyPrefix = (currency = AI_USAGE_COST_CURRENCY) => (
+  currency === 'NZD' ? 'NZ$' : '$'
+);
 
 export const DEEPSEEK_CHAT_PRICING = {
+  currency: 'USD',
   inputCacheHitPer1M: numberFromEnv('DEEPSEEK_INPUT_CACHE_HIT_PER_1M_USD', 0.07),
   inputCacheMissPer1M: numberFromEnv('DEEPSEEK_INPUT_CACHE_MISS_PER_1M_USD', 0.27),
   outputPer1M: numberFromEnv('DEEPSEEK_OUTPUT_PER_1M_USD', 1.10),
 };
 
 export const AZURE_SPEECH_PRICING = {
+  currency: 'USD',
   sttPerAudioHour: numberFromEnv('AZURE_SPEECH_STT_PER_AUDIO_HOUR_USD', 1.00),
   ttsPer1MCharacters: numberFromEnv('AZURE_SPEECH_TTS_PER_1M_CHARS_USD', 16.00),
 };
@@ -24,7 +38,8 @@ export const AZURE_SPEECH_PRICING = {
 export const COMMERCIAL_STRESS_ASSUMPTIONS = {
   conservativeMinutesReplaced: numberFromEnv('COMMERCIAL_STRESS_CONSERVATIVE_MINUTES', 30),
   moderateMinutesReplaced: numberFromEnv('COMMERCIAL_STRESS_MODERATE_MINUTES', 60),
-  hourlyLaborRate: numberFromEnv('COMMERCIAL_STRESS_HOURLY_RATE_USD', 35),
+  hourlyLaborRate: numberFromEnv('COMMERCIAL_STRESS_HOURLY_RATE_NZD', numberFromEnv('COMMERCIAL_STRESS_HOURLY_RATE_USD', 35)),
+  currency: AI_USAGE_COST_CURRENCY,
 };
 
 export const calculateDeepSeekCost = ({

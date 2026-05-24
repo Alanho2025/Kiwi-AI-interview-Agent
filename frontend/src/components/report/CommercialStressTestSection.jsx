@@ -5,14 +5,7 @@
 import React from 'react';
 import { ChevronDown, CircleDollarSign, Clock, Cpu, Mic } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../common/Card.jsx';
-
-const formatCost = (cost) => {
-  const numeric = Number(cost);
-  if (!Number.isFinite(numeric) || numeric === 0) return '$0';
-  if (numeric < 0.001) return `$${numeric.toFixed(6)}`;
-  if (numeric < 0.01) return `$${numeric.toFixed(5)}`;
-  return `$${numeric.toFixed(4)}`;
-};
+import { formatUsageCost } from '../../utils/formatters.js';
 
 const formatTokens = (value) => {
   const numeric = Number(value);
@@ -43,6 +36,7 @@ export function CommercialStressTestSection({ commercialStressTest }) {
 
   const humanMinutes = commercialStressTest.estimatedHumanMinutesReplaced || {};
   const stageBreakdown = commercialStressTest.stageBreakdown || [];
+  const currency = commercialStressTest.currency || 'USD';
 
   return (
     <Card>
@@ -54,7 +48,7 @@ export function CommercialStressTestSection({ commercialStressTest }) {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <SummaryMetric icon={CircleDollarSign} label="Execution cost" value={formatCost(commercialStressTest.totalExecutionCost)} />
+          <SummaryMetric icon={CircleDollarSign} label="Execution cost" value={formatUsageCost(commercialStressTest.totalExecutionCost, currency)} />
           <SummaryMetric icon={Cpu} label="LLM tokens" value={formatTokens(commercialStressTest.totalLlmTokens)} />
           <SummaryMetric icon={Mic} label="Speech usage" value={formatSpeech(commercialStressTest.speechAudioSeconds)} />
           <SummaryMetric icon={Clock} label="Human time" value={`${humanMinutes.min || 0}-${humanMinutes.max || 0} min`} />
@@ -74,7 +68,7 @@ export function CommercialStressTestSection({ commercialStressTest }) {
                   <div key={stage.id} className="grid grid-cols-[1fr_auto] gap-3 rounded-lg bg-chip px-3 py-2 text-sm sm:grid-cols-[1fr_1fr_auto]">
                     <span className="font-medium text-primary">{stage.label}</span>
                     <span className="hidden text-muted sm:block">{(stage.providers || []).join(' + ') || '-'}</span>
-                    <span className="font-mono text-muted">{formatCost(stage.estimatedCost)}</span>
+                    <span className="font-mono text-muted">{formatUsageCost(stage.estimatedCost, stage.currency || currency)}</span>
                   </div>
                 ))}
               </div>
