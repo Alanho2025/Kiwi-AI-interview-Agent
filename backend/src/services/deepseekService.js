@@ -21,6 +21,17 @@ const isMockAiMode = () => process.env.AI_TEST_MODE === 'mock';
 const isRealAiMode = () => process.env.AI_TEST_MODE === 'real';
 const buildMockDeepSeekResponse = () => 'This is a mock response from DeepSeek. Please set DEEPSEEK_API_KEY to run real AI eval.';
 
+const getDeepSeekTimeoutMs = () => {
+  const configured = Number(process.env.DEEPSEEK_TIMEOUT_MS || 8000);
+  return Number.isFinite(configured) && configured > 0 ? configured : 8000;
+};
+
+const buildTimeoutSignal = () => (
+  typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function'
+    ? AbortSignal.timeout(getDeepSeekTimeoutMs())
+    : undefined
+);
+
 const resolveDeepSeekApiKey = () => {
   const apiKey = process.env.DEEPSEEK_API_KEY;
   if (apiKey) return apiKey;
@@ -108,6 +119,7 @@ export const callDeepSeek = async (prompt, systemInstruction = '', { skipAutoRec
 
     const response = await fetch('https://api.deepseek.com/chat/completions', {
       method: 'POST',
+      signal: buildTimeoutSignal(),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`
@@ -152,6 +164,7 @@ export const callDeepSeekStream = async function* (prompt, systemInstruction = '
 
   const response = await fetch('https://api.deepseek.com/chat/completions', {
     method: 'POST',
+    signal: buildTimeoutSignal(),
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${apiKey}`

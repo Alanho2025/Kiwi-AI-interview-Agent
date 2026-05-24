@@ -126,6 +126,10 @@ export const buildCompanyMotivationFit = async ({
     .join('\n')
     .slice(0, 5000);
 
+  if (process.env.COMPANY_MOTIVATION_AI_ENABLED === 'false') {
+    return fallback;
+  }
+
   try {
     const prompt = `
 You are evaluating a candidate's answer to:

@@ -81,7 +81,7 @@ describe('company research availability report wording', () => {
     });
 
     expect(resolved).toEqual(expect.objectContaining({
-      websiteUrl: 'https://www.roberthalf.com',
+      websiteUrl: 'https://www.roberthalf.com/nz/en',
       source: 'manual',
     }));
     expect(searchWithSerper).not.toHaveBeenCalled();
