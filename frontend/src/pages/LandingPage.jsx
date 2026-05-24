@@ -91,6 +91,7 @@ export default function LandingPage() {
         <div className="hidden items-center gap-8 text-sm font-medium sm:flex" style={{ color: 'var(--text-muted)' }}>
           <a href="#how-it-works" className="transition hover:opacity-70">How it works</a>
           <a href="#features" className="transition hover:opacity-70">Features</a>
+          <button onClick={() => navigate('/pricing')} className="transition hover:opacity-70">Pricing</button>
           <a href="#faq" className="transition hover:opacity-70">FAQ</a>
         </div>
         <div className="flex items-center gap-3">
@@ -320,6 +321,7 @@ export default function LandingPage() {
             <ul className="space-y-2 text-sm" style={{ color: 'var(--text-muted)' }}>
               <li><a href="#how-it-works" className="transition hover:opacity-70">How it works</a></li>
               <li><a href="#features" className="transition hover:opacity-70">Features</a></li>
+              <li><button onClick={() => navigate('/pricing')} className="transition hover:opacity-70">Pricing</button></li>
               <li><a href="#faq" className="transition hover:opacity-70">FAQ</a></li>
             </ul>
           </div>

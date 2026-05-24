@@ -67,6 +67,22 @@ const buildNzWorkplaceFitText = (nzWorkplaceFit = {}) => {
   return `${scoreText}${nzWorkplaceFit.summary || ''} ${strengthText}${gapText}`.trim();
 };
 
+const buildCompanyMotivationFitText = (companyMotivationFit = {}) => {
+  if (!companyMotivationFit?.summary) return 'Company and role motivation feedback was not available.';
+  const availability = companyMotivationFit.source === 'official_website' || companyMotivationFit.source === 'manual'
+    ? 'Company-specific sources were available and used for this section.'
+    : 'Company-specific sources were not available, so the system used the general motivation rubric.';
+  const nextImprovement = companyMotivationFit.suggestedRewrite
+    || ensureArray(companyMotivationFit.missingValues).map((item) => item.suggestion).filter(Boolean)[0]
+    || 'Before the next interview, prepare one company fact, one role-specific responsibility, and one personal project link.';
+
+  return [
+    `Company research availability: ${availability}`,
+    `Candidate performance: ${companyMotivationFit.summary}`,
+    `Next improvement: ${nextImprovement}`,
+  ].join('\n');
+};
+
 /**
  * Compute an interview performance score (0-100) from evidence analysis and AI turn scores.
  * Factors:
@@ -126,6 +142,7 @@ export const buildReportDraft = ({
   reflectionRecords = [],
   userCoachingMemory = {},
   nzWorkplaceFit = {},
+  companyMotivationFit = {},
 }) => {
   const strongEvidenceText = buildStrongEvidenceText(evidenceSummary);
   const averageInteractionScore = ensureArray(evaluatorRecords).length
@@ -192,6 +209,11 @@ export const buildReportDraft = ({
         title: 'NZ workplace communication fit',
         content: buildNzWorkplaceFitText(nzWorkplaceFit),
       },
+      {
+        id: 'company_motivation_fit',
+        title: 'Company & role motivation fit',
+        content: buildCompanyMotivationFitText(companyMotivationFit),
+      },
     ],
     scores: {
       overall: computeBlendedOverallScore(
@@ -230,6 +252,7 @@ export const buildReportDraft = ({
       averageStrength: evidenceSummary.averageStrength,
     },
     nzWorkplaceFit,
+    companyMotivationFit,
     candidateFeedback,
   };
 };

@@ -23,6 +23,7 @@ export const buildJobDescriptionViewModel = (rubric = {}) => {
     title: rubric.jobOverview?.title || rubric.title || 'Target Role',
     overviewItems: [
       rubric.jobOverview?.companyName ? `Company: ${rubric.jobOverview.companyName}` : null,
+      rubric.jobOverview?.companyWebsiteUrl ? `Website: ${rubric.jobOverview.companyWebsiteUrl}` : null,
       rubric.jobOverview?.location ? `Location: ${rubric.jobOverview.location}` : null,
       rubric.jobOverview?.contractType ? `Contract type: ${rubric.jobOverview.contractType}` : null,
       rubric.jobOverview?.employmentType ? `Employment type: ${rubric.jobOverview.employmentType}` : null,

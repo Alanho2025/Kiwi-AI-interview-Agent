@@ -149,6 +149,7 @@ export const buildBehaviouralModeQuestion = ({ selectedQuestion = {}, targetTopi
 export const guardQuestionForInterviewMode = ({ focusArea = 'combined', actionType = '', selectedQuestion = null, targetTopic = '', latestAnswer = '' } = {}) => {
   const mode = normalizeInterviewMode(focusArea);
   if (!selectedQuestion || mode === 'combined') return selectedQuestion;
+  if (selectedQuestion.type === 'company_motivation' || selectedQuestion.topic === 'company_and_role_motivation') return selectedQuestion;
 
   const stage = normalizeKey(`${selectedQuestion.stage || ''} ${selectedQuestion.category || ''}`);
   if (stage.includes('opening') || stage.includes('closing') || stage.includes('wrap')) return selectedQuestion;

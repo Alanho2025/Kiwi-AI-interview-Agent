@@ -223,7 +223,7 @@ export const buildQuestionPoolFromAnalysis = (analysisResult, settings = {}, opt
     settings,
   });
   const roleLabel = roleMeta.displayTitle || 'the role';
-  const companyName = analysisResult?.companyName || rubric?.companyName || '';
+  const companyName = analysisResult?.companyName || rubric?.jobOverview?.companyName || rubric?.companyName || '';
   const technicalSkills = (hints.mustProbeSkills || []).filter(Boolean);
   const behaviouralTopics = (hints.mustProbeBehavioural || ['teamwork', 'communication', 'ownership']).filter(Boolean);
 
@@ -245,6 +245,24 @@ export const buildQuestionPoolFromAnalysis = (analysisResult, settings = {}, opt
       generationReason: 'Start with a natural introduction before targeted probing.',
       confidence: 1,
       planPriority: 1,
+    },
+    {
+      type: 'company_motivation',
+      category: 'motivation',
+      stage: 'motivation',
+      topic: 'company_and_role_motivation',
+      followUpDepth: 0,
+      text: 'What attracted you to this company and role?',
+      reason: 'Capture company and role motivation for report coaching.',
+      priority: 2,
+      basedOnSkills: [],
+      sourceType: 'company_motivation',
+      matchedRequirementId: 'company_role_motivation',
+      matchedSkill: 'company_and_role_motivation',
+      cvEvidenceRefs: [],
+      generationReason: 'Ask an early motivation question independent of company values enrichment readiness.',
+      confidence: 1,
+      planPriority: 2,
     },
   ];
 
