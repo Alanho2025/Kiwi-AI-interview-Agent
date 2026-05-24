@@ -20,7 +20,10 @@ import { asyncHandler } from '../middleware/asyncHandler.js';
 import { badRequest } from '../utils/appError.js';
 import { logger, getRequestLogMeta } from '../utils/logger.js';
 import { recordLocalUsage } from '../services/aiUsageTrackingService.js';
-import { extractCompanyValuesContextFromJd } from '../services/company/companyValuesFingerprintService.js';
+import {
+  extractCompanyValuesContextFromJd,
+  shouldStartCompanyValuesEnrichment,
+} from '../services/company/companyValuesFingerprintService.js';
 import {
   attachCompanyValuesProfileToSession,
   getCompanyValuesProfileByFingerprint,
@@ -98,13 +101,28 @@ export const generateInterviewPlan = asyncHandler(async (req, res) => {
     userId: user.id,
     jdFingerprint: companyValuesContext.jdFingerprint,
   });
+  const shouldStartEnrichment = shouldStartCompanyValuesEnrichment({
+    companyValuesContext,
+    jdRubric: jdRubric || resolvedAnalysis?.parsedJdProfile || {},
+  });
+
+  logger.info('Company values context resolved', getRequestLogMeta(req, {
+    userId: user.id,
+    sessionId: session.id,
+    companyName: companyValuesContext.companyName || null,
+    websiteUrl: companyValuesContext.websiteUrl || null,
+    inputTrustLevel: jdRubric?.metadata?.inputTrustLevel || resolvedAnalysis?.parsedJdProfile?.metadata?.inputTrustLevel || null,
+    hasExistingCompanyValuesProfile: Boolean(existingCompanyValuesProfile),
+    shouldStartEnrichment,
+  }));
+
   if (existingCompanyValuesProfile) {
     await attachCompanyValuesProfileToSession({
       userId: user.id,
       jdFingerprint: companyValuesContext.jdFingerprint,
       sessionId: session.id,
     });
-  } else if (jdRubric?.metadata?.inputTrustLevel === 'human_reviewed') {
+  } else if (shouldStartEnrichment) {
     await startCompanyValuesEnrichment({
       userId: user.id,
       jdFingerprint: companyValuesContext.jdFingerprint,
