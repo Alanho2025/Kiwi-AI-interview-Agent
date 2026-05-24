@@ -24,6 +24,8 @@ const ReportPage = lazyNamedPage(() => import('./pages/ReportPage.jsx'), 'Report
 const Login = lazy(() => import('./pages/Login.jsx'));
 const HomePage = lazy(() => import('./pages/HomePage.jsx'));
 const LandingPage = lazy(() => import('./pages/LandingPage.jsx'));
+const PricingPage = lazy(() => import('./pages/PricingPage.jsx'));
+const ContactSalesPage = lazy(() => import('./pages/ContactSalesPage.jsx'));
 
 import { useTheme } from './hooks/useTheme.js';
 
@@ -47,6 +49,8 @@ export default function App() {
         <Suspense fallback={<PageLoadingFallback />}>
           <Routes>
             <Route path="/" element={<LandingPage />} />
+            <Route path="/pricing" element={<PricingPage />} />
+            <Route path="/contact-sales" element={<ContactSalesPage />} />
             <Route path="/login" element={<Login />} />
             <Route element={<ProtectedRoute />}>
               {/* Alias /home to /dashboard for backwards compatibility */}
