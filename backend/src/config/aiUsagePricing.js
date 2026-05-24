@@ -10,6 +10,12 @@ const numberFromEnv = (key, fallback) => {
 
 export const AI_USAGE_PRICING_VERSION = process.env.AI_USAGE_PRICING_VERSION || '2026-05-default';
 
+export const AI_USAGE_CURRENCY = {
+  providerCurrency: 'USD',
+  reportCurrency: 'NZD',
+  usdToNzdRate: numberFromEnv('AI_USAGE_USD_TO_NZD_RATE', 1.65),
+};
+
 export const DEEPSEEK_CHAT_PRICING = {
   inputCacheHitPer1M: numberFromEnv('DEEPSEEK_INPUT_CACHE_HIT_PER_1M_USD', 0.07),
   inputCacheMissPer1M: numberFromEnv('DEEPSEEK_INPUT_CACHE_MISS_PER_1M_USD', 0.27),
@@ -24,7 +30,7 @@ export const AZURE_SPEECH_PRICING = {
 export const COMMERCIAL_STRESS_ASSUMPTIONS = {
   conservativeMinutesReplaced: numberFromEnv('COMMERCIAL_STRESS_CONSERVATIVE_MINUTES', 30),
   moderateMinutesReplaced: numberFromEnv('COMMERCIAL_STRESS_MODERATE_MINUTES', 60),
-  hourlyLaborRate: numberFromEnv('COMMERCIAL_STRESS_HOURLY_RATE_USD', 35),
+  hourlyLaborRate: numberFromEnv('COMMERCIAL_STRESS_HOURLY_RATE_NZD', 35),
 };
 
 export const calculateDeepSeekCost = ({
