@@ -25,6 +25,14 @@ const inferCompanyLabelFromWebsite = (manualWebsiteUrl = '') => {
   }
 };
 
+const getCompanyValuesMinConfidence = ({ source } = {}) => {
+  if (source === 'manual') {
+    return Number(process.env.COMPANY_VALUES_MANUAL_MIN_CONFIDENCE || 0.45);
+  }
+
+  return Number(process.env.COMPANY_VALUES_MIN_CONFIDENCE || 0.65);
+};
+
 const runCompanyValuesEnrichment = async ({
   userId,
   jdFingerprint,
@@ -120,7 +128,7 @@ const runCompanyValuesEnrichment = async ({
       websiteUrl: resolved.websiteUrl,
       pages,
     });
-    const minConfidence = Number(process.env.COMPANY_VALUES_MIN_CONFIDENCE || 0.65);
+    const minConfidence = getCompanyValuesMinConfidence({ source: resolved.source });
 
     if (!extracted.values?.length || extracted.confidence < minConfidence) {
       return saveCompanyValuesProfile({
@@ -223,3 +231,4 @@ export const startCompanyValuesEnrichment = async ({
 };
 
 export const runCompanyValuesEnrichmentNow = runCompanyValuesEnrichment;
+export const resolveCompanyValuesMinConfidence = getCompanyValuesMinConfidence;

@@ -10,7 +10,7 @@
  */
 
 import React from 'react';
-import { Mic, Settings } from 'lucide-react';
+import { Settings } from 'lucide-react';
 import { controlModeOptions, focusOptions, questionLimitOptions, seniorityOptions, timeLimitOptions } from '../../utils/sessionSettings.js';
 
 /**
@@ -24,14 +24,13 @@ export function StartSessionCard({ summary, showSessionSettings, sessionDefaults
     <div className="relative overflow-hidden rounded-2xl glass p-6 sm:p-8">
       <div className="relative z-10 flex flex-col items-stretch justify-between gap-8 xl:flex-row xl:items-start">
         <div className="max-w-lg">
-          <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-accent">Interview Practice</p>
-          <h1 className="mb-4 text-3xl sm:text-4xl font-bold leading-tight text-primary tracking-tight">Start a new session</h1>
+          <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-accent">Interview practice</p>
+          <h1 className="mb-4 text-3xl sm:text-4xl font-bold leading-tight text-primary tracking-tight">Start a practice session</h1>
           <p className="mb-6 text-sm leading-relaxed text-muted font-medium">
-            Fast, NZ-focused interview practice for pronunciation, timing and clarity.
-            Securely recorded to your Google account with NZ privacy compliance.
+            Choose text or voice practice, then review your CV and target job before the interview starts.
           </p>
           <div className="mb-6 border-l-2 [border-color:var(--accent)/50] pl-4">
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-faint mb-2">Current Parameters</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-faint mb-2">Current setup</p>
             <div className="flex flex-wrap gap-2 text-xs font-semibold">
               <span className="rounded-full border border-theme bg-chip px-3 py-1 text-primary">Level: {summary.level}</span>
               <span className="rounded-full border border-theme bg-chip px-3 py-1 text-primary">Focus: {summary.focus}</span>
@@ -43,13 +42,13 @@ export function StartSessionCard({ summary, showSessionSettings, sessionDefaults
               className="rounded-xl [background:var(--accent-bright)] px-6 py-3 text-sm font-bold text-primary shadow-[0_0_20px_rgba(163,230,53,0.3)] transition hover:[background:#bef264] hover:shadow-[0_0_30px_rgba(163,230,53,0.5)] active:scale-95"
               onClick={onOpenTextInterview}
             >
-              Text Interview
+              Text interview
             </button>
             <button
               className="rounded-xl border [border-color:var(--accent)] [background:var(--accent-glow)] px-6 py-3 text-sm font-bold text-accent transition hover:[background:var(--accent-glow)] active:scale-95"
               onClick={onOpenVoiceInterview}
             >
-              Voice Interview
+              Voice interview
             </button>
             <button
               className="inline-flex items-center justify-center gap-2 rounded-xl border border-theme bg-chip px-5 py-3 text-sm font-semibold text-primary/70 transition hover:bg-chip"
@@ -68,24 +67,24 @@ export function StartSessionCard({ summary, showSessionSettings, sessionDefaults
         <div className="relative z-10 w-full rounded-2xl glass-darker p-6 sm:p-7 xl:max-w-xs">
           <div className="mb-5 flex items-start justify-between border-b border-theme pb-4">
             <div>
-              <div className="text-base font-bold text-primary">Snapshot</div>
-              <div className="text-[10px] uppercase tracking-widest text-faint mt-1">Default Config</div>
+              <div className="text-base font-bold text-primary">Saved setup</div>
+              <div className="text-[10px] uppercase tracking-widest text-faint mt-1">Used for new sessions</div>
             </div>
             <div className="rounded-full border [border-color:var(--accent)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-accent">Ready</div>
           </div>
           <div className="space-y-3 text-xs font-medium text-muted uppercase tracking-wider">
-            <div className="flex justify-between border-b border-theme pb-2"><span>Delivery</span><span className="font-bold text-primary">At start</span></div>
-            <div className="flex justify-between border-b border-theme pb-2"><span>Mode</span><span className="font-bold text-primary">{summary.controlMode}</span></div>
+            <div className="flex justify-between border-b border-theme pb-2"><span>Practice</span><span className="font-bold text-primary">Choose now</span></div>
+            <div className="flex justify-between border-b border-theme pb-2"><span>Limit</span><span className="font-bold text-primary">{summary.controlMode}</span></div>
             <div className="flex justify-between border-b border-theme pb-2"><span>Focus</span><span className="font-bold text-primary">{summary.focus}</span></div>
-            <div className="flex justify-between pb-2"><span>Limit</span><span className="font-bold text-primary">{summary.limit}</span></div>
+            <div className="flex justify-between pb-2"><span>Length</span><span className="font-bold text-primary">{summary.limit}</span></div>
           </div>
           <div className="mt-6 rounded-xl border border-theme bg-chip p-4 text-xs text-muted">
-            <div className="mb-2 text-sm font-semibold text-primary">Coaching Scope</div>
+            <div className="mb-2 text-sm font-semibold text-primary">Practice scope</div>
             <div className="space-y-1.5 leading-relaxed">
               <div>• {summary.level} role simulation</div>
               <div>• {summary.focus} question mix</div>
               <div>• {summary.controlMode}: {summary.limit}</div>
-              <div>• NZ culture fit: {summary.nzContext}</div>
+              <div>• NZ workplace fit: {summary.nzContext}</div>
             </div>
           </div>
         </div>
@@ -93,7 +92,7 @@ export function StartSessionCard({ summary, showSessionSettings, sessionDefaults
 
       {showSessionSettings && (
         <div className="relative z-10 mt-6 rounded-2xl border border-theme bg-chip p-5 sm:p-7 animate-fade-in-up">
-          <h3 className="mb-5 text-base font-bold text-primary">Configuration Settings</h3>
+          <h3 className="mb-5 text-base font-bold text-primary">Session settings</h3>
           <div className="grid gap-4 lg:grid-cols-3">
             <label className="text-[10px] font-bold uppercase tracking-widest text-muted">
               Seniority level
@@ -108,7 +107,7 @@ export function StartSessionCard({ summary, showSessionSettings, sessionDefaults
               </select>
             </label>
             <label className="text-[10px] font-bold uppercase tracking-widest text-muted">
-              Question type
+              Question focus
               <select
                 className="mt-2 w-full rounded-xl border border-theme bg-chip px-4 py-3 text-sm text-primary outline-none focus:[border-color:var(--accent)]"
                 value={sessionDefaults.focusArea}
@@ -120,7 +119,7 @@ export function StartSessionCard({ summary, showSessionSettings, sessionDefaults
               </select>
             </label>
             <label className="text-[10px] font-bold uppercase tracking-widest text-muted">
-              Interview mode
+              Session limit
               <select
                 className="mt-2 w-full rounded-xl border border-theme bg-chip px-4 py-3 text-sm text-primary outline-none focus:[border-color:var(--accent)]"
                 value={sessionDefaults.controlMode}
@@ -168,11 +167,11 @@ export function StartSessionCard({ summary, showSessionSettings, sessionDefaults
                 checked={sessionDefaults.enableNZCultureFit}
                 onChange={(event) => onChangeDefaults('enableNZCultureFit', event.target.checked)}
               />
-              Enable NZ culture fit
+              Include NZ workplace fit
             </label>
           </div>
           <div className="mt-4 rounded-xl border border-theme bg-chip px-4 py-3 text-xs text-muted">
-            Voice readiness check runs inside the Voice Session screen.
+            Choose voice mode when you want to check your microphone and speaker before starting.
           </div>
 
           <div className="mt-5 flex flex-wrap items-center gap-3">

@@ -7,22 +7,22 @@ const formatScore = (value) => {
 };
 
 const getSourceLabel = (source, fallbackReason) => {
-  if (source === 'official_website' || source === 'manual') return 'Official company context';
-  if (fallbackReason) return 'General rubric fallback';
-  return 'General motivation rubric';
+  if (source === 'official_website' || source === 'manual') return 'Company context used';
+  if (fallbackReason) return 'General motivation guide';
+  return 'General motivation guide';
 };
 
 const getAvailabilityText = (fit = {}) => {
   if (fit.source === 'official_website' || fit.source === 'manual') {
-    return 'Company-specific sources were available and used for this section.';
+    return 'Company context was available for this section. Review the feedback and add one specific company fact to your next answer.';
   }
-  return 'Company-specific sources were not available, so the system used the general motivation rubric.';
+  return 'Company context was not available. Add a company website or company details next time for more specific feedback.';
 };
 
 const getNextImprovementText = (fit = {}) =>
   fit.suggestedRewrite ||
   (fit.missingValues || []).map((item) => item.suggestion).filter(Boolean)[0] ||
-  'Before the next interview, prepare one company fact, one role-specific responsibility, and one personal project link.';
+  'Before the next interview, prepare one company fact, one role responsibility, and one project link from your CV.';
 
 const ThreePartBlock = ({ icon: Icon, title, children }) => (
   <div className="rounded-xl border border-theme glass p-4">
@@ -42,8 +42,8 @@ export function CompanyMotivationFitSection({ fit }) {
     <Card>
       <CardHeader className="items-start">
         <div>
-          <CardTitle>Company & Role Motivation Fit</CardTitle>
-          <p className="mt-1 text-sm text-faint">Feedback on the answer to what attracted you to the company and role.</p>
+          <CardTitle>Company and role motivation</CardTitle>
+          <p className="mt-1 text-sm text-faint">Use this feedback to improve how you explain your interest in the company and role.</p>
         </div>
         <span className="shrink-0 rounded-full bg-chip px-3 py-1 text-xs font-semibold text-muted">
           {sourceLabel}
@@ -59,10 +59,10 @@ export function CompanyMotivationFitSection({ fit }) {
             </div>
           </div>
           <div className="grid gap-4">
-            <ThreePartBlock icon={SearchCheck} title="Company research availability">
+            <ThreePartBlock icon={SearchCheck} title="Company context">
               {getAvailabilityText(fit)}
             </ThreePartBlock>
-            <ThreePartBlock icon={ClipboardCheck} title="Candidate performance">
+            <ThreePartBlock icon={ClipboardCheck} title="How your answer landed">
               {fit.summary}
             </ThreePartBlock>
             <ThreePartBlock icon={ArrowUpRight} title="Next improvement">

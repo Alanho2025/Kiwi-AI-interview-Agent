@@ -22,28 +22,28 @@ export function QuickTipsCard() {
   return (
     <div className="glass rounded-2xl p-5 sm:p-6">
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-base font-bold text-primary">Quick Tips</h3>
-        <span className="text-[10px] font-bold uppercase tracking-widest text-accent">NZ Focus</span>
+        <h3 className="text-base font-bold text-primary">Quick tips</h3>
+        <span className="text-[10px] font-bold uppercase tracking-widest text-accent">NZ focus</span>
       </div>
       <ul className="mb-5 space-y-3 text-sm leading-relaxed text-muted">
         <li className="flex items-start gap-2">
           <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full [background:var(--accent-bright)]" />
-          Speak clearly at a steady pace. Aim for 140–160 wpm for technical answers.
+          Pick one job requirement and link it to a real example from your CV.
         </li>
         <li className="flex items-start gap-2">
           <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full [background:var(--accent-bright)]" />
-          Emphasize keywords in NZ English: 'process', 'schedule', 'route'.
+          Use STAR for behavioural answers: situation, task, action, and result.
         </li>
         <li className="flex items-start gap-2">
           <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full [background:var(--accent-bright)]" />
-          Use timed mode to build concise answers under pressure.
+          Use timed mode to practise shorter answers before the real interview.
         </li>
       </ul>
       <div className="border-t border-theme pt-4">
         <div className="flex h-16 w-full items-end rounded-xl border [border-color:var(--accent)] bg-chip p-2">
           <TrendingUp className="h-full w-full text-accent opacity-30" />
         </div>
-        <div className="mt-2 text-[10px] font-semibold uppercase tracking-wider text-faint">Weekly practice trend</div>
+        <div className="mt-2 text-[10px] font-semibold uppercase tracking-wider text-faint">Practice progress</div>
       </div>
     </div>
   );
