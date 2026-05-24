@@ -44,75 +44,81 @@ export function AnalyzeActionsCard({
   const thresholdPercent = Math.round(jdConfidenceThreshold * 100);
 
   const buttonLabel = (() => {
-    if (analysisStatus === 'summarizing') return 'Summarizing JD...';
-    if (analysisStatus === 'matching') return 'Generating Match Analysis...';
-    if (!selectedCV) return 'Select or upload a CV to continue';
-    if (!isCvHumanVerified) return 'Review CV parse before matching';
-    if (!hasRawJD) return 'Paste a JD first';
-    if (!hasCurrentJDSummary) return 'Summarise JD before matching';
-    if (requiresJdHumanReview) return 'Review JD summary before matching';
-    if (isVoiceSession && !isVoiceReady) return 'Complete device check first';
-    return 'Generate Match Analysis';
+    if (analysisStatus === 'summarizing') return 'Parsing job description...';
+    if (analysisStatus === 'matching') return 'Generating match analysis...';
+    if (!selectedCV) return 'Upload or choose a CV first';
+    if (!isCvHumanVerified) return 'Review the CV fields first';
+    if (!hasRawJD) return 'Paste a job description first';
+    if (!hasCurrentJDSummary) return 'Parse the job description first';
+    if (requiresJdHumanReview) return 'Review the job description fields first';
+    if (isVoiceSession && !isVoiceReady) return 'Complete the voice check first';
+    return 'Generate match analysis';
   })();
 
   const helperText = (() => {
     if (analysisStatus === 'success' && isVoiceSession && !isVoiceReady) {
-      return 'Run the voice readiness check in Session Setup before continuing to Voice Session.';
+      return 'Run the voice check before opening the voice interview.';
+    }
+    if (!selectedCV) {
+      return 'Upload a new CV or choose one from your recent CV list.';
     }
     if (selectedCV && !isCvHumanVerified) {
-      return 'Check the parsed CV fields used for matching, then mark the CV as reviewed.';
+      return 'Check the CV fields that will be used for matching, then mark them as reviewed.';
+    }
+    if (!hasRawJD) {
+      return 'Paste the target job description so the system can compare it with your CV.';
     }
     if (!hasCurrentJDSummary) {
-      return 'CV-JD matching uses the reviewed JD summary, so summarise the current JD before generating the plan.';
+      return 'Parse the current job description before running the match.';
     }
     if (requiresJdHumanReview) {
-      return `JD confidence is ${confidencePercent}%. Gate target is ${thresholdPercent}%, but every JD still needs one human review before matching.`;
+      return `Review the parsed job fields. Current confidence is ${confidencePercent}%, and the target is ${thresholdPercent}%.`;
     }
     if (isVoiceSession && !isVoiceReady) {
-      return 'Run the device check in Session Setup before generating the match analysis for a voice interview.';
+      return 'Check your microphone and speaker before generating a voice interview.';
     }
     if (isVoiceSession) {
-      return 'Voice devices are ready. Your interview plan will use the selected CV, reviewed JD, and session setup above.';
+      return 'Voice setup is ready. Generate the match to create your interview plan.';
     }
-    return 'Your interview plan will use the selected CV, reviewed JD, delivery mode, and session setup above.';
+    return 'Setup is ready. Generate the match to create your interview plan.';
   })();
 
   const workflowSteps = [
     {
-      label: 'CV selected',
-      detail: selectedCV ? selectedCV.name : 'Upload or choose a recent CV.',
+      label: 'CV added',
+      detail: selectedCV ? selectedCV.name : 'Upload or choose a CV.',
       complete: Boolean(selectedCV),
       blocked: false,
     },
     {
-      label: 'CV parse reviewed',
-      detail: isCvHumanVerified ? 'Reviewed profile is ready for matching.' : 'Check the parsed fields and mark the CV as reviewed.',
+      label: 'CV reviewed',
+      detail: isCvHumanVerified ? 'The reviewed CV fields are ready.' : 'Check the parsed CV fields before matching.',
       complete: isCvHumanVerified,
       blocked: Boolean(selectedCV && !isCvHumanVerified),
     },
     {
-      label: 'JD selected',
-      detail: hasRawJD ? 'Target job description is ready.' : 'Paste or choose the target job description.',
+      label: 'Job description added',
+      detail: hasRawJD ? 'The target job description is ready.' : 'Paste the target job description.',
       complete: hasRawJD,
       blocked: false,
     },
     {
-      label: 'JD parse reviewed',
-      detail: canUseJDSummary ? 'Extracted requirements are reviewed.' : hasRawJD ? 'Review the extracted job requirements.' : 'Add a JD before reviewing the parse.',
+      label: 'Job description reviewed',
+      detail: canUseJDSummary ? 'The parsed job fields are ready.' : hasRawJD ? 'Parse and review the job fields.' : 'Add a job description first.',
       complete: Boolean(canUseJDSummary),
       blocked: Boolean(hasRawJD && (!hasCurrentJDSummary || requiresJdHumanReview)),
     },
     {
-      label: isVoiceSession ? 'Device check' : 'Session setup',
+      label: isVoiceSession ? 'Voice check' : 'Session setup',
       detail: isVoiceSession
-        ? isVoiceReady ? 'Microphone and speaker checks passed.' : 'Run the voice readiness check before starting.'
-        : 'Text session setup is ready.',
+        ? isVoiceReady ? 'Microphone and speaker are ready.' : 'Check your microphone and speaker.'
+        : 'Text interview setup is ready.',
       complete: setupReady,
       blocked: Boolean(isVoiceSession && !isVoiceReady),
     },
     {
       label: 'Match analysis',
-      detail: generatedSessionId ? 'Interview plan is ready.' : 'Generate the plan after the inputs are reviewed.',
+      detail: generatedSessionId ? 'Your interview plan is ready.' : 'Generate the match after all inputs are reviewed.',
       complete: Boolean(generatedSessionId),
       blocked: false,
     },
@@ -148,7 +154,7 @@ export function AnalyzeActionsCard({
           onClick={onStartInterview}
           disabled={!canContinue}
         >
-          {isVoiceSession ? 'Continue to Voice Session' : 'Start Text Interview'}
+          {isVoiceSession ? 'Continue to voice interview' : 'Start text interview'}
         </Button>
       ) : (
         <Button
