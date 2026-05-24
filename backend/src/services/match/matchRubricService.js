@@ -56,11 +56,12 @@ const requiresHumanReviewedRubricRebuild = (jdRubric = {}) => (
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
 export const normalizeRubric = async (rawJD, jdRubric) => {
+  if (jdRubric?.schemaVersion === 'v3' && jdRubric?.macroCriteria && jdRubric?.microCriteria) return jdRubric;
+
   if (jdRubric && requiresHumanReviewedRubricRebuild(jdRubric)) {
     return buildStructuredJobDescriptionRubric(buildFallbackRubricText(jdRubric));
   }
 
-  if (jdRubric?.schemaVersion === 'v3' && jdRubric?.macroCriteria && jdRubric?.microCriteria) return jdRubric;
   if (jdRubric) return buildStructuredJobDescriptionRubric(rawJD || buildFallbackRubricText(jdRubric));
   return buildStructuredJobDescriptionRubric(rawJD || '');
 };

@@ -1,5 +1,8 @@
 import { callDeepSeek } from '../deepseekService.js';
 
+const VALUE_HEADING_PATTERN = /\b(values?|principles?|culture|mission|purpose|what we stand for|who we are)\b/i;
+const BULLET_PATTERN = /^(?:[-*•]|\d+[.)])\s+/;
+
 const extractJsonObject = (text = '') => {
   const fencedMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
   if (fencedMatch?.[1]) return fencedMatch[1].trim();
@@ -33,6 +36,56 @@ const normalizeExtractedValues = (value = {}) => ({
   confidence: Number.isFinite(Number(value.confidence)) ? Number(value.confidence) : 0,
 });
 
+const buildHeuristicCompanyValues = ({ pages = [] } = {}) => {
+  const values = [];
+  const cultureNotes = [];
+  let mission = '';
+
+  for (const page of pages) {
+    const lines = String(page.text || '')
+      .split(/\n+/)
+      .map((line) => line.replace(/\s+/g, ' ').trim())
+      .filter((line) => line.length >= 8 && line.length <= 220);
+
+    for (let index = 0; index < lines.length; index += 1) {
+      const line = lines[index];
+      const nearValueHeading = VALUE_HEADING_PATTERN.test(line)
+        || lines.slice(Math.max(0, index - 2), index).some((previous) => VALUE_HEADING_PATTERN.test(previous));
+
+      if (!mission && /\b(mission|purpose)\b/i.test(line)) {
+        mission = line.replace(/^our\s+(mission|purpose)\s*(is|:)?\s*/i, '').trim();
+      }
+
+      if (nearValueHeading && (BULLET_PATTERN.test(line) || /^[A-Z][A-Za-z &-]{2,40}:/.test(line))) {
+        const cleaned = line.replace(BULLET_PATTERN, '').trim();
+        const [labelPart, ...descriptionParts] = cleaned.split(':');
+        const label = labelPart.trim();
+        const description = descriptionParts.join(':').trim() || cleaned;
+        if (label && label.length <= 50 && !values.some((item) => item.label.toLowerCase() === label.toLowerCase())) {
+          values.push({
+            id: normalizeId(label),
+            label,
+            description,
+            sourceUrl: page.url,
+            confidence: 0.55,
+          });
+        }
+      }
+
+      if (nearValueHeading && /culture|team|people|customer|community|innovation|integrity|collaboration|learning/i.test(line)) {
+        cultureNotes.push(line);
+      }
+    }
+  }
+
+  return normalizeExtractedValues({
+    mission,
+    values: values.slice(0, 6),
+    cultureNotes: [...new Set(cultureNotes)].slice(0, 5),
+    confidence: values.length ? 0.58 : 0.25,
+  });
+};
+
 export const extractCompanyValuesFromPages = async ({
   companyName,
   websiteUrl,
@@ -41,6 +94,10 @@ export const extractCompanyValuesFromPages = async ({
   const usablePages = pages.filter((page) => page.text && page.text.length >= 300);
   if (!usablePages.length) {
     return { mission: '', values: [], cultureNotes: [], confidence: 0 };
+  }
+
+  if (process.env.COMPANY_VALUES_AI_ENABLED === 'false') {
+    return buildHeuristicCompanyValues({ pages: usablePages });
   }
 
   const evidence = usablePages
@@ -82,18 +139,22 @@ Website content:
 ${evidence}
 `;
 
-  const { content } = await callDeepSeek(
-    prompt,
-    'You output valid JSON only. Stay grounded in the provided website text.',
-    {
-      usageMetadata: {
-        stage: 'report_generated',
-        operation: 'llm_chat',
-        feature: 'company_values_enrichment',
-      },
-    }
-  );
+  try {
+    const { content } = await callDeepSeek(
+      prompt,
+      'You output valid JSON only. Stay grounded in the provided website text.',
+      {
+        usageMetadata: {
+          stage: 'report_generated',
+          operation: 'llm_chat',
+          feature: 'company_values_enrichment',
+        },
+      }
+    );
 
-  const parsed = JSON.parse(extractJsonObject(content));
-  return normalizeExtractedValues(parsed);
+    const parsed = JSON.parse(extractJsonObject(content));
+    return normalizeExtractedValues(parsed);
+  } catch {
+    return buildHeuristicCompanyValues({ pages: usablePages });
+  }
 };
