@@ -14,7 +14,13 @@ export const SAFEGUARD_VERDICTS = {
 export const isMockAiMode = () => process.env.AI_TEST_MODE === 'mock';
 export const isRealAiMode = () => process.env.AI_TEST_MODE === 'real';
 
-export const shouldRunAgenticSafeguard = () => true;
+const isExplicitFalse = (value) => ['false', '0', 'no', 'off'].includes(String(value || '').toLowerCase());
+
+export const shouldRunAgenticSafeguard = () => {
+  if (isExplicitFalse(process.env.AGENTIC_SAFEGUARDS_ENABLED)) return false;
+  if (isExplicitFalse(process.env.ENABLE_AGENTIC_SAFEGUARDS)) return false;
+  return true;
+};
 
 export const assertSafeguardProviderConfigured = () => {
   if (isMockAiMode()) return;

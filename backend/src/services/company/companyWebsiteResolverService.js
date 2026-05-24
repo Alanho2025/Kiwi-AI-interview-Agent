@@ -60,7 +60,7 @@ export const resolveCompanyWebsite = async ({
     const allowed = await isPublicHttpUrl(manualUrl.toString());
     return allowed
       ? {
-          websiteUrl: manualUrl.origin,
+          websiteUrl: manualUrl.toString().replace(/\/$/, ''),
           confidence: 1,
           source: 'manual',
           searchQueries: [],
