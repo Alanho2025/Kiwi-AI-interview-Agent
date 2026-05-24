@@ -10,7 +10,16 @@ const numberFromEnv = (key, fallback) => {
 
 export const AI_USAGE_PRICING_VERSION = process.env.AI_USAGE_PRICING_VERSION || '2026-05-default';
 export const AI_USAGE_COST_CURRENCY = process.env.AI_USAGE_COST_CURRENCY || 'NZD';
-export const AI_USAGE_USD_TO_COST_CURRENCY_RATE = numberFromEnv('AI_USAGE_USD_TO_COST_CURRENCY_RATE', 1.65);
+export const AI_USAGE_USD_TO_COST_CURRENCY_RATE = numberFromEnv(
+  'AI_USAGE_USD_TO_COST_CURRENCY_RATE',
+  numberFromEnv('AI_USAGE_USD_TO_NZD_RATE', 1.65)
+);
+
+export const AI_USAGE_CURRENCY = {
+  providerCurrency: 'USD',
+  reportCurrency: AI_USAGE_COST_CURRENCY,
+  usdToNzdRate: AI_USAGE_USD_TO_COST_CURRENCY_RATE,
+};
 
 export const convertUsdCostToUsageCurrency = (cost = 0) => {
   const normalizedCost = Math.max(0, Number(cost) || 0);

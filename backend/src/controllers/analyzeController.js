@@ -67,6 +67,11 @@ const extractTargetRole = ({ jdText = '', jdRubric = null, analysisResult = null
   return String(analysisResult?.jobTitle || '').trim();
 };
 
+const hasReliableCompanyValuesProfile = (profile = null) => {
+  if (!profile || profile.status !== 'ready') return false;
+  return ['manual', 'official_website'].includes(profile.source);
+};
+
 export const generateInterviewPlan = asyncHandler(async (req, res) => {
   const { cvId, rawJD, jdText, jdRubric, settings, sessionSetup, analysisResult, matchAnalysisId, mode } = req.body;
   const user = await authService.resolveUserFromRequest(req);
@@ -105,6 +110,7 @@ export const generateInterviewPlan = asyncHandler(async (req, res) => {
     companyValuesContext,
     jdRubric: jdRubric || resolvedAnalysis?.parsedJdProfile || {},
   });
+  const hasReliableProfile = hasReliableCompanyValuesProfile(existingCompanyValuesProfile);
 
   logger.info('Company values context resolved', getRequestLogMeta(req, {
     userId: user.id,
@@ -113,10 +119,14 @@ export const generateInterviewPlan = asyncHandler(async (req, res) => {
     websiteUrl: companyValuesContext.websiteUrl || null,
     inputTrustLevel: jdRubric?.metadata?.inputTrustLevel || resolvedAnalysis?.parsedJdProfile?.metadata?.inputTrustLevel || null,
     hasExistingCompanyValuesProfile: Boolean(existingCompanyValuesProfile),
+    existingCompanyValuesSource: existingCompanyValuesProfile?.source || null,
+    existingCompanyValuesStatus: existingCompanyValuesProfile?.status || null,
+    existingCompanyValuesFallbackReason: existingCompanyValuesProfile?.fallbackReason || null,
+    hasReliableCompanyValuesProfile: hasReliableProfile,
     shouldStartEnrichment,
   }));
 
-  if (existingCompanyValuesProfile) {
+  if (hasReliableProfile) {
     await attachCompanyValuesProfileToSession({
       userId: user.id,
       jdFingerprint: companyValuesContext.jdFingerprint,
@@ -131,6 +141,12 @@ export const generateInterviewPlan = asyncHandler(async (req, res) => {
       location: companyValuesContext.location,
       jdText: companyValuesContext.jdText,
       manualWebsiteUrl: companyValuesContext.websiteUrl,
+    });
+  } else if (existingCompanyValuesProfile) {
+    await attachCompanyValuesProfileToSession({
+      userId: user.id,
+      jdFingerprint: companyValuesContext.jdFingerprint,
+      sessionId: session.id,
     });
   }
   await Promise.all([

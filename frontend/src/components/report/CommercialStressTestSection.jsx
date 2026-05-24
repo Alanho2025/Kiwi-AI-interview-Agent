@@ -36,14 +36,14 @@ export function CommercialStressTestSection({ commercialStressTest }) {
 
   const humanMinutes = commercialStressTest.estimatedHumanMinutesReplaced || {};
   const stageBreakdown = commercialStressTest.stageBreakdown || [];
-  const currency = commercialStressTest.currency || 'USD';
+  const currency = commercialStressTest.currency || 'NZD';
 
   return (
     <Card>
       <CardHeader className="items-start">
         <div>
           <CardTitle>Commercial Stress Test</CardTitle>
-          <p className="mt-1 text-sm text-faint">Estimated provider cost compared with equivalent manual review and coaching time.</p>
+          <p className="mt-1 text-sm text-faint">Estimated provider cost in NZD compared with equivalent manual review and coaching time.</p>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">

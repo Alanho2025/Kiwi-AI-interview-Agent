@@ -41,7 +41,7 @@ const resolveScoreExplanation = ({ key, score, candidateFeedback = {}, report = 
 
   const templates = {
     overall: {
-      summary: score >= 75 ? 'Strong base, with a few coaching levers left.' : 'Useful signal, but the evidence needs more depth.',
+      summary: score >= 75 ? 'Strong base, with a few areas to improve.' : 'Useful signal, but the evidence needs more depth.',
       helped: firstStrength,
       lowered: score >= 75 ? 'Some answers could still be more specific.' : firstPriority,
       next: 'Improve the weakest evidence gap first.',
@@ -49,7 +49,7 @@ const resolveScoreExplanation = ({ key, score, candidateFeedback = {}, report = 
     cvJdMatch: {
       summary: score >= 75 ? 'Your CV matches several core role signals.' : 'The CV fit is directional, not fully convincing yet.',
       helped: firstStrength,
-      lowered: 'Missing or unclear proof for some JD requirements.',
+      lowered: 'Missing or unclear proof for some job requirements.',
       next: 'Rewrite CV bullets around the target requirements.',
     },
     interview: {
@@ -93,10 +93,15 @@ function ScoreExplanationCard({ title, score, subtitle, ringClass, accentClass, 
         </div>
       </div>
       <p className="mt-3 text-sm leading-6 text-muted">{explanation.summary}</p>
-      <ExplanationChip label="Next lever" value={explanation.next} />
+      <ExplanationChip label="Next improvement" value={explanation.next} />
     </div>
   );
 }
+
+const formatDecisionLabel = (value = 'manual_review') => {
+  if (value === 'manual_review') return 'manual review suggested';
+  return titleCase(value);
+};
 
 /**
  * Purpose: Execute the main responsibility for ReportHeroCard.
@@ -118,6 +123,8 @@ export function ReportHeroCard({ report, qa, takeaway, scoreBand, generationSour
     interview: resolveScoreExplanation({ key: 'interview', score: scores.interview, candidateFeedback, report }),
   };
 
+  const decision = report.summary?.match(/Decision:\s*([^.]*)\./i)?.[1] || 'manual_review';
+
   return (
     <Card className="border-theme glass">
       <CardContent className="p-5 sm:p-8">
@@ -125,16 +132,16 @@ export function ReportHeroCard({ report, qa, takeaway, scoreBand, generationSour
           <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
             <div className="max-w-3xl">
               <div className="mb-3 inline-flex rounded-lg bg-chip px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-accent">
-                Interview Report
+                Interview report
               </div>
-              <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-primary">Your Interview Feedback</h1>
+              <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-primary">Your interview feedback</h1>
               <p className="mt-3 max-w-2xl text-base leading-7 text-muted">{takeaway}</p>
               <div className="mt-5 flex flex-wrap gap-2">
                 <span className="rounded-lg bg-chip px-3 py-1.5 text-sm font-medium text-primary">{scoreBand}</span>
-                {generationSource === 'ai' ? <span className="rounded-lg bg-chip px-3 py-1.5 text-sm font-medium text-primary">AI-generated coaching</span> : null}
-                {generationSource === 'fallback' ? <span className="rounded-lg bg-chip px-3 py-1.5 text-sm font-medium text-primary">Fallback coaching</span> : null}
-                <span className="rounded-lg glass px-3 py-1.5 text-sm font-medium text-muted shadow-sm">Decision: {titleCase(report.summary?.match(/Decision:\s*([^.]*)\./i)?.[1] || 'manual_review')}</span>
-                <span className="rounded-lg glass px-3 py-1.5 text-sm font-medium text-muted shadow-sm">QA: {qa.passed ? 'Passed' : 'Needs review'}</span>
+                {generationSource === 'ai' ? <span className="rounded-lg bg-chip px-3 py-1.5 text-sm font-medium text-primary">AI-assisted coaching</span> : null}
+                {generationSource === 'fallback' ? <span className="rounded-lg bg-chip px-3 py-1.5 text-sm font-medium text-primary">Basic coaching mode</span> : null}
+                <span className="rounded-lg glass px-3 py-1.5 text-sm font-medium text-muted shadow-sm">Review status: {formatDecisionLabel(decision)}</span>
+                <span className="rounded-lg glass px-3 py-1.5 text-sm font-medium text-muted shadow-sm">Report QA: {qa.passed ? 'Passed' : 'Needs review'}</span>
               </div>
             </div>
           </div>
@@ -160,9 +167,9 @@ export function ReportHeroCard({ report, qa, takeaway, scoreBand, generationSour
               explanation={explanations.overall}
             />
             <ScoreExplanationCard
-              title="CV-JD Match"
+              title="CV-JD match"
               score={scores.cvJdMatch}
-              subtitle="Resume fit signal"
+              subtitle="CV fit signal"
               ringClass="ring-gray-100"
               accentClass="text-faint"
               explanation={explanations.cvJdMatch}
