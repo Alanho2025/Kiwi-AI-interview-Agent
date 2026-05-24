@@ -17,8 +17,41 @@ import { buildReportDraft } from './reportGenerator/reportDraftBuilder.js';
 import { SessionAnalysis } from '../../db/models/sessionAnalysisModel.js';
 import { getUserCoachingMemory } from '../aiControl/userCoachingMemoryService.js';
 import { buildNzWorkplaceFit } from '../nzWorkplaceFitService.js';
-import { getCompanyValuesProfile } from '../company/companyValuesRepository.js';
+import {
+  attachCompanyValuesProfileToSession,
+  getCompanyValuesProfile,
+  getCompanyValuesProfileByFingerprint,
+} from '../company/companyValuesRepository.js';
+import { extractCompanyValuesContextFromJd } from '../company/companyValuesFingerprintService.js';
 import { buildCompanyMotivationFit } from '../company/companyMotivationFitService.js';
+
+const resolveCompanyValuesProfile = async ({ session = {}, analysisRecord = null } = {}) => {
+  if (!session.id) return null;
+
+  const bySession = await getCompanyValuesProfile(session.id);
+  if (bySession?.source === 'official_website' || bySession?.source === 'manual') return bySession;
+
+  const jdRubric = analysisRecord?.jdRubric || analysisRecord?.parsedJdProfile || session.analysisResult?.parsedJdProfile || session.analysisSetup?.structuredJDRubric || {};
+  const rawJD = session.rawJD || session.analysisSetup?.rawJD || analysisRecord?.jdStructuredText || session.jdText || '';
+  const context = extractCompanyValuesContextFromJd({ rawJD, jdRubric });
+  const byFingerprint = await getCompanyValuesProfileByFingerprint({
+    userId: session.userId,
+    jdFingerprint: context.jdFingerprint,
+  });
+
+  if (byFingerprint?.source === 'official_website' || byFingerprint?.source === 'manual') {
+    if (!byFingerprint.sessionId) {
+      await attachCompanyValuesProfileToSession({
+        userId: session.userId,
+        jdFingerprint: context.jdFingerprint,
+        sessionId: session.id,
+      });
+    }
+    return byFingerprint;
+  }
+
+  return bySession || byFingerprint || null;
+};
 
 export const runReportGeneratorAgent = async ({ session = {}, analysisResult = {}, interviewPlan = {}, retrievalBundle = null } = {}) => {
   const transcript = session.transcript || [];
@@ -38,7 +71,7 @@ export const runReportGeneratorAgent = async ({ session = {}, analysisResult = {
   const analysisRecord = session.id ? await SessionAnalysis.findOne({ sessionId: session.id }).lean() : null;
   const userCoachingMemory = await getUserCoachingMemory(session.userId);
   const nzWorkplaceFit = buildNzWorkplaceFit({ session });
-  const companyValuesProfile = session.id ? await getCompanyValuesProfile(session.id) : null;
+  const companyValuesProfile = await resolveCompanyValuesProfile({ session, analysisRecord });
   const companyMotivationFit = await buildCompanyMotivationFit({
     session,
     transcript,
