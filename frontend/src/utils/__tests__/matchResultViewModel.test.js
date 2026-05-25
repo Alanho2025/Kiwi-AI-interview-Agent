@@ -20,7 +20,7 @@ describe('buildMatchResultViewModel', () => {
     expect(viewModel.overallScore).toBe(77);
     expect(viewModel.confidencePercent).toBe(84);
     expect(viewModel.summary).toContain('Python and SQL');
-    expect(viewModel.scoreCards.map((item) => item.title)).toEqual(['Role fit', 'Skill match', 'Must-have fit']);
+    expect(viewModel.scoreCards.map((item) => item.title)).toEqual(['Responsibility fit', 'Skill and tool fit', 'Must-have evidence']);
   });
 
   it('prioritises missing hard requirements before matched requirements', () => {
@@ -40,5 +40,27 @@ describe('buildMatchResultViewModel', () => {
     });
     expect(viewModel.requirementChecks[1].label).toBe('Documentation');
     expect(viewModel.requirementChecks[2].label).toBe('SQL');
+  });
+
+  it('surfaces semantic judgement evidence fields from requirement notes', () => {
+    const viewModel = buildMatchResultViewModel({
+      requirementChecks: [
+        {
+          id: 'stakeholder',
+          label: 'Stakeholder communication',
+          type: 'soft',
+          importance: 'high',
+          status: 'partial',
+          notes: 'section=projects; capabilities=communication; evidenceStrength=partial; Team updates are related; missingEvidence=External stakeholder proof; interviewProbe=Ask about client updates',
+          evidence: ['Presented weekly updates to a cross-functional team.'],
+        },
+      ],
+    });
+
+    expect(viewModel.requirementChecks[0]).toMatchObject({
+      evidenceStrength: 'partial',
+      missingEvidence: 'External stakeholder proof',
+      interviewProbe: 'Ask about client updates',
+    });
   });
 });

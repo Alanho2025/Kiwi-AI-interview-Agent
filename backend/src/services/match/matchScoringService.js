@@ -288,19 +288,107 @@ export const buildMicroScores = (microCriteria = [], _cvText, weights = {}, evid
 
 export const buildRequirementChecks = (requirements = [], _cvText, evidenceProfile = {}, semanticEvidenceContext = {}) =>
   requirements.map((requirement) => {
+    const judgement = semanticEvidenceContext.evidenceJudgements?.[requirement.id]
+      || semanticEvidenceContext.evidenceJudgements?.[normalizeTaxonomyLabel(requirement.label)]
+      || null;
     const match = computeRequirementStatus(requirement, evidenceProfile, semanticEvidenceContext);
+    const semanticEvidence = getSemanticMatchesForLabel(semanticEvidenceContext, requirement.label).slice(0, 3);
+    const finalStatus = judgement?.status || match.finalStatus;
+    const judgementEvidence = semanticEvidence.map((item) => `Matched evidence (${item.evidenceStrength || 'weak'}, ${Number(item.score || 0).toFixed(2)}): ${item.text}`);
+    const notes = [
+      `section=${match.matchedSection}`,
+      `capabilities=${match.matchedCapabilities.join(', ') || 'none'}`,
+      `evidenceStrength=${judgement?.evidenceStrength || match.evidenceStrength}`,
+      judgement?.reason || match.detailNote,
+      judgement?.missingEvidence ? `missingEvidence=${judgement.missingEvidence}` : '',
+      judgement?.interviewProbe ? `interviewProbe=${judgement.interviewProbe}` : '',
+    ].filter(Boolean).join('; ');
     return buildRequirementItem({
       label: requirement.label,
       type: requirement.type || 'soft',
       importance: requirement.importance || 'medium',
-      status: match.finalStatus,
-      evidence: [...(requirement.evidence || []), ...match.evidence],
+      status: finalStatus,
+      evidence: [...(requirement.evidence || []), ...match.evidence, ...judgementEvidence],
       sourceChunks: requirement.sourceChunks || [],
-      notes: `section=${match.matchedSection}; capabilities=${match.matchedCapabilities.join(', ') || 'none'}; evidenceStrength=${match.evidenceStrength}; ${match.detailNote}`,
+      notes,
     });
   });
 
+const statusScore = (status = 'not_met') => requirementStatusToScore(status) * 100;
+
+const averageWeighted = (items = [], weightForItem = () => 1) => {
+  if (!items.length) return 0;
+  const weighted = items.map((item) => ({
+    score: statusScore(item.status),
+    weight: weightForItem(item),
+  }));
+  return sumWeightedScores(weighted);
+};
+
+const CATEGORY_GROUPS = {
+  mustHave: new Set(['qualification', 'certification', 'experience', 'compliance_or_safety', 'availability_or_location']),
+  responsibility: new Set(['responsibility', 'experience', 'customer_or_stakeholder', 'leadership']),
+  skillTool: new Set(['technical_skill', 'tool_or_platform', 'domain_knowledge']),
+  soft: new Set(['soft_skill', 'communication', 'leadership', 'customer_or_stakeholder', 'culture_fit']),
+};
+
+const categoryMatches = (item = {}, group) => CATEGORY_GROUPS[group].has(item.category || '');
+
+const evidenceQualityScore = (requirementChecks = []) => {
+  if (!requirementChecks.length) return 0;
+  const evidenceValues = requirementChecks.map((item) => {
+    const strength = String(item.notes || '').match(/evidenceStrength=([^;]+)/i)?.[1]?.trim();
+    if (item.status === 'not_met') return 0;
+    if (strength === 'strong') return 100;
+    if (strength === 'partial') return 72;
+    if (strength === 'weak') return 38;
+    return statusScore(item.status);
+  });
+  return evidenceValues.reduce((sum, value) => sum + value, 0) / evidenceValues.length;
+};
+
+const buildSemanticScoreDimensions = ({ requirements = [], requirementChecks = [] }) => {
+  const byLabel = new Map(requirementChecks.map((item) => [normalizeTaxonomyLabel(item.label), item]));
+  const rows = requirements.map((requirement) => ({
+    ...requirement,
+    ...(byLabel.get(normalizeTaxonomyLabel(requirement.label)) || {}),
+  }));
+  const importantWeight = (item) => (item.mustHave || item.type === 'hard' ? 1.6 : item.importance === 'high' ? 1.35 : item.importance === 'low' ? 0.75 : 1);
+  const mustHaveItems = rows.filter((item) => item.mustHave || item.type === 'hard' || categoryMatches(item, 'mustHave'));
+  const responsibilityItems = rows.filter((item) => categoryMatches(item, 'responsibility'));
+  const skillToolItems = rows.filter((item) => categoryMatches(item, 'skillTool'));
+  const softItems = rows.filter((item) => categoryMatches(item, 'soft'));
+
+  return {
+    mustHaveFit: averageWeighted(mustHaveItems.length ? mustHaveItems : rows.filter((item) => item.importance === 'high'), importantWeight),
+    responsibilityFit: averageWeighted(responsibilityItems.length ? responsibilityItems : rows, importantWeight),
+    skillAndToolFit: averageWeighted(skillToolItems.length ? skillToolItems : rows, importantWeight),
+    evidenceQuality: evidenceQualityScore(requirementChecks),
+    softSkillAndCultureFit: averageWeighted(softItems.length ? softItems : rows.filter((item) => item.type !== 'hard'), importantWeight),
+  };
+};
+
 export const calculateScoreBreakdown = ({ rubric, macroScores, microScores, requirementChecks }) => {
+  if (rubric?.metadata?.matchEngine === 'semantic' || rubric?.universalRoleProfile?.requirements?.length) {
+    const semanticDimensions = buildSemanticScoreDimensions({
+      requirements: rubric.universalRoleProfile?.requirements || rubric.requirements || [],
+      requirementChecks,
+    });
+    const overallScore = semanticDimensions.mustHaveFit * 0.35
+      + semanticDimensions.responsibilityFit * 0.25
+      + semanticDimensions.skillAndToolFit * 0.2
+      + semanticDimensions.evidenceQuality * 0.1
+      + semanticDimensions.softSkillAndCultureFit * 0.1;
+
+    return {
+      macroScore: semanticDimensions.responsibilityFit,
+      microScore: semanticDimensions.skillAndToolFit,
+      requirementScore: semanticDimensions.mustHaveFit,
+      overallScore,
+      semanticDimensions,
+    };
+  }
+
   const macroScore = sumWeightedScores(macroScores);
   const microScore = sumWeightedScores(microScores);
   const requirementScore = requirementChecks.length === 0
