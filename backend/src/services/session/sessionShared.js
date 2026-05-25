@@ -202,6 +202,70 @@ const buildTechnicalPrompt = ({ skill, level, roleLabel, followUpDepth }) => {
   return `Tell me about a project where you used ${skill} in a practical way.`;
 };
 
+const normalizeRequirementKey = (value = '') => String(value || '').toLowerCase().replace(/[^a-z0-9+#.]+/g, ' ').replace(/\s+/g, ' ').trim();
+
+const findUniversalRequirementTarget = ({ topic = '', rubric = {} } = {}) => {
+  const key = normalizeRequirementKey(topic);
+  const requirements = rubric.universalRoleProfile?.requirements || rubric.metadata?.universalRoleProfile?.requirements || [];
+  return requirements.find((item) => {
+    const labels = [item.text, item.label, item.normalizedCapability].map(normalizeRequirementKey).filter(Boolean);
+    return labels.includes(key) || labels.some((label) => key.includes(label) || label.includes(key));
+  }) || null;
+};
+
+const isTechnicalRequirementCategory = (category = '') => ['technical_skill', 'tool_or_platform', 'domain_knowledge'].includes(category);
+
+const buildRoleCompetencyPrompt = ({ target = {}, skill = '', level = 'junior', roleLabel = 'the role', followUpDepth = 0 } = {}) => {
+  const category = target.category || '';
+  const capability = target.normalizedCapability || target.text || target.label || skill;
+
+  if (!category || isTechnicalRequirementCategory(category)) {
+    return buildTechnicalPrompt({ skill: capability, level, roleLabel, followUpDepth });
+  }
+
+  if (followUpDepth > 0) {
+    if (['qualification', 'certification', 'compliance_or_safety', 'availability_or_location'].includes(category)) {
+      return `What specific evidence can you provide for ${capability}, and where have you applied it in practice?`;
+    }
+    if (category === 'customer_or_stakeholder') {
+      return `What made that customer or stakeholder situation difficult, what did you do personally, and what was the outcome?`;
+    }
+    if (category === 'communication') {
+      return `How did you adapt your communication for the audience, and how did you know the message landed?`;
+    }
+    if (category === 'leadership') {
+      return `What decision or support did you personally provide, and what changed for the team or work afterwards?`;
+    }
+    return `What was the situation, what did you personally do around ${capability}, and what result came from it?`;
+  }
+
+  if (['qualification', 'certification'].includes(category)) {
+    return `Can you walk me through your ${capability} evidence and how it prepares you for this ${roleLabel} role?`;
+  }
+  if (category === 'compliance_or_safety') {
+    return `Tell me about a time you had to follow or apply ${capability}. What checks did you make, and what was at stake?`;
+  }
+  if (category === 'availability_or_location') {
+    return `Can you confirm your fit for ${capability}, and explain any practical constraints the team should know about?`;
+  }
+  if (category === 'customer_or_stakeholder') {
+    return `Tell me about a time you handled a difficult customer or stakeholder situation involving ${capability}. What happened, what did you do, and what was the outcome?`;
+  }
+  if (category === 'communication') {
+    return `Tell me about a time you used ${capability} in a real work or project situation. Who was the audience, and what result did your communication achieve?`;
+  }
+  if (category === 'leadership') {
+    return `Tell me about a time you showed ${capability}. What did you lead or influence, and what changed because of your actions?`;
+  }
+  if (category === 'responsibility' || category === 'experience') {
+    return `Tell me about a real example where you handled ${capability} for a ${roleLabel} responsibility. What did you own, and what was the result?`;
+  }
+  if (category === 'nice_to_have') {
+    return `The role lists ${capability} as useful. What exposure have you had to it, and how would you build on it if needed?`;
+  }
+  return `Tell me about a time you demonstrated ${capability}. What was the context, what did you do, and what was the outcome?`;
+};
+
 const buildBehaviouralPrompt = ({ topic, level, followUpDepth }) => {
   if (followUpDepth > 0) {
     return level === 'advanced'
@@ -269,17 +333,21 @@ export const buildQuestionPoolFromAnalysis = (analysisResult, settings = {}, opt
   const technicalQuestionCount = Math.max(0, modeConfig.minTechnicalQuestions);
   for (let index = 0; index < technicalQuestionCount; index += 1) {
     const skill = technicalSkills[index] || technicalSkills[0] || 'a relevant technical stack';
+    const requirementTarget = findUniversalRequirementTarget({ topic: skill, rubric });
+    const promptText = buildRoleCompetencyPrompt({ target: requirementTarget, skill, level: modeConfig.level, roleLabel, followUpDepth: 0 });
+    const followUpText = buildRoleCompetencyPrompt({ target: requirementTarget, skill, level: modeConfig.level, roleLabel, followUpDepth: 1 });
+    const competencyType = requirementTarget && !isTechnicalRequirementCategory(requirementTarget.category) ? 'role_competency_core' : 'technical_core';
     questions.push({
-      type: 'technical_core',
+      type: competencyType,
       category: 'technical',
       stage: 'technical',
       topic: skill,
       followUpDepth: 0,
-      text: buildTechnicalPrompt({ skill, level: modeConfig.level, roleLabel, followUpDepth: 0 }),
-      reason: 'Role-aligned technical core question generated from JD requirements and matching gaps.',
+      text: promptText,
+      reason: 'Role-aligned competency question generated from JD requirements and matching gaps.',
       priority: index + 20,
       basedOnSkills: [skill],
-      sourceType: 'cv_or_jd_skill',
+      sourceType: requirementTarget ? 'universal_requirement_competency' : 'cv_or_jd_skill',
       matchedRequirementId: `req_${skill}`,
       matchedSkill: skill,
       cvEvidenceRefs: [],
@@ -288,13 +356,13 @@ export const buildQuestionPoolFromAnalysis = (analysisResult, settings = {}, opt
       planPriority: index + 20,
     });
     questions.push({
-      type: 'technical_follow_up',
+      type: competencyType === 'role_competency_core' ? 'role_competency_follow_up' : 'technical_follow_up',
       category: 'technical',
       stage: 'technical',
       topic: skill,
       followUpDepth: 1,
-      text: buildTechnicalPrompt({ skill, level: modeConfig.level, roleLabel, followUpDepth: 1 }),
-      reason: 'Follow-up to keep the conversation on the same technical topic.',
+      text: followUpText,
+      reason: 'Follow-up to keep the conversation on the same role requirement.',
       priority: index + 40,
       basedOnSkills: [skill],
       sourceType: 'follow_up',
