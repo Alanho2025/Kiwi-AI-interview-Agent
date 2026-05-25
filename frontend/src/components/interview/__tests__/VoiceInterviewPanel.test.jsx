@@ -109,7 +109,7 @@ describe('VoiceInterviewPanel', () => {
       />
     );
 
-    expect(screen.getByText(/scores answer content and communication clarity/i)).toBeInTheDocument();
+    expect(screen.getByText(/Kiwi Coach scores your answer content and communication clarity/i)).toBeInTheDocument();
     expect(screen.queryByText('Confirm answer')).not.toBeInTheDocument();
     expect(screen.queryByText('Edit transcript')).not.toBeInTheDocument();
   });
@@ -136,12 +136,12 @@ describe('VoiceInterviewPanel', () => {
       />
     );
 
-    expect(screen.getByText('Voice did not catch that clearly')).toBeInTheDocument();
+    expect(screen.getByText('Speech was not captured clearly')).toBeInTheDocument();
     expect(screen.queryByText('Retry voice')).not.toBeInTheDocument();
     expect(screen.getByText('Answer by text')).toBeInTheDocument();
 
     fireEvent.click(screen.getByText('Answer by text'));
-    fireEvent.change(screen.getByPlaceholderText('Type the answer you would give for this question...'), {
+    fireEvent.change(screen.getByPlaceholderText('Type the answer you want to give for this question...'), {
       target: { value: 'I used SQL to clean the dataset and checked the result with tests.' },
     });
     fireEvent.click(screen.getByText('Submit text answer'));

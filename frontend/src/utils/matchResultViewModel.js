@@ -24,16 +24,21 @@ const getEvidence = (item = {}) => {
 const getDetail = (item = {}) => {
   const detail = String(item.detail || item.notes || '').trim();
   if (!detail) return '';
-  return detail
-    .replace(/section=[^;]+;\s*/i, '')
-    .replace(/capabilities=[^;]+;\s*/i, '')
-    .replace(/evidenceStrength=[^;]+;\s*/i, '')
+  return detail.split(';')
+    .map((part) => part.trim())
+    .filter((part) => !/^(section|capabilities|evidenceStrength|missingEvidence|interviewProbe)=/i.test(part))
+    .join('; ')
     .replace(/\s+/g, ' ')
     .trim();
 };
 
 const extractEvidenceStrength = (item = {}) => {
   const match = String(item.notes || item.detail || '').match(/evidenceStrength=([^;]+)/i);
+  return match?.[1]?.trim() || '';
+};
+
+const extractNoteField = (item = {}, field) => {
+  const match = String(item.notes || item.detail || '').match(new RegExp(`${field}=([^;]+)`, 'i'));
   return match?.[1]?.trim() || '';
 };
 
@@ -85,15 +90,15 @@ const scoreTone = (score) => {
 
 const scoreReason = {
   macro: {
-    title: 'Role fit',
+    title: 'Responsibility fit',
     description: 'How closely the CV background matches the role level, responsibilities, and work context.',
   },
   micro: {
-    title: 'Skill match',
+    title: 'Skill and tool fit',
     description: 'How clearly the CV supports the JD skills with specific evidence.',
   },
   requirements: {
-    title: 'Must-have fit',
+    title: 'Must-have evidence',
     description: 'Coverage of required qualifications, hard requirements, and important role criteria.',
   },
 };
@@ -224,6 +229,8 @@ export const buildMatchResultViewModel = (analysisResult = {}, matchRate = 0) =>
         reason: getDetail(item) || status.reason,
         evidence: getEvidence(item),
         evidenceStrength: extractEvidenceStrength(item),
+        missingEvidence: extractNoteField(item, 'missingEvidence'),
+        interviewProbe: extractNoteField(item, 'interviewProbe'),
       };
     });
 
