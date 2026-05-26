@@ -14,6 +14,7 @@ import { buildSessionSpeechPhraseList } from './speechPhraseHintService.js';
 import { AGENT_TOOL_NAMES } from '../../constants/agentToolNames.js';
 
 const DEFAULT_SPEECH_STOP_TIMEOUT_MS = 2500;
+const MAX_PENDING_AUDIO_CHUNKS = 1200;
 
 const parsePositiveInteger = (value, fallback) => {
   const parsed = Number.parseInt(value, 10);
@@ -82,6 +83,9 @@ export const createDuplexVoiceAgentSession = ({
   let isProcessingBufferedTurn = false;
   let isCapturingSpeech = false;
   let ignoredPreSpeechAudioChunks = 0;
+  let pendingAudioChunks = [];
+  let audioChunksWritten = 0;
+  let audioChunksDropped = 0;
 
   const sendReady = () => sendJson({
     type: 'session_ready',
@@ -206,15 +210,31 @@ export const createDuplexVoiceAgentSession = ({
     return speechSession;
   };
 
+  const flushPendingAudioChunks = async () => {
+    if (!pendingAudioChunks.length) return;
+    const target = await startSpeechSession();
+    const chunksToWrite = pendingAudioChunks;
+    pendingAudioChunks = [];
+    for (const chunk of chunksToWrite) {
+      target.writeAudio(chunk);
+      audioChunksWritten += 1;
+    }
+  };
+
   const restartSpeechSessionForNewTurn = async () => {
     finalTranscriptSegments = [];
     latestPartialTranscript = null;
+    pendingAudioChunks = [];
+    audioChunksWritten = 0;
+    audioChunksDropped = 0;
     ignoredPreSpeechAudioChunks = 0;
     await stopSpeechSession();
-    return startSpeechSession();
+    const target = await startSpeechSession();
+    await flushPendingAudioChunks();
+    return target;
   };
 
-  const writeCapturedAudio = async (chunk) => {
+  const queueCapturedAudio = (chunk) => {
     if (!isCapturingSpeech) {
       ignoredPreSpeechAudioChunks += 1;
       if (ignoredPreSpeechAudioChunks === 1) {
@@ -225,8 +245,13 @@ export const createDuplexVoiceAgentSession = ({
       }
       return;
     }
-    const target = await startSpeechSession();
-    target.writeAudio(Buffer.from(chunk));
+
+    const buffer = Buffer.from(chunk);
+    if (pendingAudioChunks.length >= MAX_PENDING_AUDIO_CHUNKS) {
+      audioChunksDropped += 1;
+      return;
+    }
+    pendingAudioChunks.push(buffer);
   };
 
   const handleJsonMessage = async (payload = {}) => {
@@ -248,7 +273,7 @@ export const createDuplexVoiceAgentSession = ({
       }
 
     if (payload.type === 'audio_chunk' && payload.audioBase64) {
-      await writeCapturedAudio(Buffer.from(payload.audioBase64, 'base64'));
+      queueCapturedAudio(Buffer.from(payload.audioBase64, 'base64'));
       return;
     }
 
@@ -257,6 +282,14 @@ export const createDuplexVoiceAgentSession = ({
       isCapturingSpeech = false;
       let speechStopError = null;
       try {
+        await flushPendingAudioChunks();
+        logger?.info?.('Duplex audio flushed before STT stop', {
+          sessionId: activeSession?.id || session?.id,
+          writtenChunks: audioChunksWritten,
+          droppedChunks: audioChunksDropped,
+          ignoredPreSpeechAudioChunks,
+          provider: activeSttProviderName,
+        });
         await withTimeout(
           stopSpeechSession(),
           speechStopTimeoutMs,
@@ -292,6 +325,8 @@ export const createDuplexVoiceAgentSession = ({
             sttStopError: speechStopError?.message || null,
             usedPartialFallback: Boolean(partialFallback),
             ignoredPreSpeechAudioChunks,
+            audioChunksWritten,
+            audioChunksDropped,
           },
         });
       } catch (error) {
@@ -356,6 +391,7 @@ export const createDuplexVoiceAgentSession = ({
 
     if (payload.type === 'session_stop' || payload.type === 'stop') {
       isCapturingSpeech = false;
+      pendingAudioChunks = [];
       await stopSpeechSession();
       sendJson({
         type: 'session_stopped',
@@ -376,7 +412,7 @@ export const createDuplexVoiceAgentSession = ({
 
   const handleBinaryAudio = async (message) => {
     try {
-      await writeCapturedAudio(message);
+      queueCapturedAudio(message);
     } catch (error) {
       logger?.error?.('Duplex voice binary audio handling failed', { sessionId: activeSession?.id || session?.id, error: error.message, stack: error.stack });
     }
@@ -384,6 +420,7 @@ export const createDuplexVoiceAgentSession = ({
 
   const close = async () => {
     isCapturingSpeech = false;
+    pendingAudioChunks = [];
     await stopSpeechSession();
   };
 
