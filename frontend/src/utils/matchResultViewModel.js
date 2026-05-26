@@ -48,6 +48,29 @@ const joinLabels = (items = [], limit = 2) => items
   .slice(0, limit)
   .join(', ');
 
+const shortenRequirementLabel = (label = '') => {
+  const text = String(label || '').replace(/\s+/g, ' ').trim();
+
+  if (/gaming scenarios|npc|procedural content|dynamic narratives|player behavior/i.test(text)) {
+    return 'Gaming AI integration';
+  }
+
+  if (/agent principles|agent frameworks|ai agent expertise/i.test(text)) {
+    return 'AI agent principles and frameworks';
+  }
+
+  if (/product mindset|analytical skills/i.test(text)) {
+    return 'Product mindset and analytical skills';
+  }
+
+  if (/deployment challenges|deploy/i.test(text) && /agent|ai/i.test(text)) {
+    return 'AI agent deployment readiness';
+  }
+
+  if (text.length <= 90) return text;
+  return `${text.slice(0, 87).trim()}...`;
+};
+
 const decisionCopy = {
   strong_match: {
     label: 'Strong match',
@@ -55,9 +78,9 @@ const decisionCopy = {
     summary: 'Your CV shows strong alignment with this role.',
   },
   moderate_match: {
-    label: 'Promising match',
+    label: 'Promising but needs validation',
     tone: 'info',
-    summary: 'Your CV has useful alignment, with a few gaps to validate in interview.',
+    summary: 'Your CV shows useful alignment, but some role-critical evidence still needs interview validation.',
   },
   borderline: {
     label: 'Mixed match',
@@ -70,9 +93,9 @@ const decisionCopy = {
     summary: 'Your CV does not yet show enough clear evidence for this role.',
   },
   not_qualified: {
-    label: 'Not qualified yet',
+    label: 'Not enough CV evidence yet',
     tone: 'danger',
-    summary: 'A hard requirement appears to be missing or unsupported by the CV.',
+    summary: 'One or more hard requirements are not clearly supported by the CV evidence.',
   },
   manual_review: {
     label: 'Needs review',
@@ -220,9 +243,12 @@ export const buildMatchResultViewModel = (analysisResult = {}, matchRate = 0) =>
     .sort((left, right) => requirementPriority(left) - requirementPriority(right))
     .map((item) => {
       const status = statusLabels[item.status] || statusLabels.not_met;
+      const originalLabel = item.label || 'Requirement';
+      const label = shortenRequirementLabel(originalLabel);
       return {
-        id: item.id || item.label,
-        label: item.label || 'Requirement',
+        id: item.id || originalLabel,
+        label,
+        originalLabel,
         status: status.label,
         tone: status.tone,
         meta: `${sentenceCase(item.type || 'requirement')} · ${sentenceCase(item.importance || 'medium')} importance`,
