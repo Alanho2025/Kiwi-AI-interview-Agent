@@ -71,6 +71,79 @@ const shortenRequirementLabel = (label = '') => {
   return `${text.slice(0, 87).trim()}...`;
 };
 
+const normalizeLabelKey = (value = '') => String(value || '')
+  .toLowerCase()
+  .replace(/[^a-z0-9]+/g, ' ')
+  .trim();
+
+const STRICT_TECH_PATTERNS = {
+  aws: /\b(aws|amazon web services|ec2|lambda|s3|rds|ecs|eks|cloudwatch|iam)\b/i,
+  redis: /\bredis\b/i,
+  elasticsearch: /\belasticsearch\b/i,
+  kafka: /\b(kafka|distributed queue|distributed queueing|message queue|event streaming)\b/i,
+  typescript: /\btypescript\b/i,
+  nextjs: /\b(next\.js|nextjs)\b/i,
+  vue: /\b(vue|vue\.js)\b/i,
+  python: /\bpython\b/i,
+  postgres: /\b(postgresql|postgres)\b/i,
+};
+
+const getStrictTechKeys = (label = '') => Object.entries(STRICT_TECH_PATTERNS)
+  .filter(([, pattern]) => pattern.test(label))
+  .map(([key]) => key);
+
+const hasStrictTechEvidence = (label = '', evidenceText = '') => {
+  const keys = getStrictTechKeys(label);
+  if (!keys.length) return true;
+  return keys.every((key) => STRICT_TECH_PATTERNS[key].test(String(evidenceText || '')));
+};
+
+const buildRequirementStatusByLabel = (requirementChecks = []) => {
+  const byLabel = new Map();
+  requirementChecks.forEach((item) => {
+    const label = item.label || '';
+    byLabel.set(normalizeLabelKey(label), item);
+    byLabel.set(normalizeLabelKey(shortenRequirementLabel(label)), item);
+  });
+  return byLabel;
+};
+
+const summarizeSemanticEvidenceMatches = (matches = []) => {
+  const summary = { strong: 0, partial: 0, weak: 0, missing: 0 };
+  matches.forEach((item) => {
+    const topMatch = (item.matches || [])[0];
+    if (!topMatch) {
+      summary.missing += 1;
+      return;
+    }
+    const strength = topMatch.evidenceStrength || 'weak';
+    if (strength === 'strong') summary.strong += 1;
+    else if (strength === 'partial') summary.partial += 1;
+    else summary.weak += 1;
+  });
+  return summary;
+};
+
+const filterSemanticEvidenceMatches = (matches = [], requirementChecks = []) => {
+  const byLabel = buildRequirementStatusByLabel(requirementChecks);
+  return matches
+    .map((item) => {
+      const label = item.label || '';
+      const requirement = byLabel.get(normalizeLabelKey(label)) || byLabel.get(normalizeLabelKey(shortenRequirementLabel(label)));
+      const filteredMatches = (item.matches || []).filter((match) => {
+        if (!hasStrictTechEvidence(label, match.text || '')) return false;
+        if (requirement?.status === 'not_met') return false;
+        if (requirement?.status && ['partial', 'inferred'].includes(requirement.status) && match.evidenceStrength === 'strong') {
+          return false;
+        }
+        return true;
+      });
+      return { ...item, matches: filteredMatches };
+    })
+    .filter((item) => (item.matches || []).length > 0)
+    .slice(0, 5);
+};
+
 const decisionCopy = {
   strong_match: {
     label: 'Strong match',
@@ -225,6 +298,9 @@ export const buildMatchResultViewModel = (analysisResult = {}, matchRate = 0) =>
     summary: 'The match needs manual review before treating it as final.',
   };
   const overallScore = clampScore(analysisResult?.overallScore ?? matchRate);
+  const filteredSemanticEvidenceMatches = Array.isArray(matchingDetails.semanticEvidenceMatches)
+    ? filterSemanticEvidenceMatches(matchingDetails.semanticEvidenceMatches, rawRequirementChecks)
+    : [];
 
   const scoreCards = Object.entries(scoreReason).map(([key, copy]) => {
     const score = clampScore(scoreBreakdown[key]);
@@ -277,10 +353,10 @@ export const buildMatchResultViewModel = (analysisResult = {}, matchRate = 0) =>
       .slice(0, 3)
       .map((item) => buildEvidenceItem(item, 'This is the main area to strengthen or validate in interview.')),
     requirementChecks,
-    evidenceStrengthBreakdown: matchingDetails.evidenceStrengthBreakdown || {},
-    semanticEvidenceMatches: Array.isArray(matchingDetails.semanticEvidenceMatches)
-      ? matchingDetails.semanticEvidenceMatches.slice(0, 5)
-      : [],
+    evidenceStrengthBreakdown: filteredSemanticEvidenceMatches.length
+      ? summarizeSemanticEvidenceMatches(filteredSemanticEvidenceMatches)
+      : matchingDetails.evidenceStrengthBreakdown || {},
+    semanticEvidenceMatches: filteredSemanticEvidenceMatches,
     semanticEvidenceModel: matchingDetails.semanticEvidenceModel || null,
   };
 };
