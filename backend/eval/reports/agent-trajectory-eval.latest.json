@@ -1,0 +1,33 @@
+{
+  "label": "Agent Trajectory Eval",
+  "generatedAt": "2026-05-26T00:00:00.000Z",
+  "casesRun": 3,
+  "average": 1,
+  "thresholds": {
+    "minAverage": 0.8,
+    "failBelow": 0.65
+  },
+  "results": [
+    {
+      "id": "behavioral_vague_answer_followup",
+      "score": 1,
+      "rawScore": 1,
+      "failedChecks": []
+    },
+    {
+      "id": "technical_mode_blocks_behavioural_drift",
+      "score": 1,
+      "rawScore": 1,
+      "failedChecks": []
+    },
+    {
+      "id": "report_generation_trace_missing_evidence",
+      "score": 1,
+      "rawScore": 0.54,
+      "failedChecks": [
+        "trace_incomplete",
+        "blocked_behaviour_present"
+      ]
+    }
+  ]
+}
