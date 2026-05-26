@@ -1,8 +1,8 @@
 {
   "label": "End-to-End Interview Eval",
-  "casesRun": 3,
+  "casesRun": 20,
   "evaluationMethod": "Fixed interview scenario evaluation covering flow validity, question quality, and report grounding. It does not call production routes, databases, voice runtime, or live AI services.",
-  "average": 0.98,
+  "average": 0.99,
   "weakestCases": [],
   "thresholds": {
     "minAverage": 0.88,
@@ -121,6 +121,534 @@
           "Kubernetes",
           "production machine learning"
         ]
+      }
+    },
+    {
+      "id": "vague_star_answer",
+      "score": 1,
+      "rawScore": 1,
+      "expectedOutcome": "should_pass_quality_checks",
+      "subScores": {
+        "flow": 1,
+        "questionQuality": 1,
+        "reportGrounding": 1
+      },
+      "failedChecks": [],
+      "diagnostics": {
+        "plannedQuestionCount": 4,
+        "actualQuestionCount": 4,
+        "categories": [
+          "behavioural",
+          "behavioural",
+          "behavioural",
+          "behavioural"
+        ],
+        "topics": [
+          "self_intro",
+          "result",
+          "communication",
+          "teamwork"
+        ],
+        "forbiddenReportClaims": [],
+        "unknownSkillClaims": []
+      }
+    },
+    {
+      "id": "missing_result_answer",
+      "score": 1,
+      "rawScore": 1,
+      "expectedOutcome": "should_pass_quality_checks",
+      "subScores": {
+        "flow": 1,
+        "questionQuality": 1,
+        "reportGrounding": 1
+      },
+      "failedChecks": [],
+      "diagnostics": {
+        "plannedQuestionCount": 4,
+        "actualQuestionCount": 4,
+        "categories": [
+          "behavioural",
+          "behavioural",
+          "behavioural",
+          "behavioural"
+        ],
+        "topics": [
+          "self_intro",
+          "result",
+          "stakeholder_communication",
+          "action"
+        ],
+        "forbiddenReportClaims": [],
+        "unknownSkillClaims": []
+      }
+    },
+    {
+      "id": "candidate_overclaims_skill",
+      "score": 1,
+      "rawScore": 1,
+      "expectedOutcome": "should_pass_quality_checks",
+      "subScores": {
+        "flow": 1,
+        "questionQuality": 1,
+        "reportGrounding": 1
+      },
+      "failedChecks": [],
+      "diagnostics": {
+        "plannedQuestionCount": 5,
+        "actualQuestionCount": 5,
+        "categories": [
+          "behavioural",
+          "technical",
+          "behavioural",
+          "technical",
+          "behavioural"
+        ],
+        "topics": [
+          "self_intro",
+          "sql",
+          "communication",
+          "backend_api",
+          "sql"
+        ],
+        "forbiddenReportClaims": [],
+        "unknownSkillClaims": []
+      }
+    },
+    {
+      "id": "jd_cloud_cv_no_cloud",
+      "score": 0.99,
+      "rawScore": 0.99,
+      "expectedOutcome": "should_pass_quality_checks",
+      "subScores": {
+        "flow": 1,
+        "questionQuality": 0.96,
+        "reportGrounding": 1
+      },
+      "failedChecks": [
+        "q1:difficulty_fit"
+      ],
+      "diagnostics": {
+        "plannedQuestionCount": 4,
+        "actualQuestionCount": 4,
+        "categories": [
+          "technical",
+          "technical",
+          "technical",
+          "technical"
+        ],
+        "topics": [
+          "self_intro",
+          "deployment",
+          "cloud_gap",
+          "api_design"
+        ],
+        "forbiddenReportClaims": [],
+        "unknownSkillClaims": []
+      }
+    },
+    {
+      "id": "technical_mode_no_behavioural_drift",
+      "score": 0.99,
+      "rawScore": 0.99,
+      "expectedOutcome": "should_pass_quality_checks",
+      "subScores": {
+        "flow": 1,
+        "questionQuality": 0.96,
+        "reportGrounding": 1
+      },
+      "failedChecks": [
+        "q1:difficulty_fit"
+      ],
+      "diagnostics": {
+        "plannedQuestionCount": 4,
+        "actualQuestionCount": 4,
+        "categories": [
+          "technical",
+          "technical",
+          "technical",
+          "technical"
+        ],
+        "topics": [
+          "self_intro",
+          "mongodb",
+          "testing",
+          "api_design"
+        ],
+        "forbiddenReportClaims": [],
+        "unknownSkillClaims": []
+      }
+    },
+    {
+      "id": "behavioural_mode_no_coding_question",
+      "score": 1,
+      "rawScore": 1,
+      "expectedOutcome": "should_pass_quality_checks",
+      "subScores": {
+        "flow": 1,
+        "questionQuality": 1,
+        "reportGrounding": 1
+      },
+      "failedChecks": [],
+      "diagnostics": {
+        "plannedQuestionCount": 4,
+        "actualQuestionCount": 4,
+        "categories": [
+          "behavioural",
+          "behavioural",
+          "behavioural",
+          "behavioural"
+        ],
+        "topics": [
+          "self_intro",
+          "problem_solving",
+          "result",
+          "teamwork"
+        ],
+        "forbiddenReportClaims": [],
+        "unknownSkillClaims": []
+      }
+    },
+    {
+      "id": "combined_mode_balanced",
+      "score": 0.99,
+      "rawScore": 0.99,
+      "expectedOutcome": "should_pass_quality_checks",
+      "subScores": {
+        "flow": 1,
+        "questionQuality": 0.97,
+        "reportGrounding": 1
+      },
+      "failedChecks": [
+        "q1:difficulty_fit"
+      ],
+      "diagnostics": {
+        "plannedQuestionCount": 5,
+        "actualQuestionCount": 5,
+        "categories": [
+          "behavioural",
+          "technical",
+          "behavioural",
+          "technical",
+          "behavioural"
+        ],
+        "topics": [
+          "self_intro",
+          "dashboard",
+          "stakeholder_communication",
+          "data_cleaning",
+          "dashboard"
+        ],
+        "forbiddenReportClaims": [],
+        "unknownSkillClaims": []
+      }
+    },
+    {
+      "id": "junior_too_hard_question_guard",
+      "score": 1,
+      "rawScore": 1,
+      "expectedOutcome": "should_pass_quality_checks",
+      "subScores": {
+        "flow": 1,
+        "questionQuality": 1,
+        "reportGrounding": 1
+      },
+      "failedChecks": [],
+      "diagnostics": {
+        "plannedQuestionCount": 4,
+        "actualQuestionCount": 4,
+        "categories": [
+          "technical",
+          "technical",
+          "technical",
+          "technical"
+        ],
+        "topics": [
+          "self_intro",
+          "sql",
+          "debugging",
+          "java"
+        ],
+        "forbiddenReportClaims": [],
+        "unknownSkillClaims": []
+      }
+    },
+    {
+      "id": "senior_too_basic_question_guard",
+      "score": 1,
+      "rawScore": 1,
+      "expectedOutcome": "should_pass_quality_checks",
+      "subScores": {
+        "flow": 1,
+        "questionQuality": 1,
+        "reportGrounding": 1
+      },
+      "failedChecks": [],
+      "diagnostics": {
+        "plannedQuestionCount": 4,
+        "actualQuestionCount": 4,
+        "categories": [
+          "technical",
+          "technical",
+          "technical",
+          "technical"
+        ],
+        "topics": [
+          "self_intro",
+          "risk",
+          "mentoring",
+          "architecture"
+        ],
+        "forbiddenReportClaims": [],
+        "unknownSkillClaims": []
+      }
+    },
+    {
+      "id": "nz_context_enabled",
+      "score": 1,
+      "rawScore": 1,
+      "expectedOutcome": "should_pass_quality_checks",
+      "subScores": {
+        "flow": 1,
+        "questionQuality": 1,
+        "reportGrounding": 1
+      },
+      "failedChecks": [],
+      "diagnostics": {
+        "plannedQuestionCount": 4,
+        "actualQuestionCount": 4,
+        "categories": [
+          "behavioural",
+          "behavioural",
+          "behavioural",
+          "behavioural"
+        ],
+        "topics": [
+          "self_intro",
+          "humility",
+          "evidence",
+          "collaboration"
+        ],
+        "forbiddenReportClaims": [],
+        "unknownSkillClaims": []
+      }
+    },
+    {
+      "id": "nz_context_disabled",
+      "score": 0.99,
+      "rawScore": 0.99,
+      "expectedOutcome": "should_pass_quality_checks",
+      "subScores": {
+        "flow": 1,
+        "questionQuality": 0.96,
+        "reportGrounding": 1
+      },
+      "failedChecks": [
+        "q1:difficulty_fit"
+      ],
+      "diagnostics": {
+        "plannedQuestionCount": 4,
+        "actualQuestionCount": 4,
+        "categories": [
+          "technical",
+          "technical",
+          "technical",
+          "technical"
+        ],
+        "topics": [
+          "self_intro",
+          "testing",
+          "sql",
+          "pipeline"
+        ],
+        "forbiddenReportClaims": [],
+        "unknownSkillClaims": []
+      }
+    },
+    {
+      "id": "company_info_available",
+      "score": 1,
+      "rawScore": 1,
+      "expectedOutcome": "should_pass_quality_checks",
+      "subScores": {
+        "flow": 1,
+        "questionQuality": 1,
+        "reportGrounding": 1
+      },
+      "failedChecks": [],
+      "diagnostics": {
+        "plannedQuestionCount": 4,
+        "actualQuestionCount": 4,
+        "categories": [
+          "behavioural",
+          "behavioural",
+          "behavioural",
+          "behavioural"
+        ],
+        "topics": [
+          "self_intro",
+          "research",
+          "project_fit",
+          "company_motivation"
+        ],
+        "forbiddenReportClaims": [],
+        "unknownSkillClaims": []
+      }
+    },
+    {
+      "id": "company_info_missing",
+      "score": 1,
+      "rawScore": 1,
+      "expectedOutcome": "should_pass_quality_checks",
+      "subScores": {
+        "flow": 1,
+        "questionQuality": 1,
+        "reportGrounding": 1
+      },
+      "failedChecks": [],
+      "diagnostics": {
+        "plannedQuestionCount": 4,
+        "actualQuestionCount": 4,
+        "categories": [
+          "behavioural",
+          "behavioural",
+          "behavioural",
+          "behavioural"
+        ],
+        "topics": [
+          "self_intro",
+          "role_motivation",
+          "confirmation",
+          "research_caution"
+        ],
+        "forbiddenReportClaims": [],
+        "unknownSkillClaims": []
+      }
+    },
+    {
+      "id": "one_word_answer",
+      "score": 1,
+      "rawScore": 1,
+      "expectedOutcome": "should_pass_quality_checks",
+      "subScores": {
+        "flow": 1,
+        "questionQuality": 1,
+        "reportGrounding": 1
+      },
+      "failedChecks": [],
+      "diagnostics": {
+        "plannedQuestionCount": 4,
+        "actualQuestionCount": 4,
+        "categories": [
+          "behavioural",
+          "behavioural",
+          "behavioural",
+          "behavioural"
+        ],
+        "topics": [
+          "self_intro",
+          "teamwork",
+          "result",
+          "clarification"
+        ],
+        "forbiddenReportClaims": [],
+        "unknownSkillClaims": []
+      }
+    },
+    {
+      "id": "candidate_says_dont_know",
+      "score": 1,
+      "rawScore": 1,
+      "expectedOutcome": "should_pass_quality_checks",
+      "subScores": {
+        "flow": 1,
+        "questionQuality": 1,
+        "reportGrounding": 1
+      },
+      "failedChecks": [],
+      "diagnostics": {
+        "plannedQuestionCount": 5,
+        "actualQuestionCount": 5,
+        "categories": [
+          "behavioural",
+          "technical",
+          "behavioural",
+          "technical",
+          "behavioural"
+        ],
+        "topics": [
+          "self_intro",
+          "learning",
+          "sql",
+          "supportive_followup",
+          "learning"
+        ],
+        "forbiddenReportClaims": [],
+        "unknownSkillClaims": []
+      }
+    },
+    {
+      "id": "noisy_voice_transcript",
+      "score": 1,
+      "rawScore": 1,
+      "expectedOutcome": "should_pass_quality_checks",
+      "subScores": {
+        "flow": 1,
+        "questionQuality": 1,
+        "reportGrounding": 1
+      },
+      "failedChecks": [],
+      "diagnostics": {
+        "plannedQuestionCount": 5,
+        "actualQuestionCount": 5,
+        "categories": [
+          "behavioural",
+          "technical",
+          "behavioural",
+          "technical",
+          "behavioural"
+        ],
+        "topics": [
+          "self_intro",
+          "data_cleaning",
+          "result",
+          "voice_noise",
+          "data_cleaning"
+        ],
+        "forbiddenReportClaims": [],
+        "unknownSkillClaims": []
+      }
+    },
+    {
+      "id": "long_answer_weak_structure",
+      "score": 0.99,
+      "rawScore": 0.99,
+      "expectedOutcome": "should_pass_quality_checks",
+      "subScores": {
+        "flow": 1,
+        "questionQuality": 0.96,
+        "reportGrounding": 1
+      },
+      "failedChecks": [
+        "q1:difficulty_fit"
+      ],
+      "diagnostics": {
+        "plannedQuestionCount": 4,
+        "actualQuestionCount": 4,
+        "categories": [
+          "behavioural",
+          "behavioural",
+          "behavioural",
+          "behavioural"
+        ],
+        "topics": [
+          "self_intro",
+          "action",
+          "result",
+          "star_structure"
+        ],
+        "forbiddenReportClaims": [],
+        "unknownSkillClaims": []
       }
     }
   ]

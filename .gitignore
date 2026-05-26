@@ -13,5 +13,3 @@ backend/benchmarks/voice-asr-fallback/fixtures/
 backend/benchmarks/voice-asr-fallback/fixtures.local.json
 backend/benchmarks/voice-asr-fallback/results*.json
 backend/benchmarks/voice-asr-fallback/*.results.json
-
-/report/
