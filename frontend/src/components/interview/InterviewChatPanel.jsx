@@ -16,7 +16,7 @@ import { TextArea } from '../common/TextArea.jsx';
 import { Bird, CirclePause, Play, RefreshCcw, Send, Square } from 'lucide-react';
 import { cn } from '../../utils/formatters.js';
 
-const INTERVIEWER_NAME = 'KiwiCoach';
+const INTERVIEWER_NAME = 'Kiwi Coach';
 
 /**
  * Purpose: Execute the main responsibility for InterviewChatPanel.
@@ -83,25 +83,25 @@ export function InterviewChatPanel({ transcript, onStart, onReply, onPause, onRe
         )}>
           {isPaused ? (
             <div className="flex flex-col items-center justify-center py-4">
-              <p className="text-lg font-semibold text-amber-700 mb-2">Interview Paused</p>
-              <p className="text-sm text-amber-600">Click Resume to continue your interview.</p>
+              <p className="text-lg font-semibold text-amber-700 mb-2">Interview paused</p>
+              <p className="text-sm text-amber-600">Click Resume when you are ready to continue.</p>
             </div>
           ) : isCompleted ? (
             <div className="flex flex-col items-center justify-center py-4">
-              <p className="text-lg font-semibold text-emerald-700 mb-2">Interview Completed</p>
-              <p className="text-sm text-emerald-600">The planned questions are finished. You can review the report now.</p>
+              <p className="text-lg font-semibold text-emerald-700 mb-2">Interview completed</p>
+              <p className="text-sm text-emerald-600">Review your report to see feedback and next steps.</p>
             </div>
           ) : (
             <>
               <p className="text-xs font-medium text-faint mb-2 uppercase tracking-wider">
-                {isNotStarted ? 'Ready to start' : ((!isLastMessageAi || isSubmitting) ? `${INTERVIEWER_NAME} is thinking...` : 'Current Question')}
+                {isNotStarted ? 'Ready to start' : ((!isLastMessageAi || isSubmitting) ? `${INTERVIEWER_NAME} is preparing the next question...` : 'Current question')}
               </p>
               {isNotStarted ? (
                 <div className="space-y-3">
-                  <p className="text-base font-medium text-primary sm:text-lg">Start the text interview when you are ready. The timer will begin after you start.</p>
+                  <p className="text-base font-medium text-primary sm:text-lg">Start when you are ready. The timer begins after the first question loads.</p>
               <Button type="button" onClick={onStart} disabled={isSubmitting}>
                 <Play className="mr-2 h-4 w-4" />
-                Start Text Interview
+                Start text interview
               </Button>
                 </div>
               ) : (!isLastMessageAi || isSubmitting) ? (
@@ -123,7 +123,7 @@ export function InterviewChatPanel({ transcript, onStart, onReply, onPause, onRe
             <TextArea 
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
-              placeholder={isCompleted ? "Interview completed" : (isNotStarted ? "Start the interview first..." : (isPaused ? "Interview paused..." : (isSubmitting ? `${INTERVIEWER_NAME} is thinking...` : "Type your answer here...")))}
+              placeholder={isCompleted ? "Interview completed" : (isNotStarted ? "Start the interview first..." : (isPaused ? "Interview paused..." : (isSubmitting ? `${INTERVIEWER_NAME} is preparing the next question...` : "Type your answer here...")))}
               rows={3}
               className="pr-12"
               onKeyDown={(e) => {
@@ -153,7 +153,7 @@ export function InterviewChatPanel({ transcript, onStart, onReply, onPause, onRe
         </Button>
         <Button variant="secondary" className="px-3" onClick={onRepeat} disabled={isNotStarted || isPaused || isCompleted || isSubmitting}>
           <RefreshCcw className="h-4 w-4" />
-          Repeat
+          Ask again
         </Button>
         <Button variant="danger" className="px-3" onClick={onEnd} disabled={isSubmitting || isCompleted}>
           <Square className="h-4 w-4" />

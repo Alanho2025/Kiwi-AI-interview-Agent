@@ -5,14 +5,24 @@
  */
 
 import { TokenUsage } from '../db/models/tokenUsageModel.js';
-import { DEEPSEEK_CHAT_PRICING, calculateDeepSeekCost } from '../config/aiUsagePricing.js';
+import {
+  AI_USAGE_COST_CURRENCY,
+  AI_USAGE_USD_TO_COST_CURRENCY_RATE,
+  DEEPSEEK_CHAT_PRICING,
+  calculateDeepSeekCost,
+  convertUsdCostToUsageCurrency,
+} from '../config/aiUsagePricing.js';
 
 const PRICING = {
+  currency: AI_USAGE_COST_CURRENCY,
+  sourceCurrency: 'USD',
+  usdToCurrencyRate: AI_USAGE_COST_CURRENCY === 'USD' ? 1 : AI_USAGE_USD_TO_COST_CURRENCY_RATE,
   inputPer1M: DEEPSEEK_CHAT_PRICING.inputCacheMissPer1M,
   outputPer1M: DEEPSEEK_CHAT_PRICING.outputPer1M,
 };
 
 const calcCost = (promptTokens, completionTokens) => calculateDeepSeekCost({ promptTokens, completionTokens });
+const toUsageCurrencyCost = (value) => convertUsdCostToUsageCurrency(value);
 
 /**
  * Record a single DeepSeek API call's token usage.
@@ -45,10 +55,11 @@ export const getUsageSummary = async (userId) => {
   const s = stats?.[0] || { totalPromptTokens: 0, totalCompletionTokens: 0, totalCost: 0, callCount: 0 };
 
   return {
+    currency:              AI_USAGE_COST_CURRENCY,
     totalPromptTokens:     s.totalPromptTokens,
     totalCompletionTokens: s.totalCompletionTokens,
     totalTokens:           s.totalPromptTokens + s.totalCompletionTokens,
-    totalCost:             Number(s.totalCost.toFixed(6)),
+    totalCost:             Number(toUsageCurrencyCost(s.totalCost).toFixed(6)),
     callCount:             s.callCount,
     pricing:               PRICING,
   };
@@ -78,11 +89,12 @@ export const getRecentSessionUsage = async (userId, limit = 5) => {
   ]);
 
   return results.map((r) => ({
+    currency:         AI_USAGE_COST_CURRENCY,
     sessionId:        r._id,
     promptTokens:     r.promptTokens,
     completionTokens: r.completionTokens,
     totalTokens:      r.promptTokens + r.completionTokens,
-    estimatedCost:    Number(r.estimatedCost.toFixed(6)),
+    estimatedCost:    Number(toUsageCurrencyCost(r.estimatedCost).toFixed(6)),
     callCount:        r.callCount,
     lastUsed:         r.lastUsed,
   }));

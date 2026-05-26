@@ -71,10 +71,14 @@ export const buildAnalyzeResult = ({
     semanticEvidenceModel: {
       model: semanticEvidenceContext.model || 'none',
       scorer: semanticEvidenceContext.scorer || 'none',
+      providerError: semanticEvidenceContext.providerError || '',
     },
     evidenceStrengthBreakdown: semanticEvidenceContext.evidenceStrengthBreakdown || {},
+    evidenceJudgements: semanticEvidenceContext.evidenceJudgements || {},
+    universalRoleProfile: rubric.universalRoleProfile || rubric.metadata?.universalRoleProfile || null,
     transitionProfile,
     scoreDimensions: {
+      ...(scoreBreakdown.semanticDimensions || {}),
       technicalReadiness: transitionProfile.technicalReadiness ?? 0,
       transferableStrength: transitionProfile.transferableStrength ?? 0,
       commercialExperience: transitionProfile.commercialExperience ?? 0,

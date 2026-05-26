@@ -4,13 +4,17 @@
 
 import { AiUsageEvent } from '../db/models/aiUsageEventModel.js';
 import {
+  AI_USAGE_COST_CURRENCY,
   AI_USAGE_PRICING_VERSION,
+  AI_USAGE_USD_TO_COST_CURRENCY_RATE,
   AZURE_SPEECH_PRICING,
   COMMERCIAL_STRESS_ASSUMPTIONS,
   DEEPSEEK_CHAT_PRICING,
   calculateAzureSttCost,
   calculateAzureTtsCost,
   calculateDeepSeekCost,
+  convertUsdCostToUsageCurrency,
+  getCurrencyPrefix,
 } from '../config/aiUsagePricing.js';
 
 const DEFAULT_STAGE_LABELS = {
@@ -32,6 +36,7 @@ const PROVIDER_LABELS = {
 const roundCost = (value) => Number((Number(value) || 0).toFixed(8));
 const roundDisplayCost = (value) => Number((Number(value) || 0).toFixed(6));
 const toPositiveNumber = (value) => Math.max(0, Number(value) || 0);
+const toUsageCurrencyCost = (value) => convertUsdCostToUsageCurrency(value);
 const shouldDebugUsage = () => process.env.AI_USAGE_DEBUG === 'true';
 
 const debugUsageEvent = (event) => {
@@ -180,6 +185,7 @@ export const recordLocalUsage = async ({
 });
 
 const emptySummary = () => ({
+  currency: AI_USAGE_COST_CURRENCY,
   totalCost: 0,
   totalPromptTokens: 0,
   totalCompletionTokens: 0,
@@ -192,6 +198,9 @@ const emptySummary = () => ({
   providerBreakdown: [],
   pricing: {
     version: AI_USAGE_PRICING_VERSION,
+    currency: AI_USAGE_COST_CURRENCY,
+    sourceCurrency: 'USD',
+    usdToCurrencyRate: AI_USAGE_COST_CURRENCY === 'USD' ? 1 : AI_USAGE_USD_TO_COST_CURRENCY_RATE,
     deepseek: DEEPSEEK_CHAT_PRICING,
     azureSpeech: AZURE_SPEECH_PRICING,
   },
@@ -242,7 +251,9 @@ const buildBreakdown = (events = [], key) => {
 
   return Array.from(grouped.values()).map((item) => ({
     ...item,
-    estimatedCost: roundDisplayCost(item.estimatedCost),
+    estimatedCostUsd: roundDisplayCost(item.estimatedCost),
+    estimatedCost: roundDisplayCost(toUsageCurrencyCost(item.estimatedCost)),
+    currency: AI_USAGE_COST_CURRENCY,
     providers: Array.from(item.providers).map((provider) => PROVIDER_LABELS[provider] || provider),
   }));
 };
@@ -251,15 +262,22 @@ const buildCommercialStressPayload = (summary, stageBreakdown = []) => {
   const minMinutes = COMMERCIAL_STRESS_ASSUMPTIONS.conservativeMinutesReplaced;
   const maxMinutes = COMMERCIAL_STRESS_ASSUMPTIONS.moderateMinutesReplaced;
   const hourlyRate = COMMERCIAL_STRESS_ASSUMPTIONS.hourlyLaborRate;
+  const currency = COMMERCIAL_STRESS_ASSUMPTIONS.currency;
+  const currencyPrefix = getCurrencyPrefix(currency);
   const lowHumanValue = (minMinutes / 60) * hourlyRate;
   const highHumanValue = (maxMinutes / 60) * hourlyRate;
-  const totalCost = Number(summary.totalCost || 0);
+  const totalCostUsd = Number(summary.totalCost || 0);
+  const totalCost = roundDisplayCost(toUsageCurrencyCost(totalCostUsd));
   const costToValueRatio = highHumanValue > 0 ? totalCost / highHumanValue : 0;
   const estimatedSavingsLow = Math.max(0, lowHumanValue - totalCost);
   const estimatedSavingsHigh = Math.max(0, highHumanValue - totalCost);
 
   return {
-    totalExecutionCost: roundDisplayCost(totalCost),
+    currency,
+    totalExecutionCost: totalCost,
+    totalExecutionCostUsd: roundDisplayCost(totalCostUsd),
+    providerCurrency: 'USD',
+    usdToNzdRate: AI_USAGE_USD_TO_COST_CURRENCY_RATE,
     totalLlmTokens: summary.totalTokens,
     speechAudioSeconds: Math.round(summary.speechAudioSeconds),
     speechTextCharacters: summary.speechTextCharacters,
@@ -276,9 +294,9 @@ const buildCommercialStressPayload = (summary, stageBreakdown = []) => {
     costToValueRatio: Number(costToValueRatio.toFixed(6)),
     stageBreakdown,
     conclusion: totalCost > 0
-      ? 'This session estimated AI service cost is materially lower than equivalent manual CV review, interview delivery, and feedback writing under conservative labor assumptions.'
-      : 'This session currently shows no measured external AI service cost; local workflow stages are included as zero-cost steps where recorded.',
-    assumptions: `Assumes ${minMinutes}-${maxMinutes} minutes of human review/coaching time at $${hourlyRate}/hour. Provider cost is estimated from recorded usage.`,
+      ? 'This session estimated provider cost is materially lower than equivalent manual CV review, interview delivery, and feedback writing under conservative NZD labor assumptions.'
+      : 'This session currently shows no measured external AI provider cost; local workflow stages are included as zero provider-cost steps where recorded.',
+    assumptions: `Assumes ${minMinutes}-${maxMinutes} minutes of human review/coaching time at ${currencyPrefix}${hourlyRate}/hour. Provider prices are recorded in USD and converted to ${currency} at ${AI_USAGE_USD_TO_COST_CURRENCY_RATE}.`,
   };
 };
 
@@ -290,7 +308,9 @@ export const getUserAiUsageSummary = async (userId) => {
   const sessionIds = new Set(events.map((event) => event.sessionId).filter(Boolean));
   return {
     ...summary,
-    totalCost: roundDisplayCost(summary.totalCost),
+    totalCostUsd: roundDisplayCost(summary.totalCost),
+    totalCost: roundDisplayCost(toUsageCurrencyCost(summary.totalCost)),
+    currency: AI_USAGE_COST_CURRENCY,
     measuredSessions: sessionIds.size,
     providerBreakdown: buildBreakdown(events, 'provider'),
     pricing: emptySummary().pricing,
@@ -317,7 +337,9 @@ export const getRecentAiSessionUsage = async (userId, limit = 5) => {
       totalTokens: summary.totalTokens,
       promptTokens: summary.totalPromptTokens,
       completionTokens: summary.totalCompletionTokens,
-      estimatedCost: roundDisplayCost(summary.totalCost),
+      estimatedCostUsd: roundDisplayCost(summary.totalCost),
+      estimatedCost: roundDisplayCost(toUsageCurrencyCost(summary.totalCost)),
+      currency: AI_USAGE_COST_CURRENCY,
       callCount: summary.callCount,
       speechAudioSeconds: Math.round(summary.speechAudioSeconds),
       providerBreakdown: buildBreakdown(sessionEvents, 'provider'),
@@ -337,7 +359,9 @@ export const getSessionExecutionCost = async ({ userId, sessionId }) => {
     sessionId,
     summary: {
       ...summary,
-      totalCost: roundDisplayCost(summary.totalCost),
+      totalCostUsd: roundDisplayCost(summary.totalCost),
+      totalCost: roundDisplayCost(toUsageCurrencyCost(summary.totalCost)),
+      currency: AI_USAGE_COST_CURRENCY,
       measuredSessions: events.length ? 1 : 0,
       providerBreakdown: buildBreakdown(events, 'provider'),
       pricing: emptySummary().pricing,

@@ -6,6 +6,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { getUsageSummary, getRecentSessionUsage } from '../../api/usageApi.js';
+import { formatUsageCost } from '../../utils/formatters.js';
 
 const formatTokens = (n) => {
   if (!n && n !== 0) return '—';
@@ -14,16 +15,10 @@ const formatTokens = (n) => {
   return String(n);
 };
 
-const formatCost = (cost) => {
-  if (cost == null || cost === 0) return '$0';
-  if (cost < 0.001) return `$${cost.toFixed(6)}`;
-  if (cost < 0.01) return `$${cost.toFixed(5)}`;
-  return `$${cost.toFixed(4)}`;
-};
-
-const SessionRow = ({ session, index }) => {
+const SessionRow = ({ session, index, currency }) => {
   // Look for session title in existing data — we pass what the API gives
   const label = session.sessionId?.slice(-6) || `Session #${index + 1}`;
+  const sessionCurrency = session.currency || currency;
   return (
     <div className="flex items-center justify-between text-xs">
       <div className="flex items-center gap-1.5 truncate">
@@ -34,7 +29,7 @@ const SessionRow = ({ session, index }) => {
       </div>
       <div className="flex shrink-0 items-center gap-2 text-faint">
         <span>{formatTokens(session.totalTokens)} tok</span>
-        <span className="font-mono">{formatCost(session.estimatedCost)}</span>
+        <span className="font-mono">{formatUsageCost(session.estimatedCost, sessionCurrency)}</span>
       </div>
     </div>
   );
@@ -95,8 +90,10 @@ export function TokenUsageSummary() {
   const displaySummary = hasAiUsage ? aiSummary : summary || {};
   const totalTokens = displaySummary.totalTokens ?? summary?.totalTokens ?? 0;
   const totalCost = displaySummary.totalCost ?? summary?.totalCost ?? 0;
+  const currency = displaySummary.currency || displaySummary.pricing?.currency || summary?.currency || summary?.pricing?.currency || 'USD';
   const measuredSessions = displaySummary.measuredSessions ?? recentSessions.length;
   const lastSessionCost = recentSessions[0]?.estimatedCost ?? 0;
+  const lastSessionCurrency = recentSessions[0]?.currency || currency;
 
   if (!summary || (totalTokens === 0 && totalCost === 0 && measuredSessions === 0)) {
     return (
@@ -116,7 +113,7 @@ export function TokenUsageSummary() {
 
       <div className="mb-3 grid grid-cols-2 gap-2">
         <div className="rounded-xl border border-theme bg-chip p-2 text-center">
-          <div className="text-xs font-bold text-primary">{formatCost(totalCost)}</div>
+          <div className="text-xs font-bold text-primary">{formatUsageCost(totalCost, currency)}</div>
           <div className="text-[10px] text-faint">Total cost</div>
         </div>
         <div className="rounded-xl border border-theme bg-chip p-2 text-center">
@@ -128,7 +125,7 @@ export function TokenUsageSummary() {
           <div className="text-[10px] text-faint">Sessions</div>
         </div>
         <div className="rounded-xl border border-theme bg-chip p-2 text-center">
-          <div className="text-xs font-bold text-primary">{formatCost(lastSessionCost)}</div>
+          <div className="text-xs font-bold text-primary">{formatUsageCost(lastSessionCost, lastSessionCurrency)}</div>
           <div className="text-[10px] text-faint">Last session</div>
         </div>
       </div>
@@ -141,7 +138,7 @@ export function TokenUsageSummary() {
             <span className="mt-px flex-1 border-t border-theme" />
           </div>
           {recentSessions.map((session, index) => (
-            <SessionRow key={session.sessionId || index} session={session} index={index} />
+            <SessionRow key={session.sessionId || index} session={session} index={index} currency={currency} />
           ))}
         </div>
       )}
