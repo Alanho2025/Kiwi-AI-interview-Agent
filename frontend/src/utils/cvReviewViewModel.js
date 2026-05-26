@@ -31,6 +31,37 @@ const truncate = (value = '', maxLength = 260) => {
   return `${text.slice(0, maxLength - 1).trim()}…`;
 };
 
+
+const buildProjectEvidenceText = (profile = {}) => {
+  const directProjectText = getSectionText(profile, 'projects');
+  const projects = profile.evidenceProfile?.sections?.projects || [];
+  const techEvidenceItems = profile.evidenceProfile?.evidenceItems || [];
+
+  const projectRows = projects.map((project) => {
+    const title = project.title || 'Project';
+    const techStack = Array.isArray(project.techStack) && project.techStack.length
+      ? `Tech stack: ${project.techStack.join(', ')}`
+      : '';
+    const responsibilities = Array.isArray(project.responsibilities) && project.responsibilities.length
+      ? `Responsibilities: ${project.responsibilities.slice(0, 3).join(' ')}`
+      : '';
+    const outcomes = Array.isArray(project.outcomes) && project.outcomes.length
+      ? `Outcomes: ${project.outcomes.slice(0, 2).join(' ')}`
+      : '';
+    return [title, techStack, responsibilities, outcomes].filter(Boolean).join('\n');
+  });
+
+  const techEvidenceRows = techEvidenceItems
+    .filter((item) => item.sourceType === 'project_tech_stack')
+    .map((item) => item.text)
+    .filter(Boolean);
+
+  return [directProjectText, ...projectRows, ...techEvidenceRows]
+    .filter(Boolean)
+    .join('\n\n');
+};
+
+
 const buildFallbackAnalysis = (reviewProfile = {}) => {
   const strongestEvidence = [
     reviewProfile.experienceEvidence && { label: 'Experience evidence', text: truncate(reviewProfile.experienceEvidence) },
@@ -62,7 +93,7 @@ export const buildCvReviewFormModel = (selectedCV = {}) => {
     candidateSummary: display.summary || profile.summary || profile.personalStatement || selectedCV.summary || '',
     coreSkills: normalizeList(display.topSkills || selectedCV.topSkills || profile.skills),
     experienceEvidence: getSectionText(profile, 'experience'),
-    projectEvidence: getSectionText(profile, 'projects'),
+    projectEvidence: buildProjectEvidenceText(profile),
     educationCredentials: [getSectionText(profile, 'education'), getSectionText(profile, 'certifications')].filter(Boolean).join('\n'),
     keyCompetencies: splitListText(keyCompetenciesText),
   };
