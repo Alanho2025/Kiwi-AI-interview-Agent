@@ -208,6 +208,7 @@ const findUniversalRequirementTarget = ({ topic = '', rubric = {} } = {}) => {
   const key = normalizeRequirementKey(topic);
   const requirements = rubric.universalRoleProfile?.requirements || rubric.metadata?.universalRoleProfile?.requirements || [];
   return requirements.find((item) => {
+    if (!item || typeof item !== 'object') return false;
     const labels = [item.text, item.label, item.normalizedCapability].map(normalizeRequirementKey).filter(Boolean);
     return labels.includes(key) || labels.some((label) => key.includes(label) || label.includes(key));
   }) || null;
@@ -216,8 +217,9 @@ const findUniversalRequirementTarget = ({ topic = '', rubric = {} } = {}) => {
 const isTechnicalRequirementCategory = (category = '') => ['technical_skill', 'tool_or_platform', 'domain_knowledge'].includes(category);
 
 const buildRoleCompetencyPrompt = ({ target = {}, skill = '', level = 'junior', roleLabel = 'the role', followUpDepth = 0 } = {}) => {
-  const category = target.category || '';
-  const capability = target.normalizedCapability || target.text || target.label || skill;
+  const safeTarget = target && typeof target === 'object' ? target : {};
+  const category = safeTarget.category || '';
+  const capability = safeTarget.normalizedCapability || safeTarget.text || safeTarget.label || skill;
 
   if (!category || isTechnicalRequirementCategory(category)) {
     return buildTechnicalPrompt({ skill: capability, level, roleLabel, followUpDepth });
