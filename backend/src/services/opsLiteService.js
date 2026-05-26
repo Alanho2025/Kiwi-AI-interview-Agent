@@ -58,17 +58,17 @@ const SUITE_META = Object.freeze({
   'agent-trajectory-eval': {
     group: 'trajectoryQuality',
     label: 'Agent trajectory quality',
-    categories: ['interview_control', 'multi_turn_adaptiveness', 'factual_grounding'],
+    categories: ['interview_control', 'multi_turn_adaptiveness', 'factual_grounding', 'star_completeness'],
   },
   'end-to-end-interview-eval': {
     group: 'trajectoryQuality',
     label: 'Fixed scenario E2E',
-    categories: ['interview_control', 'report_quality', 'factual_grounding'],
+    categories: ['interview_control', 'report_quality', 'factual_grounding', 'star_completeness'],
   },
   'kiwi-green-agent-eval': {
     group: 'trajectoryQuality',
     label: 'Kiwi Green Agent benchmark',
-    categories: ['interview_control', 'report_quality', 'factual_grounding'],
+    categories: ['interview_control', 'report_quality', 'factual_grounding', 'star_completeness'],
   },
   'retrieval-eval': {
     group: 'groundingSafety',
@@ -78,7 +78,7 @@ const SUITE_META = Object.freeze({
   'report-qa-eval': {
     group: 'groundingSafety',
     label: 'Report QA grounding',
-    categories: ['report_quality', 'factual_grounding'],
+    categories: ['report_quality', 'factual_grounding', 'star_completeness'],
   },
   'company-research-eval': {
     group: 'groundingSafety',
@@ -104,6 +104,11 @@ const SUITE_META = Object.freeze({
     group: 'reliability',
     label: 'Multi-trial stability',
     categories: ['multi_turn_adaptiveness', 'safety_boundary'],
+  },
+  'plan-eval-suite': {
+    group: 'reliability',
+    label: 'Plan eval execution coverage',
+    categories: ['safety_boundary'],
   },
 });
 
@@ -135,6 +140,11 @@ const thresholdValue = (thresholds = {}, key, fallback = 0) => {
 };
 
 const didSuitePass = (summary = {}) => {
+  if (summary.label === 'Plan Eval Suite Summary') {
+    return Number(summary.reportsAvailable || 0) === Number(summary.suitesAttempted || 0)
+      && Number(summary.processPassRate || 0) === 1;
+  }
+
   const thresholds = summary.thresholds || {};
   const minAverage = thresholdValue(thresholds, 'minAverage', 0);
   const failBelow = thresholdValue(thresholds, 'failBelow', 0);
@@ -166,6 +176,7 @@ const buildEmptyEvalReportSummary = () => ({
   totalCases: 0,
   averageScore: 0,
   passRate: 0,
+  warningCaseCount: 0,
   failedSuites: [],
   failedCases: [],
   suites: [],
@@ -196,6 +207,8 @@ export const buildEvalReportSummary = async () => {
     const meta = SUITE_META[id] || { group: 'reliability', label: id.replace(/-/g, ' '), categories: [] };
     const failedCases = collectFailedCases(summary);
     const passed = didSuitePass(summary);
+    const casesRun = Number(summary.casesRun || summary.suitesAttempted || ensureArray(summary.results).length || 0);
+    const averageScore = Number(summary.average ?? summary.reportAverageScore ?? 0);
 
     suites.push({
       id,
@@ -203,11 +216,12 @@ export const buildEvalReportSummary = async () => {
       label: meta.label,
       group: meta.group,
       categories: meta.categories,
-      casesRun: Number(summary.casesRun || ensureArray(summary.results).length || 0),
-      average: Number(summary.average || 0),
+      casesRun,
+      average: averageScore,
       criticalAverage: summary.criticalAverage,
       thresholds: summary.thresholds || {},
       passed,
+      warningStatus: passed && failedCases.length > 0 ? 'pass_with_warnings' : passed ? 'strong_pass' : 'needs_work',
       failedCaseCount: failedCases.length,
       failedCases: failedCases.slice(0, 8),
       generatedAt: summary.generatedAt || null,
@@ -239,6 +253,7 @@ export const buildEvalReportSummary = async () => {
     totalCases: suites.reduce((sum, suite) => sum + suite.casesRun, 0),
     averageScore: average(suites.map((suite) => suite.average)),
     passRate: suites.length ? Number((suites.filter((suite) => suite.passed).length / suites.length).toFixed(2)) : 0,
+    warningCaseCount: failedCases.length,
     failedSuites: failedSuites.map((suite) => suite.label),
     failedCases: failedCases.slice(0, 20),
     suites,
@@ -286,12 +301,15 @@ export const buildRuntimeOpsSummary = async ({ userId = null } = {}) => {
       modelAssistedTurnRate: trajectories.length ? Number((modelAssistedTurns / trajectories.length).toFixed(2)) : 0,
     },
     latency: {
+      measurement: 'runtime_trace_average_not_voice_benchmark',
+      note: 'This is the average from stored runtime trace fields. It is not the voice latency benchmark. Voice benchmark latency should measure end-of-speech to first audio sent.',
+      traceSampleCount: latencyEvents.length,
       sttMs: latencyAverage('sttMs'),
       retrievalMs: latencyAverage('retrievalMs'),
       planningMs: latencyAverage('planningMs'),
       llmFirstTokenMs: latencyAverage('llmFirstTokenMs'),
       ttsFirstAudioMs: latencyAverage('ttsFirstAudioMs'),
-      totalTurnMs: latencyAverage('totalTurnMs'),
+      runtimeTraceTotalMs: latencyAverage('totalTurnMs'),
     },
     rag: {
       activationRate: traceEvents.length ? Number((traceEvents.filter((event) => ensureArray(event.retrievalSources).length > 0).length / traceEvents.length).toFixed(2)) : 0,
@@ -330,6 +348,7 @@ export const buildOpsLiteSummary = async ({ userId = null } = {}) => {
       latestEvalAverageScore: agentEvaluation.averageScore,
       totalEvalSuites: agentEvaluation.totalSuites,
       totalEvalCases: agentEvaluation.totalCases,
+      warningCaseCount: agentEvaluation.warningCaseCount,
     },
   };
 };
