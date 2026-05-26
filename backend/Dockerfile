@@ -14,7 +14,7 @@ ENV VIRTUAL_ENV=/opt/kiwi-nlp-venv
 ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
 ENV SENTENCE_TRANSFORMER_MODEL=sentence-transformers/all-MiniLM-L6-v2
 ENV SPACY_MODEL=en_core_web_sm
-
+ARG INSTALL_OPEN_SOURCE_NLP=false
 RUN python3 -m venv "$VIRTUAL_ENV"
 
 WORKDIR /app
@@ -28,11 +28,14 @@ RUN npm ci --only=production
 
 # Install and warm optional NLP dependencies at build time so production requests do not pay first-load downloads.
 COPY python/requirements.txt ./python/requirements.txt
-RUN python -m pip install --no-cache-dir --upgrade pip \
+RUN if [ "$INSTALL_OPEN_SOURCE_NLP" = "true" ]; then \
+    python -m pip install --no-cache-dir --upgrade pip \
     && python -m pip install --no-cache-dir -r ./python/requirements.txt \
     && python -m spacy download "$SPACY_MODEL" \
-    && python -c "from sentence_transformers import SentenceTransformer; import os; SentenceTransformer(os.environ.get('SENTENCE_TRANSFORMER_MODEL', 'sentence-transformers/all-MiniLM-L6-v2'))"
-
+    && python -c "from sentence_transformers import SentenceTransformer; import os; SentenceTransformer(os.environ.get('SENTENCE_TRANSFORMER_MODEL', 'sentence-transformers/all-MiniLM-L6-v2'))"; \
+    else \
+    echo "Skipping optional open-source NLP dependencies. Set INSTALL_OPEN_SOURCE_NLP=true to install and warm them."; \
+    fi
 # Copy application source
 COPY . .
 
