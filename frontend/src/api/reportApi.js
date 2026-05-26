@@ -18,7 +18,8 @@ import { apiPost, apiGet } from './client.js';
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
 export const generateReport = async ({ sessionId }) => apiPost('/report/generate', { sessionId });
-export const qaReport = async ({ sessionId }) => apiPost('/report/qa', { sessionId });
+export const qaReport = async ({ sessionId, userPrompt = '' }) => apiPost('/report/qa', { sessionId, userPrompt });
+export const qaReportCheckOnly = async ({ sessionId }) => apiPost('/report/qa-check', { sessionId });
 export const getReport = async (sessionId) => apiGet(`/report/${sessionId}`);
 
 /**
@@ -162,7 +163,16 @@ export const generateReportPDF = async (reportData) => {
 
 
     // ══════ Communication Style Profile ══════
-    if (vm.communicationProfile) {
+    const hasCommunicationProfile = vm.communicationProfile
+      && (
+        vm.communicationProfile.summary
+        || vm.communicationProfile.overallImpression
+        || vm.communicationProfile.fillerWordNote
+        || vm.communicationProfile.fillerWords
+        || vm.communicationProfile.traits?.length
+        || vm.communicationProfile.keyTraits?.length
+      );
+    if (hasCommunicationProfile) {
       const cp = vm.communicationProfile;
       y = sectionHeading(pdf, 'Communication Style Profile', y);
 
@@ -172,9 +182,10 @@ export const generateReportPDF = async (reportData) => {
         y += 2;
       }
 
-      if (cp.traits?.length) {
+      const traits = cp.traits || cp.keyTraits || [];
+      if (traits?.length) {
         y = itemTitle(pdf, 'Key Traits', y);
-        for (const t of cp.traits) {
+        for (const t of traits) {
           pdf.setFont('helvetica', 'bold');
           y = wrapText(pdf, `• ${t.label || t.title || ''}`, M + 2, y, CW - 4);
           pdf.setFont('helvetica', 'normal');
@@ -183,9 +194,9 @@ export const generateReportPDF = async (reportData) => {
         }
       }
 
-      if (cp.fillerWordNote) {
+      if (cp.fillerWordNote || cp.fillerWords) {
         y = itemTitle(pdf, 'Delivery & Filler Words', y);
-        y = wrapText(pdf, cp.fillerWordNote, M + 2, y, CW - 4);
+        y = wrapText(pdf, cp.fillerWordNote || cp.fillerWords, M + 2, y, CW - 4);
         y += 2;
       }
     }
@@ -213,101 +224,57 @@ export const generateReportPDF = async (reportData) => {
         if (c.explanation || c.description) { y = wrapText(pdf, c.explanation || c.description, M + 2, y, CW - 4); }
         if (c.example) {
           pdf.setFont('helvetica', 'italic');
-          y = wrapText(pdf, `Try this next time: ${c.example}`, M + 2, y, CW - 4);
+          y = wrapText(pdf, `Example: ${c.example}`, M + 2, y, CW - 4);
           pdf.setFont('helvetica', 'normal');
         }
         y += 2;
       }
     }
 
-    // ══════ Interview Highlights & Critiques ══════
-    if (vm.quoteAnalyses?.length) {
-      y = sectionHeading(pdf, 'Interview Highlights & Critiques', y);
-      for (const q of vm.quoteAnalyses) {
-        if (q.context) {
-          pdf.setFont('helvetica', 'bold');
-          y = wrapText(pdf, 'Context', M, y);
-          pdf.setFont('helvetica', 'normal');
-          y = wrapText(pdf, q.context, M + 2, y, CW - 4);
-          y += 1;
-        }
-        if (q.quote) {
-          pdf.setFont('helvetica', 'italic');
-          pdf.setTextColor(80, 80, 80);
-          y = wrapText(pdf, `"${q.quote}"`, M + 4, y, CW - 8);
-          pdf.setTextColor(40, 40, 40);
-          pdf.setFont('helvetica', 'normal');
-          y += 1;
-        }
-        if (q.critique) {
-          pdf.setFont('helvetica', 'bold');
-          y = wrapText(pdf, "Coach's Critique", M, y);
-          pdf.setFont('helvetica', 'normal');
-          y = wrapText(pdf, q.critique, M + 2, y, CW - 4);
-          y += 1;
-        }
-        if (q.rewrite) {
-          pdf.setFont('helvetica', 'bold');
-          y = wrapText(pdf, 'How to say it better', M, y);
-          pdf.setFont('helvetica', 'normal');
-          y = wrapText(pdf, q.rewrite, M + 2, y, CW - 4);
-        }
-        y += 4;
-      }
-    }
-
-    // ══════ Turn-by-Turn Breakdown ══════
+    // ══════ Turn-by-Turn Feedback ══════
     if (vm.turnBreakdowns?.length) {
-      y = sectionHeading(pdf, 'Turn-by-Turn Breakdown', y);
-      for (const t of vm.turnBreakdowns) {
-        const qNum = t.questionIndex ?? t.turnIndex ?? '';
-        y = itemTitle(pdf, `Q${qNum}: ${t.questionText || ''}`, y);
-
+      y = sectionHeading(pdf, 'Turn-by-Turn Feedback', y);
+      vm.turnBreakdowns.forEach((t, i) => {
+        y = itemTitle(pdf, `Question ${i + 1}`, y);
+        if (t.question) { y = wrapText(pdf, `Q: ${t.question}`, M + 2, y, CW - 4); }
+        if (t.answer) { y = wrapText(pdf, `Your answer: ${t.answer}`, M + 2, y, CW - 4); }
+        if (t.feedback) { y = wrapText(pdf, `Feedback: ${t.feedback}`, M + 2, y, CW - 4); }
         if (t.scores) {
-          const parts = [];
-          if (t.scores.business !== undefined) parts.push(`Business: ${t.scores.business}/10`);
-          if (t.scores.logic !== undefined) parts.push(`Logic: ${t.scores.logic}/10`);
-          if (t.scores.evidence !== undefined) parts.push(`Evidence: ${t.scores.evidence}/10`);
-          if (parts.length) { y = labelValue(pdf, 'Micro-Scores', parts.join('  |  '), y); }
+          const s = t.scores;
+          y = labelValue(pdf, 'Scores', `Business: ${s.business ?? '-'}, Logic: ${s.logic ?? '-'}, Evidence: ${s.evidence ?? '-'}`, y);
         }
-
-        if (t.answerSummary) {
-          pdf.setFont('helvetica', 'italic');
-          y = wrapText(pdf, t.answerSummary, M + 2, y, CW - 4);
-          pdf.setFont('helvetica', 'normal');
-          y += 1;
-        }
-        if (t.feedback) { y = wrapText(pdf, t.feedback, M + 2, y, CW - 4); }
-        y += 3;
-      }
-    }
-
-    // ══════ How To Answer Better ══════
-
-    // ══════ Section-by-Section Breakdown ══════
-    if (r.sections?.length) {
-      y = sectionHeading(pdf, 'Section-by-Section Breakdown', y);
-      for (const sec of r.sections) {
-        y = itemTitle(pdf, sec.title || 'Section', y);
-        if (sec.content) { y = wrapText(pdf, sec.content, M + 2, y, CW - 4); }
         y += 2;
+      });
+    }
+
+    // ══════ Evidence & Diagnostics ══════
+    if (vm.evidenceDiagnostics) {
+      y = sectionHeading(pdf, 'Evidence Diagnostics', y);
+      const ed = vm.evidenceDiagnostics;
+      if (ed.averageStrength !== undefined) { y = labelValue(pdf, 'Average Evidence Strength', ed.averageStrength, y); }
+      if (ed.totals) {
+        y = itemTitle(pdf, 'Evidence Type Breakdown', y);
+        for (const [k, v] of Object.entries(ed.totals)) {
+          y = labelValue(pdf, k.replace(/_/g, ' '), v, y);
+        }
       }
     }
 
-    // ══════ Footer ══════
-    const pages = pdf.internal.getNumberOfPages();
-    for (let p = 1; p <= pages; p++) {
-      pdf.setPage(p);
-      pdf.setFontSize(8);
-      pdf.setTextColor(160, 160, 160);
-      pdf.text(`Kiwi AI Interview Agent  •  Page ${p}/${pages}`, PW / 2, 290, { align: 'center' });
+    // ══════ QA ══════
+    if (vm.qa) {
+      y = sectionHeading(pdf, 'Quality Assurance', y);
+      if (vm.qa.coverageScore !== undefined) { y = labelValue(pdf, 'Coverage Score', `${vm.qa.coverageScore}/100`, y); }
+      if (vm.qa.hallucinationRisk) { y = labelValue(pdf, 'Hallucination Risk', vm.qa.hallucinationRisk, y); }
+      if (vm.qa.qualityFlags?.length) {
+        y = itemTitle(pdf, 'QA Flags', y);
+        for (const f of vm.qa.qualityFlags) { y = wrapText(pdf, `• ${f}`, M + 2, y, CW - 4); }
+      }
     }
 
-    const sid = reportData?.sessionId || reportData?.id || 'export';
-    pdf.save(`Kiwi-Report-${sid}.pdf`);
+    pdf.save(`kiwi-ai-report-${reportData?.sessionId || 'session'}.pdf`);
     return true;
   } catch (error) {
-    console.error('PDF Generation Error:', error);
-    throw new Error('Could not generate PDF. ' + error.message, { cause: error });
+    console.error('PDF generation failed:', error);
+    throw new Error('Failed to generate PDF. Please try again.');
   }
 };

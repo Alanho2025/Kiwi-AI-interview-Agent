@@ -59,7 +59,6 @@ const formatReportAsText = (report) => {
   lines.push(`Schema Version: ${r.schemaVersion || 'unknown'}`);
   lines.push('');
   
-  // Candidate & Role Information
   if (r.candidateName || r.jobTitle) {
     lines.push('CANDIDATE & ROLE');
     lines.push('================');
@@ -68,7 +67,6 @@ const formatReportAsText = (report) => {
     lines.push('');
   }
   
-  // Summary
   if (r.summary) {
     lines.push('EXECUTIVE SUMMARY');
     lines.push('=================');
@@ -76,7 +74,6 @@ const formatReportAsText = (report) => {
     lines.push('');
   }
   
-  // Scores
   if (r.scores) {
     lines.push('SCORES');
     lines.push('======');
@@ -90,7 +87,6 @@ const formatReportAsText = (report) => {
     lines.push('');
   }
   
-  // Sections (detailed content)
   if (r.sections && r.sections.length > 0) {
     lines.push('DETAILED ANALYSIS');
     lines.push('=================');
@@ -105,7 +101,6 @@ const formatReportAsText = (report) => {
     });
   }
   
-  // Recommendations
   if (r.recommendations && r.recommendations.length > 0) {
     lines.push('RECOMMENDATIONS');
     lines.push('===============');
@@ -115,7 +110,6 @@ const formatReportAsText = (report) => {
     lines.push('');
   }
   
-  // Interview Metrics
   if (r.interviewMetrics) {
     lines.push('INTERVIEW METRICS');
     lines.push('=================');
@@ -128,7 +122,6 @@ const formatReportAsText = (report) => {
     lines.push('');
   }
   
-  // Evidence Diagnostics
   if (r.evidenceDiagnostics) {
     lines.push('EVIDENCE DIAGNOSTICS');
     lines.push('====================');
@@ -144,7 +137,6 @@ const formatReportAsText = (report) => {
     lines.push('');
   }
   
-  // QA Results
   if (qa && Object.keys(qa).length > 0) {
     lines.push('QUALITY ASSURANCE');
     lines.push('=================');
@@ -242,7 +234,7 @@ export function useReportData(sessionId) {
       if (result?.stored || result?.report || result?.qaResult) {
         setReportData(result.stored || result);
       }
-      setStatus(successStatus);
+      setStatus(successStatus(result));
       await loadReport();
     } catch (error) {
       setStatus(buildStatus('error', failureTitle, error.message || 'Something went wrong.'));
@@ -253,13 +245,17 @@ export function useReportData(sessionId) {
 
   const handleGenerate = useCallback(() => runReportAction({
     action: () => generateReport({ sessionId }),
-    successStatus: buildStatus('success', 'Report generated', 'A new structured report is ready.'),
+    successStatus: () => buildStatus('success', 'Report generated', 'A new structured report is ready.'),
     failureTitle: 'Generation failed',
   }), [runReportAction, sessionId]);
 
-  const handleQa = useCallback(() => runReportAction({
-    action: () => qaReport({ sessionId }),
-    successStatus: buildStatus('success', 'QA completed', 'Report QA flags were refreshed.'),
+  const handleQa = useCallback((userPrompt = '') => runReportAction({
+    action: () => qaReport({ sessionId, userPrompt }),
+    successStatus: (result = {}) => buildStatus(
+      'success',
+      result.rewriteApplied ? 'QA rewrite completed' : 'QA completed',
+      result.rewriteApplied ? 'The report was rewritten with your prompt and QA was refreshed.' : 'Report QA flags were refreshed.'
+    ),
     failureTitle: 'QA failed',
   }), [runReportAction, sessionId]);
 

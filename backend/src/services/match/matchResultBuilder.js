@@ -3,19 +3,37 @@ import { validateAnalyzeOutput } from '../schemaValidationService.js';
 import { unique } from './matchShared.js';
 import { buildLegacyWeightedBreakdown } from './matchScoringService.js';
 
-export const calculateConfidence = ({ parsedCvProfile, macroScores, microScores, requirementChecks, cvEvidenceProfile }) =>
-  roundScore(
-    Math.min(
-      0.95,
-      0.32
-      + Math.min(0.22, ((macroScores.length + microScores.length) / 20) * 0.22)
-      + Math.min(0.18, requirementChecks.filter((item) => item.evidence.length > 0).length * 0.035)
-      + Math.min(0.13, (parsedCvProfile.tokenCount || 0) / 8000)
-      + Math.min(0.1, ((cvEvidenceProfile?.sections?.projects || []).length || 0) * 0.03)
-      + Math.min(0.08, ((cvEvidenceProfile?.achievements || []).length || 0) * 0.02)
-    ),
-    2
+export const calculateConfidence = ({ parsedCvProfile, macroScores, microScores, requirementChecks, cvEvidenceProfile }) => {
+  const hardMissingCount = requirementChecks.filter((item) => item.type === 'hard' && item.status === 'not_met').length;
+  const contradictionCount = requirementChecks.filter((item) => {
+    const notes = String(item.notes || '');
+    return (
+      /evidenceStrength=strong/i.test(notes) && item.status === 'not_met'
+    ) || (
+      /missingEvidence=/i.test(notes) && ['met', 'partial'].includes(item.status)
+    );
+  }).length;
+  const weakHardEvidenceCount = requirementChecks.filter((item) =>
+    item.type === 'hard'
+    && ['met', 'partial'].includes(item.status)
+    && /evidenceStrength=weak/i.test(String(item.notes || ''))
+  ).length;
+  const penalty = Math.min(0.18, hardMissingCount * 0.025)
+    + Math.min(0.16, contradictionCount * 0.04)
+    + Math.min(0.08, weakHardEvidenceCount * 0.02);
+
+  const base = Math.min(
+    0.95,
+    0.32
+    + Math.min(0.22, ((macroScores.length + microScores.length) / 20) * 0.22)
+    + Math.min(0.18, requirementChecks.filter((item) => item.evidence.length > 0).length * 0.035)
+    + Math.min(0.13, (parsedCvProfile.tokenCount || 0) / 8000)
+    + Math.min(0.1, ((cvEvidenceProfile?.sections?.projects || []).length || 0) * 0.03)
+    + Math.min(0.08, ((cvEvidenceProfile?.achievements || []).length || 0) * 0.02)
   );
+
+  return roundScore(Math.max(0.35, base - penalty), 2);
+};
 
 const hasHardGateFailure = (requirementChecks = []) => requirementChecks.some((item) => item.type === 'hard' && item.status === 'not_met');
 

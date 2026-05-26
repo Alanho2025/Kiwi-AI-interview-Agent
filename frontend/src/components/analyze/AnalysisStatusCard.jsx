@@ -104,6 +104,9 @@ const RequirementChecks = ({ items }) => {
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-sm font-semibold text-primary">{item.label}</p>
+          {item.originalLabel && item.originalLabel !== item.label ? (
+            <p className="mt-1 text-xs leading-5 text-faint">Original JD: {item.originalLabel}</p>
+          ) : null}
           <p className="mt-1 text-xs text-faint">{item.meta}</p>
         </div>
         <RequirementStatusPill tone={item.tone}>{item.status}</RequirementStatusPill>
@@ -172,15 +175,23 @@ const EvidenceStrengthSummary = ({ breakdown = {}, semanticEvidenceMatches = [],
 
       {visibleMatches.length ? (
         <div className="mt-4 space-y-2">
-          {visibleMatches.slice(0, 3).map((item) => (
-            <div key={item.label} className="rounded-lg bg-transparent p-3">
-              <p className="text-sm font-semibold text-primary">{item.label}</p>
-              <p className="mt-1 text-xs leading-5 text-muted">
-                {item.match.evidenceStrength || 'weak'} evidence · {Math.round(Number(item.match.score || 0) * 100)}% semantic similarity
-              </p>
-              <p className="mt-2 text-xs leading-5 text-faint">{item.match.text}</p>
-            </div>
-          ))}
+          {visibleMatches.slice(0, 3).map((item) => {
+            const similarity = Math.round(Number(item.match.score || 0) * 100);
+            const strength = item.match.evidenceStrength || 'weak';
+            return (
+              <div key={item.label} className="rounded-lg bg-transparent p-3">
+                <p className="text-sm font-semibold text-primary">{item.label}</p>
+                <p className="mt-1 text-xs leading-5 text-muted">Semantic similarity: {similarity}%</p>
+                <p className="mt-1 text-xs leading-5 text-muted">Evidence strength: {strength}</p>
+                {strength === 'weak' && similarity >= 75 ? (
+                  <p className="mt-1 text-xs leading-5 text-faint">
+                    The wording is related, but the CV evidence still needs direct applied proof.
+                  </p>
+                ) : null}
+                <p className="mt-2 text-xs leading-5 text-faint">{item.match.text}</p>
+              </div>
+            );
+          })}
         </div>
       ) : null}
     </div>
@@ -210,7 +221,7 @@ const MatchSummary = ({ viewModel }) => {
             <p className="mt-2 text-3xl font-semibold text-primary">{viewModel.overallScore}</p>
           </div>
           <div className="rounded-xl glass/80 p-4 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wide text-faint">Confidence</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-faint">Evidence confidence</p>
             <p className="mt-2 text-3xl font-semibold text-primary">{viewModel.confidencePercent}%</p>
           </div>
         </div>

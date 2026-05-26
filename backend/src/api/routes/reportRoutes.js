@@ -11,11 +11,13 @@
 
 import express from 'express';
 import { generateReport, getReport, qaReport, exportReport } from '../../controllers/reportController.js';
+import { qaRewriteReport } from '../../controllers/reportQaRewriteController.js';
 
 const router = express.Router();
 
 router.post('/generate', generateReport);
-router.post('/qa', qaReport);
+router.post('/qa', qaRewriteReport);
+router.post('/qa-check', qaReport);
 router.get('/:sessionId', getReport);
 router.post('/:sessionId/export', exportReport);
 

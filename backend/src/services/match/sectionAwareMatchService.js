@@ -30,6 +30,48 @@ const STOPWORDS = new Set([
   'clear', 'clearly', 'experience', 'foundations', 'support', 'work', 'working', 'build', 'enhance'
 ]);
 
+const STRICT_TECH_PATTERNS = {
+  aws: /\b(aws|amazon web services|ec2|lambda|s3|rds|ecs|eks|cloudwatch|iam)\b/i,
+  redis: /\bredis\b/i,
+  elasticsearch: /\belasticsearch\b/i,
+  kafka: /\b(kafka|distributed queue|distributed queueing|message queue|event streaming)\b/i,
+  python: /\bpython\b/i,
+  postgres: /\b(postgresql|postgres)\b/i,
+  typescript: /\btypescript\b/i,
+  nextjs: /\b(next\.js|nextjs)\b/i,
+  vue: /\b(vue|vue\.js)\b/i,
+  react: /\breact\b/i,
+  node: /\b(node\.js|nodejs|node)\b/i,
+  express: /\bexpress\b/i,
+  docker: /\b(docker|container|containerised|containerized)\b/i,
+  kubernetes: /\b(kubernetes|k8s)\b/i,
+};
+
+const CLOUD_NATIVE_PATTERN = /\b(cloud-native|cloud native|kubernetes|k8s|docker|container|containerised|containerized|aws|azure|gcp|serverless|lambda|ecs|eks|ci\/cd|pipeline)\b/i;
+
+const isQualificationRequirement = (label = '') =>
+  /qualification|degree|bachelor|master|diploma|tertiary|computer science|software engineering|information technology/i.test(label);
+
+const getStrictTechKeys = (label = '') => {
+  const normalized = String(label || '').toLowerCase();
+  const keys = [];
+  for (const [key, pattern] of Object.entries(STRICT_TECH_PATTERNS)) {
+    if (pattern.test(normalized)) keys.push(key);
+  }
+  if (/cloud-native|cloud native/i.test(normalized)) keys.push('cloud_native');
+  return [...new Set(keys)];
+};
+
+const hasStrictTechEvidence = (label = '', text = '') => {
+  const keys = getStrictTechKeys(label);
+  if (!keys.length) return true;
+  const evidenceText = String(text || '');
+  return keys.every((key) => {
+    if (key === 'cloud_native') return CLOUD_NATIVE_PATTERN.test(evidenceText);
+    return STRICT_TECH_PATTERNS[key]?.test(evidenceText);
+  });
+};
+
 const LABEL_ALIASES = {
   'cloud infrastructure': ['cloud platform', 'azure infrastructure', 'platform reliability', 'platform', 'cloud environments'],
   docker: ['container', 'containers', 'containerized', 'containerisation', 'docker-based'],
@@ -110,6 +152,8 @@ export const computeSectionAwareMatch = ({ label, criterionType = 'micro', evide
 
   for (const [sectionKey, text] of Object.entries(serialized)) {
     if (!text) continue;
+    if (sectionKey === 'education' && !isQualificationRequirement(label)) continue;
+    if (!hasStrictTechEvidence(label, text)) continue;
     const weight = sectionWeights[sectionKey] ?? 0.5;
     const { direct, overlap, ratio, phraseBoost } = directMatchScore(label, text);
     const educationBoost = sectionKey === 'education' && detectEducationSignal(label, text) ? 0.95 : 0;

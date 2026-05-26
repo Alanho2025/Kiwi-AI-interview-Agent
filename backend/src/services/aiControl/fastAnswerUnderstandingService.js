@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { callDeepSeek } from '../deepseekService.js';
 
 const DEFAULT_TIMEOUT_MS = 180;
 const MAX_ADAPTER_PAYLOAD_CHARS = 12000;
@@ -365,10 +366,157 @@ const normalizeAdapterResult = (result = {}, fallback = {}) => ({
   confidence: Number.isFinite(Number(result.confidence)) ? Number(result.confidence) : fallback.confidence,
 });
 
+const estimateEvidenceGainScore = (understanding = {}, tokenCount = 0) => {
+  const hasOwnership = ensureArray(understanding.ownershipSignals).length > 0;
+  const hasEvidence = ensureArray(understanding.evidenceSignals).length > 0 || ensureArray(understanding.metrics).length > 0;
+  const base = understanding.answerCompleteness === 'strong' ? 0.72 : understanding.answerCompleteness === 'partial' ? 0.54 : 0.34;
+  return Math.max(0, Math.min(1, Number((
+    base
+    + (hasOwnership ? 0.06 : 0)
+    + (hasEvidence ? 0.08 : 0)
+    + (tokenCount > 35 ? 0.04 : 0)
+  ).toFixed(2))));
+};
+
+const hasConflictingRuleSignals = (understanding = {}) => {
+  const missingCount = ensureArray(understanding.missingEvidence).length;
+  const ownershipCount = ensureArray(understanding.ownershipSignals).length;
+  const evidenceCount = ensureArray(understanding.evidenceSignals).length + ensureArray(understanding.metrics).length;
+  return (
+    understanding.answerCompleteness === 'strong' && missingCount >= 3
+  ) || (
+    understanding.intent === 'general_answer' && (ownershipCount > 0 || evidenceCount > 0)
+  );
+};
+
+const shouldUseSemanticUnderstanding = ({ localUnderstanding = {}, answerText = '', environment = {} } = {}) => {
+  if (process.env.DISABLE_MODEL_ANSWER_UNDERSTANDING === 'true') return false;
+  const tokenCount = tokenize(answerText).length;
+  const evidenceGainScore = estimateEvidenceGainScore(localUnderstanding, tokenCount);
+  const missingEvidence = ensureArray(localUnderstanding.missingEvidence);
+  const nearFinalTurn = Boolean(environment?.interviewStructure?.isFinalPlannedTurn || environment?.questionContext?.isFinalPlannedTurn);
+  const complexStorySignals = tokenCount > 35
+    && (ensureArray(localUnderstanding.frictionSignals).length || ensureArray(localUnderstanding.ownershipSignals).length);
+
+  return (
+    Number(localUnderstanding.confidence || 0) < 0.58
+    || (tokenCount > 25 && evidenceGainScore < 0.45)
+    || (missingEvidence.length >= 3 && tokenCount > 35)
+    || hasConflictingRuleSignals(localUnderstanding)
+    || complexStorySignals
+    || nearFinalTurn
+  );
+};
+
+const extractJsonObject = (text = '') => {
+  const fencedMatch = String(text || '').match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  if (fencedMatch?.[1]) return fencedMatch[1].trim();
+  const start = String(text || '').indexOf('{');
+  const end = String(text || '').lastIndexOf('}');
+  if (start >= 0 && end > start) return String(text).slice(start, end + 1);
+  return String(text || '').trim();
+};
+
+const normalizeSemanticResult = (result = {}) => ({
+  source: 'model_assisted',
+  intent: normalizeText(result.intent),
+  answerCompleteness: ['thin', 'partial', 'strong'].includes(result.answerCompleteness) ? result.answerCompleteness : '',
+  keyFacts: unique(result.keyFacts || []),
+  technologies: unique(result.technologies || []),
+  metrics: unique(result.metrics || []),
+  ownershipSignals: unique(result.ownershipSignals || []),
+  evidenceSignals: unique(result.evidenceSignals || []),
+  frictionSignals: unique(result.frictionSignals || []),
+  missingEvidence: unique(result.missingEvidence || []),
+  semanticOpportunity: normalizeText(result.semanticOpportunity),
+  followUpValue: ['low', 'medium', 'high'].includes(result.followUpValue) ? result.followUpValue : '',
+  confidence: Number.isFinite(Number(result.confidence)) ? Math.max(0, Math.min(1, Number(result.confidence))) : 0,
+});
+
+const buildSemanticPrompt = ({ answerText = '', environment = {}, localUnderstanding = {} } = {}) => `Analyze the candidate answer for interview follow-up planning.
+
+Return valid JSON only with this exact shape:
+{
+  "source": "model_assisted",
+  "intent": "technical_example | behavioural_example | clarification_needed | experience_example | general_answer",
+  "answerCompleteness": "thin | partial | strong",
+  "keyFacts": ["string"],
+  "technologies": ["string"],
+  "metrics": ["string"],
+  "ownershipSignals": ["string"],
+  "evidenceSignals": ["string"],
+  "frictionSignals": ["string"],
+  "missingEvidence": ["personal_ownership", "result_or_impact", "validation_method", "tradeoff_or_failure_detail"],
+  "semanticOpportunity": "string",
+  "followUpValue": "low | medium | high",
+  "confidence": 0.0
+}
+
+Rules:
+- Stay grounded in the answer. Do not invent facts.
+- Missing evidence should describe what the answer did not prove.
+- semanticOpportunity should identify the best safe follow-up opportunity in one sentence.
+- Prefer concrete candidate-owned actions, measurable results, validation method, and trade-offs.
+
+Context:
+${JSON.stringify({
+  answerText: clipString(answerText, 3000),
+  latestQuestion: environment?.questionContext?.latestQuestionText,
+  latestQuestionTopic: environment?.questionContext?.latestQuestionTopic,
+  latestQuestionStage: environment?.questionContext?.latestQuestionStage,
+  roleContext: {
+    targetRole: environment?.roleContext?.targetRole,
+    requiredSkills: ensureArray(environment?.roleContext?.requiredSkills).slice(0, 12),
+  },
+  localUnderstanding,
+}, null, 2)}`;
+
+const mergeSemanticUnderstanding = ({ localUnderstanding = {}, semanticUnderstanding = {} } = {}) => ({
+  ...localUnderstanding,
+  source: 'local_js+model_assisted',
+  intent: semanticUnderstanding.intent || localUnderstanding.intent,
+  answerCompleteness: semanticUnderstanding.answerCompleteness || localUnderstanding.answerCompleteness,
+  keyFacts: unique([...(localUnderstanding.keyFacts || []), ...(semanticUnderstanding.keyFacts || [])]).slice(0, 12),
+  technologies: unique([...(localUnderstanding.technologies || []), ...(semanticUnderstanding.technologies || [])]).slice(0, 10),
+  metrics: unique([...(localUnderstanding.metrics || []), ...(semanticUnderstanding.metrics || [])]).slice(0, 8),
+  ownershipSignals: unique([...(localUnderstanding.ownershipSignals || []), ...(semanticUnderstanding.ownershipSignals || [])]).slice(0, 8),
+  evidenceSignals: unique([...(localUnderstanding.evidenceSignals || []), ...(semanticUnderstanding.evidenceSignals || [])]).slice(0, 8),
+  frictionSignals: unique([...(localUnderstanding.frictionSignals || []), ...(semanticUnderstanding.frictionSignals || [])]).slice(0, 8),
+  missingEvidence: unique(semanticUnderstanding.missingEvidence || localUnderstanding.missingEvidence || []).slice(0, 6),
+  semanticOpportunity: semanticUnderstanding.semanticOpportunity || localUnderstanding.semanticOpportunity || '',
+  followUpValue: semanticUnderstanding.followUpValue || localUnderstanding.followUpValue || '',
+  confidence: Math.max(Number(localUnderstanding.confidence || 0), Number(semanticUnderstanding.confidence || 0)),
+  suggestedFollowUp: {
+    ...(localUnderstanding.suggestedFollowUp || {}),
+    questionGoal: semanticUnderstanding.semanticOpportunity || localUnderstanding.suggestedFollowUp?.questionGoal,
+  },
+});
+
 export const resolveFastAnswerUnderstanding = async ({ session = {}, environment = {}, answerText = '' } = {}) => {
-  const fallback = extractFastAnswerUnderstanding({ session, environment, answerText });
+  const cleanAnswer = normalizeText(answerText || environment?.latestAnswer?.text);
+  const fallback = extractFastAnswerUnderstanding({ session, environment, answerText: cleanAnswer });
   const command = normalizeText(process.env.ANSWER_UNDERSTANDING_ADAPTER_COMMAND);
-  if (!command) return fallback;
+  if (!command) {
+    if (!shouldUseSemanticUnderstanding({ localUnderstanding: fallback, answerText: cleanAnswer, environment })) {
+      return fallback;
+    }
+    try {
+      const { content } = await callDeepSeek(
+        buildSemanticPrompt({ answerText: cleanAnswer, environment, localUnderstanding: fallback }),
+        'You are a strict semantic answer-understanding service. Return JSON only.',
+        {
+          usageMetadata: { stage: 'interview', operation: 'llm_json', feature: 'answer_understanding' },
+        },
+      );
+      const semanticUnderstanding = normalizeSemanticResult(JSON.parse(extractJsonObject(content)));
+      return mergeSemanticUnderstanding({ localUnderstanding: fallback, semanticUnderstanding });
+    } catch (error) {
+      return {
+        ...fallback,
+        modelUnderstandingError: error?.message || String(error),
+      };
+    }
+  }
 
   const timeoutMs = Number(process.env.ANSWER_UNDERSTANDING_TIMEOUT_MS || DEFAULT_TIMEOUT_MS);
   try {

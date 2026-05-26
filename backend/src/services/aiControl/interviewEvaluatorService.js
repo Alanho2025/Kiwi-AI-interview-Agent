@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import { SessionAnalysis } from '../../db/models/sessionAnalysisModel.js';
+import { analyzeStarBreakdown } from './starRubricService.js';
 
 const ensureArray = (value) => (Array.isArray(value) ? value : []);
 const normalizeText = (value = '') => String(value || '').trim();
@@ -33,6 +34,13 @@ const detectMisunderstanding = (answerText = '', topic = '') => {
   if (!topicTokens.length) return false;
   const answerTokens = tokenize(answerText);
   return answerTokens.length <= 8 && countOverlap(answerTokens, topicTokens) === 0;
+};
+
+const detectRepetitionComplaint = (answerText = '') => {
+  const normalized = normalizeText(answerText).toLowerCase();
+  return /\b(answered|answer|asked|ask)\b.*\b(before|again|already|repeat|same)\b/.test(normalized)
+    || /\bwhy\b.*\b(ask|asking)\b.*\bagain\b/.test(normalized)
+    || /\bi (have )?answered this\b/.test(normalized);
 };
 
 const detectCandidateQuestion = (answerText = '') => {
@@ -122,6 +130,46 @@ const detectRepetitionRisk = ({ previousTopics = [], currentTopic = '' } = {}) =
   return Boolean(currentTopic) && recentTopics.filter((topic) => topic === currentTopic).length >= 2;
 };
 
+const inferRoleRelevance = ({ answerText = '', currentTopic = '', requiredSkills = [], answerUnderstanding = null } = {}) => {
+  const tokens = tokenize(answerText);
+  const topicTokens = tokenize(currentTopic);
+  const skillTokens = ensureArray(requiredSkills).flatMap((item) => tokenize(item));
+  const overlap = countOverlap(tokens, [...topicTokens, ...skillTokens]);
+  if (overlap >= 3 || ensureArray(answerUnderstanding?.technologies).length >= 2) return 'high';
+  if (overlap >= 1 || ensureArray(answerUnderstanding?.technologies).length) return 'medium';
+  return 'low';
+};
+
+const inferCoveragePressure = ({ coverageState = {}, repetitionRisk = false } = {}) => {
+  const missingCount = ensureArray(coverageState.missingTopics).length;
+  if (missingCount >= 3 || repetitionRisk) return 'high';
+  if (missingCount >= 1) return 'medium';
+  return 'low';
+};
+
+const buildPlannerSignals = ({
+  evidenceGainScore,
+  specificity,
+  answerUnderstanding = null,
+  frictionState = {},
+  roleRelevance,
+  coveragePressure,
+  starBreakdown = null,
+  candidateRepetitionComplaint = false,
+} = {}) => ({
+  evidenceGainScore,
+  specificity,
+  missingEvidence: ensureArray(answerUnderstanding?.missingEvidence),
+  roleRelevance,
+  semanticOpportunity: normalizeText(answerUnderstanding?.semanticOpportunity),
+  followUpValue: answerUnderstanding?.followUpValue || (evidenceGainScore >= 0.45 && evidenceGainScore < 0.7 ? 'high' : evidenceGainScore >= 0.7 ? 'medium' : 'medium'),
+  emotionalOrFrictionSignal: ensureArray(frictionState.frictionKeywords)[0] || '',
+  coveragePressure,
+  candidateRepetitionComplaint,
+  starScores: starBreakdown?.scores || {},
+  starMainMissingElement: starBreakdown?.mainMissingElement || '',
+});
+
 
 const detectGapClosure = ({ answerText = '', topic = '' } = {}) => {
   const tokens = tokenize(answerText);
@@ -168,6 +216,7 @@ export const evaluateInterviewTurn = ({ environment = {}, decisionContext = null
   const requiredSkills = environment?.roleContext?.requiredSkills || [];
   const answerUnderstanding = environment?.latestAnswerUnderstanding || null;
   const specificity = classifySpecificity(answerText);
+  const candidateRepetitionComplaint = detectRepetitionComplaint(answerText);
   const misunderstandingFlag = detectMisunderstanding(answerText, currentTopic)
     || answerUnderstanding?.suggestedFollowUp?.mode === 'rephrase';
   const hasCandidateQuestion = detectCandidateQuestion(answerText);
@@ -197,6 +246,19 @@ export const evaluateInterviewTurn = ({ environment = {}, decisionContext = null
     ...(answerUnderstanding?.mentionedEntities || []),
   ])];
   const reflectionNeeded = misunderstandingFlag || (evidenceGainScore < 0.45 && repetitionRisk) || overallInteractionScore < 0.5;
+  const roleRelevance = inferRoleRelevance({ answerText, currentTopic, requiredSkills, answerUnderstanding });
+  const coveragePressure = inferCoveragePressure({ coverageState: decisionContext?.coverageState || {}, repetitionRisk });
+  const starBreakdown = analyzeStarBreakdown(answerText);
+  const plannerSignals = buildPlannerSignals({
+    evidenceGainScore,
+    specificity,
+    answerUnderstanding,
+    frictionState,
+    roleRelevance,
+    coveragePressure,
+    starBreakdown,
+    candidateRepetitionComplaint,
+  });
 
   return {
     evaluationId: crypto.randomUUID(),
@@ -206,6 +268,7 @@ export const evaluateInterviewTurn = ({ environment = {}, decisionContext = null
     specificity,
     evidenceGainScore,
     misunderstandingFlag,
+    candidateRepetitionComplaint,
     hasCandidateQuestion,
     frictionState,
     mentionedEntities,
@@ -219,6 +282,8 @@ export const evaluateInterviewTurn = ({ environment = {}, decisionContext = null
     reflectionNeeded,
     gapClosure,
     closeCurrentIntent: gapClosure.closeCurrentIntent,
+    starBreakdown,
+    plannerSignals,
     suggestedNextMode,
     successStatus: evidenceGainScore >= 0.55 && !misunderstandingFlag ? 'usable' : 'weak',
     fastAnswerUnderstanding: answerUnderstanding,

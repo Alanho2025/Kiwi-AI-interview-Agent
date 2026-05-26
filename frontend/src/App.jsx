@@ -21,6 +21,7 @@ const lazyNamedPage = (loader, exportName) => lazy(() => loader().then((module) 
 const AnalyzePage = lazyNamedPage(() => import('./pages/AnalyzePage.jsx'), 'AnalyzePage');
 const InterviewPage = lazyNamedPage(() => import('./pages/InterviewPage.jsx'), 'InterviewPage');
 const ReportPage = lazyNamedPage(() => import('./pages/ReportPage.jsx'), 'ReportPage');
+const OpsLitePage = lazy(() => import('./pages/OpsLitePage.jsx'));
 const Login = lazy(() => import('./pages/Login.jsx'));
 const HomePage = lazy(() => import('./pages/HomePage.jsx'));
 const LandingPage = lazy(() => import('./pages/LandingPage.jsx'));
@@ -59,6 +60,7 @@ export default function App() {
               <Route path="/analysis" element={<AnalyzePage />} />
               <Route path="/interview/:sessionId" element={<InterviewPage />} />
               <Route path="/report/:sessionId" element={<ReportPage />} />
+              <Route path="/ops-lite" element={<OpsLitePage />} />
             </Route>
           </Routes>
         </Suspense>
