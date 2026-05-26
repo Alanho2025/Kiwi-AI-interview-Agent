@@ -54,6 +54,15 @@ export const createDuplexVoiceAgentSession = ({
   let finalTranscriptSegments = [];
   let isProcessingBufferedTurn = false;
 
+  const sendReady = () => sendJson({
+    type: 'session_ready',
+    tool: AGENT_TOOL_NAMES.ORCHESTRATE_DUPLEX_VOICE,
+    sessionId: activeSession?.id || session?.id,
+    language,
+    sampleRate,
+    timestamp: new Date().toISOString(),
+  });
+
   const processFinalTranscript = async ({ transcriptText, asrConfidence, vad }) => {
     const turnCoordinator = createDuplexTurnCoordinator({
       session: activeSession,
@@ -154,10 +163,21 @@ export const createDuplexVoiceAgentSession = ({
     return speechSession;
   };
 
+  const restartSpeechSessionForNewTurn = async () => {
+    finalTranscriptSegments = [];
+    await stopSpeechSession();
+    return startSpeechSession();
+  };
+
   const handleJsonMessage = async (payload = {}) => {
     try {
-      if (payload.type === 'session_start' || payload.type === 'speech_start') {
-        await startSpeechSession();
+      if (payload.type === 'session_start') {
+        sendReady();
+        return;
+      }
+
+      if (payload.type === 'speech_start') {
+        await restartSpeechSessionForNewTurn();
         sendJson({
           type: 'listening_started',
           tool: AGENT_TOOL_NAMES.ORCHESTRATE_DUPLEX_VOICE,
@@ -282,14 +302,7 @@ export const createDuplexVoiceAgentSession = ({
     await stopSpeechSession();
   };
 
-  sendJson({
-    type: 'session_ready',
-    tool: AGENT_TOOL_NAMES.ORCHESTRATE_DUPLEX_VOICE,
-    sessionId: session?.id,
-    language,
-    sampleRate,
-    timestamp: new Date().toISOString(),
-  });
+  sendReady();
 
   return { handleJsonMessage, handleBinaryAudio, close };
 };
