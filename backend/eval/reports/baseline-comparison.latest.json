@@ -8,9 +8,9 @@
   "judgeModels": [
     "deepseek-chat"
   ],
-  "average": 1,
-  "baselineAverage": 0.9,
-  "averageGain": 0.1,
+  "average": 0.98,
+  "baselineAverage": 0.92,
+  "averageGain": 0.06,
   "winRate": 1,
   "weakestCases": [],
   "thresholds": {
@@ -66,13 +66,13 @@
           "unsupportedClaims": [],
           "unsupportedClaimPenalty": 0
         },
-        "kiwiRationale": "Directly uses CV and JD evidence; provides clear STAR prompts; explicitly connects to role; offers concrete next steps and addresses gap.",
-        "baselineRationale": "Moderately grounded but vague; suggests STAR structure and role relevance but lacks specificity and follow-up.",
+        "kiwiRationale": "Strongly grounded in CV and JD evidence, explicitly maps STAR components, connects directly to job requirements, gives concrete follow-up questions, and addresses AWS gap; minor lack of market context prevents full marks on contextualFit.",
+        "baselineRationale": "Feedback is relevant and points out missing STAR elements, but only suggests adding a concrete example without guiding on structure; no contextual or adaptive advice.",
         "deepseekUsage": {
           "promptTokens": 626,
-          "completionTokens": 198,
-          "promptCacheHitTokens": 0,
-          "promptCacheMissTokens": 626
+          "completionTokens": 223,
+          "promptCacheHitTokens": 512,
+          "promptCacheMissTokens": 114
         },
         "semanticScores": {
           "kiwi": 1,
@@ -92,9 +92,9 @@
       "baselineModel": "ChatGPT GPT-5.5 Thinking same-input baseline run",
       "baselinePromptType": "same-input generic interview coach prompt",
       "judgeModel": "deepseek-chat",
-      "score": 1,
+      "score": 0.9,
       "baselineScore": 0.8,
-      "scoreGain": 0.2,
+      "scoreGain": 0.1,
       "passed": true,
       "subScores": {
         "evidenceGrounding": 1,
@@ -102,7 +102,7 @@
         "roleRelevance": 1,
         "actionableImprovement": 1,
         "contextualFit": 1,
-        "adaptiveness": 1
+        "adaptiveness": 0
       },
       "baselineSubScores": {
         "evidenceGrounding": 1,
@@ -134,16 +134,16 @@
           "unsupportedClaims": [],
           "unsupportedClaimPenalty": 0
         },
-        "kiwiRationale": "Kiwi feedback explicitly anchors to CV (Master of IT, AI agent) and JD (Agile, communication, customer-focused), provides concrete STAR guidance with examples, and addresses market context (New Zealand graduate role). It could include follow-up questions for further adaptiveness.",
-        "baselineRationale": "The baseline feedback identifies the need for STAR structure and links the AI agent to Agile and communication, but it does not reference specific CV or JD details and lacks actionable advice on how to improve.",
+        "kiwiRationale": "The feedback accurately uses CV (Master of IT, AI agent, team project) and JD (Agile, communication, customer-focused) evidence with no unsupported claims. It explicitly structures STAR guidance using the candidate's own context. It connects the answer to role requirements (collaboration, communication, customer focus). Advice is concrete (coordinate teammates, clarify requirements, fix blockers, mention working feature/demo). It notes the New Zealand graduate market fit, showing contextual awareness. No follow-up or next steps are offered.",
+        "baselineRationale": "The feedback correctly uses provided CV (AI agent project, team leadership) and JD (Agile, communication, customer focus) evidence without inventing anything. It strongly pushes STAR structure and links the project to role requirements. It gives concrete advice to avoid vague statements and add specific actions/results. However, it does not provide any follow-up direction or next steps, and no mention of candidate or market context.",
         "deepseekUsage": {
           "promptTokens": 619,
-          "completionTokens": 244,
-          "promptCacheHitTokens": 0,
-          "promptCacheMissTokens": 619
+          "completionTokens": 339,
+          "promptCacheHitTokens": 512,
+          "promptCacheMissTokens": 107
         },
         "semanticScores": {
-          "kiwi": 1,
+          "kiwi": 0.9,
           "baseline": 0.8
         },
         "safetyPenalty": {
@@ -161,8 +161,8 @@
       "baselinePromptType": "same-input generic interview coach prompt",
       "judgeModel": "deepseek-chat",
       "score": 1,
-      "baselineScore": 1,
-      "scoreGain": 0,
+      "baselineScore": 0.9,
+      "scoreGain": 0.1,
       "passed": true,
       "subScores": {
         "evidenceGrounding": 1,
@@ -178,7 +178,7 @@
         "roleRelevance": 1,
         "actionableImprovement": 1,
         "contextualFit": 1,
-        "adaptiveness": 1
+        "adaptiveness": 0
       },
       "failedChecks": [],
       "baselineFailedChecks": [],
@@ -202,17 +202,17 @@
           "unsupportedClaims": [],
           "unsupportedClaimPenalty": 0
         },
-        "kiwiRationale": "Excellent evidence grounding, explicitly names CV evidence and JD keywords, bridges WebSocket to event-driven design, advises naming gap honestly, gives clear actionable structure, and shows adaptiveness by addressing growth areas.",
-        "baselineRationale": "Strong evidence grounding, identifies STAR weakness and gives specific advice to add challenge/action/result, connects WebSocket to JD technologies, gives concrete next step for improvement; slightly weaker on context and adaptiveness.",
+        "kiwiRationale": "Well-grounded, explicitly bridges evidence to JD, provides concrete improvement advice, and suggests a growth framing, though limited STAR and adaptiveness.",
+        "baselineRationale": "Grounded in CV evidence, mentions STAR weakness, connects to JD, gives some advice but lacks actionable concreteness and follow-up direction.",
         "deepseekUsage": {
           "promptTokens": 619,
-          "completionTokens": 232,
-          "promptCacheHitTokens": 0,
-          "promptCacheMissTokens": 619
+          "completionTokens": 208,
+          "promptCacheHitTokens": 512,
+          "promptCacheMissTokens": 107
         },
         "semanticScores": {
           "kiwi": 1,
-          "baseline": 1
+          "baseline": 0.9
         },
         "safetyPenalty": {
           "kiwi": 0,
@@ -270,13 +270,13 @@
           "unsupportedClaims": [],
           "unsupportedClaimPenalty": 0
         },
-        "kiwiRationale": "Directly uses provided evidence, explicitly guides STAR structure, connects to JD requirements, offers actionable steps, contextually relevant, but lacks adaptive follow-up or next-step coaching.",
-        "baselineRationale": "Grounds advice in CV/JD, suggests structuring with example and learning plan, connects to role, concrete advice, context-aware, lacks explicit STAR framework or follow-up coaching.",
+        "kiwiRationale": "Explicitly references candidate's SQL and data mining experience without inventing; provides clear STAR structure (Situation, Action, Result); connects to JD (PostgreSQL, ETL) and identifies growth areas; gives actionable: describe actions and outcomes; minimal market context; offers a direction but no adaptive follow-up.",
+        "baselineRationale": "Acknowledges SQL and data mining but doesn't fully use provided CV evidence; suggests structuring a project example, partially covering STAR; directly connects to JD requirements; offers concrete advice to give an example and learning plan; generally fits candidate context but lacks market specifics; gives follow-up direction to present evidence but no deeper coaching.",
         "deepseekUsage": {
           "promptTokens": 612,
-          "completionTokens": 221,
-          "promptCacheHitTokens": 0,
-          "promptCacheMissTokens": 612
+          "completionTokens": 279,
+          "promptCacheHitTokens": 512,
+          "promptCacheMissTokens": 100
         },
         "semanticScores": {
           "kiwi": 1,
@@ -338,13 +338,13 @@
           "unsupportedClaims": [],
           "unsupportedClaimPenalty": 0
         },
-        "kiwiRationale": "Kiwi provides a complete STAR structure tailored to the candidate's context, directly integrates JD requirements (API integration, LLM orchestration, product thinking), and offers concrete next steps (explain feedback). It demonstrates adaptiveness by linking technical actions to product thinking.",
-        "baselineRationale": "Baseline acknowledges the project evidence and identifies missing JD elements, suggests STAR structure, and gives clear advice on adding LLM orchestration, API integration, and user feedback. It lacks deeper contextualization and adaptiveness for follow-up.",
+        "kiwiRationale": "All criteria well-met: precise grounding, explicit STAR structure, role relevance, concrete suggestions, contextual insight, and adaptive next steps.",
+        "baselineRationale": "Strong evidence grounding, specific STAR coverage suggestions, clear role relevance, actionable advice, but less on market or follow-up coaching.",
         "deepseekUsage": {
           "promptTokens": 641,
-          "completionTokens": 250,
-          "promptCacheHitTokens": 0,
-          "promptCacheMissTokens": 641
+          "completionTokens": 203,
+          "promptCacheHitTokens": 640,
+          "promptCacheMissTokens": 1
         },
         "semanticScores": {
           "kiwi": 1,
@@ -361,74 +361,6 @@
     {
       "id": "unsupported-claim-risk",
       "role": "Machine Learning Intern",
-      "baselineModel": "ChatGPT GPT-5.5 Thinking same-input baseline run",
-      "baselinePromptType": "same-input generic interview coach prompt",
-      "judgeModel": "deepseek-chat",
-      "score": 1,
-      "baselineScore": 0.8,
-      "scoreGain": 0.2,
-      "passed": true,
-      "subScores": {
-        "evidenceGrounding": 1,
-        "starCoverage": 1,
-        "roleRelevance": 1,
-        "actionableImprovement": 1,
-        "contextualFit": 1,
-        "adaptiveness": 1
-      },
-      "baselineSubScores": {
-        "evidenceGrounding": 1,
-        "starCoverage": 1,
-        "roleRelevance": 1,
-        "actionableImprovement": 1,
-        "contextualFit": 0,
-        "adaptiveness": 0
-      },
-      "failedChecks": [],
-      "baselineFailedChecks": [],
-      "diagnostics": {
-        "method": "deepseek_semantic_judge_with_keyword_diagnostics_and_forbidden_claim_penalty",
-        "keywordDiagnostics": {
-          "evidenceGrounding": 0.83,
-          "starCoverage": 1,
-          "roleRelevance": 1,
-          "nzContextualisation": 1,
-          "adaptiveness": 1,
-          "unsupportedClaims": [],
-          "unsupportedClaimPenalty": 0
-        },
-        "baselineKeywordDiagnostics": {
-          "evidenceGrounding": 0.67,
-          "starCoverage": 0.67,
-          "roleRelevance": 0.33,
-          "nzContextualisation": 1,
-          "adaptiveness": 0.33,
-          "unsupportedClaims": [],
-          "unsupportedClaimPenalty": 0
-        },
-        "kiwiRationale": "Good grounding and role relevance, hints at adaptiveness and contextual fit, but STAR coverage indirect.",
-        "baselineRationale": "Strong grounding, relevant advice, suggests STAR framing, but lacks market context and follow-up.",
-        "deepseekUsage": {
-          "promptTokens": 607,
-          "completionTokens": 189,
-          "promptCacheHitTokens": 0,
-          "promptCacheMissTokens": 607
-        },
-        "semanticScores": {
-          "kiwi": 1,
-          "baseline": 0.8
-        },
-        "safetyPenalty": {
-          "kiwi": 0,
-          "baseline": 0
-        },
-        "genericUnsupportedClaims": [],
-        "kiwiUnsupportedClaims": []
-      }
-    },
-    {
-      "id": "entry-level-migrant-confidence",
-      "role": "Business Analyst Graduate",
       "baselineModel": "ChatGPT GPT-5.5 Thinking same-input baseline run",
       "baselinePromptType": "same-input generic interview coach prompt",
       "judgeModel": "deepseek-chat",
@@ -457,6 +389,74 @@
       "diagnostics": {
         "method": "deepseek_semantic_judge_with_keyword_diagnostics_and_forbidden_claim_penalty",
         "keywordDiagnostics": {
+          "evidenceGrounding": 0.83,
+          "starCoverage": 1,
+          "roleRelevance": 1,
+          "nzContextualisation": 1,
+          "adaptiveness": 1,
+          "unsupportedClaims": [],
+          "unsupportedClaimPenalty": 0
+        },
+        "baselineKeywordDiagnostics": {
+          "evidenceGrounding": 0.67,
+          "starCoverage": 0.67,
+          "roleRelevance": 0.33,
+          "nzContextualisation": 1,
+          "adaptiveness": 0.33,
+          "unsupportedClaims": [],
+          "unsupportedClaimPenalty": 0
+        },
+        "kiwiRationale": "Grounds advice in specific CV evidence, warns against overclaiming, and suggests how to frame Python skill. Lacks explicit STAR structure guidance and deep context.",
+        "baselineRationale": "Grounded in CV evidence, identifies JD alignment gaps, and gives concrete advice on strengthening the answer. Somewhat generic in coaching follow-up.",
+        "deepseekUsage": {
+          "promptTokens": 607,
+          "completionTokens": 212,
+          "promptCacheHitTokens": 512,
+          "promptCacheMissTokens": 95
+        },
+        "semanticScores": {
+          "kiwi": 1,
+          "baseline": 1
+        },
+        "safetyPenalty": {
+          "kiwi": 0,
+          "baseline": 0
+        },
+        "genericUnsupportedClaims": [],
+        "kiwiUnsupportedClaims": []
+      }
+    },
+    {
+      "id": "entry-level-migrant-confidence",
+      "role": "Business Analyst Graduate",
+      "baselineModel": "ChatGPT GPT-5.5 Thinking same-input baseline run",
+      "baselinePromptType": "same-input generic interview coach prompt",
+      "judgeModel": "deepseek-chat",
+      "score": 0.9,
+      "baselineScore": 0.8,
+      "scoreGain": 0.1,
+      "passed": true,
+      "subScores": {
+        "evidenceGrounding": 1,
+        "starCoverage": 1,
+        "roleRelevance": 1,
+        "actionableImprovement": 1,
+        "contextualFit": 1,
+        "adaptiveness": 0
+      },
+      "baselineSubScores": {
+        "evidenceGrounding": 1,
+        "starCoverage": 1,
+        "roleRelevance": 1,
+        "actionableImprovement": 1,
+        "contextualFit": 0,
+        "adaptiveness": 0
+      },
+      "failedChecks": [],
+      "baselineFailedChecks": [],
+      "diagnostics": {
+        "method": "deepseek_semantic_judge_with_keyword_diagnostics_and_forbidden_claim_penalty",
+        "keywordDiagnostics": {
           "evidenceGrounding": 1,
           "starCoverage": 1,
           "roleRelevance": 1,
@@ -474,17 +474,17 @@
           "unsupportedClaims": [],
           "unsupportedClaimPenalty": 0
         },
-        "kiwiRationale": "Fully grounds in CV and JD, provides explicit STAR guidance, directly relevant to BA role, actionable steps, explicitly fits New Zealand context, and offers adaptiveness by reframing the weakness as a managed skill.",
-        "baselineRationale": "Strongly grounded in CV and JD, uses STAR structure, ties to role, gives concrete actionable advice, but context/location not explicitly addressed and lacks follow-up next steps.",
+        "kiwiRationale": "Strongly connects CV evidence to STAR, role requirements, and provides concrete steps; mentions NZ context but lacks explicit follow-up guidance.",
+        "baselineRationale": "Mentions CV evidence vaguely and suggests STAR but lacks contextual market awareness.",
         "deepseekUsage": {
           "promptTokens": 626,
-          "completionTokens": 230,
-          "promptCacheHitTokens": 0,
-          "promptCacheMissTokens": 626
+          "completionTokens": 193,
+          "promptCacheHitTokens": 512,
+          "promptCacheMissTokens": 114
         },
         "semanticScores": {
-          "kiwi": 1,
-          "baseline": 1
+          "kiwi": 0.9,
+          "baseline": 0.8
         },
         "safetyPenalty": {
           "kiwi": 0,
@@ -542,13 +542,13 @@
           "unsupportedClaims": [],
           "unsupportedClaimPenalty": 0
         },
-        "kiwiRationale": "Kiwi feedback is similarly grounded and STAR-focused, offering more concrete action examples, but lacks explicit contextual or adaptive follow-up.",
-        "baselineRationale": "Baseline feedback is well-grounded in CV and JD, explicitly mentions STAR and role requirements, but provides only generic advice without specific follow-up or context.",
+        "kiwiRationale": "Fully grounded, explicit STAR structure, strong role linkage, concrete advice, contextual, and adaptive with next-step coaching.",
+        "baselineRationale": "Grounded but lacks concrete mention of evidence; strong STAR and role relevance; actionable; some context and adaptiveness but generic.",
         "deepseekUsage": {
           "promptTokens": 624,
-          "completionTokens": 208,
-          "promptCacheHitTokens": 0,
-          "promptCacheMissTokens": 624
+          "completionTokens": 201,
+          "promptCacheHitTokens": 512,
+          "promptCacheMissTokens": 112
         },
         "semanticScores": {
           "kiwi": 1,
@@ -569,8 +569,8 @@
       "baselinePromptType": "same-input generic interview coach prompt",
       "judgeModel": "deepseek-chat",
       "score": 1,
-      "baselineScore": 0.8,
-      "scoreGain": 0.2,
+      "baselineScore": 1,
+      "scoreGain": 0,
       "passed": true,
       "subScores": {
         "evidenceGrounding": 1,
@@ -585,8 +585,8 @@
         "starCoverage": 1,
         "roleRelevance": 1,
         "actionableImprovement": 1,
-        "contextualFit": 0,
-        "adaptiveness": 0
+        "contextualFit": 1,
+        "adaptiveness": 1
       },
       "failedChecks": [],
       "baselineFailedChecks": [],
@@ -610,17 +610,17 @@
           "unsupportedClaims": [],
           "unsupportedClaimPenalty": 0
         },
-        "kiwiRationale": "Kiwi uses CV-specific context (weekly meetings, GitHub workflow) and links directly to job requirements, with clear STAR guidance and next-step suggestion.",
-        "baselineRationale": "Baseline suggests STAR structure but is generic and lacks specific evidence or adaptation.",
+        "kiwiRationale": "The feedback correctly uses CV evidence (group project, weekly meetings, GitHub workflow) and JD evidence (Agile collaboration, conflict resolution, delivery ownership). It explicitly maps STAR components and role requirements, but offers slightly less concrete actionable steps (e.g., 'describe how you clarified' rather than suggesting specific verbs). It does not adapt for follow-up or market context.",
+        "baselineRationale": "The feedback is well-grounded in the provided CV and JD evidence, explicitly addresses STAR structure, ties to role requirements, and gives concrete advice to avoid generic responses. It notes the context of Agile collaboration and delivery ownership, but does not mention market or candidate-specific tailoring, and lacks follow-up direction.",
         "deepseekUsage": {
           "promptTokens": 587,
-          "completionTokens": 196,
-          "promptCacheHitTokens": 0,
-          "promptCacheMissTokens": 587
+          "completionTokens": 285,
+          "promptCacheHitTokens": 512,
+          "promptCacheMissTokens": 75
         },
         "semanticScores": {
           "kiwi": 1,
-          "baseline": 0.8
+          "baseline": 1
         },
         "safetyPenalty": {
           "kiwi": 0,
@@ -637,8 +637,8 @@
       "baselinePromptType": "same-input generic interview coach prompt",
       "judgeModel": "deepseek-chat",
       "score": 1,
-      "baselineScore": 0.8,
-      "scoreGain": 0.2,
+      "baselineScore": 0.9,
+      "scoreGain": 0.1,
       "passed": true,
       "subScores": {
         "evidenceGrounding": 1,
@@ -653,7 +653,7 @@
         "starCoverage": 1,
         "roleRelevance": 1,
         "actionableImprovement": 1,
-        "contextualFit": 0,
+        "contextualFit": 1,
         "adaptiveness": 0
       },
       "failedChecks": [],
@@ -678,17 +678,17 @@
           "unsupportedClaims": [],
           "unsupportedClaimPenalty": 0
         },
-        "kiwiRationale": "Fully grounded, explicit STAR walkthrough, role-specific connection, concrete advice, and adds a contextual note about not claiming compliance readiness, showing some adaptiveness in next-step guidance.",
-        "baselineRationale": "Strongly grounded in CV evidence, mentions STAR structure and role relevance, provides specific actionable advice, but no contextual or adaptive guidance.",
+        "kiwiRationale": "Consistently uses CV/JD evidence, explicitly structures STAR, role-relevant, concrete actionable steps, contextual to AI SaaS, adaptiveness limited but present.",
+        "baselineRationale": "Acknowledges CV evidence correctly, mentions STAR partially, connects to role, gives some advice but lacks follow-up direction.",
         "deepseekUsage": {
           "promptTokens": 618,
-          "completionTokens": 214,
-          "promptCacheHitTokens": 0,
-          "promptCacheMissTokens": 618
+          "completionTokens": 208,
+          "promptCacheHitTokens": 512,
+          "promptCacheMissTokens": 106
         },
         "semanticScores": {
           "kiwi": 1,
-          "baseline": 0.8
+          "baseline": 0.9
         },
         "safetyPenalty": {
           "kiwi": 0,

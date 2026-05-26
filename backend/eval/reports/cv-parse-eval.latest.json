@@ -20,12 +20,12 @@
         "Quantified evidence",
         "Project: Inventory Portal Project",
         "Project: Placement Project",
-        "Experience evidence",
         "c#",
         ".net",
         "sql",
         "git",
-        "automation"
+        "automation",
+        "process improvement"
       ],
       "failedChecks": []
     },
@@ -80,7 +80,7 @@
       "earned": 25,
       "possible": 25,
       "careerDirection": "Frontend and product software delivery direction",
-      "strongestEvidenceCount": 4,
+      "strongestEvidenceCount": 5,
       "interviewHooks": [
         "self introduction and career direction",
         "Project: Campus Events App",
