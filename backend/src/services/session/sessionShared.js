@@ -18,6 +18,7 @@ import {
   resolveInterviewBlueprint,
   resolveInterviewModeConfig,
 } from '../../config/interviewBlueprints.js';
+import { buildCapabilityPrompt, isTechnicalCapabilityGroup } from './capabilityQuestionPromptService.js';
 
 export const buildFullTranscript = (turns) => turns.map((turn) => `${turn.role.toUpperCase()}: ${turn.text}`).join('\n\n');
 export const retentionDate = () => new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
@@ -46,7 +47,7 @@ export const titleCaseWords = (value = '') => value
   })
   .join(' ');
 
-const DISPLAY_TITLE_ROLE_NOUN_PATTERN = /\b(?:engineer|developer|designer|analyst|architect|consultant|specialist|intern|scientist|administrator|programme|program|product manager|coordinator|assistant)\b/i;
+const DISPLAY_TITLE_ROLE_NOUN_PATTERN = /\b(?:engineer|developer|designer|analyst|architect|consultant|specialist|intern|scientist|administrator|programme|program|product manager|coordinator|assistant|psychologist)\b/i;
 const DISPLAY_TITLE_FALSE_POSITIVE_HIRING_ROLES = /\b(?:hiring manager|hiring coordinator|recruitment manager|talent acquisition specialist|people & culture advisor|people and culture advisor)\b/i;
 const DISPLAY_TITLE_MARKETING_PREFIX_PATTERNS = [
   /^(?:we\s+are\s+)?(?:now\s+)?hiring\s*[:：]?\s+(?:for\s+)?(?:(?:a|an|the)\s+)?/i,
@@ -84,7 +85,7 @@ export const extractDisplayTitle = (...candidates) => {
     const directTitleMatch = text.match(/(?:job\s*title|position|role)\s*:\s*([^\n.]{3,120})/i);
     if (directTitleMatch?.[1]) return cleanDisplayTitle(directTitleMatch[1]);
 
-    const commonRoleMatch = text.match(/\b((?:Junior|Senior|Lead|Principal|Staff|Graduate|Mid-Level|Solutions|Software|Backend|Frontend|Full[-\s]?Stack|Mobile|DevOps|Data|Civil|Platform|QA|Test|Product|AI|Machine Learning|Cloud|Automation)?\s*(?:Software Engineer|Solutions Engineer|Backend Engineer|Frontend Engineer|Full Stack Engineer|Mobile Developer|React Native Developer|DevOps Engineer|Data Engineer|Data \w+ AI Engineer|Data & AI Engineer|AI Engineer|Automation Coordinator|Workflow Automation Assistant|Civil Engineer|Platform Engineer|QA Engineer|Test Engineer|Product Manager|Developer|Data Scientist|Machine Learning Engineer|Cloud Engineer|Coordinator|Assistant))\b/i);
+    const commonRoleMatch = text.match(/\b((?:Junior|Senior|Lead|Principal|Staff|Graduate|Mid-Level|Solutions|Software|Backend|Frontend|Full[-\s]?Stack|Mobile|DevOps|Data|Civil|Platform|QA|Test|Product|AI|Machine Learning|Cloud|Automation|Telehealth)?\s*(?:Software Engineer|Solutions Engineer|Backend Engineer|Frontend Engineer|Full Stack Engineer|Mobile Developer|React Native Developer|DevOps Engineer|Data Engineer|Data \w+ AI Engineer|Data & AI Engineer|AI Engineer|Automation Coordinator|Workflow Automation Assistant|Civil Engineer|Platform Engineer|QA Engineer|Test Engineer|Product Manager|Developer|Data Scientist|Machine Learning Engineer|Cloud Engineer|Psychologist|Coordinator|Assistant))\b/i);
     if (commonRoleMatch?.[1]) return cleanDisplayTitle(commonRoleMatch[1]);
 
     const firstLine = text.split('\n').map((line) => line.trim()).find(Boolean) || '';
@@ -168,7 +169,7 @@ const buildOpeningQuestion = ({ roleLabel = 'the role', companyName = '', level 
   if (String(level) === 'intermediate') {
     return `Hi, thanks for being here today${companyClause}. To start, could you briefly introduce yourself and highlight the experience most relevant to this ${roleLabel} interview?`;
   }
-  return `Hi, thanks for joining today${companyClause}. Let’s start with a quick introduction. Could you tell me a bit about yourself and what interested you in this ${roleLabel} interview?`;
+  return `Hi, thanks for joining today${companyClause}. Could you briefly introduce yourself and explain what interested you in this ${roleLabel} interview?`;
 };
 
 const buildWrapUpQuestion = () => ({
@@ -213,52 +214,28 @@ const findUniversalRequirementTarget = ({ topic = '', rubric = {} } = {}) => {
   }) || null;
 };
 
-const isTechnicalRequirementCategory = (category = '') => ['technical_skill', 'tool_or_platform', 'domain_knowledge', 'basic_integration'].includes(category);
+const isTechnicalRequirementCategory = (category = '', capabilityGroup = '') => isTechnicalCapabilityGroup(capabilityGroup, category);
 
 const buildRoleCompetencyPrompt = ({ target = {}, skill = '', level = 'junior', roleLabel = 'the role', followUpDepth = 0 } = {}) => {
   const safeTarget = target && typeof target === 'object' ? target : {};
   const category = safeTarget.category || '';
+  const capabilityGroup = safeTarget.capabilityGroup || '';
   const capability = safeTarget.normalizedCapability || safeTarget.text || safeTarget.label || skill;
+  const capabilityPrompt = buildCapabilityPrompt({ capabilityGroup, category, capability, roleLabel, followUpDepth });
+  if (capabilityPrompt) return capabilityPrompt;
 
-  if (!category || isTechnicalRequirementCategory(category)) {
+  if (!category || isTechnicalRequirementCategory(category, capabilityGroup)) {
     return buildTechnicalPrompt({ skill: capability, level, roleLabel, followUpDepth });
   }
 
   if (followUpDepth > 0) {
-    if (['qualification', 'certification', 'compliance_or_safety', 'availability_or_location'].includes(category)) {
+    if (['qualification', 'certification', 'professional_registration', 'insurance_or_indemnity', 'compliance_or_safety', 'availability_or_location'].includes(category)) {
       return `What specific evidence can you provide for ${capability}, and where have you applied it in practice?`;
     }
-    if (category === 'ai_tool_fluency') {
-      return `Which AI tool did you try, what task did you use it for, and how did you check whether the result was useful or safe?`;
-    }
-    if (category === 'workflow_automation') {
-      return `What workflow steps did you automate or want to automate, what did you test, and what improvement would you measure?`;
-    }
-    if (category === 'process_improvement') {
-      return `What process problem did you notice, what smarter way of working did you suggest, and what impact would it have?`;
-    }
-    if (category === 'reporting_dashboard') {
-      return `What information would you track in a report or dashboard, and how would that help the team make better decisions?`;
-    }
-    if (category === 'productivity_tool') {
-      return `Which productivity tools have you used, and how did they help you organise, report, or collaborate more effectively?`;
-    }
-    if (category === 'learning_agility') {
-      return `Tell me about a new tool or method you learned recently. What did you try first, and what did you learn from it?`;
-    }
-    if (category === 'creativity_or_ideas') {
-      return `What was one idea you brought to improve a task, process, or project, and how did you test whether it was worth doing?`;
-    }
-    if (category === 'motivation_or_attitude') {
-      return `What makes this type of work motivating for you, and what example shows that you bring energy without needing constant direction?`;
-    }
-    if (category === 'cross_functional_coordination') {
-      return `How would you work with people from different teams to understand their workflow before suggesting an automation or AI solution?`;
-    }
     if (category === 'customer_or_stakeholder') {
-      return `What made that customer or stakeholder situation difficult, what did you do personally, and what was the outcome?`;
+      return `What made that stakeholder situation difficult, what did you do personally, and what was the outcome?`;
     }
-    if (category === 'communication') {
+    if (category === 'communication' || category === 'report_writing') {
       return `How did you adapt your communication for the audience, and how did you know the message landed?`;
     }
     if (category === 'leadership') {
@@ -267,35 +244,17 @@ const buildRoleCompetencyPrompt = ({ target = {}, skill = '', level = 'junior', 
     return `What was the situation, what did you personally do around ${capability}, and what result came from it?`;
   }
 
-  if (['qualification', 'certification'].includes(category)) {
+  if (['qualification', 'certification', 'professional_registration', 'insurance_or_indemnity'].includes(category)) {
     return `Can you walk me through your ${capability} evidence and how it prepares you for this ${roleLabel} role?`;
   }
-  if (category === 'ai_tool_fluency') {
-    return `This role needs someone comfortable experimenting with AI tools. Tell me about one AI tool you have used or tested, what you used it for, and what you learned.`;
+  if (category === 'assessment_delivery') {
+    return `Tell me about a time you delivered a structured assessment, service, or analysis. What method did you use, and how did you maintain quality?`;
   }
-  if (category === 'workflow_automation') {
-    return `Tell me about a workflow, admin task, or repeated process you improved or would automate. What steps would you change, and why?`;
+  if (category === 'report_writing') {
+    return `Tell me about a professional report or written output you produced. Who used it, and how did you make it accurate and clear?`;
   }
-  if (category === 'process_improvement') {
-    return `Tell me about a time you noticed an inefficient process and suggested a smarter way to do it. What problem did you see, and what did you propose?`;
-  }
-  if (category === 'reporting_dashboard') {
-    return `Tell me about a report, dashboard, spreadsheet, or data view you built or used. What decision or workflow did it support?`;
-  }
-  if (category === 'productivity_tool') {
-    return `Tell me about the productivity tools you use for organising work, documents, spreadsheets, or team collaboration. Which one have you used most practically?`;
-  }
-  if (category === 'learning_agility') {
-    return `Tell me about a new tool, method, or technology you learned by yourself. What made you curious, and how did you test it?`;
-  }
-  if (category === 'creativity_or_ideas') {
-    return `Tell me about a time you brought a new idea to improve how something worked. What was the idea, and what made it useful?`;
-  }
-  if (category === 'motivation_or_attitude') {
-    return `This role needs energy and initiative. Can you give me an example that shows you are proactive and motivated to make things better?`;
-  }
-  if (category === 'cross_functional_coordination') {
-    return `This role works across teams. Tell me about a time you had to understand different people's needs before helping solve a problem.`;
+  if (category === 'scheduling_or_time_management') {
+    return `Tell me about a time you managed a schedule, calendar, or competing deadlines. How did you keep the work under control?`;
   }
   if (category === 'compliance_or_safety') {
     return `Tell me about a time you had to follow or apply ${capability}. What checks did you make, and what was at stake?`;
@@ -304,7 +263,7 @@ const buildRoleCompetencyPrompt = ({ target = {}, skill = '', level = 'junior', 
     return `Can you confirm your fit for ${capability}, and explain any practical constraints the team should know about?`;
   }
   if (category === 'customer_or_stakeholder') {
-    return `Tell me about a time you handled a difficult customer or stakeholder situation involving ${capability}. What happened, what did you do, and what was the outcome?`;
+    return `Tell me about a time you worked with a client, customer, referrer, or stakeholder. What happened, what did you do, and what was the outcome?`;
   }
   if (category === 'communication') {
     return `Tell me about a time you used ${capability} in a real work or project situation. Who was the audience, and what result did your communication achieve?`;
@@ -312,7 +271,7 @@ const buildRoleCompetencyPrompt = ({ target = {}, skill = '', level = 'junior', 
   if (category === 'leadership') {
     return `Tell me about a time you showed ${capability}. What did you lead or influence, and what changed because of your actions?`;
   }
-  if (category === 'responsibility' || category === 'experience') {
+  if (category === 'responsibility' || category === 'experience' || category === 'case_management') {
     return `Tell me about a real example where you handled ${capability} for a ${roleLabel} responsibility. What did you own, and what was the result?`;
   }
   if (category === 'nice_to_have') {
@@ -391,7 +350,7 @@ export const buildQuestionPoolFromAnalysis = (analysisResult, settings = {}, opt
     const requirementTarget = findUniversalRequirementTarget({ topic: skill, rubric });
     const promptText = buildRoleCompetencyPrompt({ target: requirementTarget, skill, level: modeConfig.level, roleLabel, followUpDepth: 0 });
     const followUpText = buildRoleCompetencyPrompt({ target: requirementTarget, skill, level: modeConfig.level, roleLabel, followUpDepth: 1 });
-    const isTechnical = requirementTarget ? isTechnicalRequirementCategory(requirementTarget.category) : true;
+    const isTechnical = requirementTarget ? isTechnicalRequirementCategory(requirementTarget.category, requirementTarget.capabilityGroup) : true;
     const competencyType = requirementTarget && !isTechnical ? 'role_competency_core' : 'technical_core';
     questions.push({
       type: competencyType,
