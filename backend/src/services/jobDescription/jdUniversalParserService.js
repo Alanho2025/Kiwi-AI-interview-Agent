@@ -18,13 +18,14 @@ export const UNIVERSAL_REQUIREMENT_CATEGORIES = [
   'availability_or_location',
   'culture_fit',
   'nice_to_have',
+  'company_context',
 ];
 
 const CATEGORY_BY_PATTERN = [
   [/certificat|licen[cs]e|registered|registration/i, 'certification'],
   [/degree|bachelor|master|qualification|diploma/i, 'qualification'],
   [/years?|professional|commercial|experience/i, 'experience'],
-  [/aws|azure|gcp|salesforce|excel|sql|python|react|node|software|platform|tool/i, 'tool_or_platform'],
+  [/aws|azure|gcp|redis|elasticsearch|kafka|queue|salesforce|excel|sql|python|typescript|next\.js|vue|react|node|software|platform|tool/i, 'tool_or_platform'],
   [/safety|compliance|privacy|regulatory|legal|policy/i, 'compliance_or_safety'],
   [/customer|client|stakeholder|complaint|relationship/i, 'customer_or_stakeholder'],
   [/communicat|writing|present|report|documentation/i, 'communication'],
@@ -34,6 +35,16 @@ const CATEGORY_BY_PATTERN = [
 ];
 
 const JD_SECTION_HEADING_PATTERN = /^(about the hiring team|about the team|about the role|what the role entails|responsibilities|requirements|qualifications|preferred qualifications|nice to have|benefits|business unit|company overview|about us|hiring team|role entails)$/i;
+const COMPANY_CONTEXT_PATTERN = /\b(this organisation|this organization|we are|we're|our company|our team|business unit|hiring team|about the hiring team|about us|well-established|auckland based technology business|investing heavily|strong engineering and product focus)\b/i;
+const CANDIDATE_REQUIREMENT_PATTERN = /\b(you will|you'll|you are|you have|you bring|you can|you should|candidate|engineer who|engineers who|looking for|must|required|responsible for|experience with|strong experience|ability to|proficient|familiar|knowledge of)\b/i;
+
+const isCompanyContextRequirement = (text = '', category = '') => {
+  const normalized = String(text || '').replace(/\s+/g, ' ').trim();
+  if (!normalized) return false;
+  if (category === 'company_context') return true;
+  if (!COMPANY_CONTEXT_PATTERN.test(normalized)) return false;
+  return !CANDIDATE_REQUIREMENT_PATTERN.test(normalized);
+};
 
 const cleanEvidenceNeeded = (value = '', requirementText = '') => {
   const text = String(value || '').replace(/\s+/g, ' ').trim();
@@ -46,6 +57,7 @@ const cleanEvidenceNeeded = (value = '', requirementText = '') => {
 const inferCategory = (text = '', fallback = '') => {
   const normalizedFallback = UNIVERSAL_REQUIREMENT_CATEGORIES.includes(fallback) ? fallback : '';
   if (normalizedFallback) return normalizedFallback;
+  if (isCompanyContextRequirement(text)) return 'company_context';
   const match = CATEGORY_BY_PATTERN.find(([pattern]) => pattern.test(text));
   return match?.[1] || 'soft_skill';
 };
@@ -69,6 +81,7 @@ const normalizeRequirement = (item = {}, index = 0) => {
   const text = String(item.text || item.label || item.normalizedCapability || '').trim();
   if (!text || JD_SECTION_HEADING_PATTERN.test(text)) return null;
   const category = inferCategory(text, item.category);
+  if (isCompanyContextRequirement(text, category)) return null;
   const importance = ['high', 'medium', 'low'].includes(item.importance) ? item.importance : 'medium';
   return {
     id: item.id || `req_${index + 1}`,
@@ -140,6 +153,8 @@ Rules:
 4. Mark nice-to-have items as mustHave=false and category="nice_to_have".
 5. Evidence needed must describe observable CV proof, not a JD section heading.
 6. Do not use section headings like "About The Hiring Team" as requirements or evidenceNeeded.
+7. Company descriptions, business unit descriptions, and hiring-team background must not become candidate requirements. Omit them or mark them as category="company_context".
+8. Only include requirements that describe what the candidate must know, do, have, or demonstrate.
 
 Fallback parser profile for reference:
 ${JSON.stringify(fallbackProfile, null, 2).slice(0, 8000)}

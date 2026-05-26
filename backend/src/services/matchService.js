@@ -21,10 +21,19 @@ import { judgeRequirementEvidenceBatch } from './match/evidenceJudgeService.js';
 
 const isSemanticEngineEnabled = (settings = {}) => settings.matchEngine === 'semantic' || process.env.MATCH_ENGINE === 'semantic';
 
+const isCompanyContextRequirement = (item = {}) => {
+  const text = String(item.text || item.label || '').replace(/\s+/g, ' ').trim();
+  if (item.category === 'company_context') return true;
+  if (!/\b(this organisation|this organization|we are|we're|our company|our team|business unit|hiring team|about the hiring team|about us|well-established|auckland based technology business|investing heavily|strong engineering and product focus)\b/i.test(text)) {
+    return false;
+  }
+  return !/\b(you will|you'll|you are|you have|candidate|engineer who|engineers who|looking for|must|required|responsible for|experience with|strong experience|ability to|proficient|familiar|knowledge of)\b/i.test(text);
+};
+
 const buildSemanticRequirements = (roleProfile = {}, fallbackRequirements = []) => {
   const universalRequirements = Array.isArray(roleProfile.requirements) ? roleProfile.requirements : [];
   if (!universalRequirements.length) return fallbackRequirements;
-  return universalRequirements.map((item) => ({
+  return universalRequirements.filter((item) => !isCompanyContextRequirement(item)).map((item) => ({
     id: item.id,
     label: item.text || item.label,
     type: item.mustHave ? 'hard' : 'soft',

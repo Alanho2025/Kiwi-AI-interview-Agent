@@ -30,6 +30,61 @@ const SECTION_EVIDENCE_STRENGTH = {
 };
 const EVIDENCE_STRENGTH_ORDER = { missing: 0, weak: 1, partial: 2, strong: 3 };
 
+const STRICT_TECH_PATTERNS = {
+  aws: /\b(aws|amazon web services|ec2|lambda|s3|rds|ecs|eks|cloudwatch|iam)\b/i,
+  redis: /\bredis\b/i,
+  elasticsearch: /\belasticsearch\b/i,
+  kafka: /\b(kafka|distributed queue|distributed queueing|message queue|event streaming)\b/i,
+  python: /\bpython\b/i,
+  postgres: /\b(postgresql|postgres)\b/i,
+  typescript: /\btypescript\b/i,
+  nextjs: /\b(next\.js|nextjs)\b/i,
+  vue: /\b(vue|vue\.js)\b/i,
+  react: /\breact\b/i,
+  node: /\b(node\.js|nodejs|node)\b/i,
+  express: /\bexpress\b/i,
+  docker: /\b(docker|container|containerised|containerized)\b/i,
+  kubernetes: /\b(kubernetes|k8s)\b/i,
+};
+const CLOUD_NATIVE_PATTERN = /\b(cloud-native|cloud native|kubernetes|k8s|docker|container|containerised|containerized|aws|azure|gcp|serverless|lambda|ecs|eks|ci\/cd|pipeline)\b/i;
+
+const getStrictTechKeys = (label = '') => {
+  const normalized = String(label || '').toLowerCase();
+  const keys = [];
+  for (const [key, pattern] of Object.entries(STRICT_TECH_PATTERNS)) {
+    if (pattern.test(normalized)) keys.push(key);
+  }
+  if (/cloud-native|cloud native/i.test(normalized)) keys.push('cloud_native');
+  return [...new Set(keys)];
+};
+
+const hasStrictTechEvidence = (label = '', evidenceText = '') => {
+  const keys = getStrictTechKeys(label);
+  if (!keys.length) return true;
+  const text = String(evidenceText || '');
+  return keys.every((key) => {
+    if (key === 'cloud_native') return CLOUD_NATIVE_PATTERN.test(text);
+    return STRICT_TECH_PATTERNS[key]?.test(text);
+  });
+};
+
+const isHardTechnicalRequirement = (requirement = {}, label = '') =>
+  requirement.type === 'hard' && (
+    ['technical_skill', 'tool_or_platform', 'domain_knowledge'].includes(requirement.category)
+    || getStrictTechKeys(label).length > 0
+  );
+
+const filterSemanticMatchesForRequirement = (label = '', semanticMatches = [], requirement = {}) => {
+  if (!isHardTechnicalRequirement(requirement, label)) return semanticMatches;
+  return semanticMatches.filter((match) => {
+    if (!hasStrictTechEvidence(label, match.text || '')) return false;
+    if (match.evidenceStrength === 'weak' && Number(match.score || 0) < 0.72) return false;
+    return true;
+  });
+};
+
+
+
 const statusFromCombinedSignal = (status, combinedSignal) => {
   if (combinedSignal >= 1.45) return 'met';
   if (combinedSignal >= 0.9) return 'partial';
@@ -118,11 +173,15 @@ const describeEvidenceQuality = ({ requirementType = 'soft', status = 'not_met',
   return 'missing direct proof';
 };
 
-const computeEnhancedMatch = (label, criterionType, evidenceProfile, semanticEvidenceContext = {}) => {
+const computeEnhancedMatch = (label, criterionType, evidenceProfile, semanticEvidenceContext = {}, requirement = {}) => {
   const sectionMatch = computeSectionAwareMatch({ label, criterionType, evidenceProfile });
   const capabilityMatch = computeCapabilityMatch({ label, evidenceProfile });
   const achievementBoost = computeAchievementBoost({ label, evidenceProfile });
-  const semanticMatches = getSemanticMatchesForLabel(semanticEvidenceContext, label);
+  const semanticMatches = filterSemanticMatchesForRequirement(
+    label,
+    getSemanticMatchesForLabel(semanticEvidenceContext, label),
+    requirement
+  );
   const bestSemanticMatch = topSemanticMatch(semanticMatches);
   const semanticStatus = statusFromSemanticMatch(bestSemanticMatch);
   const combinedSignal = sectionMatch.scoreSignal + capabilityMatch.boost + achievementBoost.boost + semanticBoost(bestSemanticMatch);
@@ -148,9 +207,22 @@ const computeEnhancedMatch = (label, criterionType, evidenceProfile, semanticEvi
   };
 };
 
-const applyEvidenceStrengthPolicy = ({ requirement = {}, finalStatus = 'not_met', matchedSection = '', evidenceStrength = 'missing', semanticMatches = [] } = {}) => {
+const applyEvidenceStrengthPolicy = ({ requirement = {}, finalStatus = 'not_met', matchedSection = '', evidenceStrength = 'missing', semanticMatches = [], label = '' } = {}) => {
   let nextStatus = finalStatus;
   const bestSemantic = topSemanticMatch(semanticMatches);
+
+  if (matchedSection === 'education' && !DEGREE_PATTERN.test(label || requirement.label || '')) {
+    nextStatus = 'not_met';
+  }
+
+  if (isHardTechnicalRequirement(requirement, label || requirement.label)) {
+    const hasExactEvidence = (semanticMatches || []).some((item) => hasStrictTechEvidence(label || requirement.label, item.text || ''));
+    if (!hasExactEvidence) {
+      nextStatus = 'not_met';
+    } else if (matchedSection === 'skills' && nextStatus === 'met') {
+      nextStatus = 'partial';
+    }
+  }
 
   if (requirement.type === 'hard' && matchedSection === 'skills' && evidenceStrength === 'weak') {
     nextStatus = nextStatus === 'met' ? 'partial' : nextStatus;
@@ -169,7 +241,7 @@ const applyEvidenceStrengthPolicy = ({ requirement = {}, finalStatus = 'not_met'
 
 const computeRequirementStatus = (requirement, evidenceProfile = {}, semanticEvidenceContext = {}) => {
   const childLabels = splitCompositeRequirement(requirement.label);
-  const baseMatch = computeEnhancedMatch(requirement.label, 'requirement', evidenceProfile, semanticEvidenceContext);
+  const baseMatch = computeEnhancedMatch(requirement.label, 'requirement', evidenceProfile, semanticEvidenceContext, requirement);
 
   if (!childLabels.length) {
     const finalStatus = applyEvidenceStrengthPolicy({
@@ -178,6 +250,7 @@ const computeRequirementStatus = (requirement, evidenceProfile = {}, semanticEvi
       matchedSection: baseMatch.matchedSection,
       evidenceStrength: baseMatch.evidenceStrength,
       semanticMatches: baseMatch.semanticMatches,
+      label: requirement.label,
     });
     return {
       ...baseMatch,
@@ -194,7 +267,7 @@ const computeRequirementStatus = (requirement, evidenceProfile = {}, semanticEvi
     };
   }
 
-  const childMatches = childLabels.map((label) => ({ label, ...computeEnhancedMatch(label, 'requirement', evidenceProfile, semanticEvidenceContext) }));
+  const childMatches = childLabels.map((label) => ({ label, ...computeEnhancedMatch(label, 'requirement', evidenceProfile, semanticEvidenceContext, requirement) }));
   const statuses = childMatches.map((item) => item.status);
   const metCount = childMatches.filter((item) => item.status === 'met').length;
   const partialishCount = childMatches.filter((item) => ['met', 'partial'].includes(item.status)).length;
@@ -236,6 +309,7 @@ const computeRequirementStatus = (requirement, evidenceProfile = {}, semanticEvi
     matchedSection,
     evidenceStrength,
     semanticMatches,
+    label: requirement.label,
   });
 
   return {
@@ -292,7 +366,11 @@ export const buildRequirementChecks = (requirements = [], _cvText, evidenceProfi
       || semanticEvidenceContext.evidenceJudgements?.[normalizeTaxonomyLabel(requirement.label)]
       || null;
     const match = computeRequirementStatus(requirement, evidenceProfile, semanticEvidenceContext);
-    const semanticEvidence = getSemanticMatchesForLabel(semanticEvidenceContext, requirement.label).slice(0, 3);
+    const semanticEvidence = filterSemanticMatchesForRequirement(
+      requirement.label,
+      getSemanticMatchesForLabel(semanticEvidenceContext, requirement.label),
+      requirement
+    ).slice(0, 3);
     const finalStatus = judgement?.status || match.finalStatus;
     const judgementEvidence = semanticEvidence.map((item) => `Matched evidence (${item.evidenceStrength || 'weak'}, ${Number(item.score || 0).toFixed(2)}): ${item.text}`);
     const notes = [
@@ -326,7 +404,7 @@ const averageWeighted = (items = [], weightForItem = () => 1) => {
 };
 
 const CATEGORY_GROUPS = {
-  mustHave: new Set(['qualification', 'certification', 'experience', 'compliance_or_safety', 'availability_or_location']),
+  mustHave: new Set(['qualification', 'certification', 'experience', 'technical_skill', 'tool_or_platform', 'domain_knowledge', 'compliance_or_safety', 'availability_or_location']),
   responsibility: new Set(['responsibility', 'experience', 'customer_or_stakeholder', 'leadership']),
   skillTool: new Set(['technical_skill', 'tool_or_platform', 'domain_knowledge']),
   soft: new Set(['soft_skill', 'communication', 'leadership', 'customer_or_stakeholder', 'culture_fit']),
@@ -463,6 +541,10 @@ const buildGapLabel = (item = {}) => {
   if (/communication and ownership/i.test(item.label)) return 'Limited direct evidence of communication and ownership';
   if (/communicate clearly and learn quickly/i.test(item.label)) return 'Limited direct evidence of communication and learning agility';
   if (/recent tertiary qualification/i.test(item.label)) return 'Qualification evidence needs clearer education grounding';
+  if (/aws/i.test(item.label)) return 'Missing evidence for AWS';
+  if (/redis/i.test(item.label)) return 'Missing evidence for Redis';
+  if (/elastic/i.test(item.label)) return 'Missing evidence for Elasticsearch';
+  if (/kafka|distributed queue/i.test(item.label)) return 'Missing evidence for Kafka or distributed queueing systems';
   return item.status === 'not_met' ? `Missing evidence for ${item.label}` : `Limited direct evidence for ${item.label}`;
 };
 
@@ -470,6 +552,10 @@ const buildRiskLabel = (item = {}) => {
   if (/communication and ownership/i.test(item.label)) return 'Readiness risk for communication-heavy ownership work';
   if (/communicate clearly and learn quickly/i.test(item.label)) return 'Interview should validate communication and learning speed';
   if (/recent tertiary qualification/i.test(item.label)) return 'Resume should surface the degree evidence more clearly';
+  if (/aws/i.test(item.label)) return 'Interview should validate whether the candidate has used AWS services';
+  if (/redis/i.test(item.label)) return 'Interview should validate Redis experience';
+  if (/elastic/i.test(item.label)) return 'Interview should validate Elasticsearch experience';
+  if (/kafka|distributed queue/i.test(item.label)) return 'Interview should validate Kafka or distributed queueing experience';
   if (/production/i.test(item.label)) return `Interview should validate ${item.label}`;
   if (/commercial experience|professional experience/i.test(item.label)) return 'May need ramp-up before owning commercial delivery independently';
   if (/skills-list evidence only/.test(item.notes || '')) return `Interview should validate applied ${item.label} experience`;

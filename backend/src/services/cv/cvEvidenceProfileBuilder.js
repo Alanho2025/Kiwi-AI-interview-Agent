@@ -15,6 +15,7 @@ const EVIDENCE_STRENGTH_BY_SOURCE = {
   experience: 'strong',
   project_outcome: 'strong',
   project_responsibility: 'strong',
+  project_tech_stack: 'strong',
   achievement: 'strong',
   education: 'partial',
   volunteer: 'partial',
@@ -23,7 +24,7 @@ const EVIDENCE_STRENGTH_BY_SOURCE = {
   summary: 'weak',
 };
 
-const TOOL_PATTERN = /\b(Python|JavaScript|TypeScript|React|Node\.js|Node|Express|SQL|PostgreSQL|MongoDB|AWS|Azure|GCP|Excel|Power BI|Tableau|Salesforce|HubSpot|Figma|Docker|Kubernetes|Linux|Git|DeepSeek|OpenAI)\b/gi;
+const TOOL_PATTERN = /\b(Python|JavaScript|TypeScript|React|Node\.js|Node|Express|SQL|PostgreSQL|Postgres|MongoDB|AWS|Azure|GCP|Redis|Elasticsearch|Kafka|Excel|Power BI|Tableau|Salesforce|HubSpot|Figma|Docker|Kubernetes|Linux|Git|DeepSeek|OpenAI|WebSocket|Tailwind)\b/gi;
 
 const inferSection = (sourceType = '') => {
   if (sourceType === 'summary') return 'summary';
@@ -105,6 +106,12 @@ export const buildCvEvidenceProfile = (cvProfile = {}, normalizedText = '', opti
     ...experienceEntries.map((text) => ({ sourceType: 'experience', text })),
     ...projects.flatMap((project) => {
       const projectEvidence = [
+        ...(project.techStack?.length ? [{
+          sourceType: 'project_tech_stack',
+          projectTitle: project.title,
+          text: `Project tech stack for ${project.title}: ${project.techStack.join(', ')}.`,
+          tools: project.techStack,
+        }] : []),
         ...project.responsibilities.map((text) => ({ sourceType: 'project_responsibility', projectTitle: project.title, text })),
         ...project.outcomes.map((text) => ({ sourceType: 'project_outcome', projectTitle: project.title, text })),
       ];
