@@ -4,6 +4,8 @@ import { normalizeTaxonomyLabel } from '../taxonomyService.js';
 const HARD_DIRECT_CATEGORIES = new Set(['qualification', 'certification', 'compliance_or_safety', 'availability_or_location']);
 const STATUS_ORDER = { not_met: 0, inferred: 1, partial: 2, met: 3 };
 const JD_SECTION_HEADING_PATTERN = /^(about the hiring team|about the team|about the role|what the role entails|responsibilities|requirements|qualifications|preferred qualifications|nice to have|benefits|business unit|company overview|about us|hiring team|role entails)$/i;
+const DEGREE_LEVEL_PATTERN = /\b(bachelor|bachelor's|master|master's|degree|diploma|tertiary|university)\b/i;
+const RELATED_COMPUTING_FIELD_PATTERN = /\b(computer science|software engineering|information technology|information systems|data science|artificial intelligence|\bai\b|machine learning|computer engineering|software development|computing|technology)\b/i;
 
 const normalizeStatus = (value = '') => (
   ['met', 'partial', 'inferred', 'not_met'].includes(value) ? value : 'not_met'
@@ -21,6 +23,21 @@ const requirementText = (requirement = {}) => `${requirement.text || requirement
 const isQualificationRequirement = (requirement = {}) => /degree|bachelor|master|qualification|tertiary|diploma/i.test(requirementText(requirement));
 
 const isProfessionalExperienceRequirement = (requirement = {}) => /professional|commercial|years? of experience|work experience/i.test(requirementText(requirement));
+
+const hasDirectRelatedDegreeEvidence = ({ requirement = {}, evidence = [] } = {}) => {
+  if (!isQualificationRequirement(requirement)) return false;
+  const requirementValue = requirementText(requirement);
+  const acceptsComputingRelatedField = RELATED_COMPUTING_FIELD_PATTERN.test(requirementValue)
+    || /related fields?/i.test(requirementValue);
+
+  return evidence.some((item) => {
+    if (!['education', 'certifications'].includes(item.section)) return false;
+    const text = String(item.text || '');
+    if (!DEGREE_LEVEL_PATTERN.test(text)) return false;
+    if (!acceptsComputingRelatedField) return true;
+    return RELATED_COMPUTING_FIELD_PATTERN.test(text);
+  });
+};
 
 const filterEvidenceByRequirementType = ({ requirement = {}, evidence = [] } = {}) => {
   if (isQualificationRequirement(requirement)) {
@@ -41,16 +58,15 @@ const requiresDirectProof = (requirement = {}) => (
   && (HARD_DIRECT_CATEGORIES.has(requirement.category) || /registered|license|certificat|degree|qualification|safety|compliance|location|visa|right to work/i.test(requirement.text || requirement.label || ''))
 );
 
-
 const hasProjectTechEvidence = (evidence = []) => evidence.some((item) =>
   item.sourceType === 'project_tech_stack'
   || (item.section === 'projects' && item.evidenceStrength === 'strong')
 );
 
-
 const statusFromEvidence = ({ requirement = {}, evidence = [] } = {}) => {
   const best = strongestEvidence(evidence);
   if (!best) return 'not_met';
+  if (hasDirectRelatedDegreeEvidence({ requirement, evidence })) return 'met';
   if (requiresDirectProof(requirement) && best.evidenceStrength === 'weak') return 'not_met';
   if (isQualificationRequirement(requirement) && !['education', 'certifications'].includes(best.section)) return 'partial';
   if (isProfessionalExperienceRequirement(requirement) && best.section !== 'experience') return 'partial';
@@ -62,10 +78,11 @@ const statusFromEvidence = ({ requirement = {}, evidence = [] } = {}) => {
   return 'not_met';
 };
 
-const evidenceStrengthFromStatus = ({ status, evidence = [] }) => {
+const evidenceStrengthFromStatus = ({ requirement = {}, status, evidence = [] }) => {
   if (status === 'not_met') return 'missing';
   const best = strongestEvidence(evidence);
   if (!best) return 'missing';
+  if (status === 'met' && hasDirectRelatedDegreeEvidence({ requirement, evidence })) return 'strong';
   if (status === 'met') return best.evidenceStrength || 'strong';
   if (best.evidenceStrength === 'strong') return 'partial';
   return best.evidenceStrength || 'weak';
@@ -74,6 +91,9 @@ const evidenceStrengthFromStatus = ({ status, evidence = [] }) => {
 const buildReason = ({ requirement = {}, status = 'not_met', evidence = [] } = {}) => {
   const best = strongestEvidence(evidence);
   if (!best) return 'No meaningful CV evidence was retrieved for this requirement.';
+  if (status === 'met' && hasDirectRelatedDegreeEvidence({ requirement, evidence })) {
+    return 'The CV gives direct education evidence for this degree or related-field qualification requirement.';
+  }
   if (status === 'met') return `The CV gives direct ${best.evidenceStrength || 'usable'} evidence for this requirement.`;
   if (status === 'partial') {
     if (isQualificationRequirement(requirement) && !['education', 'certifications'].includes(best.section)) {
@@ -124,7 +144,7 @@ const buildHeuristicJudgement = ({ requirement = {}, topEvidence = [] } = {}) =>
     requirementId: requirement.id || normalizeTaxonomyLabel(requirement.text || requirement.label),
     status,
     confidence: status === 'met' ? 0.82 : status === 'partial' ? 0.68 : status === 'inferred' ? 0.52 : 0.42,
-    evidenceStrength: evidenceStrengthFromStatus({ status, evidence: filteredEvidence }),
+    evidenceStrength: evidenceStrengthFromStatus({ requirement, status, evidence: filteredEvidence }),
     reason: buildReason({ requirement, status, evidence: filteredEvidence }),
     missingEvidence: buildMissingEvidence({ requirement, status }),
     interviewProbe: buildInterviewProbe({ requirement, status }),
@@ -153,10 +173,11 @@ Rules:
 2. University or hobby projects do not fully satisfy professional-years requirements.
 3. Legal, certification, safety, registration, and qualification requirements require direct evidence.
 4. Degree or qualification requirements should be proven by education or certification evidence, not project descriptions.
-5. Use partial when evidence is related but incomplete.
-6. Use inferred only when the match is plausible but not directly proven.
-7. Always judge only from the candidateEvidence provided.
-8. Do not use JD section headings as missing evidence.
+5. A Bachelor, Master, or higher degree in Information Technology counts as a related-field qualification for Computer Science, Software Engineering, AI, Data Science, or related-field degree requirements.
+6. Use partial when evidence is related but incomplete.
+7. Use inferred only when the match is plausible but not directly proven.
+8. Always judge only from the candidateEvidence provided.
+9. Do not use JD section headings as missing evidence.
 
 Items:
 ${JSON.stringify(items, null, 2).slice(0, 18000)}`;
@@ -224,6 +245,9 @@ export const judgeRequirementEvidenceBatch = async ({ requirements = [], semanti
   return Object.fromEntries(Object.entries(fallbackById).map(([id, fallback]) => {
     const ai = aiById[id];
     if (!ai) return [id, fallback];
+    if (fallback.status === 'met' && fallback.evidenceStrength === 'strong' && /degree|bachelor|master|qualification|tertiary|diploma/i.test(fallback.reason || '')) {
+      return [id, fallback];
+    }
     if (STATUS_ORDER[ai.status] > STATUS_ORDER[fallback.status] && fallback.evidenceStrength === 'weak') {
       return [id, { ...ai, status: fallback.status, reason: fallback.reason }];
     }
