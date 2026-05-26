@@ -37,6 +37,19 @@ vi.mock('../../../src/services/voice/elevenLabsSpeechService.js', () => ({
       provider: 'elevenlabs',
     };
   }),
+  streamSynthesizeSpeech: vi.fn(async function* (options) {
+    elevenLabsState.calls.push(options);
+    if (elevenLabsState.fail) throw new Error('elevenlabs unavailable');
+    yield {
+      audioBuffer: Buffer.from('elevenlabs-audio'),
+      contentType: 'audio/mpeg',
+      voiceName: 'elevenlabs:voice-1',
+      outputFormat: 'mp3_44100_128',
+      provider: 'elevenlabs',
+      chunkIndex: 0,
+      isStreaming: true,
+    };
+  }),
 }));
 
 const { getTtsProviderOrder, synthesizeSpeech } = await import('../../../src/services/voice/ttsProviderRouter.js');
@@ -79,11 +92,24 @@ describe('TTS provider router', () => {
     expect(elevenLabsState.calls).toHaveLength(1);
   });
 
-  it('uses existing STT provider env as the default TTS order when TTS env is unset', async () => {
+  it('keeps TTS routing independent from STT provider env when TTS env is unset', async () => {
     process.env.VOICE_STT_PROVIDER = 'elevenlabs';
     process.env.VOICE_STT_FALLBACK_PROVIDER = 'azure';
 
-    expect(getTtsProviderOrder()).toEqual(['elevenlabs', 'azure']);
+    expect(getTtsProviderOrder()).toEqual(['azure', 'elevenlabs']);
+
+    const result = await synthesizeSpeech({ text: 'What was your role?' });
+
+    expect(result.provider).toBe('azure-speech-rest');
+    expect(azureState.calls).toHaveLength(1);
+    expect(elevenLabsState.calls).toHaveLength(0);
+  });
+
+  it('uses ElevenLabs for TTS only when TTS env explicitly asks for it', async () => {
+    process.env.VOICE_STT_PROVIDER = 'azure';
+    process.env.VOICE_TTS_PROVIDER = 'elevenlabs';
+
+    expect(getTtsProviderOrder()).toEqual(['elevenlabs']);
 
     const result = await synthesizeSpeech({ text: 'What was your role?' });
 

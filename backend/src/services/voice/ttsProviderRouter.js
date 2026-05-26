@@ -22,13 +22,13 @@ const streamingProviderFactories = {
 const normalizeProviderName = (value) => String(value || '').trim().toLowerCase().replace(/-/g, '_');
 
 export const getTtsProviderOrder = () => {
-  const configuredOrder = String(process.env.VOICE_TTS_PROVIDER_ORDER || process.env.VOICE_STT_PROVIDER_ORDER || '').trim();
+  const configuredOrder = String(process.env.VOICE_TTS_PROVIDER_ORDER || '').trim();
   if (configuredOrder) {
     return Array.from(new Set(configuredOrder.split(',').map(normalizeProviderName).filter(Boolean)));
   }
 
-  const primary = normalizeProviderName(process.env.VOICE_TTS_PROVIDER || process.env.VOICE_STT_PROVIDER || 'azure');
-  const fallback = normalizeProviderName(process.env.VOICE_TTS_FALLBACK_PROVIDER || process.env.VOICE_STT_FALLBACK_PROVIDER || 'elevenlabs');
+  const primary = normalizeProviderName(process.env.VOICE_TTS_PROVIDER || 'azure');
+  const fallback = normalizeProviderName(process.env.VOICE_TTS_FALLBACK_PROVIDER || 'elevenlabs');
   return Array.from(new Set([primary, fallback].filter(Boolean)));
 };
 
