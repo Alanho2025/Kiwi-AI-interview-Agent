@@ -21,14 +21,22 @@ const base64ToAudioUrl = (base64, contentType = 'audio/mpeg') => {
 
 const normalizeMimeType = (contentType = 'audio/mpeg') => String(contentType || 'audio/mpeg').split(';')[0].trim() || 'audio/mpeg';
 
-const canUseMediaSource = (contentType = 'audio/mpeg') => {
+const resolveMediaSourceMimeType = (contentType = 'audio/mpeg') => {
   if (typeof window === 'undefined' || typeof MediaSource === 'undefined') return false;
   const mimeType = normalizeMimeType(contentType);
+  const candidates = mimeType === 'audio/mpeg'
+    ? ['audio/mpeg', 'audio/mpeg; codecs="mp3"']
+    : [mimeType];
   try {
-    return MediaSource.isTypeSupported?.(mimeType) || mimeType === 'audio/mpeg';
+    return candidates.find((candidate) => MediaSource.isTypeSupported?.(candidate)) || false;
   } catch {
     return false;
   }
+};
+
+const releaseObjectUrlSoon = (url) => {
+  if (!url || !String(url).startsWith('blob:')) return;
+  window.setTimeout(() => URL.revokeObjectURL(url), 2000);
 };
 
 const buildSilentWavDataUrl = () => {
@@ -149,14 +157,14 @@ export function useAssistantAudioQueue({ onPlaybackStart, onPlaybackEnd, onQueue
 
   const ensureStreamPlayback = useCallback((contentType = 'audio/mpeg') => {
     if (streamRef.current.mediaSource) return true;
-    if (!canUseMediaSource(contentType)) return false;
+    const mimeType = resolveMediaSourceMimeType(contentType);
+    if (!mimeType) return false;
 
     const audio = audioRef.current;
     if (!audio) return false;
 
     const mediaSource = new MediaSource();
     const url = URL.createObjectURL(mediaSource);
-    const mimeType = normalizeMimeType(contentType);
 
     streamRef.current = {
       mediaSource,
@@ -239,10 +247,11 @@ export function useAssistantAudioQueue({ onPlaybackStart, onPlaybackEnd, onQueue
     if (audioRef.current) {
       try { audioRef.current.pause(); } catch {}
       audioRef.current.removeAttribute('src');
+      audioRef.current.load?.();
     }
     setAssistantAudioUrl((current) => {
-      if (current) URL.revokeObjectURL(current);
-      if (streamUrl && streamUrl !== current) URL.revokeObjectURL(streamUrl);
+      releaseObjectUrlSoon(current);
+      if (streamUrl && streamUrl !== current) releaseObjectUrlSoon(streamUrl);
       return '';
     });
   }, []);
@@ -256,7 +265,9 @@ export function useAssistantAudioQueue({ onPlaybackStart, onPlaybackEnd, onQueue
       callbackRef.current.onPlaybackEnd?.();
       const streamUrl = streamRef.current.url;
       if (assistantAudioUrl === streamUrl) {
-        URL.revokeObjectURL(streamUrl);
+        audio.removeAttribute('src');
+        audio.load?.();
+        releaseObjectUrlSoon(streamUrl);
         streamRef.current = buildEmptyStreamState();
         isPlayingRef.current = false;
         setIsAssistantSpeaking(false);
@@ -264,7 +275,9 @@ export function useAssistantAudioQueue({ onPlaybackStart, onPlaybackEnd, onQueue
         callbackRef.current.onQueueDrained?.();
         return;
       }
-      URL.revokeObjectURL(assistantAudioUrl);
+      audio.removeAttribute('src');
+      audio.load?.();
+      releaseObjectUrlSoon(assistantAudioUrl);
       setAssistantAudioUrl('');
       playNext();
     };

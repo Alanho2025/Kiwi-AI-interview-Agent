@@ -350,7 +350,7 @@ export function VoiceInterviewPanel({
         </div>
       </div>
 
-      <audio ref={audioRef} controls playsInline src={assistantAudioUrl || undefined} className="hidden" />
+      <audio ref={audioRef} controls playsInline className="hidden" />
     </div>
   );
 }
