@@ -48,7 +48,32 @@ jobs:
   backend-tests:
     name: Backend tests gate
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: kiwi_ai_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d kiwi_ai_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      mongodb:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval 'db.adminCommand({ ping: 1 })'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     defaults:
       run:
         working-directory: backend
@@ -90,11 +115,108 @@ jobs:
       - name: Run match safeguard test
         run: npm run test:match-safeguard
 
-  backend-evaluation:
-    name: Backend full evaluation gate
+  backend-mock-evaluation:
+    name: Backend mock evaluation gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: backend-tests
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: kiwi_ai_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d kiwi_ai_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      mongodb:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval 'db.adminCommand({ ping: 1 })'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    defaults:
+      run:
+        working-directory: backend
+
+    env:
+      NODE_ENV: test
+      AI_TEST_MODE: mock
+      MATCH_ENGINE: semantic
+      ENABLE_AGENTIC_SAFEGUARDS: true
+      JWT_SECRET: ci-test-jwt-secret
+      CSRF_SECRET: ci-test-csrf-secret
+      SESSION_SECRET: ci-test-session-secret
+      POSTGRES_URL: postgresql://postgres:postgres@localhost:5432/kiwi_ai_test
+      MONGODB_URI: mongodb://localhost:27017/kiwi_ai_test
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run mock/local evaluation suite
+        run: npm run eval:local
+
+      - name: Upload mock evaluation reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-mock-eval-reports-${{ github.sha }}
+          path: backend/eval/reports
+          if-no-files-found: warn
+          retention-days: 14
+
+  backend-real-evaluation:
+    name: Backend real AI evaluation gate
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    needs: backend-tests
+    needs: backend-mock-evaluation
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: kiwi_ai_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d kiwi_ai_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      mongodb:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval 'db.adminCommand({ ping: 1 })'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     defaults:
       run:
         working-directory: backend
@@ -127,19 +249,19 @@ jobs:
       - name: Verify real evaluation secret
         run: |
           if [ -z "${DEEPSEEK_API_KEY:-}" ]; then
-            echo "DEEPSEEK_API_KEY is required for the full evaluation gate."
+            echo "DEEPSEEK_API_KEY is required for the real AI evaluation gate."
             echo "Add it in GitHub repository settings: Settings > Secrets and variables > Actions."
             exit 1
           fi
 
-      - name: Run full evaluation suite
-        run: npm run eval:all
+      - name: Run real AI evaluation suite
+        run: npm run eval:real
 
-      - name: Upload evaluation reports
+      - name: Upload real evaluation reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: backend-eval-reports-${{ github.sha }}
+          name: backend-real-eval-reports-${{ github.sha }}
           path: backend/eval/reports
           if-no-files-found: warn
           retention-days: 14
@@ -150,7 +272,8 @@ jobs:
     needs:
       - frontend-quality
       - backend-tests
-      - backend-evaluation
+      - backend-mock-evaluation
+      - backend-real-evaluation
     if: always()
     steps:
       - name: Check required jobs
@@ -163,8 +286,12 @@ jobs:
             echo "backend-tests failed: ${{ needs.backend-tests.result }}"
             exit 1
           fi
-          if [ "${{ needs.backend-evaluation.result }}" != "success" ]; then
-            echo "backend-evaluation failed: ${{ needs.backend-evaluation.result }}"
+          if [ "${{ needs.backend-mock-evaluation.result }}" != "success" ]; then
+            echo "backend-mock-evaluation failed: ${{ needs.backend-mock-evaluation.result }}"
+            exit 1
+          fi
+          if [ "${{ needs.backend-real-evaluation.result }}" != "success" ]; then
+            echo "backend-real-evaluation failed: ${{ needs.backend-real-evaluation.result }}"
             exit 1
           fi
           echo "All CI gates passed. Safe to merge into main."
