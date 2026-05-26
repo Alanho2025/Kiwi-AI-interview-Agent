@@ -154,6 +154,38 @@ Team communication`;
     expect(requirement.notes).toMatch(/direct qualification|missingEvidence=|Registered nurse/i);
   });
 
+  it('treats Master of Information Technology as meeting Lightspeed related degree requirement', async () => {
+    process.env.MATCH_ENGINE = 'semantic';
+    process.env.AI_TEST_MODE = 'mock';
+
+    const cvText = `Alan Ho
+Master of Information Technology student building full-stack AI products.
+
+Education
+Master of Information Technology, University of Auckland
+Bachelor of Engineering`;
+    const rubric = buildRubric([
+      {
+        id: 'req_degree',
+        label: "Bachelor's degree or higher in Computer Science, Software Engineering, AI, Data Science, or related fields",
+        category: 'qualification',
+        mustHave: true,
+        type: 'hard',
+        importance: 'high',
+        evidenceNeeded: "The CV should show direct education evidence for Bachelor's degree or higher in Computer Science, Software Engineering, AI, Data Science, or related fields.",
+      },
+    ]);
+
+    const result = await compareCvToJobDescription(cvText, 'Lightspeed AI Agent JD', rubric, { matchEngine: 'semantic' });
+    const requirement = result.requirementChecks[0];
+
+    expect(requirement.status).toBe('met');
+    expect(requirement.notes).toMatch(/evidenceStrength=strong/i);
+    expect(requirement.notes).toMatch(/direct education evidence/i);
+    expect(requirement.notes).not.toMatch(/missingEvidence=/i);
+    expect((requirement.evidence || []).join(' ')).toMatch(/Matched in education/i);
+  });
+
   it('does not use education evidence to satisfy non-qualification behavioural or role-context requirements', async () => {
     process.env.MATCH_ENGINE = 'semantic';
     const cvText = `Alan Ho
