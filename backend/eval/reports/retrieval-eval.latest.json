@@ -1,0 +1,226 @@
+{
+  "label": "Retrieval Eval",
+  "generatedAt": "2026-05-26T08:40:52.401Z",
+  "casesRun": 8,
+  "average": 0.9,
+  "results": [
+    {
+      "id": "direct_skill_match",
+      "score": 1,
+      "subScores": {
+        "relevance": 1,
+        "blockedEvidence": 1,
+        "sourceCoverage": 1,
+        "degradedFallback": 1
+      },
+      "failedChecks": [],
+      "diagnostics": {
+        "relevantHits": [
+          "Python",
+          "SQL",
+          "data analysis"
+        ],
+        "blockedHits": [],
+        "queryTokenOverlap": [
+          "python",
+          "data",
+          "analysis"
+        ],
+        "sourceTypes": [
+          "cv",
+          "jd"
+        ]
+      }
+    },
+    {
+      "id": "paraphrased_skill_match",
+      "score": 1,
+      "subScores": {
+        "relevance": 0.67,
+        "blockedEvidence": 1,
+        "sourceCoverage": 1,
+        "degradedFallback": 1
+      },
+      "failedChecks": [],
+      "diagnostics": {
+        "relevantHits": [
+          "backend services",
+          "Express API"
+        ],
+        "blockedHits": [],
+        "queryTokenOverlap": [
+          "backend"
+        ],
+        "sourceTypes": [
+          "cv",
+          "jd"
+        ]
+      }
+    },
+    {
+      "id": "weak_evidence_not_upgraded",
+      "score": 0.5,
+      "subScores": {
+        "relevance": 1,
+        "blockedEvidence": 0,
+        "sourceCoverage": 1,
+        "degradedFallback": 1
+      },
+      "failedChecks": [
+        "blocked_evidence_absent_from_sources",
+        "no_unsupported_hard_skill_upgrade",
+        "query_has_some_overlap_or_timeout"
+      ],
+      "diagnostics": {
+        "relevantHits": [
+          "Vercel",
+          "Render",
+          "Node.js"
+        ],
+        "blockedHits": [
+          "Kubernetes",
+          "cloud-native engineering"
+        ],
+        "queryTokenOverlap": [],
+        "sourceTypes": [
+          "cv",
+          "jd"
+        ]
+      }
+    },
+    {
+      "id": "irrelevant_evidence_blocked",
+      "score": 0.83,
+      "subScores": {
+        "relevance": 1,
+        "blockedEvidence": 0,
+        "sourceCoverage": 1,
+        "degradedFallback": 1
+      },
+      "failedChecks": [
+        "blocked_evidence_absent_from_sources"
+      ],
+      "diagnostics": {
+        "relevantHits": [
+          "Vitest tests",
+          "React project"
+        ],
+        "blockedHits": [
+          "baking brownies",
+          "taking photos"
+        ],
+        "queryTokenOverlap": [
+          "software",
+          "testing"
+        ],
+        "sourceTypes": [
+          "cv",
+          "jd"
+        ]
+      }
+    },
+    {
+      "id": "cv_jd_gap_detected",
+      "score": 0.83,
+      "subScores": {
+        "relevance": 1,
+        "blockedEvidence": 0,
+        "sourceCoverage": 1,
+        "degradedFallback": 1
+      },
+      "failedChecks": [
+        "blocked_evidence_absent_from_sources"
+      ],
+      "diagnostics": {
+        "relevantHits": [
+          "Azure Speech",
+          "WebSocket"
+        ],
+        "blockedHits": [
+          "Azure cloud infrastructure",
+          "IAM",
+          "production monitoring"
+        ],
+        "queryTokenOverlap": [
+          "azure",
+          "cloud",
+          "infrastructure"
+        ],
+        "sourceTypes": [
+          "cv",
+          "jd"
+        ]
+      }
+    },
+    {
+      "id": "nz_guidance_only_when_needed",
+      "score": 1,
+      "subScores": {
+        "relevance": 1,
+        "blockedEvidence": 1,
+        "sourceCoverage": 1,
+        "degradedFallback": 1
+      },
+      "failedChecks": [],
+      "diagnostics": {
+        "relevantHits": [
+          "NZ interviews",
+          "collaboration",
+          "evidence-based answers"
+        ],
+        "blockedHits": [],
+        "queryTokenOverlap": [
+          "zealand"
+        ],
+        "sourceTypes": [
+          "cv",
+          "jd",
+          "nzGuide"
+        ]
+      }
+    },
+    {
+      "id": "star_example_retrieved_for_coaching",
+      "score": 1,
+      "subScores": {
+        "relevance": 1,
+        "blockedEvidence": 1,
+        "sourceCoverage": 1,
+        "degradedFallback": 1
+      },
+      "failedChecks": [],
+      "diagnostics": {
+        "relevantHits": [
+          "STAR",
+          "Result"
+        ],
+        "blockedHits": [],
+        "queryTokenOverlap": [
+          "star",
+          "answer"
+        ],
+        "sourceTypes": [
+          "transcript",
+          "starGuide"
+        ]
+      }
+    },
+    {
+      "id": "retrieval_timeout_degraded_fallback",
+      "score": 1,
+      "subScores": {
+        "relevance": 1,
+        "blockedEvidence": 1,
+        "sourceCoverage": 1,
+        "degradedFallback": 1
+      },
+      "failedChecks": [],
+      "diagnostics": {
+        "relevantHits": [],
+        "blockedHits": [],
+        "queryTokenOverlap": [],
+        "sourceTypes": []
+      }
+    }
+  ]
+}

@@ -22,8 +22,8 @@ const isRealAiMode = () => process.env.AI_TEST_MODE === 'real';
 const buildMockDeepSeekResponse = () => 'This is a mock response from DeepSeek. Please set DEEPSEEK_API_KEY to run real AI eval.';
 
 const getDeepSeekTimeoutMs = () => {
-  const configured = Number(process.env.DEEPSEEK_TIMEOUT_MS || 8000);
-  return Number.isFinite(configured) && configured > 0 ? configured : 8000;
+  const configured = Number(process.env.DEEPSEEK_TIMEOUT_MS || 30000);
+  return Number.isFinite(configured) && configured > 0 ? configured : 30000;
 };
 
 const buildTimeoutSignal = () => (

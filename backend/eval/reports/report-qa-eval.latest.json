@@ -11,16 +11,16 @@
       "id": "report_missing_interaction_and_reflection",
       "passed": false,
       "score": 1,
-      "earned": 4,
-      "possible": 4,
+      "earned": 3,
+      "possible": 3,
       "failedChecks": []
     },
     {
       "id": "report_complete_grounded_passes",
-      "passed": true,
+      "passed": false,
       "score": 1,
-      "earned": 1,
-      "possible": 1,
+      "earned": 2,
+      "possible": 2,
       "failedChecks": []
     },
     {
@@ -56,11 +56,11 @@
       "failedChecks": []
     },
     {
-      "id": "report_missing_reflection_content_flagged",
+      "id": "report_missing_feedback_trust_fields_without_reflection_requirement",
       "passed": false,
       "score": 1,
-      "earned": 3,
-      "possible": 3,
+      "earned": 2,
+      "possible": 2,
       "failedChecks": []
     },
     {
