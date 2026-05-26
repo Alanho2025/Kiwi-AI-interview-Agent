@@ -1,163 +1,65 @@
+/**
+ * File responsibility: Voice interview session hook.
+ * Main responsibilities:
+ * - Orchestrate duplex voice session state between microphone, WebSocket, and assistant audio playback.
+ * - Keep UI-facing voice status, latency acknowledgement, and VAD state aligned.
+ */
+
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useMicrophonePermission } from './useMicrophonePermission.js';
-import { useRealtimeMicStream } from './voice/useRealtimeMicStream.js';
-import { useVoiceActivityDetection } from './voice/useVoiceActivityDetection.js';
 import { useDuplexVoiceSocket } from './voice/useDuplexVoiceSocket.js';
 import { useAssistantAudioQueue } from './voice/useAssistantAudioQueue.js';
-import { useSessionAudioRecorder } from './voice/useSessionAudioRecorder.js';
-import { uploadSessionRecording } from '../api/recordingApi.js';
-import { createVoiceLatencyTrace } from '../utils/voiceLatencyTrace.js';
-import { buildVoiceLatencyDebugSummary, buildVoiceLatencyTargetSummary } from '../utils/voiceLatencySummary.js';
-import { DEFAULT_VAD_CONFIG } from '../utils/voiceActivityDetectionCore.js';
-import { assessVoiceNetworkQuality } from '../utils/voiceRuntimeNetwork.js';
-import { cancelLatencyAcknowledgement, playLatencyAcknowledgement } from '../utils/voiceLatencyAcknowledgement.js';
+import { useRealtimeMicStream } from './voice/useRealtimeMicStream.js';
+import { useVoiceActivityDetection } from './voice/useVoiceActivityDetection.js';
+import { buildVoiceStatus } from '../utils/voiceStatus.js';
+import { createVoiceTurnTrace, logVoiceLatencySummary } from '../utils/voiceLatencyTrace.js';
+import { updateVoiceNetworkQuality } from '../utils/voiceRuntimeNetwork.js';
 
-const DEFAULT_VOICE_NAME = 'en-NZ-MollyNeural';
-const DEFAULT_LANGUAGE = 'en-NZ';
-const MIC_ARM_DELAY_MS = 350;
-const VAD_WARMUP_IGNORE_MS = 500;
-const SLOW_PROCESSING_WARNING_MS = 8000;
-const NETWORK_PING_INTERVAL_MS = 6000;
-const SLOW_FIRST_AUDIO_MS = 3500;
-const LATENCY_ACK_DELAY_MS = 650;
-const LATENCY_ACK_COOLDOWN_MS = 16000;
-const BARGE_IN_CONFIRMATION_MS = 350;
-
-const buildVoiceStatus = (type, title, message) => ({ type, title, message });
-
-export const formatDurationLabel = (valueMs = 0) => {
-  const totalSeconds = Math.max(0, Math.round(valueMs / 1000));
-  const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
-  const seconds = String(totalSeconds % 60).padStart(2, '0');
-  return `${minutes}:${seconds}`;
+const DEFAULT_VAD_CONFIG = {
+  speechThreshold: 0.03,
+  silenceThreshold: 0.012,
 };
+const MIC_ARM_DELAY_MS = 250;
+const LATENCY_ACK_DELAY_MS = 3500;
+const LATENCY_ACK_COOLDOWN_MS = 12000;
+const SLOW_FIRST_AUDIO_MS = 4500;
+const BARGE_IN_CONFIRMATION_MS = 320;
 
-export const getLatestTurnByRole = (transcript = [], role) => {
-  const filteredTurns = transcript.filter((message) => message.role === role);
-  return filteredTurns[filteredTurns.length - 1] || null;
-};
-
-export const resolveSessionId = (session, explicitSessionId) => explicitSessionId || session?.id || session?._id || session?.sessionId || '';
+const safeNow = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 
 export function useVoiceInterviewSession({
-  enabled = true,
-  session,
   sessionId,
-  onPause,
-  onRepeat,
-  onEnd,
-  isPaused,
-  isCompleted,
-  isSubmitting,
+  isPaused = false,
+  isCompleted = false,
+  isProcessingTurn = false,
+  setIsProcessingTurn = () => {},
   onVoiceSessionUpdate,
-  onStartInterview,
-}) {
-  const {
-    permissionState,
-    isRequesting,
-    error: permissionError,
-    requestPermission,
-    isSupported,
-  } = useMicrophonePermission();
-
+} = {}) {
   const [voiceState, setVoiceState] = useState('idle');
-  const [voiceStatus, setVoiceStatus] = useState(null);
-  const [transcriptionPreview, setTranscriptionPreview] = useState('');
+  const [voiceStatus, setVoiceStatus] = useState(buildVoiceStatus('idle', 'Voice mode is idle', 'Start when you are ready.'));
+  const [isAutoLoopActive, setIsAutoLoopActive] = useState(false);
+  const [isVoiceTakingLong, setIsVoiceTakingLong] = useState(false);
   const [pendingTranscript, setPendingTranscript] = useState(null);
   const [editableTranscript, setEditableTranscript] = useState('');
-  const [lastAsrConfidence, setLastAsrConfidence] = useState(null);
-  const [isProcessingTurn, setIsProcessingTurn] = useState(false);
-  const [isVoiceTakingLong, setIsVoiceTakingLong] = useState(false);
-  const [isAutoLoopActive, setIsAutoLoopActive] = useState(false);
   const [assistantTextPreview, setAssistantTextPreview] = useState('');
-  const [recordingStatus, setRecordingStatus] = useState({ state: 'idle', error: null });
+  const [lastAsrConfidence, setLastAsrConfidence] = useState(null);
   const [lastTranscriptRejection, setLastTranscriptRejection] = useState(null);
-  const [voiceNetworkQuality, setVoiceNetworkQuality] = useState(() => assessVoiceNetworkQuality());
 
   const autoLoopActiveRef = useRef(false);
-  const voiceSessionTraceRef = useRef(null);
-  const activeVoiceTurnTraceRef = useRef(null);
-  const activeBackendLatencyRef = useRef(null);
-  const voiceTurnSequenceRef = useRef(0);
-  const vadMetricsRef = useRef(null);
-  const latestSocketLatencyRef = useRef({});
+  const isAssistantSpeakingRef = useRef(false);
   const firstAudioChunkSeenRef = useRef(false);
-  const activeVoiceTurnStartedAtRef = useRef(null);
   const latestFirstAudioDelayRef = useRef(null);
   const consecutiveSlowTurnsRef = useRef(0);
+  const voiceTurnSequenceRef = useRef(0);
+  const activeVoiceTurnStartedAtRef = useRef(null);
+  const activeVoiceTurnTraceRef = useRef(null);
+  const activeBackendLatencyRef = useRef(null);
+  const voiceSessionTraceRef = useRef(createVoiceTurnTrace('voice_session'));
+  const vadMetricsRef = useRef(null);
+  const pendingBargeInRef = useRef(null);
   const latencyAcknowledgementTimerRef = useRef(null);
   const lastLatencyAcknowledgementAtRef = useRef(0);
   const noSpeechPromptedRef = useRef(false);
-  const completedCleanupDoneRef = useRef(false);
   const startListeningRef = useRef(null);
-  const cleanupRef = useRef(null);
-  const isAssistantSpeakingRef = useRef(false);
-  const pendingBargeInRef = useRef(null);
-  const sessionAudioRecorder = useSessionAudioRecorder();
-
-  const activeSessionId = resolveSessionId(session, sessionId);
-  const currentQuestion = useMemo(() => getLatestTurnByRole(session?.transcript || [], 'ai'), [session?.transcript]);
-  const latestUserTurn = useMemo(() => getLatestTurnByRole(session?.transcript || [], 'user'), [session?.transcript]);
-
-  const getLatestAssistantQuestionText = useCallback((sourceSession = session, preferDisplayText = true) => {
-    const latestQuestion = getLatestTurnByRole(sourceSession?.transcript || [], 'ai');
-    const displayText = String(latestQuestion?.displayText || '').trim();
-    const rawText = String(latestQuestion?.text || '').trim();
-    return preferDisplayText ? (displayText || rawText) : (rawText || displayText);
-  }, [session]);
-
-
-  const setReadyState = useCallback(() => {
-    if (!enabled) return;
-    setVoiceState('ready');
-    setVoiceStatus(buildVoiceStatus('success', 'Voice ready', 'Duplex Voice Agent is ready. KiwiCoach can listen, speak, and handle interruption.'));
-  }, [enabled]);
-
-  const logVoiceLatencySummary = useCallback((phase = 'turn', backendLatency = null) => {
-    const trace = activeVoiceTurnTraceRef.current?.toJSON?.();
-    if (!trace && !backendLatency) return;
-
-    const targetSummary = buildVoiceLatencyTargetSummary({ trace, backendLatency, phase });
-    const debugSummary = buildVoiceLatencyDebugSummary({ trace, backendLatency, phase });
-
-    console.info('[voice-latency] target', targetSummary);
-    console.debug('[voice-latency:debug]', debugSummary);
-    if (typeof console.table === 'function') {
-      console.table(targetSummary);
-    }
-  }, []);
-
-  const startVoiceTurnTrace = useCallback((reason = 'vad_speech_end') => {
-    voiceTurnSequenceRef.current += 1;
-    const turnId = `voice-turn-${voiceTurnSequenceRef.current}`;
-    const trace = createVoiceLatencyTrace({
-      sessionId: activeSessionId,
-      mode: 'duplex_voice',
-      traceType: 'voice_turn',
-      target: 'speech_end_to_ai_speech_start',
-      turnId,
-    });
-
-    activeVoiceTurnTraceRef.current = trace;
-    activeBackendLatencyRef.current = null;
-    firstAudioChunkSeenRef.current = false;
-    activeVoiceTurnStartedAtRef.current = performance.now();
-    trace.mark('vad_config', { ...DEFAULT_VAD_CONFIG, warmupIgnoreMs: VAD_WARMUP_IGNORE_MS, turnId });
-    trace.mark('vad_speech_end', { reason, turnId });
-    return { trace, turnId };
-  }, [activeSessionId]);
-
-  const updateVoiceNetworkQuality = useCallback((overrides = {}) => {
-    const socketLatency = latestSocketLatencyRef.current || {};
-    setVoiceNetworkQuality(assessVoiceNetworkQuality({
-      rttMs: socketLatency.networkRttMs,
-      jitterMs: socketLatency.networkJitterMs,
-      socketOpenMs: socketLatency.socketOpenMs,
-      firstAudioDelayMs: latestFirstAudioDelayRef.current,
-      consecutiveSlowTurns: consecutiveSlowTurnsRef.current,
-      ...overrides,
-    }));
-  }, []);
 
   const clearLatencyAcknowledgementTimer = useCallback(() => {
     if (latencyAcknowledgementTimerRef.current) {
@@ -168,11 +70,13 @@ export function useVoiceInterviewSession({
 
   const stopLatencyAcknowledgement = useCallback(() => {
     clearLatencyAcknowledgementTimer();
-    cancelLatencyAcknowledgement();
+    setIsVoiceTakingLong(false);
   }, [clearLatencyAcknowledgementTimer]);
 
-  const clearPendingBargeIn = useCallback(() => {
-    pendingBargeInRef.current = null;
+  const playLatencyAcknowledgement = useCallback(() => {
+    setIsVoiceTakingLong(true);
+    setVoiceStatus(buildVoiceStatus('info', 'Still working on the next turn', 'KiwiCoach is preparing the next question.'));
+    return true;
   }, []);
 
   const scheduleLatencyAcknowledgement = useCallback(() => {
@@ -180,23 +84,32 @@ export function useVoiceInterviewSession({
     latencyAcknowledgementTimerRef.current = window.setTimeout(() => {
       const now = Date.now();
       const recentlyPlayed = now - lastLatencyAcknowledgementAtRef.current < LATENCY_ACK_COOLDOWN_MS;
-      if (
-        recentlyPlayed ||
-        !autoLoopActiveRef.current ||
-        firstAudioChunkSeenRef.current
-      ) {
-        return;
-      }
-
+      if (recentlyPlayed || !autoLoopActiveRef.current || firstAudioChunkSeenRef.current) return;
       const played = playLatencyAcknowledgement({ index: voiceTurnSequenceRef.current });
       if (played) lastLatencyAcknowledgementAtRef.current = now;
     }, LATENCY_ACK_DELAY_MS);
-  }, [clearLatencyAcknowledgementTimer]);
+  }, [clearLatencyAcknowledgementTimer, playLatencyAcknowledgement]);
 
+  const clearPendingBargeIn = useCallback(() => {
+    pendingBargeInRef.current = null;
+  }, []);
+
+  const setReadyState = useCallback(() => {
+    setVoiceState('ready');
+    setVoiceStatus(buildVoiceStatus('success', 'Voice mode ready', 'Answer naturally when KiwiCoach asks the next question.'));
+  }, []);
+
+  const startVoiceTurnTrace = useCallback((reason = 'voice_turn') => {
+    voiceTurnSequenceRef.current += 1;
+    firstAudioChunkSeenRef.current = false;
+    activeVoiceTurnStartedAtRef.current = safeNow();
+    activeVoiceTurnTraceRef.current = createVoiceTurnTrace(reason);
+    return { turnId: voiceTurnSequenceRef.current };
+  }, []);
 
   const audioQueue = useAssistantAudioQueue({
     onPlaybackStart: () => {
-      console.log(`[FRONTEND-TTS-TRACE] Assistant audio playback started.`);
+      console.log('[FRONTEND-TTS-TRACE] Assistant audio playback started.');
       stopLatencyAcknowledgement();
       isAssistantSpeakingRef.current = true;
       activeVoiceTurnTraceRef.current?.mark('assistant_audio_play_start');
@@ -208,7 +121,7 @@ export function useVoiceInterviewSession({
       activeVoiceTurnTraceRef.current?.mark('assistant_audio_play_end');
     },
     onQueueDrained: () => {
-      console.log(`[FRONTEND-TTS-TRACE] Assistant audio queue drained.`);
+      console.log('[FRONTEND-TTS-TRACE] Assistant audio queue drained.');
       isAssistantSpeakingRef.current = false;
       clearPendingBargeIn();
       if (autoLoopActiveRef.current && !isPaused && !isCompleted && !isProcessingTurn) {
@@ -223,15 +136,14 @@ export function useVoiceInterviewSession({
     },
   });
 
-
   const duplexSocket = useDuplexVoiceSocket({
     onAudioChunk: (chunk) => {
       stopLatencyAcknowledgement();
       if (!firstAudioChunkSeenRef.current) {
-        console.log(`[FRONTEND-TTS-TRACE] Received first TTS audio chunk from backend.`);
+        console.log('[FRONTEND-TTS-TRACE] Received first TTS audio chunk from backend.');
         firstAudioChunkSeenRef.current = true;
         const firstAudioDelayMs = activeVoiceTurnStartedAtRef.current
-          ? Math.round(performance.now() - activeVoiceTurnStartedAtRef.current)
+          ? Math.round(safeNow() - activeVoiceTurnStartedAtRef.current)
           : null;
         latestFirstAudioDelayRef.current = firstAudioDelayMs;
         consecutiveSlowTurnsRef.current = firstAudioDelayMs > SLOW_FIRST_AUDIO_MS
@@ -240,18 +152,19 @@ export function useVoiceInterviewSession({
         updateVoiceNetworkQuality({ firstAudioDelayMs, consecutiveSlowTurns: consecutiveSlowTurnsRef.current });
         activeVoiceTurnTraceRef.current?.mark('first_audio_chunk_received', { index: chunk.index });
       }
-      activeVoiceTurnTraceRef.current?.mark('tts_audio_chunk_received', { index: chunk.index });
+      activeVoiceTurnTraceRef.current?.mark('tts_audio_chunk_received', { index: chunk.index, isStreaming: chunk.isStreaming });
       audioQueue.enqueueAudioChunk(chunk);
     },
     onAssistantText: (payload) => {
       setAssistantTextPreview((current) => `${current}${payload.text || ''}`);
     },
     onSpeechDone: () => {
-      console.log(`[FRONTEND-STT-TRACE] Backend finished processing speech (speech_done).`);
+      console.log('[FRONTEND-STT-TRACE] Backend finished processing speech (speech_done).');
+      audioQueue.finishAudioStream?.();
       setIsProcessingTurn(false);
     },
     onTranscriptRejected: (payload) => {
-      console.log(`[FRONTEND-STT-TRACE] Transcript rejected by backend (repair prompt).`);
+      console.log('[FRONTEND-STT-TRACE] Transcript rejected by backend (repair prompt).');
       stopLatencyAcknowledgement();
       setIsProcessingTurn(false);
       setIsVoiceTakingLong(false);
@@ -263,7 +176,7 @@ export function useVoiceInterviewSession({
       setVoiceStatus(buildVoiceStatus('warning', 'Voice did not catch that clearly', payload?.message || 'Please answer again so KiwiCoach can score the right content.'));
     },
     onTurnDone: (payload) => {
-      console.log(`[FRONTEND-STT-TRACE] Turn done received. Final transcript:`, payload?.transcription?.text);
+      console.log('[FRONTEND-STT-TRACE] Turn done received. Final transcript:', payload?.transcription?.text);
       stopLatencyAcknowledgement();
       activeVoiceTurnTraceRef.current?.mark('auto_submit_response');
       setIsProcessingTurn(false);
@@ -344,14 +257,13 @@ export function useVoiceInterviewSession({
     activeVoiceTurnTraceRef.current?.mark('auto_submit_start', { reason, turnId });
     activeVoiceTurnTraceRef.current?.mark('stt_stop_sent', { reason, turnId });
     vad.stopVad?.();
-    console.log(`[FRONTEND-STT-TRACE] Sending speech_end to backend.`);
+    console.log('[FRONTEND-STT-TRACE] Sending speech_end to backend.');
     sendSpeechEnd(vadMetricsRef.current || null);
     setSendAudio?.(false);
     setIsProcessingTurn(true);
     setVoiceState('agent_thinking');
     setVoiceStatus(buildVoiceStatus('info', 'Processing your answer', 'KiwiCoach is preparing the next turn. This may take a few seconds.'));
     scheduleLatencyAcknowledgement();
-
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scheduleLatencyAcknowledgement, sendSpeechEnd, setSendAudio, startVoiceTurnTrace]);
 
@@ -373,7 +285,7 @@ export function useVoiceInterviewSession({
   }, [clearPendingBargeIn, confirmPendingBargeIn]);
 
   const handleVadSpeechStart = useCallback((metrics = {}) => {
-    console.log(`[FRONTEND-STT-TRACE] VAD detected speech start.`);
+    console.log('[FRONTEND-STT-TRACE] VAD detected speech start.');
     stopLatencyAcknowledgement();
     setLastTranscriptRejection(null);
     vadMetricsRef.current = { ...(vadMetricsRef.current || {}), ...metrics };
@@ -381,11 +293,11 @@ export function useVoiceInterviewSession({
 
     if (isAssistantSpeakingRef.current) {
       pendingBargeInRef.current = {
-        startedAt: Number(metrics.speechStartedAt || performance.now()),
+        startedAt: Number(metrics.speechStartedAt || safeNow()),
         confirmed: false,
       };
     } else {
-      console.log(`[FRONTEND-STT-TRACE] Arming microphone and sending speech_start.`);
+      console.log('[FRONTEND-STT-TRACE] Arming microphone and sending speech_start.');
       setSendAudio?.(true);
       sendSpeechStart();
       setVoiceState('user_speaking');
@@ -411,429 +323,93 @@ export function useVoiceInterviewSession({
   }, [stopListening]);
 
   const vad = useVoiceActivityDetection({
-    stream: micMediaStream,
-    enabled,
+    mediaStream: micMediaStream,
+    isEnabled: isAutoLoopActive,
+    isAssistantSpeaking: isAssistantSpeakingRef.current,
     onSpeechStart: handleVadSpeechStart,
     onSpeechEnd: handleVadSpeechEnd,
+    onFrame: handleVadFrame,
     onNoSpeechTimeout: handleNoSpeechTimeout,
     onMaxAnswerTimeout: handleMaxAnswerTimeout,
-    onVadFrame: handleVadFrame,
   });
 
-  const startListening = useCallback(async () => {
-    if (!enabled || !activeSessionId || isPaused || isCompleted) return;
-    let permissionResult = { ok: true, stream: null };
-    try {
-      if (!micMediaStream) {
-        permissionResult = await requestPermission({ keepStream: true });
-        if (!permissionResult.ok) {
-          setVoiceState('permission_denied');
-          setVoiceStatus(buildVoiceStatus('error', 'Microphone blocked', permissionResult.error || 'Allow microphone access to use Voice Mode.'));
-          return;
-        }
-      }
-      noSpeechPromptedRef.current = false;
-      setVoiceState('arming_mic');
-      setVoiceStatus(buildVoiceStatus('info', 'Opening microphone', 'Duplex Voice Agent is ready to hear your answer.'));
-      sendSpeechStart();
-      setSendAudio?.(true);
-      const stream = micMediaStream || await startStream({ sendAudio: true, stream: permissionResult.stream });
-      sessionAudioRecorder.startRecording(stream);
-      await vad.startVad({ stream, ignoreFirstMs: VAD_WARMUP_IGNORE_MS });
-      activeVoiceTurnTraceRef.current?.mark('mic_ready');
-      setVoiceState('listening');
-      setVoiceStatus(buildVoiceStatus('info', 'Listening', 'Answer naturally. KiwiCoach will stop recording when you pause.'));
-    } catch (error) {
-      permissionResult.stream?.getTracks?.().forEach((track) => track.stop());
-      setVoiceState('error');
-      setVoiceStatus(buildVoiceStatus('error', 'Voice failed', error.message || 'Could not start duplex voice.'));
-    }
-  }, [enabled, activeSessionId, isPaused, isCompleted, requestPermission, micMediaStream, sendSpeechStart, setSendAudio, startStream, vad, sessionAudioRecorder]);
+  startListeningRef.current = async () => {
+    if (!sessionId || isPaused || isCompleted) return;
+    noSpeechPromptedRef.current = false;
+    await startStream();
+    vad.startVad?.();
+    setVoiceState('listening');
+    setVoiceStatus(buildVoiceStatus('info', 'Listening', 'Start answering when you are ready.'));
+  };
 
-  useEffect(() => {
-    startListeningRef.current = startListening;
-  }, [startListening]);
-
-  const speakQuestionText = useCallback((questionText, statusMessage = 'Listen to the question. You can start speaking to interrupt when needed.') => {
-    const cleanQuestion = String(questionText || '').trim();
-    if (!cleanQuestion) return false;
-    setAssistantTextPreview('');
-    firstAudioChunkSeenRef.current = false;
-    setVoiceState('ai_speaking');
-    setVoiceStatus(buildVoiceStatus('info', 'KiwiCoach is speaking', statusMessage));
-    speakText(cleanQuestion);
-    return true;
-  }, [speakText]);
-
-  const speakCurrentQuestion = useCallback((options = {}) => {
-    const questionText = getLatestAssistantQuestionText(session, !options.repeatOnly);
-    return speakQuestionText(
-      questionText,
-      options.repeatOnly ? 'Repeating the current question without the question number.' : undefined
-    );
-  }, [getLatestAssistantQuestionText, session, speakQuestionText]);
-
-  const ensureDuplexConnected = useCallback(async () => {
-    if (!activeSessionId) throw new Error('Missing session ID.');
-    if (['ready', 'listening', 'open'].includes(duplexSocketState)) return;
-    await connectDuplexSocket({
-      sessionId: activeSessionId,
-      language: DEFAULT_LANGUAGE,
-      sampleRate: 16000,
-      voiceName: DEFAULT_VOICE_NAME,
-    });
-  }, [activeSessionId, connectDuplexSocket, duplexSocketState]);
-
-  const startPassiveMicMonitor = useCallback(async () => {
-    if (!enabled || !activeSessionId || isPaused || isCompleted) return false;
-
-    let permissionResult = { ok: true, stream: null };
-    try {
-      if (!micMediaStream) {
-        permissionResult = await requestPermission({ keepStream: true });
-        if (!permissionResult.ok) {
-          setVoiceState('permission_denied');
-          setVoiceStatus(buildVoiceStatus('error', 'Microphone blocked', permissionResult.error || 'Allow microphone access to use Voice Mode.'));
-          return false;
-        }
-      }
-
-      setSendAudio?.(false);
-      const stream = micMediaStream || await startStream({ sendAudio: false, stream: permissionResult.stream });
-      sessionAudioRecorder.startRecording(stream);
-      await vad.startVad({ stream, ignoreFirstMs: VAD_WARMUP_IGNORE_MS });
-      voiceSessionTraceRef.current?.mark('passive_mic_monitor_ready');
-      return true;
-    } catch (error) {
-      permissionResult.stream?.getTracks?.().forEach((track) => track.stop());
-      throw error;
-    }
-  }, [enabled, activeSessionId, isPaused, isCompleted, requestPermission, micMediaStream, setSendAudio, startStream, vad, sessionAudioRecorder]);
-
-
-  const ensureInterviewStarted = useCallback(async () => {
-    if (session?.status !== 'ready') return session;
-    const startedSession = await onStartInterview?.();
-    return startedSession || session;
-  }, [onStartInterview, session]);
-
-  const handleToggleRecording = useCallback(async () => {
-    if (!enabled || isCompleted || isPaused) return;
-    if (!isSupported) {
-      setVoiceState('error');
-      setVoiceStatus(buildVoiceStatus('error', 'Voice unavailable', 'This browser cannot record microphone audio.'));
-      return;
-    }
-
-    if (isAutoLoopActive || isMicStreaming) {
-      autoLoopActiveRef.current = false;
-      setIsAutoLoopActive(false);
-      stopLatencyAcknowledgement();
-      audioQueue.clearQueue();
-      clearPendingBargeIn();
-      vad.stopVad?.();
-      await sessionAudioRecorder.stopCurrentSegment();
-      await stopStream();
-      stopSession();
-      setReadyState();
-      return;
-    }
-
-    try {
-      const audioUnlock = await audioQueue.unlockAudio?.();
-      if (audioUnlock && !audioUnlock.ok) {
-        setVoiceStatus(buildVoiceStatus('warning', 'Tap to enable audio', audioUnlock.error || 'Your browser needs a tap before it can play interview audio.'));
-      }
-      const startedSession = await ensureInterviewStarted();
-      const firstQuestionText = getLatestAssistantQuestionText(startedSession, true);
-
-      voiceSessionTraceRef.current = createVoiceLatencyTrace({
-        sessionId: activeSessionId,
-        mode: 'duplex_voice',
-        traceType: 'voice_session',
-      });
-      activeVoiceTurnTraceRef.current = null;
-      activeBackendLatencyRef.current = null;
-      firstAudioChunkSeenRef.current = false;
-      latestFirstAudioDelayRef.current = null;
-      consecutiveSlowTurnsRef.current = 0;
-      updateVoiceNetworkQuality({ firstAudioDelayMs: null, consecutiveSlowTurns: 0 });
-      voiceSessionTraceRef.current.mark('voice_loop_start');
-      voiceSessionTraceRef.current.mark('vad_config', { ...DEFAULT_VAD_CONFIG, warmupIgnoreMs: VAD_WARMUP_IGNORE_MS });
-      autoLoopActiveRef.current = true;
-      setIsAutoLoopActive(true);
-      setVoiceState('starting');
-      setVoiceStatus(buildVoiceStatus('info', 'Starting duplex voice interview', 'KiwiCoach will speak, listen, and allow interruption.'));
-      await ensureDuplexConnected();
-      await startPassiveMicMonitor();
-      
-      // Delay the first audio playback by 1.2s.
-      // Why? When startPassiveMicMonitor activates the microphone, macOS and Windows
-      // often switch Bluetooth headsets from high-quality (A2DP) to mono+mic (HFP).
-      // This profile switch takes ~1-2 seconds, during which ALL audio is muted.
-      // Delaying ensures the user actually hears the first few words of the question.
-      window.setTimeout(async () => {
-        try {
-          if (!autoLoopActiveRef.current) return;
-          const spoke = speakQuestionText(firstQuestionText);
-          if (!spoke) await startListening();
-        } catch (e) {
-          console.error('Failed to start first voice turn', e);
-        }
-      }, 1200);
-
-    } catch (error) {
-      autoLoopActiveRef.current = false;
-      setIsAutoLoopActive(false);
-      setVoiceState('error');
-      setVoiceStatus(buildVoiceStatus('error', 'Duplex voice failed', error.message || 'Could not start Voice Mode.'));
-    }
-  }, [enabled, isCompleted, isPaused, isSupported, isAutoLoopActive, isMicStreaming, stopLatencyAcknowledgement, audioQueue, clearPendingBargeIn, vad, stopStream, stopSession, setReadyState, activeSessionId, ensureDuplexConnected, startPassiveMicMonitor, speakQuestionText, getLatestAssistantQuestionText, ensureInterviewStarted, startListening, sessionAudioRecorder, updateVoiceNetworkQuality]);
-
-  const handleRequestPermission = useCallback(async () => {
-    setVoiceState('requesting_permission');
-    setVoiceStatus(buildVoiceStatus('info', 'Requesting microphone access', 'Allow microphone access so the duplex voice interview can listen.'));
-    const result = await requestPermission();
-    if (result.ok) setReadyState();
-    else {
-      setVoiceState('permission_denied');
-      setVoiceStatus(buildVoiceStatus('error', 'Microphone blocked', result.error || 'Microphone access is required.'));
-    }
-  }, [requestPermission, setReadyState]);
-
-  const handleReplayAssistantAudio = useCallback(() => {
-    ensureDuplexConnected().then(() => speakCurrentQuestion({ repeatOnly: true })).catch(() => {});
-    return true;
-  }, [ensureDuplexConnected, speakCurrentQuestion]);
-
-  const handleResetShell = useCallback(async () => {
-    autoLoopActiveRef.current = false;
-    setIsAutoLoopActive(false);
-    stopLatencyAcknowledgement();
-    audioQueue.clearQueue();
-    clearPendingBargeIn();
-    vad.stopVad?.();
-    await sessionAudioRecorder.stopCurrentSegment();
-    await stopStream();
-    closeDuplexSocket();
-    setTranscriptionPreview('');
-    setPendingTranscript(null);
-    setLastTranscriptRejection(null);
-    setIsVoiceTakingLong(false);
-    setEditableTranscript('');
-    setLastAsrConfidence(null);
-    setAssistantTextPreview('');
-    latestFirstAudioDelayRef.current = null;
-    consecutiveSlowTurnsRef.current = 0;
-    updateVoiceNetworkQuality({ firstAudioDelayMs: null, consecutiveSlowTurns: 0 });
+  const startVoiceSession = useCallback(async ({ language = 'en-NZ', voiceName = 'en-NZ-MollyNeural' } = {}) => {
+    if (!sessionId) return;
+    await audioQueue.unlockAudio();
+    await connectDuplexSocket({ sessionId, language, voiceName });
+    autoLoopActiveRef.current = true;
+    setIsAutoLoopActive(true);
     setReadyState();
-  }, [audioQueue, clearPendingBargeIn, vad, stopStream, closeDuplexSocket, setReadyState, sessionAudioRecorder, stopLatencyAcknowledgement, updateVoiceNetworkQuality]);
+  }, [audioQueue, connectDuplexSocket, sessionId, setReadyState]);
 
-  const handleRetryVoice = useCallback(async () => {
-    await handleResetShell();
-    if (!isCompleted && !isPaused) {
-      window.setTimeout(() => {
-        handleToggleRecording();
-      }, 300); // Give the sockets and mic a moment to fully close before reopening
-    }
-  }, [handleResetShell, handleToggleRecording, isCompleted, isPaused]);
-
-  const uploadRecordingIfAvailable = useCallback(async () => {
-    const recordingBlob = await sessionAudioRecorder.getCombinedRecording();
-    if (!recordingBlob || !activeSessionId) return null;
-
-    setRecordingStatus({ state: 'uploading', error: null });
-    try {
-      const result = await uploadSessionRecording({ sessionId: activeSessionId, audioBlob: recordingBlob });
-      setRecordingStatus({ state: 'ready', error: null });
-      return result;
-    } catch (error) {
-      setRecordingStatus({ state: 'failed', error: error.message || 'Could not save MP3 recording.' });
-      return null;
-    }
-  }, [activeSessionId, sessionAudioRecorder]);
-
-  const stopVoiceSession = useCallback(async (reason = 'manual_end') => {
+  const stopVoiceSession = useCallback(() => {
     autoLoopActiveRef.current = false;
     setIsAutoLoopActive(false);
-    setVoiceState('ending');
-    setVoiceStatus(buildVoiceStatus('info', 'Stopping voice session', 'Microphone, audio, and voice connection are being closed.'));
-
     stopLatencyAcknowledgement();
     audioQueue.clearQueue();
-    clearPendingBargeIn();
     vad.stopVad?.();
+    stopStream();
     stopSession();
-    await uploadRecordingIfAvailable();
-    await stopStream();
     closeDuplexSocket();
-    voiceSessionTraceRef.current?.mark('voice_session_stopped', { reason });
-  }, [audioQueue, clearPendingBargeIn, vad, stopSession, uploadRecordingIfAvailable, stopStream, closeDuplexSocket, stopLatencyAcknowledgement]);
+    setReadyState();
+  }, [audioQueue, closeDuplexSocket, setReadyState, stopLatencyAcknowledgement, stopSession, stopStream, vad]);
 
-  useEffect(() => {
-    if (!enabled || !isCompleted || completedCleanupDoneRef.current) return;
-    if (!isAutoLoopActive && !isMicStreaming && !sessionAudioRecorder.isRecordingSessionAudio) return;
-
-    completedCleanupDoneRef.current = true;
-    stopVoiceSession('session_completed').catch((error) => {
-      setRecordingStatus({
-        state: 'failed',
-        error: error.message || 'Could not finalise the MP3 recording.',
-      });
-    });
-  }, [enabled, isCompleted, isAutoLoopActive, isMicStreaming, sessionAudioRecorder.isRecordingSessionAudio, stopVoiceSession]);
-
-  useEffect(() => {
-    if (!isCompleted) completedCleanupDoneRef.current = false;
-  }, [isCompleted]);
-
-  useEffect(() => {
-    if (isPaused && isAutoLoopActive) {
-      handleResetShell();
-    }
-  }, [isPaused, isAutoLoopActive, handleResetShell]);
-
-  useEffect(() => {
-    if (permissionState === 'granted' && voiceState === 'idle') setReadyState();
-  }, [permissionState, voiceState, setReadyState]);
-
-  useEffect(() => {
-    if (partialTranscript) setTranscriptionPreview(partialTranscript);
-  }, [partialTranscript]);
-
-  useEffect(() => {
-    if (!finalTranscript?.displayText) return;
-    console.log(`[FRONTEND-STT-TRACE] Final transcript segment received:`, finalTranscript.displayText);
-    activeVoiceTurnTraceRef.current?.mark('final_transcript_received', {
-      source: finalTranscript.type || 'duplex_socket',
-      confidence: finalTranscript.confidence ?? null,
-    });
-    setTranscriptionPreview(finalTranscript.displayText);
-    setPendingTranscript(finalTranscript);
-    setEditableTranscript(finalTranscript.displayText);
-    setLastAsrConfidence(finalTranscript.confidence ?? null);
-  }, [finalTranscript]);
-
-  useEffect(() => {
-    if (!socketError) return;
-    stopLatencyAcknowledgement();
-    setVoiceState('error');
-    setVoiceStatus(buildVoiceStatus('error', 'Duplex voice failed', socketError));
-  }, [socketError, stopLatencyAcknowledgement]);
-
-  useEffect(() => {
-    latestSocketLatencyRef.current = duplexLatency || {};
-    updateVoiceNetworkQuality();
-  }, [duplexLatency, updateVoiceNetworkQuality]);
-
-  useEffect(() => {
-    if (!isAutoLoopActive || !['open', 'ready', 'listening'].includes(duplexSocketState)) return undefined;
-    sendPing?.();
-    const timer = window.setInterval(() => sendPing?.(), NETWORK_PING_INTERVAL_MS);
-    return () => window.clearInterval(timer);
-  }, [duplexSocketState, isAutoLoopActive, sendPing]);
-
-  useEffect(() => {
-    if (!isProcessingTurn || voiceState !== 'agent_thinking') {
-      setIsVoiceTakingLong(false);
-      return undefined;
-    }
-
-    const timer = window.setTimeout(() => {
-      setIsVoiceTakingLong(true);
-    }, SLOW_PROCESSING_WARNING_MS);
-
-    return () => window.clearTimeout(timer);
-  }, [isProcessingTurn, voiceState]);
-
-  useEffect(() => {
-    cleanupRef.current = () => {
-      stopLatencyAcknowledgement();
-      audioQueue.clearQueue();
-      clearPendingBargeIn();
-      vad.stopVad?.();
-      sessionAudioRecorder.resetRecording();
-      stopStream();
-      closeDuplexSocket();
-    };
-  }, [audioQueue, clearPendingBargeIn, vad, stopStream, closeDuplexSocket, sessionAudioRecorder, stopLatencyAcknowledgement]);
-
-  useEffect(() => () => cleanupRef.current?.(), []);
-
-  const stateLabel = useMemo(() => {
-    switch (voiceState) {
-      case 'requesting_permission': return 'Requesting mic access';
-      case 'permission_denied': return 'Microphone blocked';
-      case 'ready': return 'Duplex voice ready';
-      case 'starting': return 'Starting duplex voice';
-      case 'ai_speaking': return 'KiwiCoach speaking';
-      case 'arming_mic': return 'Opening microphone';
-      case 'listening': return 'Listening';
-      case 'user_speaking': return 'Answering';
-      case 'interrupted': return 'Interrupted';
-      case 'agent_thinking': return 'Processing answer';
-      case 'repair_prompt': return 'Please repeat';
-      case 'ending': return 'Ending voice session';
-      case 'error': return 'Voice error';
-      default: return 'Idle';
-    }
-  }, [voiceState]);
-
-  const liveTranscript = useMemo(() => (session?.transcript || []).slice(-8), [session?.transcript]);
-  const isRecording = isMicStreaming || ['listening', 'user_speaking', 'interrupted'].includes(voiceState);
-  const canUseVoice = enabled && !isPaused && !isCompleted && (!isSubmitting || isAutoLoopActive) && (!isProcessingTurn || isAutoLoopActive);
-
-  return {
-    currentQuestion,
-    latestUserTurn,
-    liveTranscript,
-    permissionState,
-    permissionError,
-    isRequesting,
-    isSupported,
-    stateLabel,
+  return useMemo(() => ({
     voiceState,
     voiceStatus,
-    voiceMode: 'duplex',
-    realtimeStatus: duplexSocketState,
-    realtimeLatency: duplexLatency,
-    vadState: vad.vadState,
-    vadMetrics: vad.vadMetrics,
     isAutoLoopActive,
+    isVoiceTakingLong,
     pendingTranscript,
     editableTranscript,
-    setEditableTranscript,
-    isRecording,
-    isProcessingTurn,
-    isVoiceTakingLong,
-    voiceNetworkQuality,
-    canUseVoice,
-    recordingStatus,
-    lastTranscriptRejection,
-    levelHistory: micLevelHistory,
-    recordingDurationMs: micDurationMs,
-    recordingDurationLabel: formatDurationLabel(micDurationMs),
-    transcriptionPreview: transcriptionPreview || assistantTextPreview,
-    assistantAudioUrl: audioQueue.assistantAudioUrl,
-    playbackError: audioQueue.playbackError,
-    audioRef: audioQueue.audioRef,
+    assistantTextPreview,
     lastAsrConfidence,
-    manualAudioFile: null,
-    backupText: '',
-    isBackupExpanded: false,
-    handleRequestPermission,
-    handleToggleRecording,
-    handleRecordAgain: () => setReadyState(),
-    handleReplayAssistantAudio,
-    handleResetShell,
-    handleRetryVoice,
+    lastTranscriptRejection,
+    duplexSocketState,
+    partialTranscript,
+    finalTranscript,
+    socketError,
+    duplexLatency,
+    isMicStreaming,
+    micLevelHistory,
+    micDurationMs,
+    latestFirstAudioDelayMs: latestFirstAudioDelayRef.current,
+    audioRef: audioQueue.audioRef,
+    startVoiceSession,
     stopVoiceSession,
-    handleAudioFileSelect: () => {},
-    handleSubmitSelectedAudio: () => {},
-    setBackupText: () => {},
-    setIsBackupExpanded: () => {},
-    onPause,
-    onRepeat,
-    onEnd,
-  };
+    speakText,
+    sendPing,
+    setEditableTranscript,
+  }), [
+    voiceState,
+    voiceStatus,
+    isAutoLoopActive,
+    isVoiceTakingLong,
+    pendingTranscript,
+    editableTranscript,
+    assistantTextPreview,
+    lastAsrConfidence,
+    lastTranscriptRejection,
+    duplexSocketState,
+    partialTranscript,
+    finalTranscript,
+    socketError,
+    duplexLatency,
+    isMicStreaming,
+    micLevelHistory,
+    micDurationMs,
+    audioQueue.audioRef,
+    startVoiceSession,
+    stopVoiceSession,
+    speakText,
+    sendPing,
+  ]);
 }
