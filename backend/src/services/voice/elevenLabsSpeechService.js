@@ -11,7 +11,7 @@ import { AppError, badRequest } from '../../utils/appError.js';
 import { recordSpeechUsage } from '../aiUsageTrackingService.js';
 
 const DEFAULT_MODEL_ID = process.env.ELEVENLABS_MODEL_ID || 'eleven_turbo_v2_5';
-const DEFAULT_OUTPUT_FORMAT = process.env.ELEVENLABS_OUTPUT_FORMAT || 'mp3_22050_32';
+const DEFAULT_OUTPUT_FORMAT = 'mp3_22050_32';
 
 const numberFromEnv = (key, fallback) => {
   const value = Number(process.env[key]);
@@ -23,6 +23,8 @@ const booleanFromEnv = (key, fallback) => {
   if (value == null || value === '') return fallback;
   return String(value).toLowerCase() !== 'false';
 };
+
+const getDefaultOutputFormat = () => process.env.ELEVENLABS_OUTPUT_FORMAT || DEFAULT_OUTPUT_FORMAT;
 
 const getElevenLabsConfig = ({ voiceName } = {}) => {
   const apiKey = process.env.ELEVENLABS_API_KEY;
@@ -119,7 +121,7 @@ const requestElevenLabsStream = async ({ trimmedText, voiceName, outputFormat })
 export const streamSynthesizeSpeech = async function* ({
   text,
   voiceName,
-  outputFormat = DEFAULT_OUTPUT_FORMAT,
+  outputFormat = getDefaultOutputFormat(),
   usageContext = null,
 } = {}) {
   const trimmedText = String(text || '').trim();
@@ -185,7 +187,7 @@ export const streamSynthesizeSpeech = async function* ({
 export const synthesizeSpeech = async ({
   text,
   voiceName,
-  outputFormat = DEFAULT_OUTPUT_FORMAT,
+  outputFormat = getDefaultOutputFormat(),
   usageContext = null,
 } = {}) => {
   const trimmedText = String(text || '').trim();

@@ -4,6 +4,8 @@ const { realtimeState, processFinalTranscriptMock } = vi.hoisted(() => ({
   realtimeState: {
     config: null,
     session: null,
+    stopFail: false,
+    stopHang: false,
   },
   processFinalTranscriptMock: vi.fn(),
 }));
@@ -13,7 +15,10 @@ vi.mock('../../../src/services/voice/realtimeSpeechSessionService.js', () => ({
     realtimeState.config = config;
     realtimeState.session = {
       start: vi.fn().mockResolvedValue(undefined),
-      stop: vi.fn().mockResolvedValue(undefined),
+      stop: vi.fn(async () => {
+        if (realtimeState.stopFail) throw new Error('stt final timeout');
+        if (realtimeState.stopHang) return new Promise(() => {});
+      }),
       writeAudio: vi.fn(),
     };
     return realtimeState.session;
@@ -36,6 +41,9 @@ describe('duplex voice buffered turn handling', () => {
   beforeEach(() => {
     realtimeState.config = null;
     realtimeState.session = null;
+    realtimeState.stopFail = false;
+    realtimeState.stopHang = false;
+    delete process.env.VOICE_STT_TURN_STOP_TIMEOUT_MS;
     processFinalTranscriptMock.mockReset();
     processFinalTranscriptMock.mockResolvedValue({ updatedSession: { id: 'session-1' } });
   });
@@ -67,5 +75,91 @@ describe('duplex voice buffered turn handling', () => {
       vad: expect.objectContaining({ speechDurationMs: 8200, sttSegmentCount: 2, sttSource: 'final_segments' }),
     }));
     expect(sent.some((payload) => payload.type === 'stt_final')).toBe(true);
+  });
+
+  it('still hands the turn to transcript repair when STT stop fails before a final segment', async () => {
+    const sent = [];
+    realtimeState.stopFail = true;
+    const duplexSession = createDuplexVoiceAgentSession({
+      socket: {},
+      context: { language: 'en-NZ', sampleRate: 16000 },
+      session: { id: 'session-1' },
+      userId: 'user-1',
+      logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+      sendJson: (payload) => sent.push(payload),
+    });
+
+    await duplexSession.handleJsonMessage({ type: 'speech_start' });
+    await duplexSession.handleJsonMessage({ type: 'speech_end', vad: { speechDurationMs: 4200 } });
+
+    expect(processFinalTranscriptMock).toHaveBeenCalledTimes(1);
+    expect(processFinalTranscriptMock).toHaveBeenCalledWith(expect.objectContaining({
+      transcriptText: '',
+      asrConfidence: null,
+      vad: expect.objectContaining({
+        speechDurationMs: 4200,
+        sttSegmentCount: 0,
+        sttStopError: 'stt final timeout',
+      }),
+    }));
+  });
+
+  it('does not let a hung STT stop block turn repair', async () => {
+    const sent = [];
+    realtimeState.stopHang = true;
+    process.env.VOICE_STT_TURN_STOP_TIMEOUT_MS = '5';
+    const duplexSession = createDuplexVoiceAgentSession({
+      socket: {},
+      context: { language: 'en-NZ', sampleRate: 16000 },
+      session: { id: 'session-1' },
+      userId: 'user-1',
+      logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+      sendJson: (payload) => sent.push(payload),
+    });
+
+    await duplexSession.handleJsonMessage({ type: 'speech_start' });
+    await duplexSession.handleJsonMessage({ type: 'speech_end', vad: { speechDurationMs: 5100 } });
+
+    expect(processFinalTranscriptMock).toHaveBeenCalledTimes(1);
+    expect(processFinalTranscriptMock).toHaveBeenCalledWith(expect.objectContaining({
+      transcriptText: '',
+      asrConfidence: null,
+      vad: expect.objectContaining({
+        speechDurationMs: 5100,
+        sttSegmentCount: 0,
+        sttStopError: 'Timed out waiting 5ms for realtime STT stop/finalize.',
+      }),
+    }));
+  });
+
+  it('uses the latest partial transcript when ElevenLabs VAD has not committed a final segment yet', async () => {
+    const sent = [];
+    const duplexSession = createDuplexVoiceAgentSession({
+      socket: {},
+      context: { language: 'en-NZ', sampleRate: 16000 },
+      session: { id: 'session-1' },
+      userId: 'user-1',
+      logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+      sendJson: (payload) => sent.push(payload),
+    });
+
+    await duplexSession.handleJsonMessage({ type: 'speech_start' });
+    realtimeState.config.onPartialTranscript({
+      text: 'I improved the support workflow by automating reports and checking results with stakeholders',
+      provider: 'elevenlabs_realtime',
+    });
+    await duplexSession.handleJsonMessage({ type: 'speech_end', vad: { speechDurationMs: 6500 } });
+
+    expect(processFinalTranscriptMock).toHaveBeenCalledTimes(1);
+    expect(processFinalTranscriptMock).toHaveBeenCalledWith(expect.objectContaining({
+      transcriptText: 'I improved the support workflow by automating reports and checking results with stakeholders',
+      vad: expect.objectContaining({
+        speechDurationMs: 6500,
+        sttSegmentCount: 1,
+        sttSource: 'partial_fallback',
+        usedPartialFallback: true,
+      }),
+    }));
+    expect(sent.some((payload) => payload.type === 'stt_partial')).toBe(true);
   });
 });

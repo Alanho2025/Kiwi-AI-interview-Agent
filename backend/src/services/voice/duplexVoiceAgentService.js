@@ -13,6 +13,13 @@ import { createDuplexTurnCoordinator } from './duplexTurnCoordinator.js';
 import { buildSessionSpeechPhraseList } from './speechPhraseHintService.js';
 import { AGENT_TOOL_NAMES } from '../../constants/agentToolNames.js';
 
+const DEFAULT_SPEECH_STOP_TIMEOUT_MS = 2500;
+
+const parsePositiveInteger = (value, fallback) => {
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+};
+
 const normalizeTranscriptText = (payload = {}) => String(
   payload.displayText || payload.normalizedText || payload.text || payload.rawText || ''
 ).trim();
@@ -36,6 +43,24 @@ const averageConfidence = (segments = []) => {
   return scores.reduce((sum, score) => sum + score, 0) / scores.length;
 };
 
+const resolveAsrSource = ({ segments = [], providerName = null } = {}) => {
+  const provider = segments.find((segment) => segment?.provider)?.provider || providerName || 'unknown_realtime';
+  return String(provider).trim().toLowerCase().replace(/-/g, '_');
+};
+
+const withTimeout = (promise, timeoutMs, message) => new Promise((resolve, reject) => {
+  const timer = setTimeout(() => reject(new Error(message)), timeoutMs);
+  promise
+    .then((value) => {
+      clearTimeout(timer);
+      resolve(value);
+    })
+    .catch((error) => {
+      clearTimeout(timer);
+      reject(error);
+    });
+});
+
 export const createDuplexVoiceAgentSession = ({
   context,
   session,
@@ -50,16 +75,22 @@ export const createDuplexVoiceAgentSession = ({
   const language = context?.language || 'en-NZ';
   const sampleRate = context?.sampleRate || 16000;
   const voiceName = context?.voiceName || undefined;
+  const speechStopTimeoutMs = parsePositiveInteger(process.env.VOICE_STT_TURN_STOP_TIMEOUT_MS, DEFAULT_SPEECH_STOP_TIMEOUT_MS);
   const bargeInController = createBargeInController({ sendJson, logger, sessionId: session?.id });
   let finalTranscriptSegments = [];
+  let latestPartialTranscript = null;
   let isProcessingBufferedTurn = false;
+  let activeSttProviderName = null;
+  let speechCaptureSequence = 0;
+  let activeSpeechCaptureId = 0;
 
-  const processFinalTranscript = async ({ transcriptText, asrConfidence, vad }) => {
+  const processFinalTranscript = async ({ transcriptText, asrConfidence, asrSource, vad }) => {
     const turnCoordinator = createDuplexTurnCoordinator({
       session: activeSession,
       userId,
       voiceName,
       language,
+      asrSource,
       sendJson,
       bargeInController,
       logger,
@@ -95,6 +126,9 @@ export const createDuplexVoiceAgentSession = ({
 
     sessionStartPromise = (async () => {
       const extraPhrases = buildSessionSpeechPhraseList(activeSession);
+      const captureId = speechCaptureSequence + 1;
+      speechCaptureSequence = captureId;
+      activeSpeechCaptureId = captureId;
       const newSession = createRoutedRealtimeSpeechSession({
         language,
         sampleRate,
@@ -105,12 +139,18 @@ export const createDuplexVoiceAgentSession = ({
           stage: 'interview',
           source: 'duplex_voice_stt',
         },
-        onPartialTranscript: (payload) => sendJson({
-          ...payload,
-          type: 'stt_partial',
-          tool: AGENT_TOOL_NAMES.TRANSCRIBE_REALTIME_SPEECH,
-        }),
+        onPartialTranscript: (payload) => {
+          if (captureId !== activeSpeechCaptureId) return;
+          const text = normalizeTranscriptText(payload);
+          if (text) latestPartialTranscript = payload;
+          sendJson({
+            ...payload,
+            type: 'stt_partial',
+            tool: AGENT_TOOL_NAMES.TRANSCRIBE_REALTIME_SPEECH,
+          });
+        },
         onFinalTranscript: async (payload) => {
+          if (captureId !== activeSpeechCaptureId) return;
           const text = normalizeTranscriptText(payload);
           sendJson({
             ...payload,
@@ -142,6 +182,7 @@ export const createDuplexVoiceAgentSession = ({
       speechSession = newSession;
       await newSession.start();
       isSpeechSessionStarted = true;
+      activeSttProviderName = newSession.providerName;
       logger?.info?.('Duplex speech session started with phrase hints', {
         sessionId: activeSession?.id || session?.id,
         sttProvider: newSession.providerName,
@@ -174,20 +215,42 @@ export const createDuplexVoiceAgentSession = ({
 
     if (payload.type === 'speech_end') {
       context.lastVad = payload.vad || null;
-      await stopSpeechSession();
-      const segmentsToProcess = finalTranscriptSegments;
+      let speechStopError = null;
+      try {
+        await withTimeout(
+          stopSpeechSession(),
+          speechStopTimeoutMs,
+          `Timed out waiting ${speechStopTimeoutMs}ms for realtime STT stop/finalize.`
+        );
+      } catch (error) {
+        speechStopError = error;
+        logger?.warn?.('Duplex speech session stop failed; processing buffered transcript if available', {
+          sessionId: activeSession?.id || session?.id,
+          sttProvider: activeSttProviderName,
+          error: error?.message || String(error),
+        });
+      }
+      activeSpeechCaptureId = 0;
+      const partialFallback = finalTranscriptSegments.length ? null : latestPartialTranscript;
+      const segmentsToProcess = partialFallback ? [partialFallback] : finalTranscriptSegments;
       finalTranscriptSegments = [];
+      latestPartialTranscript = null;
       const transcriptText = mergeTranscriptSegments(segmentsToProcess);
+      const asrSource = resolveAsrSource({ segments: segmentsToProcess, providerName: activeSttProviderName });
       if (isProcessingBufferedTurn) return;
       isProcessingBufferedTurn = true;
       try {
         await processFinalTranscript({
           transcriptText,
           asrConfidence: averageConfidence(segmentsToProcess),
+          asrSource,
           vad: {
             ...(context.lastVad || {}),
             sttSegmentCount: segmentsToProcess.length,
-            sttSource: 'final_segments',
+            sttSource: partialFallback ? 'partial_fallback' : 'final_segments',
+            sttProvider: activeSttProviderName,
+            sttStopError: speechStopError?.message || null,
+            usedPartialFallback: Boolean(partialFallback),
           },
         });
       } catch (error) {
