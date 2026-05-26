@@ -1,42 +1,19 @@
-import { buildDeterministicEmbedding, cosineSimilarity } from '../embeddingService.js';
 import { normalizeTaxonomyLabel } from '../taxonomyService.js';
 import { rankEvidenceWithSentenceTransformers } from '../pythonNlpService.js';
-import { normalizeText, tokenize, unique } from './matchShared.js';
+import { rankSemanticEvidence } from './semanticMatchService.js';
 
 const TOP_K = 3;
-const SEMANTIC_ALIAS_MAP = {
-  'api development': ['rest endpoints', 'rest api', 'api endpoints', 'backend endpoints', 'endpoint development'],
-  'rest endpoints': ['api development', 'rest api', 'api endpoints'],
-  'data modelling': ['data modeling', 'dimensional modelling', 'dimensional modeling', 'data model'],
-  'vector search': ['semantic retrieval', 'embedding search', 'vector database'],
-  'semantic retrieval': ['vector search', 'embedding retrieval', 'retrieval augmented generation'],
-  'commercial experience': ['professional experience', 'production experience', 'work experience'],
-  'professional experience': ['commercial experience', 'production experience', 'work experience'],
-};
-
 const SCORE_FLOOR = 0.24;
-
-const expandSemanticAliases = (text = '') => {
-  const normalized = normalizeText(text);
-  const additions = [];
-  for (const [label, aliases] of Object.entries(SEMANTIC_ALIAS_MAP)) {
-    if (normalized.includes(label) || aliases.some((alias) => normalized.includes(alias))) {
-      additions.push(label, ...aliases);
-    }
-  }
-  return unique([text, ...additions]).join(' ');
-};
-
-const overlapScore = (requirementText = '', evidenceText = '') => {
-  const requirementTokens = unique(tokenize(expandSemanticAliases(requirementText))
-    .filter((token) => token.length > 1 && !['and', 'or', 'the', 'with', 'for', 'from', 'experience', 'development'].includes(token)));
-  const evidenceTokens = new Set(tokenize(expandSemanticAliases(evidenceText)));
-  if (!requirementTokens.length || !evidenceTokens.size) return 0;
-  return requirementTokens.filter((token) => evidenceTokens.has(token)).length / requirementTokens.length;
-};
 
 const buildRequirementCandidates = (rubric = {}) => {
   const candidates = [
+    ...(rubric.universalRoleProfile?.requirements || []).map((item) => ({
+      id: item.id || `universal:${normalizeTaxonomyLabel(item.text || item.label)}`,
+      label: item.text || item.label,
+      text: item.evidenceNeeded ? `${item.text || item.label}. Evidence needed: ${item.evidenceNeeded}` : (item.text || item.label),
+      category: item.category,
+      sourceType: 'universal_requirement',
+    })),
     ...(rubric.requirements || []).map((item) => ({ id: `requirement:${item.id || normalizeTaxonomyLabel(item.label)}`, label: item.label, text: item.label, sourceType: 'requirement' })),
     ...(rubric.microCriteria || []).map((item) => ({ id: `micro:${item.id || normalizeTaxonomyLabel(item.label)}`, label: item.label, text: item.label, sourceType: 'micro' })),
     ...(rubric.macroCriteria || []).map((item) => ({ id: `macro:${item.id || normalizeTaxonomyLabel(item.label)}`, label: item.label, text: item.label, sourceType: 'macro' })),
@@ -58,43 +35,16 @@ const buildEvidenceCandidates = (evidenceProfile = {}) => {
       id: item.id || `evidence:${index}`,
       text: item.text || '',
       sourceType: item.sourceType || '',
+      section: item.section || '',
+      chunkId: item.chunkId || item.id || `cv_${index + 1}`,
       projectTitle: item.projectTitle || '',
       evidenceStrength: item.evidenceStrength || 'weak',
+      tools: item.tools || [],
+      domain: item.domain || '',
+      responsibilitySignal: Boolean(item.responsibilitySignal),
+      achievementSignal: Boolean(item.achievementSignal),
     }))
     .filter((item) => item.text.trim());
-};
-
-const rankWithDeterministicEmbeddings = ({ requirements = [], evidence = [] }) => {
-  const evidenceVectors = evidence.map((item) => buildDeterministicEmbedding(expandSemanticAliases(item.text)));
-  return {
-    model: 'weighted_hash_ngram_v2',
-    scorer: 'deterministic-fallback',
-    matches: requirements.map((requirement) => {
-      const requirementText = expandSemanticAliases(requirement.text || requirement.label);
-      const requirementVector = buildDeterministicEmbedding(requirementText);
-      const matches = evidence
-        .map((item, index) => {
-          const cosine = cosineSimilarity(requirementVector, evidenceVectors[index]);
-          const overlap = overlapScore(requirement.text || requirement.label, item.text);
-          return {
-            evidenceId: item.id,
-            text: item.text,
-            sourceType: item.sourceType,
-            projectTitle: item.projectTitle,
-            evidenceStrength: item.evidenceStrength,
-            score: Math.max(cosine, overlap),
-          };
-        })
-        .sort((left, right) => right.score - left.score)
-        .slice(0, TOP_K);
-
-      return {
-        requirementId: requirement.id,
-        label: requirement.label,
-        matches,
-      };
-    }),
-  };
 };
 
 const toMatchMap = (ranked = {}) => {
@@ -130,8 +80,10 @@ export const buildSemanticEvidenceContext = async ({ rubric = {}, evidenceProfil
     };
   }
 
-  const pythonRanked = await rankEvidenceWithSentenceTransformers({ requirements, evidence, topK: TOP_K });
-  const ranked = pythonRanked || rankWithDeterministicEmbeddings({ requirements, evidence });
+  const pythonRanked = process.env.MATCH_ENGINE === 'semantic'
+    ? null
+    : await rankEvidenceWithSentenceTransformers({ requirements, evidence, topK: TOP_K });
+  const ranked = pythonRanked || await rankSemanticEvidence({ requirements, evidence, topK: TOP_K, minScore: SCORE_FLOOR });
   const { byLabel, matches } = toMatchMap(ranked);
 
   return {
@@ -140,6 +92,7 @@ export const buildSemanticEvidenceContext = async ({ rubric = {}, evidenceProfil
     matches,
     byLabel,
     evidenceStrengthBreakdown: summarizeEvidenceStrength(matches),
+    providerError: ranked.providerError,
   };
 };
 

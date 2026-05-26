@@ -70,7 +70,7 @@ export function VoiceInterviewPanel({
   const voiceActionDisabled = !canUseVoice || isCompleted;
   const connectionLabel = resolveUserFacingConnectionLabel({ isCompleted, permissionState, realtimeStatus });
   const displayedVoiceStatus = isCompleted
-    ? { type: 'success', title: 'Interview ended', message: 'Your voice session is saved. Review the report or export the transcript when ready.' }
+    ? { type: 'success', title: 'Interview ended', message: 'Your session is saved. Review the report or export the transcript when you are ready.' }
     : voiceStatus;
   const hasVoiceError = voiceState === 'error' || displayedVoiceStatus?.type === 'error';
   const shouldShowRecovery = !isCompleted && (Boolean(lastTranscriptRejection) || Boolean(isVoiceTakingLong) || hasVoiceError);
@@ -79,15 +79,15 @@ export function VoiceInterviewPanel({
     ? 'border-amber-200 bg-amber-50 text-amber-900'
     : 'border-sky-200 bg-sky-50 text-sky-800';
   const recoveryTitle = lastTranscriptRejection
-    ? 'Voice did not catch that clearly'
+    ? 'Speech was not captured clearly'
     : isVoiceTakingLong
       ? 'Voice is taking longer than expected'
-      : 'Voice connection had an issue';
+      : 'Voice connection needs attention';
   const recoveryMessage = lastTranscriptRejection
-    ? 'Answer again so KiwiCoach scores what you actually said. Your accent is not scored.'
+    ? 'Try again or answer by text. Your accent is not scored.'
     : isVoiceTakingLong
-      ? 'You can keep waiting, restart voice, or answer this question by text.'
-      : 'Restart the voice connection, or use text for this question and continue the session.';
+      ? 'Keep waiting, restart voice, or answer this question by text.'
+      : 'Restart voice, or use text for this question and continue the session.';
   const submitTextFallback = () => {
     const cleanText = textFallback.trim();
     if (!cleanText || isSubmitting) return;
@@ -100,7 +100,7 @@ export function VoiceInterviewPanel({
     <div className="flex h-full min-h-0 flex-col space-y-4">
       {!isCompleted ? (
         <div className="shrink-0 rounded-xl border border-theme glass px-4 py-3 text-xs leading-5 text-muted shadow-sm">
-          <span className="font-semibold text-primary">Scoring note:</span> KiwiCoach scores answer content and communication clarity, not whether you sound native. If voice recognition fails, you can retry or answer by text.
+          <span className="font-semibold text-primary">Scoring note:</span> Kiwi Coach scores your answer content and communication clarity, not whether you sound native. Retry or answer by text if speech recognition misses your answer.
         </div>
       ) : null}
 
@@ -149,7 +149,7 @@ export function VoiceInterviewPanel({
                 value={textFallback}
                 onChange={(event) => setTextFallback(event.target.value)}
                 rows={3}
-                placeholder="Type the answer you would give for this question..."
+                placeholder="Type the answer you want to give for this question..."
                 disabled={isSubmitting}
               />
               <div className="mt-3 flex justify-end">
@@ -203,7 +203,7 @@ export function VoiceInterviewPanel({
                 value={textFallback}
                 onChange={(event) => setTextFallback(event.target.value)}
                 rows={3}
-                placeholder="Type the answer you would give for this question..."
+                placeholder="Type the answer you want to give for this question..."
                 disabled={isSubmitting}
               />
               <div className="mt-3 flex justify-end">
@@ -247,7 +247,7 @@ export function VoiceInterviewPanel({
               {isCompleted ? (
                 <>
                   <p className="text-lg font-semibold text-emerald-700">Interview ended</p>
-                  <p className="mt-1 text-sm text-emerald-600">Live voice controls are closed for this session.</p>
+                  <p className="mt-1 text-sm text-emerald-600">Review your report or export the transcript when you are ready.</p>
                 </>
               ) : isAutoLoopActive ? (
                 isRecording ? (
@@ -258,13 +258,13 @@ export function VoiceInterviewPanel({
                 ) : (
                   <>
                     <p className="text-lg font-bold text-sky-600">{stateLabel}</p>
-                    <p className="mt-1 text-sm text-faint">Please wait for your turn</p>
+                    <p className="mt-1 text-sm text-faint">Wait for the listening state before answering.</p>
                   </>
                 )
               ) : (
                 <>
                   <p className="text-lg font-bold text-muted">Ready to begin</p>
-                  <p className="mt-1 text-sm text-faint">Click the microphone to start the interview</p>
+                  <p className="mt-1 text-sm text-faint">Click the microphone to start voice practice.</p>
                 </>
               )}
             </div>
@@ -296,14 +296,14 @@ export function VoiceInterviewPanel({
           <div className={cn('shrink-0 border-t p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] transition-colors', isPaused ? 'bg-amber-50 border-amber-200' : 'glass border-gray-100')}>
             {isPaused ? (
             <div className="flex flex-col items-center justify-center py-3">
-              <p className="text-lg font-semibold text-amber-700">Interview Paused</p>
-              <p className="mt-1 text-sm text-amber-600">Click Resume to continue your interview.</p>
+              <p className="text-lg font-semibold text-amber-700">Interview paused</p>
+              <p className="mt-1 text-sm text-amber-600">Click Resume when you are ready to continue.</p>
             </div>
             ) : (
             <>
-              <p className="mb-2 text-xs font-medium uppercase tracking-wider text-faint">Voice-only question mode</p>
+              <p className="mb-2 text-xs font-medium uppercase tracking-wider text-faint">Voice practice mode</p>
               <p className="text-lg font-medium leading-7 text-primary pr-2">
-                {isNotStarted ? 'Click the mic button when you are ready. The timer starts only after Voice Interview begins.' : (currentQuestionText ? 'Listen to KiwiCoach. Start speaking if you need to interrupt, or answer when the listening state appears.' : 'Waiting for the interviewer voice.')}
+                {isNotStarted ? 'Click the microphone when you are ready. The timer starts after voice practice begins.' : (currentQuestionText ? 'Listen to Kiwi Coach. Answer when the listening state appears. Use replay or text fallback if needed.' : 'Waiting for the next interviewer question.')}
               </p>
             </>
             )}
@@ -313,7 +313,7 @@ export function VoiceInterviewPanel({
         <div className="sticky bottom-0 z-20 shrink-0 border-t border-theme glass p-4 shadow-[0_-8px_20px_rgba(15,23,42,0.08)] lg:static lg:shadow-none">
           {isCompleted ? (
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm text-faint">Live controls are closed.</p>
+              <p className="text-sm text-faint">Live voice controls are closed.</p>
               <Button variant="secondary" size="sm" onClick={handleReplayAssistantAudio} disabled={!assistantAudioUrl}>
                 <Volume2 className="mr-2 h-4 w-4" />
                 Replay audio

@@ -23,10 +23,47 @@ const EVIDENCE_STRENGTH_BY_SOURCE = {
   summary: 'weak',
 };
 
-const withEvidenceStrength = (item = {}) => ({
-  ...item,
-  evidenceStrength: EVIDENCE_STRENGTH_BY_SOURCE[item.sourceType] || 'weak',
-});
+const TOOL_PATTERN = /\b(Python|JavaScript|TypeScript|React|Node\.js|Node|Express|SQL|PostgreSQL|MongoDB|AWS|Azure|GCP|Excel|Power BI|Tableau|Salesforce|HubSpot|Figma|Docker|Kubernetes|Linux|Git|DeepSeek|OpenAI)\b/gi;
+
+const inferSection = (sourceType = '') => {
+  if (sourceType === 'summary') return 'summary';
+  if (sourceType === 'experience') return 'experience';
+  if (sourceType.startsWith('project_')) return 'projects';
+  if (sourceType === 'achievement') return 'achievements';
+  if (sourceType === 'education') return 'education';
+  if (sourceType === 'volunteer') return 'volunteer';
+  if (['skill', 'key_competency'].includes(sourceType)) return 'skills';
+  return 'other';
+};
+
+const inferDomain = (text = '') => {
+  if (/customer|client|retail|complaint|service/i.test(text)) return 'customer_service';
+  if (/marketing|campaign|content|brand|seo/i.test(text)) return 'marketing';
+  if (/health|patient|clinic|medical|nurse/i.test(text)) return 'healthcare';
+  if (/teach|student|school|education/i.test(text)) return 'education';
+  if (/finance|account|invoice|payroll/i.test(text)) return 'finance';
+  if (/data|analytics|pipeline|dashboard|sql/i.test(text)) return 'data';
+  if (/api|software|frontend|backend|app|cloud/i.test(text)) return 'software';
+  return '';
+};
+
+const extractTools = (text = '') => [...new Set((String(text || '').match(TOOL_PATTERN) || [])
+  .map((item) => item.replace(/^node$/i, 'Node.js')))];
+
+const withEvidenceStrength = (item = {}, index = 0) => {
+  const text = String(item.text || '');
+  return {
+    ...item,
+    id: item.id || `evidence:${index + 1}`,
+    chunkId: item.chunkId || `cv_${index + 1}`,
+    section: item.section || inferSection(item.sourceType),
+    evidenceStrength: EVIDENCE_STRENGTH_BY_SOURCE[item.sourceType] || 'weak',
+    tools: item.tools || extractTools(text),
+    domain: item.domain || inferDomain(text),
+    responsibilitySignal: Boolean(item.responsibilitySignal ?? /built|owned|led|managed|coordinated|supported|handled|delivered|implemented|resolved|prepared|maintained/i.test(text)),
+    achievementSignal: Boolean(item.achievementSignal ?? /\d|%|reduced|improved|increased|saved|delivered|launched|achieved/i.test(text)),
+  };
+};
 
 const extractQuantifiedEvidence = ({ achievements = [], evidenceItems = [], normalizedText = '' } = {}) => {
   const achievementTexts = achievements.map((item) => item?.text || item).filter(Boolean);

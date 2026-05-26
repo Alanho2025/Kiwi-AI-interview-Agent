@@ -111,6 +111,8 @@ const RequirementChecks = ({ items }) => {
       <p className="mt-2 text-xs leading-5 text-muted">{item.reason}</p>
       {item.evidenceStrength ? <p className="mt-2 text-xs font-semibold text-muted">Evidence strength: {item.evidenceStrength}</p> : null}
       {item.evidence ? <p className="mt-2 text-xs leading-5 text-faint">Evidence: {item.evidence}</p> : null}
+      {item.missingEvidence ? <p className="mt-2 text-xs leading-5 text-faint">Missing evidence: {item.missingEvidence}</p> : null}
+      {item.interviewProbe ? <p className="mt-2 text-xs leading-5 text-faint">Interview probe: {item.interviewProbe}</p> : null}
     </div>
   );
 

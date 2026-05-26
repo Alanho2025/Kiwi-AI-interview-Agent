@@ -204,9 +204,10 @@ function formatReportAsText(report) {
   }
 
   if (commercialStressTest) {
+    const currencyPrefix = commercialStressTest.currency === 'NZD' ? 'NZ$' : '$';
     lines.push('COMMERCIAL STRESS TEST');
     lines.push('======================');
-    lines.push(`Total Execution Cost: $${commercialStressTest.totalExecutionCost ?? 0}`);
+    lines.push(`Total Execution Cost: ${currencyPrefix}${commercialStressTest.totalExecutionCost ?? 0}`);
     lines.push(`LLM Tokens: ${commercialStressTest.totalLlmTokens ?? 0}`);
     lines.push(`Speech Usage Seconds: ${commercialStressTest.speechAudioSeconds ?? 0}`);
     const minutes = commercialStressTest.estimatedHumanMinutesReplaced || {};
