@@ -12,6 +12,19 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../common/Card.jsx';
 
+function TrustMeta({ item }) {
+  if (!item?.evidenceLabel && !item?.confidenceLevel && !item?.feedbackStatus) return null;
+  return (
+    <div className="mt-3 flex flex-wrap gap-2 text-xs">
+      {item.evidenceLabel ? <span className="rounded-full bg-white/70 px-2.5 py-1 font-medium text-emerald-900">{item.evidenceLabel}</span> : null}
+      {item.confidenceLevel ? <span className="rounded-full bg-white/70 px-2.5 py-1 font-medium text-slate-700">{item.confidenceLevel} confidence</span> : null}
+      {item.feedbackStatus ? <span className="rounded-full bg-white/70 px-2.5 py-1 font-medium text-slate-700">{item.feedbackStatus}</span> : null}
+      {item.needsUserConfirmation ? <span className="rounded-full bg-amber-100 px-2.5 py-1 font-medium text-amber-900">needs confirmation</span> : null}
+      {item.evidenceReason ? <p className="basis-full pt-1 leading-5 text-emerald-900/80">{item.evidenceReason}</p> : null}
+    </div>
+  );
+}
+
 /**
  * Purpose: Execute the main responsibility for InsightsSection.
  * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
@@ -35,7 +48,7 @@ export function InsightsSection({ dataInsights, strengthHighlights }) {
                     <p className="mt-1 text-sm leading-6 text-muted">{insight.description || insight.interpretation}</p>
                   </div>
                   <div className="rounded-lg glass px-3 py-1.5 text-sm font-medium text-muted shadow-sm">
-                    {insight.metric || insight.value || '-'}
+                    {insight.metric || insight.displayValue || (insight.value === 0 ? '0' : insight.value) || '-'}
                   </div>
                 </div>
               </div>
@@ -55,6 +68,7 @@ export function InsightsSection({ dataInsights, strengthHighlights }) {
                 <div key={item.title || item.label} className="rounded-xl bg-emerald-50 p-4">
                   <p className="text-sm font-medium text-emerald-900">{item.title || item.label || item}</p>
                   <p className="mt-1 text-sm leading-6 text-emerald-800">{item.explanation || 'This showed up as one of your clearer match signals for the role. Keep backing it up with specific examples.'}</p>
+                  <TrustMeta item={item} />
                 </div>
               ))}
             </div>

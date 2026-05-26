@@ -20,6 +20,11 @@ const buildDimensionReason = ({ label, score, turn = {} }) => {
   }
 
   if (normalizedLabel === 'logic') {
+    if (turn.starApplicable === false) {
+      if (turn.rubricType === 'self_intro') return 'Scored from introduction flow, role interest, and clarity.';
+      if (turn.rubricType === 'company_motivation') return 'Scored from company reason, role reason, and candidate evidence.';
+      return 'Scored from answer relevance, clarity, and completion.';
+    }
     if (safeScore >= 8) return 'The answer has a clear structure and is easy to follow.';
     if (safeScore >= 6) return 'The structure is understandable, but the steps could be sharper and less general.';
     return 'The answer needs a clearer setup, action, and result sequence.';
@@ -48,6 +53,70 @@ function ScoreBar({ label, score, colorClass, reason }) {
         <span className="w-8 shrink-0 text-right font-semibold text-muted">{safeScore}/10</span>
       </div>
       <p className="mt-2 pl-0 text-xs leading-5 text-slate-600 sm:pl-20">{reason}</p>
+    </div>
+  );
+}
+
+function TrustMeta({ turn }) {
+  if (!turn?.evidenceLabel && !turn?.confidenceLevel && !turn?.feedbackStatus) return null;
+  return (
+    <div className="flex flex-wrap gap-2 text-xs">
+      {turn.evidenceLabel ? <span className="rounded-full bg-white px-2.5 py-1 font-medium text-indigo-800">{turn.evidenceLabel}</span> : null}
+      {turn.confidenceLevel ? <span className="rounded-full bg-white px-2.5 py-1 font-medium text-slate-700">{turn.confidenceLevel} confidence</span> : null}
+      {turn.feedbackStatus ? <span className="rounded-full bg-white px-2.5 py-1 font-medium text-slate-700">{turn.feedbackStatus}</span> : null}
+      {turn.needsUserConfirmation ? <span className="rounded-full bg-amber-100 px-2.5 py-1 font-medium text-amber-900">needs confirmation</span> : null}
+      {turn.evidenceReason ? <p className="basis-full pt-1 leading-5 text-slate-600">{turn.evidenceReason}</p> : null}
+    </div>
+  );
+}
+
+function StructureBreakdown({ turn }) {
+  const breakdown = turn.structureBreakdown || turn.starBreakdown;
+  if (!breakdown) return null;
+  if (turn.starApplicable === false) {
+    const entries = Object.entries(breakdown)
+      .filter(([key, value]) => !['scores', 'mainMissingElement', 'scoreReason', 'totalScore', 'maxScore'].includes(key) && typeof value === 'string');
+    return (
+      <div className="rounded-xl border border-slate-100 bg-white/70 p-4">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+          <h5 className="text-xs font-semibold uppercase tracking-wider text-slate-500">{turn.structureLabel || 'Answer Structure'}</h5>
+          {breakdown.mainMissingElement ? <p className="text-xs text-slate-500">Main gap: {breakdown.mainMissingElement}</p> : null}
+        </div>
+        <div className="mt-3 grid gap-2 sm:grid-cols-4">
+          {entries.map(([label, value]) => (
+            <div key={label} className="rounded-lg bg-slate-50 px-3 py-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{label.replace(/([A-Z])/g, ' $1')}</p>
+              <p className="mt-1 text-sm font-medium text-slate-800">{value || 'missing'}</p>
+            </div>
+          ))}
+        </div>
+        {breakdown.scoreReason ? <p className="mt-3 text-xs leading-5 text-slate-600">{breakdown.scoreReason}</p> : null}
+      </div>
+    );
+  }
+  const starBreakdown = turn.starBreakdown;
+  if (!starBreakdown) return null;
+  const parts = [
+    ['Situation', starBreakdown.situation],
+    ['Task', starBreakdown.task],
+    ['Action', starBreakdown.action],
+    ['Result', starBreakdown.result],
+  ];
+  return (
+    <div className="rounded-xl border border-slate-100 bg-white/70 p-4">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <h5 className="text-xs font-semibold uppercase tracking-wider text-slate-500">STAR Evidence</h5>
+        {starBreakdown.mainMissingElement ? <p className="text-xs text-slate-500">Main gap: {starBreakdown.mainMissingElement}</p> : null}
+      </div>
+      <div className="mt-3 grid gap-2 sm:grid-cols-4">
+        {parts.map(([label, value]) => (
+          <div key={label} className="rounded-lg bg-slate-50 px-3 py-2">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{label}</p>
+            <p className="mt-1 text-sm font-medium text-slate-800">{value || 'missing'}</p>
+          </div>
+        ))}
+      </div>
+      {starBreakdown.scoreReason ? <p className="mt-3 text-xs leading-5 text-slate-600">{starBreakdown.scoreReason}</p> : null}
     </div>
   );
 }
@@ -133,6 +202,9 @@ export function TurnBreakdownSection({ turnBreakdowns }) {
                         />
                       </div>
                     )}
+
+                    <StructureBreakdown turn={turn} />
+                    <TrustMeta turn={turn} />
 
                     <div>
                       <h5 className="text-xs font-semibold uppercase tracking-wider text-faint mb-2">Your Answer Summary</h5>
