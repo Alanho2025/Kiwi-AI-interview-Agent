@@ -52,3 +52,12 @@ export function formatDuration(seconds = 0) {
   const s = (safeSeconds % 60).toString().padStart(2, '0');
   return `${m}:${s}`;
 }
+
+export function formatUsageCost(cost, currency = 'USD') {
+  const numeric = Number(cost);
+  const prefix = currency === 'NZD' ? 'NZ$' : '$';
+  if (!Number.isFinite(numeric) || numeric === 0) return `${prefix}0`;
+  if (numeric < 0.001) return `${prefix}${numeric.toFixed(6)}`;
+  if (numeric < 0.01) return `${prefix}${numeric.toFixed(5)}`;
+  return `${prefix}${numeric.toFixed(4)}`;
+}
