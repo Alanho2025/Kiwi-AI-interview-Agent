@@ -33,6 +33,16 @@ const CATEGORY_BY_PATTERN = [
   [/responsib|coordinate|deliver|support|handle|maintain|prepare/i, 'responsibility'],
 ];
 
+const JD_SECTION_HEADING_PATTERN = /^(about the hiring team|about the team|about the role|what the role entails|responsibilities|requirements|qualifications|preferred qualifications|nice to have|benefits|business unit|company overview|about us|hiring team|role entails)$/i;
+
+const cleanEvidenceNeeded = (value = '', requirementText = '') => {
+  const text = String(value || '').replace(/\s+/g, ' ').trim();
+  if (!text || JD_SECTION_HEADING_PATTERN.test(text)) {
+    return `The CV should show direct evidence for ${requirementText}.`;
+  }
+  return text;
+};
+
 const inferCategory = (text = '', fallback = '') => {
   const normalizedFallback = UNIVERSAL_REQUIREMENT_CATEGORIES.includes(fallback) ? fallback : '';
   if (normalizedFallback) return normalizedFallback;
@@ -57,7 +67,7 @@ const inferIndustry = (rubric = {}, rawJD = '') => {
 
 const normalizeRequirement = (item = {}, index = 0) => {
   const text = String(item.text || item.label || item.normalizedCapability || '').trim();
-  if (!text) return null;
+  if (!text || JD_SECTION_HEADING_PATTERN.test(text)) return null;
   const category = inferCategory(text, item.category);
   const importance = ['high', 'medium', 'low'].includes(item.importance) ? item.importance : 'medium';
   return {
@@ -68,7 +78,7 @@ const normalizeRequirement = (item = {}, index = 0) => {
     normalizedCapability: String(item.normalizedCapability || text).trim(),
     importance,
     mustHave: item.mustHave === undefined ? item.type === 'hard' || importance === 'high' : Boolean(item.mustHave),
-    evidenceNeeded: String(item.evidenceNeeded || `The CV should show direct evidence for ${text}.`).trim(),
+    evidenceNeeded: cleanEvidenceNeeded(item.evidenceNeeded, text),
   };
 };
 
@@ -128,7 +138,8 @@ Rules:
 2. Keep each requirement atomic.
 3. Do not invent legal, certification, location, or qualification requirements.
 4. Mark nice-to-have items as mustHave=false and category="nice_to_have".
-5. Evidence needed must describe observable CV proof.
+5. Evidence needed must describe observable CV proof, not a JD section heading.
+6. Do not use section headings like "About The Hiring Team" as requirements or evidenceNeeded.
 
 Fallback parser profile for reference:
 ${JSON.stringify(fallbackProfile, null, 2).slice(0, 8000)}
