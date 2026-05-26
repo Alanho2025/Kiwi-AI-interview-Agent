@@ -45,14 +45,15 @@ const claimTextForItem = (item = {}) => normalizeText(
   || item.interpretation
 );
 
-const statusFromScores = ({ scores = {}, item = {}, claimKind = 'feedback' } = {}) => {
+const statusFromScores = ({ scores = {}, claimKind = 'feedback' } = {}) => {
   const supportedByAnswer = scores.transcript >= 0.18;
   const supportedByCv = scores.cv >= 0.18;
   const supportedByJd = scores.jd >= 0.18;
-  const supported = supportedByAnswer || supportedByCv || supportedByJd || item.evidenceLabel === 'supported_by_nz_guide';
+  const supportedByNzGuide = scores.nz_guide >= 0.18;
+  const supported = supportedByAnswer || supportedByCv || supportedByJd || supportedByNzGuide;
   const confidenceLevel = !supported
     ? 'low'
-    : (supportedByAnswer && (supportedByCv || supportedByJd))
+    : (supportedByAnswer && (supportedByCv || supportedByJd || supportedByNzGuide))
       ? 'high'
       : 'medium';
   const feedbackStatus = !supported
@@ -64,7 +65,9 @@ const statusFromScores = ({ scores = {}, item = {}, claimKind = 'feedback' } = {
       ? 'supported_by_cv'
       : supportedByJd
         ? 'supported_by_jd'
-        : 'needs_user_confirmation';
+        : supportedByNzGuide
+          ? 'supported_by_nz_guide'
+          : 'needs_user_confirmation';
 
   return {
     supported,
@@ -75,6 +78,12 @@ const statusFromScores = ({ scores = {}, item = {}, claimKind = 'feedback' } = {
   };
 };
 
+const evidenceSourcesForStatus = ({ sources = [], status = {}, item = {} } = {}) => {
+  if (sources.length) return sources;
+  if (status.needsUserConfirmation) return ['needs_user_confirmation'];
+  return ensureArray(item.evidenceSources);
+};
+
 const groundItem = ({ item = {}, claimKind = 'feedback', index = 0, corpus = {}, retrievalItems = [], asrQualityRisk = false } = {}) => {
   const claimText = claimTextForItem(item);
   const scores = {
@@ -83,7 +92,7 @@ const groundItem = ({ item = {}, claimKind = 'feedback', index = 0, corpus = {},
     transcript: overlapScore(claimText, corpus.transcript),
     nz_guide: overlapScore(claimText, corpus.nz_guide),
   };
-  const status = statusFromScores({ scores, item, claimKind });
+  const status = statusFromScores({ scores, claimKind });
   const sources = [
     scores.cv >= 0.18 ? 'cv' : null,
     scores.jd >= 0.18 ? 'jd' : null,
@@ -94,13 +103,13 @@ const groundItem = ({ item = {}, claimKind = 'feedback', index = 0, corpus = {},
   const retrieval = retrievalItems[index % Math.max(1, retrievalItems.length)] || {};
   const confidenceLevel = asrQualityRisk && status.confidenceLevel === 'high' ? 'medium' : status.confidenceLevel;
   const evidenceReason = status.supported
-    ? `Grounding overlap: CV ${scores.cv}, JD ${scores.jd}, transcript ${scores.transcript}.${asrQualityRisk ? ' Voice transcript quality may limit confidence.' : ''}`
-    : `This claim is relevant but not strongly supported by CV, JD, or interview answer evidence.${asrQualityRisk ? ' Voice transcript quality may also limit confidence.' : ''}`;
+    ? `Grounding overlap: CV ${scores.cv}, JD ${scores.jd}, transcript ${scores.transcript}, NZ guide ${scores.nz_guide}.${asrQualityRisk ? ' Voice transcript quality may limit confidence.' : ''}`
+    : `This claim is relevant but not strongly supported by CV, JD, interview answer, or NZ guide evidence.${asrQualityRisk ? ' Voice transcript quality may also limit confidence.' : ''}`;
   const grounded = {
     ...item,
-    evidenceLabel: item.evidenceLabel === 'supported_by_nz_guide' ? item.evidenceLabel : status.evidenceLabel,
+    evidenceLabel: status.evidenceLabel,
     confidenceLevel,
-    evidenceSources: sources.length ? sources : ensureArray(item.evidenceSources || ['interview_answer']),
+    evidenceSources: evidenceSourcesForStatus({ sources, status, item }),
     evidenceReason,
     needsUserConfirmation: status.needsUserConfirmation,
     feedbackStatus: status.feedbackStatus,
@@ -108,7 +117,7 @@ const groundItem = ({ item = {}, claimKind = 'feedback', index = 0, corpus = {},
   const claimReference = {
     claimId: `claim_${String(index + 1).padStart(3, '0')}`,
     claimText,
-    sourceType: retrieval.sourceType || (sources[0] === 'cv' ? 'cv' : sources[0] === 'jd' ? 'jd' : 'transcript'),
+    sourceType: retrieval.sourceType || (sources[0] === 'cv' ? 'cv' : sources[0] === 'jd' ? 'jd' : sources[0] === 'nz_guide' ? 'nz_guide' : sources[0] === 'interview_answer' ? 'transcript' : 'needs_user_confirmation'),
     sourceId: retrieval.sourceId || '',
     chunkId: retrieval.chunkId || '',
     similarity: Math.max(scores.cv, scores.jd, scores.transcript, scores.nz_guide),
