@@ -14,6 +14,9 @@ const fixtureRoot = path.resolve(__dirname, '../../fixtures/cv');
 const loadCv = (name) => fs.readFile(path.join(fixtureRoot, name), 'utf8');
 const skillLabels = (profile) => profile.skills.map((item) => String(item.label || item).toLowerCase());
 
+const evidenceByText = (profile, pattern) => profile.evidenceProfile.evidenceItems
+  .filter((item) => pattern.test(item.text || ''));
+
 describe('CV parsing robustness', () => {
   it('extracts stable evidence from a project-heavy graduate CV without losing quantified achievements', async () => {
     const profile = buildCvProfile(await loadCv('graduate-software-engineer.txt'));
@@ -75,6 +78,75 @@ SQL`);
 
     const skillEvidence = profile.evidenceProfile.evidenceItems.filter((item) => item.sourceType === 'skill');
     expect(skillEvidence.map((item) => item.text)).toEqual(expect.arrayContaining(['Python', 'SQL']));
+    expect(skillEvidence.every((item) => item.evidenceStrength === 'weak')).toBe(true);
+  });
+
+  it('recognises common CV template headings used by designer and engineer examples', () => {
+    const sections = extractCvSections(`Resume Jo Engineer
+Email: jo@engineer.com
+
+Skills Summary
+Problem solving
+
+Experience Summary
+Academic Tutor - VUW 2020 - 2021
+
+Detailed Experience
+Coding Assistant - Start-up Extreme 2020
+
+Project Experience
+To Do List project at Victoria University 2020
+
+Key tools / skills
+Git
+Trello
+Continuous integration`);
+
+    expect(sections.map((section) => section.key)).toEqual(expect.arrayContaining([
+      'summary',
+      'experience',
+      'projects',
+      'skills',
+    ]));
+    expect(sections.find((section) => section.title === 'Key tools / skills')?.key).toBe('skills');
+    expect(sections.find((section) => section.title === 'Detailed Experience')?.key).toBe('experience');
+  });
+
+  it('keeps Alan-style AI project technology as project tech stack evidence', () => {
+    const profile = buildCvProfile(`Alan Ho
+
+Projects
+KIWI Mock Interview AI Agent
+Tech: React, Express, Python, PostgreSQL, MongoDB, DeepSeek API, Azure Speech, WebSocket
+Built a full-stack AI interview coaching system with adaptive questioning and structured feedback.`);
+
+    const techEvidence = profile.evidenceProfile.evidenceItems.find((item) => item.sourceType === 'project_tech_stack');
+    expect(techEvidence?.text).toMatch(/Express/i);
+    expect(techEvidence?.text).toMatch(/DeepSeek API/i);
+    expect(techEvidence?.text).toMatch(/Azure Speech/i);
+    expect(techEvidence?.text).toMatch(/WebSocket/i);
+    expect(techEvidence?.evidenceStrength).toBe('strong');
+  });
+
+  it('upgrades technical product key competencies without inflating plain skill-list evidence', () => {
+    const profile = buildCvProfile(`Alan Ho
+
+Key Competencies
+Designed AI agent product workflows through Kiwi Interview Agent, combining CV-JD matching, adaptive questioning, voice interaction, and report quality checks.
+Developed full-stack AI prototypes using React, Express, Python, PostgreSQL, MongoDB, Azure Speech, WebSocket, and LLM APIs.
+Communication
+
+Skills
+Python
+SQL`);
+
+    const technicalCompetencies = evidenceByText(profile, /AI agent product workflows|full-stack AI prototypes/i);
+    const plainCompetency = evidenceByText(profile, /^Communication$/i)[0];
+    const skillEvidence = profile.evidenceProfile.evidenceItems.filter((item) => item.sourceType === 'skill');
+
+    expect(technicalCompetencies.length).toBeGreaterThanOrEqual(2);
+    expect(technicalCompetencies.every((item) => item.evidenceStrength === 'partial')).toBe(true);
+    expect(plainCompetency?.evidenceStrength).toBe('weak');
     expect(skillEvidence.every((item) => item.evidenceStrength === 'weak')).toBe(true);
   });
 
