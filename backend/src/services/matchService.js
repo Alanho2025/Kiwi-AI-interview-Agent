@@ -10,6 +10,7 @@ import {
   calculateScoreBreakdown,
   buildExplanation,
 } from './match/matchScoringService.js';
+import { buildCapabilityScoreBreakdown } from './match/capabilityScoreService.js';
 import { buildQuestionPlanHints } from './match/questionPlanService.js';
 import { buildAnalyzeResult } from './match/matchResultBuilder.js';
 import { buildCvAnalysis, buildJdMatchedCvAnalysis } from './cv/cvAnalysisBuilderService.js';
@@ -39,6 +40,7 @@ const buildSemanticRequirements = (roleProfile = {}, fallbackRequirements = []) 
     type: item.mustHave ? 'hard' : 'soft',
     importance: item.importance || (item.mustHave ? 'high' : 'medium'),
     category: item.category,
+    capabilityGroup: item.capabilityGroup,
     mustHave: Boolean(item.mustHave),
     evidenceNeeded: item.evidenceNeeded,
     normalizedCapability: item.normalizedCapability,
@@ -81,7 +83,10 @@ export const compareCvToJobDescription = async (cvInput, rawJD, jdRubric, settin
   const macroScores = buildMacroScores(rubric.macroCriteria, rawCvText, rubric.weights, cvEvidenceProfile, semanticEvidenceContext);
   const microScores = buildMicroScores(rubric.microCriteria, rawCvText, rubric.weights, cvEvidenceProfile, semanticEvidenceContext);
   const requirementChecks = buildRequirementChecks(rubric.requirements, rawCvText, cvEvidenceProfile, semanticEvidenceContext);
-  const scoreBreakdown = calculateScoreBreakdown({ rubric, macroScores, microScores, requirementChecks });
+  const baseScoreBreakdown = calculateScoreBreakdown({ rubric, macroScores, microScores, requirementChecks });
+  const scoreBreakdown = semanticEngineEnabled
+    ? buildCapabilityScoreBreakdown({ rubric, requirementChecks, fallbackScoreBreakdown: baseScoreBreakdown })
+    : baseScoreBreakdown;
   const transitionProfile = buildTransitionProfile({ evidenceProfile: cvEvidenceProfile, parsedCvProfile });
   const { strengths, gaps, risks, explanation } = buildExplanation({ microScores, requirementChecks, cvEvidenceProfile });
   const cvAnalysis = buildJdMatchedCvAnalysis({ cvAnalysis: baseCvAnalysis, requirementChecks, microScores });

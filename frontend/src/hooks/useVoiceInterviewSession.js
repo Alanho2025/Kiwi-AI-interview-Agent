@@ -248,6 +248,7 @@ export function useVoiceInterviewSession({
     },
     onSpeechDone: () => {
       console.log(`[FRONTEND-STT-TRACE] Backend finished processing speech (speech_done).`);
+      audioQueue.finishAudioStream?.();
       setIsProcessingTurn(false);
     },
     onTranscriptRejected: (payload) => {

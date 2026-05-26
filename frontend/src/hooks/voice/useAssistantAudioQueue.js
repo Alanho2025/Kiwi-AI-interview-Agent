@@ -1,18 +1,42 @@
 /**
  * File responsibility: Assistant audio playback queue.
  * Main responsibilities:
- * - Play streamed TTS chunks in order.
+ * - Play full-buffer TTS chunks in order.
+ * - Play true streaming TTS chunks through MediaSource when supported.
  * - Support immediate cancellation for duplex barge-in.
  * - Keep browser audio object URL cleanup isolated from the voice session hook.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-const base64ToAudioUrl = (base64, contentType = 'audio/mpeg') => {
+const base64ToBytes = (base64) => {
   const binary = atob(base64);
-  const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
-  const blob = new Blob([bytes], { type: contentType });
+  return Uint8Array.from(binary, (character) => character.charCodeAt(0));
+};
+
+const base64ToAudioUrl = (base64, contentType = 'audio/mpeg') => {
+  const blob = new Blob([base64ToBytes(base64)], { type: contentType });
   return URL.createObjectURL(blob);
+};
+
+const normalizeMimeType = (contentType = 'audio/mpeg') => String(contentType || 'audio/mpeg').split(';')[0].trim() || 'audio/mpeg';
+
+const resolveMediaSourceMimeType = (contentType = 'audio/mpeg') => {
+  if (typeof window === 'undefined' || typeof MediaSource === 'undefined') return false;
+  const mimeType = normalizeMimeType(contentType);
+  const candidates = mimeType === 'audio/mpeg'
+    ? ['audio/mpeg', 'audio/mpeg; codecs="mp3"']
+    : [mimeType];
+  try {
+    return candidates.find((candidate) => MediaSource.isTypeSupported?.(candidate)) || false;
+  } catch {
+    return false;
+  }
+};
+
+const releaseObjectUrlSoon = (url) => {
+  if (!url || !String(url).startsWith('blob:')) return;
+  window.setTimeout(() => URL.revokeObjectURL(url), 2000);
 };
 
 const buildSilentWavDataUrl = () => {
@@ -56,11 +80,22 @@ const getPlaybackErrorMessage = (error) => {
   return error?.message || 'Assistant audio playback failed.';
 };
 
+const buildEmptyStreamState = () => ({
+  mediaSource: null,
+  sourceBuffer: null,
+  url: '',
+  pending: [],
+  done: false,
+  started: false,
+  contentType: '',
+});
+
 export function useAssistantAudioQueue({ onPlaybackStart, onPlaybackEnd, onQueueDrained, onPlaybackError } = {}) {
   const audioRef = useRef(null);
   const queueRef = useRef([]);
   const isPlayingRef = useRef(false);
   const callbackRef = useRef({ onPlaybackStart, onPlaybackEnd, onQueueDrained, onPlaybackError });
+  const streamRef = useRef(buildEmptyStreamState());
   const [assistantAudioUrl, setAssistantAudioUrl] = useState('');
   const [isAssistantSpeaking, setIsAssistantSpeaking] = useState(false);
   const [playbackError, setPlaybackError] = useState('');
@@ -94,6 +129,75 @@ export function useAssistantAudioQueue({ onPlaybackStart, onPlaybackEnd, onQueue
     }
   }, []);
 
+  const maybeEndStream = useCallback(() => {
+    const state = streamRef.current;
+    if (!state.mediaSource || !state.done || state.pending.length || state.sourceBuffer?.updating) return;
+    if (state.mediaSource.readyState !== 'open') return;
+    try {
+      state.mediaSource.endOfStream();
+    } catch {}
+  }, []);
+
+  const appendPendingStreamBuffers = useCallback(() => {
+    const state = streamRef.current;
+    const sourceBuffer = state.sourceBuffer;
+    if (!sourceBuffer || sourceBuffer.updating || !state.pending.length) {
+      maybeEndStream();
+      return;
+    }
+    const next = state.pending.shift();
+    try {
+      sourceBuffer.appendBuffer(next);
+    } catch (error) {
+      const message = getPlaybackErrorMessage(error);
+      setPlaybackError(message);
+      callbackRef.current.onPlaybackError?.(message);
+    }
+  }, [maybeEndStream]);
+
+  const ensureStreamPlayback = useCallback((contentType = 'audio/mpeg') => {
+    if (streamRef.current.mediaSource) return true;
+    const mimeType = resolveMediaSourceMimeType(contentType);
+    if (!mimeType) return false;
+
+    const audio = audioRef.current;
+    if (!audio) return false;
+
+    const mediaSource = new MediaSource();
+    const url = URL.createObjectURL(mediaSource);
+
+    streamRef.current = {
+      mediaSource,
+      sourceBuffer: null,
+      url,
+      pending: [],
+      done: false,
+      started: false,
+      contentType: mimeType,
+    };
+
+    mediaSource.addEventListener('sourceopen', () => {
+      const state = streamRef.current;
+      if (state.mediaSource !== mediaSource) return;
+      try {
+        const sourceBuffer = mediaSource.addSourceBuffer(mimeType);
+        sourceBuffer.mode = 'sequence';
+        sourceBuffer.addEventListener('updateend', appendPendingStreamBuffers);
+        state.sourceBuffer = sourceBuffer;
+        appendPendingStreamBuffers();
+      } catch (error) {
+        const message = getPlaybackErrorMessage(error);
+        setPlaybackError(message);
+        callbackRef.current.onPlaybackError?.(message);
+      }
+    }, { once: true });
+
+    isPlayingRef.current = true;
+    setIsAssistantSpeaking(true);
+    setAssistantAudioUrl(url);
+    return true;
+  }, [appendPendingStreamBuffers]);
+
   const playNext = useCallback(() => {
     if (!queueRef.current.length) {
       isPlayingRef.current = false;
@@ -110,21 +214,44 @@ export function useAssistantAudioQueue({ onPlaybackStart, onPlaybackEnd, onQueue
 
   const enqueueAudioChunk = useCallback((chunk) => {
     if (!chunk?.base64) return;
+
+    if (chunk.isStreaming && ensureStreamPlayback(chunk.contentType)) {
+      streamRef.current.pending.push(base64ToBytes(chunk.base64));
+      appendPendingStreamBuffers();
+      return;
+    }
+
     queueRef.current.push(chunk);
     queueRef.current.sort((a, b) => Number(a.index || 0) - Number(b.index || 0));
     if (!isPlayingRef.current) playNext();
-  }, [playNext]);
+  }, [appendPendingStreamBuffers, ensureStreamPlayback, playNext]);
+
+  const finishAudioStream = useCallback(() => {
+    const state = streamRef.current;
+    if (!state.mediaSource) return;
+    state.done = true;
+    maybeEndStream();
+  }, [maybeEndStream]);
 
   const clearQueue = useCallback(() => {
     queueRef.current = [];
     isPlayingRef.current = false;
     setIsAssistantSpeaking(false);
+
+    const streamUrl = streamRef.current.url;
+    try {
+      if (streamRef.current.mediaSource?.readyState === 'open') streamRef.current.mediaSource.endOfStream();
+    } catch {}
+    streamRef.current = buildEmptyStreamState();
+
     if (audioRef.current) {
       try { audioRef.current.pause(); } catch {}
       audioRef.current.removeAttribute('src');
+      audioRef.current.load?.();
     }
     setAssistantAudioUrl((current) => {
-      if (current) URL.revokeObjectURL(current);
+      releaseObjectUrlSoon(current);
+      if (streamUrl && streamUrl !== current) releaseObjectUrlSoon(streamUrl);
       return '';
     });
   }, []);
@@ -136,13 +263,32 @@ export function useAssistantAudioQueue({ onPlaybackStart, onPlaybackEnd, onQueue
     audio.currentTime = 0;
     audio.onended = () => {
       callbackRef.current.onPlaybackEnd?.();
-      URL.revokeObjectURL(assistantAudioUrl);
+      const streamUrl = streamRef.current.url;
+      if (assistantAudioUrl === streamUrl) {
+        audio.removeAttribute('src');
+        audio.load?.();
+        releaseObjectUrlSoon(streamUrl);
+        streamRef.current = buildEmptyStreamState();
+        isPlayingRef.current = false;
+        setIsAssistantSpeaking(false);
+        setAssistantAudioUrl('');
+        callbackRef.current.onQueueDrained?.();
+        return;
+      }
+      audio.removeAttribute('src');
+      audio.load?.();
+      releaseObjectUrlSoon(assistantAudioUrl);
       setAssistantAudioUrl('');
       playNext();
     };
     audio.play?.()
       .then(() => {
         setPlaybackError('');
+        const state = streamRef.current;
+        if (assistantAudioUrl === state.url) {
+          if (state.started) return;
+          state.started = true;
+        }
         callbackRef.current.onPlaybackStart?.();
       })
       .catch((error) => {
@@ -165,6 +311,7 @@ export function useAssistantAudioQueue({ onPlaybackStart, onPlaybackEnd, onQueue
     playbackError,
     unlockAudio,
     enqueueAudioChunk,
+    finishAudioStream,
     clearQueue,
-  }), [assistantAudioUrl, isAssistantSpeaking, playbackError, unlockAudio, enqueueAudioChunk, clearQueue]);
+  }), [assistantAudioUrl, isAssistantSpeaking, playbackError, unlockAudio, enqueueAudioChunk, finishAudioStream, clearQueue]);
 }

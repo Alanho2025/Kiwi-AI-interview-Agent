@@ -1,14 +1,9 @@
-/**
- * File responsibility: Text-to-speech provider routing.
- * Main responsibilities:
- * - Select Azure or ElevenLabs TTS from environment configuration.
- * - Keep fallback policy outside WebSocket and controller code.
- * - Preserve the synthesis contract used by the voice orchestration layer.
- */
-
 import { AppError } from '../../utils/appError.js';
 import { synthesizeSpeech as synthesizeAzureSpeech } from './azureSpeechService.js';
-import { synthesizeSpeech as synthesizeElevenLabsSpeech } from './elevenLabsSpeechService.js';
+import {
+  synthesizeSpeech as synthesizeElevenLabsSpeech,
+  streamSynthesizeSpeech as streamElevenLabsSpeech,
+} from './elevenLabsSpeechService.js';
 
 const providerFactories = {
   azure: synthesizeAzureSpeech,
@@ -18,16 +13,22 @@ const providerFactories = {
   elevenlabs_realtime: synthesizeElevenLabsSpeech,
 };
 
+const streamingProviderFactories = {
+  elevenlabs: streamElevenLabsSpeech,
+  elevenlabs_tts: streamElevenLabsSpeech,
+  elevenlabs_realtime: streamElevenLabsSpeech,
+};
+
 const normalizeProviderName = (value) => String(value || '').trim().toLowerCase().replace(/-/g, '_');
 
 export const getTtsProviderOrder = () => {
-  const configuredOrder = String(process.env.VOICE_TTS_PROVIDER_ORDER || process.env.VOICE_STT_PROVIDER_ORDER || '').trim();
+  const configuredOrder = String(process.env.VOICE_TTS_PROVIDER_ORDER || '').trim();
   if (configuredOrder) {
     return Array.from(new Set(configuredOrder.split(',').map(normalizeProviderName).filter(Boolean)));
   }
 
-  const primary = normalizeProviderName(process.env.VOICE_TTS_PROVIDER || process.env.VOICE_STT_PROVIDER || 'azure');
-  const fallback = normalizeProviderName(process.env.VOICE_TTS_FALLBACK_PROVIDER || process.env.VOICE_STT_FALLBACK_PROVIDER || 'elevenlabs');
+  const primary = normalizeProviderName(process.env.VOICE_TTS_PROVIDER || 'azure');
+  const fallback = normalizeProviderName(process.env.VOICE_TTS_FALLBACK_PROVIDER || 'elevenlabs');
   return Array.from(new Set([primary, fallback].filter(Boolean)));
 };
 
@@ -58,4 +59,32 @@ export const synthesizeSpeech = async (options = {}) => {
     details: errors.join('; '),
     meta: { providerOrder },
   });
+};
+
+export const streamSynthesizeSpeech = async function* (options = {}) {
+  const providerOrder = getTtsProviderOrder();
+  const errors = [];
+
+  for (const providerName of providerOrder) {
+    const streamWithProvider = streamingProviderFactories[providerName];
+    if (!streamWithProvider) {
+      errors.push(`${providerName}: streaming unsupported`);
+      continue;
+    }
+
+    try {
+      yield* streamWithProvider(options);
+      return;
+    } catch (error) {
+      errors.push(`${providerName}: ${error?.message || String(error)}`);
+      if (!shouldAttemptFallback(error)) throw error;
+    }
+  }
+
+  const synthesis = await synthesizeSpeech(options);
+  yield {
+    ...synthesis,
+    chunkIndex: 0,
+    isStreaming: false,
+  };
 };

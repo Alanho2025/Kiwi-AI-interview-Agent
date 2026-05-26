@@ -17,6 +17,13 @@ import { AsyncLocalStorage } from 'async_hooks';
  */
 const usageContextStorage = new AsyncLocalStorage();
 
+export const LLM_CONFIGS = Object.freeze({
+  JSON_STRICT: Object.freeze({ temperature: 0, top_p: 1 }),
+  EVALUATOR: Object.freeze({ temperature: 0, top_p: 1 }),
+  GROUNDED_WRITING: Object.freeze({ temperature: 0.2, top_p: 0.9 }),
+  INTERVIEWER_NATURAL: Object.freeze({ temperature: 0.4, top_p: 0.9 }),
+});
+
 const isMockAiMode = () => process.env.AI_TEST_MODE === 'mock';
 const isRealAiMode = () => process.env.AI_TEST_MODE === 'real';
 const buildMockDeepSeekResponse = () => 'This is a mock response from DeepSeek. Please set DEEPSEEK_API_KEY to run real AI eval.';
@@ -41,6 +48,74 @@ const resolveDeepSeekApiKey = () => {
   }
   console.warn('DEEPSEEK_API_KEY is missing. Using mock response.');
   return null;
+};
+
+const normalizeGenerationConfig = (config = {}) => {
+  const normalized = {};
+  if (Number.isFinite(Number(config.temperature))) normalized.temperature = Number(config.temperature);
+  if (Number.isFinite(Number(config.top_p))) normalized.top_p = Number(config.top_p);
+  return normalized;
+};
+
+const chooseDefaultGenerationConfig = ({ usageMetadata = {}, streaming = false } = {}) => {
+  const stage = String(usageMetadata.stage || '').toLowerCase();
+  const operation = String(usageMetadata.operation || '').toLowerCase();
+  const feature = String(usageMetadata.feature || '').toLowerCase();
+
+  if (operation === 'llm_json') return LLM_CONFIGS.JSON_STRICT;
+
+  if (
+    stage === 'cv_jd_match'
+    || stage === 'jd_parse'
+    || feature.includes('extract')
+    || feature.includes('parse')
+    || feature.includes('judge')
+    || feature.includes('critic')
+    || feature.includes('selector')
+    || feature.includes('understanding')
+    || feature.includes('interview_plan')
+    || feature.includes('values_enrichment')
+    || feature.includes('motivation_fit')
+    || feature.includes('baseline')
+    || feature.includes('evaluation')
+  ) {
+    return LLM_CONFIGS.EVALUATOR;
+  }
+
+  if (
+    stage === 'report_generated'
+    || stage === 'report_qa'
+    || feature.includes('candidate_feedback')
+    || feature.includes('report_rewrite')
+    || feature.includes('coaching')
+  ) {
+    return LLM_CONFIGS.GROUNDED_WRITING;
+  }
+
+  if (streaming || stage === 'interview') return LLM_CONFIGS.INTERVIEWER_NATURAL;
+
+  return LLM_CONFIGS.GROUNDED_WRITING;
+};
+
+const resolveGenerationConfig = ({ usageMetadata = {}, temperature, top_p, generationConfig = {}, streaming = false } = {}) => ({
+  ...chooseDefaultGenerationConfig({ usageMetadata, streaming }),
+  ...normalizeGenerationConfig(generationConfig),
+  ...normalizeGenerationConfig({ temperature, top_p }),
+});
+
+const buildChatPayload = ({ prompt, systemInstruction, usageMetadata = {}, temperature, top_p, generationConfig, stream = false, streamOptions = null } = {}) => {
+  const payload = {
+    model: 'deepseek-chat',
+    messages: [
+      { role: 'system', content: systemInstruction || 'You are a helpful assistant.' },
+      { role: 'user', content: prompt },
+    ],
+    ...resolveGenerationConfig({ usageMetadata, temperature, top_p, generationConfig, streaming: stream }),
+  };
+
+  if (stream) payload.stream = true;
+  if (streamOptions) payload.stream_options = streamOptions;
+  return payload;
 };
 
 /**
@@ -110,7 +185,17 @@ export const autoRecordUsage = async (usage, action = 'callDeepSeek', metadata =
   }
 };
 
-export const callDeepSeek = async (prompt, systemInstruction = '', { skipAutoRecord = false, usageMetadata = {} } = {}) => {
+export const callDeepSeek = async (
+  prompt,
+  systemInstruction = '',
+  {
+    skipAutoRecord = false,
+    usageMetadata = {},
+    temperature,
+    top_p,
+    generationConfig,
+  } = {},
+) => {
   try {
     const apiKey = resolveDeepSeekApiKey();
     if (!apiKey) {
@@ -124,13 +209,14 @@ export const callDeepSeek = async (prompt, systemInstruction = '', { skipAutoRec
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`
       },
-      body: JSON.stringify({
-        model: 'deepseek-chat',
-        messages: [
-          { role: 'system', content: systemInstruction || 'You are a helpful assistant.' },
-          { role: 'user', content: prompt }
-        ]
-      })
+      body: JSON.stringify(buildChatPayload({
+        prompt,
+        systemInstruction,
+        usageMetadata,
+        temperature,
+        top_p,
+        generationConfig,
+      }))
     });
 
     if (!response.ok) {
@@ -155,7 +241,16 @@ export const callDeepSeek = async (prompt, systemInstruction = '', { skipAutoRec
  * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
  * Returns: Returns an async generator yielding text chunks as they arrive from the DeepSeek stream.
  */
-export const callDeepSeekStream = async function* (prompt, systemInstruction = '', { usageMetadata = {} } = {}) {
+export const callDeepSeekStream = async function* (
+  prompt,
+  systemInstruction = '',
+  {
+    usageMetadata = {},
+    temperature,
+    top_p,
+    generationConfig,
+  } = {},
+) {
   const apiKey = resolveDeepSeekApiKey();
   if (!apiKey) {
     yield buildMockDeepSeekResponse();
@@ -169,15 +264,16 @@ export const callDeepSeekStream = async function* (prompt, systemInstruction = '
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${apiKey}`
     },
-    body: JSON.stringify({
-      model: 'deepseek-chat',
+    body: JSON.stringify(buildChatPayload({
+      prompt,
+      systemInstruction,
+      usageMetadata,
+      temperature,
+      top_p,
+      generationConfig,
       stream: true,
-      stream_options: { include_usage: true },
-      messages: [
-        { role: 'system', content: systemInstruction || 'You are a helpful assistant.' },
-        { role: 'user', content: prompt }
-      ]
-    })
+      streamOptions: { include_usage: true },
+    }))
   });
 
   if (!response.ok) {

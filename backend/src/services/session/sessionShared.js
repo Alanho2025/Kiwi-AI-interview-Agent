@@ -5,8 +5,7 @@
  * - Main file role: sessionShared should encapsulate domain behaviour behind small callable functions with predictable inputs and outputs.
  * - Prefer extending behaviour by adding small helpers or sibling modules instead of growing one large file.
  * Maintenance notes:
- * - Keep this file focused on one layer of responsibility.
- * - Prefer composition and small helpers over repeated inline logic.
+ * - Keep this file focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
 
 import { query } from '../../db/postgres.js';
@@ -19,6 +18,7 @@ import {
   resolveInterviewBlueprint,
   resolveInterviewModeConfig,
 } from '../../config/interviewBlueprints.js';
+import { buildCapabilityPrompt, isTechnicalCapabilityGroup } from './capabilityQuestionPromptService.js';
 
 export const buildFullTranscript = (turns) => turns.map((turn) => `${turn.role.toUpperCase()}: ${turn.text}`).join('\n\n');
 export const retentionDate = () => new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
@@ -47,7 +47,7 @@ export const titleCaseWords = (value = '') => value
   })
   .join(' ');
 
-const DISPLAY_TITLE_ROLE_NOUN_PATTERN = /\b(?:engineer|developer|designer|analyst|architect|consultant|specialist|intern|scientist|administrator|programme|program|product manager)\b/i;
+const DISPLAY_TITLE_ROLE_NOUN_PATTERN = /\b(?:engineer|developer|designer|analyst|architect|consultant|specialist|intern|scientist|administrator|programme|program|product manager|coordinator|assistant|psychologist)\b/i;
 const DISPLAY_TITLE_FALSE_POSITIVE_HIRING_ROLES = /\b(?:hiring manager|hiring coordinator|recruitment manager|talent acquisition specialist|people & culture advisor|people and culture advisor)\b/i;
 const DISPLAY_TITLE_MARKETING_PREFIX_PATTERNS = [
   /^(?:we\s+are\s+)?(?:now\s+)?hiring\s*[:：]?\s+(?:for\s+)?(?:(?:a|an|the)\s+)?/i,
@@ -85,7 +85,7 @@ export const extractDisplayTitle = (...candidates) => {
     const directTitleMatch = text.match(/(?:job\s*title|position|role)\s*:\s*([^\n.]{3,120})/i);
     if (directTitleMatch?.[1]) return cleanDisplayTitle(directTitleMatch[1]);
 
-    const commonRoleMatch = text.match(/\b((?:Junior|Senior|Lead|Principal|Staff|Graduate|Mid-Level|Solutions|Software|Backend|Frontend|Full[-\s]?Stack|Mobile|DevOps|Data|Civil|Platform|QA|Test|Product|AI|Machine Learning|Cloud)?\s*(?:Software Engineer|Solutions Engineer|Backend Engineer|Frontend Engineer|Full Stack Engineer|Mobile Developer|React Native Developer|DevOps Engineer|Data Engineer|Data \w+ AI Engineer|Data & AI Engineer|AI Engineer|Civil Engineer|Platform Engineer|QA Engineer|Test Engineer|Product Manager|Developer|Data Scientist|Machine Learning Engineer|Cloud Engineer))\b/i);
+    const commonRoleMatch = text.match(/\b((?:Junior|Senior|Lead|Principal|Staff|Graduate|Mid-Level|Solutions|Software|Backend|Frontend|Full[-\s]?Stack|Mobile|DevOps|Data|Civil|Platform|QA|Test|Product|AI|Machine Learning|Cloud|Automation|Telehealth)?\s*(?:Software Engineer|Solutions Engineer|Backend Engineer|Frontend Engineer|Full Stack Engineer|Mobile Developer|React Native Developer|DevOps Engineer|Data Engineer|Data \w+ AI Engineer|Data & AI Engineer|AI Engineer|Automation Coordinator|Workflow Automation Assistant|Civil Engineer|Platform Engineer|QA Engineer|Test Engineer|Product Manager|Developer|Data Scientist|Machine Learning Engineer|Cloud Engineer|Psychologist|Coordinator|Assistant))\b/i);
     if (commonRoleMatch?.[1]) return cleanDisplayTitle(commonRoleMatch[1]);
 
     const firstLine = text.split('\n').map((line) => line.trim()).find(Boolean) || '';
@@ -169,7 +169,7 @@ const buildOpeningQuestion = ({ roleLabel = 'the role', companyName = '', level 
   if (String(level) === 'intermediate') {
     return `Hi, thanks for being here today${companyClause}. To start, could you briefly introduce yourself and highlight the experience most relevant to this ${roleLabel} interview?`;
   }
-  return `Hi, thanks for joining today${companyClause}. Let’s start with a quick introduction. Could you tell me a bit about yourself and what interested you in this ${roleLabel} interview?`;
+  return `Hi, thanks for joining today${companyClause}. Could you briefly introduce yourself and explain what interested you in this ${roleLabel} interview?`;
 };
 
 const buildWrapUpQuestion = () => ({
@@ -208,29 +208,34 @@ const findUniversalRequirementTarget = ({ topic = '', rubric = {} } = {}) => {
   const key = normalizeRequirementKey(topic);
   const requirements = rubric.universalRoleProfile?.requirements || rubric.metadata?.universalRoleProfile?.requirements || [];
   return requirements.find((item) => {
+    if (!item || typeof item !== 'object') return false;
     const labels = [item.text, item.label, item.normalizedCapability].map(normalizeRequirementKey).filter(Boolean);
     return labels.includes(key) || labels.some((label) => key.includes(label) || label.includes(key));
   }) || null;
 };
 
-const isTechnicalRequirementCategory = (category = '') => ['technical_skill', 'tool_or_platform', 'domain_knowledge'].includes(category);
+const isTechnicalRequirementCategory = (category = '', capabilityGroup = '') => isTechnicalCapabilityGroup(capabilityGroup, category);
 
 const buildRoleCompetencyPrompt = ({ target = {}, skill = '', level = 'junior', roleLabel = 'the role', followUpDepth = 0 } = {}) => {
-  const category = target.category || '';
-  const capability = target.normalizedCapability || target.text || target.label || skill;
+  const safeTarget = target && typeof target === 'object' ? target : {};
+  const category = safeTarget.category || '';
+  const capabilityGroup = safeTarget.capabilityGroup || '';
+  const capability = safeTarget.normalizedCapability || safeTarget.text || safeTarget.label || skill;
+  const capabilityPrompt = buildCapabilityPrompt({ capabilityGroup, category, capability, roleLabel, followUpDepth });
+  if (capabilityPrompt) return capabilityPrompt;
 
-  if (!category || isTechnicalRequirementCategory(category)) {
+  if (!category || isTechnicalRequirementCategory(category, capabilityGroup)) {
     return buildTechnicalPrompt({ skill: capability, level, roleLabel, followUpDepth });
   }
 
   if (followUpDepth > 0) {
-    if (['qualification', 'certification', 'compliance_or_safety', 'availability_or_location'].includes(category)) {
+    if (['qualification', 'certification', 'professional_registration', 'insurance_or_indemnity', 'compliance_or_safety', 'availability_or_location'].includes(category)) {
       return `What specific evidence can you provide for ${capability}, and where have you applied it in practice?`;
     }
     if (category === 'customer_or_stakeholder') {
-      return `What made that customer or stakeholder situation difficult, what did you do personally, and what was the outcome?`;
+      return `What made that stakeholder situation difficult, what did you do personally, and what was the outcome?`;
     }
-    if (category === 'communication') {
+    if (category === 'communication' || category === 'report_writing') {
       return `How did you adapt your communication for the audience, and how did you know the message landed?`;
     }
     if (category === 'leadership') {
@@ -239,8 +244,17 @@ const buildRoleCompetencyPrompt = ({ target = {}, skill = '', level = 'junior', 
     return `What was the situation, what did you personally do around ${capability}, and what result came from it?`;
   }
 
-  if (['qualification', 'certification'].includes(category)) {
+  if (['qualification', 'certification', 'professional_registration', 'insurance_or_indemnity'].includes(category)) {
     return `Can you walk me through your ${capability} evidence and how it prepares you for this ${roleLabel} role?`;
+  }
+  if (category === 'assessment_delivery') {
+    return `Tell me about a time you delivered a structured assessment, service, or analysis. What method did you use, and how did you maintain quality?`;
+  }
+  if (category === 'report_writing') {
+    return `Tell me about a professional report or written output you produced. Who used it, and how did you make it accurate and clear?`;
+  }
+  if (category === 'scheduling_or_time_management') {
+    return `Tell me about a time you managed a schedule, calendar, or competing deadlines. How did you keep the work under control?`;
   }
   if (category === 'compliance_or_safety') {
     return `Tell me about a time you had to follow or apply ${capability}. What checks did you make, and what was at stake?`;
@@ -249,7 +263,7 @@ const buildRoleCompetencyPrompt = ({ target = {}, skill = '', level = 'junior', 
     return `Can you confirm your fit for ${capability}, and explain any practical constraints the team should know about?`;
   }
   if (category === 'customer_or_stakeholder') {
-    return `Tell me about a time you handled a difficult customer or stakeholder situation involving ${capability}. What happened, what did you do, and what was the outcome?`;
+    return `Tell me about a time you worked with a client, customer, referrer, or stakeholder. What happened, what did you do, and what was the outcome?`;
   }
   if (category === 'communication') {
     return `Tell me about a time you used ${capability} in a real work or project situation. Who was the audience, and what result did your communication achieve?`;
@@ -257,7 +271,7 @@ const buildRoleCompetencyPrompt = ({ target = {}, skill = '', level = 'junior', 
   if (category === 'leadership') {
     return `Tell me about a time you showed ${capability}. What did you lead or influence, and what changed because of your actions?`;
   }
-  if (category === 'responsibility' || category === 'experience') {
+  if (category === 'responsibility' || category === 'experience' || category === 'case_management') {
     return `Tell me about a real example where you handled ${capability} for a ${roleLabel} responsibility. What did you own, and what was the result?`;
   }
   if (category === 'nice_to_have') {
@@ -332,15 +346,16 @@ export const buildQuestionPoolFromAnalysis = (analysisResult, settings = {}, opt
 
   const technicalQuestionCount = Math.max(0, modeConfig.minTechnicalQuestions);
   for (let index = 0; index < technicalQuestionCount; index += 1) {
-    const skill = technicalSkills[index] || technicalSkills[0] || 'a relevant technical stack';
+    const skill = technicalSkills[index] || technicalSkills[0] || 'a relevant role capability';
     const requirementTarget = findUniversalRequirementTarget({ topic: skill, rubric });
     const promptText = buildRoleCompetencyPrompt({ target: requirementTarget, skill, level: modeConfig.level, roleLabel, followUpDepth: 0 });
     const followUpText = buildRoleCompetencyPrompt({ target: requirementTarget, skill, level: modeConfig.level, roleLabel, followUpDepth: 1 });
-    const competencyType = requirementTarget && !isTechnicalRequirementCategory(requirementTarget.category) ? 'role_competency_core' : 'technical_core';
+    const isTechnical = requirementTarget ? isTechnicalRequirementCategory(requirementTarget.category, requirementTarget.capabilityGroup) : true;
+    const competencyType = requirementTarget && !isTechnical ? 'role_competency_core' : 'technical_core';
     questions.push({
       type: competencyType,
-      category: 'technical',
-      stage: 'technical',
+      category: isTechnical ? 'technical' : 'role_competency',
+      stage: isTechnical ? 'technical' : 'role_competency',
       topic: skill,
       followUpDepth: 0,
       text: promptText,
@@ -357,8 +372,8 @@ export const buildQuestionPoolFromAnalysis = (analysisResult, settings = {}, opt
     });
     questions.push({
       type: competencyType === 'role_competency_core' ? 'role_competency_follow_up' : 'technical_follow_up',
-      category: 'technical',
-      stage: 'technical',
+      category: isTechnical ? 'technical' : 'role_competency',
+      stage: isTechnical ? 'technical' : 'role_competency',
       topic: skill,
       followUpDepth: 1,
       text: followUpText,
