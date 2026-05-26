@@ -33,7 +33,7 @@ export function HomeHeader({ user, isAvatarBroken, userInitials, onAvatarError, 
 
       {/* Centre label */}
       <div className="hidden text-[10px] font-bold uppercase tracking-widest lg:block" style={{ color: 'var(--text-faint)' }}>
-        Practice Dashboard
+        Practice workspace
       </div>
 
       {/* Actions */}
@@ -45,7 +45,7 @@ export function HomeHeader({ user, isAvatarBroken, userInitials, onAvatarError, 
           style={{ color: 'var(--text-muted)' }}
           onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent)'; e.currentTarget.style.background = 'var(--accent-glow)'; }}
           onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.background = 'transparent'; }}
-          title="Replay Tour"
+          title="Replay tour"
         >
           <HelpCircle size={15} strokeWidth={2} />
           <span className="hidden sm:inline">Tour</span>

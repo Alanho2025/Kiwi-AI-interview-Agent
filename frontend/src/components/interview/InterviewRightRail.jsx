@@ -15,10 +15,10 @@ import { TextBackupCard } from './TextBackupCard.jsx';
 import { TranscriptPanel } from './TranscriptPanel.jsx';
 
 const resolveRecordingLabel = ({ isCompleted, recordingStatus }) => {
-  if (!isCompleted) return 'Available after ending';
-  if (recordingStatus?.state === 'uploading') return 'Preparing MP3...';
-  if (recordingStatus?.state === 'failed') return 'Recording failed';
-  if (recordingStatus?.state === 'ready') return 'MP3 ready';
+  if (!isCompleted) return 'Available after the session ends';
+  if (recordingStatus?.state === 'uploading') return 'Preparing recording...';
+  if (recordingStatus?.state === 'failed') return 'Recording could not be prepared';
+  if (recordingStatus?.state === 'ready') return 'Recording ready';
   return 'Recording is still being processed';
 };
 
@@ -34,7 +34,7 @@ export function InterviewRightRail({
   onDownloadRecording,
 }) {
   const canDownloadRecording = isVoiceMode && isCompleted && recordingStatus?.state === 'ready';
-  const transcriptModeLabel = isVoiceMode ? 'Voice Interview' : 'Text Interview';
+  const transcriptModeLabel = isVoiceMode ? 'Voice interview' : 'Text interview';
 
   return (
     <div className="hidden lg:flex lg:col-span-3 xl:col-span-3 flex-col gap-6 h-full pb-6 min-h-0">
@@ -49,7 +49,7 @@ export function InterviewRightRail({
               <p className="text-sm font-semibold text-primary">Voice recording</p>
               <p className="mt-1 text-xs text-faint">{resolveRecordingLabel({ isCompleted, recordingStatus })}</p>
             </div>
-            <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700">MP3</span>
+            <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700">Audio</span>
           </div>
           {recordingStatus?.error ? (
             <p className="mt-3 text-xs text-red-600">{recordingStatus.error}</p>
@@ -63,7 +63,7 @@ export function InterviewRightRail({
             disabled={!canDownloadRecording}
           >
             <Download className="mr-2 h-4 w-4" />
-            Download MP3
+            Download recording
           </Button>
         </div>
       ) : null}

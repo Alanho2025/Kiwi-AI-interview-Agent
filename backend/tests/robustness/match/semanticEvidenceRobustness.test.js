@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
 import { compareCvToJobDescription } from '../../../src/services/matchService.js';
 
@@ -25,6 +25,13 @@ const buildRubric = (requirements = []) => ({
 });
 
 describe('semantic evidence match robustness', () => {
+  const previousMatchEngine = process.env.MATCH_ENGINE;
+
+  afterEach(() => {
+    if (previousMatchEngine === undefined) delete process.env.MATCH_ENGINE;
+    else process.env.MATCH_ENGINE = previousMatchEngine;
+  });
+
   it('does not treat skills-list-only hard requirements as fully met', async () => {
     const cvText = `Mina Patel
 Software Developer
@@ -83,5 +90,60 @@ Roster API
 
     expect(requirement.status).not.toBe('met');
     expect(requirement.notes).toMatch(/commercial|limited direct proof|project/i);
+  });
+
+  it('uses semantic engine dimensions and judgement notes for non-IT customer-service evidence', async () => {
+    process.env.MATCH_ENGINE = 'semantic';
+    const cvText = `Noah Lee
+Retail Assistant
+
+Experience
+- Resolved customer issues during weekend retail shifts and escalated difficult cases to the store manager.
+- Presented weekly stock updates to cross-functional team members.
+
+Skills
+Customer service
+Communication`;
+    const rubric = buildRubric([
+      { label: 'Ability to handle customer complaints in a fast-paced environment', type: 'hard', importance: 'high' },
+      { label: 'Strong written communication skills', type: 'soft', importance: 'high' },
+    ]);
+
+    const result = await compareCvToJobDescription(cvText, 'Customer service JD', rubric, { matchEngine: 'semantic' });
+    const complaintRequirement = result.requirementChecks.find((item) => /customer complaints/i.test(item.label));
+
+    expect(['met', 'partial']).toContain(complaintRequirement.status);
+    expect(complaintRequirement.notes).toMatch(/missingEvidence=|interviewProbe=/i);
+    expect(result.matchingDetails.scoreDimensions).toMatchObject({
+      mustHaveFit: expect.any(Number),
+      responsibilityFit: expect.any(Number),
+      skillAndToolFit: expect.any(Number),
+      evidenceQuality: expect.any(Number),
+      softSkillAndCultureFit: expect.any(Number),
+    });
+    expect(result.matchingDetails.universalRoleProfile.industry).toMatch(/customer service|general/i);
+  });
+
+  it('keeps direct qualification requirements gated when semantic evidence is only adjacent', async () => {
+    process.env.MATCH_ENGINE = 'semantic';
+    const cvText = `Sam Taylor
+Healthcare Assistant
+
+Experience
+- Supported patients with appointment preparation and documented shift notes.
+
+Skills
+Patient care
+Team communication`;
+    const rubric = buildRubric([
+      { label: 'Registered nurse qualification', type: 'hard', importance: 'high' },
+    ]);
+
+    const result = await compareCvToJobDescription(cvText, 'Registered Nurse JD', rubric, { matchEngine: 'semantic' });
+    const requirement = result.requirementChecks[0];
+
+    expect(requirement.status).toBe('not_met');
+    expect(result.decision.label).toBe('not_qualified');
+    expect(requirement.notes).toMatch(/direct qualification|missingEvidence=|Registered nurse/i);
   });
 });

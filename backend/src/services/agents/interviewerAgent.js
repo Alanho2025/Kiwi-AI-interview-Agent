@@ -128,10 +128,32 @@ const pickPriorityTechnicalTopic = ({ session = {}, decisionContext = {}, target
   return normalizeText(targetTopic) || 'implementation';
 };
 
+const inferRequirementCategoryFromTopic = (topic = '') => {
+  const lower = normalizeText(topic).toLowerCase();
+  if (/registered|registration|licen[cs]e|certificat|qualification|degree|bachelor|master/.test(lower)) return 'qualification';
+  if (/safety|compliance|policy|regulatory|legal|privacy/.test(lower)) return 'compliance_or_safety';
+  if (/customer|client|stakeholder|complaint|relationship|escalation/.test(lower)) return 'customer_or_stakeholder';
+  if (/communicat|writing|present|report|documentation/.test(lower)) return 'communication';
+  if (/lead|manage|mentor|supervis/.test(lower)) return 'leadership';
+  if (/aws|azure|cloud|react|sql|database|postgres|python|api|debug|troubleshoot|automation|deploy|software|technical/.test(lower)) return 'technical';
+  return 'responsibility';
+};
+
 const buildMatchedTechnicalQuestion = ({ topic = 'implementation' } = {}) => {
   const normalizedTopic = normalizeText(topic) || 'implementation';
   const lower = normalizedTopic.toLowerCase();
-  const skillAwareText = lower.includes('react')
+  const inferredCategory = inferRequirementCategoryFromTopic(normalizedTopic);
+  const skillAwareText = inferredCategory === 'qualification'
+    ? `Let us validate a key role requirement. Can you walk me through your evidence for ${normalizedTopic}, and where you have applied it in practice?`
+    : inferredCategory === 'compliance_or_safety'
+      ? `Let us validate a key role requirement. Tell me about a time you had to follow or apply ${normalizedTopic}. What checks did you make, and what was at stake?`
+      : inferredCategory === 'customer_or_stakeholder'
+        ? `Let us focus on the role requirements. Tell me about a time you handled a difficult customer or stakeholder situation involving ${normalizedTopic}. What happened, what did you do, and what was the outcome?`
+        : inferredCategory === 'communication'
+          ? `Let us focus on the role requirements. Tell me about a time you used ${normalizedTopic}. Who was the audience, and what result did your communication achieve?`
+          : inferredCategory === 'leadership'
+            ? `Let us focus on the role requirements. Tell me about a time you showed ${normalizedTopic}. What did you lead or influence, and what changed afterwards?`
+            : lower.includes('react')
     ? `Let us move to the technical side. Tell me about one React feature or frontend flow you implemented yourself. What decisions did you make, and how did you know it worked?`
     : lower.includes('postgres') || lower.includes('sql') || lower.includes('database')
       ? `Let us move to the technical side. Tell me about one database or SQL task you handled yourself. What query, schema, or trade-off did you work through, and what result came from it?`
@@ -141,16 +163,18 @@ const buildMatchedTechnicalQuestion = ({ topic = 'implementation' } = {}) => {
           ? `Let us move to the technical side. Tell me about one debugging or troubleshooting example from your work. What was the issue, what did you check first, and how did you fix it?`
           : lower.includes('automation')
             ? `Let us move to the technical side. Tell me about one automation task you built or improved. What did you implement yourself, and how did it change the workflow?`
-            : `Let us move to the technical side. Tell me about one concrete example where you used ${normalizedTopic}. What did you implement yourself, what trade-off did you handle, and what was the result?`;
+            : inferredCategory === 'responsibility'
+              ? `Let us focus on the role requirements. Tell me about a real example where you handled ${normalizedTopic}. What did you own, and what was the result?`
+              : `Let us move to the technical side. Tell me about one concrete example where you used ${normalizedTopic}. What did you implement yourself, what trade-off did you handle, and what was the result?`;
 
   return {
-    type: 'technical_recovery_follow_up',
+    type: inferredCategory === 'technical' ? 'technical_recovery_follow_up' : 'role_competency_recovery_follow_up',
     stage: 'technical',
     topic: normalizedTopic,
     category: 'technical',
     followUpDepth: 0,
     text: skillAwareText,
-    reason: `The interview still needs grounded technical evidence, so the controller is using a role-matched technical topic (${normalizedTopic}).`,
+    reason: `The interview still needs grounded role evidence, so the controller is using a role-matched topic (${normalizedTopic}).`,
     sourceType: 'controller_directed',
   };
 };
@@ -167,8 +191,8 @@ const buildClosingQuestion = ({ session = {}, decisionContext = {} } = {}) => {
       topic,
       category: 'closing',
       followUpDepth: 0,
-      text: `Before we wrap up, I want one final technical example. Thinking about ${topic}, what did you own yourself, what was the hardest part, and what result came from it?`,
-      reason: 'The session is at its final planned turn, so the interviewer is using a clear closing question that still checks concrete technical ownership.',
+      text: `Before we wrap up, I want one final role-specific example. Thinking about ${topic}, what did you own yourself, what was the hardest part, and what result came from it?`,
+      reason: 'The session is at its final planned turn, so the interviewer is using a clear closing question that still checks concrete role ownership.',
       sourceType: 'controller_directed',
     };
   }

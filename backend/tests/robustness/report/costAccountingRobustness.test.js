@@ -12,6 +12,7 @@ vi.mock('../../../src/db/models/aiUsageEventModel.js', () => ({
 
 describe('cost accounting robustness', () => {
   it('keeps session commercial-stress totals consistent with recorded usage events', async () => {
+    const expectedTotalCostNzd = 0.000594;
     const events = [
       {
         userId: 'user-1',
@@ -57,12 +58,18 @@ describe('cost accounting robustness', () => {
     expect(cost.summary.totalTokens).toBe(150);
     expect(cost.summary.speechAudioSeconds).toBe(12.4);
     expect(cost.summary.speechTextCharacters).toBe(320);
-    expect(cost.summary.totalCost).toBe(0.00036);
+    expect(cost.summary.currency).toBe('NZD');
+    expect(cost.summary.pricing.currency).toBe('NZD');
+    expect(cost.summary.pricing.sourceCurrency).toBe('USD');
+    expect(cost.summary.totalCost).toBe(expectedTotalCostNzd);
     expect(cost.commercialStressTest.totalExecutionCost).toBe(cost.summary.totalCost);
+    expect(cost.commercialStressTest.currency).toBe('NZD');
+    expect(cost.commercialStressTest.assumptions).toContain('NZ$35/hour');
     expect(cost.commercialStressTest.totalLlmTokens).toBe(cost.summary.totalTokens);
     expect(cost.commercialStressTest.speechAudioSeconds).toBe(12);
     expect(cost.commercialStressTest.speechTextCharacters).toBe(320);
     expect(cost.stageBreakdown[0].estimatedCost).toBe(cost.summary.totalCost);
+    expect(cost.stageBreakdown[0].currency).toBe('NZD');
 
     const numericValues = [
       cost.summary.totalCost,

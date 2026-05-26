@@ -5,6 +5,8 @@ const normalizeFingerprintText = (value = '') => String(value || '')
   .replace(/\s+/g, ' ')
   .trim();
 
+const hasText = (value = '') => String(value || '').trim().length > 0;
+
 export const buildCompanyValuesJdFingerprint = ({ rawJD = '', jdRubric = {} } = {}) => {
   const overview = jdRubric?.jobOverview || {};
   const parts = [
@@ -29,4 +31,14 @@ export const extractCompanyValuesContextFromJd = ({ rawJD = '', jdRubric = {}, c
     websiteUrl: String(companyWebsiteUrl || overview.companyWebsiteUrl || jdRubric?.companyWebsiteUrl || '').trim(),
     jdText: String(rawJD || '').trim(),
   };
+};
+
+export const shouldStartCompanyValuesEnrichment = ({
+  companyValuesContext = {},
+  jdRubric = {},
+} = {}) => {
+  const inputTrustLevel = jdRubric?.metadata?.inputTrustLevel || '';
+  const hasManualCompanyWebsite = hasText(companyValuesContext.websiteUrl);
+
+  return inputTrustLevel === 'human_reviewed' || hasManualCompanyWebsite;
 };
