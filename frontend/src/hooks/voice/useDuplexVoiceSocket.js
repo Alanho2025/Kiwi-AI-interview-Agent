@@ -73,6 +73,9 @@ export function useDuplexVoiceSocket({
     const socket = socketRef.current;
     if (!socket) return;
     socketRef.current = null;
+    speechActiveRef.current = false;
+    chunksSentRef.current = 0;
+    ignoredPreSpeechChunksRef.current = 0;
     try { socket.close(); } catch {}
   }, []);
 
@@ -96,6 +99,8 @@ export function useDuplexVoiceSocket({
     pingSentAtRef.current = null;
     rttSamplesRef.current = [];
     chunksSentRef.current = 0;
+    ignoredPreSpeechChunksRef.current = 0;
+    speechActiveRef.current = false;
     setSocketState('connecting');
     startedAtRef.current = performance.now();
 
@@ -186,6 +191,9 @@ export function useDuplexVoiceSocket({
 
     socket.onclose = () => {
       if (socketRef.current === socket) socketRef.current = null;
+      speechActiveRef.current = false;
+      chunksSentRef.current = 0;
+      ignoredPreSpeechChunksRef.current = 0;
       setSocketState((current) => (current === 'error' ? current : 'closed'));
     };
   }), [closeSocket]);
@@ -210,16 +218,26 @@ export function useDuplexVoiceSocket({
   }, []);
 
   const sendSpeechStart = useCallback(() => {
+    if (speechActiveRef.current) {
+      console.warn(`[FRONTEND-STT-TRACE] Ignoring duplicate speech_start while speech is already active.`);
+      return false;
+    }
     chunksSentRef.current = 0;
     ignoredPreSpeechChunksRef.current = 0;
     speechActiveRef.current = true;
     return sendJson({ type: 'speech_start', clientTimestamp: Date.now() });
   }, [sendJson]);
+
   const sendSpeechEnd = useCallback((vad = null) => {
+    if (!speechActiveRef.current) {
+      console.warn(`[FRONTEND-STT-TRACE] Ignoring speech_end because no active speech turn exists.`);
+      return false;
+    }
     console.log(`[FRONTEND-STT-TRACE] speech_end sent after ${chunksSentRef.current} audio chunks.`);
     speechActiveRef.current = false;
     return sendJson({ type: 'speech_end', vad, clientTimestamp: Date.now() });
   }, [sendJson]);
+
   const sendBargeIn = useCallback((reason = 'user_started_speaking') => sendJson({ type: 'barge_in', reason, clientTimestamp: Date.now() }), [sendJson]);
   const speakText = useCallback((text) => sendJson({ type: 'speak_text', text, clientTimestamp: Date.now() }), [sendJson]);
   const sendPing = useCallback(() => {
