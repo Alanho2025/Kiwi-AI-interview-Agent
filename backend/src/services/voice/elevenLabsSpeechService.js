@@ -3,6 +3,7 @@
  * Main responsibilities:
  * - Keep ElevenLabs text-to-speech HTTP concerns isolated from voice orchestration.
  * - Match the small synthesis contract used by Azure Speech.
+ * - Support true TTS streaming so duplex voice can forward audio before full synthesis completes.
  * - Record measured speech usage without coupling callers to provider-specific details.
  */
 
@@ -10,7 +11,7 @@ import { AppError, badRequest } from '../../utils/appError.js';
 import { recordSpeechUsage } from '../aiUsageTrackingService.js';
 
 const DEFAULT_MODEL_ID = process.env.ELEVENLABS_MODEL_ID || 'eleven_turbo_v2_5';
-const DEFAULT_OUTPUT_FORMAT = process.env.ELEVENLABS_OUTPUT_FORMAT || 'mp3_44100_128';
+const DEFAULT_OUTPUT_FORMAT = process.env.ELEVENLABS_OUTPUT_FORMAT || 'mp3_22050_32';
 
 const numberFromEnv = (key, fallback) => {
   const value = Number(process.env[key]);
@@ -46,6 +47,7 @@ const getElevenLabsConfig = ({ voiceName } = {}) => {
 const buildTtsUrl = ({ voiceId, outputFormat }) => {
   const url = new URL(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}/stream`);
   url.searchParams.set('output_format', outputFormat);
+  url.searchParams.set('optimize_streaming_latency', String(numberFromEnv('ELEVENLABS_OPTIMIZE_STREAMING_LATENCY', 3)));
   return url.toString();
 };
 
@@ -56,17 +58,33 @@ const buildVoiceSettings = () => ({
   use_speaker_boost: booleanFromEnv('ELEVENLABS_USE_SPEAKER_BOOST', true),
 });
 
-export const synthesizeSpeech = async ({
+const buildRequestBody = ({ text, modelId }) => JSON.stringify({
   text,
-  voiceName,
-  outputFormat = DEFAULT_OUTPUT_FORMAT,
-  usageContext = null,
-} = {}) => {
-  const trimmedText = String(text || '').trim();
-  if (!trimmedText) {
-    throw badRequest('Text is required', 'Provide text for speech synthesis');
-  }
+  model_id: modelId,
+  voice_settings: buildVoiceSettings(),
+});
 
+const recordElevenLabsUsage = async ({ trimmedText, audioBytes, usageContext, voiceId, outputFormat, modelId, source }) => {
+  if (!usageContext?.userId) return;
+  await recordSpeechUsage({
+    userId: usageContext.userId,
+    sessionId: usageContext.sessionId || null,
+    provider: 'elevenlabs',
+    stage: usageContext.stage || 'interview',
+    operation: 'text_to_speech',
+    textCharacters: trimmedText.length,
+    audioBytes,
+    requestCount: 1,
+    metadata: {
+      voiceId,
+      outputFormat,
+      modelId,
+      source: usageContext.source || source,
+    },
+  });
+};
+
+const requestElevenLabsStream = async ({ trimmedText, voiceName, outputFormat }) => {
   const { apiKey, voiceId } = getElevenLabsConfig({ voiceName });
   const modelId = process.env.ELEVENLABS_MODEL_ID || DEFAULT_MODEL_ID;
   const response = await fetch(buildTtsUrl({ voiceId, outputFormat }), {
@@ -76,11 +94,7 @@ export const synthesizeSpeech = async ({
       'Content-Type': 'application/json',
       'xi-api-key': apiKey,
     },
-    body: JSON.stringify({
-      text: trimmedText,
-      model_id: modelId,
-      voice_settings: buildVoiceSettings(),
-    }),
+    body: buildRequestBody({ text: trimmedText, modelId }),
   });
 
   if (!response.ok) {
@@ -93,29 +107,112 @@ export const synthesizeSpeech = async ({
     });
   }
 
-  const audioBuffer = Buffer.from(await response.arrayBuffer());
-  if (usageContext?.userId) {
-    await recordSpeechUsage({
-      userId: usageContext.userId,
-      sessionId: usageContext.sessionId || null,
-      provider: 'elevenlabs',
-      stage: usageContext.stage || 'interview',
-      operation: 'text_to_speech',
-      textCharacters: trimmedText.length,
-      audioBytes: audioBuffer.length,
-      requestCount: 1,
-      metadata: {
-        voiceId,
-        outputFormat,
-        modelId,
-        source: usageContext.source || 'elevenlabs_speech',
-      },
+  return {
+    response,
+    voiceId,
+    outputFormat,
+    modelId,
+    contentType: response.headers.get('content-type') || 'audio/mpeg',
+  };
+};
+
+export const streamSynthesizeSpeech = async function* ({
+  text,
+  voiceName,
+  outputFormat = DEFAULT_OUTPUT_FORMAT,
+  usageContext = null,
+} = {}) {
+  const trimmedText = String(text || '').trim();
+  if (!trimmedText) {
+    throw badRequest('Text is required', 'Provide text for speech synthesis');
+  }
+
+  const startedAt = Date.now();
+  const { response, voiceId, modelId, contentType } = await requestElevenLabsStream({
+    trimmedText,
+    voiceName,
+    outputFormat,
+  });
+
+  const reader = response.body?.getReader?.();
+  if (!reader) {
+    throw new AppError('ElevenLabs response did not provide a readable stream', {
+      statusCode: 502,
+      code: 'VOICE_SYNTHESIS_STREAM_UNAVAILABLE',
+      meta: { voiceId, outputFormat, modelId },
     });
   }
 
+  let audioBytes = 0;
+  let chunkIndex = 0;
+  let firstByteMs = null;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value?.byteLength) continue;
+      if (firstByteMs == null) firstByteMs = Date.now() - startedAt;
+      const audioBuffer = Buffer.from(value);
+      audioBytes += audioBuffer.length;
+      yield {
+        audioBuffer,
+        contentType,
+        voiceName: `elevenlabs:${voiceId}`,
+        outputFormat,
+        provider: 'elevenlabs',
+        chunkIndex,
+        firstByteMs,
+        isStreaming: true,
+      };
+      chunkIndex += 1;
+    }
+  } finally {
+    try { reader.releaseLock?.(); } catch {}
+  }
+
+  await recordElevenLabsUsage({
+    trimmedText,
+    audioBytes,
+    usageContext,
+    voiceId,
+    outputFormat,
+    modelId,
+    source: 'elevenlabs_speech_stream',
+  });
+};
+
+export const synthesizeSpeech = async ({
+  text,
+  voiceName,
+  outputFormat = DEFAULT_OUTPUT_FORMAT,
+  usageContext = null,
+} = {}) => {
+  const trimmedText = String(text || '').trim();
+  if (!trimmedText) {
+    throw badRequest('Text is required', 'Provide text for speech synthesis');
+  }
+
+  const { response, voiceId, modelId, contentType } = await requestElevenLabsStream({
+    trimmedText,
+    voiceName,
+    outputFormat,
+  });
+
+  const audioBuffer = Buffer.from(await response.arrayBuffer());
+  await recordElevenLabsUsage({
+    trimmedText,
+    audioBytes: audioBuffer.length,
+    usageContext,
+    voiceId,
+    outputFormat,
+    modelId,
+    source: 'elevenlabs_speech',
+  });
+
   return {
     audioBuffer,
-    contentType: response.headers.get('content-type') || 'audio/mpeg',
+    contentType,
     voiceName: `elevenlabs:${voiceId}`,
     outputFormat,
     provider: 'elevenlabs',
