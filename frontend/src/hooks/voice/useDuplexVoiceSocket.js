@@ -49,6 +49,8 @@ export function useDuplexVoiceSocket({
   const pingSentAtRef = useRef(null);
   const rttSamplesRef = useRef([]);
   const chunksSentRef = useRef(0);
+  const speechActiveRef = useRef(false);
+  const ignoredPreSpeechChunksRef = useRef(0);
   const callbacksRef = useRef({
     onAudioChunk,
     onAssistantText,
@@ -191,6 +193,15 @@ export function useDuplexVoiceSocket({
   const sendAudioChunk = useCallback((arrayBuffer) => {
     const socket = socketRef.current;
     if (!socket || socket.readyState !== WebSocket.OPEN || !arrayBuffer) return;
+
+    if (!speechActiveRef.current) {
+      ignoredPreSpeechChunksRef.current += 1;
+      if (ignoredPreSpeechChunksRef.current === 1) {
+        console.log(`[FRONTEND-STT-TRACE] Ignoring mic audio before speech_start.`);
+      }
+      return;
+    }
+
     if (chunksSentRef.current === 0) {
       console.log(`[FRONTEND-STT-TRACE] Sending FIRST audio chunk (${arrayBuffer.byteLength} bytes) to backend WebSocket.`);
     }
@@ -198,8 +209,17 @@ export function useDuplexVoiceSocket({
     socket.send(arrayBuffer);
   }, []);
 
-  const sendSpeechStart = useCallback(() => sendJson({ type: 'speech_start', clientTimestamp: Date.now() }), [sendJson]);
-  const sendSpeechEnd = useCallback((vad = null) => sendJson({ type: 'speech_end', vad, clientTimestamp: Date.now() }), [sendJson]);
+  const sendSpeechStart = useCallback(() => {
+    chunksSentRef.current = 0;
+    ignoredPreSpeechChunksRef.current = 0;
+    speechActiveRef.current = true;
+    return sendJson({ type: 'speech_start', clientTimestamp: Date.now() });
+  }, [sendJson]);
+  const sendSpeechEnd = useCallback((vad = null) => {
+    console.log(`[FRONTEND-STT-TRACE] speech_end sent after ${chunksSentRef.current} audio chunks.`);
+    speechActiveRef.current = false;
+    return sendJson({ type: 'speech_end', vad, clientTimestamp: Date.now() });
+  }, [sendJson]);
   const sendBargeIn = useCallback((reason = 'user_started_speaking') => sendJson({ type: 'barge_in', reason, clientTimestamp: Date.now() }), [sendJson]);
   const speakText = useCallback((text) => sendJson({ type: 'speak_text', text, clientTimestamp: Date.now() }), [sendJson]);
   const sendPing = useCallback(() => {

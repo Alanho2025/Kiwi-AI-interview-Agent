@@ -5,7 +5,7 @@
  * - Provide safe fallback behaviour so robustness tests never depend on the network.
  */
 
-import { callDeepSeek, autoRecordUsage } from '../deepseekService.js';
+import { callDeepSeek, autoRecordUsage, LLM_CONFIGS } from '../deepseekService.js';
 import { safeJsonParse } from '../jobDescription/jobDescriptionShared.js';
 
 const stripJsonFence = (text = '') => String(text || '')
@@ -28,12 +28,17 @@ export const callDeepSeekJson = async ({
   fallback = {},
   maxRetries = 1,
   usageMetadata = {},
+  generationConfig = LLM_CONFIGS.JSON_STRICT,
 } = {}) => {
   let lastError = null;
 
   for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
     try {
-      const { content, usage } = await callDeepSeek(prompt, systemInstruction, { skipAutoRecord: true });
+      const { content, usage } = await callDeepSeek(prompt, systemInstruction, {
+        skipAutoRecord: true,
+        usageMetadata: { operation: 'llm_json', ...usageMetadata },
+        generationConfig,
+      });
       // Record with distinct action so we can distinguish JSON-wrapper calls
       await autoRecordUsage(usage, 'callDeepSeekJson', { operation: 'llm_json', ...usageMetadata });
       const parsed = parseJsonSafely(content, null);

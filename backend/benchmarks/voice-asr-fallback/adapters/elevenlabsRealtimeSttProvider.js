@@ -2,7 +2,9 @@ import WebSocket from 'ws';
 
 const REALTIME_STT_URL = 'wss://api.elevenlabs.io/v1/speech-to-text/realtime';
 const DEFAULT_MODEL_ID = 'scribe_v2_realtime';
+const DEFAULT_COMMIT_STRATEGY = 'vad';
 const DEFAULT_FINAL_TIMEOUT_MS = 5000;
+const DEFAULT_CLOSE_TIMEOUT_MS = 1000;
 const MAX_KEYTERMS = 50;
 const MAX_KEYTERM_LENGTH = 20;
 
@@ -12,6 +14,10 @@ const parsePositiveInteger = (value, fallback) => {
 };
 
 const normalizeLanguageCode = (language) => String(language || 'en').trim().toLowerCase().split('-')[0] || 'en';
+const normalizeCommitStrategy = (value) => {
+  const strategy = String(value || DEFAULT_COMMIT_STRATEGY).trim().toLowerCase();
+  return strategy === 'manual' ? 'manual' : 'vad';
+};
 
 const normalizeKeyterm = (value) => String(value || '').replace(/\s+/g, ' ').trim().slice(0, MAX_KEYTERM_LENGTH);
 
@@ -36,13 +42,19 @@ const buildKeyterms = (fixtureKeyterms = []) => {
   return keyterms;
 };
 
-const buildRealtimeUrl = ({ language, keyterms }) => {
+const buildRealtimeUrl = ({ language, keyterms, commitStrategy }) => {
   const url = new URL(REALTIME_STT_URL);
   url.searchParams.set('model_id', process.env.ELEVENLABS_STT_MODEL_ID || DEFAULT_MODEL_ID);
   url.searchParams.set('audio_format', process.env.ELEVENLABS_STT_AUDIO_FORMAT || 'pcm_16000');
   url.searchParams.set('language_code', normalizeLanguageCode(language));
-  url.searchParams.set('commit_strategy', process.env.ELEVENLABS_STT_COMMIT_STRATEGY || 'manual');
+  url.searchParams.set('commit_strategy', commitStrategy);
   url.searchParams.set('include_timestamps', process.env.ELEVENLABS_STT_INCLUDE_TIMESTAMPS || 'false');
+  if (commitStrategy === 'vad') {
+    url.searchParams.set('vad_silence_threshold_secs', process.env.ELEVENLABS_STT_VAD_SILENCE_THRESHOLD_SECS || '0.8');
+    url.searchParams.set('vad_threshold', process.env.ELEVENLABS_STT_VAD_THRESHOLD || '0.4');
+    url.searchParams.set('min_speech_duration_ms', process.env.ELEVENLABS_STT_MIN_SPEECH_DURATION_MS || '300');
+    url.searchParams.set('min_silence_duration_ms', process.env.ELEVENLABS_STT_MIN_SILENCE_DURATION_MS || '300');
+  }
   keyterms.forEach((keyterm) => url.searchParams.append('keyterms', keyterm));
   return url;
 };
@@ -110,8 +122,10 @@ export const createElevenLabsRealtimeSttProvider = async ({ sampleRate, language
   if (sampleRate !== 16000) throw new Error(`ElevenLabs realtime STT benchmark expects 16 kHz PCM audio. Received ${sampleRate}.`);
 
   const keyterms = buildKeyterms(fixture?.keywords || []);
-  const socket = new WebSocket(buildRealtimeUrl({ language, keyterms }), { headers: { 'xi-api-key': apiKey } });
+  const commitStrategy = normalizeCommitStrategy(process.env.ELEVENLABS_STT_COMMIT_STRATEGY);
+  const socket = new WebSocket(buildRealtimeUrl({ language, keyterms, commitStrategy }), { headers: { 'xi-api-key': apiKey } });
   const finalTimeoutMs = parsePositiveInteger(process.env.ELEVENLABS_STT_FINAL_TIMEOUT_MS, DEFAULT_FINAL_TIMEOUT_MS);
+  const closeTimeoutMs = parsePositiveInteger(process.env.ELEVENLABS_STT_CLOSE_TIMEOUT_MS, DEFAULT_CLOSE_TIMEOUT_MS);
   const finalWaiter = createFinalWaiter();
   const errors = [];
   let pendingChunk = null;
@@ -177,26 +191,40 @@ export const createElevenLabsRealtimeSttProvider = async ({ sampleRate, language
   return {
     name: 'elevenlabs-realtime',
     write: (chunk) => {
-      if (pendingChunk) sendChunk(pendingChunk, false);
-      pendingChunk = Buffer.from(chunk);
+      if (commitStrategy === 'manual') {
+        if (pendingChunk) sendChunk(pendingChunk, false);
+        pendingChunk = Buffer.from(chunk);
+        return;
+      }
+      sendChunk(chunk, false);
     },
     finalize: async () => {
-      sendChunk(pendingChunk || Buffer.alloc(0), true);
+      if (commitStrategy === 'manual') {
+        sendChunk(pendingChunk || Buffer.alloc(0), true);
+      } else if (pendingChunk) {
+        sendChunk(pendingChunk, false);
+      }
       pendingChunk = null;
       await withTimeout(
         finalWaiter.finalPromise,
         finalTimeoutMs,
-        `Timed out waiting ${finalTimeoutMs}ms for ElevenLabs committed transcript after commit.`
+        `Timed out waiting ${finalTimeoutMs}ms for ElevenLabs ${commitStrategy} committed transcript.`
       );
       if (socket.readyState === WebSocket.OPEN) socket.close(1000, 'benchmark complete');
-      await waitForClose(socket);
+      await withTimeout(
+        waitForClose(socket),
+        closeTimeoutMs,
+        `Timed out waiting ${closeTimeoutMs}ms for ElevenLabs realtime STT socket close.`
+      ).catch(() => {
+        if (typeof socket.terminate === 'function') socket.terminate();
+      });
       if (errors.length) throw new Error(errors[0]);
     },
     integrationComplexity: 'medium: cloud realtime STT over WebSocket; consumes existing 16 kHz PCM chunks and supports fixture keyword bias',
     benchmarkMetadata: {
       modelId: process.env.ELEVENLABS_STT_MODEL_ID || DEFAULT_MODEL_ID,
       audioFormat: process.env.ELEVENLABS_STT_AUDIO_FORMAT || 'pcm_16000',
-      commitStrategy: process.env.ELEVENLABS_STT_COMMIT_STRATEGY || 'manual',
+      commitStrategy,
       keyterms,
       keytermCount: keyterms.length,
     },

@@ -69,7 +69,7 @@ const hasStrictTechEvidence = (label = '', evidenceText = '') => {
 };
 
 const isHardTechnicalRequirement = (requirement = {}, label = '') =>
-  requirement.type === 'hard' && (
+  (requirement.type === 'hard' || requirement.mustHave === true) && (
     ['technical_skill', 'tool_or_platform', 'domain_knowledge'].includes(requirement.category)
     || getStrictTechKeys(label).length > 0
   );
@@ -82,8 +82,6 @@ const filterSemanticMatchesForRequirement = (label = '', semanticMatches = [], r
     return true;
   });
 };
-
-
 
 const statusFromCombinedSignal = (status, combinedSignal) => {
   if (combinedSignal >= 1.45) return 'met';
@@ -137,6 +135,9 @@ const splitCompositeRequirement = (label = '') => {
   if (/communicate clearly and learn quickly/i.test(raw)) return ['communication', 'learn quickly'];
   if (/good communication and ownership/i.test(raw)) return ['communication', 'ownership'];
   if (/azure or ci\/?cd pipelines/i.test(raw)) return ['azure', 'ci/cd pipelines'];
+  if (/chatgpt|claude|other ai tools/i.test(raw)) return ['ChatGPT', 'Claude', 'AI tools'];
+  if (/data, reporting, or dashboards/i.test(raw)) return ['data', 'reporting', 'dashboards'];
+  if (/basic coding or api integrations/i.test(raw)) return ['basic coding', 'API integrations'];
 
   const cleaned = raw
     .replace(/^foundations in\s+/i, '')
@@ -224,11 +225,11 @@ const applyEvidenceStrengthPolicy = ({ requirement = {}, finalStatus = 'not_met'
     }
   }
 
-  if (requirement.type === 'hard' && matchedSection === 'skills' && evidenceStrength === 'weak') {
+  if ((requirement.type === 'hard' || requirement.mustHave === true) && matchedSection === 'skills' && evidenceStrength === 'weak') {
     nextStatus = nextStatus === 'met' ? 'partial' : nextStatus;
   }
 
-  if (requirement.type === 'hard' && bestSemantic?.sourceType === 'skill' && !['experience', 'project_outcome', 'project_responsibility'].includes(bestSemantic.sourceType)) {
+  if ((requirement.type === 'hard' || requirement.mustHave === true) && bestSemantic?.sourceType === 'skill' && !['experience', 'project_outcome', 'project_responsibility'].includes(bestSemantic.sourceType)) {
     nextStatus = nextStatus === 'met' ? 'partial' : nextStatus;
   }
 
@@ -332,7 +333,6 @@ const computeRequirementStatus = (requirement, evidenceProfile = {}, semanticEvi
   };
 };
 
-
 const isQualificationLabel = (label = '') => /qualification|degree|bachelor|master|diploma|tertiary|computer science|software engineering|information technology/i.test(label);
 
 const isCapabilityOnlyEvidence = (evidence = '') => /^Capability match:/i.test(String(evidence || ''));
@@ -343,26 +343,14 @@ const sanitizeRequirementEvidence = ({ requirement = {}, status = 'not_met', evi
     const text = String(item || '');
     if (!text.trim()) return false;
 
-    // Education cannot support non-qualification requirements.
     if (!isQualificationLabel(label) && /Matched in education:/i.test(text)) return false;
-
-    // Missing hard requirements should not show adjacent capability evidence.
-    if (requirement.type === 'hard' && status === 'not_met' && isCapabilityOnlyEvidence(text)) return false;
-
-    // Strict hard technical gaps should only show exact tool evidence.
-    if (isHardTechnicalRequirement(requirement, label) && !hasStrictTechEvidence(label, text)) {
-      return false;
-    }
-
-    // Cloud-native cannot be supported by generic engineering/software words.
-    if (/cloud-native|cloud native/i.test(label) && /Matched in keyCompetencies: engineering, software, developer, development/i.test(text)) {
-      return false;
-    }
+    if ((requirement.type === 'hard' || requirement.mustHave === true) && status === 'not_met' && isCapabilityOnlyEvidence(text)) return false;
+    if (isHardTechnicalRequirement(requirement, label) && !hasStrictTechEvidence(label, text)) return false;
+    if (/cloud-native|cloud native/i.test(label) && /Matched in keyCompetencies: engineering, software, developer, development/i.test(text)) return false;
 
     return true;
   });
 };
-
 
 export const buildMacroScores = (macroCriteria = [], _cvText, weights = {}, evidenceProfile = {}, semanticEvidenceContext = {}) =>
   macroCriteria.map((criterion) => {
@@ -417,7 +405,7 @@ export const buildRequirementChecks = (requirements = [], _cvText, evidenceProfi
     ].filter(Boolean).join('; ');
     return buildRequirementItem({
       label: requirement.label,
-      type: requirement.type || 'soft',
+      type: requirement.mustHave ? 'hard' : requirement.type || 'soft',
       importance: requirement.importance || 'medium',
       status: finalStatus,
       evidence: cleanedEvidence,
@@ -438,13 +426,43 @@ const averageWeighted = (items = [], weightForItem = () => 1) => {
 };
 
 const CATEGORY_GROUPS = {
-  mustHave: new Set(['qualification', 'certification', 'experience', 'technical_skill', 'tool_or_platform', 'domain_knowledge', 'compliance_or_safety', 'availability_or_location']),
-  responsibility: new Set(['responsibility', 'experience', 'customer_or_stakeholder', 'leadership']),
-  skillTool: new Set(['technical_skill', 'tool_or_platform', 'domain_knowledge']),
-  soft: new Set(['soft_skill', 'communication', 'leadership', 'customer_or_stakeholder', 'culture_fit']),
+  hardBlocker: new Set(['qualification', 'certification', 'compliance_or_safety', 'availability_or_location']),
+  responsibility: new Set(['responsibility', 'experience', 'process_improvement', 'workflow_automation', 'cross_functional_coordination', 'customer_or_stakeholder', 'leadership']),
+  skillTool: new Set(['technical_skill', 'tool_or_platform', 'domain_knowledge', 'ai_tool_fluency', 'workflow_automation', 'productivity_tool', 'basic_integration', 'reporting_dashboard']),
+  soft: new Set(['soft_skill', 'communication', 'leadership', 'customer_or_stakeholder', 'culture_fit', 'learning_agility', 'creativity_or_ideas', 'motivation_or_attitude', 'cross_functional_coordination']),
+};
+
+const DOMAIN_PRIORITY_CATEGORIES = {
+  ai_automation_operations: new Set(['ai_tool_fluency', 'workflow_automation', 'process_improvement', 'reporting_dashboard', 'learning_agility', 'creativity_or_ideas', 'productivity_tool', 'cross_functional_coordination', 'basic_integration']),
+  business_operations: new Set(['process_improvement', 'workflow_automation', 'responsibility', 'communication', 'cross_functional_coordination', 'reporting_dashboard']),
+  admin_coordination: new Set(['productivity_tool', 'communication', 'responsibility', 'cross_functional_coordination', 'reporting_dashboard']),
+  sales_customer: new Set(['customer_or_stakeholder', 'communication', 'motivation_or_attitude', 'responsibility']),
+  marketing_content: new Set(['communication', 'creativity_or_ideas', 'tool_or_platform', 'responsibility']),
+  engineering_field: new Set(['domain_knowledge', 'compliance_or_safety', 'responsibility', 'process_improvement', 'communication']),
+  general_graduate: new Set(['learning_agility', 'motivation_or_attitude', 'communication', 'responsibility', 'creativity_or_ideas']),
+  general: new Set(['responsibility', 'communication', 'learning_agility', 'motivation_or_attitude']),
+};
+
+const DOMAIN_SCORE_WEIGHTS = {
+  software_it: { mustHaveFit: 0.3, responsibilityFit: 0.2, skillAndToolFit: 0.25, domainSpecificFit: 0.05, evidenceQuality: 0.1, softSkillAndCultureFit: 0.1 },
+  data_ai: { mustHaveFit: 0.28, responsibilityFit: 0.18, skillAndToolFit: 0.24, domainSpecificFit: 0.1, evidenceQuality: 0.1, softSkillAndCultureFit: 0.1 },
+  ai_automation_operations: { mustHaveFit: 0.2, responsibilityFit: 0.2, skillAndToolFit: 0.18, domainSpecificFit: 0.22, evidenceQuality: 0.1, softSkillAndCultureFit: 0.1 },
+  business_operations: { mustHaveFit: 0.2, responsibilityFit: 0.25, skillAndToolFit: 0.12, domainSpecificFit: 0.23, evidenceQuality: 0.1, softSkillAndCultureFit: 0.1 },
+  admin_coordination: { mustHaveFit: 0.18, responsibilityFit: 0.24, skillAndToolFit: 0.15, domainSpecificFit: 0.2, evidenceQuality: 0.1, softSkillAndCultureFit: 0.13 },
+  sales_customer: { mustHaveFit: 0.18, responsibilityFit: 0.22, skillAndToolFit: 0.1, domainSpecificFit: 0.22, evidenceQuality: 0.1, softSkillAndCultureFit: 0.18 },
+  marketing_content: { mustHaveFit: 0.18, responsibilityFit: 0.18, skillAndToolFit: 0.16, domainSpecificFit: 0.25, evidenceQuality: 0.1, softSkillAndCultureFit: 0.13 },
+  engineering_field: { mustHaveFit: 0.28, responsibilityFit: 0.22, skillAndToolFit: 0.14, domainSpecificFit: 0.16, evidenceQuality: 0.1, softSkillAndCultureFit: 0.1 },
+  healthcare: { mustHaveFit: 0.35, responsibilityFit: 0.2, skillAndToolFit: 0.05, domainSpecificFit: 0.15, evidenceQuality: 0.1, softSkillAndCultureFit: 0.15 },
+  education: { mustHaveFit: 0.28, responsibilityFit: 0.2, skillAndToolFit: 0.06, domainSpecificFit: 0.2, evidenceQuality: 0.1, softSkillAndCultureFit: 0.16 },
+  finance: { mustHaveFit: 0.3, responsibilityFit: 0.2, skillAndToolFit: 0.12, domainSpecificFit: 0.18, evidenceQuality: 0.1, softSkillAndCultureFit: 0.1 },
+  general_graduate: { mustHaveFit: 0.18, responsibilityFit: 0.2, skillAndToolFit: 0.12, domainSpecificFit: 0.22, evidenceQuality: 0.1, softSkillAndCultureFit: 0.18 },
+  general: { mustHaveFit: 0.22, responsibilityFit: 0.22, skillAndToolFit: 0.14, domainSpecificFit: 0.16, evidenceQuality: 0.1, softSkillAndCultureFit: 0.16 },
 };
 
 const categoryMatches = (item = {}, group) => CATEGORY_GROUPS[group].has(item.category || '');
+const resolveRoleDomain = (rubric = {}) => rubric.universalRoleProfile?.roleDomain || rubric.roleDomain || rubric.metadata?.universalRoleProfile?.roleDomain || 'general';
+const resolveDomainWeights = (roleDomain = 'general') => DOMAIN_SCORE_WEIGHTS[roleDomain] || DOMAIN_SCORE_WEIGHTS.general;
+const resolveDomainPriorityCategories = (roleDomain = 'general') => DOMAIN_PRIORITY_CATEGORIES[roleDomain] || DOMAIN_PRIORITY_CATEGORIES.general;
 
 const evidenceQualityScore = (requirementChecks = []) => {
   if (!requirementChecks.length) return 0;
@@ -459,38 +477,44 @@ const evidenceQualityScore = (requirementChecks = []) => {
   return evidenceValues.reduce((sum, value) => sum + value, 0) / evidenceValues.length;
 };
 
-const buildSemanticScoreDimensions = ({ requirements = [], requirementChecks = [] }) => {
+const buildSemanticScoreDimensions = ({ requirements = [], requirementChecks = [], roleDomain = 'general' }) => {
   const byLabel = new Map(requirementChecks.map((item) => [normalizeTaxonomyLabel(item.label), item]));
   const rows = requirements.map((requirement) => ({
     ...requirement,
     ...(byLabel.get(normalizeTaxonomyLabel(requirement.label)) || {}),
   }));
-  const importantWeight = (item) => (item.mustHave || item.type === 'hard' ? 1.6 : item.importance === 'high' ? 1.35 : item.importance === 'low' ? 0.75 : 1);
-  const mustHaveItems = rows.filter((item) => item.mustHave || item.type === 'hard' || categoryMatches(item, 'mustHave'));
+  const importantWeight = (item) => (item.mustHave || item.type === 'hard' ? 1.6 : item.importance === 'high' ? 1.2 : item.importance === 'low' ? 0.75 : 1);
+  const hardBlockerItems = rows.filter((item) => item.mustHave || item.type === 'hard' || categoryMatches(item, 'hardBlocker'));
   const responsibilityItems = rows.filter((item) => categoryMatches(item, 'responsibility'));
   const skillToolItems = rows.filter((item) => categoryMatches(item, 'skillTool'));
   const softItems = rows.filter((item) => categoryMatches(item, 'soft'));
+  const domainCategories = resolveDomainPriorityCategories(roleDomain);
+  const domainItems = rows.filter((item) => domainCategories.has(item.category || ''));
+
+  const mustHaveFallback = rows.filter((item) => item.importance === 'high' && !['nice_to_have', 'company_context'].includes(item.category));
+  const nonBonusRows = rows.filter((item) => !['nice_to_have', 'company_context'].includes(item.category));
 
   return {
-    mustHaveFit: averageWeighted(mustHaveItems.length ? mustHaveItems : rows.filter((item) => item.importance === 'high'), importantWeight),
-    responsibilityFit: averageWeighted(responsibilityItems.length ? responsibilityItems : rows, importantWeight),
-    skillAndToolFit: averageWeighted(skillToolItems.length ? skillToolItems : rows, importantWeight),
+    roleDomain,
+    mustHaveFit: averageWeighted(hardBlockerItems.length ? hardBlockerItems : mustHaveFallback, importantWeight),
+    responsibilityFit: averageWeighted(responsibilityItems.length ? responsibilityItems : nonBonusRows, importantWeight),
+    skillAndToolFit: averageWeighted(skillToolItems.length ? skillToolItems : nonBonusRows, importantWeight),
+    domainSpecificFit: averageWeighted(domainItems.length ? domainItems : nonBonusRows, importantWeight),
     evidenceQuality: evidenceQualityScore(requirementChecks),
-    softSkillAndCultureFit: averageWeighted(softItems.length ? softItems : rows.filter((item) => item.type !== 'hard'), importantWeight),
+    softSkillAndCultureFit: averageWeighted(softItems.length ? softItems : nonBonusRows.filter((item) => item.type !== 'hard'), importantWeight),
   };
 };
 
 export const calculateScoreBreakdown = ({ rubric, macroScores, microScores, requirementChecks }) => {
   if (rubric?.metadata?.matchEngine === 'semantic' || rubric?.universalRoleProfile?.requirements?.length) {
+    const roleDomain = resolveRoleDomain(rubric);
     const semanticDimensions = buildSemanticScoreDimensions({
       requirements: rubric.universalRoleProfile?.requirements || rubric.requirements || [],
       requirementChecks,
+      roleDomain,
     });
-    const overallScore = semanticDimensions.mustHaveFit * 0.35
-      + semanticDimensions.responsibilityFit * 0.25
-      + semanticDimensions.skillAndToolFit * 0.2
-      + semanticDimensions.evidenceQuality * 0.1
-      + semanticDimensions.softSkillAndCultureFit * 0.1;
+    const weights = resolveDomainWeights(roleDomain);
+    const overallScore = Object.entries(weights).reduce((sum, [key, weight]) => sum + (Number(semanticDimensions[key] || 0) * weight), 0);
 
     return {
       macroScore: semanticDimensions.responsibilityFit,
@@ -534,9 +558,11 @@ export const buildLegacyWeightedBreakdown = ({ macroScore, microScore, requireme
 const CAPABILITY_EVIDENCE_PATTERNS = {
   documentation: /document|runbook|knowledge base|procedure/i,
   ownership: /owned|owning|responsible|end-to-end/i,
-  automation: /automate|automation|pipeline|ci\/cd/i,
-  stakeholder_collaboration: /stakeholder|communicat|presented|status updates|cross-functional/i,
+  automation: /automate|automation|pipeline|ci\/cd|workflow/i,
+  stakeholder_collaboration: /stakeholder|communicat|presented|status updates|cross-functional|across teams/i,
   troubleshooting: /troubleshoot|incident|root cause|debug/i,
+  reporting_dashboard: /report|dashboard|insight|analytics/i,
+  learning_agility: /learn|experiment|trial|research|new tool/i,
 };
 
 const buildCapabilityStrengths = (cvEvidenceProfile = {}) => {
@@ -561,7 +587,7 @@ const buildStrengths = (microScores = [], requirementChecks = [], cvEvidenceProf
   const requirementStrengths = requirementChecks
     .filter((item) => ['met', 'partial'].includes(item.status) && (item.evidence || []).length > 0)
     .slice(0, 4)
-    .map((item) => buildExplanationItem({ label: item.label, evidence: item.evidence, detail: item.status === 'met' ? 'Requirement is well supported' : 'Requirement is mostly supported' }));
+    .map((item) => buildExplanationItem({ label: item.label, evidence: item.evidence, detail: item.status === 'met' ? 'Requirement is well supported' : 'Requirement is partly supported' }));
   const seen = new Set();
   return [...groundedMicro.slice(0, 5), ...capabilityStrengths, ...requirementStrengths].filter((item) => {
     const key = normalizeTaxonomyLabel(item.label);
@@ -575,6 +601,10 @@ const buildGapLabel = (item = {}) => {
   if (/communication and ownership/i.test(item.label)) return 'Limited direct evidence of communication and ownership';
   if (/communicate clearly and learn quickly/i.test(item.label)) return 'Limited direct evidence of communication and learning agility';
   if (/recent tertiary qualification/i.test(item.label)) return 'Qualification evidence needs clearer education grounding';
+  if (/chatgpt|claude|ai tools/i.test(item.label)) return 'Limited direct evidence of AI tool fluency';
+  if (/workflow automation|automate workflows/i.test(item.label)) return 'Limited direct evidence of workflow automation';
+  if (/process improvement|efficiency|work smarter/i.test(item.label)) return 'Limited direct evidence of process improvement';
+  if (/reporting|dashboard/i.test(item.label)) return 'Limited direct evidence of reporting or dashboard work';
   if (/aws/i.test(item.label)) return 'Missing evidence for AWS';
   if (/redis/i.test(item.label)) return 'Missing evidence for Redis';
   if (/elastic/i.test(item.label)) return 'Missing evidence for Elasticsearch';
@@ -586,6 +616,10 @@ const buildRiskLabel = (item = {}) => {
   if (/communication and ownership/i.test(item.label)) return 'Readiness risk for communication-heavy ownership work';
   if (/communicate clearly and learn quickly/i.test(item.label)) return 'Interview should validate communication and learning speed';
   if (/recent tertiary qualification/i.test(item.label)) return 'Resume should surface the degree evidence more clearly';
+  if (/chatgpt|claude|ai tools/i.test(item.label)) return 'Interview should validate direct AI tool use';
+  if (/workflow automation|automate workflows/i.test(item.label)) return 'Interview should validate workflow automation depth';
+  if (/process improvement|efficiency|work smarter/i.test(item.label)) return 'Interview should validate process improvement thinking';
+  if (/reporting|dashboard/i.test(item.label)) return 'Interview should validate reporting or dashboard evidence';
   if (/aws/i.test(item.label)) return 'Interview should validate whether the candidate has used AWS services';
   if (/redis/i.test(item.label)) return 'Interview should validate Redis experience';
   if (/elastic/i.test(item.label)) return 'Interview should validate Elasticsearch experience';
@@ -617,8 +651,8 @@ export const buildExplanation = ({ microScores, requirementChecks, cvEvidencePro
 
   const hasProjectHeavyGap = requirementChecks.some((item) => /project-based evidence only/.test(item.notes || ''));
   const summary = strengths.length > 0
-    ? `Top matched areas: ${strengths.map((item) => item.label).join(', ')}. ${hasProjectHeavyGap ? 'Project-based evidence is helping, but direct commercial proof still needs validation.' : 'The profile shows useful evidence, but interviewers should still check any direct-proof gaps before treating it as fully job-ready.'}`
-    : 'Limited strong matches were found, so the interview should probe direct stack evidence, transferable experience, and project depth.';
+    ? `Top matched areas: ${strengths.map((item) => item.label).join(', ')}. ${hasProjectHeavyGap ? 'Project-based evidence is helping, but direct workplace proof still needs validation.' : 'The profile shows useful evidence, but interviewers should still check any direct-proof gaps before treating it as fully job-ready.'}`
+    : 'Limited strong matches were found, so the interview should probe direct evidence, transferable experience, and role-specific examples.';
   const explanation = buildExplanationObject({ strengths, gaps, risks, summary, achievementCount: achievementLabels.size });
   return { strengths, gaps, risks, explanation };
 };
