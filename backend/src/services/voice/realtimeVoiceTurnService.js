@@ -18,6 +18,8 @@ import { createLatencyTrace } from '../../utils/latencyTrace.js';
 import { logger } from '../../utils/logger.js';
 import { buildRealtimeVoiceLatencySummary } from '../../utils/realtimeVoiceLatencySummary.js';
 import { validateRealtimeVoiceTranscript } from './speechConfidenceGate.js';
+import { analyzeVoiceDelivery, persistVoiceDeliveryMetrics } from './voiceDeliveryAnalyzerService.js';
+import { buildLatencyBreakdown, recordAgentTraceEvent } from '../aiControl/agentTraceService.js';
 
 const toBase64 = (buffer) => Buffer.from(buffer).toString('base64');
 
@@ -76,6 +78,7 @@ export const processRealtimeVoiceTurn = async ({
 
   trace.mark('backend_request_received');
   const latestQuestion = await trace.measure('load_latest_question', () => getLatestQuestionForSession(session.id));
+  const voiceDelivery = analyzeVoiceDelivery({ transcriptText: normalizedAnswer, vad, asrConfidence });
 
   await trace.measure('save_realtime_user_turn', async () => {
     await appendTranscriptTurn(session.id, {
@@ -94,6 +97,7 @@ export const processRealtimeVoiceTurn = async ({
           reason: transcriptGate.reason,
           metrics: transcriptGate.metrics,
         },
+        voiceDelivery,
         transcriptionPreview: normalizedAnswer,
       },
     });
@@ -252,6 +256,27 @@ export const processRealtimeVoiceTurn = async ({
     : null;
 
   const latency = trace.toJSON();
+  const latencyBreakdown = buildLatencyBreakdown(latency);
+  enqueueBackgroundJob('persist-voice-delivery-metrics', () => persistVoiceDeliveryMetrics({
+    sessionId: session.id,
+    metrics: {
+      ...voiceDelivery,
+      questionId: latestQuestion?.id || null,
+      asrConfidence,
+      asrSource,
+    },
+  }), { sessionId: session.id });
+  enqueueBackgroundJob('trace-speech-to-text-completed', () => recordAgentTraceEvent({
+    sessionId: session.id,
+    eventType: 'speech_to_text_completed',
+    mode: 'voice',
+    payload: {
+      transcriptionAccepted: true,
+      confidenceGate: transcriptGate.confidenceGate,
+      voiceDelivery,
+      latencyBreakdown,
+    },
+  }), { sessionId: session.id });
   logger.info('Realtime voice turn latency', latency);
   logger.info('Realtime voice turn latency summary', {
     sessionId: session.id,

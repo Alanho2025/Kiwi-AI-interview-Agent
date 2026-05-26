@@ -216,6 +216,7 @@ export default function HomePage() {
         onAvatarError={() => setIsAvatarBroken(true)}
         onSignOut={handleSignOut}
         onStartTour={handleStartTour}
+        onOpenOps={() => navigate('/ops-lite')}
       />
 
       <main className="relative mx-auto mt-8 sm:mt-10 grid max-w-[1400px] grid-cols-1 gap-6 px-4 sm:px-8 lg:px-10 xl:grid-cols-12">

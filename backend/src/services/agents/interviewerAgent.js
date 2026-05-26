@@ -17,6 +17,54 @@ const normalizeText = (value = '') => String(value || '').trim();
 const tokenize = (value = '') => normalizeText(value).toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
 const getLastUserAnswer = (transcript = []) => [...transcript].reverse().find((turn) => turn.role === 'user')?.text || '';
 
+const inferQuestionGoal = (question = {}, actionType = '') => {
+  const type = String(question.type || actionType || '').toLowerCase();
+  if (type.includes('deep')) return 'deep_dive_on_decision_quality';
+  if (type.includes('validation')) return 'validate_claim_with_direct_evidence';
+  if (type.includes('rephrase')) return 'clarify_current_question_with_one_concrete_example';
+  if (type.includes('abductive')) return 'probe_inferred_gap_without_leading';
+  if (type.includes('stress')) return 'test_constraints_and_adaptation';
+  if (type.includes('friction')) return 'surface_tradeoff_conflict_or_failure';
+  if (type.includes('shift')) return 'open_fresh_coverage_topic';
+  if (type.includes('closing')) return 'close_interview_with_final_useful_evidence';
+  return 'collect_specific_example_with_action_and_result';
+};
+
+const inferEvidenceNeed = (question = {}, actionType = '') => {
+  const goal = inferQuestionGoal(question, actionType);
+  if (goal === 'deep_dive_on_decision_quality') return ['tradeoff', 'personal_action', 'validation_method', 'result'];
+  if (goal === 'validate_claim_with_direct_evidence') return ['personal_ownership', 'validation_method', 'result_or_impact'];
+  if (goal === 'clarify_current_question_with_one_concrete_example') return ['specific_example', 'personal_action', 'result_or_impact'];
+  if (goal === 'probe_inferred_gap_without_leading') return ['hidden_gap', 'personal_action', 'tradeoff_or_failure_detail'];
+  if (goal === 'test_constraints_and_adaptation') return ['constraint_handling', 'decision_quality', 'tradeoff'];
+  if (goal === 'surface_tradeoff_conflict_or_failure') return ['friction', 'stakeholder_or_constraint', 'resolution'];
+  if (goal === 'open_fresh_coverage_topic') return ['coverage', 'specific_example'];
+  return ['specific_example', 'personal_action', 'result_or_impact'];
+};
+
+const buildQuestionConstraints = ({ question = {}, focusArea = 'combined' } = {}) => {
+  const constraints = ['ask_one_question_only'];
+  if (Number(question.followUpDepth || 0) > 0) constraints.push('stay_on_same_example');
+  if (question.freshOnly || Number(question.followUpDepth || 0) === 0) constraints.push('allow_fresh_example');
+  if (focusArea === 'behavioral') constraints.push('behavioural_star_only', 'do_not_ask_technical_implementation_details');
+  if (focusArea === 'technical') constraints.push('technical_evidence_only', 'avoid_purely_behavioural_drift');
+  if (question.category === 'closing') constraints.push('do_not_start_long_follow_up_chain');
+  return constraints;
+};
+
+const normalizeQuestionIntent = ({ question = {}, actionType = '', focusArea = 'combined' } = {}) => {
+  if (!question) return question;
+  const fallbackText = normalizeText(question.fallbackText || question.text);
+  return {
+    ...question,
+    questionGoal: question.questionGoal || inferQuestionGoal(question, actionType),
+    evidenceNeed: Array.isArray(question.evidenceNeed) ? question.evidenceNeed : inferEvidenceNeed(question, actionType),
+    constraints: Array.isArray(question.constraints) ? question.constraints : buildQuestionConstraints({ question, focusArea }),
+    fallbackText,
+    text: question.text || fallbackText,
+  };
+};
+
 const buildRoleLockedQuestion = (retrievedItem, fallback = {}) => ({
   type: fallback.type || fallback.stage || 'technical_core',
   stage: fallback.stage || 'technical_core',
@@ -206,6 +254,17 @@ const buildSwitchTopicQuestion = ({ targetTopic = 'role_fit' } = {}) => ({
   sourceType: 'controller_directed',
 });
 
+const buildRepetitionRepairSwitchQuestion = ({ targetTopic = 'role_fit' } = {}) => ({
+  type: 'repetition_repair_switch',
+  stage: 'coverage',
+  topic: targetTopic,
+  category: 'experience',
+  followUpDepth: 0,
+  text: `You're right, we have covered that angle. Let us move on to ${targetTopic}: can you share one different example that shows your fit in that area?`,
+  reason: 'The candidate flagged repetition, so the interviewer acknowledges it and moves to a fresh topic.',
+  sourceType: 'controller_directed',
+});
+
 const buildAbductiveProbeQuestion = ({ targetTopic = 'decision_tradeoff', hiddenGap = '' } = {}) => ({
   type: 'abductive_probe_follow_up',
   stage: 'technical_probe',
@@ -339,7 +398,10 @@ Candidate's last answer:
 
 Strategic Intent of your next turn: [${actionType}]
 Target Topic: "${baseQuestion.topic}"
-Base Goal: "${baseQuestion.text}"
+Question Goal: "${baseQuestion.questionGoal || 'collect_specific_example_with_action_and_result'}"
+Evidence Needs: ${(baseQuestion.evidenceNeed || []).join(', ') || 'specific_example, personal_action, result_or_impact'}
+Constraints: ${(baseQuestion.constraints || []).join(', ') || 'ask_one_question_only'}
+Fallback Text: "${baseQuestion.fallbackText || baseQuestion.text}"
 ${reflectionText}
 ${answerUnderstandingText}
 ${retrievedTexts ? `\nReference Context from Knowledge Base:\n- ${retrievedTexts}` : ''}
@@ -349,13 +411,15 @@ ${actionType === 'FORCE_SHIFT_PROJECT' ? "- ACKNOWLEDGE their previous project/e
 ${actionType === 'PROBE_STRESS' ? "- COMPLIMENT their current solution/answer briefly.\n- APPLY a 'What if' constraint (e.g. scale, time, budget, resource failure).\n- ASK how their strategy would adapt to this friction." : ""}
 ${actionType === 'PROBE_FRICTION' ? "- ACKNOWLEDGE the success of their example.\n- ASK about the 'hidden' difficulty: a trade-off, a disagreement, or a moment where things didn't go as planned.\n- Focus on their decision-making under pressure or conflict." : ""}
 ${actionType === 'REPHRASE_QUESTION' ? "- Admit the previous question might have been unclear.\n- Break down the requirement into simpler parts." : ""}
-- For all other types: Briefly acknowledge the candidate's last answer naturally, then advance to the "Base Goal".
+- For all other types: Briefly acknowledge the candidate's last answer naturally, then generate one interviewer question from the Question Goal, Evidence Needs, and Constraints.
 
 GENERAL GUIDELINES:
-1. Advance the interview based on the "Base Goal".
+1. You are not rewriting a fixed template. Generate one interviewer question from the question goal, evidence needs, and constraints.
 2. Use the "Reference Context" for inspiration to make your response professional and deep.
 3. Keep the tone conversational, avoid sounding like a robot reading a template.
 4. NEVER leak internal engineering variables (e.g. 'targetTopic', 'decision_tradeoff', 'role_fit') to the user. Phrase it naturally.
+5. Do not leak internal labels such as questionGoal, evidenceNeed, targetTopic, or constraints.
+6. Ask only one main question.
 
 Generate your verbal response now:`;
 
@@ -469,7 +533,9 @@ export const runInterviewerAgent = async ({
       ? buildProbingQuestion({ targetTopic: targetTopic || decisionContext?.currentTopic || 'behavioural_example' })
       : buildValidationQuestion({ targetTopic: targetTopic || decisionContext?.matchState?.validationTargets?.[0] || 'claim' });
   } else if (actionType === AGENT_ACTION_TYPES.SWITCH_TOPIC) {
-    selectedQuestion = buildSwitchTopicQuestion({ targetTopic: targetTopic || decisionContext?.coverageState?.missingTopics?.[0] || 'role_fit' });
+    selectedQuestion = probeType === 'repetition_repair_switch'
+      ? buildRepetitionRepairSwitchQuestion({ targetTopic: targetTopic || decisionContext?.coverageState?.missingTopics?.[0] || 'role_fit' })
+      : buildSwitchTopicQuestion({ targetTopic: targetTopic || decisionContext?.coverageState?.missingTopics?.[0] || 'role_fit' });
   } else if (actionType === AGENT_ACTION_TYPES.ASK_ABDUCTIVE_PROBE_QUESTION) {
     selectedQuestion = buildAbductiveProbeQuestion({ targetTopic: targetTopic || decisionContext?.abductiveState?.probeTopic || 'decision_tradeoff', hiddenGap: decisionContext?.abductiveState?.hiddenGap || '' });
   } else if (actionType === AGENT_ACTION_TYPES.SHIFT_SECTION) {
@@ -522,6 +588,7 @@ export const runInterviewerAgent = async ({
     targetTopic: targetTopic || decisionContext?.currentTopic || decisionContext?.sectionState?.nextSectionKey || '',
     latestAnswer: environment?.latestAnswer?.text || lastUserAnswer,
   });
+  selectedQuestion = normalizeQuestionIntent({ question: selectedQuestion, actionType, focusArea });
 
   if (!selectedQuestion && (lockedCategory === 'technical' || category === 'technical' || decisionContext?.interviewStructure?.forceCategory === 'technical')) {
     selectedQuestion = buildTechnicalRecoveryQuestion({ targetTopic: targetTopic || decisionContext?.matchState?.validationTargets?.[0] || 'implementation', session, decisionContext });
@@ -555,10 +622,11 @@ export const runInterviewerAgent = async ({
     targetTopic: targetTopic || decisionContext?.currentTopic || decisionContext?.sectionState?.nextSectionKey || '',
     latestAnswer: environment?.latestAnswer?.text || lastUserAnswer,
   });
+  selectedQuestion = normalizeQuestionIntent({ question: selectedQuestion, actionType, focusArea });
 
   const reactTrace = buildReactTrace({ selectedAction: actionType, decisionContext, selectedQuestion, environment, evaluatorState });
   
-  let generatedText = selectedQuestion.text;
+  let generatedText = selectedQuestion.fallbackText || selectedQuestion.text;
   try {
     generatedText = await generateConversationalTurn({ 
       baseQuestion: selectedQuestion, 
@@ -576,20 +644,20 @@ export const runInterviewerAgent = async ({
   generatedText = guardGeneratedTextForInterviewMode({
     focusArea,
     generatedText,
-    fallbackText: selectedQuestion.text,
+    fallbackText: selectedQuestion.fallbackText || selectedQuestion.text,
     selectedQuestion,
   });
 
   const displayTurn = {
     feedbackMode: 'conversational_llm',
     preamble: '',
-    question: selectedQuestion.text,
+    question: selectedQuestion.fallbackText || selectedQuestion.text,
     displayText: generatedText,
   };
 
   return {
     questionType: selectedQuestion.type,
-    nextQuestion: selectedQuestion.text,
+    nextQuestion: selectedQuestion.fallbackText || selectedQuestion.text,
     interviewerTurn: displayTurn,
     displayText: displayTurn.displayText,
     rationale: selectedQuestion.reason,
