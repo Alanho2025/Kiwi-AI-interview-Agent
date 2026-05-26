@@ -13,7 +13,7 @@ const strongestEvidence = (matches = []) => matches[0] || null;
 
 const isWeakSkillOnly = (evidence = []) => (
   evidence.length > 0
-  && evidence.every((item) => ['skill', 'key_competency', 'summary'].includes(item.sourceType) || item.evidenceStrength === 'weak')
+  && evidence.every((item) => ['skill', 'key_competency', 'summary'].includes(item.sourceType) || (item.evidenceStrength === 'weak' && item.sourceType !== 'project_tech_stack'))
 );
 
 const requirementText = (requirement = {}) => `${requirement.text || requirement.label || ''} ${requirement.category || ''}`;
@@ -41,12 +41,20 @@ const requiresDirectProof = (requirement = {}) => (
   && (HARD_DIRECT_CATEGORIES.has(requirement.category) || /registered|license|certificat|degree|qualification|safety|compliance|location|visa|right to work/i.test(requirement.text || requirement.label || ''))
 );
 
+
+const hasProjectTechEvidence = (evidence = []) => evidence.some((item) =>
+  item.sourceType === 'project_tech_stack'
+  || (item.section === 'projects' && item.evidenceStrength === 'strong')
+);
+
+
 const statusFromEvidence = ({ requirement = {}, evidence = [] } = {}) => {
   const best = strongestEvidence(evidence);
   if (!best) return 'not_met';
   if (requiresDirectProof(requirement) && best.evidenceStrength === 'weak') return 'not_met';
   if (isQualificationRequirement(requirement) && !['education', 'certifications'].includes(best.section)) return 'partial';
   if (isProfessionalExperienceRequirement(requirement) && best.section !== 'experience') return 'partial';
+  if (hasProjectTechEvidence(evidence) && requirement.mustHave && ['technical_skill', 'tool_or_platform', 'domain_knowledge'].includes(requirement.category)) return 'partial';
   if (isWeakSkillOnly(evidence) && requirement.mustHave) return 'partial';
   if (best.evidenceStrength === 'strong' && Number(best.score || 0) >= 0.66) return 'met';
   if (Number(best.score || 0) >= 0.52) return 'partial';
@@ -74,6 +82,7 @@ const buildReason = ({ requirement = {}, status = 'not_met', evidence = [] } = {
     if (isProfessionalExperienceRequirement(requirement) && best.section !== 'experience') {
       return 'The CV has related project evidence, but it does not fully prove professional or commercial experience.';
     }
+    if (hasProjectTechEvidence(evidence)) return 'The CV shows this tool in project-level evidence, but the implementation depth should still be validated.';
     if (isWeakSkillOnly(evidence)) return 'The CV mentions related capability, but the evidence is mostly from a skills list or summary rather than applied work.';
     return 'The CV has related evidence, but it does not fully prove the exact requirement.';
   }

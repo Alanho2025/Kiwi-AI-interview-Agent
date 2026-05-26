@@ -332,6 +332,38 @@ const computeRequirementStatus = (requirement, evidenceProfile = {}, semanticEvi
   };
 };
 
+
+const isQualificationLabel = (label = '') => /qualification|degree|bachelor|master|diploma|tertiary|computer science|software engineering|information technology/i.test(label);
+
+const isCapabilityOnlyEvidence = (evidence = '') => /^Capability match:/i.test(String(evidence || ''));
+
+const sanitizeRequirementEvidence = ({ requirement = {}, status = 'not_met', evidence = [] } = {}) => {
+  const label = requirement.label || requirement.text || '';
+  return (evidence || []).filter((item) => {
+    const text = String(item || '');
+    if (!text.trim()) return false;
+
+    // Education cannot support non-qualification requirements.
+    if (!isQualificationLabel(label) && /Matched in education:/i.test(text)) return false;
+
+    // Missing hard requirements should not show adjacent capability evidence.
+    if (requirement.type === 'hard' && status === 'not_met' && isCapabilityOnlyEvidence(text)) return false;
+
+    // Strict hard technical gaps should only show exact tool evidence.
+    if (isHardTechnicalRequirement(requirement, label) && !hasStrictTechEvidence(label, text)) {
+      return false;
+    }
+
+    // Cloud-native cannot be supported by generic engineering/software words.
+    if (/cloud-native|cloud native/i.test(label) && /Matched in keyCompetencies: engineering, software, developer, development/i.test(text)) {
+      return false;
+    }
+
+    return true;
+  });
+};
+
+
 export const buildMacroScores = (macroCriteria = [], _cvText, weights = {}, evidenceProfile = {}, semanticEvidenceContext = {}) =>
   macroCriteria.map((criterion) => {
     const match = computeEnhancedMatch(criterion.label, 'macro', evidenceProfile, semanticEvidenceContext);
@@ -373,9 +405,11 @@ export const buildRequirementChecks = (requirements = [], _cvText, evidenceProfi
     ).slice(0, 3);
     const finalStatus = judgement?.status || match.finalStatus;
     const judgementEvidence = semanticEvidence.map((item) => `Matched evidence (${item.evidenceStrength || 'weak'}, ${Number(item.score || 0).toFixed(2)}): ${item.text}`);
+    const rawEvidence = [...(requirement.evidence || []), ...match.evidence, ...judgementEvidence];
+    const cleanedEvidence = sanitizeRequirementEvidence({ requirement, status: finalStatus, evidence: rawEvidence });
     const notes = [
       `section=${match.matchedSection}`,
-      `capabilities=${match.matchedCapabilities.join(', ') || 'none'}`,
+      `capabilities=${finalStatus === 'not_met' && isHardTechnicalRequirement(requirement, requirement.label) ? 'none' : match.matchedCapabilities.join(', ') || 'none'}`,
       `evidenceStrength=${judgement?.evidenceStrength || match.evidenceStrength}`,
       judgement?.reason || match.detailNote,
       judgement?.missingEvidence ? `missingEvidence=${judgement.missingEvidence}` : '',
@@ -386,7 +420,7 @@ export const buildRequirementChecks = (requirements = [], _cvText, evidenceProfi
       type: requirement.type || 'soft',
       importance: requirement.importance || 'medium',
       status: finalStatus,
-      evidence: [...(requirement.evidence || []), ...match.evidence, ...judgementEvidence],
+      evidence: cleanedEvidence,
       sourceChunks: requirement.sourceChunks || [],
       notes,
     });
