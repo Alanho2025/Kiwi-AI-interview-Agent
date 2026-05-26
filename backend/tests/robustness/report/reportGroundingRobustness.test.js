@@ -112,6 +112,7 @@ describe('report grounding robustness', () => {
     expect(grounded.candidateFeedback.strengthHighlights[0]).toMatchObject({
       confidenceLevel: 'low',
       evidenceLabel: 'needs_user_confirmation',
+      evidenceSources: ['needs_user_confirmation'],
       needsUserConfirmation: true,
       feedbackStatus: 'needs_confirmation',
     });
@@ -123,6 +124,41 @@ describe('report grounding robustness', () => {
     expect(grounded.claimEvidenceReferences[0]).toMatchObject({
       claimSupported: false,
       degraded: true,
+      evidenceSources: ['needs_user_confirmation'],
+    });
+  });
+
+  it('uses NZ guide overlap as a real support source for localised coaching claims', () => {
+    const grounded = groundCandidateFeedbackClaims({
+      candidateFeedback: {
+        strengthHighlights: [],
+        improvementPriorities: [],
+        coachingAdvice: [{
+          title: 'Use concise STAR structure',
+          explanation: 'NZ interviews value concise STAR structure and practical workplace examples.',
+        }],
+        turnBreakdowns: [],
+      },
+      session: {
+        settings: {
+          nzWorkplaceFit: {
+            guidance: 'NZ interviews value concise STAR structure and practical workplace examples.',
+          },
+        },
+        transcript: [{ role: 'user', text: 'I talked about my project.' }],
+      },
+      analysisResult: {},
+      retrievalBundle: { items: [] },
+    });
+
+    expect(grounded.candidateFeedback.coachingAdvice[0]).toMatchObject({
+      evidenceLabel: 'supported_by_nz_guide',
+      evidenceSources: ['nz_guide'],
+      needsUserConfirmation: false,
+    });
+    expect(grounded.claimEvidenceReferences[0]).toMatchObject({
+      claimSupported: true,
+      evidenceLabel: 'supported_by_nz_guide',
     });
   });
 
