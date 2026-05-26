@@ -198,8 +198,14 @@ export function useDuplexVoiceSocket({
     socket.send(arrayBuffer);
   }, []);
 
-  const sendSpeechStart = useCallback(() => sendJson({ type: 'speech_start', clientTimestamp: Date.now() }), [sendJson]);
-  const sendSpeechEnd = useCallback((vad = null) => sendJson({ type: 'speech_end', vad, clientTimestamp: Date.now() }), [sendJson]);
+  const sendSpeechStart = useCallback(() => {
+    chunksSentRef.current = 0;
+    return sendJson({ type: 'speech_start', clientTimestamp: Date.now() });
+  }, [sendJson]);
+  const sendSpeechEnd = useCallback((vad = null) => {
+    console.log(`[FRONTEND-STT-TRACE] speech_end sent after ${chunksSentRef.current} audio chunks.`);
+    return sendJson({ type: 'speech_end', vad, clientTimestamp: Date.now() });
+  }, [sendJson]);
   const sendBargeIn = useCallback((reason = 'user_started_speaking') => sendJson({ type: 'barge_in', reason, clientTimestamp: Date.now() }), [sendJson]);
   const speakText = useCallback((text) => sendJson({ type: 'speak_text', text, clientTimestamp: Date.now() }), [sendJson]);
   const sendPing = useCallback(() => {
