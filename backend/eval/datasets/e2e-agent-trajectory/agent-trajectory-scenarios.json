@@ -1,0 +1,148 @@
+[
+  {
+    "id": "behavioral_vague_answer_followup",
+    "trace": {
+      "caseId": "behavioral_vague_answer_followup",
+      "sessionId": "eval-session-001",
+      "mode": "text",
+      "interviewType": "behavioural",
+      "stages": [
+        "cv_parse",
+        "jd_parse",
+        "match_analysis",
+        "question_generation",
+        "answer_evaluation",
+        "retrieval",
+        "followup_decision",
+        "report_generation"
+      ],
+      "rag": {
+        "used": true,
+        "sources": [
+          "cv",
+          "jd",
+          "star_guide"
+        ],
+        "retrievalConfidence": 0.82,
+        "degraded": false,
+        "degradedReason": null
+      },
+      "starScores": {
+        "situation": 1,
+        "task": 1,
+        "action": 1,
+        "result": 0
+      },
+      "confidence": {
+        "label": "Medium",
+        "reason": "Action is partly clear, but Result is missing."
+      },
+      "selectedAction": "ask_followup_question",
+      "finalQuestion": "Can you give one specific result from that teamwork example?",
+      "blockedBehaviours": []
+    },
+    "expected": {
+      "requiredStages": [
+        "answer_evaluation",
+        "followup_decision",
+        "question_generation"
+      ],
+      "selectedAction": "ask_followup_question",
+      "finalQuestionMustContain": [
+        "specific",
+        "result"
+      ],
+      "blockedActions": [
+        "ask_coding_question"
+      ]
+    }
+  },
+  {
+    "id": "technical_mode_blocks_behavioural_drift",
+    "trace": {
+      "caseId": "technical_mode_blocks_behavioural_drift",
+      "sessionId": "eval-session-002",
+      "mode": "text",
+      "interviewType": "technical",
+      "stages": [
+        "cv_parse",
+        "jd_parse",
+        "match_analysis",
+        "question_generation",
+        "answer_evaluation",
+        "followup_decision"
+      ],
+      "rag": {
+        "used": true,
+        "sources": [
+          "cv",
+          "jd"
+        ],
+        "retrievalConfidence": 0.78,
+        "degraded": false,
+        "degradedReason": null
+      },
+      "selectedAction": "ask_technical_followup",
+      "finalQuestion": "How did you structure the Node.js API to keep the recommendation logic maintainable?",
+      "blockedBehaviours": []
+    },
+    "expected": {
+      "requiredStages": [
+        "match_analysis",
+        "question_generation",
+        "followup_decision"
+      ],
+      "selectedAction": "ask_technical_followup",
+      "finalQuestionMustContain": [
+        "Node.js",
+        "API"
+      ],
+      "blockedActions": [
+        "ask_team_conflict_question",
+        "ask_generic_motivation_question"
+      ]
+    }
+  },
+  {
+    "id": "report_generation_trace_missing_evidence",
+    "trace": {
+      "caseId": "report_generation_trace_missing_evidence",
+      "sessionId": "eval-session-003",
+      "mode": "text",
+      "interviewType": "combined",
+      "stages": [
+        "cv_parse",
+        "jd_parse",
+        "report_generation"
+      ],
+      "rag": {
+        "used": false,
+        "sources": [],
+        "retrievalConfidence": 0.0,
+        "degraded": true,
+        "degradedReason": "retrieval_missing"
+      },
+      "selectedAction": "generate_report",
+      "finalQuestion": "",
+      "blockedBehaviours": [
+        "unsupported_skill_claim"
+      ]
+    },
+    "expected": {
+      "requiredStages": [
+        "cv_parse",
+        "jd_parse",
+        "match_analysis",
+        "retrieval",
+        "report_generation"
+      ],
+      "selectedAction": "generate_report",
+      "finalQuestionMustContain": [],
+      "blockedActions": [
+        "unsupported_skill_claim"
+      ],
+      "shouldPass": false,
+      "maxPassingScore": 0.7
+    }
+  }
+]

@@ -17,11 +17,6 @@ export const QUALITY_GATES = Object.freeze({
   greenAgent: { minAverage: 0.88, failBelow: 0.7 },
   baselineComparison: { minAverage: 0.78, failBelow: 0.6 },
   voiceRobustness: { minAverage: 0.9, failBelow: 0.75 },
-  retrieval: { minAverage: 0.8, failBelow: 0.6 },
-  agentTrajectory: { minAverage: 0.8, failBelow: 0.65 },
-  companyResearch: { minAverage: 0.8, failBelow: 0.65 },
-  voiceQuality: { minAverage: 0.75, failBelow: 0.6 },
-  stability: { minAverage: 0.75, failBelow: 0.6 },
 });
 
 export const getQualityGate = (name) => ({ ...(QUALITY_GATES[name] || { minAverage: 0, failBelow: 0 }) });
