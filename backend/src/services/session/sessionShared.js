@@ -5,8 +5,7 @@
  * - Main file role: sessionShared should encapsulate domain behaviour behind small callable functions with predictable inputs and outputs.
  * - Prefer extending behaviour by adding small helpers or sibling modules instead of growing one large file.
  * Maintenance notes:
- * - Keep this file focused on one layer of responsibility.
- * - Prefer composition and small helpers over repeated inline logic.
+ * - Keep this file focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
 
 import { query } from '../../db/postgres.js';
@@ -47,7 +46,7 @@ export const titleCaseWords = (value = '') => value
   })
   .join(' ');
 
-const DISPLAY_TITLE_ROLE_NOUN_PATTERN = /\b(?:engineer|developer|designer|analyst|architect|consultant|specialist|intern|scientist|administrator|programme|program|product manager)\b/i;
+const DISPLAY_TITLE_ROLE_NOUN_PATTERN = /\b(?:engineer|developer|designer|analyst|architect|consultant|specialist|intern|scientist|administrator|programme|program|product manager|coordinator|assistant)\b/i;
 const DISPLAY_TITLE_FALSE_POSITIVE_HIRING_ROLES = /\b(?:hiring manager|hiring coordinator|recruitment manager|talent acquisition specialist|people & culture advisor|people and culture advisor)\b/i;
 const DISPLAY_TITLE_MARKETING_PREFIX_PATTERNS = [
   /^(?:we\s+are\s+)?(?:now\s+)?hiring\s*[:：]?\s+(?:for\s+)?(?:(?:a|an|the)\s+)?/i,
@@ -85,7 +84,7 @@ export const extractDisplayTitle = (...candidates) => {
     const directTitleMatch = text.match(/(?:job\s*title|position|role)\s*:\s*([^\n.]{3,120})/i);
     if (directTitleMatch?.[1]) return cleanDisplayTitle(directTitleMatch[1]);
 
-    const commonRoleMatch = text.match(/\b((?:Junior|Senior|Lead|Principal|Staff|Graduate|Mid-Level|Solutions|Software|Backend|Frontend|Full[-\s]?Stack|Mobile|DevOps|Data|Civil|Platform|QA|Test|Product|AI|Machine Learning|Cloud)?\s*(?:Software Engineer|Solutions Engineer|Backend Engineer|Frontend Engineer|Full Stack Engineer|Mobile Developer|React Native Developer|DevOps Engineer|Data Engineer|Data \w+ AI Engineer|Data & AI Engineer|AI Engineer|Civil Engineer|Platform Engineer|QA Engineer|Test Engineer|Product Manager|Developer|Data Scientist|Machine Learning Engineer|Cloud Engineer))\b/i);
+    const commonRoleMatch = text.match(/\b((?:Junior|Senior|Lead|Principal|Staff|Graduate|Mid-Level|Solutions|Software|Backend|Frontend|Full[-\s]?Stack|Mobile|DevOps|Data|Civil|Platform|QA|Test|Product|AI|Machine Learning|Cloud|Automation)?\s*(?:Software Engineer|Solutions Engineer|Backend Engineer|Frontend Engineer|Full Stack Engineer|Mobile Developer|React Native Developer|DevOps Engineer|Data Engineer|Data \w+ AI Engineer|Data & AI Engineer|AI Engineer|Automation Coordinator|Workflow Automation Assistant|Civil Engineer|Platform Engineer|QA Engineer|Test Engineer|Product Manager|Developer|Data Scientist|Machine Learning Engineer|Cloud Engineer|Coordinator|Assistant))\b/i);
     if (commonRoleMatch?.[1]) return cleanDisplayTitle(commonRoleMatch[1]);
 
     const firstLine = text.split('\n').map((line) => line.trim()).find(Boolean) || '';
@@ -214,7 +213,7 @@ const findUniversalRequirementTarget = ({ topic = '', rubric = {} } = {}) => {
   }) || null;
 };
 
-const isTechnicalRequirementCategory = (category = '') => ['technical_skill', 'tool_or_platform', 'domain_knowledge'].includes(category);
+const isTechnicalRequirementCategory = (category = '') => ['technical_skill', 'tool_or_platform', 'domain_knowledge', 'basic_integration'].includes(category);
 
 const buildRoleCompetencyPrompt = ({ target = {}, skill = '', level = 'junior', roleLabel = 'the role', followUpDepth = 0 } = {}) => {
   const safeTarget = target && typeof target === 'object' ? target : {};
@@ -228,6 +227,33 @@ const buildRoleCompetencyPrompt = ({ target = {}, skill = '', level = 'junior', 
   if (followUpDepth > 0) {
     if (['qualification', 'certification', 'compliance_or_safety', 'availability_or_location'].includes(category)) {
       return `What specific evidence can you provide for ${capability}, and where have you applied it in practice?`;
+    }
+    if (category === 'ai_tool_fluency') {
+      return `Which AI tool did you try, what task did you use it for, and how did you check whether the result was useful or safe?`;
+    }
+    if (category === 'workflow_automation') {
+      return `What workflow steps did you automate or want to automate, what did you test, and what improvement would you measure?`;
+    }
+    if (category === 'process_improvement') {
+      return `What process problem did you notice, what smarter way of working did you suggest, and what impact would it have?`;
+    }
+    if (category === 'reporting_dashboard') {
+      return `What information would you track in a report or dashboard, and how would that help the team make better decisions?`;
+    }
+    if (category === 'productivity_tool') {
+      return `Which productivity tools have you used, and how did they help you organise, report, or collaborate more effectively?`;
+    }
+    if (category === 'learning_agility') {
+      return `Tell me about a new tool or method you learned recently. What did you try first, and what did you learn from it?`;
+    }
+    if (category === 'creativity_or_ideas') {
+      return `What was one idea you brought to improve a task, process, or project, and how did you test whether it was worth doing?`;
+    }
+    if (category === 'motivation_or_attitude') {
+      return `What makes this type of work motivating for you, and what example shows that you bring energy without needing constant direction?`;
+    }
+    if (category === 'cross_functional_coordination') {
+      return `How would you work with people from different teams to understand their workflow before suggesting an automation or AI solution?`;
     }
     if (category === 'customer_or_stakeholder') {
       return `What made that customer or stakeholder situation difficult, what did you do personally, and what was the outcome?`;
@@ -243,6 +269,33 @@ const buildRoleCompetencyPrompt = ({ target = {}, skill = '', level = 'junior', 
 
   if (['qualification', 'certification'].includes(category)) {
     return `Can you walk me through your ${capability} evidence and how it prepares you for this ${roleLabel} role?`;
+  }
+  if (category === 'ai_tool_fluency') {
+    return `This role needs someone comfortable experimenting with AI tools. Tell me about one AI tool you have used or tested, what you used it for, and what you learned.`;
+  }
+  if (category === 'workflow_automation') {
+    return `Tell me about a workflow, admin task, or repeated process you improved or would automate. What steps would you change, and why?`;
+  }
+  if (category === 'process_improvement') {
+    return `Tell me about a time you noticed an inefficient process and suggested a smarter way to do it. What problem did you see, and what did you propose?`;
+  }
+  if (category === 'reporting_dashboard') {
+    return `Tell me about a report, dashboard, spreadsheet, or data view you built or used. What decision or workflow did it support?`;
+  }
+  if (category === 'productivity_tool') {
+    return `Tell me about the productivity tools you use for organising work, documents, spreadsheets, or team collaboration. Which one have you used most practically?`;
+  }
+  if (category === 'learning_agility') {
+    return `Tell me about a new tool, method, or technology you learned by yourself. What made you curious, and how did you test it?`;
+  }
+  if (category === 'creativity_or_ideas') {
+    return `Tell me about a time you brought a new idea to improve how something worked. What was the idea, and what made it useful?`;
+  }
+  if (category === 'motivation_or_attitude') {
+    return `This role needs energy and initiative. Can you give me an example that shows you are proactive and motivated to make things better?`;
+  }
+  if (category === 'cross_functional_coordination') {
+    return `This role works across teams. Tell me about a time you had to understand different people's needs before helping solve a problem.`;
   }
   if (category === 'compliance_or_safety') {
     return `Tell me about a time you had to follow or apply ${capability}. What checks did you make, and what was at stake?`;
@@ -334,15 +387,16 @@ export const buildQuestionPoolFromAnalysis = (analysisResult, settings = {}, opt
 
   const technicalQuestionCount = Math.max(0, modeConfig.minTechnicalQuestions);
   for (let index = 0; index < technicalQuestionCount; index += 1) {
-    const skill = technicalSkills[index] || technicalSkills[0] || 'a relevant technical stack';
+    const skill = technicalSkills[index] || technicalSkills[0] || 'a relevant role capability';
     const requirementTarget = findUniversalRequirementTarget({ topic: skill, rubric });
     const promptText = buildRoleCompetencyPrompt({ target: requirementTarget, skill, level: modeConfig.level, roleLabel, followUpDepth: 0 });
     const followUpText = buildRoleCompetencyPrompt({ target: requirementTarget, skill, level: modeConfig.level, roleLabel, followUpDepth: 1 });
-    const competencyType = requirementTarget && !isTechnicalRequirementCategory(requirementTarget.category) ? 'role_competency_core' : 'technical_core';
+    const isTechnical = requirementTarget ? isTechnicalRequirementCategory(requirementTarget.category) : true;
+    const competencyType = requirementTarget && !isTechnical ? 'role_competency_core' : 'technical_core';
     questions.push({
       type: competencyType,
-      category: 'technical',
-      stage: 'technical',
+      category: isTechnical ? 'technical' : 'role_competency',
+      stage: isTechnical ? 'technical' : 'role_competency',
       topic: skill,
       followUpDepth: 0,
       text: promptText,
@@ -359,8 +413,8 @@ export const buildQuestionPoolFromAnalysis = (analysisResult, settings = {}, opt
     });
     questions.push({
       type: competencyType === 'role_competency_core' ? 'role_competency_follow_up' : 'technical_follow_up',
-      category: 'technical',
-      stage: 'technical',
+      category: isTechnical ? 'technical' : 'role_competency',
+      stage: isTechnical ? 'technical' : 'role_competency',
       topic: skill,
       followUpDepth: 1,
       text: followUpText,
