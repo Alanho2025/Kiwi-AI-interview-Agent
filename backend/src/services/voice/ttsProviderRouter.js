@@ -1,14 +1,9 @@
-/**
- * File responsibility: Text-to-speech provider routing.
- * Main responsibilities:
- * - Select Azure or ElevenLabs TTS from environment configuration.
- * - Keep fallback policy outside WebSocket and controller code.
- * - Preserve the synthesis contract used by the voice orchestration layer.
- */
-
 import { AppError } from '../../utils/appError.js';
 import { synthesizeSpeech as synthesizeAzureSpeech } from './azureSpeechService.js';
-import { synthesizeSpeech as synthesizeElevenLabsSpeech } from './elevenLabsSpeechService.js';
+import {
+  synthesizeSpeech as synthesizeElevenLabsSpeech,
+  streamSynthesizeSpeech as streamElevenLabsSpeech,
+} from './elevenLabsSpeechService.js';
 
 const providerFactories = {
   azure: synthesizeAzureSpeech,
@@ -16,6 +11,12 @@ const providerFactories = {
   elevenlabs: synthesizeElevenLabsSpeech,
   elevenlabs_tts: synthesizeElevenLabsSpeech,
   elevenlabs_realtime: synthesizeElevenLabsSpeech,
+};
+
+const streamingProviderFactories = {
+  elevenlabs: streamElevenLabsSpeech,
+  elevenlabs_tts: streamElevenLabsSpeech,
+  elevenlabs_realtime: streamElevenLabsSpeech,
 };
 
 const normalizeProviderName = (value) => String(value || '').trim().toLowerCase().replace(/-/g, '_');
@@ -58,4 +59,32 @@ export const synthesizeSpeech = async (options = {}) => {
     details: errors.join('; '),
     meta: { providerOrder },
   });
+};
+
+export const streamSynthesizeSpeech = async function* (options = {}) {
+  const providerOrder = getTtsProviderOrder();
+  const errors = [];
+
+  for (const providerName of providerOrder) {
+    const streamWithProvider = streamingProviderFactories[providerName];
+    if (!streamWithProvider) {
+      errors.push(`${providerName}: streaming unsupported`);
+      continue;
+    }
+
+    try {
+      yield* streamWithProvider(options);
+      return;
+    } catch (error) {
+      errors.push(`${providerName}: ${error?.message || String(error)}`);
+      if (!shouldAttemptFallback(error)) throw error;
+    }
+  }
+
+  const synthesis = await synthesizeSpeech(options);
+  yield {
+    ...synthesis,
+    chunkIndex: 0,
+    isStreaming: false,
+  };
 };
