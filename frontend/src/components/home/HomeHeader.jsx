@@ -7,7 +7,7 @@ import React from 'react';
 import { Bird, HelpCircle, Moon, Sun } from 'lucide-react';
 import { useTheme } from '../../hooks/useTheme.js';
 
-export function HomeHeader({ user, isAvatarBroken, userInitials, onAvatarError, onSignOut, onStartTour }) {
+export function HomeHeader({ user, isAvatarBroken, userInitials, onAvatarError, onSignOut, onStartTour, onOpenOps }) {
   const { isDark, toggleTheme } = useTheme();
 
   return (
@@ -49,6 +49,16 @@ export function HomeHeader({ user, isAvatarBroken, userInitials, onAvatarError, 
         >
           <HelpCircle size={15} strokeWidth={2} />
           <span className="hidden sm:inline">Tour</span>
+        </button>
+
+        <button
+          onClick={onOpenOps}
+          className="hidden rounded-full px-3 py-1.5 text-xs font-semibold transition sm:inline-flex"
+          style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent)'; e.currentTarget.style.background = 'var(--accent-glow)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.background = 'transparent'; }}
+        >
+          Ops
         </button>
 
         {/* Theme toggle */}

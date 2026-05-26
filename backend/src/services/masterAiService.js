@@ -21,6 +21,7 @@ import { buildDecisionContext } from './aiControl/decisionContextBuilder.js';
 import { buildInterviewEnvironment } from './aiControl/interviewEnvironmentService.js';
 import { createDecisionRecord } from './aiControl/decisionRecordService.js';
 import { selectNextAction } from './aiControl/actionPlanner.js';
+import { selectActionWithModel } from './aiControl/modelActionSelectorService.js';
 import { updateAgentMemory } from './aiControl/agentMemoryService.js';
 import { executeInterviewAction } from './aiControl/interviewActionExecutor.js';
 import { evaluateInterviewTurn, persistEvaluatorRecord } from './aiControl/interviewEvaluatorService.js';
@@ -28,6 +29,7 @@ import { buildTrajectoryStep, persistTrajectoryStep } from './aiControl/trajecto
 import { executeReportAction } from './aiControl/reportActionExecutor.js';
 import { buildEvidenceBundle } from './aiControl/evidenceBundleService.js';
 import { resolveFastAnswerUnderstanding } from './aiControl/fastAnswerUnderstandingService.js';
+import { recordAgentTraceEvent } from './aiControl/agentTraceService.js';
 import { persistDynamicSlotState } from './aiControl/dynamicSlotService.js';
 import { buildReflectionRecord, shouldWriteReflection, persistReflectionRecord } from './aiControl/reflectionWriterService.js';
 import { persistUserCoachingMemory } from './aiControl/userCoachingMemoryService.js';
@@ -51,6 +53,7 @@ const persistControllerSnapshot = async ({ sessionId, decisionContext = null, ev
               matchState: decisionContext.matchState,
               retrievalState: decisionContext.retrievalState,
               evaluatorState: decisionContext.evaluatorState,
+              plannerSignals: decisionContext.plannerSignals,
               dynamicSlotState: decisionContext.dynamicSlotState,
               abductiveState: decisionContext.abductiveState,
               sectionState: decisionContext.sectionState,
@@ -122,6 +125,12 @@ const buildDefaultRetrievalQuery = ({ session = {}, payload = {}, mode = 'interv
 };
 
 const runInterviewController = async ({ session, payload = {}, onSentence = null, trace = null }) => {
+  enqueueBackgroundJob('trace-answer-evaluated-start', () => recordAgentTraceEvent({
+    sessionId: session.id,
+    eventType: 'answer_evaluated',
+    mode: session.mode || payload.inputMode || 'text',
+    payload: { inputMode: payload.inputMode || 'text' },
+  }), { sessionId: session.id });
   if (hasReachedTimeLimit(session)) {
     return {
       isComplete: true,
@@ -203,7 +212,15 @@ decisionType: AGENT_DECISION_TYPES.BUILD_CONTEXT,
     });
   }, { sessionId: session.id });
 
-  const plan = await measureAdaptiveStep(trace, 'adaptive.action_selection', () => selectNextAction(decisionContext));
+  const fallbackPlan = await measureAdaptiveStep(trace, 'adaptive.action_selection', () => selectNextAction(decisionContext));
+  const plan = await measureAdaptiveStep(trace, 'adaptive.model_action_selection', () => selectActionWithModel({
+    decisionContext,
+    evaluatorOutput,
+    latestAnswerUnderstanding,
+    candidateActions: fallbackPlan.candidateActions,
+    fallbackPlan,
+    sessionSettings: session.settings || {},
+  }));
   enqueueBackgroundJob('persist-action-selection-record', () => createDecisionRecord({
     sessionId: session.id,
     record: {
@@ -213,13 +230,21 @@ tool: AGENT_TOOL_NAMES.PLAN_INTERVIEW_ACTION,
 decisionType: AGENT_DECISION_TYPES.SELECT_ACTION,
       currentObjective: decisionContext.currentObjective,
       selectedAction: plan.selectedAction,
-      reasoningSummary: plan.rationale,
+      reasoningSummary: `${plan.rationale}${plan.selectionSource ? ` Selection source: ${plan.selectionSource}.` : ''}`,
       evidenceUsed: [
         ...((decisionContext.coverageState?.missingTopics || []).map((item) => `coverage:${item}`)),
         ...((decisionContext.matchState?.validationTargets || []).map((item) => `validation:${item}`)),
         `specificity:${decisionContext.candidateState?.specificityLevel || 'unknown'}`,
+        `fallback_action:${plan.fallbackAction || fallbackPlan.selectedAction}`,
+        `selection_source:${plan.selectionSource || 'rule_fallback'}`,
       ],
       confidence: plan.confidence,
+      actionInput: plan.actionInput,
+      candidateActions: plan.candidateActions,
+      fallbackAction: plan.fallbackAction || fallbackPlan.selectedAction,
+      selectionSource: plan.selectionSource || 'rule_fallback',
+      modelSelectedAction: plan.modelSelectedAction || null,
+      modelSelectionError: plan.modelSelectionError || null,
     },
   }), { sessionId: session.id });
 
@@ -231,6 +256,19 @@ decisionType: AGENT_DECISION_TYPES.SELECT_ACTION,
     session,
     onSentence,
   }));
+  enqueueBackgroundJob('trace-followup-decision', () => recordAgentTraceEvent({
+    sessionId: session.id,
+    eventType: 'followup_decision',
+    mode: session.mode || payload.inputMode || 'text',
+    payload: {
+      selectedAction: plan.selectedAction,
+      fallbackAction: plan.fallbackAction || fallbackPlan.selectedAction,
+      selectionSource: plan.selectionSource || 'rule_fallback',
+      plannerSignals: decisionContext.plannerSignals || evaluatorOutput.plannerSignals || {},
+      candidateActions: plan.candidateActions || [],
+      retrievalSources: decisionContext.retrievalState?.latestSources || [],
+    },
+  }), { sessionId: session.id });
 
   enqueueBackgroundJob('persist-action-execution-record', () => createDecisionRecord({
     sessionId: session.id,
@@ -245,6 +283,9 @@ decisionType: AGENT_DECISION_TYPES.EXECUTE_ACTION,
       evidenceUsed: [interviewerOutput?.sourceType || 'agent_generated'],
       confidence: plan.confidence,
       actionInput: plan.actionInput,
+      fallbackAction: plan.fallbackAction || fallbackPlan.selectedAction,
+      selectionSource: plan.selectionSource || 'rule_fallback',
+      candidateActions: plan.candidateActions,
     },
   }), { sessionId: session.id });
 
@@ -254,6 +295,7 @@ decisionType: AGENT_DECISION_TYPES.EXECUTE_ACTION,
     decisionContext,
     selectedAction: plan.selectedAction,
     actionInput: plan.actionInput,
+    plan,
     actorOutput: interviewerOutput,
     evaluatorOutput,
   });
@@ -317,6 +359,8 @@ decisionType: AGENT_DECISION_TYPES.EXECUTE_ACTION,
       topic: interviewerOutput.topic,
       evidenceTypeHint: interviewerOutput.evidenceTypeHint || null,
       controllerAction: plan.selectedAction,
+      fallbackAction: plan.fallbackAction || fallbackPlan.selectedAction,
+      selectionSource: plan.selectionSource || 'rule_fallback',
       rationaleSummary: interviewerOutput.rationaleSummary || interviewerOutput.rationale,
       preamble: interviewerOutput.interviewerTurn?.preamble || '',
       followUpDepth: interviewerOutput.followUpDepth || 0,
@@ -330,6 +374,8 @@ decisionType: AGENT_DECISION_TYPES.EXECUTE_ACTION,
     nextQuestionOrder,
     isComplete: false,
     controllerAction: plan.selectedAction,
+    fallbackAction: plan.fallbackAction || fallbackPlan.selectedAction,
+    selectionSource: plan.selectionSource || 'rule_fallback',
     evaluatorOutput,
     interviewerTurn: interviewerOutput.interviewerTurn || null,
     reactTrace: interviewerOutput.reactTrace || null,
@@ -337,6 +383,12 @@ decisionType: AGENT_DECISION_TYPES.EXECUTE_ACTION,
 };
 
 const runReportController = async ({ session }) => {
+  await recordAgentTraceEvent({
+    sessionId: session.id,
+    eventType: 'report_generation_started',
+    mode: session.mode || 'text',
+    payload: { taskType: 'generate_report' },
+  });
   await indexSessionArtifacts(session.id);
   const retrievalBundle = await agentRegistry.retrieval({
     query: buildDefaultRetrievalQuery({ session, mode: 'report' }),
@@ -432,6 +484,16 @@ decisionType: AGENT_DECISION_TYPES.EXECUTE_ACTION,
     sessionId: session.id,
     report: executionResult.report,
     qaResult: executionResult.qaResult,
+  });
+  await recordAgentTraceEvent({
+    sessionId: session.id,
+    eventType: 'report_generation_completed',
+    mode: session.mode || 'text',
+    payload: {
+      qaPassed: executionResult.qaResult?.passed,
+      coverageScore: executionResult.qaResult?.coverageScore,
+      claimEvidence: executionResult.report?.evidenceDiagnostics?.claimEvidence || {},
+    },
   });
 
   return { report: executionResult.report, qaResult: executionResult.qaResult, stored, controllerAction: plan.selectedAction };

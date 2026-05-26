@@ -20,7 +20,11 @@ import { formatNumber, titleCase } from '../../utils/reportViewBuilder.js';
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
 export function ReportDetailSections({ report, qa, interviewMetrics, evidenceDiagnostics, qaDiagnostics }) {
-  const visibleSections = (report.sections || []).filter((section) => section.id !== 'nz_workplace_fit');
+  const visibleSections = (report.sections || []).filter((section) => !['nz_workplace_fit', 'reflection_memory', 'coaching_memory'].includes(section.id));
+  const validationSummary = qaDiagnostics.validationSummary || {};
+  const claimEvidence = evidenceDiagnostics.claimEvidence || validationSummary.claimEvidence || {};
+  const voiceDelivery = report.voiceDeliverySummary || {};
+  const traceSummary = report.traceSummary || {};
 
   return (
     <>
@@ -85,6 +89,22 @@ export function ReportDetailSections({ report, qa, interviewMetrics, evidenceDia
             <p className="mt-2 text-sm text-amber-900">
               QA question alignment: {qaDiagnostics.interviewerQuestionCount ?? '-'} / {qaDiagnostics.plannedQuestionCount ?? '-'} | Avg evidence strength: {formatNumber(qaDiagnostics.averageEvidenceStrength)}
             </p>
+            <p className="mt-2 text-sm text-amber-900">
+              Trust checks: {validationSummary.feedbackItems ?? '-'} feedback items | Missing trust fields: {validationSummary.missingTrustFields ?? 0} | Missing STAR: {validationSummary.missingStarBreakdowns ?? 0}
+            </p>
+            <p className="mt-2 text-sm text-amber-900">
+              Claims: {claimEvidence.totalClaims ?? '-'} total | Downgraded: {claimEvidence.downgradedClaims ?? 0} | Needs confirmation: {claimEvidence.needsConfirmationClaims ?? 0}
+            </p>
+            {voiceDelivery.deliveryConfidence ? (
+              <p className="mt-2 text-sm text-amber-900">
+                Voice delivery: {voiceDelivery.deliveryConfidence} confidence | Avg pace: {voiceDelivery.averageWordsPerMinute ?? '-'} WPM | Fillers: {voiceDelivery.totalFillerCount ?? 0}
+              </p>
+            ) : null}
+            {traceSummary.selectionSource || traceSummary.mode ? (
+              <p className="mt-2 text-sm text-amber-900">
+                Trace: mode {traceSummary.mode || '-'} | RAG used: {traceSummary.ragUsed ? 'Yes' : 'No'} | Coaching confidence: {traceSummary.coachingConfidence || '-'}
+              </p>
+            ) : null}
             {(qa.qualityFlags || []).length > 0 ? (
               <div className="mt-3 flex flex-wrap gap-2">
                 {(qa.qualityFlags || []).map((flag) => (

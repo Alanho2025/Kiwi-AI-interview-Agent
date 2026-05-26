@@ -27,6 +27,9 @@ const ensureNumber = (value, fallback = 0) => (Number.isFinite(Number(value)) ? 
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
 const ensureString = (value, fallback = '') => (typeof value === 'string' ? value : fallback);
+const TRUST_LABELS = new Set(['supported_by_cv', 'supported_by_jd', 'supported_by_answer', 'supported_by_nz_guide', 'needs_user_confirmation']);
+const CONFIDENCE_LEVELS = new Set(['high', 'medium', 'low']);
+const FEEDBACK_STATUSES = new Set(['confirmed_feedback', 'downgraded_feedback', 'needs_confirmation', 'refused_claim']);
 
 const normalizeDecision = (decision = {}) => ({
   label: ensureString(decision.label, 'manual_review'),
@@ -138,6 +141,14 @@ const normalizeCandidateFeedbackItem = (item = {}) => ({
   critique: ensureString(item.critique),
   rewrite: ensureString(item.rewrite),
   description: ensureString(item.description),
+  displayValue: ensureString(item.displayValue),
+  unit: ensureString(item.unit),
+  evidenceLabel: TRUST_LABELS.has(item.evidenceLabel) ? item.evidenceLabel : 'supported_by_answer',
+  confidenceLevel: CONFIDENCE_LEVELS.has(item.confidenceLevel) ? item.confidenceLevel : 'medium',
+  evidenceSources: ensureArray(item.evidenceSources).filter(Boolean),
+  evidenceReason: ensureString(item.evidenceReason),
+  needsUserConfirmation: Boolean(item.needsUserConfirmation),
+  feedbackStatus: FEEDBACK_STATUSES.has(item.feedbackStatus) ? item.feedbackStatus : 'confirmed_feedback',
 });
 
 const normalizeScoreExplanation = (item = {}) => ({
@@ -159,10 +170,39 @@ const normalizeDimensionReasons = (value = {}) => ({
   evidence: ensureString(value.evidence),
 });
 
+const normalizeStarBreakdown = (value = {}) => {
+  if (value == null) return null;
+  const normalizePart = (part) => ['clear', 'partial', 'missing'].includes(part) ? part : 'missing';
+  return {
+    situation: normalizePart(value.situation),
+    task: normalizePart(value.task),
+    action: normalizePart(value.action),
+    result: normalizePart(value.result),
+    mainMissingElement: ensureString(value.mainMissingElement, 'result'),
+    scoreReason: ensureString(value.scoreReason),
+  };
+};
+
+const normalizeStructureBreakdown = (value = {}) => {
+  if (!isObject(value)) return null;
+  return {
+    ...value,
+    mainMissingElement: ensureString(value.mainMissingElement),
+    scoreReason: ensureString(value.scoreReason),
+  };
+};
+
 const normalizeTurnBreakdown = (item = {}) => ({
   question: ensureString(item.question),
   answer: ensureString(item.answer),
   feedback: ensureString(item.feedback),
+  questionType: ensureString(item.questionType),
+  questionStage: ensureString(item.questionStage),
+  questionTopic: ensureString(item.questionTopic),
+  rubricType: ensureString(item.rubricType, 'star'),
+  starApplicable: item.starApplicable !== false,
+  structureLabel: ensureString(item.structureLabel, item.starApplicable === false ? 'Answer structure' : 'STAR evidence'),
+  structureBreakdown: normalizeStructureBreakdown(item.structureBreakdown || item.starBreakdown),
   scores: isObject(item.scores) 
     ? {
         business: ensureNumber(item.scores.business, 0),
@@ -171,6 +211,13 @@ const normalizeTurnBreakdown = (item = {}) => ({
       }
     : { business: 0, logic: 0, evidence: 0 },
   dimensionReasons: normalizeDimensionReasons(item.dimensionReasons || item.scoreReasons),
+  starBreakdown: item.starApplicable === false ? null : normalizeStarBreakdown(item.starBreakdown || {}),
+  evidenceLabel: TRUST_LABELS.has(item.evidenceLabel) ? item.evidenceLabel : 'supported_by_answer',
+  confidenceLevel: CONFIDENCE_LEVELS.has(item.confidenceLevel) ? item.confidenceLevel : 'medium',
+  evidenceSources: ensureArray(item.evidenceSources).filter(Boolean),
+  evidenceReason: ensureString(item.evidenceReason),
+  needsUserConfirmation: Boolean(item.needsUserConfirmation),
+  feedbackStatus: FEEDBACK_STATUSES.has(item.feedbackStatus) ? item.feedbackStatus : 'confirmed_feedback',
 });
 
 const normalizeNzWorkplaceDimension = (item = {}) => ({
@@ -235,6 +282,20 @@ const normalizeCompanyMotivationFit = (value = {}) => ({
   evidenceStrength: ensureString(value.evidenceStrength),
 });
 
+const normalizeVoiceDeliverySummary = (value = {}) => isObject(value)
+  ? {
+      turnCount: ensureNumber(value.turnCount, 0),
+      averageWordsPerMinute: Number.isFinite(Number(value.averageWordsPerMinute)) ? Number(value.averageWordsPerMinute) : null,
+      averageSpeakingDurationSeconds: Number.isFinite(Number(value.averageSpeakingDurationSeconds)) ? Number(value.averageSpeakingDurationSeconds) : null,
+      totalFillerCount: ensureNumber(value.totalFillerCount, 0),
+      totalLongPauseCount: ensureNumber(value.totalLongPauseCount, 0),
+      totalRepeatedCorrections: ensureNumber(value.totalRepeatedCorrections, 0),
+      totalUnclearSpeechSegments: ensureNumber(value.totalUnclearSpeechSegments, 0),
+      deliveryConfidence: ensureString(value.deliveryConfidence),
+      feedback: ensureArray(value.feedback).filter(Boolean),
+    }
+  : null;
+
 /**
  * Purpose: Execute the main responsibility for validateReportOutput.
  * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
@@ -256,7 +317,9 @@ export const validateReportOutput = (report = {}) => ({
   evidenceReferences: ensureArray(report.evidenceReferences),
   interviewMetrics: isObject(report.interviewMetrics) ? report.interviewMetrics : {},
   evidenceDiagnostics: isObject(report.evidenceDiagnostics) ? report.evidenceDiagnostics : {},
+  traceSummary: isObject(report.traceSummary) ? report.traceSummary : {},
   nzWorkplaceFit: normalizeNzWorkplaceFit(report.nzWorkplaceFit || {}),
+  voiceDeliverySummary: normalizeVoiceDeliverySummary(report.voiceDeliverySummary || {}),
   companyMotivationFit: normalizeCompanyMotivationFit(report.companyMotivationFit || {}),
   candidateFeedback: isObject(report.candidateFeedback)
     ? {

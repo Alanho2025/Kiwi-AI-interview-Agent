@@ -162,7 +162,16 @@ export const generateReportPDF = async (reportData) => {
 
 
     // ══════ Communication Style Profile ══════
-    if (vm.communicationProfile) {
+    const hasCommunicationProfile = vm.communicationProfile
+      && (
+        vm.communicationProfile.summary
+        || vm.communicationProfile.overallImpression
+        || vm.communicationProfile.fillerWordNote
+        || vm.communicationProfile.fillerWords
+        || vm.communicationProfile.traits?.length
+        || vm.communicationProfile.keyTraits?.length
+      );
+    if (hasCommunicationProfile) {
       const cp = vm.communicationProfile;
       y = sectionHeading(pdf, 'Communication Style Profile', y);
 
@@ -172,9 +181,10 @@ export const generateReportPDF = async (reportData) => {
         y += 2;
       }
 
-      if (cp.traits?.length) {
+      const traits = cp.traits || cp.keyTraits || [];
+      if (traits?.length) {
         y = itemTitle(pdf, 'Key Traits', y);
-        for (const t of cp.traits) {
+        for (const t of traits) {
           pdf.setFont('helvetica', 'bold');
           y = wrapText(pdf, `• ${t.label || t.title || ''}`, M + 2, y, CW - 4);
           pdf.setFont('helvetica', 'normal');
@@ -183,9 +193,9 @@ export const generateReportPDF = async (reportData) => {
         }
       }
 
-      if (cp.fillerWordNote) {
+      if (cp.fillerWordNote || cp.fillerWords) {
         y = itemTitle(pdf, 'Delivery & Filler Words', y);
-        y = wrapText(pdf, cp.fillerWordNote, M + 2, y, CW - 4);
+        y = wrapText(pdf, cp.fillerWordNote || cp.fillerWords, M + 2, y, CW - 4);
         y += 2;
       }
     }
@@ -259,9 +269,9 @@ export const generateReportPDF = async (reportData) => {
     // ══════ Turn-by-Turn Breakdown ══════
     if (vm.turnBreakdowns?.length) {
       y = sectionHeading(pdf, 'Turn-by-Turn Breakdown', y);
-      for (const t of vm.turnBreakdowns) {
-        const qNum = t.questionIndex ?? t.turnIndex ?? '';
-        y = itemTitle(pdf, `Q${qNum}: ${t.questionText || ''}`, y);
+      for (const [index, t] of vm.turnBreakdowns.entries()) {
+        const qNum = t.questionIndex ?? t.turnIndex ?? index + 1;
+        y = itemTitle(pdf, `Q${qNum}: ${t.questionText || t.question || ''}`, y);
 
         if (t.scores) {
           const parts = [];
@@ -271,9 +281,19 @@ export const generateReportPDF = async (reportData) => {
           if (parts.length) { y = labelValue(pdf, 'Micro-Scores', parts.join('  |  '), y); }
         }
 
-        if (t.answerSummary) {
+        if (t.starApplicable === false && t.structureBreakdown) {
+          const label = t.structureLabel || 'Answer structure';
+          y = labelValue(pdf, label, `Main gap: ${t.structureBreakdown.mainMissingElement || 'specificity'}`, y);
+          if (t.structureBreakdown.scoreReason) {
+            y = wrapText(pdf, t.structureBreakdown.scoreReason, M + 2, y, CW - 4);
+          }
+        } else if (t.starBreakdown) {
+          y = labelValue(pdf, 'STAR', `S: ${t.starBreakdown.situation || '-'} | T: ${t.starBreakdown.task || '-'} | A: ${t.starBreakdown.action || '-'} | R: ${t.starBreakdown.result || '-'}`, y);
+        }
+
+        if (t.answerSummary || t.answer) {
           pdf.setFont('helvetica', 'italic');
-          y = wrapText(pdf, t.answerSummary, M + 2, y, CW - 4);
+          y = wrapText(pdf, `Answer: ${t.answerSummary || t.answer}`, M + 2, y, CW - 4);
           pdf.setFont('helvetica', 'normal');
           y += 1;
         }

@@ -53,7 +53,6 @@
       "passed": false,
       "qualityFlags": [
         "missing_interaction_section",
-        "missing_reflection_section",
         "missing_candidate_feedback"
       ]
     }
@@ -132,8 +131,8 @@
       }
     },
     "expected": {
-      "passed": true,
-      "qualityFlags": []
+      "passed": false,
+      "qualityFlags": ["missing_feedback_trust_fields"]
     }
   },
   {
@@ -449,7 +448,7 @@
     }
   },
   {
-    "id": "report_missing_reflection_content_flagged",
+    "id": "report_missing_feedback_trust_fields_without_reflection_requirement",
     "report": {
       "sessionId": "good-session",
       "summary": "The candidate is a moderate_match because the interview evidence shows Python and SQL strengths with one communication gap.",
@@ -519,8 +518,7 @@
     "expected": {
       "passed": false,
       "qualityFlags": [
-        "missing_reflection_section",
-        "missing_reflection_content"
+        "missing_feedback_trust_fields"
       ]
     }
   },

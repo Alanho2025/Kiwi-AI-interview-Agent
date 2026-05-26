@@ -63,13 +63,18 @@ export const buildPlainEnglishMetrics = ({ analysisResult, evidenceSummary, inte
   const hypotheticalTurns = Number(evidenceSummary.totals.hypothetical_understanding || 0);
   const genericTurns = Number(evidenceSummary.totals.generic_filler || 0);
   const plannedQuestions = Number(interviewMetrics.plannedQuestionCount || 0);
-  const askedQuestions = Number(interviewMetrics.interviewerQuestionCount || 0);
+  const answeredQuestions = Number(interviewMetrics.scoredCandidateAnswerCount || interviewMetrics.candidateTurnCount || 0);
+  const completionPercent = plannedQuestions > 0
+    ? Math.min(100, Math.round((answeredQuestions / Math.max(plannedQuestions, 1)) * 100))
+    : answeredQuestions;
 
   return [
     {
       id: 'overall_fit',
       label: 'Overall role fit',
       value: overallScore,
+      displayValue: `${overallScore.toFixed(2)}/100`,
+      unit: 'score',
       interpretation:
         overallScore >= 80
           ? 'Your profile and interview answers point to strong alignment with this role.'
@@ -83,6 +88,8 @@ export const buildPlainEnglishMetrics = ({ analysisResult, evidenceSummary, inte
       id: 'evidence_strength',
       label: 'Evidence strength',
       value: evidenceStrength,
+      displayValue: `${evidenceStrength.toFixed(2)}/4`,
+      unit: 'score',
       interpretation:
         evidenceStrength >= 3
           ? 'Your answers usually included context, actions, and outcomes, which makes them persuasive.'
@@ -94,6 +101,8 @@ export const buildPlainEnglishMetrics = ({ analysisResult, evidenceSummary, inte
       id: 'direct_examples',
       label: 'Use of real examples',
       value: directTurns,
+      displayValue: `${directTurns} turn${directTurns === 1 ? '' : 's'}`,
+      unit: 'turns',
       interpretation:
         directTurns >= 4
           ? 'You regularly grounded your answers in past experience, which is exactly what interviewers look for.'
@@ -105,6 +114,8 @@ export const buildPlainEnglishMetrics = ({ analysisResult, evidenceSummary, inte
       id: 'hypothetical_answers',
       label: 'Theoretical answers',
       value: hypotheticalTurns,
+      displayValue: `${hypotheticalTurns} turn${hypotheticalTurns === 1 ? '' : 's'}`,
+      unit: 'turns',
       interpretation:
         hypotheticalTurns === 0
           ? 'You stayed grounded in what you have done, not only what you might do.'
@@ -115,9 +126,11 @@ export const buildPlainEnglishMetrics = ({ analysisResult, evidenceSummary, inte
     {
       id: 'interview_completion',
       label: 'Interview completion',
-      value: plannedQuestions > 0 ? Math.min(100, Math.round((askedQuestions / Math.max(plannedQuestions, 1)) * 100)) : askedQuestions,
+      value: completionPercent,
+      displayValue: plannedQuestions > 0 ? `${answeredQuestions}/${plannedQuestions} answered` : `${answeredQuestions} answered`,
+      unit: plannedQuestions > 0 ? 'ratio' : 'turns',
       interpretation:
-        plannedQuestions > 0 && askedQuestions === plannedQuestions
+        plannedQuestions > 0 && answeredQuestions === plannedQuestions
           ? 'You completed the planned interview flow, so this report reflects the full session.'
           : 'The interview did not fully match the planned flow, so some signals may be incomplete.',
     },
@@ -125,6 +138,8 @@ export const buildPlainEnglishMetrics = ({ analysisResult, evidenceSummary, inte
       id: 'generic_answers',
       label: 'Generic answers',
       value: genericTurns,
+      displayValue: `${genericTurns} turn${genericTurns === 1 ? '' : 's'}`,
+      unit: 'turns',
       interpretation:
         genericTurns >= 4
           ? 'Several answers likely felt broad or surface-level. This is a strong signal to prepare sharper STAR-style examples.'

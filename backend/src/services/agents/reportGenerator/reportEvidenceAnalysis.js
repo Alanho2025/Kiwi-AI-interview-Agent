@@ -80,6 +80,12 @@ export const analyseCandidateAnswers = (turns = []) => turns.map((turn, index) =
   };
 });
 
+export const detectCandidateRepetitionComplaint = (text = '') => (
+  /\b(answered|answer|asked|ask)\b.*\b(before|again|already|repeat|same)\b/i.test(text)
+  || /\bwhy\b.*\b(ask|asking)\b.*\bagain\b/i.test(text)
+  || /\bi (have )?answered this\b/i.test(text)
+);
+
 /**
  * Purpose: Execute the main responsibility for buildEvidenceSummary.
  * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
@@ -105,6 +111,7 @@ export const buildEvidenceSummary = (analysedAnswers = []) => {
     totals,
     averageStrength,
     strongestExamples,
+    repetitionComplaintCount: analysedAnswers.filter((item) => detectCandidateRepetitionComplaint(item.text)).length,
   };
 };
 
@@ -122,8 +129,9 @@ export const buildInterviewMetrics = (transcript = [], totalQuestions = 0) => {
   return {
     candidateTurnCount: candidateTurns.length,
     interviewerQuestionCount: questionTurns.length,
+    scoredCandidateAnswerCount: Math.min(candidateTurns.length, questionTurns.length),
     extraAiTurnCount: extraAiTurns.length,
     plannedQuestionCount: totalQuestions,
-    interviewCompletedByLimit: questionTurns.length >= totalQuestions && totalQuestions > 0,
+    interviewCompletedByLimit: candidateTurns.length >= totalQuestions && totalQuestions > 0,
   };
 };

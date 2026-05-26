@@ -10,6 +10,7 @@
  */
 
 import { joinLabels } from './reportGeneratorShared.js';
+import { buildCompactTraceSummary } from '../../aiControl/agentTraceService.js';
 
 const ensureArray = (value) => (Array.isArray(value) ? value : []);
 
@@ -20,7 +21,17 @@ export const buildSummary = ({ analysisResult, evidenceSummary, interviewMetrics
   const strengths = joinLabels(analysisResult.explanation?.strengths || [], 4);
   const reflections = ensureArray(reflectionRecords).length;
 
-  return `Decision: ${analysisResult.decision?.label || 'manual_review'}. Top matched areas: ${strengths || 'role fit, communication'}. Direct evidence turns: ${direct}. Adjacent evidence turns: ${adjacent}. Hypothetical turns: ${hypothetical}. Planned questions answered: ${Math.min(interviewMetrics.candidateTurnCount, interviewMetrics.plannedQuestionCount || interviewMetrics.candidateTurnCount)} of ${interviewMetrics.plannedQuestionCount || interviewMetrics.candidateTurnCount}. Reflection records: ${reflections}.`;
+  const decision = resolveCandidateFacingDecision({ analysisResult, evidenceSummary, interviewMetrics });
+  return `Decision: ${decision}. Top matched areas: ${strengths || 'role fit, communication'}. Direct evidence turns: ${direct}. Adjacent evidence turns: ${adjacent}. Hypothetical turns: ${hypothetical}. Planned questions answered: ${Math.min(interviewMetrics.candidateTurnCount, interviewMetrics.plannedQuestionCount || interviewMetrics.candidateTurnCount)} of ${interviewMetrics.plannedQuestionCount || interviewMetrics.candidateTurnCount}. Reflection records: ${reflections}.`;
+};
+
+const resolveCandidateFacingDecision = ({ analysisResult = {}, evidenceSummary = {}, interviewMetrics = {} } = {}) => {
+  const rawDecision = analysisResult.decision?.label || 'manual_review';
+  if (rawDecision === 'manual_review') return 'manual_review';
+  const incomplete = !interviewMetrics.interviewCompletedByLimit && Number(interviewMetrics.plannedQuestionCount || 0) > 0;
+  const weakEvidence = Number(evidenceSummary.averageStrength || 0) < 2;
+  if (incomplete || weakEvidence) return 'insufficient_evidence';
+  return rawDecision === 'not_qualified' ? 'needs_stronger_evidence' : rawDecision;
 };
 
 export const buildGapText = ({ analysisResult, evidenceSummary, interviewMetrics }) => {
@@ -83,6 +94,9 @@ const buildCompanyMotivationFitText = (companyMotivationFit = {}) => {
   ].join('\n');
 };
 
+const filterVoiceDeliveryFeedback = (feedback = []) => ensureArray(feedback)
+  .filter((item) => !/situation|action|result|star/i.test(String(item || '')));
+
 /**
  * Compute an interview performance score (0-100) from evidence analysis and AI turn scores.
  * Factors:
@@ -137,17 +151,35 @@ export const buildReportDraft = ({
   evidenceSummary = {},
   interviewMetrics = {},
   candidateFeedback = {},
+  claimEvidenceReferences = [],
+  claimEvidenceDiagnostics = null,
   evaluatorRecords = [],
   trajectoryRecords = [],
   reflectionRecords = [],
+  agentTraceEvents = [],
   userCoachingMemory = {},
   nzWorkplaceFit = {},
+  voiceDeliverySummary = null,
   companyMotivationFit = {},
 }) => {
   const strongEvidenceText = buildStrongEvidenceText(evidenceSummary);
+  const candidateFacingDecision = resolveCandidateFacingDecision({ analysisResult, evidenceSummary, interviewMetrics });
+  const hasHighStrengthInterviewEvidence = ensureArray(evidenceSummary.strongestExamples).length > 0;
   const averageInteractionScore = ensureArray(evaluatorRecords).length
     ? Number((ensureArray(evaluatorRecords).reduce((sum, item) => sum + Number(item.overallInteractionScore || 0), 0) / ensureArray(evaluatorRecords).length).toFixed(2))
     : 0;
+  const resolvedClaimEvidenceReferences = ensureArray(claimEvidenceReferences);
+  const resolvedClaimEvidenceDiagnostics = claimEvidenceDiagnostics || {
+    totalClaims: resolvedClaimEvidenceReferences.length,
+    downgradedClaims: resolvedClaimEvidenceReferences.filter((item) => item.degraded).length,
+    needsConfirmationClaims: resolvedClaimEvidenceReferences.filter((item) => item.feedbackStatus === 'needs_confirmation').length,
+  };
+  const traceSummary = buildCompactTraceSummary({
+    session,
+    trajectoryRecords,
+    agentTraceEvents,
+    report: { candidateFeedback },
+  });
 
   return {
     schemaVersion: 'v3',
@@ -160,13 +192,15 @@ export const buildReportDraft = ({
       {
         id: 'match_overview',
         title: 'Match overview',
-        content: `Overall score ${analysisResult.overallScore || 0}, confidence ${analysisResult.confidence || 0}. Decision: ${analysisResult.decision?.label || 'manual_review'}. Average evidence strength: ${evidenceSummary.averageStrength} out of 4.`,
+        content: `Overall score ${analysisResult.overallScore || 0}, confidence ${analysisResult.confidence || 0}. Candidate-facing decision: ${candidateFacingDecision}. Average evidence strength: ${evidenceSummary.averageStrength} out of 4.`,
       },
       {
         id: 'strengths',
         title: 'Strengths',
         content: explanation.strengths?.length
-          ? `The clearest strengths were ${joinLabels(explanation.strengths)}. The strongest interview evidence showed real context, specific actions, validation steps, and measurable outcomes.`
+          ? hasHighStrengthInterviewEvidence
+            ? `The clearest strengths were ${joinLabels(explanation.strengths)}. The strongest interview evidence showed real context, specific actions, validation steps, and measurable outcomes.`
+            : `CV/JD and interview-adjacent signals suggest possible strengths in ${joinLabels(explanation.strengths)}, but the interview did not capture high-strength examples yet. Treat these as areas to prove with clearer examples.`
           : 'No standout strengths were captured.',
       },
       {
@@ -177,7 +211,7 @@ export const buildReportDraft = ({
       {
         id: 'interview_observations',
         title: 'Interview observations',
-        content: `The session recorded ${interviewMetrics.candidateTurnCount} candidate turns, ${interviewMetrics.interviewerQuestionCount} scored interviewer questions, and ${interviewMetrics.extraAiTurnCount} extra AI turns. Focus areas: ${(interviewPlan.interviewFocus || []).join(', ') || 'general role fit'}.`,
+        content: `The session recorded ${interviewMetrics.interviewerQuestionCount} AI prompts, ${interviewMetrics.candidateTurnCount} candidate answers, and ${interviewMetrics.scoredCandidateAnswerCount || Math.min(interviewMetrics.interviewerQuestionCount || 0, interviewMetrics.candidateTurnCount || 0)} scored candidate answers. Focus areas: ${(interviewPlan.interviewFocus || []).join(', ') || 'general role fit'}.`,
       },
       {
         id: 'evidence_quality',
@@ -192,17 +226,14 @@ export const buildReportDraft = ({
       {
         id: 'interaction_feedback',
         title: 'Interaction feedback',
-        content: buildInteractionFeedback(evaluatorRecords),
+        content: `${buildInteractionFeedback(evaluatorRecords)}${evidenceSummary.repetitionComplaintCount ? ` Candidate also flagged repeated questioning ${evidenceSummary.repetitionComplaintCount} time(s), so the interview flow should be treated as less reliable.` : ''}`,
       },
       {
-        id: 'reflection_memory',
-        title: 'Reflection memory',
-        content: buildReflectionMemoryText(reflectionRecords),
-      },
-      {
-        id: 'coaching_memory',
-        title: 'Coaching memory',
-        content: buildCoachingMemoryText(userCoachingMemory),
+        id: 'voice_delivery',
+        title: 'Voice delivery feedback',
+        content: voiceDeliverySummary
+          ? `Average pace ${voiceDeliverySummary.averageWordsPerMinute || 'unknown'} WPM. Filler words: ${voiceDeliverySummary.totalFillerCount || 0}. Long pauses: ${voiceDeliverySummary.totalLongPauseCount || 0}. ${filterVoiceDeliveryFeedback(voiceDeliverySummary.feedback).join(' ')}`
+          : 'Voice delivery metrics were not captured for this session.',
       },
       {
         id: 'nz_workplace_fit',
@@ -233,6 +264,7 @@ export const buildReportDraft = ({
       trajectoryCount: ensureArray(trajectoryRecords).length,
       reflectionCount: ensureArray(reflectionRecords).length,
       evaluatedTurnCount: ensureArray(evaluatorRecords).length,
+      voiceDeliveryConfidence: voiceDeliverySummary?.deliveryConfidence || null,
     },
     recommendations: [
       (evidenceSummary.totals.hypothetical_understanding || 0) > 0
@@ -245,13 +277,20 @@ export const buildReportDraft = ({
     evidenceReferences: [
       ...(analysisResult.evidenceMap || []).slice(0, 5),
       ...((retrievalBundle?.items || []).slice(0, 3).map((item) => ({ chunkId: item.chunkId, label: item.metadata?.label || item.sourceType, sourceType: item.sourceType }))),
+      ...resolvedClaimEvidenceReferences,
     ],
     interviewMetrics,
     evidenceDiagnostics: {
       totals: evidenceSummary.totals,
       averageStrength: evidenceSummary.averageStrength,
+      claimEvidence: resolvedClaimEvidenceDiagnostics,
+      repetitionComplaintCount: evidenceSummary.repetitionComplaintCount || 0,
+      internalReflectionSummary: buildReflectionMemoryText(reflectionRecords),
+      internalCoachingSummary: buildCoachingMemoryText(userCoachingMemory),
     },
+    traceSummary,
     nzWorkplaceFit,
+    voiceDeliverySummary,
     companyMotivationFit,
     candidateFeedback,
   };
