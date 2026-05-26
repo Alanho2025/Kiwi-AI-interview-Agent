@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { buildUniversalRoleProfile } from '../../../src/services/jobDescription/jdUniversalParserService.js';
 import { compareCvToJobDescription } from '../../../src/services/matchService.js';
 
 const buildRubric = (requirements = []) => ({
@@ -26,13 +27,17 @@ const buildRubric = (requirements = []) => ({
 
 describe('semantic evidence match robustness', () => {
   const previousMatchEngine = process.env.MATCH_ENGINE;
+  const previousAiTestMode = process.env.AI_TEST_MODE;
 
   afterEach(() => {
     if (previousMatchEngine === undefined) delete process.env.MATCH_ENGINE;
     else process.env.MATCH_ENGINE = previousMatchEngine;
+
+    if (previousAiTestMode === undefined) delete process.env.AI_TEST_MODE;
+    else process.env.AI_TEST_MODE = previousAiTestMode;
   });
 
-  it('does not treat skills-list-only hard requirements as fully met', async () => {
+  it('does not treat skills-list-only hard requirements as fully met or project-backed', async () => {
     const cvText = `Mina Patel
 Software Developer
 
@@ -46,10 +51,12 @@ SQL`;
 
     const result = await compareCvToJobDescription(cvText, 'Software Engineer JD', rubric);
     const statuses = Object.fromEntries(result.requirementChecks.map((item) => [item.label, item.status]));
+    const evidenceText = result.requirementChecks.flatMap((item) => item.evidence || []).join(' ');
 
     expect(statuses.Python).not.toBe('met');
     expect(statuses.SQL).not.toBe('met');
     expect(result.requirementChecks.map((item) => item.notes).join(' ')).toMatch(/skills-list evidence only/i);
+    expect(evidenceText).not.toMatch(/Matched in projects/i);
     expect(result.riskFlags.join(' ')).toMatch(/validate applied/i);
   });
 
@@ -145,5 +152,88 @@ Team communication`;
     expect(requirement.status).toBe('not_met');
     expect(result.decision.label).toBe('not_qualified');
     expect(requirement.notes).toMatch(/direct qualification|missingEvidence=|Registered nurse/i);
+  });
+
+  it('does not use education evidence to satisfy non-qualification behavioural or role-context requirements', async () => {
+    process.env.MATCH_ENGINE = 'semantic';
+    const cvText = `Alan Ho
+Master of Information Technology student
+
+Education
+Master of Information Technology, University of Auckland
+Bachelor of Engineering`;
+    const rubric = buildRubric([
+      {
+        label: 'Naturally curious, commercially aware, and capable of delivering features with autonomy',
+        type: 'hard',
+        importance: 'high',
+      },
+    ]);
+
+    const result = await compareCvToJobDescription(cvText, 'Software Engineer JD', rubric, { matchEngine: 'semantic' });
+    const requirement = result.requirementChecks[0];
+    const evidenceText = (requirement.evidence || []).join(' ');
+
+    expect(requirement.status).toBe('not_met');
+    expect(evidenceText).not.toMatch(/Matched in education/i);
+    expect(requirement.notes).toMatch(/missingEvidence=|missing direct proof|limited direct proof/i);
+  });
+
+  it('normalises fallback universal JD requirements without turning company context into candidate requirements', async () => {
+    process.env.MATCH_ENGINE = 'legacy';
+    process.env.AI_TEST_MODE = 'mock';
+
+    const roleProfile = await buildUniversalRoleProfile({
+      rawJD: `About The Hiring Team
+We are a fast-growing engineering team investing heavily in product quality.
+
+Requirements
+- Recent tertiary qualification in Computer Science or Software Engineering.
+- Experience with AWS services.
+- Strong written communication skills.`,
+      rubric: {
+        title: 'Graduate Software Engineer',
+        roleFamily: 'Software Engineering',
+        requirements: [
+          {
+            label: 'We are a fast-growing engineering team investing heavily in product quality.',
+            category: 'company_context',
+            importance: 'high',
+            type: 'hard',
+          },
+          {
+            label: 'Recent tertiary qualification in Computer Science or Software Engineering',
+            importance: 'high',
+            type: 'hard',
+          },
+          {
+            label: 'Experience with AWS services',
+            importance: 'high',
+            type: 'hard',
+          },
+          {
+            label: 'Strong written communication skills',
+            importance: 'medium',
+            type: 'soft',
+          },
+        ],
+      },
+    });
+
+    expect(roleProfile.requirements.map((item) => item.text)).not.toEqual(
+      expect.arrayContaining(['We are a fast-growing engineering team investing heavily in product quality.'])
+    );
+    expect(roleProfile.requirements.find((item) => /tertiary qualification/i.test(item.text))).toMatchObject({
+      category: 'qualification',
+      mustHave: true,
+    });
+    expect(roleProfile.requirements.find((item) => /AWS/i.test(item.text))).toMatchObject({
+      category: 'tool_or_platform',
+      mustHave: true,
+    });
+    expect(roleProfile.requirements.find((item) => /communication/i.test(item.text))).toMatchObject({
+      category: 'communication',
+      mustHave: false,
+    });
   });
 });
