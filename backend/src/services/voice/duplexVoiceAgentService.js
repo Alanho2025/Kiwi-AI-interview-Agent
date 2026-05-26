@@ -80,6 +80,8 @@ export const createDuplexVoiceAgentSession = ({
   let finalTranscriptSegments = [];
   let latestPartialTranscript = null;
   let isProcessingBufferedTurn = false;
+  let isCapturingSpeech = false;
+  let ignoredPreSpeechAudioChunks = 0;
 
   const sendReady = () => sendJson({
     type: 'session_ready',
@@ -206,8 +208,25 @@ export const createDuplexVoiceAgentSession = ({
 
   const restartSpeechSessionForNewTurn = async () => {
     finalTranscriptSegments = [];
+    latestPartialTranscript = null;
+    ignoredPreSpeechAudioChunks = 0;
     await stopSpeechSession();
     return startSpeechSession();
+  };
+
+  const writeCapturedAudio = async (chunk) => {
+    if (!isCapturingSpeech) {
+      ignoredPreSpeechAudioChunks += 1;
+      if (ignoredPreSpeechAudioChunks === 1) {
+        logger?.warn?.('Ignoring duplex audio received before speech_start', {
+          sessionId: activeSession?.id || session?.id,
+          sampleRate,
+        });
+      }
+      return;
+    }
+    const target = await startSpeechSession();
+    target.writeAudio(Buffer.from(chunk));
   };
 
   const handleJsonMessage = async (payload = {}) => {
@@ -218,6 +237,7 @@ export const createDuplexVoiceAgentSession = ({
       }
 
       if (payload.type === 'speech_start') {
+        isCapturingSpeech = true;
         await restartSpeechSessionForNewTurn();
         sendJson({
           type: 'listening_started',
@@ -228,13 +248,13 @@ export const createDuplexVoiceAgentSession = ({
       }
 
     if (payload.type === 'audio_chunk' && payload.audioBase64) {
-      const target = await startSpeechSession();
-      target.writeAudio(Buffer.from(payload.audioBase64, 'base64'));
+      await writeCapturedAudio(Buffer.from(payload.audioBase64, 'base64'));
       return;
     }
 
     if (payload.type === 'speech_end') {
       context.lastVad = payload.vad || null;
+      isCapturingSpeech = false;
       let speechStopError = null;
       try {
         await withTimeout(
@@ -271,6 +291,7 @@ export const createDuplexVoiceAgentSession = ({
             sttProvider: activeSttProviderName,
             sttStopError: speechStopError?.message || null,
             usedPartialFallback: Boolean(partialFallback),
+            ignoredPreSpeechAudioChunks,
           },
         });
       } catch (error) {
@@ -334,6 +355,7 @@ export const createDuplexVoiceAgentSession = ({
     }
 
     if (payload.type === 'session_stop' || payload.type === 'stop') {
+      isCapturingSpeech = false;
       await stopSpeechSession();
       sendJson({
         type: 'session_stopped',
@@ -354,14 +376,14 @@ export const createDuplexVoiceAgentSession = ({
 
   const handleBinaryAudio = async (message) => {
     try {
-      const target = await startSpeechSession();
-      target.writeAudio(Buffer.from(message));
+      await writeCapturedAudio(message);
     } catch (error) {
       logger?.error?.('Duplex voice binary audio handling failed', { sessionId: activeSession?.id || session?.id, error: error.message, stack: error.stack });
     }
   };
 
   const close = async () => {
+    isCapturingSpeech = false;
     await stopSpeechSession();
   };
 
