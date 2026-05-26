@@ -1,0 +1,179 @@
+[
+  {
+    "id": "direct_skill_match",
+    "query": "Python SQL data analysis",
+    "sources": {
+      "cv": [
+        "Built a LinkedIn job posting analysis project using Python, SQL, and dashboard visualisation.",
+        "Cleaned salary fields and grouped job locations before modelling."
+      ],
+      "jd": [
+        "The role requires Python, SQL, data analysis, and clear communication."
+      ]
+    },
+    "expectedRelevantEvidence": [
+      "Python",
+      "SQL",
+      "data analysis"
+    ],
+    "blockedEvidence": [
+      "Kubernetes",
+      "production machine learning",
+      "senior leadership"
+    ],
+    "expectedOutcome": "retrieve direct CV evidence for Python and SQL"
+  },
+  {
+    "id": "paraphrased_skill_match",
+    "query": "backend API design and service separation",
+    "sources": {
+      "cv": [
+        "Separated parsing, retrieval, scoring, and response composition into backend services.",
+        "Built an Express API for an AI food assistant."
+      ],
+      "jd": [
+        "The role needs maintainable backend API design."
+      ]
+    },
+    "expectedRelevantEvidence": [
+      "backend services",
+      "Express API",
+      "service separation"
+    ],
+    "blockedEvidence": [
+      "UI animation",
+      "baking",
+      "photography"
+    ],
+    "expectedOutcome": "detect paraphrased backend API experience"
+  },
+  {
+    "id": "weak_evidence_not_upgraded",
+    "query": "cloud native Kubernetes production deployment",
+    "sources": {
+      "cv": [
+        "Deployed a student project to Vercel and Render for a course demo.",
+        "Used Node.js, React, and MongoDB."
+      ],
+      "jd": [
+        "The job requires cloud-native engineering and Kubernetes."
+      ]
+    },
+    "expectedRelevantEvidence": [
+      "Vercel",
+      "Render",
+      "Node.js"
+    ],
+    "blockedEvidence": [
+      "Kubernetes",
+      "cloud-native engineering"
+    ],
+    "expectedOutcome": "retrieve deployment evidence but do not claim Kubernetes or cloud-native experience"
+  },
+  {
+    "id": "irrelevant_evidence_blocked",
+    "query": "software testing evidence",
+    "sources": {
+      "cv": [
+        "I enjoy baking brownies and taking photos in my free time.",
+        "I built a React project and wrote several Vitest tests."
+      ],
+      "jd": [
+        "The role requires software testing experience."
+      ]
+    },
+    "expectedRelevantEvidence": [
+      "Vitest tests",
+      "React project"
+    ],
+    "blockedEvidence": [
+      "baking brownies",
+      "taking photos"
+    ],
+    "expectedOutcome": "ignore hobby evidence when judging software testing"
+  },
+  {
+    "id": "cv_jd_gap_detected",
+    "query": "Azure cloud infrastructure experience",
+    "sources": {
+      "cv": [
+        "Used Azure Speech for voice interview transcription.",
+        "Integrated WebSocket voice session handling."
+      ],
+      "jd": [
+        "Requires Azure cloud infrastructure, IAM, and production monitoring."
+      ]
+    },
+    "expectedRelevantEvidence": [
+      "Azure Speech",
+      "WebSocket"
+    ],
+    "blockedEvidence": [
+      "Azure cloud infrastructure",
+      "IAM",
+      "production monitoring"
+    ],
+    "expectedOutcome": "find related Azure Speech evidence but keep infrastructure as a gap"
+  },
+  {
+    "id": "nz_guidance_only_when_needed",
+    "query": "New Zealand interview culture guidance",
+    "sources": {
+      "cv": [
+        "Candidate has project examples but no NZ workplace context."
+      ],
+      "jd": [
+        "Role is based in New Zealand and values teamwork and communication."
+      ],
+      "nzGuide": [
+        "NZ interviews often value concise examples, collaboration, humility, and evidence-based answers."
+      ]
+    },
+    "expectedRelevantEvidence": [
+      "NZ interviews",
+      "collaboration",
+      "evidence-based answers"
+    ],
+    "blockedEvidence": [
+      "invented company values",
+      "visa guarantee"
+    ],
+    "expectedOutcome": "use NZ guidance only for coaching style, not unsupported company claims"
+  },
+  {
+    "id": "star_example_retrieved_for_coaching",
+    "query": "STAR answer missing result",
+    "sources": {
+      "transcript": [
+        "I worked with my team and solved the problem."
+      ],
+      "starGuide": [
+        "A strong STAR answer includes Situation, Task, Action, and Result."
+      ]
+    },
+    "expectedRelevantEvidence": [
+      "STAR",
+      "Result"
+    ],
+    "blockedEvidence": [
+      "excellent complete answer",
+      "strong measurable impact"
+    ],
+    "expectedOutcome": "identify missing result and avoid overpraising"
+  },
+  {
+    "id": "retrieval_timeout_degraded_fallback",
+    "query": "role-specific evidence",
+    "sources": {
+      "cv": [],
+      "jd": []
+    },
+    "simulateTimeout": true,
+    "expectedRelevantEvidence": [],
+    "blockedEvidence": [
+      "unsupported evidence",
+      "high confidence"
+    ],
+    "expectedOutcome": "fallback safely and mark retrieval as degraded"
+  }
+]

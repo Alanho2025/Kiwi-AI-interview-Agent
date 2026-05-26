@@ -9,6 +9,6 @@
 - report_question_count_mismatch_flagged: 1
 - report_missing_candidate_feedback_flagged: 1
 - report_missing_interaction_section_flagged: 1
-- report_missing_reflection_content_flagged: 1
+- report_missing_feedback_trust_fields_without_reflection_requirement: 1
 - report_missing_hypothetical_gap_note_flagged: 1
 - report_extra_ai_turns_flagged: 1

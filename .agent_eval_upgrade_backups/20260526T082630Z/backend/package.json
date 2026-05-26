@@ -28,7 +28,7 @@
     "eval:report": "NODE_ENV=test AI_TEST_MODE=real node eval/runners/runReportQaEval.js",
     "eval:baseline": "NODE_ENV=test AI_TEST_MODE=real node eval/runners/runBaselineComparisonEval.js",
     "eval:voice-robustness": "NODE_ENV=test AI_TEST_MODE=mock node eval/runners/runVoiceRobustnessEval.js",
-    "eval:local": "npm run eval:e2e && npm run eval:green && npm run eval:voice-robustness && npm run eval:agent-framework",
+    "eval:local": "npm run eval:e2e && npm run eval:green && npm run eval:voice-robustness",
     "eval:real": "npm run eval:cv && npm run eval:jd && npm run eval:seek && npm run eval:match && npm run eval:interview && npm run eval:report && npm run eval:baseline",
     "eval:all": "npm run eval:real && npm run eval:local",
     "quality:local": "npm run lint && npm run test:all && npm run eval:local",
@@ -42,13 +42,7 @@
     "eval:seek": "NODE_ENV=test AI_TEST_MODE=real node eval/runners/runJdParseSeekBenchmark.js",
     "eval:e2e": "NODE_ENV=test AI_TEST_MODE=mock node eval/runners/runEndToEndInterviewEval.js",
     "eval:green": "NODE_ENV=test AI_TEST_MODE=mock node eval/runners/runGreenAgentEval.js",
-    "benchmark:voice-latency:gate": "node benchmarks/voice-asr-fallback/checkVoiceLatencyAcceptance.js",
-    "eval:retrieval": "NODE_ENV=test AI_TEST_MODE=mock node eval/runners/runRetrievalEval.js",
-    "eval:agent-trajectory": "NODE_ENV=test AI_TEST_MODE=mock node eval/runners/runAgentTrajectoryEval.js",
-    "eval:company-research": "NODE_ENV=test AI_TEST_MODE=mock node eval/runners/runCompanyResearchEval.js",
-    "eval:voice-quality": "NODE_ENV=test AI_TEST_MODE=mock node eval/runners/runVoiceQualityEval.js",
-    "eval:stability": "NODE_ENV=test AI_TEST_MODE=mock node eval/runners/runStabilityEval.js",
-    "eval:agent-framework": "npm run eval:retrieval && npm run eval:agent-trajectory && npm run eval:company-research && npm run eval:voice-quality && npm run eval:stability"
+    "benchmark:voice-latency:gate": "node benchmarks/voice-asr-fallback/checkVoiceLatencyAcceptance.js"
   },
   "dependencies": {
     "cors": "^2.8.6",
