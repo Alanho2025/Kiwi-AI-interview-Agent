@@ -1,0 +1,69 @@
+[
+  {
+    "id": "vague_star_answer",
+    "trials": [
+      {
+        "score": 0.82,
+        "passed": true
+      },
+      {
+        "score": 0.78,
+        "passed": true
+      },
+      {
+        "score": 0.74,
+        "passed": true
+      }
+    ],
+    "expected": {
+      "minWorstScore": 0.6,
+      "maxStabilityGap": 0.35,
+      "requirePassPower3": true
+    }
+  },
+  {
+    "id": "company_info_missing",
+    "trials": [
+      {
+        "score": 0.84,
+        "passed": true
+      },
+      {
+        "score": 0.79,
+        "passed": true
+      },
+      {
+        "score": 0.77,
+        "passed": true
+      }
+    ],
+    "expected": {
+      "minWorstScore": 0.6,
+      "maxStabilityGap": 0.35,
+      "requirePassPower3": true
+    }
+  },
+  {
+    "id": "report_hallucination_negative_probe",
+    "trials": [
+      {
+        "score": 0.9,
+        "passed": true
+      },
+      {
+        "score": 0.88,
+        "passed": true
+      },
+      {
+        "score": 0.52,
+        "passed": false,
+        "reason": "one trial missed unsupported skill claim"
+      }
+    ],
+    "expected": {
+      "minWorstScore": 0.6,
+      "maxStabilityGap": 0.35,
+      "requirePassPower3": true
+    }
+  }
+]

@@ -1,0 +1,105 @@
+[
+  {
+    "id": "company_info_available",
+    "companyName": "ExampleTech NZ",
+    "searchResults": [
+      "ExampleTech NZ builds logistics software for New Zealand small businesses.",
+      "The company highlights customer support, practical automation, and local operations."
+    ],
+    "generatedQuestion": "ExampleTech NZ builds logistics software for local businesses. What attracts you to this role and how would your project experience help their practical automation work?",
+    "reportComment": "The candidate connected their backend API project to ExampleTech NZ's local logistics software context.",
+    "expected": {
+      "mustContainOneOf": [
+        "logistics software",
+        "local businesses",
+        "practical automation"
+      ],
+      "mustNotContain": [
+        "global market leader",
+        "medical AI",
+        "banking platform"
+      ]
+    }
+  },
+  {
+    "id": "company_info_missing",
+    "companyName": "Unknown Kiwi Startup X",
+    "searchResults": [],
+    "generatedQuestion": "What attracted you to this company and role, based on your own research?",
+    "reportComment": "The candidate should research the company before the real interview because no reliable company evidence was available.",
+    "expected": {
+      "mustContainOneOf": [
+        "research the company",
+        "based on your own research",
+        "no reliable company evidence"
+      ],
+      "mustNotContain": [
+        "innovative culture",
+        "market leader",
+        "award-winning products",
+        "strong sustainability values"
+      ]
+    }
+  },
+  {
+    "id": "ambiguous_company_name",
+    "companyName": "Green",
+    "searchResults": [
+      "Green may refer to several unrelated companies in different industries."
+    ],
+    "generatedQuestion": "Because the company name is ambiguous, can you explain what you know about the specific Green role you applied for?",
+    "reportComment": "The system did not assume company facts because the search result was ambiguous.",
+    "expected": {
+      "mustContainOneOf": [
+        "ambiguous",
+        "specific",
+        "did not assume"
+      ],
+      "mustNotContain": [
+        "company culture is",
+        "their product is",
+        "their values are"
+      ]
+    }
+  },
+  {
+    "id": "irrelevant_search_result",
+    "companyName": "KiwiBuild AI",
+    "searchResults": [
+      "Kiwi bird conservation news article unrelated to the company."
+    ],
+    "generatedQuestion": "What attracted you to this role, and what would you confirm about the company before the interview?",
+    "reportComment": "Irrelevant search results were ignored.",
+    "expected": {
+      "mustContainOneOf": [
+        "confirm",
+        "before the interview",
+        "ignored"
+      ],
+      "mustNotContain": [
+        "bird conservation mission",
+        "wildlife products"
+      ]
+    }
+  },
+  {
+    "id": "company_fit_report_grounding",
+    "companyName": "Southbase",
+    "searchResults": [
+      "Southbase is a construction company in New Zealand."
+    ],
+    "generatedQuestion": "How would your IT support experience help you work with users in a New Zealand construction environment?",
+    "reportComment": "The candidate's IT support experience can be linked to user support, but the report should not claim construction engineering expertise.",
+    "expected": {
+      "mustContainOneOf": [
+        "IT support",
+        "user support",
+        "construction environment"
+      ],
+      "mustNotContain": [
+        "construction engineering expertise",
+        "site manager experience"
+      ]
+    }
+  }
+]

@@ -1,0 +1,103 @@
+[
+  {
+    "id": "noisy_transcript_followup",
+    "voiceTranscript": "I worked on the uh project and the noise sorry the data was messy but I fixed some salary fields.",
+    "generatedFeedback": "You gave some useful evidence about messy data and salary fields. Could you explain the action you took and the result?",
+    "expected": {
+      "mustContainOneOf": [
+        "messy data",
+        "salary fields",
+        "action",
+        "result"
+      ],
+      "mustNotContain": [
+        "poor communication",
+        "failed answer",
+        "unprofessional"
+      ]
+    }
+  },
+  {
+    "id": "long_pause_no_interruption",
+    "voiceTranscript": "I started by checking missing values... then I normalised salary ranges... and then I compared clustering results.",
+    "generatedFeedback": "Your answer has useful technical steps. Add a clearer final result or impact.",
+    "expected": {
+      "mustContainOneOf": [
+        "technical steps",
+        "result",
+        "impact"
+      ],
+      "mustNotContain": [
+        "interrupted",
+        "ignored answer"
+      ]
+    }
+  },
+  {
+    "id": "self_correction_preserved",
+    "voiceTranscript": "I managed the database, no sorry, I mean I helped design the database schema and tested SQL queries.",
+    "generatedFeedback": "Your correction is useful. You should focus on database schema design and SQL testing, then add the result.",
+    "expected": {
+      "mustContainOneOf": [
+        "correction",
+        "database schema",
+        "SQL testing"
+      ],
+      "mustNotContain": [
+        "database manager",
+        "lied",
+        "contradicted"
+      ]
+    }
+  },
+  {
+    "id": "filler_words_not_over_penalised",
+    "voiceTranscript": "Um I used Python and SQL to clean the data and uh build a dashboard.",
+    "generatedFeedback": "The answer includes Python, SQL, data cleaning, and dashboard evidence. Try reducing filler words, but the content is relevant.",
+    "expected": {
+      "mustContainOneOf": [
+        "Python",
+        "SQL",
+        "data cleaning",
+        "dashboard"
+      ],
+      "mustNotContain": [
+        "not qualified",
+        "bad answer",
+        "serious communication issue"
+      ]
+    }
+  },
+  {
+    "id": "partial_transcript_not_treated_as_final_answer",
+    "voiceTranscript": "I used Python to",
+    "generatedFeedback": "This sounds incomplete. Could you finish the example and explain what you did with Python?",
+    "expected": {
+      "mustContainOneOf": [
+        "incomplete",
+        "finish",
+        "explain"
+      ],
+      "mustNotContain": [
+        "final answer",
+        "strong complete STAR answer"
+      ]
+    }
+  },
+  {
+    "id": "latency_spike_fallback_message",
+    "voiceTranscript": "I can continue.",
+    "generatedFeedback": "There may be a short delay. I am still processing your answer, and you can continue when ready.",
+    "expected": {
+      "mustContainOneOf": [
+        "delay",
+        "processing",
+        "continue"
+      ],
+      "mustNotContain": [
+        "error crash",
+        "lost your answer"
+      ]
+    }
+  }
+]
