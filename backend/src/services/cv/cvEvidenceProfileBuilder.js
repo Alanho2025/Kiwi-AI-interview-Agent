@@ -24,7 +24,9 @@ const EVIDENCE_STRENGTH_BY_SOURCE = {
   summary: 'weak',
 };
 
-const TOOL_PATTERN = /\b(Python|JavaScript|TypeScript|React|Node\.js|Node|Express|SQL|PostgreSQL|Postgres|MongoDB|AWS|Azure|GCP|Redis|Elasticsearch|Kafka|Excel|Power BI|Tableau|Salesforce|HubSpot|Figma|Docker|Kubernetes|Linux|Git|DeepSeek|OpenAI|WebSocket|Tailwind)\b/gi;
+const TOOL_PATTERN = /\b(Python|JavaScript|TypeScript|React|Node\.js|Node|Express|SQL|PostgreSQL|Postgres|MongoDB|AWS|Azure|Azure Speech|GCP|Redis|Elasticsearch|Kafka|Excel|Power BI|Tableau|Salesforce|HubSpot|Figma|Docker|Kubernetes|Linux|Git|DeepSeek|OpenAI|WebSocket|Tailwind|Vite|Vitest|Playwright|Vercel|Render|Java|Unity|Trello|Photoshop|Sketch|InDesign|jQuery)\b/gi;
+
+const TECHNICAL_PRODUCT_EVIDENCE_PATTERN = /\b(designed|developed|built|implemented|evaluated|benchmarked|automated|integrated|deployed|analysed|analyzed|tested|validated|coordinated|documented|reported|workflow|prototype|system|agent|matching|adaptive questioning|voice interaction|quality checks?|rubrics?|evidence checks?|latency benchmarks?|full-stack|websocket|azure speech|llm|api|rag|react|express|python|postgresql|mongodb|deepseek|tailwind|npi|design of experiments|failure analysis|product quality|technical trade-off)\b/i;
 
 const inferSection = (sourceType = '') => {
   if (sourceType === 'summary') return 'summary';
@@ -49,7 +51,15 @@ const inferDomain = (text = '') => {
 };
 
 const extractTools = (text = '') => [...new Set((String(text || '').match(TOOL_PATTERN) || [])
-  .map((item) => item.replace(/^node$/i, 'Node.js')))];
+  .map((item) => item.replace(/^node$/i, 'Node.js')))] ;
+
+const resolveEvidenceStrength = (item = {}, text = '') => {
+  const baseStrength = EVIDENCE_STRENGTH_BY_SOURCE[item.sourceType] || 'weak';
+  if (item.sourceType === 'key_competency' && TECHNICAL_PRODUCT_EVIDENCE_PATTERN.test(text)) {
+    return 'partial';
+  }
+  return baseStrength;
+};
 
 const withEvidenceStrength = (item = {}, index = 0) => {
   const text = String(item.text || '');
@@ -58,10 +68,10 @@ const withEvidenceStrength = (item = {}, index = 0) => {
     id: item.id || `evidence:${index + 1}`,
     chunkId: item.chunkId || `cv_${index + 1}`,
     section: item.section || inferSection(item.sourceType),
-    evidenceStrength: EVIDENCE_STRENGTH_BY_SOURCE[item.sourceType] || 'weak',
+    evidenceStrength: resolveEvidenceStrength(item, text),
     tools: item.tools || extractTools(text),
     domain: item.domain || inferDomain(text),
-    responsibilitySignal: Boolean(item.responsibilitySignal ?? /built|owned|led|managed|coordinated|supported|handled|delivered|implemented|resolved|prepared|maintained/i.test(text)),
+    responsibilitySignal: Boolean(item.responsibilitySignal ?? /built|owned|led|managed|coordinated|supported|handled|delivered|implemented|resolved|prepared|maintained|designed|developed|evaluated|benchmarked/i.test(text)),
     achievementSignal: Boolean(item.achievementSignal ?? /\d|%|reduced|improved|increased|saved|delivered|launched|achieved/i.test(text)),
   };
 };
