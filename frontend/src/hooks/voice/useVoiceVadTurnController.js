@@ -78,8 +78,14 @@ export function useVoiceVadTurnController({
       speechStartSentRef.current = false;
       setSendAudio?.(false);
       traceVadTurn('sendSpeechStartIfNeeded_failed_reset');
+      return false;
     }
-    return sent;
+    setSendAudio?.(true, { audioGateEnabled: false });
+    traceVadTurn('sendSpeechStartIfNeeded_audio_enabled_immediately', {
+      reason: 'speech_start_sent',
+      audioGateEnabled: false,
+    });
+    return true;
   }, [isAssistantSpeakingRef, micMediaStream, sendSpeechStart, setSendAudio, speechStartSentRef]);
 
   const confirmPendingBargeIn = useCallback(() => {
