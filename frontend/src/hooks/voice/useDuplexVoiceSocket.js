@@ -365,12 +365,14 @@ export function useDuplexVoiceSocket({
     chunksSentRef.current = 0;
     ignoredPreSpeechChunksRef.current = 0;
     speechActiveRef.current = true;
+    const clientTurnId = `voice-turn-${socketTraceSessionRef.current}-${speechTurnTraceRef.current}`;
     console.info('[FRONTEND-WS-TRACE] speech_start', {
       socketTraceSession: socketTraceSessionRef.current,
       speechTurnTrace: speechTurnTraceRef.current,
+      clientTurnId,
       at: Date.now(),
     });
-    return sendJson({ type: 'speech_start', clientTimestamp: Date.now() });
+    return sendJson({ type: 'speech_start', clientTurnId, clientTimestamp: Date.now() });
   }, [sendJson]);
 
   const sendSpeechEnd = useCallback((vad = null) => {
@@ -384,16 +386,18 @@ export function useDuplexVoiceSocket({
       });
       return false;
     }
+    const clientTurnId = `voice-turn-${socketTraceSessionRef.current}-${speechTurnTraceRef.current}`;
     console.log(`[FRONTEND-STT-TRACE] speech_end sent after ${chunksSentRef.current} audio chunks.`);
     console.info('[FRONTEND-WS-TRACE] speech_end', {
       socketTraceSession: socketTraceSessionRef.current,
       speechTurnTrace: speechTurnTraceRef.current,
+      clientTurnId,
       chunksSent: chunksSentRef.current,
       vad,
       at: Date.now(),
     });
     speechActiveRef.current = false;
-    return sendJson({ type: 'speech_end', vad, clientTimestamp: Date.now() });
+    return sendJson({ type: 'speech_end', clientTurnId, vad, clientTimestamp: Date.now() });
   }, [sendJson]);
 
   const sendBargeIn = useCallback((reason = 'user_started_speaking') => sendJson({ type: 'barge_in', reason, clientTimestamp: Date.now() }), [sendJson]);
