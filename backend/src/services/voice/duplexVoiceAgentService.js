@@ -302,6 +302,87 @@ export const createDuplexVoiceAgentSession = ({
     }
   };
 
+  const finalizeCapturedSpeech = async ({ vad = null, reason = 'speech_end' } = {}) => {
+    if (!isCapturingSpeech) {
+      logger?.warn?.('Ignoring duplex speech finalization with no active speech capture', {
+        sessionId: activeSession?.id || session?.id,
+        provider: activeSttProviderName,
+        reason,
+      });
+      return false;
+    }
+
+    context.lastVad = { ...(vad || {}), stopReason: reason };
+    isCapturingSpeech = false;
+    let speechStopError = null;
+    try {
+      await flushPendingAudioChunks();
+      logger?.info?.('Duplex audio flushed before STT stop', {
+        sessionId: activeSession?.id || session?.id,
+        writtenChunks: audioChunksWritten,
+        droppedChunks: audioChunksDropped,
+        ignoredPreSpeechAudioChunks,
+        totalAudioMs: estimatePcmDurationMs({ bytes: audioBytesWritten, sampleRate }),
+        provider: activeSttProviderName,
+        reason,
+      });
+      await withTimeout(
+        stopSpeechSession(),
+        speechStopTimeoutMs,
+        `Timed out waiting ${speechStopTimeoutMs}ms for realtime STT stop/finalize.`
+      );
+    } catch (error) {
+      speechStopError = error;
+      logger?.warn?.('Duplex speech session stop failed; processing buffered transcript if available', {
+        sessionId: activeSession?.id || session?.id,
+        sttProvider: activeSttProviderName,
+        error: error?.message || String(error),
+        reason,
+      });
+    }
+
+    activeSpeechCaptureId = 0;
+    const partialFallback = finalTranscriptSegments.length ? null : latestPartialTranscript;
+    const segmentsToProcess = partialFallback ? [partialFallback] : finalTranscriptSegments;
+    finalTranscriptSegments = [];
+    latestPartialTranscript = null;
+    const transcriptText = mergeTranscriptSegments(segmentsToProcess);
+    const asrSource = resolveAsrSource({ segments: segmentsToProcess, providerName: activeSttProviderName });
+    if (isProcessingBufferedTurn) return true;
+    isProcessingBufferedTurn = true;
+    try {
+      await processFinalTranscript({
+        transcriptText,
+        asrConfidence: averageConfidence(segmentsToProcess),
+        asrSource,
+        vad: {
+          ...(context.lastVad || {}),
+          sttSegmentCount: segmentsToProcess.length,
+          sttSource: partialFallback ? 'partial_fallback' : 'final_segments',
+          sttProvider: activeSttProviderName,
+          sttStopError: speechStopError?.message || null,
+          usedPartialFallback: Boolean(partialFallback),
+          ignoredPreSpeechAudioChunks,
+          audioChunksWritten,
+          audioChunksDropped,
+          audioMsWritten: estimatePcmDurationMs({ bytes: audioBytesWritten, sampleRate }),
+        },
+      });
+      return true;
+    } catch (error) {
+      logger?.error?.('Duplex voice turn failed', { sessionId: activeSession?.id || session?.id, error });
+      sendJson({
+        type: 'error',
+        code: 'DUPLEX_TURN_FAILED',
+        message: error?.message || 'Could not process the duplex voice turn.',
+        timestamp: new Date().toISOString(),
+      });
+      return false;
+    } finally {
+      isProcessingBufferedTurn = false;
+    }
+  };
+
   const handleJsonMessage = async (payload = {}) => {
     try {
       if (payload.type === 'session_start') {
@@ -342,77 +423,7 @@ export const createDuplexVoiceAgentSession = ({
       }
 
       if (payload.type === 'speech_end') {
-        if (!isCapturingSpeech) {
-          logger?.warn?.('Ignoring duplex speech_end with no active speech capture', {
-            sessionId: activeSession?.id || session?.id,
-            provider: activeSttProviderName,
-          });
-          return;
-        }
-        context.lastVad = payload.vad || null;
-        isCapturingSpeech = false;
-        let speechStopError = null;
-        try {
-          await flushPendingAudioChunks();
-          logger?.info?.('Duplex audio flushed before STT stop', {
-            sessionId: activeSession?.id || session?.id,
-            writtenChunks: audioChunksWritten,
-            droppedChunks: audioChunksDropped,
-            ignoredPreSpeechAudioChunks,
-            totalAudioMs: estimatePcmDurationMs({ bytes: audioBytesWritten, sampleRate }),
-            provider: activeSttProviderName,
-          });
-          await withTimeout(
-            stopSpeechSession(),
-            speechStopTimeoutMs,
-            `Timed out waiting ${speechStopTimeoutMs}ms for realtime STT stop/finalize.`
-          );
-        } catch (error) {
-          speechStopError = error;
-          logger?.warn?.('Duplex speech session stop failed; processing buffered transcript if available', {
-            sessionId: activeSession?.id || session?.id,
-            sttProvider: activeSttProviderName,
-            error: error?.message || String(error),
-          });
-        }
-        activeSpeechCaptureId = 0;
-        const partialFallback = finalTranscriptSegments.length ? null : latestPartialTranscript;
-        const segmentsToProcess = partialFallback ? [partialFallback] : finalTranscriptSegments;
-        finalTranscriptSegments = [];
-        latestPartialTranscript = null;
-        const transcriptText = mergeTranscriptSegments(segmentsToProcess);
-        const asrSource = resolveAsrSource({ segments: segmentsToProcess, providerName: activeSttProviderName });
-        if (isProcessingBufferedTurn) return;
-        isProcessingBufferedTurn = true;
-        try {
-          await processFinalTranscript({
-            transcriptText,
-            asrConfidence: averageConfidence(segmentsToProcess),
-            asrSource,
-            vad: {
-              ...(context.lastVad || {}),
-              sttSegmentCount: segmentsToProcess.length,
-              sttSource: partialFallback ? 'partial_fallback' : 'final_segments',
-              sttProvider: activeSttProviderName,
-              sttStopError: speechStopError?.message || null,
-              usedPartialFallback: Boolean(partialFallback),
-              ignoredPreSpeechAudioChunks,
-              audioChunksWritten,
-              audioChunksDropped,
-              audioMsWritten: estimatePcmDurationMs({ bytes: audioBytesWritten, sampleRate }),
-            },
-          });
-        } catch (error) {
-          logger?.error?.('Duplex voice turn failed', { sessionId: activeSession?.id || session?.id, error });
-          sendJson({
-            type: 'error',
-            code: 'DUPLEX_TURN_FAILED',
-            message: error?.message || 'Could not process the duplex voice turn.',
-            timestamp: new Date().toISOString(),
-          });
-        } finally {
-          isProcessingBufferedTurn = false;
-        }
+        await finalizeCapturedSpeech({ vad: payload.vad || null, reason: payload.reason || 'speech_end' });
         return;
       }
 
@@ -463,9 +474,12 @@ export const createDuplexVoiceAgentSession = ({
       }
 
       if (payload.type === 'session_stop' || payload.type === 'stop') {
-        isCapturingSpeech = false;
-        pendingAudioChunks = [];
-        await stopSpeechSession();
+        if (isCapturingSpeech) {
+          await finalizeCapturedSpeech({ vad: payload.vad || null, reason: payload.type || 'session_stop' });
+        } else {
+          pendingAudioChunks = [];
+          await stopSpeechSession();
+        }
         sendJson({
           type: 'session_stopped',
           tool: AGENT_TOOL_NAMES.ORCHESTRATE_DUPLEX_VOICE,
@@ -492,7 +506,10 @@ export const createDuplexVoiceAgentSession = ({
   };
 
   const close = async () => {
-    isCapturingSpeech = false;
+    if (isCapturingSpeech) {
+      await finalizeCapturedSpeech({ reason: 'socket_close' });
+      return;
+    }
     pendingAudioChunks = [];
     await stopSpeechSession();
   };

@@ -130,13 +130,14 @@ export function useVoiceSessionLifecycleController({
     const cleanQuestion = String(questionText || '').trim();
     if (!cleanQuestion) return false;
 
+    setSendAudio?.(false);
     setAssistantTextPreview('');
     firstAudioChunkSeenRef.current = false;
     setVoiceState('ai_speaking');
     setVoiceStatus(buildVoiceStatus('info', 'KiwiCoach is speaking', statusMessage));
     speakText(cleanQuestion);
     return true;
-  }, [firstAudioChunkSeenRef, setAssistantTextPreview, setVoiceState, setVoiceStatus, speakText]);
+  }, [firstAudioChunkSeenRef, setAssistantTextPreview, setSendAudio, setVoiceState, setVoiceStatus, speakText]);
 
   const speakCurrentQuestion = useCallback((options = {}) => {
     const questionText = getLatestAssistantQuestionText(session, !options.repeatOnly);
@@ -215,6 +216,7 @@ export function useVoiceSessionLifecycleController({
     clearPendingBargeIn();
     clearPendingSpeechEnd();
     speechStartSentRef.current = false;
+    setSendAudio?.(false);
     vad.stopVad?.();
     await sessionAudioRecorder.stopCurrentSegment();
     await stopStream();
@@ -229,6 +231,7 @@ export function useVoiceSessionLifecycleController({
     sessionAudioRecorder,
     setIsAutoLoopActive,
     setReadyState,
+    setSendAudio,
     speechStartSentRef,
     stopSession,
     stopStream,
@@ -337,6 +340,7 @@ export function useVoiceSessionLifecycleController({
     clearPendingBargeIn();
     clearPendingSpeechEnd();
     speechStartSentRef.current = false;
+    setSendAudio?.(false);
     vad.stopVad?.();
     await sessionAudioRecorder.stopCurrentSegment();
     await stopStream();
@@ -366,6 +370,7 @@ export function useVoiceSessionLifecycleController({
     setLastTranscriptRejection,
     setPendingTranscript,
     setReadyState,
+    setSendAudio,
     setTranscriptionPreview,
     speechStartSentRef,
     stopStream,
@@ -407,6 +412,7 @@ export function useVoiceSessionLifecycleController({
     clearPendingBargeIn();
     clearPendingSpeechEnd();
     speechStartSentRef.current = false;
+    setSendAudio?.(false);
     vad.stopVad?.();
     stopSession();
     await uploadRecordingIfAvailable();
@@ -421,6 +427,7 @@ export function useVoiceSessionLifecycleController({
     closeDuplexSocket,
     latency,
     setIsAutoLoopActive,
+    setSendAudio,
     setVoiceState,
     setVoiceStatus,
     speechStartSentRef,

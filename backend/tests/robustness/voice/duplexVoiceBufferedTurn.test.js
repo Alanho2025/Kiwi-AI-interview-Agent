@@ -115,6 +115,37 @@ describe('duplex voice buffered turn handling', () => {
     }));
   });
 
+  it('finalizes an active long answer before session_stop closes the STT stream', async () => {
+    const sent = [];
+    const duplexSession = createDuplexVoiceAgentSession({
+      socket: {},
+      context: { language: 'en-NZ', sampleRate: 16000 },
+      session: { id: 'session-1' },
+      userId: 'user-1',
+      logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+      sendJson: (payload) => sent.push(payload),
+    });
+
+    await duplexSession.handleJsonMessage({ type: 'speech_start' });
+    realtimeState.config.onFinalTranscript({ displayText: 'First STAR point', confidence: 0.88 });
+    realtimeState.config.onFinalTranscript({ displayText: 'second STAR point', confidence: 0.82 });
+
+    await duplexSession.handleJsonMessage({ type: 'session_stop', vad: { speechDurationMs: 91000 } });
+
+    expect(processFinalTranscriptMock).toHaveBeenCalledTimes(1);
+    expect(processFinalTranscriptMock).toHaveBeenCalledWith(expect.objectContaining({
+      transcriptText: 'First STAR point second STAR point',
+      asrConfidence: expect.closeTo(0.85, 5),
+      vad: expect.objectContaining({
+        speechDurationMs: 91000,
+        stopReason: 'session_stop',
+        sttSegmentCount: 2,
+        sttSource: 'final_segments',
+      }),
+    }));
+    expect(sent.some((payload) => payload.type === 'session_stopped')).toBe(true);
+  });
+
   it('still hands the turn to transcript repair when STT stop fails before a final segment', async () => {
     const sent = [];
     realtimeState.stopFail = true;
