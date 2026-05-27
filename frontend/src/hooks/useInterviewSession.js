@@ -260,16 +260,6 @@ export function useInterviewSession({ sessionId, navigate }) {
     const mode = options.mode || session?.mode || 'text';
     const isVoiceEnd = String(mode).toLowerCase() === 'voice';
 
-    if (session?.status === 'in_progress') {
-      const frozenElapsedSeconds = getDisplayElapsedSeconds(session);
-      setSession((prev) => prev ? {
-        ...prev,
-        elapsedSeconds: frozenElapsedSeconds,
-        lastResumedAt: null,
-      } : prev);
-      setTimerTick(0);
-    }
-
     setEndSessionProgress({ active: false, step: 'idle', error: null });
     setPageStatus(buildStatus(
       'confirm-end',
@@ -278,7 +268,7 @@ export function useInterviewSession({ sessionId, navigate }) {
         ? 'This will stop the voice session, save your transcript, and generate your report.'
         : 'This will save your transcript and generate your report.'
     ));
-  }, [session]);
+  }, [session?.mode]);
 
   const handleConfirmEnd = useCallback(async () => {
     let progressTimer = null;
