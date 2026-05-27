@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
- * Browser smoke for duplex Voice Mode latency:
- * authenticated interview screen -> start voice session -> mocked duplex WebSocket exchange
- * -> assistant audio starts -> mocked STT/turn_done -> latency summary observed.
+ * Deterministic browser smoke for duplex Voice Mode latency.
  *
- * This is deterministic by design. It does not call Azure, use a real microphone, or depend on
- * a real backend WebSocket because those make CI and local smoke tests flaky.
+ * It verifies the browser orchestration path without Azure, a real backend WebSocket,
+ * or a real microphone. This keeps the test stable while still checking that voice
+ * mode can start, receive assistant speech, receive a transcript, process turn_done,
+ * and emit latency instrumentation.
  */
 
 import { spawn } from 'node:child_process';
@@ -17,6 +17,9 @@ const require = createRequire(import.meta.url);
 const SESSION_ID = 'session-voice-latency-1';
 const PORT = Number(process.env.E2E_FRONTEND_PORT || 4173);
 const BASE_URL = process.env.FRONTEND_BASE_URL || `http://127.0.0.1:${PORT}`;
+const FIRST_QUESTION = 'Tell me about an AI interview agent you built.';
+const USER_ANSWER = 'I built a duplex voice interview agent and measured latency from speech end to first audio.';
+const FOLLOW_UP = 'What did you do to keep the latency acceptable?';
 
 const loadPlaywright = () => {
   try {
@@ -49,10 +52,7 @@ const startFrontendServer = async () => {
   const viteBin = path.resolve('node_modules/vite/bin/vite.js');
   const child = spawn(process.execPath, [viteBin, '--host', '127.0.0.1', '--port', String(PORT)], {
     cwd: process.cwd(),
-    env: {
-      ...process.env,
-      VITE_API_BASE_URL: '',
-    },
+    env: { ...process.env, VITE_API_BASE_URL: '' },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
 
@@ -68,12 +68,7 @@ const jsonResponse = (data, status = 200) => ({
   body: JSON.stringify(data),
 });
 
-const success = (data = {}, message = 'ok') => ({
-  success: true,
-  message,
-  data,
-  error: null,
-});
+const success = (data = {}, message = 'ok') => ({ success: true, message, data, error: null });
 
 const buildSession = (overrides = {}) => ({
   id: SESSION_ID,
@@ -86,38 +81,39 @@ const buildSession = (overrides = {}) => ({
   elapsedSeconds: 0,
   transcript: [{
     role: 'ai',
-    text: 'Tell me about an AI interview agent you built.',
-    displayText: 'Tell me about an AI interview agent you built.',
+    text: FIRST_QUESTION,
+    displayText: FIRST_QUESTION,
     timestamp: new Date().toISOString(),
     metadata: { questionType: 'technical_core' },
   }],
   interviewPlan: {
-    questionPool: [{ text: 'Tell me about an AI interview agent you built.', topic: 'ai-agent' }],
+    questionPool: [{ text: FIRST_QUESTION, topic: 'ai-agent' }],
   },
   ...overrides,
 });
 
 const buildTurnDoneSession = () => buildSession({
   currentQuestionIndex: 2,
+  elapsedSeconds: 12,
   transcript: [
     {
       role: 'ai',
-      text: 'Tell me about an AI interview agent you built.',
-      displayText: 'Tell me about an AI interview agent you built.',
+      text: FIRST_QUESTION,
+      displayText: FIRST_QUESTION,
       timestamp: new Date().toISOString(),
       metadata: { questionType: 'technical_core' },
     },
     {
       role: 'user',
-      text: 'I built a duplex voice interview agent and measured latency from speech end to first audio.',
-      displayText: 'I built a duplex voice interview agent and measured latency from speech end to first audio.',
+      text: USER_ANSWER,
+      displayText: USER_ANSWER,
       timestamp: new Date().toISOString(),
       metadata: { asrSource: 'mock_playwright' },
     },
     {
       role: 'ai',
-      text: 'What did you do to keep the latency acceptable?',
-      displayText: 'What did you do to keep the latency acceptable?',
+      text: FOLLOW_UP,
+      displayText: FOLLOW_UP,
       timestamp: new Date().toISOString(),
       metadata: { questionType: 'technical_follow_up' },
     },
@@ -136,59 +132,50 @@ const installApiMocks = async (page) => {
       await route.continue();
       return;
     }
+
     apiCalls.push({ method, path: url.pathname });
 
     if (method === 'GET' && url.pathname === '/api/auth/google/config') {
       await route.fulfill(jsonResponse(success({ clientId: 'voice-latency-client' })));
       return;
     }
-
     if (method === 'GET' && url.pathname === '/api/auth/me') {
       await route.fulfill(jsonResponse(success({ user: { id: 'user-voice-latency', email: 'voice@example.test' } })));
       return;
     }
-
     if (method === 'GET' && url.pathname === '/api/usage/summary') {
       await route.fulfill(jsonResponse(success({ totalCost: 0, totalTokens: 0, providerBreakdown: [] })));
       return;
     }
-
     if (method === 'GET' && url.pathname === '/api/usage/recent-sessions') {
       await route.fulfill(jsonResponse(success({ sessions: [] })));
       return;
     }
-
     if (method === 'GET' && url.pathname === '/api/session/history') {
       await route.fulfill(jsonResponse(success({ sessions: [session] })));
       return;
     }
-
     if (method === 'GET' && url.pathname === `/api/session/${SESSION_ID}`) {
       await route.fulfill(jsonResponse(success({ session })));
       return;
     }
-
     if (method === 'POST' && url.pathname === '/api/interview/warm-adaptive') {
       await route.fulfill(jsonResponse(success({ warmed: true })));
       return;
     }
-
     if (method === 'POST' && url.pathname === '/api/interview/pause') {
       await route.fulfill(jsonResponse(success({ session: { ...session, status: 'paused' } })));
       return;
     }
-
     if (method === 'POST' && url.pathname === '/api/interview/resume') {
-      await route.fulfill(jsonResponse(success({ session }))); 
+      await route.fulfill(jsonResponse(success({ session })));
       return;
     }
-
     if (method === 'POST' && url.pathname === '/api/interview/end') {
       session = buildSession({ ...session, status: 'completed' });
       await route.fulfill(jsonResponse(success({ session, reportStatus: 'ready' })));
       return;
     }
-
     if (method === 'GET' && url.pathname === `/api/recordings/session-audio/${SESSION_ID}/status`) {
       await route.fulfill(jsonResponse(success({ available: false, status: 'missing' })));
       return;
@@ -201,12 +188,11 @@ const installApiMocks = async (page) => {
 };
 
 const installBrowserVoiceMocks = async (context) => {
-  await context.addInitScript(({ sessionId }) => {
+  await context.addInitScript(({ sessionId, userAnswer, followUp }) => {
     const NativeWebSocket = window.WebSocket;
     window.__kiwiVoiceE2E = {
       events: [],
       wsSent: [],
-      latencySummaries: [],
       assistantFirstAudioMs: null,
       turnDoneMs: null,
       sessionReady: false,
@@ -214,22 +200,16 @@ const installBrowserVoiceMocks = async (context) => {
       turnDone: false,
     };
 
-    const originalPlay = window.HTMLMediaElement?.prototype?.play;
-    const originalPause = window.HTMLMediaElement?.prototype?.pause;
     if (window.HTMLMediaElement?.prototype) {
+      const originalPause = window.HTMLMediaElement.prototype.pause;
       window.HTMLMediaElement.prototype.play = function playMock() {
         window.__kiwiVoiceE2E.events.push({ type: 'audio_play_called', at: performance.now() });
-        window.setTimeout(() => {
-          this.dispatchEvent(new Event('ended'));
-        }, 20);
+        window.setTimeout(() => this.dispatchEvent(new Event('ended')), 20);
         return Promise.resolve();
       };
       window.HTMLMediaElement.prototype.pause = function pauseMock() {
         window.__kiwiVoiceE2E.events.push({ type: 'audio_pause_called', at: performance.now() });
         return originalPause?.call?.(this);
-      };
-      window.__kiwiVoiceE2E.restoreAudio = () => {
-        if (originalPlay) window.HTMLMediaElement.prototype.play = originalPlay;
       };
     }
 
@@ -243,27 +223,9 @@ const installBrowserVoiceMocks = async (context) => {
       currentQuestionIndex: 2,
       elapsedSeconds: 12,
       transcript: [
-        {
-          role: 'ai',
-          text: 'Tell me about an AI interview agent you built.',
-          displayText: 'Tell me about an AI interview agent you built.',
-          timestamp: new Date().toISOString(),
-          metadata: { questionType: 'technical_core' },
-        },
-        {
-          role: 'user',
-          text: 'I built a duplex voice interview agent and measured latency from speech end to first audio.',
-          displayText: 'I built a duplex voice interview agent and measured latency from speech end to first audio.',
-          timestamp: new Date().toISOString(),
-          metadata: { asrSource: 'mock_playwright' },
-        },
-        {
-          role: 'ai',
-          text: 'What did you do to keep the latency acceptable?',
-          displayText: 'What did you do to keep the latency acceptable?',
-          timestamp: new Date().toISOString(),
-          metadata: { questionType: 'technical_follow_up' },
-        },
+        { role: 'ai', text: 'Tell me about an AI interview agent you built.', displayText: 'Tell me about an AI interview agent you built.', timestamp: new Date().toISOString() },
+        { role: 'user', text: userAnswer, displayText: userAnswer, timestamp: new Date().toISOString(), metadata: { asrSource: 'mock_playwright' } },
+        { role: 'ai', text: followUp, displayText: followUp, timestamp: new Date().toISOString(), metadata: { questionType: 'technical_follow_up' } },
       ],
     });
 
@@ -276,7 +238,7 @@ const installBrowserVoiceMocks = async (context) => {
       constructor(url) {
         this.url = String(url);
         this.readyState = MockVoiceWebSocket.CONNECTING;
-        this.binaryType = 'blob';
+        this.binaryType = 'arraybuffer';
         this.onopen = null;
         this.onmessage = null;
         this.onerror = null;
@@ -299,7 +261,7 @@ const installBrowserVoiceMocks = async (context) => {
 
       dispatchServer(payload, delayMs = 0) {
         window.setTimeout(() => {
-          window.__kiwiVoiceE2E.events.push({ type: `server_${payload.type}`, payload, at: performance.now() });
+          window.__kiwiVoiceE2E.events.push({ type: `server_${payload.type}`, at: performance.now() });
           this.onmessage?.({ data: JSON.stringify(payload) });
         }, delayMs);
       }
@@ -312,7 +274,7 @@ const installBrowserVoiceMocks = async (context) => {
         }
         if (!payload) return;
 
-        window.__kiwiVoiceE2E.events.push({ type: `client_${payload.type}`, payload, at: performance.now() });
+        window.__kiwiVoiceE2E.events.push({ type: `client_${payload.type}`, at: performance.now() });
 
         if (payload.type === 'session_start') {
           this.dispatchServer({
@@ -328,43 +290,24 @@ const installBrowserVoiceMocks = async (context) => {
 
         if (payload.type === 'speak_text') {
           window.__kiwiVoiceE2E.assistantPromptSeen = true;
-          this.dispatchServer({
-            type: 'assistant_text_delta',
-            text: payload.text,
-            index: payload.index || 0,
-            timestamp: new Date().toISOString(),
-          }, 20);
-          this.dispatchServer({
-            type: 'tts_audio_chunk',
-            base64: 'AAAA',
-            contentType: 'audio/mpeg',
-            index: 0,
-            timestamp: new Date().toISOString(),
-          }, 45);
+          this.dispatchServer({ type: 'assistant_text_delta', text: payload.text, index: payload.index || 0, timestamp: new Date().toISOString() }, 20);
+          this.dispatchServer({ type: 'tts_audio_chunk', base64: 'AAAA', contentType: 'audio/mpeg', index: 0, timestamp: new Date().toISOString() }, 45);
           window.setTimeout(() => {
             window.__kiwiVoiceE2E.assistantFirstAudioMs = Math.round(performance.now() - this.createdAt);
           }, 45);
-          this.dispatchServer({
-            type: 'assistant_speech_done',
-            timestamp: new Date().toISOString(),
-          }, 80);
+          this.dispatchServer({ type: 'assistant_speech_done', timestamp: new Date().toISOString() }, 80);
           this.dispatchServer({
             type: 'stt_final',
-            displayText: 'I built a duplex voice interview agent and measured latency from speech end to first audio.',
-            normalizedText: 'I built a duplex voice interview agent and measured latency from speech end to first audio.',
-            rawText: 'I built a duplex voice interview agent and measured latency from speech end to first audio.',
+            displayText: userAnswer,
+            normalizedText: userAnswer,
+            rawText: userAnswer,
             confidence: 0.91,
             provider: 'mock_playwright',
             timestamp: new Date().toISOString(),
           }, 140);
           this.dispatchServer({
             type: 'turn_done',
-            transcription: {
-              text: 'I built a duplex voice interview agent and measured latency from speech end to first audio.',
-              displayText: 'I built a duplex voice interview agent and measured latency from speech end to first audio.',
-              confidence: 0.91,
-              asrSource: 'mock_playwright',
-            },
+            transcription: { text: userAnswer, displayText: userAnswer, confidence: 0.91, asrSource: 'mock_playwright' },
             session: buildTurnDoneSession(),
             isComplete: false,
             latency: {
@@ -396,11 +339,6 @@ const installBrowserVoiceMocks = async (context) => {
       }
     }
 
-    MockVoiceWebSocket.prototype.CONNECTING = MockVoiceWebSocket.CONNECTING;
-    MockVoiceWebSocket.prototype.OPEN = MockVoiceWebSocket.OPEN;
-    MockVoiceWebSocket.prototype.CLOSING = MockVoiceWebSocket.CLOSING;
-    MockVoiceWebSocket.prototype.CLOSED = MockVoiceWebSocket.CLOSED;
-
     window.WebSocket = function WebSocketFactory(url, protocols) {
       if (String(url).includes('/voice/duplex')) return new MockVoiceWebSocket(url);
       return new NativeWebSocket(url, protocols);
@@ -409,7 +347,7 @@ const installBrowserVoiceMocks = async (context) => {
     window.WebSocket.OPEN = MockVoiceWebSocket.OPEN;
     window.WebSocket.CLOSING = MockVoiceWebSocket.CLOSING;
     window.WebSocket.CLOSED = MockVoiceWebSocket.CLOSED;
-  }, { sessionId: SESSION_ID });
+  }, { sessionId: SESSION_ID, userAnswer: USER_ANSWER, followUp: FOLLOW_UP });
 };
 
 const run = async () => {
@@ -421,13 +359,8 @@ const run = async () => {
   });
 
   try {
-    const context = await browser.newContext({
-      viewport: { width: 1440, height: 920 },
-      permissions: ['microphone'],
-    });
-    await context.addInitScript(() => {
-      window.localStorage.setItem('kiwi_auth_token', 'voice-latency-token');
-    });
+    const context = await browser.newContext({ viewport: { width: 1440, height: 920 }, permissions: ['microphone'] });
+    await context.addInitScript(() => window.localStorage.setItem('kiwi_auth_token', 'voice-latency-token'));
     await installBrowserVoiceMocks(context);
 
     const page = await context.newPage();
@@ -437,10 +370,8 @@ const run = async () => {
     page.on('pageerror', (error) => errors.push(`[pageerror] ${error.message}`));
     page.on('console', (message) => {
       const text = message.text();
-      if (text.includes('[voice-latency] target') || text.includes('[voice-latency:debug]')) {
-        latencyConsoleMessages.push(text);
-      }
-      if (['error', 'warning'].includes(message.type())) errors.push(`[browser ${message.type()}] ${text}`);
+      if (text.includes('[voice-latency] target') || text.includes('[voice-latency:debug]')) latencyConsoleMessages.push(text);
+      if (message.type() === 'error') errors.push(`[browser error] ${text}`);
     });
     page.on('response', (response) => {
       if (response.status() >= 400) errors.push(`[browser response] ${response.status()} ${response.url()}`);
@@ -456,7 +387,7 @@ const run = async () => {
     await page.waitForFunction(() => window.__kiwiVoiceE2E?.assistantPromptSeen === true, null, { timeout: 10000 });
     await page.waitForFunction(() => window.__kiwiVoiceE2E?.turnDone === true, null, { timeout: 10000 });
 
-    await page.getByText('What did you do to keep the latency acceptable?').waitFor({ timeout: 10000 });
+    await page.getByText(FOLLOW_UP).first().waitFor({ timeout: 10000 });
 
     const result = await page.evaluate(() => ({
       events: window.__kiwiVoiceE2E.events.map((event) => ({ type: event.type, at: Math.round(event.at || 0) })),
@@ -483,11 +414,7 @@ const run = async () => {
       throw new Error(`Expected voice WebSocket session_start and speak_text, got ${result.sentMessageTypes.join(', ')}`);
     }
 
-    const requiredCalls = [
-      'GET /api/auth/me',
-      `GET /api/session/${SESSION_ID}`,
-      'POST /api/interview/warm-adaptive',
-    ];
+    const requiredCalls = ['GET /api/auth/me', `GET /api/session/${SESSION_ID}`, 'POST /api/interview/warm-adaptive'];
     const callSet = new Set(apiCalls.map((item) => `${item.method} ${item.path}`));
     const missing = requiredCalls.filter((item) => !callSet.has(item));
     if (missing.length) throw new Error(`Voice latency flow missed expected API calls: ${missing.join(', ')}`);
@@ -499,7 +426,7 @@ const run = async () => {
       latencyConsoleMessages: latencyConsoleMessages.length,
       sentMessageTypes: result.sentMessageTypes,
       requiredCalls,
-      browserWarningsOrErrors: errors,
+      browserErrors: errors,
     }, null, 2));
   } finally {
     await browser.close();
