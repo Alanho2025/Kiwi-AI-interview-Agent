@@ -2,7 +2,7 @@ import { badRequest } from '../../utils/appError.js';
 import { compareCvToJobDescriptionWithSafeguard } from '../match/guardedMatchService.js';
 import { getOwnedCvDocumentOrThrow } from './cvOwnershipService.js';
 
-export const runCvJdMatchAnalysis = async ({ cvId, userId, rawJD, jdRubric, settings }) => {
+export const runCvJdMatchAnalysis = async ({ cvId, userId, rawJD, jdRubric, settings = {} }) => {
   if (!cvId) {
     throw badRequest('Missing cvId', 'Please provide a CV before starting match analysis.');
   }
@@ -17,7 +17,12 @@ export const runCvJdMatchAnalysis = async ({ cvId, userId, rawJD, jdRubric, sett
     normalizedText: cvDocument.normalizedText,
     cvProfile: cvDocument.cvProfile,
     evidenceProfile: cvDocument.cvProfile?.evidenceProfile,
-  }, rawJD, jdRubric, settings);
+    userId,
+  }, rawJD, jdRubric, {
+    ...(settings || {}),
+    userId,
+    cvId,
+  });
   return {
     ...matchData,
     sourceSnapshots: [
