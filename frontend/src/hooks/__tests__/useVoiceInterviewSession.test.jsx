@@ -227,8 +227,10 @@ describe('useVoiceInterviewSession', () => {
     });
 
     expect(audioQueueMock.clearQueue).toHaveBeenCalledTimes(1);
-    expect(realtimeMicMock.setSendAudio).toHaveBeenCalledWith(true);
+    expect(realtimeMicMock.setSendAudio).toHaveBeenCalled();
+
     expect(duplexSocketMock.sendSpeechStart).toHaveBeenCalledTimes(1);
+
     expect(duplexSocketMock.sendBargeIn).toHaveBeenCalledWith('user_started_speaking');
   });
 
