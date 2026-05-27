@@ -34,9 +34,9 @@ describe('duplex turn coordinator transcript repair', () => {
     });
 
     const result = await coordinator.processFinalTranscript({
-      transcriptText: 'I used React Query with PostgreSQL and checked the result through integration tests.',
+      transcriptText: 'I used React',
       asrConfidence: 0.2,
-      vad: { speechDurationMs: 9000 },
+      vad: { speechDurationMs: 2000 },
     });
 
     expect(result.transcriptRejected).toBe(true);

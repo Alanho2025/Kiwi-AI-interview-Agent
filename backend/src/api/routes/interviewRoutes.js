@@ -10,7 +10,9 @@
  */
 
 import express from 'express';
-import { startInterview, warmAdaptiveInterview, replyInterview, replyInterviewWithRealtimeVoice, replyInterviewWithRealtimeVoiceStream, repeatQuestion, pauseInterview, resumeInterview, endInterview, synthesizeInterviewText } from '../../controllers/interviewController.js';
+import { startInterview, warmAdaptiveInterview, pauseInterview, resumeInterview, endInterview } from '../../controllers/interviewLifecycleController.js';
+import { replyInterview, repeatQuestion } from '../../controllers/interviewTurnController.js';
+import { replyInterviewWithRealtimeVoice, replyInterviewWithRealtimeVoiceStream, synthesizeInterviewText } from '../../controllers/interviewVoiceController.js';
 
 const router = express.Router();
 
