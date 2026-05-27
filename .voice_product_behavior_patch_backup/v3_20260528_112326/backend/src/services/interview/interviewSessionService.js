@@ -37,7 +37,7 @@ export const normalizeInterviewAnswer = (answer) => {
 export const loadOwnedSessionOrThrow = async ({ sessionId, userId }) => {
   const session = await getOwnedSessionById(sessionId, userId);
   if (!session) {
-    throw notFound('Session not found or access denied', 'Invalid session ID or you cannot access this session');
+    throw notFound('Session not found or unavailable', 'Invalid session ID or you cannot access this session');
   }
   return session;
 };

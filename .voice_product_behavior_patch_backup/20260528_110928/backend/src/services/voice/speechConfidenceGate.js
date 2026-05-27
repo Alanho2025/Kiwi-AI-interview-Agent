@@ -22,9 +22,6 @@ const DEFAULT_ACCEPTANCE_RULES = {
   lowConfidenceContentfulMinWords: 25,
   lowConfidenceContentfulMinCharacters: 120,
   lowConfidenceContentfulMinSpeechMs: 8000,
-  contentfulLowConfidenceMinWords: 25,
-  contentfulLowConfidenceMinCharacters: 120,
-  contentfulLowConfidenceMinSpeechMs: 8000,
 };
 
 const normalizeText = (value = '') => String(value || '').trim();
@@ -56,16 +53,6 @@ const FILLER_TRANSCRIPTS = new Set([
 ]);
 
 const isFillerTranscript = (value = '') => FILLER_TRANSCRIPTS.has(normalizeForFillerCheck(value));
-
-const hasContentfulLowConfidenceEvidence = ({ words, characters, speechDurationMs, sttSegmentCount, rules }) => {
-  const minWords = rules.contentfulLowConfidenceMinWords ?? rules.lowConfidenceContentfulMinWords ?? 25;
-  const minCharacters = rules.contentfulLowConfidenceMinCharacters ?? rules.lowConfidenceContentfulMinCharacters ?? 120;
-  const minSpeechMs = rules.contentfulLowConfidenceMinSpeechMs ?? rules.lowConfidenceContentfulMinSpeechMs ?? 8000;
-  const hasEnoughText = words >= minWords && characters >= minCharacters;
-  const hasEnoughSpeech = speechDurationMs >= minSpeechMs;
-  const hasFinalSpeechEvidence = sttSegmentCount === null || sttSegmentCount > 0;
-  return hasEnoughText && hasEnoughSpeech && hasFinalSpeechEvidence;
-};
 
 const traceGateDecision = (decision, context = {}) => {
   // Intentionally console-based because this helper is pure and has no request logger.
@@ -126,7 +113,6 @@ export function assessRealtimeVoiceTranscript({
   if (!text) {
     return traceGateDecision({
       ok: false,
-      decision: 'reject',
       reason: 'EMPTY_TRANSCRIPT',
       message: 'I did not catch your answer. Please try again.',
       ...basePayload,
@@ -136,7 +122,6 @@ export function assessRealtimeVoiceTranscript({
   if (vad && (vad.isFinal === false || vad.final === false)) {
     return traceGateDecision({
       ok: false,
-      decision: 'reject',
       reason: 'NON_FINAL_VAD_TRANSCRIPT',
       message: 'Your answer still sounds incomplete. Please finish your answer before moving on.',
       ...basePayload,
@@ -146,7 +131,6 @@ export function assessRealtimeVoiceTranscript({
   if (sttSegmentCount === 0) {
     return traceGateDecision({
       ok: false,
-      decision: 'reject',
       reason: 'NO_FINAL_STT_SEGMENTS',
       message: 'I did not catch your answer clearly. Please try again.',
       ...basePayload,
@@ -156,7 +140,6 @@ export function assessRealtimeVoiceTranscript({
   if (text.length < rules.minCharacters || words < rules.minWords) {
     return traceGateDecision({
       ok: false,
-      decision: 'reject',
       reason: 'TOO_SHORT_TRANSCRIPT',
       message: 'I only caught a very short answer. Please say a little more before I move to the next question.',
       ...basePayload,
@@ -166,7 +149,6 @@ export function assessRealtimeVoiceTranscript({
   if (vad && speechDurationMs > 0 && speechDurationMs < rules.minAcceptedSpeechMs) {
     return traceGateDecision({
       ok: false,
-      decision: 'reject',
       reason: 'SPEECH_TOO_SHORT',
       message: 'I only heard a brief sound. Please give your full answer before I move on.',
       ...basePayload,
@@ -176,7 +158,6 @@ export function assessRealtimeVoiceTranscript({
   if (isFillerTranscript(text)) {
     return traceGateDecision({
       ok: false,
-      decision: 'reject',
       reason: 'FILLER_TRANSCRIPT',
       message: 'I only caught a filler response. Please answer the interview question in a full sentence.',
       ...basePayload,
@@ -184,41 +165,34 @@ export function assessRealtimeVoiceTranscript({
   }
 
   if (confidenceGate.status === 'low') {
-    const hasContentfulAnswer = hasContentfulLowConfidenceEvidence({
-      words,
-      characters: text.length,
-      speechDurationMs,
-      sttSegmentCount,
-      rules,
-    });
+    const hasContentfulAnswer = words >= rules.lowConfidenceContentfulMinWords
+      && text.length >= rules.lowConfidenceContentfulMinCharacters
+      && speechDurationMs >= rules.lowConfidenceContentfulMinSpeechMs
+      && (sttSegmentCount === null || sttSegmentCount > 0);
 
     if (hasContentfulAnswer) {
-      const confirmationConfidenceGate = {
+      const contentfulConfidenceGate = {
         ...confidenceGate,
         shouldConfirm: true,
         shouldRecordAgain: false,
       };
 
       return traceGateDecision({
-        ok: false,
-        decision: 'confirm_understanding',
+        ok: true,
         reason: 'LOW_CONFIDENCE_CONTENTFUL_TRANSCRIPT',
-        message: null,
-        requiresUnderstandingConfirmation: true,
-        shouldProcessAnswer: false,
-        countsAsQuestion: false,
-        confidenceGate: confirmationConfidenceGate,
+        message: 'I may not have heard every word perfectly, but I caught enough of your answer to continue.',
+        confidenceGate: contentfulConfidenceGate,
         metrics: basePayload.metrics,
         transcriptQuality: 'low_confidence_but_contentful',
+        shouldUseCautiousScoring: true,
       }, {
         ...traceContext,
-        confidenceGate: confirmationConfidenceGate,
+        confidenceGate: contentfulConfidenceGate,
       });
     }
 
     return traceGateDecision({
       ok: false,
-      decision: 'reject',
       reason: 'LOW_CONFIDENCE_TRANSCRIPT',
       message: 'Voice recognition was not confident it heard that correctly. Please repeat your answer from the start.',
       ...basePayload,
@@ -228,7 +202,6 @@ export function assessRealtimeVoiceTranscript({
   if (confidenceGate.status === 'medium' && (words < rules.mediumMinWords || speechDurationMs < rules.mediumMinSpeechMs)) {
     return traceGateDecision({
       ok: false,
-      decision: 'reject',
       reason: 'MEDIUM_CONFIDENCE_INSUFFICIENT_EVIDENCE',
       message: 'I only caught part of that. Please repeat your answer with a bit more detail.',
       ...basePayload,
@@ -238,7 +211,6 @@ export function assessRealtimeVoiceTranscript({
   if (confidenceGate.status === 'unknown' && (words < rules.unknownMinWords || speechDurationMs < rules.unknownMinSpeechMs)) {
     return traceGateDecision({
       ok: false,
-      decision: 'reject',
       reason: 'UNKNOWN_CONFIDENCE_INSUFFICIENT_EVIDENCE',
       message: 'I need to hear that more clearly before I can continue. Please repeat your answer.',
       ...basePayload,
@@ -247,7 +219,6 @@ export function assessRealtimeVoiceTranscript({
 
   return traceGateDecision({
     ok: true,
-    decision: 'accept',
     reason: 'VALID_TRANSCRIPT',
     message: null,
     ...basePayload,

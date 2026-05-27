@@ -58,11 +58,9 @@ const FILLER_TRANSCRIPTS = new Set([
 const isFillerTranscript = (value = '') => FILLER_TRANSCRIPTS.has(normalizeForFillerCheck(value));
 
 const hasContentfulLowConfidenceEvidence = ({ words, characters, speechDurationMs, sttSegmentCount, rules }) => {
-  const minWords = rules.contentfulLowConfidenceMinWords ?? rules.lowConfidenceContentfulMinWords ?? 25;
-  const minCharacters = rules.contentfulLowConfidenceMinCharacters ?? rules.lowConfidenceContentfulMinCharacters ?? 120;
-  const minSpeechMs = rules.contentfulLowConfidenceMinSpeechMs ?? rules.lowConfidenceContentfulMinSpeechMs ?? 8000;
-  const hasEnoughText = words >= minWords && characters >= minCharacters;
-  const hasEnoughSpeech = speechDurationMs >= minSpeechMs;
+  const hasEnoughText = words >= rules.contentfulLowConfidenceMinWords
+    && characters >= rules.contentfulLowConfidenceMinCharacters;
+  const hasEnoughSpeech = speechDurationMs >= rules.contentfulLowConfidenceMinSpeechMs;
   const hasFinalSpeechEvidence = sttSegmentCount === null || sttSegmentCount > 0;
   return hasEnoughText && hasEnoughSpeech && hasFinalSpeechEvidence;
 };
@@ -184,35 +182,29 @@ export function assessRealtimeVoiceTranscript({
   }
 
   if (confidenceGate.status === 'low') {
-    const hasContentfulAnswer = hasContentfulLowConfidenceEvidence({
-      words,
-      characters: text.length,
-      speechDurationMs,
-      sttSegmentCount,
-      rules,
-    });
+    const hasContentfulAnswer = words >= rules.lowConfidenceContentfulMinWords
+      && text.length >= rules.lowConfidenceContentfulMinCharacters
+      && speechDurationMs >= rules.lowConfidenceContentfulMinSpeechMs
+      && (sttSegmentCount === null || sttSegmentCount > 0);
 
     if (hasContentfulAnswer) {
-      const confirmationConfidenceGate = {
+      const contentfulConfidenceGate = {
         ...confidenceGate,
         shouldConfirm: true,
         shouldRecordAgain: false,
       };
 
       return traceGateDecision({
-        ok: false,
-        decision: 'confirm_understanding',
+        ok: true,
         reason: 'LOW_CONFIDENCE_CONTENTFUL_TRANSCRIPT',
-        message: null,
-        requiresUnderstandingConfirmation: true,
-        shouldProcessAnswer: false,
-        countsAsQuestion: false,
-        confidenceGate: confirmationConfidenceGate,
+        message: 'I may not have heard every word perfectly, but I caught enough of your answer to continue.',
+        confidenceGate: contentfulConfidenceGate,
         metrics: basePayload.metrics,
         transcriptQuality: 'low_confidence_but_contentful',
+        shouldUseCautiousScoring: true,
       }, {
         ...traceContext,
-        confidenceGate: confirmationConfidenceGate,
+        confidenceGate: contentfulConfidenceGate,
       });
     }
 

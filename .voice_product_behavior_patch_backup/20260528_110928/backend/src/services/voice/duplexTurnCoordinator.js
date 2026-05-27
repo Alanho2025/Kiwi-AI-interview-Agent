@@ -11,8 +11,6 @@ import { streamAssistantSpeech } from './ttsStreamQueue.js';
 import { assessRealtimeVoiceTranscript } from './speechConfidenceGate.js';
 import { AGENT_TOOL_NAMES } from '../../constants/agentToolNames.js';
 import warmContextService from './voiceTurnWarmContextService.js';
-import { buildTranscriptConfirmationPrompt } from './transcriptUnderstandingSummary.js';
-import { classifyTranscriptConfirmationReply } from './transcriptConfirmationReplyClassifier.js';
 
 export const createDuplexTurnCoordinator = ({
   session,
@@ -26,7 +24,6 @@ export const createDuplexTurnCoordinator = ({
   clientTurnId = null,
 } = {}) => {
   let sentenceIndex = 0;
-  let pendingTranscriptConfirmation = null;
 
   const trace = (message, payload = {}) => {
     logger?.info?.(`[DUPLEX-TURN-TRACE] ${message}`, {
@@ -102,176 +99,6 @@ export const createDuplexTurnCoordinator = ({
   };
 
   const processFinalTranscript = async ({ transcriptText, asrConfidence = null, vad = null } = {}) => {
-
-  const processConfirmedPendingTranscript = async ({ pending, confirmationReply }) => {
-    sendJson?.({
-      type: 'agent_thinking',
-      tool: AGENT_TOOL_NAMES.ORCHESTRATE_DUPLEX_VOICE,
-      timestamp: new Date().toISOString(),
-    });
-
-    const speechToken = bargeInController?.startAssistantSpeech?.();
-    sentenceIndex = 0;
-
-    const result = await processRealtimeVoiceTurn({
-      session,
-      userId,
-      transcriptText: pending.originalTranscript,
-      language,
-      asrConfidence: pending.asrConfidence,
-      asrSource,
-      voiceName,
-      inputMode: 'duplex_voice',
-      vad: pending.vad,
-      clientTurnId,
-      skipTranscriptGate: true,
-      transcriptConfirmation: {
-        confirmedByUser: true,
-        confirmationReply,
-        pendingConfirmationId: pending.id,
-        originalAssessment: pending.assessment || null,
-      },
-      onSentence: async (text, index) => {
-        try {
-          const nextIndex = Number.isFinite(index) ? index : sentenceIndex;
-          sentenceIndex = nextIndex + 1;
-          trace('assistant_sentence_ready', {
-            index: nextIndex,
-            text,
-            speechTokenActive: bargeInController?.isTokenActive?.(speechToken),
-          });
-          if (!bargeInController?.isTokenActive?.(speechToken)) return;
-          sendJson?.({
-            type: 'assistant_text_delta',
-            tool: AGENT_TOOL_NAMES.GENERATE_INTERVIEW_QUESTION,
-            text,
-            index: nextIndex,
-            timestamp: new Date().toISOString(),
-          });
-          await streamAssistantSpeech({
-            text,
-            voiceName,
-            sendJson,
-            bargeInController,
-            index: nextIndex,
-            speechToken,
-            usageContext: {
-              userId,
-              sessionId: session?.id || null,
-              stage: 'interview',
-              source: 'duplex_confirmed_interview_sentence',
-            },
-          });
-        } catch (error) {
-          logger?.error?.('Failed to process sentence after transcript confirmation', {
-            sessionId: session?.id,
-            index,
-            text,
-            error: error.message,
-          });
-        }
-      },
-    });
-
-    bargeInController?.finishAssistantSpeech?.(speechToken);
-    sendJson?.({
-      type: 'assistant_speech_done',
-      tool: AGENT_TOOL_NAMES.SYNTHESIZE_ASSISTANT_SPEECH,
-      timestamp: new Date().toISOString(),
-    });
-
-    sendJson?.({
-      type: 'turn_done',
-      tool: AGENT_TOOL_NAMES.ORCHESTRATE_DUPLEX_VOICE,
-      session: result?.updatedSession || session,
-      transcription: result?.transcription || null,
-      latency: result?.latency || null,
-      isComplete: Boolean(result?.agentResult?.isComplete),
-      completedBecause: result?.agentResult?.completedBecause || null,
-      timestamp: new Date().toISOString(),
-    });
-
-    return result;
-  };
-
-  const streamTranscriptConfirmationPrompt = async ({ assessment, transcriptText, asrConfidence, vad }) => {
-    const confirmationPrompt = buildTranscriptConfirmationPrompt(transcriptText);
-    pendingTranscriptConfirmation = {
-      id: `pending-${Date.now()}`,
-      originalTranscript: transcriptText,
-      asrConfidence,
-      vad,
-      assessment,
-      confirmationPrompt,
-      createdAt: new Date().toISOString(),
-      currentQuestionIndex: session?.currentQuestionIndex || null,
-    };
-
-    trace('stream_transcript_confirmation_start', {
-      reason: assessment?.reason || 'LOW_CONFIDENCE_CONTENTFUL_TRANSCRIPT',
-      transcriptText,
-      asrConfidence,
-      confidenceGate: assessment?.confidenceGate || null,
-      metrics: assessment?.metrics || null,
-      confirmationPrompt,
-    });
-
-    const speechToken = bargeInController?.startAssistantSpeech?.();
-    sendJson?.({
-      type: 'transcript_confirmation_requested',
-      tool: AGENT_TOOL_NAMES.TRANSCRIBE_REALTIME_SPEECH,
-      reason: assessment?.reason || 'LOW_CONFIDENCE_CONTENTFUL_TRANSCRIPT',
-      message: confirmationPrompt,
-      confirmationPrompt,
-      transcription: {
-        accepted: false,
-        text: transcriptText,
-        confidence: asrConfidence,
-        confidenceGate: assessment?.confidenceGate || null,
-        metrics: assessment?.metrics || null,
-        requiresUnderstandingConfirmation: true,
-      },
-      turnType: 'transcript_confirmation',
-      countsAsQuestion: false,
-      timestamp: new Date().toISOString(),
-    });
-    sendJson?.({
-      type: 'assistant_text_delta',
-      tool: AGENT_TOOL_NAMES.SYNTHESIZE_ASSISTANT_SPEECH,
-      text: confirmationPrompt,
-      index: 0,
-      timestamp: new Date().toISOString(),
-    });
-    await streamAssistantSpeech({
-      text: confirmationPrompt,
-      voiceName,
-      sendJson,
-      bargeInController,
-      index: 0,
-      speechToken,
-      usageContext: {
-        userId,
-        sessionId: session?.id || null,
-        stage: 'interview',
-        source: 'duplex_transcript_confirmation',
-      },
-    });
-    bargeInController?.finishAssistantSpeech?.(speechToken);
-    sendJson?.({
-      type: 'assistant_speech_done',
-      tool: AGENT_TOOL_NAMES.SYNTHESIZE_ASSISTANT_SPEECH,
-      timestamp: new Date().toISOString(),
-    });
-    trace('stream_transcript_confirmation_done', {
-      reason: assessment?.reason || 'LOW_CONFIDENCE_CONTENTFUL_TRANSCRIPT',
-    });
-    return {
-      transcriptConfirmationRequested: true,
-      assessment,
-      pendingTranscriptConfirmation,
-    };
-  };
-
     const startedAt = Date.now();
     const cleanTranscript = String(transcriptText || '').trim();
     trace('process_final_transcript_start', {
@@ -281,64 +108,6 @@ export const createDuplexTurnCoordinator = ({
       asrConfidence,
       vad,
     });
-
-    if (pendingTranscriptConfirmation) {
-      const confirmationDecision = classifyTranscriptConfirmationReply(cleanTranscript);
-      trace('pending_transcript_confirmation_reply', {
-        confirmationDecision,
-        replyText: cleanTranscript,
-        pendingId: pendingTranscriptConfirmation.id,
-      });
-
-      if (confirmationDecision === 'confirm') {
-        const pending = pendingTranscriptConfirmation;
-        pendingTranscriptConfirmation = null;
-        sendJson?.({
-          type: 'transcript_confirmation_resolved',
-          decision: 'confirm',
-          turnType: 'transcript_confirmation',
-          countsAsQuestion: false,
-          timestamp: new Date().toISOString(),
-        });
-        trace('pending_transcript_confirmation_confirmed', {
-          pendingId: pending.id,
-        });
-        return processConfirmedPendingTranscript({
-          pending,
-          confirmationReply: cleanTranscript,
-        });
-      }
-
-      if (confirmationDecision === 'reject') {
-        pendingTranscriptConfirmation = null;
-        return streamRepairPrompt({
-          assessment: {
-            ok: false,
-            decision: 'reject',
-            reason: 'TRANSCRIPT_CONFIRMATION_REJECTED',
-            message: 'Thanks. Please clarify or repeat your answer for the same question.',
-            confidenceGate: null,
-            metrics: null,
-          },
-          transcriptText: cleanTranscript,
-          asrConfidence,
-        });
-      }
-
-      return streamRepairPrompt({
-        assessment: {
-          ok: false,
-          decision: 'reject',
-          reason: 'TRANSCRIPT_CONFIRMATION_UNCLEAR',
-          message: 'Please say yes if I understood correctly, or say no and clarify your answer.',
-          confidenceGate: null,
-          metrics: null,
-        },
-        transcriptText: cleanTranscript,
-        asrConfidence,
-      });
-    }
-
     const assessment = assessRealtimeVoiceTranscript({
       transcriptText: cleanTranscript,
       asrConfidence,
@@ -351,16 +120,6 @@ export const createDuplexTurnCoordinator = ({
       confidenceGate: assessment.confidenceGate || null,
       metrics: assessment.metrics || null,
     });
-    if (assessment.requiresUnderstandingConfirmation || assessment.decision === 'confirm_understanding') {
-      logger?.info?.('Duplex voice transcript needs understanding confirmation before scoring', {
-        sessionId: session?.id,
-        reason: assessment.reason,
-        confidenceStatus: assessment.confidenceGate?.status,
-        metrics: assessment.metrics,
-      });
-      return streamTranscriptConfirmationPrompt({ assessment, transcriptText: cleanTranscript, asrConfidence, vad });
-    }
-
     if (!assessment.ok) {
       logger?.info?.('Duplex voice transcript rejected before scoring', {
         sessionId: session?.id,
