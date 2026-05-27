@@ -15,6 +15,9 @@ import { AGENT_TOOL_NAMES } from '../../constants/agentToolNames.js';
 
 const DEFAULT_SPEECH_STOP_TIMEOUT_MS = 2500;
 const MAX_PENDING_AUDIO_CHUNKS = 1200;
+const PCM_BYTES_PER_SAMPLE = 2;
+const PCM_CHANNELS = 1;
+const AUDIO_CONTRACT_TRACE_EVERY = 25;
 
 const parsePositiveInteger = (value, fallback) => {
   const parsed = Number.parseInt(value, 10);
@@ -47,6 +50,12 @@ const averageConfidence = (segments = []) => {
 const resolveAsrSource = ({ segments = [], providerName = null } = {}) => {
   const provider = segments.find((segment) => segment?.provider)?.provider || providerName || 'unknown_realtime';
   return String(provider).trim().toLowerCase().replace(/-/g, '_');
+};
+
+const estimatePcmDurationMs = ({ bytes = 0, sampleRate = 16000 } = {}) => {
+  const rate = Number(sampleRate) || 16000;
+  if (!bytes || !rate) return null;
+  return Math.round((bytes / (rate * PCM_CHANNELS * PCM_BYTES_PER_SAMPLE)) * 1000);
 };
 
 const withTimeout = (promise, timeoutMs, message) => new Promise((resolve, reject) => {
@@ -86,6 +95,7 @@ export const createDuplexVoiceAgentSession = ({
   let pendingAudioChunks = [];
   let audioChunksWritten = 0;
   let audioChunksDropped = 0;
+  let audioBytesWritten = 0;
 
   const sendReady = () => sendJson({
     type: 'session_ready',
@@ -93,6 +103,12 @@ export const createDuplexVoiceAgentSession = ({
     sessionId: activeSession?.id || session?.id,
     language,
     sampleRate,
+    audioContract: {
+      encoding: 'pcm_s16le',
+      sampleRate,
+      channels: PCM_CHANNELS,
+      bytesPerSample: PCM_BYTES_PER_SAMPLE,
+    },
     timestamp: new Date().toISOString(),
   });
   let activeSttProviderName = null;
@@ -210,14 +226,32 @@ export const createDuplexVoiceAgentSession = ({
     return speechSession;
   };
 
+  const writeAudioChunk = (target, chunk, source = 'live') => {
+    target.writeAudio(chunk);
+    audioChunksWritten += 1;
+    audioBytesWritten += Buffer.byteLength(chunk);
+    if (audioChunksWritten === 1 || audioChunksWritten % AUDIO_CONTRACT_TRACE_EVERY === 0) {
+      logger?.info?.('Duplex realtime audio chunk written', {
+        sessionId: activeSession?.id || session?.id,
+        provider: activeSttProviderName,
+        source,
+        chunkIndex: audioChunksWritten,
+        bytes: Buffer.byteLength(chunk),
+        estimatedDurationMs: estimatePcmDurationMs({ bytes: Buffer.byteLength(chunk), sampleRate }),
+        totalAudioMs: estimatePcmDurationMs({ bytes: audioBytesWritten, sampleRate }),
+        sampleRate,
+        encoding: 'pcm_s16le',
+      });
+    }
+  };
+
   const flushPendingAudioChunks = async () => {
     if (!pendingAudioChunks.length) return;
     const target = await startSpeechSession();
     const chunksToWrite = pendingAudioChunks;
     pendingAudioChunks = [];
     for (const chunk of chunksToWrite) {
-      target.writeAudio(chunk);
-      audioChunksWritten += 1;
+      writeAudioChunk(target, chunk, 'pending_flush');
     }
   };
 
@@ -227,6 +261,7 @@ export const createDuplexVoiceAgentSession = ({
     pendingAudioChunks = [];
     audioChunksWritten = 0;
     audioChunksDropped = 0;
+    audioBytesWritten = 0;
     ignoredPreSpeechAudioChunks = 0;
     await stopSpeechSession();
     const target = await startSpeechSession();
@@ -234,7 +269,7 @@ export const createDuplexVoiceAgentSession = ({
     return target;
   };
 
-  const queueCapturedAudio = (chunk) => {
+  const queueCapturedAudio = async (chunk) => {
     if (!isCapturingSpeech) {
       ignoredPreSpeechAudioChunks += 1;
       if (ignoredPreSpeechAudioChunks === 1) {
@@ -251,7 +286,20 @@ export const createDuplexVoiceAgentSession = ({
       audioChunksDropped += 1;
       return;
     }
+
+    if (speechSession && isSpeechSessionStarted) {
+      writeAudioChunk(speechSession, buffer, 'live');
+      return;
+    }
+
     pendingAudioChunks.push(buffer);
+    if (pendingAudioChunks.length === 1) {
+      logger?.info?.('Buffering duplex audio while realtime STT starts', {
+        sessionId: activeSession?.id || session?.id,
+        sampleRate,
+        bytes: buffer.length,
+      });
+    }
   };
 
   const handleJsonMessage = async (payload = {}) => {
@@ -289,7 +337,7 @@ export const createDuplexVoiceAgentSession = ({
       }
 
       if (payload.type === 'audio_chunk' && payload.audioBase64) {
-        queueCapturedAudio(Buffer.from(payload.audioBase64, 'base64'));
+        await queueCapturedAudio(Buffer.from(payload.audioBase64, 'base64'));
         return;
       }
 
@@ -311,6 +359,7 @@ export const createDuplexVoiceAgentSession = ({
             writtenChunks: audioChunksWritten,
             droppedChunks: audioChunksDropped,
             ignoredPreSpeechAudioChunks,
+            totalAudioMs: estimatePcmDurationMs({ bytes: audioBytesWritten, sampleRate }),
             provider: activeSttProviderName,
           });
           await withTimeout(
@@ -350,6 +399,7 @@ export const createDuplexVoiceAgentSession = ({
               ignoredPreSpeechAudioChunks,
               audioChunksWritten,
               audioChunksDropped,
+              audioMsWritten: estimatePcmDurationMs({ bytes: audioBytesWritten, sampleRate }),
             },
           });
         } catch (error) {
@@ -435,7 +485,7 @@ export const createDuplexVoiceAgentSession = ({
 
   const handleBinaryAudio = async (message) => {
     try {
-      queueCapturedAudio(message);
+      await queueCapturedAudio(message);
     } catch (error) {
       logger?.error?.('Duplex voice binary audio handling failed', { sessionId: activeSession?.id || session?.id, error: error.message, stack: error.stack });
     }
