@@ -88,7 +88,7 @@ describe('duplex voice robustness', () => {
       ok: false,
       reason: 'TOO_SHORT_TRANSCRIPT',
     }));
-    expect(validateRealtimeVoiceTranscript({ transcriptText: 'I used React', asrConfidence: 0.2, vad: { speechDurationMs: 4000 } })).toEqual(expect.objectContaining({
+    expect(validateRealtimeVoiceTranscript({ transcriptText: 'I used React', asrConfidence: 0.2, vad: { speechDurationMs: 2000 } })).toEqual(expect.objectContaining({
       ok: false,
       reason: 'LOW_CONFIDENCE_TRANSCRIPT',
     }));
@@ -97,8 +97,8 @@ describe('duplex voice robustness', () => {
       asrConfidence: 0.2,
       vad: { speechDurationMs: 9000 },
     })).toEqual(expect.objectContaining({
-      ok: false,
-      reason: 'LOW_CONFIDENCE_TRANSCRIPT',
+      ok: true,
+      reason: 'LOW_CONFIDENCE_ACCEPTED_WITH_CONTENT',
     }));
     expect(validateRealtimeVoiceTranscript({
       transcriptText: 'I used React Query with PostgreSQL and checked the result through integration tests.',
