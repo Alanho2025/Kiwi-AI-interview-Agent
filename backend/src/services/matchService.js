@@ -8,8 +8,8 @@ import {
   buildMicroScores,
   buildRequirementChecks,
   calculateScoreBreakdown,
-  buildExplanation,
 } from './match/matchScoringService.js';
+import { buildExplanation } from './match/matchResultFormatter.js';
 import { buildCapabilityScoreBreakdown } from './match/capabilityScoreService.js';
 import { buildQuestionPlanHints } from './match/questionPlanService.js';
 import { buildAnalyzeResult } from './match/matchResultBuilder.js';
