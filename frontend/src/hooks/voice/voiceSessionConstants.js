@@ -1,7 +1,7 @@
 export const DEFAULT_VOICE_NAME = 'en-NZ-MollyNeural';
 export const DEFAULT_LANGUAGE = 'en-NZ';
-export const MIC_ARM_DELAY_MS = 350;
-export const VAD_WARMUP_IGNORE_MS = 500;
+export const MIC_ARM_DELAY_MS = 200;
+export const VAD_WARMUP_IGNORE_MS = 300;
 export const SLOW_PROCESSING_WARNING_MS = 8000;
 export const NETWORK_PING_INTERVAL_MS = 6000;
 export const SLOW_FIRST_AUDIO_MS = 3500;
