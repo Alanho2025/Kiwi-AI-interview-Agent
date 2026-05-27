@@ -6,9 +6,17 @@ import { compareCvToJobDescriptionWithSafeguard } from '../../../src/services/ma
 const cvText = `Ava Chen
 Data Engineer
 
+Experience
 Built Python and SQL data pipelines for customer analytics projects.
 Used PostgreSQL, Linux, Git, and dashboard validation to clean data and check output quality.
-Documented data workflows and explained pipeline trade-offs to stakeholders.`;
+Documented data workflows and explained pipeline trade-offs to stakeholders.
+
+Skills
+Python
+SQL
+PostgreSQL
+Linux
+Git`;
 
 const blockedJdRubric = {
   schemaVersion: 'v3',

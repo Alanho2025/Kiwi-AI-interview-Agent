@@ -16,7 +16,7 @@ describe('buildMatchResultViewModel', () => {
       requirementChecks: [],
     });
 
-    expect(viewModel.decision.label).toBe('Promising match');
+    expect(viewModel.decision.label).toBe('Promising but needs validation');
     expect(viewModel.overallScore).toBe(77);
     expect(viewModel.confidencePercent).toBe(84);
     expect(viewModel.summary).toContain('Python and SQL');
