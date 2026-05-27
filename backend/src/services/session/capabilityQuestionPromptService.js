@@ -7,7 +7,7 @@ export const isTechnicalCapabilityGroup = (group = '', category = '') => (
 
 export const buildCapabilityPrompt = ({
   capabilityGroup = '',
-  category = '',
+  _category = '',
   capability = '',
   roleLabel = 'the role',
   followUpDepth = 0,
