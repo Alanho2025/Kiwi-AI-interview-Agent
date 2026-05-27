@@ -97,8 +97,8 @@ describe('duplex voice robustness', () => {
       asrConfidence: 0.2,
       vad: { speechDurationMs: 9000 },
     })).toEqual(expect.objectContaining({
-      ok: true,
-      reason: 'LOW_CONFIDENCE_ACCEPTED_WITH_CONTENT',
+      ok: false,
+      reason: 'LOW_CONFIDENCE_TRANSCRIPT',
     }));
     expect(validateRealtimeVoiceTranscript({
       transcriptText: 'I used React Query with PostgreSQL and checked the result through integration tests.',
