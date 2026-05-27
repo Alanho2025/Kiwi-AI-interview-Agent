@@ -113,7 +113,7 @@ export function useRealtimeMicStream({ onAudioChunk }) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [levelHistory, setLevelHistory] = useState([]);
   const [durationMs, setDurationMs] = useState(0);
-  const modeRef = useRef({ sendAudio: true, audioGateEnabled: true });
+  const modeRef = useRef({ sendAudio: true, audioGateEnabled: false });
   const [mediaStream, setMediaStream] = useState(null);
 
   onAudioChunkRef.current = onAudioChunk;
@@ -137,7 +137,7 @@ export function useRealtimeMicStream({ onAudioChunk }) {
     modeRef.current = {
       ...modeRef.current,
       sendAudio: Boolean(sendAudio),
-      audioGateEnabled: options.audioGateEnabled !== false,
+      audioGateEnabled: options.audioGateEnabled === true,
       audioGate: options.audioGate || modeRef.current.audioGate || AUDIO_GATE_DEFAULTS,
     };
 
@@ -150,7 +150,7 @@ export function useRealtimeMicStream({ onAudioChunk }) {
   const startStream = useCallback(async (options = {}) => {
     modeRef.current = {
       sendAudio: options.sendAudio !== false,
-      audioGateEnabled: options.audioGateEnabled !== false,
+      audioGateEnabled: options.audioGateEnabled === true,
       audioGate: options.audioGate || AUDIO_GATE_DEFAULTS,
     };
     audioGateRef.current = createInitialAudioGateState();
