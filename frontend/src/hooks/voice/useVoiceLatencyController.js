@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { createVoiceLatencyTrace } from '../../utils/voiceLatencyTrace.js';
 import { buildVoiceLatencyDebugSummary, buildVoiceLatencyTargetSummary } from '../../utils/voiceLatencySummary.js';
 import { DEFAULT_VAD_CONFIG } from '../../utils/voiceActivityDetectionCore.js';
@@ -155,7 +155,7 @@ export function useVoiceLatencyController({
     updateVoiceNetworkQuality,
   ]);
 
-  return {
+  return useMemo(() => ({
     logVoiceLatencySummary,
     startVoiceTurnTrace,
     updateVoiceNetworkQuality,
@@ -164,5 +164,14 @@ export function useVoiceLatencyController({
     scheduleLatencyAcknowledgement,
     handleFirstAudioChunk,
     resetVoiceTraceState,
-  };
+  }), [
+    clearLatencyAcknowledgementTimer,
+    handleFirstAudioChunk,
+    logVoiceLatencySummary,
+    resetVoiceTraceState,
+    scheduleLatencyAcknowledgement,
+    startVoiceTurnTrace,
+    stopLatencyAcknowledgement,
+    updateVoiceNetworkQuality,
+  ]);
 }
