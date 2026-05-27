@@ -11,13 +11,13 @@
 
 const SECTION_LABELS = [
   { key: 'personal_statement', patterns: [/^personal statement$/i, /^career objective$/i, /^objective$/i] },
-  { key: 'summary', patterns: [/^summary$/i, /^profile$/i, /^professional summary$/i, /^about me$/i] },
-  { key: 'experience', patterns: [/^experience$/i, /^work experience$/i, /^employment$/i, /^professional experience$/i] },
-  { key: 'projects', patterns: [/^projects$/i, /^project experience$/i] },
+  { key: 'summary', patterns: [/^summary$/i, /^profile$/i, /^professional summary$/i, /^about me$/i, /^skills summary$/i] },
+  { key: 'experience', patterns: [/^experience$/i, /^work experience$/i, /^employment$/i, /^professional experience$/i, /^experience summary$/i, /^detailed experience$/i, /^employment history$/i, /^professional history$/i, /^relevant experience$/i, /^selected experience$/i] },
+  { key: 'projects', patterns: [/^projects$/i, /^project experience$/i, /^selected projects$/i, /^academic projects$/i] },
   { key: 'education', patterns: [/^education$/i, /^academic background$/i, /^qualifications$/i] },
-  { key: 'skills', patterns: [/^skills$/i, /^technical skills$/i, /^core skills$/i] },
+  { key: 'skills', patterns: [/^skills$/i, /^technical skills$/i, /^core skills$/i, /^key tools\s*\/\s*skills$/i, /^tools\s*\/\s*skills$/i, /^tools and skills$/i, /^tools and technologies$/i, /^technical toolkit$/i, /^technologies$/i] },
   { key: 'key_competencies', patterns: [/^competencies$/i, /^key competencies$/i, /^core competencies$/i] },
-  { key: 'certifications', patterns: [/^certifications$/i, /^certificates$/i, /^licenses$/i] },
+  { key: 'certifications', patterns: [/^certifications$/i, /^certificates$/i, /^licenses$/i, /^training$/i, /^certificates and training$/i] },
   { key: 'achievements', patterns: [/^achievements$/i, /^awards$/i, /^accomplishments$/i] },
   { key: 'volunteer', patterns: [/^volunteer experience$/i, /^volunteering$/i, /^community work$/i] },
 ];

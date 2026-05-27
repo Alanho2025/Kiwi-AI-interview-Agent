@@ -19,6 +19,9 @@ const DEFAULT_ACCEPTANCE_RULES = {
   mediumMinSpeechMs: 2500,
   unknownMinWords: 8,
   unknownMinSpeechMs: 3500,
+  lowConfidenceAcceptWords: 10,
+  lowConfidenceAcceptCharacters: 45,
+  lowConfidenceAcceptSpeechMs: 2500,
 };
 
 const normalizeText = (value = '') => String(value || '').trim();
@@ -50,6 +53,17 @@ const FILLER_TRANSCRIPTS = new Set([
 ]);
 
 const isFillerTranscript = (value = '') => FILLER_TRANSCRIPTS.has(normalizeForFillerCheck(value));
+
+const traceGateDecision = (decision, context = {}) => {
+  // Intentionally console-based because this helper is pure and has no request logger.
+  // Backend runtime logs will include this in local/Render output.
+  console.info('[VOICE-CONFIDENCE-GATE-TRACE]', {
+    decision,
+    at: new Date().toISOString(),
+    ...context,
+  });
+  return decision;
+};
 
 export function getConfidenceStatus(confidence, thresholds = DEFAULT_THRESHOLDS) {
   if (typeof confidence !== 'number' || Number.isNaN(confidence)) {
@@ -87,94 +101,120 @@ export function assessRealtimeVoiceTranscript({
       sttSegmentCount,
     },
   };
+  const traceContext = {
+    transcriptText: text,
+    asrConfidence,
+    vad,
+    rules,
+    confidenceGate,
+    metrics: basePayload.metrics,
+  };
 
   if (!text) {
-    return {
+    return traceGateDecision({
       ok: false,
       reason: 'EMPTY_TRANSCRIPT',
       message: 'I did not catch your answer. Please try again.',
       ...basePayload,
-    };
+    }, traceContext);
   }
 
   if (vad && (vad.isFinal === false || vad.final === false)) {
-    return {
+    return traceGateDecision({
       ok: false,
       reason: 'NON_FINAL_VAD_TRANSCRIPT',
       message: 'Your answer still sounds incomplete. Please finish your answer before moving on.',
       ...basePayload,
-    };
+    }, traceContext);
   }
 
   if (sttSegmentCount === 0) {
-    return {
+    return traceGateDecision({
       ok: false,
       reason: 'NO_FINAL_STT_SEGMENTS',
       message: 'I did not catch your answer clearly. Please try again.',
       ...basePayload,
-    };
+    }, traceContext);
   }
 
   if (text.length < rules.minCharacters || words < rules.minWords) {
-    return {
+    return traceGateDecision({
       ok: false,
       reason: 'TOO_SHORT_TRANSCRIPT',
       message: 'I only caught a very short answer. Please say a little more before I move to the next question.',
       ...basePayload,
-    };
+    }, traceContext);
   }
 
   if (vad && speechDurationMs > 0 && speechDurationMs < rules.minAcceptedSpeechMs) {
-    return {
+    return traceGateDecision({
       ok: false,
       reason: 'SPEECH_TOO_SHORT',
       message: 'I only heard a brief sound. Please give your full answer before I move on.',
       ...basePayload,
-    };
+    }, traceContext);
   }
 
   if (isFillerTranscript(text)) {
-    return {
+    return traceGateDecision({
       ok: false,
       reason: 'FILLER_TRANSCRIPT',
       message: 'I only caught a filler response. Please answer the interview question in a full sentence.',
       ...basePayload,
-    };
+    }, traceContext);
   }
 
   if (confidenceGate.status === 'low') {
-    return {
-      ok: false,
-      reason: 'LOW_CONFIDENCE_TRANSCRIPT',
-      message: 'Voice recognition was not confident it heard that correctly. Please repeat your answer from the start.',
+    const hasEnoughContent = words >= rules.lowConfidenceAcceptWords
+      || text.length >= rules.lowConfidenceAcceptCharacters
+      || speechDurationMs >= rules.lowConfidenceAcceptSpeechMs;
+
+    if (!hasEnoughContent) {
+      return traceGateDecision({
+        ok: false,
+        reason: 'LOW_CONFIDENCE_TRANSCRIPT',
+        message: 'Voice recognition was not confident it heard that correctly. Please repeat your answer from the start.',
+        ...basePayload,
+      }, { ...traceContext, hasEnoughContent });
+    }
+
+    return traceGateDecision({
+      ok: true,
+      reason: 'LOW_CONFIDENCE_ACCEPTED_WITH_CONTENT',
+      message: null,
       ...basePayload,
-    };
+      confidenceGate: {
+        ...confidenceGate,
+        shouldConfirm: true,
+        shouldRecordAgain: false,
+      },
+    }, { ...traceContext, hasEnoughContent });
   }
 
   if (confidenceGate.status === 'medium' && (words < rules.mediumMinWords || speechDurationMs < rules.mediumMinSpeechMs)) {
-    return {
+    return traceGateDecision({
       ok: false,
       reason: 'MEDIUM_CONFIDENCE_INSUFFICIENT_EVIDENCE',
       message: 'I only caught part of that. Please repeat your answer with a bit more detail.',
       ...basePayload,
-    };
+    }, traceContext);
   }
 
   if (confidenceGate.status === 'unknown' && (words < rules.unknownMinWords || speechDurationMs < rules.unknownMinSpeechMs)) {
-    return {
+    return traceGateDecision({
       ok: false,
       reason: 'UNKNOWN_CONFIDENCE_INSUFFICIENT_EVIDENCE',
       message: 'I need to hear that more clearly before I can continue. Please repeat your answer.',
       ...basePayload,
-    };
+    }, traceContext);
   }
 
-  return {
+  return traceGateDecision({
     ok: true,
     reason: 'VALID_TRANSCRIPT',
     message: null,
     ...basePayload,
-  };
+  }, traceContext);
 }
 
 export function validateRealtimeVoiceTranscript({ transcriptText = '', asrConfidence = null, vad = null } = {}) {

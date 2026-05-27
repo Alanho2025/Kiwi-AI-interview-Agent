@@ -23,8 +23,27 @@ export const createDuplexTurnCoordinator = ({
 } = {}) => {
   let sentenceIndex = 0;
 
+  const trace = (message, payload = {}) => {
+    logger?.info?.(`[DUPLEX-TURN-TRACE] ${message}`, {
+      sessionId: session?.id || null,
+      userId: userId || null,
+      language,
+      asrSource,
+      at: new Date().toISOString(),
+      ...payload,
+    });
+  };
+
   const streamRepairPrompt = async ({ assessment, transcriptText, asrConfidence }) => {
     const repairText = assessment?.message || 'I did not catch that clearly. Please repeat your answer.';
+    trace('stream_repair_prompt_start', {
+      reason: assessment?.reason || 'TRANSCRIPT_REJECTED',
+      transcriptText,
+      asrConfidence,
+      confidenceGate: assessment?.confidenceGate || null,
+      metrics: assessment?.metrics || null,
+      repairText,
+    });
     const speechToken = bargeInController?.startAssistantSpeech?.();
     sendJson?.({
       type: 'transcript_rejected',
@@ -67,6 +86,9 @@ export const createDuplexTurnCoordinator = ({
       tool: AGENT_TOOL_NAMES.SYNTHESIZE_ASSISTANT_SPEECH,
       timestamp: new Date().toISOString(),
     });
+    trace('stream_repair_prompt_done', {
+      reason: assessment?.reason || 'TRANSCRIPT_REJECTED',
+    });
     return {
       transcriptRejected: true,
       assessment,
@@ -74,11 +96,26 @@ export const createDuplexTurnCoordinator = ({
   };
 
   const processFinalTranscript = async ({ transcriptText, asrConfidence = null, vad = null } = {}) => {
+    const startedAt = Date.now();
     const cleanTranscript = String(transcriptText || '').trim();
+    trace('process_final_transcript_start', {
+      transcriptText: cleanTranscript,
+      transcriptLength: cleanTranscript.length,
+      words: cleanTranscript ? cleanTranscript.split(/\s+/).filter(Boolean).length : 0,
+      asrConfidence,
+      vad,
+    });
     const assessment = assessRealtimeVoiceTranscript({
       transcriptText: cleanTranscript,
       asrConfidence,
       vad,
+    });
+    trace('confidence_gate_assessed', {
+      ok: assessment.ok,
+      reason: assessment.reason,
+      message: assessment.message,
+      confidenceGate: assessment.confidenceGate || null,
+      metrics: assessment.metrics || null,
     });
     if (!assessment.ok) {
       logger?.info?.('Duplex voice transcript rejected before scoring', {
@@ -99,6 +136,11 @@ export const createDuplexTurnCoordinator = ({
     const speechToken = bargeInController?.startAssistantSpeech?.();
     sentenceIndex = 0;
 
+    trace('process_realtime_voice_turn_start', {
+      transcriptText: cleanTranscript,
+      asrConfidence,
+      asrSource,
+    });
     const result = await processRealtimeVoiceTurn({
       session,
       userId,
@@ -113,6 +155,11 @@ export const createDuplexTurnCoordinator = ({
         try {
           const nextIndex = Number.isFinite(index) ? index : sentenceIndex;
           sentenceIndex = nextIndex + 1;
+          trace('assistant_sentence_ready', {
+            index: nextIndex,
+            text,
+            speechTokenActive: bargeInController?.isTokenActive?.(speechToken),
+          });
           if (!bargeInController?.isTokenActive?.(speechToken)) return;
           sendJson?.({
             type: 'assistant_text_delta',
@@ -135,12 +182,23 @@ export const createDuplexTurnCoordinator = ({
               source: 'duplex_interview_sentence',
             },
           });
+          trace('assistant_sentence_tts_done', {
+            index: nextIndex,
+            text,
+          });
         } catch (error) {
           logger?.error?.('Failed to process sentence in duplex turn', { sessionId: session?.id, index, text, error: error.message });
         }
       },
     });
 
+    trace('process_realtime_voice_turn_done', {
+      durationMs: Date.now() - startedAt,
+      transcription: result?.transcription || null,
+      latency: result?.latency || null,
+      isComplete: Boolean(result?.agentResult?.isComplete),
+      completedBecause: result?.agentResult?.completedBecause || null,
+    });
     bargeInController?.finishAssistantSpeech?.(speechToken);
     sendJson?.({
       type: 'assistant_speech_done',
