@@ -6,6 +6,13 @@
 - The product flow includes CV upload, JD parsing, CV-JD matching, interview planning, text or voice interview sessions, report generation, and AI evaluation runners.
 - Treat text interview mode as the safest low-dependency demo path. Voice mode depends on browser microphone permission, authenticated WebSocket access, valid Azure Speech credentials, and a live interview session.
 
+## Required Reading Before Work
+
+- Before making any code change, read `docs/clean-code-rules.md` first.
+- Before changing voice interview behavior, voice tests, voice prompts, voice latency handling, STT/TTS, VAD, duplex WebSocket logic, interview question selection, or transcript confidence handling, also read `VOICE_INTERVIEW_PRODUCT_BEHAVIOR.md`.
+- Do not rely on memory for voice interview behavior. Treat `VOICE_INTERVIEW_PRODUCT_BEHAVIOR.md` as the product contract.
+- If an implementation idea conflicts with the product behavior document, stop and explain the conflict before changing code.
+
 ## Approval First
 
 - Ask for approval before making any non-trivial code change.
@@ -37,6 +44,7 @@
 
 ## Code Quality
 
+- Follow `docs/clean-code-rules.md` in every code change.
 - Follow clean code principles in every file:
   - Keep functions small and focused on one responsibility.
   - Prefer explicit naming over abbreviated naming.
@@ -44,6 +52,17 @@
   - Keep side effects close to the boundary layer.
   - Prefer deterministic business logic over model-generated decisions for core product behavior.
   - Add comments only when the code would otherwise be non-obvious.
+
+## Voice Interview Product Rules
+
+- Voice interview behavior must follow `VOICE_INTERVIEW_PRODUCT_BEHAVIOR.md`.
+- Treat the voice interview as a state machine, not a collection of isolated flags.
+- Low-confidence STT is a system understanding issue, not automatically a failed user answer.
+- Contentful low-confidence transcripts must go through understanding confirmation instead of being silently discarded or directly scored.
+- Repair prompts, transcript confirmations, clarification turns, repeat requests, system messages, and barge-in acknowledgements must not count as interview questions.
+- The product latency target is `user speech end -> next question first audio <= 3 seconds`.
+- Next-question behavior must preserve transparency: record why the question was selected, what evidence supported it, what it is expected to test, and any ranking or alternatives considered.
+- The LLM should primarily naturalize selected questions into spoken text. Deterministic controller and ranking logic should decide what should be asked and why when possible.
 
 ## Structure
 
@@ -55,6 +74,7 @@
 - Frontend API clients belong under `frontend/src/api`.
 - Reusable frontend UI belongs under `frontend/src/components`; page orchestration belongs under `frontend/src/pages`.
 - Voice-specific frontend logic should stay under `frontend/src/hooks/voice` or nearby voice hooks.
+- Backend voice logic should stay under `backend/src/services/voice` or clearly named interview/AI-control services.
 - Backend persistence logic should stay in repositories or storage services, not route handlers.
 
 ## Environment and Secrets
