@@ -33,7 +33,7 @@ const hashString = (str) => {
 class VoiceOptimizationConfig {
   constructor() {
     this.warmContextEnabled = parseBoolean(process.env.VOICE_WARM_CONTEXT_ENABLED, true);
-    this.fastPathEnabled = parseBoolean(process.env.VOICE_FAST_PATH_ENABLED, true);
+    this.fastPathEnabled = parseBoolean(process.env.VOICE_FAST_PATH_ENABLED, false);
     this.backgroundQualityEnabled = parseBoolean(process.env.VOICE_BACKGROUND_QUALITY_ENABLED, true);
     this.warmContextTTL = parseInt(process.env.WARM_CONTEXT_TTL_MS, 90000);
     this.rolloutPercentage = Math.min(100, Math.max(0, parseInt(process.env.WARM_CONTEXT_ROLLOUT_PERCENTAGE, 100)));
