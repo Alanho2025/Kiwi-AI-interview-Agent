@@ -65,19 +65,9 @@ export const processRealtimeVoiceTurn = async ({
   req = null,
   onSentence = null,
   synthesizeAssistantSpeech = synthesizeSpeech,
-  skipTranscriptGate = false,
-  transcriptConfirmation = null,
 }) => {
   const normalizedAnswer = String(transcriptText || '').trim();
-  const transcriptGate = skipTranscriptGate
-    ? {
-        ok: true,
-        decision: 'accept',
-        reason: 'CONFIRMED_LOW_CONFIDENCE_TRANSCRIPT',
-        confidenceGate: transcriptConfirmation?.originalAssessment?.confidenceGate || null,
-        metrics: transcriptConfirmation?.originalAssessment?.metrics || null,
-      }
-    : validateRealtimeVoiceTranscript({ transcriptText: normalizedAnswer, asrConfidence, vad });
+  const transcriptGate = validateRealtimeVoiceTranscript({ transcriptText: normalizedAnswer, asrConfidence, vad });
   if (!transcriptGate.ok) {
     throw badRequest(transcriptGate.message || 'Voice transcript is not ready', transcriptGate.reason);
   }
@@ -109,9 +99,6 @@ export const processRealtimeVoiceTurn = async ({
           reason: transcriptGate.reason,
           metrics: transcriptGate.metrics,
         },
-        turnType: 'user_answer',
-        countsAsQuestion: true,
-        transcriptConfirmation,
         voiceDelivery,
         transcriptionPreview: normalizedAnswer,
       },
@@ -138,7 +125,6 @@ export const processRealtimeVoiceTurn = async ({
           reason: transcriptGate.reason,
           metrics: transcriptGate.metrics,
         },
-        transcriptConfirmation,
       },
     });
   });

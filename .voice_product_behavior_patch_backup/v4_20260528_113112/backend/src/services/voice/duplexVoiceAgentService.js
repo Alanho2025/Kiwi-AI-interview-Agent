@@ -403,13 +403,12 @@ export const createDuplexVoiceAgentSession = ({
       }
 
       if (payload.type === 'speech_start') {
-        const providedClientTurnId = String(payload.clientTurnId || '').trim();
-        const incomingClientTurnId = providedClientTurnId || `voice-turn-${Date.now()}-${speechCaptureSequence + 1}`;
-        if (!providedClientTurnId) {
-          logger?.warn?.('speech_start did not include clientTurnId; generated fallback turn id', {
+        const incomingClientTurnId = String(payload.clientTurnId || '').trim();
+        if (!incomingClientTurnId) {
+          logger?.warn?.('Ignoring speech_start without clientTurnId', {
             sessionId: activeSession?.id || session?.id,
-            generatedClientTurnId: incomingClientTurnId,
           });
+          return;
         }
         if (isCapturingSpeech) {
           logger?.warn?.('Ignoring duplicate duplex speech_start while already capturing', {

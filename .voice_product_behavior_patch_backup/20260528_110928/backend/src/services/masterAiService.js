@@ -480,8 +480,8 @@ decisionType: AGENT_DECISION_TYPES.EXECUTE_ACTION,
     questionType: interviewerOutput.questionType || 'follow_up',
     sourceType: interviewerOutput.sourceType || 'agent_generated',
     questionText: interviewerOutput.displayText || interviewerOutput.nextQuestion,
-    basedOnCv: ['cv_template', 'match_gap'].includes(interviewerOutput.sourceType || interviewerOutput.questionDecision?.sourceType),
-    basedOnJd: ['jd_requirement', 'match_gap'].includes(interviewerOutput.sourceType || interviewerOutput.questionDecision?.sourceType),
+    basedOnCv: true,
+    basedOnJd: true,
   });
 
   await appendTranscriptTurn(session.id, {
@@ -501,12 +501,6 @@ decisionType: AGENT_DECISION_TYPES.EXECUTE_ACTION,
       followUpDepth: interviewerOutput.followUpDepth || 0,
       questionCategory: interviewerOutput.questionCategory || null,
       questionType: interviewerOutput.questionType || 'follow_up',
-      questionDecision: interviewerOutput.questionDecision || null,
-      questionRanking: interviewerOutput.questionRanking || interviewerOutput.questionDecision?.ranking || null,
-      whyThisQuestion: interviewerOutput.questionDecision?.whyThisQuestion || interviewerOutput.rationaleSummary || interviewerOutput.rationale || null,
-      evidenceUsed: interviewerOutput.questionDecision?.evidenceUsed || [],
-      baseQuestionText: interviewerOutput.questionDecision?.baseQuestionText || interviewerOutput.nextQuestion || null,
-      spokenQuestionText: interviewerOutput.displayText || interviewerOutput.nextQuestion || null,
     },
   });
 

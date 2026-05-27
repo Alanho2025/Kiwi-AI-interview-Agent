@@ -13,7 +13,6 @@ import { AGENT_ACTION_TYPES } from '../../constants/agentActionTypes.js';
 import { getNextPoolQuestion, hasReachedQuestionLimit, hasReachedTimeLimit } from '../interviewStateService.js';
 import { callDeepSeek, callDeepSeekStream } from '../deepseekService.js';
 import { guardGeneratedTextForInterviewMode, guardQuestionForInterviewMode } from '../aiControl/interviewModeGuard.js';
-import { buildQuestionDecisionTrace } from '../aiControl/questionRanker.js';
 const normalizeText = (value = '') => String(value || '').trim();
 const tokenize = (value = '') => normalizeText(value).toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
 const getLastUserAnswer = (transcript = []) => [...transcript].reverse().find((turn) => turn.role === 'user')?.text || '';
@@ -710,17 +709,6 @@ export const runInterviewerAgent = async ({
     displayText: generatedText,
   };
 
-  const questionDecision = buildQuestionDecisionTrace({
-    selectedQuestion,
-    session,
-    decisionContext,
-    selectedAction: actionType,
-    actionInput: { targetTopic, probeType, freshOnly, category: lockedCategory },
-    generatedText: displayTurn.displayText,
-    confidence: decisionContext?.latestDecision?.confidence || null,
-    selectionSource: decisionContext?.latestDecision?.selectionSource || 'rule_fallback',
-  });
-
   return {
     questionType: selectedQuestion.type,
     nextQuestion: selectedQuestion.fallbackText || selectedQuestion.text,
@@ -734,8 +722,6 @@ export const runInterviewerAgent = async ({
     sourceType: selectedQuestion.sourceType || 'agent_generated',
     questionCategory: selectedQuestion.category || (String(selectedQuestion.stage || '').includes('behaviour') ? 'behavioural' : String(selectedQuestion.stage || '').includes('technical') ? 'technical' : String(selectedQuestion.stage || '').includes('opening') ? 'opening' : 'experience'),
     evidenceTypeHint: inferEvidenceTypeHint(selectedQuestion),
-    questionDecision,
-    questionRanking: questionDecision.ranking,
     retrievalSnapshot: retrievalBundle,
     isComplete: false,
     reactTrace,
