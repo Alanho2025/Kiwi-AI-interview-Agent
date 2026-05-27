@@ -165,6 +165,8 @@ export function useVoiceInterviewSession({
     setSendAudio,
   } = realtimeMic;
 
+
+
   const vadTurn = useVoiceVadTurnController({
     refs,
     enabled,
@@ -261,6 +263,15 @@ export function useVoiceInterviewSession({
   }, [permissionState, setReadyState, voiceState]);
 
   useEffect(() => {
+    if (duplexSocketState !== 'listening' || !speechStartSentRef.current) return;
+    console.log('[FRONTEND-STT-TRACE] Backend listening_started received. Enabling microphone audio stream.');
+    activeVoiceTurnTraceRef.current?.mark('backend_listening_started');
+    setSendAudio(true);
+  }, [activeVoiceTurnTraceRef, duplexSocketState, setSendAudio, speechStartSentRef]);
+
+
+
+  useEffect(() => {
     if (partialTranscript) setTranscriptionPreview(partialTranscript);
   }, [partialTranscript]);
 
@@ -280,9 +291,10 @@ export function useVoiceInterviewSession({
   useEffect(() => {
     if (!socketError) return;
     latency.stopLatencyAcknowledgement();
+    setSendAudio(false);
     setVoiceState('error');
     setVoiceStatus(buildVoiceStatus('error', 'Duplex voice failed', socketError));
-  }, [latency, socketError]);
+  }, [latency, setSendAudio, socketError]);
 
   useEffect(() => {
     latestSocketLatencyRef.current = duplexLatency || {};
@@ -316,6 +328,7 @@ export function useVoiceInterviewSession({
       clearPendingBargeIn();
       clearPendingSpeechEnd();
       speechStartSentRef.current = false;
+      setSendAudio(false);
       vad.stopVad?.();
       sessionAudioRecorder.resetRecording();
       stopStream();
@@ -329,6 +342,7 @@ export function useVoiceInterviewSession({
     closeDuplexSocket,
     latency,
     sessionAudioRecorder,
+    setSendAudio,
     speechStartSentRef,
     stopStream,
     vad,
@@ -386,10 +400,10 @@ export function useVoiceInterviewSession({
     handleResetShell: lifecycle.handleResetShell,
     handleRetryVoice: lifecycle.handleRetryVoice,
     stopVoiceSession: lifecycle.stopVoiceSession,
-    handleAudioFileSelect: () => {},
-    handleSubmitSelectedAudio: () => {},
-    setBackupText: () => {},
-    setIsBackupExpanded: () => {},
+    handleAudioFileSelect: () => { },
+    handleSubmitSelectedAudio: () => { },
+    setBackupText: () => { },
+    setIsBackupExpanded: () => { },
     onPause,
     onRepeat,
     onEnd,

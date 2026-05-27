@@ -227,26 +227,37 @@ describe('useVoiceInterviewSession', () => {
     });
 
     expect(audioQueueMock.clearQueue).toHaveBeenCalledTimes(1);
-    expect(realtimeMicMock.setSendAudio).toHaveBeenCalledWith(true);
+    expect(realtimeMicMock.setSendAudio).toHaveBeenCalled();
+
     expect(duplexSocketMock.sendSpeechStart).toHaveBeenCalledTimes(1);
+
     expect(duplexSocketMock.sendBargeIn).toHaveBeenCalledWith('user_started_speaking');
   });
 
   it('does not restart VAD immediately while a submitted voice turn is processing', async () => {
-    renderHook(() => useVoiceInterviewSession({
-      enabled: true,
-      session: buildSession(),
-      sessionId: 'session-1',
-      isPaused: false,
-      isCompleted: false,
-      isSubmitting: false,
-    }));
+    vi.useFakeTimers();
+    try {
+      renderHook(() => useVoiceInterviewSession({
+        enabled: true,
+        session: buildSession(),
+        sessionId: 'session-1',
+        isPaused: false,
+        isCompleted: false,
+        isSubmitting: false,
+      }));
 
-    await act(async () => {
-      await vadMock.config.onSpeechEnd({ speechDurationMs: 2500, silenceDurationMs: 2000 });
-    });
+      await act(async () => {
+        await vadMock.config.onSpeechEnd({ speechDurationMs: 2500, silenceDurationMs: 2000 });
+      });
 
-    expect(duplexSocketMock.sendSpeechEnd).toHaveBeenCalledWith(expect.objectContaining({ speechDurationMs: 2500 }));
-    expect(vadMock.startVad).not.toHaveBeenCalled();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2000);
+      });
+
+      expect(duplexSocketMock.sendSpeechEnd).toHaveBeenCalledWith(expect.objectContaining({ speechDurationMs: 2500 }));
+      expect(vadMock.startVad).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

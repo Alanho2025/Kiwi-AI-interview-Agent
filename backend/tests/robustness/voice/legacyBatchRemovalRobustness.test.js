@@ -11,7 +11,7 @@ const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), 'u
 describe('legacy batch voice removal robustness', () => {
   it('keeps removed batch WAV upload flow out of official routes and source files', () => {
     const routeSource = read('src/api/routes/interviewRoutes.js');
-    const controllerSource = read('src/controllers/interviewController.js');
+    const controllerSource = read('src/controllers/interviewTurnController.js');
 
     expect(routeSource).not.toMatch(/voice-reply|voiceUploadMiddleware|replyInterviewWithVoice\b/);
     expect(controllerSource).not.toMatch(/replyInterviewWithVoice\b/);

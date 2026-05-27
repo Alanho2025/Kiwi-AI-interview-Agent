@@ -1,10 +1,13 @@
 import { createRealtimeSpeechSession } from './realtimeSpeechSessionService.js';
 import { createElevenLabsRealtimeSpeechSession } from './elevenLabsRealtimeSpeechSessionService.js';
-
+import { createTestRealtimeSpeechSession } from './testRealtimeSpeechSessionService.js';
 const providerFactories = {
   azure: createRealtimeSpeechSession,
   elevenlabs: createElevenLabsRealtimeSpeechSession,
   elevenlabs_realtime: createElevenLabsRealtimeSpeechSession,
+  test: createTestRealtimeSpeechSession,
+  test_realtime: createTestRealtimeSpeechSession,
+  test_realtime_stt: createTestRealtimeSpeechSession,
 };
 
 const normalizeProviderName = (value) => String(value || '').trim().toLowerCase().replace(/-/g, '_');

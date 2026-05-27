@@ -28,6 +28,8 @@ import { evaluateInterviewTurn, persistEvaluatorRecord } from './aiControl/inter
 import { buildTrajectoryStep, persistTrajectoryStep } from './aiControl/trajectoryService.js';
 import { executeReportAction } from './aiControl/reportActionExecutor.js';
 import { buildEvidenceBundle } from './aiControl/evidenceBundleService.js';
+import { logger } from '../utils/logger.js';
+import voiceOptimizationConfig from '../config/voiceOptimizationConfig.js';
 import { resolveFastAnswerUnderstanding } from './aiControl/fastAnswerUnderstandingService.js';
 import { recordAgentTraceEvent } from './aiControl/agentTraceService.js';
 import { persistDynamicSlotState } from './aiControl/dynamicSlotService.js';
@@ -153,17 +155,74 @@ const runInterviewController = async ({ session, payload = {}, onSentence = null
     };
   }
 
-  await measureAdaptiveStep(trace, 'adaptive.indexing_check', () => ensureSessionArtifactsIndexed(session.id));
-  const initialRetrievalBundle = await measureAdaptiveStep(trace, 'adaptive.retrieval', () => agentRegistry.retrieval(
-    buildInterviewRetrievalInput({ session, payload, objective: 'bootstrap_interview_context' })
-  ));
+  const isVoiceMode = ['duplex_voice', 'realtime_voice'].includes(payload.inputMode);
+  const clientTurnId = payload.clientTurnId || null;
+  
+  // Check if optimizations are enabled for this session
+  const optimizationsEnabled = isVoiceMode && voiceOptimizationConfig.isEnabledForSession(session.id);
+  
+  // Try to get warm context for voice mode
+  let warmContext = null;
+  if (optimizationsEnabled && clientTurnId && voiceOptimizationConfig.warmContextEnabled) {
+    const warmContextService = (await import('./voice/voiceTurnWarmContextService.js')).default;
+    warmContext = await warmContextService.getWarmContext({
+      sessionId: session.id,
+      questionId: payload.currentQuestionId || session.interviewPlan?.questions?.[session.currentQuestionIndex]?.id,
+      clientTurnId,
+      currentQuestionIndex: session.currentQuestionIndex,
+      sessionStatus: session.status,
+    });
+    
+    if (warmContext) {
+      trace?.mark?.('adaptive.warm_context_hit', {
+        cacheAge: warmContext.metadata?.cacheAge,
+        preparationDuration: warmContext.metadata?.preparationDuration,
+      });
+    } else {
+      trace?.mark?.('adaptive.warm_context_miss', { clientTurnId });
+    }
+  }
 
-  const baseEnvironment = await measureAdaptiveStep(trace, 'adaptive.environment_build', () => buildInterviewEnvironment({ session, retrievalBundle: initialRetrievalBundle }));
-  const latestAnswerUnderstanding = await measureAdaptiveStep(trace, 'adaptive.fast_answer_understanding', () => resolveFastAnswerUnderstanding({
-    session,
-    environment: baseEnvironment,
-    answerText: payload.answer || baseEnvironment.latestAnswer?.text || '',
-  }));
+  let initialRetrievalBundle, baseEnvironment;
+  
+  if (warmContext) {
+    // Use pre-warmed context (saves ~1.3s)
+    initialRetrievalBundle = warmContext.retrievalBundle;
+    baseEnvironment = warmContext.baseEnvironment;
+    trace?.mark?.('adaptive.used_warm_context', {
+      savedIndexing: true,
+      savedRetrieval: true,
+      savedEnvironment: true,
+    });
+  } else {
+    // Fall back to original flow
+    await measureAdaptiveStep(trace, 'adaptive.indexing_check', () => ensureSessionArtifactsIndexed(session.id));
+    initialRetrievalBundle = await measureAdaptiveStep(trace, 'adaptive.retrieval', () => agentRegistry.retrieval(
+      buildInterviewRetrievalInput({ session, payload, objective: 'bootstrap_interview_context' })
+    ));
+    baseEnvironment = await measureAdaptiveStep(trace, 'adaptive.environment_build', () => buildInterviewEnvironment({ session, retrievalBundle: initialRetrievalBundle }));
+  }
+  let latestAnswerUnderstanding;
+  if (optimizationsEnabled && voiceOptimizationConfig.isFastPathEnabled()) {
+    // Voice mode: use local fast understanding only (saves ~2.9s)
+    const { extractFastAnswerUnderstanding } = await import('./aiControl/fastAnswerUnderstandingService.js');
+    latestAnswerUnderstanding = extractFastAnswerUnderstanding({
+      session,
+      environment: baseEnvironment,
+      answerText: payload.answer || baseEnvironment.latestAnswer?.text || '',
+    });
+    trace?.mark?.('adaptive.voice_fast_path_understanding', {
+      source: 'local_js',
+      technologiesCount: latestAnswerUnderstanding.technologies?.length || 0,
+    });
+  } else {
+    // Text mode: use full semantic understanding
+    latestAnswerUnderstanding = await measureAdaptiveStep(trace, 'adaptive.fast_answer_understanding', () => resolveFastAnswerUnderstanding({
+      session,
+      environment: baseEnvironment,
+      answerText: payload.answer || baseEnvironment.latestAnswer?.text || '',
+    }));
+  }
   const environment = {
     ...baseEnvironment,
     latestAnswerUnderstanding,
@@ -171,7 +230,13 @@ const runInterviewController = async ({ session, payload = {}, onSentence = null
   const evaluatorOutput = await measureAdaptiveStep(trace, 'adaptive.turn_evaluation', () => evaluateInterviewTurn({ environment }));
   enqueueBackgroundJob('persist-evaluator-record', () => persistEvaluatorRecord({ sessionId: session.id, evaluation: evaluatorOutput }), { sessionId: session.id });
 
-  const evidenceBundle = await measureAdaptiveStep(trace, 'adaptive.evidence_bundle', () => buildEvidenceBundle({ session, retrievalBundle: initialRetrievalBundle }));
+  let evidenceBundle;
+  if (warmContext) {
+    evidenceBundle = warmContext.evidenceBundle;
+    trace?.mark?.('adaptive.used_warm_evidence_bundle');
+  } else {
+    evidenceBundle = await measureAdaptiveStep(trace, 'adaptive.evidence_bundle', () => buildEvidenceBundle({ session, retrievalBundle: initialRetrievalBundle }));
+  }
   const decisionContext = await measureAdaptiveStep(trace, 'adaptive.decision_context', () => buildDecisionContext({
     taskType: 'interview_next_turn',
     session,
@@ -213,14 +278,84 @@ decisionType: AGENT_DECISION_TYPES.BUILD_CONTEXT,
   }, { sessionId: session.id });
 
   const fallbackPlan = await measureAdaptiveStep(trace, 'adaptive.action_selection', () => selectNextAction(decisionContext));
-  const plan = await measureAdaptiveStep(trace, 'adaptive.model_action_selection', () => selectActionWithModel({
-    decisionContext,
-    evaluatorOutput,
-    latestAnswerUnderstanding,
-    candidateActions: fallbackPlan.candidateActions,
-    fallbackPlan,
-    sessionSettings: session.settings || {},
-  }));
+  
+  let plan;
+  if (optimizationsEnabled && voiceOptimizationConfig.isFastPathEnabled()) {
+    // Voice mode: use rule-based selection (fast, saves ~1.9s)
+    plan = fallbackPlan;
+    trace?.mark?.('adaptive.voice_fast_path_action_selection', {
+      selectedAction: plan.selectedAction,
+      source: 'rule_based',
+    });
+  } else {
+    // Text mode: use model-based selection (high quality)
+    plan = await measureAdaptiveStep(trace, 'adaptive.model_action_selection', () => selectActionWithModel({
+      decisionContext,
+      evaluatorOutput,
+      latestAnswerUnderstanding,
+      candidateActions: fallbackPlan.candidateActions,
+      fallbackPlan,
+      sessionSettings: session.settings || {},
+    }));
+  }
+  
+  // For voice mode, schedule background quality path
+  if (optimizationsEnabled && voiceOptimizationConfig.isBackgroundQualityEnabled()) {
+    enqueueBackgroundJob('voice-turn-quality-path', async () => {
+      try {
+        // Run semantic understanding in background
+        const semanticUnderstanding = await resolveFastAnswerUnderstanding({
+          session,
+          environment: baseEnvironment,
+          answerText: payload.answer || baseEnvironment.latestAnswer?.text || '',
+        });
+        
+        // Run model action selection in background
+        const modelPlan = await selectActionWithModel({
+          decisionContext,
+          evaluatorOutput,
+          latestAnswerUnderstanding: semanticUnderstanding,
+          candidateActions: fallbackPlan.candidateActions,
+          fallbackPlan,
+          sessionSettings: session.settings || {},
+        });
+        
+        // Update agent memory with semantic understanding
+        await updateAgentMemory({
+          sessionId: session.id,
+          questionId: payload.currentQuestionId,
+          answer: payload.answer,
+          understanding: semanticUnderstanding,
+          modelPlan,
+        });
+        
+        // Record background quality completion
+        await recordAgentTraceEvent({
+          sessionId: session.id,
+          eventType: 'voice_background_quality_completed',
+          mode: 'duplex_voice',
+          payload: {
+            clientTurnId,
+            semanticUnderstanding: {
+              technologies: semanticUnderstanding.technologies?.length || 0,
+              ownershipSignals: semanticUnderstanding.ownershipSignals?.length || 0,
+            },
+            modelPlan: {
+              selectedAction: modelPlan.selectedAction,
+              confidence: modelPlan.confidence,
+            },
+          },
+        });
+      } catch (error) {
+        logger.error('Voice background quality path failed', {
+          sessionId: session.id,
+          clientTurnId,
+          error: error.message,
+        });
+      }
+    }, { sessionId: session.id, priority: 'low' });
+  }
+  
   enqueueBackgroundJob('persist-action-selection-record', () => createDecisionRecord({
     sessionId: session.id,
     record: {

@@ -190,6 +190,8 @@ const installApiMocks = async (page) => {
 const installBrowserVoiceMocks = async (context) => {
   await context.addInitScript(({ sessionId, userAnswer, followUp }) => {
     const NativeWebSocket = window.WebSocket;
+    const NativeAudioContext = window.AudioContext || window.webkitAudioContext;
+
     window.__kiwiVoiceE2E = {
       events: [],
       wsSent: [],
@@ -197,8 +199,47 @@ const installBrowserVoiceMocks = async (context) => {
       turnDoneMs: null,
       sessionReady: false,
       assistantPromptSeen: false,
+      speechEndReceived: false,
       turnDone: false,
+      vadSimStart: null,
     };
+
+    // Override AudioContext to capture when VAD starts monitoring
+    window.AudioContext = window.webkitAudioContext = function AudioContextMock(...args) {
+      const ctx = new NativeAudioContext(...args);
+      window.__kiwiVoiceE2E.events.push({ type: 'audio_context_created', at: performance.now() });
+      window.__kiwiVoiceE2E.vadSimStart = performance.now();
+      
+      const originalResume = ctx.resume;
+      ctx.resume = function resumeMock() {
+        window.__kiwiVoiceE2E.vadSimStart = performance.now();
+        return originalResume.apply(this, arguments);
+      };
+      return ctx;
+    };
+
+    // Override AnalyserNode.prototype.getByteTimeDomainData to simulate speech and silence
+    if (window.AnalyserNode?.prototype) {
+      window.AnalyserNode.prototype.getByteTimeDomainData = function getByteTimeDomainDataMock(array) {
+        if (!window.__kiwiVoiceE2E.vadSimStart) {
+          array.fill(128);
+          return;
+        }
+        const elapsed = performance.now() - window.__kiwiVoiceE2E.vadSimStart;
+        if (elapsed < 1500) {
+          // 0.0s to 1.5s: Silence
+          array.fill(128);
+        } else if (elapsed < 5000) {
+          // 1.5s to 5.0s: Speech (alternating values to produce RMS > 0.05)
+          for (let i = 0; i < array.length; i++) {
+            array[i] = i % 2 === 0 ? 116 : 140;
+          }
+        } else {
+          // 5.0s onwards: Silence again to trigger speech_end
+          array.fill(128);
+        }
+      };
+    }
 
     if (window.HTMLMediaElement?.prototype) {
       const originalPause = window.HTMLMediaElement.prototype.pause;
@@ -292,10 +333,44 @@ const installBrowserVoiceMocks = async (context) => {
           window.__kiwiVoiceE2E.assistantPromptSeen = true;
           this.dispatchServer({ type: 'assistant_text_delta', text: payload.text, index: payload.index || 0, timestamp: new Date().toISOString() }, 20);
           this.dispatchServer({ type: 'tts_audio_chunk', base64: 'AAAA', contentType: 'audio/mpeg', index: 0, timestamp: new Date().toISOString() }, 45);
-          window.setTimeout(() => {
-            window.__kiwiVoiceE2E.assistantFirstAudioMs = Math.round(performance.now() - this.createdAt);
-          }, 45);
           this.dispatchServer({ type: 'assistant_speech_done', timestamp: new Date().toISOString() }, 80);
+          return;
+        }
+
+        if (payload.type === 'speech_start') {
+          // Registered client speech start
+          return;
+        }
+
+        if (payload.type === 'speech_end') {
+          const speechEndAt = performance.now();
+          window.__kiwiVoiceE2E.speechEndReceived = true;
+
+          // Dispatch AI responses dynamically after user finished speaking (duplex turn)
+          this.dispatchServer({
+            type: 'assistant_text_delta',
+            text: followUp,
+            index: 0,
+            timestamp: new Date().toISOString()
+          }, 100);
+
+          this.dispatchServer({
+            type: 'tts_audio_chunk',
+            base64: 'AAAA',
+            contentType: 'audio/mpeg',
+            index: 0,
+            timestamp: new Date().toISOString()
+          }, 150);
+
+          window.setTimeout(() => {
+            window.__kiwiVoiceE2E.assistantFirstAudioMs = Math.round(performance.now() - speechEndAt);
+          }, 150);
+
+          this.dispatchServer({
+            type: 'assistant_speech_done',
+            timestamp: new Date().toISOString()
+          }, 200);
+
           this.dispatchServer({
             type: 'stt_final',
             displayText: userAnswer,
@@ -304,7 +379,8 @@ const installBrowserVoiceMocks = async (context) => {
             confidence: 0.91,
             provider: 'mock_playwright',
             timestamp: new Date().toISOString(),
-          }, 140);
+          }, 250);
+
           this.dispatchServer({
             type: 'turn_done',
             transcription: { text: userAnswer, displayText: userAnswer, confidence: 0.91, asrSource: 'mock_playwright' },
@@ -320,11 +396,12 @@ const installBrowserVoiceMocks = async (context) => {
               ],
             },
             timestamp: new Date().toISOString(),
-          }, 190);
+          }, 300);
+
           window.setTimeout(() => {
             window.__kiwiVoiceE2E.turnDone = true;
-            window.__kiwiVoiceE2E.turnDoneMs = Math.round(performance.now() - this.createdAt);
-          }, 190);
+            window.__kiwiVoiceE2E.turnDoneMs = Math.round(performance.now() - speechEndAt);
+          }, 300);
           return;
         }
 
@@ -370,7 +447,7 @@ const run = async () => {
     page.on('pageerror', (error) => errors.push(`[pageerror] ${error.message}`));
     page.on('console', (message) => {
       const text = message.text();
-      if (text.includes('[voice-latency] target') || text.includes('[voice-latency:debug]')) latencyConsoleMessages.push(text);
+      if (text.includes('[voice-latency]') || text.includes('[voice-latency:debug]')) latencyConsoleMessages.push(text);
       if (message.type() === 'error') errors.push(`[browser error] ${text}`);
     });
     page.on('response', (response) => {
@@ -385,7 +462,8 @@ const run = async () => {
 
     await page.waitForFunction(() => window.__kiwiVoiceE2E?.sessionReady === true, null, { timeout: 10000 });
     await page.waitForFunction(() => window.__kiwiVoiceE2E?.assistantPromptSeen === true, null, { timeout: 10000 });
-    await page.waitForFunction(() => window.__kiwiVoiceE2E?.turnDone === true, null, { timeout: 10000 });
+    await page.waitForFunction(() => window.__kiwiVoiceE2E?.speechEndReceived === true, null, { timeout: 25000 });
+    await page.waitForFunction(() => window.__kiwiVoiceE2E?.turnDone === true, null, { timeout: 15000 });
 
     await page.getByText(FOLLOW_UP).first().waitFor({ timeout: 10000 });
 
@@ -410,14 +488,19 @@ const run = async () => {
     if (!latencyConsoleMessages.length) {
       throw new Error('Expected frontend voice latency summary console output to be recorded.');
     }
-    if (!result.sentMessageTypes.includes('session_start') || !result.sentMessageTypes.includes('speak_text')) {
-      throw new Error(`Expected voice WebSocket session_start and speak_text, got ${result.sentMessageTypes.join(', ')}`);
+    if (!result.sentMessageTypes.includes('session_start') ||
+        !result.sentMessageTypes.includes('speak_text') ||
+        !result.sentMessageTypes.includes('speech_start') ||
+        !result.sentMessageTypes.includes('speech_end')) {
+      throw new Error(`Expected voice WebSocket session_start, speak_text, speech_start, and speech_end, got ${result.sentMessageTypes.join(', ')}`);
     }
 
     const requiredCalls = ['GET /api/auth/me', `GET /api/session/${SESSION_ID}`, 'POST /api/interview/warm-adaptive'];
     const callSet = new Set(apiCalls.map((item) => `${item.method} ${item.path}`));
     const missing = requiredCalls.filter((item) => !callSet.has(item));
     if (missing.length) throw new Error(`Voice latency flow missed expected API calls: ${missing.join(', ')}`);
+
+    console.log("Recorded Voice Latency Console Messages:\n" + latencyConsoleMessages.join("\n"));
 
     console.log(JSON.stringify({
       passed: true,

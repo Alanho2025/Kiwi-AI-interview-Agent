@@ -12,6 +12,9 @@ export const MICROPHONE_AUDIO_CONSTRAINTS = {
   echoCancellation: true,
   noiseSuppression: true,
   autoGainControl: true,
+  channelCount: 1,
+  sampleRate: 16000,
+  sampleSize: 16,
 };
 
 export function useMicrophonePermission() {

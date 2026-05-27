@@ -96,6 +96,8 @@ export const createDuplexVoiceAgentSession = ({
   let audioChunksWritten = 0;
   let audioChunksDropped = 0;
   let audioBytesWritten = 0;
+  let currentClientTurnId = null;
+  let lastFinalizedClientTurnId = null;
 
   const sendReady = () => sendJson({
     type: 'session_ready',
@@ -115,7 +117,7 @@ export const createDuplexVoiceAgentSession = ({
   let speechCaptureSequence = 0;
   let activeSpeechCaptureId = 0;
 
-  const processFinalTranscript = async ({ transcriptText, asrConfidence, asrSource, vad }) => {
+  const processFinalTranscript = async ({ transcriptText, asrConfidence, asrSource, vad, clientTurnId }) => {
     const turnCoordinator = createDuplexTurnCoordinator({
       session: activeSession,
       userId,
@@ -125,6 +127,7 @@ export const createDuplexVoiceAgentSession = ({
       sendJson,
       bargeInController,
       logger,
+      clientTurnId,
     });
     const result = await turnCoordinator.processFinalTranscript({
       transcriptText,
@@ -302,16 +305,18 @@ export const createDuplexVoiceAgentSession = ({
     }
   };
 
-  const finalizeCapturedSpeech = async ({ vad = null, reason = 'speech_end' } = {}) => {
+  const finalizeCapturedSpeech = async ({ vad = null, reason = 'speech_end', clientTurnId = currentClientTurnId } = {}) => {
     if (!isCapturingSpeech) {
       logger?.warn?.('Ignoring duplex speech finalization with no active speech capture', {
         sessionId: activeSession?.id || session?.id,
         provider: activeSttProviderName,
         reason,
+        clientTurnId,
       });
       return false;
     }
 
+    const processingClientTurnId = clientTurnId || currentClientTurnId;
     context.lastVad = { ...(vad || {}), stopReason: reason };
     isCapturingSpeech = false;
     let speechStopError = null;
@@ -325,6 +330,7 @@ export const createDuplexVoiceAgentSession = ({
         totalAudioMs: estimatePcmDurationMs({ bytes: audioBytesWritten, sampleRate }),
         provider: activeSttProviderName,
         reason,
+        clientTurnId: processingClientTurnId,
       });
       await withTimeout(
         stopSpeechSession(),
@@ -338,6 +344,7 @@ export const createDuplexVoiceAgentSession = ({
         sttProvider: activeSttProviderName,
         error: error?.message || String(error),
         reason,
+        clientTurnId: processingClientTurnId,
       });
     }
 
@@ -355,6 +362,7 @@ export const createDuplexVoiceAgentSession = ({
         transcriptText,
         asrConfidence: averageConfidence(segmentsToProcess),
         asrSource,
+        clientTurnId: processingClientTurnId,
         vad: {
           ...(context.lastVad || {}),
           sttSegmentCount: segmentsToProcess.length,
@@ -380,6 +388,10 @@ export const createDuplexVoiceAgentSession = ({
       return false;
     } finally {
       isProcessingBufferedTurn = false;
+      if (!processingClientTurnId || currentClientTurnId === processingClientTurnId) {
+        lastFinalizedClientTurnId = processingClientTurnId;
+        currentClientTurnId = null;
+      }
     }
   };
 
@@ -391,12 +403,21 @@ export const createDuplexVoiceAgentSession = ({
       }
 
       if (payload.type === 'speech_start') {
+        const incomingClientTurnId = String(payload.clientTurnId || '').trim();
+        if (!incomingClientTurnId) {
+          logger?.warn?.('Ignoring speech_start without clientTurnId', {
+            sessionId: activeSession?.id || session?.id,
+          });
+          return;
+        }
         if (isCapturingSpeech) {
           logger?.warn?.('Ignoring duplicate duplex speech_start while already capturing', {
             sessionId: activeSession?.id || session?.id,
             provider: activeSttProviderName,
             pendingAudioChunks: pendingAudioChunks.length,
             audioChunksWritten,
+            expected: currentClientTurnId,
+            received: incomingClientTurnId,
           });
           return;
         }
@@ -404,14 +425,21 @@ export const createDuplexVoiceAgentSession = ({
           logger?.warn?.('Ignoring duplex speech_start while previous turn is processing', {
             sessionId: activeSession?.id || session?.id,
             provider: activeSttProviderName,
+            received: incomingClientTurnId,
           });
           return;
         }
+        currentClientTurnId = incomingClientTurnId;
         isCapturingSpeech = true;
+        logger?.info?.('Duplex speech_start received', {
+          sessionId: activeSession?.id || session?.id,
+          clientTurnId: currentClientTurnId,
+        });
         await restartSpeechSessionForNewTurn();
         sendJson({
           type: 'listening_started',
           tool: AGENT_TOOL_NAMES.ORCHESTRATE_DUPLEX_VOICE,
+          clientTurnId: currentClientTurnId,
           timestamp: new Date().toISOString(),
         });
         return;
@@ -423,7 +451,46 @@ export const createDuplexVoiceAgentSession = ({
       }
 
       if (payload.type === 'speech_end') {
-        await finalizeCapturedSpeech({ vad: payload.vad || null, reason: payload.reason || 'speech_end' });
+        const incomingClientTurnId = String(payload.clientTurnId || currentClientTurnId || '').trim();
+        if (!incomingClientTurnId) {
+          logger?.warn?.('Ignoring speech_end without clientTurnId', {
+            sessionId: activeSession?.id || session?.id,
+            expected: currentClientTurnId,
+          });
+          return;
+        }
+        if (!currentClientTurnId) {
+          if (incomingClientTurnId === lastFinalizedClientTurnId) {
+            logger?.info?.('Ignoring duplicate or late speech_end for already finalized turn', {
+              sessionId: activeSession?.id || session?.id,
+              clientTurnId: incomingClientTurnId,
+            });
+            return;
+          }
+          logger?.warn?.('Ignoring speech_end with no active client turn', {
+            sessionId: activeSession?.id || session?.id,
+            expected: null,
+            received: incomingClientTurnId,
+          });
+          return;
+        }
+        if (incomingClientTurnId !== currentClientTurnId) {
+          logger?.warn?.('Ignoring speech_end with mismatched clientTurnId', {
+            sessionId: activeSession?.id || session?.id,
+            expected: currentClientTurnId,
+            received: incomingClientTurnId,
+          });
+          return;
+        }
+        logger?.info?.('Duplex speech_end received', {
+          sessionId: activeSession?.id || session?.id,
+          clientTurnId: incomingClientTurnId,
+        });
+        await finalizeCapturedSpeech({
+          vad: payload.vad || null,
+          reason: payload.reason || 'speech_end',
+          clientTurnId: incomingClientTurnId,
+        });
         return;
       }
 
@@ -475,7 +542,11 @@ export const createDuplexVoiceAgentSession = ({
 
       if (payload.type === 'session_stop' || payload.type === 'stop') {
         if (isCapturingSpeech) {
-          await finalizeCapturedSpeech({ vad: payload.vad || null, reason: payload.type || 'session_stop' });
+          await finalizeCapturedSpeech({
+            vad: payload.vad || null,
+            reason: payload.type || 'session_stop',
+            clientTurnId: currentClientTurnId,
+          });
         } else {
           pendingAudioChunks = [];
           await stopSpeechSession();
@@ -507,7 +578,7 @@ export const createDuplexVoiceAgentSession = ({
 
   const close = async () => {
     if (isCapturingSpeech) {
-      await finalizeCapturedSpeech({ reason: 'socket_close' });
+      await finalizeCapturedSpeech({ reason: 'socket_close', clientTurnId: currentClientTurnId });
       return;
     }
     pendingAudioChunks = [];

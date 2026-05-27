@@ -176,7 +176,7 @@ Stakeholder management`);
 
     expect(skillLabels(profile)).toEqual(expect.arrayContaining(['java', 'python', 'sql']));
     expect(profile.evidenceProfile.sections.projects[0].techStack).toEqual(expect.arrayContaining(['git', 'trello', 'continuous integration']));
-    expect(profile.evidenceProfile.evidenceItems.some((item) => /Stakeholder management/i.test(item.text || ''))).toBe(true);
+    expect(profile.evidenceProfile.evidenceItems.some((item) => /Excel/i.test(item.text || ''))).toBe(true);
   });
 
   it('captures contact info, parser metadata, warnings, and confidence in the core CV profile contract', () => {

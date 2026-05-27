@@ -275,6 +275,6 @@ export const generateReportPDF = async (reportData) => {
     return true;
   } catch (error) {
     console.error('PDF generation failed:', error);
-    throw new Error('Failed to generate PDF. Please try again.');
+    throw new Error('Failed to generate PDF. Please try again.', { cause: error });
   }
 };
