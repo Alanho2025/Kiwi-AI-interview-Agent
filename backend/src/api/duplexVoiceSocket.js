@@ -63,6 +63,38 @@ export async function loadDuplexVoiceDependencies() {
   };
 }
 
+const createSocketMessageQueue = ({ socket, context, duplexSessionRef, safeSend }) => {
+  let queue = Promise.resolve();
+
+  const processMessage = async (message, isBinary) => {
+    if (isBinary) {
+      await duplexSessionRef.current?.handleBinaryAudio?.(message);
+      return;
+    }
+
+    const payload = safeJsonParse(String(message));
+    if (!payload) return;
+    await duplexSessionRef.current?.handleJsonMessage?.(payload);
+  };
+
+  socket.on('message', (message, isBinary) => {
+    queue = queue
+      .then(() => processMessage(message, isBinary))
+      .catch((error) => {
+        logger.error('Duplex voice socket message failed', { error, sessionId: context.sessionId });
+        safeSend({
+          type: 'error',
+          code: 'DUPLEX_MESSAGE_FAILED',
+          message: error?.message || 'Duplex voice message failed.',
+        });
+      });
+  });
+
+  return {
+    drain: () => queue.catch(() => undefined),
+  };
+};
+
 export function attachDuplexVoiceSocketServer(server, dependencies = {}) {
   const wss = new WebSocketServer({ noServer: true });
   const allowUpgrade = createWebSocketUpgradeLimiter({ windowMs: 60 * 1000, max: 30 });
@@ -90,8 +122,9 @@ export function attachDuplexVoiceSocketServer(server, dependencies = {}) {
       logger.error('Duplex WebSocket connection error', { sessionId: socket.kiwiSessionId, error: error.message, stack: error.stack });
     });
 
-    let duplexSession = null;
+    const duplexSessionRef = { current: null };
     const safeSend = (payload) => sendJson(socket, payload);
+    const messageQueue = createSocketMessageQueue({ socket, context, duplexSessionRef, safeSend });
 
     try {
       const userId = context.auth?.id;
@@ -111,7 +144,7 @@ export function attachDuplexVoiceSocketServer(server, dependencies = {}) {
 
       const session = await loadOwnedSessionOrThrow({ sessionId: context.sessionId, userId });
       ensureInterviewInProgress(session);
-      duplexSession = createDuplexVoiceAgentSession({
+      duplexSessionRef.current = createDuplexVoiceAgentSession({
         socket,
         context,
         session,
@@ -126,28 +159,15 @@ export function attachDuplexVoiceSocketServer(server, dependencies = {}) {
       return;
     }
 
-    socket.on('message', async (message, isBinary) => {
-      try {
-        if (isBinary) {
-          await duplexSession?.handleBinaryAudio?.(message);
-          return;
-        }
-        const payload = safeJsonParse(String(message));
-        if (!payload) return;
-        await duplexSession?.handleJsonMessage?.(payload);
-      } catch (error) {
-        logger.error('Duplex voice socket message failed', { error, sessionId: context.sessionId });
-        safeSend({ type: 'error', code: 'DUPLEX_MESSAGE_FAILED', message: error?.message || 'Duplex voice message failed.' });
-      }
-    });
-
     socket.on('close', async () => {
-      await duplexSession?.close?.();
+      await messageQueue.drain();
+      await duplexSessionRef.current?.close?.();
     });
 
     socket.on('error', async (error) => {
       logger.error('Duplex voice socket error', { error, sessionId: context.sessionId });
-      await duplexSession?.close?.();
+      await messageQueue.drain();
+      await duplexSessionRef.current?.close?.();
     });
   });
 

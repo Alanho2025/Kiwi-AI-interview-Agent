@@ -77,6 +77,75 @@ describe('duplex voice buffered turn handling', () => {
     expect(sent.some((payload) => payload.type === 'stt_final')).toBe(true);
   });
 
+  it('writes realtime audio chunks during active capture instead of waiting for speech_end', async () => {
+    const sent = [];
+    const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
+    const duplexSession = createDuplexVoiceAgentSession({
+      socket: {},
+      context: { language: 'en-NZ', sampleRate: 16000 },
+      session: { id: 'session-1' },
+      userId: 'user-1',
+      logger,
+      sendJson: (payload) => sent.push(payload),
+    });
+
+    const chunk = Buffer.alloc(3200);
+    await duplexSession.handleJsonMessage({ type: 'speech_start' });
+    await duplexSession.handleBinaryAudio(chunk);
+
+    expect(realtimeState.session.writeAudio).toHaveBeenCalledTimes(1);
+    expect(realtimeState.session.writeAudio).toHaveBeenCalledWith(chunk);
+    expect(processFinalTranscriptMock).not.toHaveBeenCalled();
+
+    realtimeState.config.onPartialTranscript({ text: 'I built an interview agent', provider: 'azure' });
+    await duplexSession.handleJsonMessage({ type: 'speech_end', vad: { speechDurationMs: 1600 } });
+
+    expect(processFinalTranscriptMock).toHaveBeenCalledWith(expect.objectContaining({
+      transcriptText: 'I built an interview agent',
+      vad: expect.objectContaining({
+        audioChunksWritten: 1,
+        audioMsWritten: 100,
+        sttSource: 'partial_fallback',
+      }),
+    }));
+    expect(logger.info).toHaveBeenCalledWith('Duplex realtime audio chunk written', expect.objectContaining({
+      bytes: 3200,
+      estimatedDurationMs: 100,
+      encoding: 'pcm_s16le',
+    }));
+  });
+
+  it('finalizes an active long answer before session_stop closes the STT stream', async () => {
+    const sent = [];
+    const duplexSession = createDuplexVoiceAgentSession({
+      socket: {},
+      context: { language: 'en-NZ', sampleRate: 16000 },
+      session: { id: 'session-1' },
+      userId: 'user-1',
+      logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+      sendJson: (payload) => sent.push(payload),
+    });
+
+    await duplexSession.handleJsonMessage({ type: 'speech_start' });
+    realtimeState.config.onFinalTranscript({ displayText: 'First STAR point', confidence: 0.88 });
+    realtimeState.config.onFinalTranscript({ displayText: 'second STAR point', confidence: 0.82 });
+
+    await duplexSession.handleJsonMessage({ type: 'session_stop', vad: { speechDurationMs: 91000 } });
+
+    expect(processFinalTranscriptMock).toHaveBeenCalledTimes(1);
+    expect(processFinalTranscriptMock).toHaveBeenCalledWith(expect.objectContaining({
+      transcriptText: 'First STAR point second STAR point',
+      asrConfidence: expect.closeTo(0.85, 5),
+      vad: expect.objectContaining({
+        speechDurationMs: 91000,
+        stopReason: 'session_stop',
+        sttSegmentCount: 2,
+        sttSource: 'final_segments',
+      }),
+    }));
+    expect(sent.some((payload) => payload.type === 'session_stopped')).toBe(true);
+  });
+
   it('still hands the turn to transcript repair when STT stop fails before a final segment', async () => {
     const sent = [];
     realtimeState.stopFail = true;

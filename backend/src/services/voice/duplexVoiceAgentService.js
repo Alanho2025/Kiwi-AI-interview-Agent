@@ -15,6 +15,9 @@ import { AGENT_TOOL_NAMES } from '../../constants/agentToolNames.js';
 
 const DEFAULT_SPEECH_STOP_TIMEOUT_MS = 2500;
 const MAX_PENDING_AUDIO_CHUNKS = 1200;
+const PCM_BYTES_PER_SAMPLE = 2;
+const PCM_CHANNELS = 1;
+const AUDIO_CONTRACT_TRACE_EVERY = 25;
 
 const parsePositiveInteger = (value, fallback) => {
   const parsed = Number.parseInt(value, 10);
@@ -47,6 +50,12 @@ const averageConfidence = (segments = []) => {
 const resolveAsrSource = ({ segments = [], providerName = null } = {}) => {
   const provider = segments.find((segment) => segment?.provider)?.provider || providerName || 'unknown_realtime';
   return String(provider).trim().toLowerCase().replace(/-/g, '_');
+};
+
+const estimatePcmDurationMs = ({ bytes = 0, sampleRate = 16000 } = {}) => {
+  const rate = Number(sampleRate) || 16000;
+  if (!bytes || !rate) return null;
+  return Math.round((bytes / (rate * PCM_CHANNELS * PCM_BYTES_PER_SAMPLE)) * 1000);
 };
 
 const withTimeout = (promise, timeoutMs, message) => new Promise((resolve, reject) => {
@@ -86,6 +95,7 @@ export const createDuplexVoiceAgentSession = ({
   let pendingAudioChunks = [];
   let audioChunksWritten = 0;
   let audioChunksDropped = 0;
+  let audioBytesWritten = 0;
 
   const sendReady = () => sendJson({
     type: 'session_ready',
@@ -93,6 +103,12 @@ export const createDuplexVoiceAgentSession = ({
     sessionId: activeSession?.id || session?.id,
     language,
     sampleRate,
+    audioContract: {
+      encoding: 'pcm_s16le',
+      sampleRate,
+      channels: PCM_CHANNELS,
+      bytesPerSample: PCM_BYTES_PER_SAMPLE,
+    },
     timestamp: new Date().toISOString(),
   });
   let activeSttProviderName = null;
@@ -210,14 +226,32 @@ export const createDuplexVoiceAgentSession = ({
     return speechSession;
   };
 
+  const writeAudioChunk = (target, chunk, source = 'live') => {
+    target.writeAudio(chunk);
+    audioChunksWritten += 1;
+    audioBytesWritten += Buffer.byteLength(chunk);
+    if (audioChunksWritten === 1 || audioChunksWritten % AUDIO_CONTRACT_TRACE_EVERY === 0) {
+      logger?.info?.('Duplex realtime audio chunk written', {
+        sessionId: activeSession?.id || session?.id,
+        provider: activeSttProviderName,
+        source,
+        chunkIndex: audioChunksWritten,
+        bytes: Buffer.byteLength(chunk),
+        estimatedDurationMs: estimatePcmDurationMs({ bytes: Buffer.byteLength(chunk), sampleRate }),
+        totalAudioMs: estimatePcmDurationMs({ bytes: audioBytesWritten, sampleRate }),
+        sampleRate,
+        encoding: 'pcm_s16le',
+      });
+    }
+  };
+
   const flushPendingAudioChunks = async () => {
     if (!pendingAudioChunks.length) return;
     const target = await startSpeechSession();
     const chunksToWrite = pendingAudioChunks;
     pendingAudioChunks = [];
     for (const chunk of chunksToWrite) {
-      target.writeAudio(chunk);
-      audioChunksWritten += 1;
+      writeAudioChunk(target, chunk, 'pending_flush');
     }
   };
 
@@ -227,6 +261,7 @@ export const createDuplexVoiceAgentSession = ({
     pendingAudioChunks = [];
     audioChunksWritten = 0;
     audioChunksDropped = 0;
+    audioBytesWritten = 0;
     ignoredPreSpeechAudioChunks = 0;
     await stopSpeechSession();
     const target = await startSpeechSession();
@@ -234,7 +269,7 @@ export const createDuplexVoiceAgentSession = ({
     return target;
   };
 
-  const queueCapturedAudio = (chunk) => {
+  const queueCapturedAudio = async (chunk) => {
     if (!isCapturingSpeech) {
       ignoredPreSpeechAudioChunks += 1;
       if (ignoredPreSpeechAudioChunks === 1) {
@@ -251,7 +286,101 @@ export const createDuplexVoiceAgentSession = ({
       audioChunksDropped += 1;
       return;
     }
+
+    if (speechSession && isSpeechSessionStarted) {
+      writeAudioChunk(speechSession, buffer, 'live');
+      return;
+    }
+
     pendingAudioChunks.push(buffer);
+    if (pendingAudioChunks.length === 1) {
+      logger?.info?.('Buffering duplex audio while realtime STT starts', {
+        sessionId: activeSession?.id || session?.id,
+        sampleRate,
+        bytes: buffer.length,
+      });
+    }
+  };
+
+  const finalizeCapturedSpeech = async ({ vad = null, reason = 'speech_end' } = {}) => {
+    if (!isCapturingSpeech) {
+      logger?.warn?.('Ignoring duplex speech finalization with no active speech capture', {
+        sessionId: activeSession?.id || session?.id,
+        provider: activeSttProviderName,
+        reason,
+      });
+      return false;
+    }
+
+    context.lastVad = { ...(vad || {}), stopReason: reason };
+    isCapturingSpeech = false;
+    let speechStopError = null;
+    try {
+      await flushPendingAudioChunks();
+      logger?.info?.('Duplex audio flushed before STT stop', {
+        sessionId: activeSession?.id || session?.id,
+        writtenChunks: audioChunksWritten,
+        droppedChunks: audioChunksDropped,
+        ignoredPreSpeechAudioChunks,
+        totalAudioMs: estimatePcmDurationMs({ bytes: audioBytesWritten, sampleRate }),
+        provider: activeSttProviderName,
+        reason,
+      });
+      await withTimeout(
+        stopSpeechSession(),
+        speechStopTimeoutMs,
+        `Timed out waiting ${speechStopTimeoutMs}ms for realtime STT stop/finalize.`
+      );
+    } catch (error) {
+      speechStopError = error;
+      logger?.warn?.('Duplex speech session stop failed; processing buffered transcript if available', {
+        sessionId: activeSession?.id || session?.id,
+        sttProvider: activeSttProviderName,
+        error: error?.message || String(error),
+        reason,
+      });
+    }
+
+    activeSpeechCaptureId = 0;
+    const partialFallback = finalTranscriptSegments.length ? null : latestPartialTranscript;
+    const segmentsToProcess = partialFallback ? [partialFallback] : finalTranscriptSegments;
+    finalTranscriptSegments = [];
+    latestPartialTranscript = null;
+    const transcriptText = mergeTranscriptSegments(segmentsToProcess);
+    const asrSource = resolveAsrSource({ segments: segmentsToProcess, providerName: activeSttProviderName });
+    if (isProcessingBufferedTurn) return true;
+    isProcessingBufferedTurn = true;
+    try {
+      await processFinalTranscript({
+        transcriptText,
+        asrConfidence: averageConfidence(segmentsToProcess),
+        asrSource,
+        vad: {
+          ...(context.lastVad || {}),
+          sttSegmentCount: segmentsToProcess.length,
+          sttSource: partialFallback ? 'partial_fallback' : 'final_segments',
+          sttProvider: activeSttProviderName,
+          sttStopError: speechStopError?.message || null,
+          usedPartialFallback: Boolean(partialFallback),
+          ignoredPreSpeechAudioChunks,
+          audioChunksWritten,
+          audioChunksDropped,
+          audioMsWritten: estimatePcmDurationMs({ bytes: audioBytesWritten, sampleRate }),
+        },
+      });
+      return true;
+    } catch (error) {
+      logger?.error?.('Duplex voice turn failed', { sessionId: activeSession?.id || session?.id, error });
+      sendJson({
+        type: 'error',
+        code: 'DUPLEX_TURN_FAILED',
+        message: error?.message || 'Could not process the duplex voice turn.',
+        timestamp: new Date().toISOString(),
+      });
+      return false;
+    } finally {
+      isProcessingBufferedTurn = false;
+    }
   };
 
   const handleJsonMessage = async (payload = {}) => {
@@ -289,80 +418,12 @@ export const createDuplexVoiceAgentSession = ({
       }
 
       if (payload.type === 'audio_chunk' && payload.audioBase64) {
-        queueCapturedAudio(Buffer.from(payload.audioBase64, 'base64'));
+        await queueCapturedAudio(Buffer.from(payload.audioBase64, 'base64'));
         return;
       }
 
       if (payload.type === 'speech_end') {
-        if (!isCapturingSpeech) {
-          logger?.warn?.('Ignoring duplex speech_end with no active speech capture', {
-            sessionId: activeSession?.id || session?.id,
-            provider: activeSttProviderName,
-          });
-          return;
-        }
-        context.lastVad = payload.vad || null;
-        isCapturingSpeech = false;
-        let speechStopError = null;
-        try {
-          await flushPendingAudioChunks();
-          logger?.info?.('Duplex audio flushed before STT stop', {
-            sessionId: activeSession?.id || session?.id,
-            writtenChunks: audioChunksWritten,
-            droppedChunks: audioChunksDropped,
-            ignoredPreSpeechAudioChunks,
-            provider: activeSttProviderName,
-          });
-          await withTimeout(
-            stopSpeechSession(),
-            speechStopTimeoutMs,
-            `Timed out waiting ${speechStopTimeoutMs}ms for realtime STT stop/finalize.`
-          );
-        } catch (error) {
-          speechStopError = error;
-          logger?.warn?.('Duplex speech session stop failed; processing buffered transcript if available', {
-            sessionId: activeSession?.id || session?.id,
-            sttProvider: activeSttProviderName,
-            error: error?.message || String(error),
-          });
-        }
-        activeSpeechCaptureId = 0;
-        const partialFallback = finalTranscriptSegments.length ? null : latestPartialTranscript;
-        const segmentsToProcess = partialFallback ? [partialFallback] : finalTranscriptSegments;
-        finalTranscriptSegments = [];
-        latestPartialTranscript = null;
-        const transcriptText = mergeTranscriptSegments(segmentsToProcess);
-        const asrSource = resolveAsrSource({ segments: segmentsToProcess, providerName: activeSttProviderName });
-        if (isProcessingBufferedTurn) return;
-        isProcessingBufferedTurn = true;
-        try {
-          await processFinalTranscript({
-            transcriptText,
-            asrConfidence: averageConfidence(segmentsToProcess),
-            asrSource,
-            vad: {
-              ...(context.lastVad || {}),
-              sttSegmentCount: segmentsToProcess.length,
-              sttSource: partialFallback ? 'partial_fallback' : 'final_segments',
-              sttProvider: activeSttProviderName,
-              sttStopError: speechStopError?.message || null,
-              usedPartialFallback: Boolean(partialFallback),
-              ignoredPreSpeechAudioChunks,
-              audioChunksWritten,
-              audioChunksDropped,
-            },
-          });
-        } catch (error) {
-          logger?.error?.('Duplex voice turn failed', { sessionId: activeSession?.id || session?.id, error });
-          sendJson({
-            type: 'error',
-            code: 'DUPLEX_TURN_FAILED',
-            message: error?.message || 'Could not process the duplex voice turn.',
-            timestamp: new Date().toISOString(),
-          });
-        } finally {
-          isProcessingBufferedTurn = false;
-        }
+        await finalizeCapturedSpeech({ vad: payload.vad || null, reason: payload.reason || 'speech_end' });
         return;
       }
 
@@ -413,9 +474,12 @@ export const createDuplexVoiceAgentSession = ({
       }
 
       if (payload.type === 'session_stop' || payload.type === 'stop') {
-        isCapturingSpeech = false;
-        pendingAudioChunks = [];
-        await stopSpeechSession();
+        if (isCapturingSpeech) {
+          await finalizeCapturedSpeech({ vad: payload.vad || null, reason: payload.type || 'session_stop' });
+        } else {
+          pendingAudioChunks = [];
+          await stopSpeechSession();
+        }
         sendJson({
           type: 'session_stopped',
           tool: AGENT_TOOL_NAMES.ORCHESTRATE_DUPLEX_VOICE,
@@ -435,14 +499,17 @@ export const createDuplexVoiceAgentSession = ({
 
   const handleBinaryAudio = async (message) => {
     try {
-      queueCapturedAudio(message);
+      await queueCapturedAudio(message);
     } catch (error) {
       logger?.error?.('Duplex voice binary audio handling failed', { sessionId: activeSession?.id || session?.id, error: error.message, stack: error.stack });
     }
   };
 
   const close = async () => {
-    isCapturingSpeech = false;
+    if (isCapturingSpeech) {
+      await finalizeCapturedSpeech({ reason: 'socket_close' });
+      return;
+    }
     pendingAudioChunks = [];
     await stopSpeechSession();
   };
