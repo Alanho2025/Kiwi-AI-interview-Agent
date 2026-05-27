@@ -8,6 +8,11 @@ import { buildSectionState, inferInterviewSection } from './sectionPlannerServic
 import { getSessionReflectionMemory } from './reflectionWriterService.js';
 import { getUserCoachingMemory } from './userCoachingMemoryService.js';
 import { buildInterviewTurnPolicy } from '../interview/interviewTurnPolicy.js';
+import {
+  buildCompactEvidenceBundle,
+  buildCompactRetrievalBundle,
+  isCompactVoiceContext,
+} from './compactInterviewContextService.js';
 
 const ensureArray = (value) => (Array.isArray(value) ? value : []);
 const normalizeText = (value = '') => String(value || '').trim();
@@ -49,7 +54,11 @@ const buildCoverageState = ({ session = {}, evidenceBundle = {} } = {}) => {
 
 export const buildDecisionContext = async ({ taskType, session = {}, retrievalBundle = null, latestEvaluation = null, latestAnswerUnderstanding = null } = {}) => {
   const latestAnswer = getLastUserAnswer(session.transcript || []);
-  const evidenceBundle = buildEvidenceBundle({ session, retrievalBundle });
+  const useCompactContext = taskType === 'interview_next_turn' && isCompactVoiceContext({ session });
+  const contextRetrievalBundle = useCompactContext ? buildCompactRetrievalBundle(retrievalBundle) : retrievalBundle;
+  const evidenceBundle = useCompactContext
+    ? buildCompactEvidenceBundle({ session, retrievalBundle: contextRetrievalBundle })
+    : buildEvidenceBundle({ session, retrievalBundle: contextRetrievalBundle });
   const [agentMemory, resolvedLatestEvaluation, storedDynamicSlotState, sessionReflectionMemory, userCoachingMemory] = await Promise.all([
     getAgentMemory(session.id),
     latestEvaluation || getLatestEvaluatorRecord(session.id),
@@ -61,7 +70,7 @@ export const buildDecisionContext = async ({ taskType, session = {}, retrievalBu
   const resolvedAnswerUnderstanding = latestAnswerUnderstanding || resolvedLatestEvaluation?.fastAnswerUnderstanding || null;
   const environment = buildInterviewEnvironment({
     session,
-    retrievalBundle,
+    retrievalBundle: contextRetrievalBundle,
     latestEvaluation: resolvedLatestEvaluation,
     latestAnswerUnderstanding: resolvedAnswerUnderstanding,
   });
@@ -158,11 +167,12 @@ export const buildDecisionContext = async ({ taskType, session = {}, retrievalBu
       validationTargets: ensureArray(evidenceBundle.matchAnalysis?.validationTargets),
     },
     retrievalState: {
-      latestQuery: retrievalBundle?.query || '',
-      latestSources: ensureArray(retrievalBundle?.items).map((item) => item.sourceType),
-      sourceQuality: retrievalBundle?.sourceQuality || (retrievalBundle?.items?.length ? 'available' : 'limited'),
-      retrievalObjective: retrievalBundle?.objective || null,
-      correctiveRetryUsed: Boolean(retrievalBundle?.correctiveRetryUsed),
+      latestQuery: contextRetrievalBundle?.query || '',
+      latestSources: ensureArray(contextRetrievalBundle?.items).map((item) => item.sourceType),
+      sourceQuality: contextRetrievalBundle?.sourceQuality || (contextRetrievalBundle?.items?.length ? 'available' : 'limited'),
+      retrievalObjective: contextRetrievalBundle?.objective || null,
+      correctiveRetryUsed: Boolean(contextRetrievalBundle?.correctiveRetryUsed),
+      compactContext: useCompactContext,
     },
     agentMemory,
     constraints: {
