@@ -41,13 +41,13 @@ describe('role competency question planning', () => {
       }),
       { seniorityLevel: 'Junior/Grad', focusArea: 'Technical', questionLimit: 6 }
     );
-    const question = pool.find((item) => item.category === 'technical' && item.topic.includes('customer complaints'));
+    const question = pool.find((item) => item.category === 'role_competency' && item.topic.includes('customer complaints'));
 
     expect(question).toMatchObject({
       type: 'role_competency_core',
       sourceType: 'universal_requirement_competency',
     });
-    expect(question.text).toMatch(/customer complaint handling/i);
+    expect(question.text).toMatch(/client, customer, referrer, or stakeholder/i);
     expect(question.text).toMatch(/what happened, what did you do, and what was the outcome/i);
     expect(question.text).not.toMatch(/project|implementation|debugging/i);
   });

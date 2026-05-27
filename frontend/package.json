@@ -18,8 +18,10 @@
     "test:utils": "vitest run src/utils --passWithNoTests=false",
     "test:voice": "vitest run src/hooks/voice src/hooks/__tests__/useVoiceInterviewSession.test.jsx src/components/interview/__tests__/VoiceInterviewPanel.test.jsx src/pages/__tests__/InterviewPage.voiceMode.test.jsx src/utils/__tests__/voiceActivityDetectionCore.test.js src/utils/__tests__/voiceLatencySummary.test.js src/utils/__tests__/voiceLatencyTrace.test.js src/utils/__tests__/voiceRuntimeNetwork.test.js --passWithNoTests=false",
     "test:e2e:browser": "node e2e/interview-browser-flow.playwright.mjs",
-    "test:e2e:voice-latency": "node e2e/voice-realtime-latency.playwright.mjs",
-    "quality:all": "npm run lint && npm run test:all && npm run build"
+    "quality:all": "npm run lint && npm run test:all && npm run build",
+    "test:e2e:voice-smoke": "node e2e/voice-realtime-latency.playwright.mjs",
+    "test:e2e:voice-fixture": "node e2e/fixtures/generateVoiceFixture.mjs",
+    "test:e2e:voice-latency": "npm run test:e2e:voice-smoke"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",

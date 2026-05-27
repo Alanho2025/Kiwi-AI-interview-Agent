@@ -50,7 +50,6 @@ export function useDuplexSocketController({
     onSpeechDone: () => {
       console.log('[FRONTEND-TTS-TRACE] Assistant speech stream done.');
       audioQueue.finishAudioStream?.();
-      setIsProcessingTurn(false);
     },
     onTranscriptRejected: (payload) => {
       console.log('[FRONTEND-STT-TRACE] Transcript rejected by backend (repair prompt).');

@@ -51,9 +51,12 @@ export function useVoiceVadTurnController({
   const sendSpeechStartIfNeeded = useCallback(() => {
     if (speechStartSentRef.current) return false;
     speechStartSentRef.current = true;
-    setSendAudio?.(true);
+    setSendAudio?.(false);
     const sent = sendSpeechStart();
-    if (!sent) speechStartSentRef.current = false;
+    if (!sent) {
+      speechStartSentRef.current = false;
+      setSendAudio?.(false);
+    }
     return sent;
   }, [sendSpeechStart, setSendAudio, speechStartSentRef]);
 

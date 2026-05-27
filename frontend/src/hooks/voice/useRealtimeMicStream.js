@@ -41,6 +41,66 @@ export const calculateRmsLevel = (samples) => {
   return Math.sqrt(sum / samples.length);
 };
 
+const AUDIO_GATE_DEFAULTS = {
+  minRms: 0.006,
+  noiseFloorMargin: 0.008,
+  warmupChunkCount: 8,
+  minChunksBeforeSend: 2,
+};
+
+const createInitialAudioGateState = () => ({
+  chunksSeen: 0,
+  acceptedChunks: 0,
+  noiseSamples: [],
+  noiseFloorRms: null,
+  lastRejectedReason: null,
+});
+
+const percentile = (values = [], target = 0.8) => {
+  if (!values.length) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const index = Math.min(sorted.length - 1, Math.max(0, Math.floor((sorted.length - 1) * target)));
+  return sorted[index];
+};
+
+const shouldSendChunkThroughAudioGate = ({ rms, mode, gateState }) => {
+  const config = {
+    ...AUDIO_GATE_DEFAULTS,
+    ...(mode.audioGate || {}),
+  };
+
+  gateState.chunksSeen += 1;
+
+  if (gateState.chunksSeen <= config.warmupChunkCount) {
+    gateState.noiseSamples = [...gateState.noiseSamples.slice(-40), rms];
+    gateState.noiseFloorRms = percentile(gateState.noiseSamples, 0.8);
+    gateState.lastRejectedReason = 'audio_gate_warmup';
+    return false;
+  }
+
+  const adaptiveThreshold = Math.max(
+    config.minRms,
+    Number(gateState.noiseFloorRms || 0) + config.noiseFloorMargin
+  );
+
+  if (rms < adaptiveThreshold) {
+    gateState.noiseSamples = [...gateState.noiseSamples.slice(-40), rms];
+    gateState.noiseFloorRms = percentile(gateState.noiseSamples, 0.8);
+    gateState.lastRejectedReason = 'below_noise_gate';
+    return false;
+  }
+
+  gateState.acceptedChunks += 1;
+
+  if (gateState.acceptedChunks < config.minChunksBeforeSend) {
+    gateState.lastRejectedReason = 'speech_not_confirmed';
+    return false;
+  }
+
+  gateState.lastRejectedReason = null;
+  return true;
+};
+
 export function useRealtimeMicStream({ onAudioChunk }) {
   const streamRef = useRef(null);
   const audioContextRef = useRef(null);
@@ -49,10 +109,11 @@ export function useRealtimeMicStream({ onAudioChunk }) {
   const startedAtRef = useRef(0);
   const durationTimerRef = useRef(null);
   const onAudioChunkRef = useRef(onAudioChunk);
+  const audioGateRef = useRef(createInitialAudioGateState());
   const [isStreaming, setIsStreaming] = useState(false);
   const [levelHistory, setLevelHistory] = useState([]);
   const [durationMs, setDurationMs] = useState(0);
-  const modeRef = useRef({ sendAudio: true });
+  const modeRef = useRef({ sendAudio: true, audioGateEnabled: true });
   const [mediaStream, setMediaStream] = useState(null);
 
   onAudioChunkRef.current = onAudioChunk;
@@ -60,9 +121,9 @@ export function useRealtimeMicStream({ onAudioChunk }) {
   const stopStream = useCallback(async () => {
     if (durationTimerRef.current) window.clearInterval(durationTimerRef.current);
     durationTimerRef.current = null;
-    try { processorRef.current?.disconnect(); } catch {}
-    try { sourceRef.current?.disconnect(); } catch {}
-    try { await audioContextRef.current?.close?.(); } catch {}
+    try { processorRef.current?.disconnect(); } catch { }
+    try { sourceRef.current?.disconnect(); } catch { }
+    try { await audioContextRef.current?.close?.(); } catch { }
     streamRef.current?.getTracks?.().forEach((track) => track.stop());
     processorRef.current = null;
     sourceRef.current = null;
@@ -72,16 +133,29 @@ export function useRealtimeMicStream({ onAudioChunk }) {
     setIsStreaming(false);
   }, []);
 
-  const setSendAudio = useCallback((sendAudio) => {
+  const setSendAudio = useCallback((sendAudio, options = {}) => {
     modeRef.current = {
       ...modeRef.current,
       sendAudio: Boolean(sendAudio),
+      audioGateEnabled: options.audioGateEnabled !== false,
+      audioGate: options.audioGate || modeRef.current.audioGate || AUDIO_GATE_DEFAULTS,
     };
+
+    if (sendAudio) {
+      audioGateRef.current = createInitialAudioGateState();
+    }
   }, []);
 
+
   const startStream = useCallback(async (options = {}) => {
-    modeRef.current = { sendAudio: options.sendAudio !== false };
+    modeRef.current = {
+      sendAudio: options.sendAudio !== false,
+      audioGateEnabled: options.audioGateEnabled !== false,
+      audioGate: options.audioGate || AUDIO_GATE_DEFAULTS,
+    };
+    audioGateRef.current = createInitialAudioGateState();
     await stopStream();
+
     const stream = options.stream || await navigator.mediaDevices.getUserMedia({ audio: MICROPHONE_AUDIO_CONSTRAINTS });
     const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
     const audioContext = new AudioContextCtor();
@@ -92,10 +166,21 @@ export function useRealtimeMicStream({ onAudioChunk }) {
     processor.onaudioprocess = (event) => {
       const input = event.inputBuffer.getChannelData(0);
       const downsampled = downsampleBuffer(input, audioContext.sampleRate, TARGET_SAMPLE_RATE);
-      if (modeRef.current.sendAudio) {
-        onAudioChunkRef.current?.(floatTo16BitPcm(downsampled));
-      }
       const rms = calculateRmsLevel(input);
+
+      if (modeRef.current.sendAudio) {
+        const canSend = !modeRef.current.audioGateEnabled
+          || shouldSendChunkThroughAudioGate({
+            rms,
+            mode: modeRef.current,
+            gateState: audioGateRef.current,
+          });
+
+        if (canSend) {
+          onAudioChunkRef.current?.(floatTo16BitPcm(downsampled));
+        }
+      }
+
       setLevelHistory((history) => [...history.slice(-41), Math.min(1, rms * 18)]);
     };
 

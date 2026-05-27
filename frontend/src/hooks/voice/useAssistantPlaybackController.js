@@ -2,6 +2,17 @@ import { useAssistantAudioQueue } from './useAssistantAudioQueue.js';
 import { MIC_ARM_DELAY_MS } from './voiceSessionConstants.js';
 import { buildVoiceStatus } from './voiceSessionHelpers.js';
 
+const hasCurrentTurnFirstAudioChunk = (trace = null) => {
+  const snapshot = trace?.toJSON?.();
+  const events = Array.isArray(snapshot?.events) ? snapshot.events : [];
+  const turnId = snapshot?.turnId || null;
+
+  return events.some((event) => (
+    event?.name === 'first_audio_chunk_received'
+    && (!turnId || event.turnId === turnId)
+  ));
+};
+
 export function useAssistantPlaybackController({
   refs,
   isPaused,
@@ -13,11 +24,13 @@ export function useAssistantPlaybackController({
   clearPendingBargeIn,
   stopLatencyAcknowledgement,
   logVoiceLatencySummary,
+  setSendAudio,
 }) {
   const {
     autoLoopActiveRef,
     activeVoiceTurnTraceRef,
     activeBackendLatencyRef,
+    firstAudioChunkSeenRef,
     startListeningRef,
     isAssistantSpeakingRef,
   } = refs;
@@ -27,15 +40,28 @@ export function useAssistantPlaybackController({
       console.log('[FRONTEND-TTS-TRACE] Assistant audio playback started.');
       stopLatencyAcknowledgement();
       isAssistantSpeakingRef.current = true;
-      activeVoiceTurnTraceRef.current?.mark('assistant_audio_play_start');
-      if (activeVoiceTurnTraceRef.current) {
+      setSendAudio?.(false);
+
+
+      const activeTrace = activeVoiceTurnTraceRef.current;
+      if (firstAudioChunkSeenRef.current && hasCurrentTurnFirstAudioChunk(activeTrace)) {
+        activeTrace?.mark('assistant_audio_play_start');
         logVoiceLatencySummary('assistant_playback_start', activeBackendLatencyRef.current);
+      } else {
+        console.warn('[voice-latency] Skipping assistant playback latency mark because the active trace does not match the current TTS audio chunk.', {
+          hasFirstAudioChunk: firstAudioChunkSeenRef.current,
+          activeTurnId: activeTrace?.toJSON?.()?.turnId || null,
+        });
       }
+
       setVoiceState('ai_speaking');
       setVoiceStatus(buildVoiceStatus('success', 'KiwiCoach is speaking', 'You can interrupt naturally by speaking.'));
     },
     onPlaybackEnd: () => {
-      activeVoiceTurnTraceRef.current?.mark('assistant_audio_play_end');
+      const activeTrace = activeVoiceTurnTraceRef.current;
+      if (firstAudioChunkSeenRef.current && hasCurrentTurnFirstAudioChunk(activeTrace)) {
+        activeTrace?.mark('assistant_audio_play_end');
+      }
     },
     onQueueDrained: () => {
       console.log('[FRONTEND-TTS-TRACE] Assistant audio queue drained.');
@@ -45,6 +71,7 @@ export function useAssistantPlaybackController({
         window.setTimeout(() => startListeningRef.current?.(), MIC_ARM_DELAY_MS);
         return;
       }
+
       if (!isPaused && !isCompleted) setReadyState();
     },
     onPlaybackError: (message) => {

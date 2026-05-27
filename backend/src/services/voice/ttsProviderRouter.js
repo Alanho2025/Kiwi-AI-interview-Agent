@@ -4,6 +4,10 @@ import {
   synthesizeSpeech as synthesizeElevenLabsSpeech,
   streamSynthesizeSpeech as streamElevenLabsSpeech,
 } from './elevenLabsSpeechService.js';
+import {
+  synthesizeSpeech as synthesizeTestSpeech,
+  streamSynthesizeSpeech as streamTestSpeech,
+} from './testTtsService.js';
 
 const providerFactories = {
   azure: synthesizeAzureSpeech,
@@ -11,12 +15,16 @@ const providerFactories = {
   elevenlabs: synthesizeElevenLabsSpeech,
   elevenlabs_tts: synthesizeElevenLabsSpeech,
   elevenlabs_realtime: synthesizeElevenLabsSpeech,
+  test: synthesizeTestSpeech,
+  test_tts: synthesizeTestSpeech,
 };
 
 const streamingProviderFactories = {
   elevenlabs: streamElevenLabsSpeech,
   elevenlabs_tts: streamElevenLabsSpeech,
   elevenlabs_realtime: streamElevenLabsSpeech,
+  test: streamTestSpeech,
+  test_tts: streamTestSpeech,
 };
 
 const normalizeProviderName = (value) => String(value || '').trim().toLowerCase().replace(/-/g, '_');

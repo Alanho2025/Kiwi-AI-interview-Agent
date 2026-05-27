@@ -60,6 +60,7 @@ export const processRealtimeVoiceTurn = async ({
   voiceName,
   inputMode = 'realtime_voice',
   vad = null,
+  clientTurnId = null,
   tryGenerateReportForCompletedSession,
   req = null,
   onSentence = null,
@@ -74,6 +75,7 @@ export const processRealtimeVoiceTurn = async ({
   const trace = createLatencyTrace('realtime_voice_turn', {
     sessionId: session.id,
     userId,
+    clientTurnId,
   });
 
   trace.mark('backend_request_received');
