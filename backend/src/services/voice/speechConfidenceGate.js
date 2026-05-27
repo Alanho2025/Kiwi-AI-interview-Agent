@@ -19,6 +19,9 @@ const DEFAULT_ACCEPTANCE_RULES = {
   mediumMinSpeechMs: 2500,
   unknownMinWords: 8,
   unknownMinSpeechMs: 3500,
+  lowConfidenceContentfulMinWords: 25,
+  lowConfidenceContentfulMinCharacters: 120,
+  lowConfidenceContentfulMinSpeechMs: 8000,
 };
 
 const normalizeText = (value = '') => String(value || '').trim();
@@ -162,6 +165,32 @@ export function assessRealtimeVoiceTranscript({
   }
 
   if (confidenceGate.status === 'low') {
+    const hasContentfulAnswer = words >= rules.lowConfidenceContentfulMinWords
+      && text.length >= rules.lowConfidenceContentfulMinCharacters
+      && speechDurationMs >= rules.lowConfidenceContentfulMinSpeechMs
+      && (sttSegmentCount === null || sttSegmentCount > 0);
+
+    if (hasContentfulAnswer) {
+      const contentfulConfidenceGate = {
+        ...confidenceGate,
+        shouldConfirm: true,
+        shouldRecordAgain: false,
+      };
+
+      return traceGateDecision({
+        ok: true,
+        reason: 'LOW_CONFIDENCE_CONTENTFUL_TRANSCRIPT',
+        message: 'I may not have heard every word perfectly, but I caught enough of your answer to continue.',
+        confidenceGate: contentfulConfidenceGate,
+        metrics: basePayload.metrics,
+        transcriptQuality: 'low_confidence_but_contentful',
+        shouldUseCautiousScoring: true,
+      }, {
+        ...traceContext,
+        confidenceGate: contentfulConfidenceGate,
+      });
+    }
+
     return traceGateDecision({
       ok: false,
       reason: 'LOW_CONFIDENCE_TRANSCRIPT',
