@@ -10,6 +10,7 @@ import { processRealtimeVoiceTurn } from './realtimeVoiceTurnService.js';
 import { streamAssistantSpeech } from './ttsStreamQueue.js';
 import { assessRealtimeVoiceTranscript } from './speechConfidenceGate.js';
 import { AGENT_TOOL_NAMES } from '../../constants/agentToolNames.js';
+import warmContextService from './voiceTurnWarmContextService.js';
 
 export const createDuplexTurnCoordinator = ({
   session,
@@ -20,6 +21,7 @@ export const createDuplexTurnCoordinator = ({
   sendJson,
   bargeInController,
   logger,
+  clientTurnId = null,
 } = {}) => {
   let sentenceIndex = 0;
 
@@ -29,6 +31,7 @@ export const createDuplexTurnCoordinator = ({
       userId: userId || null,
       language,
       asrSource,
+      clientTurnId,
       at: new Date().toISOString(),
       ...payload,
     });
@@ -151,6 +154,7 @@ export const createDuplexTurnCoordinator = ({
       voiceName,
       inputMode: 'duplex_voice',
       vad,
+      clientTurnId,
       onSentence: async (text, index) => {
         try {
           const nextIndex = Number.isFinite(index) ? index : sentenceIndex;
@@ -205,10 +209,22 @@ export const createDuplexTurnCoordinator = ({
       tool: AGENT_TOOL_NAMES.SYNTHESIZE_ASSISTANT_SPEECH,
       timestamp: new Date().toISOString(),
     });
+    
+    // Trigger warmup for next turn if session is still in progress
+    const updatedSession = result?.updatedSession || session;
+    if (updatedSession?.status === 'in_progress' && !result?.agentResult?.isComplete) {
+      triggerWarmupForNextTurn(updatedSession, result).catch((error) => {
+        logger?.warn?.('Warmup trigger failed, will use normal flow', {
+          sessionId: updatedSession.id,
+          error: error.message,
+        });
+      });
+    }
+    
     sendJson?.({
       type: 'turn_done',
       tool: AGENT_TOOL_NAMES.ORCHESTRATE_DUPLEX_VOICE,
-      session: result?.updatedSession || null,
+      session: updatedSession,
       transcription: result?.transcription || null,
       latency: result?.latency || null,
       isComplete: Boolean(result?.agentResult?.isComplete),
@@ -221,6 +237,52 @@ export const createDuplexTurnCoordinator = ({
       isComplete: Boolean(result?.agentResult?.isComplete),
     });
     return result;
+  };
+
+  const triggerWarmupForNextTurn = async (updatedSession, turnResult) => {
+    try {
+      const nextQuestionIndex = turnResult?.agentResult?.nextQuestionOrder;
+      const nextQuestionId = updatedSession?.interviewPlan?.questions?.[nextQuestionIndex]?.id;
+      
+      if (!nextQuestionId) {
+        trace('warmup_skipped_no_next_question', { nextQuestionIndex });
+        return;
+      }
+
+      // Generate next turn ID (will be validated when user actually speaks)
+      const nextClientTurnId = clientTurnId ? `${clientTurnId}-next` : null;
+      
+      if (!nextClientTurnId) {
+        trace('warmup_skipped_no_turn_id');
+        return;
+      }
+
+      trace('warmup_trigger_start', {
+        nextQuestionIndex,
+        nextQuestionId,
+        nextClientTurnId,
+      });
+
+      await warmContextService.prepareWarmContext({
+        session: updatedSession,
+        userId,
+        currentQuestionId: nextQuestionId,
+        clientTurnId: nextClientTurnId,
+        currentQuestionIndex: nextQuestionIndex,
+        transcriptLength: updatedSession?.transcript?.length || 0,
+      });
+
+      trace('warmup_trigger_done', {
+        nextQuestionIndex,
+        nextQuestionId,
+        nextClientTurnId,
+      });
+    } catch (error) {
+      trace('warmup_trigger_error', {
+        error: error.message,
+      });
+      throw error;
+    }
   };
 
   return { processFinalTranscript };

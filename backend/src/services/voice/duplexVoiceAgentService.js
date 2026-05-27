@@ -96,6 +96,7 @@ export const createDuplexVoiceAgentSession = ({
   let audioChunksWritten = 0;
   let audioChunksDropped = 0;
   let audioBytesWritten = 0;
+  let currentClientTurnId = null;
 
   const sendReady = () => sendJson({
     type: 'session_ready',
@@ -115,7 +116,7 @@ export const createDuplexVoiceAgentSession = ({
   let speechCaptureSequence = 0;
   let activeSpeechCaptureId = 0;
 
-  const processFinalTranscript = async ({ transcriptText, asrConfidence, asrSource, vad }) => {
+  const processFinalTranscript = async ({ transcriptText, asrConfidence, asrSource, vad, clientTurnId }) => {
     const turnCoordinator = createDuplexTurnCoordinator({
       session: activeSession,
       userId,
@@ -125,6 +126,7 @@ export const createDuplexVoiceAgentSession = ({
       sendJson,
       bargeInController,
       logger,
+      clientTurnId,
     });
     const result = await turnCoordinator.processFinalTranscript({
       transcriptText,
@@ -263,6 +265,7 @@ export const createDuplexVoiceAgentSession = ({
     audioChunksDropped = 0;
     audioBytesWritten = 0;
     ignoredPreSpeechAudioChunks = 0;
+    currentClientTurnId = null;
     await stopSpeechSession();
     const target = await startSpeechSession();
     await flushPendingAudioChunks();
@@ -355,6 +358,7 @@ export const createDuplexVoiceAgentSession = ({
         transcriptText,
         asrConfidence: averageConfidence(segmentsToProcess),
         asrSource,
+        clientTurnId: currentClientTurnId,
         vad: {
           ...(context.lastVad || {}),
           sttSegmentCount: segmentsToProcess.length,
@@ -397,6 +401,7 @@ export const createDuplexVoiceAgentSession = ({
             provider: activeSttProviderName,
             pendingAudioChunks: pendingAudioChunks.length,
             audioChunksWritten,
+            clientTurnId: payload.clientTurnId || null,
           });
           return;
         }
@@ -404,14 +409,21 @@ export const createDuplexVoiceAgentSession = ({
           logger?.warn?.('Ignoring duplex speech_start while previous turn is processing', {
             sessionId: activeSession?.id || session?.id,
             provider: activeSttProviderName,
+            clientTurnId: payload.clientTurnId || null,
           });
           return;
         }
+        currentClientTurnId = payload.clientTurnId || null;
         isCapturingSpeech = true;
+        logger?.info?.('Duplex speech_start received', {
+          sessionId: activeSession?.id || session?.id,
+          clientTurnId: currentClientTurnId,
+        });
         await restartSpeechSessionForNewTurn();
         sendJson({
           type: 'listening_started',
           tool: AGENT_TOOL_NAMES.ORCHESTRATE_DUPLEX_VOICE,
+          clientTurnId: currentClientTurnId,
           timestamp: new Date().toISOString(),
         });
         return;
@@ -423,6 +435,18 @@ export const createDuplexVoiceAgentSession = ({
       }
 
       if (payload.type === 'speech_end') {
+        if (payload.clientTurnId && payload.clientTurnId !== currentClientTurnId) {
+          logger?.warn?.('Ignoring speech_end with mismatched clientTurnId', {
+            sessionId: activeSession?.id || session?.id,
+            expected: currentClientTurnId,
+            received: payload.clientTurnId,
+          });
+          return;
+        }
+        logger?.info?.('Duplex speech_end received', {
+          sessionId: activeSession?.id || session?.id,
+          clientTurnId: payload.clientTurnId || currentClientTurnId,
+        });
         await finalizeCapturedSpeech({ vad: payload.vad || null, reason: payload.reason || 'speech_end' });
         return;
       }
