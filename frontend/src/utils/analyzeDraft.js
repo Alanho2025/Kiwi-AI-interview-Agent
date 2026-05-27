@@ -17,6 +17,32 @@ import {
 export const ANALYZE_DRAFT_KEY = 'kiwi-analyze-draft';
 export { DEFAULT_ANALYZE_MODE, DEFAULT_SESSION_SETTINGS as DEFAULT_ANALYZE_SETTINGS, sanitizeSessionMode as sanitizeAnalyzeMode, sanitizeSessionSettings as sanitizeAnalyzeSettings };
 
+const MAX_RAW_JD_DRAFT_LENGTH = 8000;
+const MAX_STRUCTURED_JD_DRAFT_LENGTH = 4000;
+const MAX_SUMMARY_DRAFT_LENGTH = 4000;
+const MAX_REVIEW_DRAFT_LENGTH = 8000;
+const MAX_OBJECT_STRING_LENGTH = 1200;
+
+const truncateText = (value = '', maxLength = 4000) => {
+  const text = String(value || '');
+  return text.length > maxLength ? text.slice(0, maxLength) : text;
+};
+
+const compactObject = (value, maxStringLength = MAX_OBJECT_STRING_LENGTH) => {
+  if (Array.isArray(value)) {
+    return value.slice(0, 20).map((item) => compactObject(item, maxStringLength));
+  }
+  if (!value || typeof value !== 'object') {
+    return typeof value === 'string' ? truncateText(value, maxStringLength) : value;
+  }
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([, entryValue]) => entryValue !== undefined)
+      .slice(0, 40)
+      .map(([key, entryValue]) => [key, compactObject(entryValue, maxStringLength)])
+  );
+};
+
 const sanitizeSelectedCv = (selectedCV) => {
   if (!selectedCV || typeof selectedCV !== 'object') {
     return null;
@@ -31,13 +57,11 @@ const sanitizeSelectedCv = (selectedCV) => {
     parseStatus: selectedCV.parseStatus || 'pending',
     profileStatus: selectedCV.profileStatus || 'pending',
     parseConfidence: Number.isFinite(Number(selectedCV.parseConfidence)) ? Number(selectedCV.parseConfidence) : null,
-    parseWarnings: Array.isArray(selectedCV.parseWarnings) ? selectedCV.parseWarnings : [],
+    parseWarnings: Array.isArray(selectedCV.parseWarnings) ? selectedCV.parseWarnings.slice(0, 10) : [],
     candidateName: selectedCV.candidateName || 'Candidate',
-    topSkills: Array.isArray(selectedCV.topSkills) ? selectedCV.topSkills : [],
-    summary: selectedCV.summary || '',
-    warnings: Array.isArray(selectedCV.warnings) ? selectedCV.warnings : [],
-    profile: selectedCV.profile || null,
-    display: selectedCV.display || null,
+    topSkills: Array.isArray(selectedCV.topSkills) ? selectedCV.topSkills.slice(0, 20) : [],
+    summary: truncateText(selectedCV.summary || '', MAX_SUMMARY_DRAFT_LENGTH),
+    warnings: Array.isArray(selectedCV.warnings) ? selectedCV.warnings.slice(0, 10) : [],
   };
 };
 
@@ -47,14 +71,64 @@ const sanitizeCvReviewProfile = (profile) => {
   }
 
   return {
-    candidateSummary: profile.candidateSummary || '',
-    coreSkills: Array.isArray(profile.coreSkills) ? profile.coreSkills : [],
-    experienceEvidence: profile.experienceEvidence || '',
-    projectEvidence: profile.projectEvidence || '',
-    educationCredentials: profile.educationCredentials || '',
-    keyCompetencies: Array.isArray(profile.keyCompetencies) ? profile.keyCompetencies : [],
+    candidateSummary: truncateText(profile.candidateSummary || '', MAX_SUMMARY_DRAFT_LENGTH),
+    coreSkills: Array.isArray(profile.coreSkills) ? profile.coreSkills.slice(0, 25) : [],
+    experienceEvidence: truncateText(profile.experienceEvidence || '', MAX_SUMMARY_DRAFT_LENGTH),
+    projectEvidence: truncateText(profile.projectEvidence || '', MAX_SUMMARY_DRAFT_LENGTH),
+    educationCredentials: truncateText(profile.educationCredentials || '', MAX_SUMMARY_DRAFT_LENGTH),
+    keyCompetencies: Array.isArray(profile.keyCompetencies) ? profile.keyCompetencies.slice(0, 25) : [],
   };
 };
+
+const sanitizeJdRubricDraft = (rubric) => {
+  if (!rubric || typeof rubric !== 'object') {
+    return null;
+  }
+
+  return {
+    title: rubric.title || rubric.jobTitle || '',
+    jobTitle: rubric.jobTitle || rubric.title || '',
+    company: rubric.company || rubric.companyName || '',
+    roleCanonical: rubric.roleCanonical || '',
+    roleFamily: rubric.roleFamily || '',
+    roleLevel: rubric.roleLevel || '',
+    requirements: Array.isArray(rubric.requirements) ? compactObject(rubric.requirements.slice(0, 20)) : [],
+    interviewTargets: compactObject(rubric.interviewTargets || {}),
+    behaviouralSignals: Array.isArray(rubric.behaviouralSignals) ? rubric.behaviouralSignals.slice(0, 20) : [],
+    metadata: compactObject(rubric.metadata || {}),
+    safeguard: compactObject(rubric.safeguard || {}),
+  };
+};
+
+const buildSafeAnalyzeDraft = (draft = {}) => ({
+  selectedCV: sanitizeSelectedCv(draft.selectedCV),
+  structuredCVProfile: sanitizeCvReviewProfile(draft.structuredCVProfile),
+  rawJD: truncateText(draft.rawJD || '', MAX_RAW_JD_DRAFT_LENGTH),
+  structuredJD: truncateText(draft.structuredJD || '', MAX_STRUCTURED_JD_DRAFT_LENGTH),
+  structuredJDRubric: sanitizeJdRubricDraft(draft.structuredJDRubric),
+  summarizedRawJD: truncateText(draft.summarizedRawJD || '', MAX_SUMMARY_DRAFT_LENGTH),
+  cvHumanReviewedFileId: draft.cvHumanReviewedFileId || '',
+  cvReviewStatus: draft.cvReviewStatus || 'unreviewed',
+  jdHumanReviewedRawJD: truncateText(draft.jdHumanReviewedRawJD || '', MAX_REVIEW_DRAFT_LENGTH),
+  jdReviewStatus: draft.jdReviewStatus || 'unreviewed',
+  settings: sanitizeSessionSettings(draft.settings),
+  sessionMode: sanitizeSessionMode(draft.sessionMode),
+});
+
+const buildMinimalAnalyzeDraft = (draft = {}) => ({
+  selectedCV: sanitizeSelectedCv(draft.selectedCV),
+  structuredCVProfile: null,
+  rawJD: truncateText(draft.rawJD || draft.summarizedRawJD || '', 2000),
+  structuredJD: '',
+  structuredJDRubric: null,
+  summarizedRawJD: truncateText(draft.summarizedRawJD || '', 1000),
+  cvHumanReviewedFileId: draft.cvHumanReviewedFileId || '',
+  cvReviewStatus: draft.cvReviewStatus || 'unreviewed',
+  jdHumanReviewedRawJD: '',
+  jdReviewStatus: draft.jdReviewStatus || 'unreviewed',
+  settings: sanitizeSessionSettings(draft.settings),
+  sessionMode: sanitizeSessionMode(draft.sessionMode),
+});
 
 export const resolveAnalyzeStep = (analysisStatus) => {
   if (analysisStatus === 'matching' || analysisStatus === 'summarizing') {
@@ -108,6 +182,11 @@ export const loadAnalyzeDraft = () => {
     };
   } catch (error) {
     console.error('Failed to restore analyze draft', error);
+    try {
+      window.localStorage.removeItem(ANALYZE_DRAFT_KEY);
+    } catch {
+      // Ignore cleanup failure.
+    }
     return {
       selectedCV: null,
       structuredCVProfile: null,
@@ -126,11 +205,20 @@ export const loadAnalyzeDraft = () => {
 };
 
 export const persistAnalyzeDraft = (draft) => {
-  window.localStorage.setItem(ANALYZE_DRAFT_KEY, JSON.stringify({
-    ...draft,
-    settings: sanitizeSessionSettings(draft.settings),
-    sessionMode: sanitizeSessionMode(draft.sessionMode),
-    selectedCV: sanitizeSelectedCv(draft.selectedCV),
-    structuredCVProfile: sanitizeCvReviewProfile(draft.structuredCVProfile),
-  }));
+  try {
+    window.localStorage.setItem(ANALYZE_DRAFT_KEY, JSON.stringify(buildSafeAnalyzeDraft(draft)));
+  } catch (error) {
+    console.warn('Analyze draft exceeded localStorage quota. Falling back to a compact draft.', error);
+    try {
+      window.localStorage.removeItem(ANALYZE_DRAFT_KEY);
+      window.localStorage.setItem(ANALYZE_DRAFT_KEY, JSON.stringify(buildMinimalAnalyzeDraft(draft)));
+    } catch (fallbackError) {
+      console.warn('Failed to persist compact analyze draft. Continuing without local draft persistence.', fallbackError);
+      try {
+        window.localStorage.removeItem(ANALYZE_DRAFT_KEY);
+      } catch {
+        // Ignore cleanup failure.
+      }
+    }
+  }
 };
