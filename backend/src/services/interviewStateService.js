@@ -131,7 +131,24 @@ export const getEffectiveElapsedSeconds = (session = {}) => {
 export const hasReachedTimeLimit = (session = {}) => {
   const resolved = resolveInterviewSessionConfig(session);
   const timeLimitSeconds = Number(session?.timeLimitSeconds || session?.settings?.timeLimitSeconds || resolved?.timeLimitSeconds || 0);
-  return resolved.controlMode === 'time_limited' && timeLimitSeconds > 0 && getEffectiveElapsedSeconds(session) >= timeLimitSeconds;
+
+  if (resolved.controlMode !== 'time_limited' || timeLimitSeconds <= 0) {
+    return false;
+  }
+
+  if (session?.status !== 'in_progress') {
+    return false;
+  }
+
+  const answeredQuestionCount = getAnsweredQuestionCount(session);
+
+  // Do not auto-end immediately after the first real answer.
+  // This prevents stale open sessions from ending before the interview has actually started.
+  if (answeredQuestionCount < 2) {
+    return false;
+  }
+
+  return getEffectiveElapsedSeconds(session) >= timeLimitSeconds;
 };
 
 export const getCurrentPoolQuestion = (session = {}) => {
