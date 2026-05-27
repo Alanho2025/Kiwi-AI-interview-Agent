@@ -19,9 +19,6 @@ const DEFAULT_ACCEPTANCE_RULES = {
   mediumMinSpeechMs: 2500,
   unknownMinWords: 8,
   unknownMinSpeechMs: 3500,
-  lowConfidenceAcceptWords: 10,
-  lowConfidenceAcceptCharacters: 45,
-  lowConfidenceAcceptSpeechMs: 2500,
 };
 
 const normalizeText = (value = '') => String(value || '').trim();
@@ -165,30 +162,12 @@ export function assessRealtimeVoiceTranscript({
   }
 
   if (confidenceGate.status === 'low') {
-    const hasEnoughContent = words >= rules.lowConfidenceAcceptWords
-      || text.length >= rules.lowConfidenceAcceptCharacters
-      || speechDurationMs >= rules.lowConfidenceAcceptSpeechMs;
-
-    if (!hasEnoughContent) {
-      return traceGateDecision({
-        ok: false,
-        reason: 'LOW_CONFIDENCE_TRANSCRIPT',
-        message: 'Voice recognition was not confident it heard that correctly. Please repeat your answer from the start.',
-        ...basePayload,
-      }, { ...traceContext, hasEnoughContent });
-    }
-
     return traceGateDecision({
-      ok: true,
-      reason: 'LOW_CONFIDENCE_ACCEPTED_WITH_CONTENT',
-      message: null,
+      ok: false,
+      reason: 'LOW_CONFIDENCE_TRANSCRIPT',
+      message: 'Voice recognition was not confident it heard that correctly. Please repeat your answer from the start.',
       ...basePayload,
-      confidenceGate: {
-        ...confidenceGate,
-        shouldConfirm: true,
-        shouldRecordAgain: false,
-      },
-    }, { ...traceContext, hasEnoughContent });
+    }, traceContext);
   }
 
   if (confidenceGate.status === 'medium' && (words < rules.mediumMinWords || speechDurationMs < rules.mediumMinSpeechMs)) {
