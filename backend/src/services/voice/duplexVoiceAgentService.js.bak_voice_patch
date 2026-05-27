@@ -98,11 +98,6 @@ export const createDuplexVoiceAgentSession = ({
   let audioBytesWritten = 0;
   let currentClientTurnId = null;
   let lastFinalizedClientTurnId = null;
-  let pendingTranscriptConfirmation = null;
-  const getPendingTranscriptConfirmation = () => pendingTranscriptConfirmation;
-  const setPendingTranscriptConfirmation = (nextPending) => {
-    pendingTranscriptConfirmation = nextPending || null;
-  };
 
   const sendReady = () => sendJson({
     type: 'session_ready',
@@ -133,8 +128,6 @@ export const createDuplexVoiceAgentSession = ({
       bargeInController,
       logger,
       clientTurnId,
-      getPendingTranscriptConfirmation,
-      setPendingTranscriptConfirmation,
     });
     const result = await turnCoordinator.processFinalTranscript({
       transcriptText,

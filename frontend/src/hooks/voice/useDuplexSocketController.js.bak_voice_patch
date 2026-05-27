@@ -51,29 +51,6 @@ export function useDuplexSocketController({
       console.log('[FRONTEND-TTS-TRACE] Assistant speech stream done.');
       audioQueue.finishAudioStream?.();
     },
-    onTranscriptConfirmationRequested: (payload) => {
-      console.log('[FRONTEND-STT-TRACE] Transcript confirmation requested by backend.');
-      stopLatencyAcknowledgement();
-      setIsProcessingTurn(false);
-      setIsVoiceTakingLong(false);
-      setPendingTranscript(payload?.transcription || null);
-      setEditableTranscript(payload?.transcription?.text || '');
-      setLastAsrConfidence(payload?.transcription?.confidence ?? null);
-      setLastTranscriptRejection(null);
-      setVoiceState('transcript_confirmation');
-      setVoiceStatus(buildVoiceStatus(
-        'warning',
-        'Please confirm what KiwiCoach heard',
-        payload?.message || 'Please say yes if that is correct, or say no and clarify your answer.'
-      ));
-    },
-    onTranscriptConfirmationResolved: () => {
-      setVoiceStatus(buildVoiceStatus(
-        'info',
-        'Confirmation received',
-        'KiwiCoach is now processing your original answer.'
-      ));
-    },
     onTranscriptRejected: (payload) => {
       console.log('[FRONTEND-STT-TRACE] Transcript rejected by backend (repair prompt).');
       stopLatencyAcknowledgement();
