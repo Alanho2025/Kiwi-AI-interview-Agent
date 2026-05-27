@@ -1,6 +1,6 @@
 {
   "casesRun": 4,
-  "average": 0.9,
+  "average": 0.99,
   "weakestCases": [],
   "thresholds": {
     "minAverage": 0.9,
@@ -11,59 +11,55 @@
       "id": "graduate_cv_to_graduate_jd",
       "cvFixture": "graduate-software-engineer.txt",
       "jdFixture": "graduate-software-developer.txt",
-      "decision": "borderline",
-      "overallScore": 56.23,
-      "score": 0.78,
-      "earned": 25,
+      "decision": "moderate_match",
+      "overallScore": 66.44,
+      "score": 1,
+      "earned": 32,
       "possible": 32,
       "priorityTopics": [
-        "Build and enhance quality applications using .NET and C#.",
-        "Work in an Agile/Kanban team and deliver maintainable software.",
-        "Support SQL-backed features and document your work.",
+        "Recent tertiary qualification in Computer Science or Software Engineering.",
+        "Foundations in C#, .NET, SQL, and Git.",
+        "Ability to communicate clearly and learn quickly.",
         "C#",
         ".NET",
         "Git",
         "SQL",
-        "self introduction and career direction"
+        "Build and enhance quality applications using .NET and C#."
       ],
       "followUpTargets": [
         "self introduction and career direction",
         "Quantified evidence",
         "Project: Inventory Portal Project",
-        "Build and enhance quality applications using .NET and C#.",
-        "Work in an Agile/Kanban team and deliver maintainable software.",
-        "Support SQL-backed features and document your work.",
+        "Recent tertiary qualification in Computer Science or Software Engineering.",
+        "Foundations in C#, .NET, SQL, and Git.",
+        "Ability to communicate clearly and learn quickly.",
         "sql",
         "api"
       ],
-      "jdRelevantEvidenceCount": 12,
+      "jdRelevantEvidenceCount": 8,
       "interviewFocus": [
-        "Build and enhance quality applications using .NET and C#.",
-        "Work in an Agile/Kanban team and deliver maintainable software.",
-        "Support SQL-backed features and document your work.",
+        "Recent tertiary qualification in Computer Science or Software Engineering.",
+        "Foundations in C#, .NET, SQL, and Git.",
+        "Ability to communicate clearly and learn quickly.",
         "C#",
         ".NET",
         "Git"
       ],
-      "failedChecks": [
-        "decision",
-        "scoreRange",
-        "jdRelevantEvidence:azure"
-      ]
+      "failedChecks": []
     },
     {
       "id": "transition_cv_to_data_engineer_jd",
       "cvFixture": "data-analyst-transition.txt",
       "jdFixture": "data-engineer-clean.txt",
       "decision": "not_qualified",
-      "overallScore": 22.64,
-      "score": 0.89,
-      "earned": 25,
+      "overallScore": 44.38,
+      "score": 0.96,
+      "earned": 27,
       "possible": 28,
       "priorityTopics": [
         "Strong SQL skills and hands-on experience with Snowflake.",
         "Ability to work through ambiguity and deliver outcomes under deadlines.",
-        "Strong communication skills across technical and business stakeholders.",
+        "Proven experience delivering data engineering solutions in production environments.",
         "SQL",
         "Snowflake",
         "Reporting",
@@ -76,21 +72,20 @@
         "Project: Data Warehouse Transition Project",
         "Strong SQL skills and hands-on experience with Snowflake.",
         "Ability to work through ambiguity and deliver outcomes under deadlines.",
-        "Strong communication skills across technical and business stakeholders.",
+        "Proven experience delivering data engineering solutions in production environments.",
         "sql",
         "python"
       ],
-      "jdRelevantEvidenceCount": 6,
+      "jdRelevantEvidenceCount": 10,
       "interviewFocus": [
         "Strong SQL skills and hands-on experience with Snowflake.",
         "Ability to work through ambiguity and deliver outcomes under deadlines.",
-        "Strong communication skills across technical and business stakeholders.",
+        "Proven experience delivering data engineering solutions in production environments.",
         "SQL",
         "Snowflake",
         "Reporting"
       ],
       "failedChecks": [
-        "scoreRange",
         "summary:project-based evidence"
       ]
     },
@@ -98,10 +93,10 @@
       "id": "cloud_cv_to_cloud_jd",
       "cvFixture": "cloud-platform-engineer.txt",
       "jdFixture": "cloud-platform-engineer.txt",
-      "decision": "borderline",
-      "overallScore": 57.48,
-      "score": 0.91,
-      "earned": 29,
+      "decision": "moderate_match",
+      "overallScore": 67.62,
+      "score": 1,
+      "earned": 32,
       "possible": 32,
       "priorityTopics": [
         "Strong experience with Azure, Cloud Infrastructure, Docker, and Kubernetes.",
@@ -119,9 +114,11 @@
         "Project: Platform Reliability Project",
         "Strong experience with Azure, Cloud Infrastructure, Docker, and Kubernetes.",
         "Experience with Linux, networking, and troubleshooting.",
-        "Good communication and ownership."
+        "Good communication and ownership.",
+        "docker",
+        "c"
       ],
-      "jdRelevantEvidenceCount": 11,
+      "jdRelevantEvidenceCount": 6,
       "interviewFocus": [
         "Strong experience with Azure, Cloud Infrastructure, Docker, and Kubernetes.",
         "Experience with Linux, networking, and troubleshooting.",
@@ -130,9 +127,7 @@
         "Networking",
         "Azure"
       ],
-      "failedChecks": [
-        "decision"
-      ]
+      "failedChecks": []
     },
     {
       "id": "frontend_student_to_senior_backend_jd",
@@ -156,10 +151,11 @@
       "followUpTargets": [
         "self introduction and career direction",
         "Project: Campus Events App",
-        "CV evidence",
+        "Competency signal",
         "Proven experience building production backend systems.",
         "Strong skills in Node.js, SQL, AWS, Docker, and CI/CD.",
-        "react"
+        "react",
+        "c"
       ],
       "jdRelevantEvidenceCount": 0,
       "interviewFocus": [

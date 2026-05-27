@@ -80,18 +80,18 @@
       "earned": 25,
       "possible": 25,
       "careerDirection": "Frontend and product software delivery direction",
-      "strongestEvidenceCount": 5,
+      "strongestEvidenceCount": 6,
       "interviewHooks": [
         "self introduction and career direction",
         "Project: Campus Events App",
+        "Competency signal",
         "CV evidence",
         "Measured achievement",
         "react",
         "html",
         "css",
         "javascript",
-        "automation",
-        "process improvement"
+        "automation"
       ],
       "failedChecks": []
     }
