@@ -22,6 +22,7 @@ const SLOW_FIRST_AUDIO_MS = 3500;
 const LATENCY_ACK_DELAY_MS = 650;
 const LATENCY_ACK_COOLDOWN_MS = 16000;
 const BARGE_IN_CONFIRMATION_MS = 350;
+const SPEECH_END_CONFIRMATION_MS = 2000;
 
 const buildVoiceStatus = (type, title, message) => ({ type, title, message });
 
@@ -93,6 +94,9 @@ export function useVoiceInterviewSession({
   const cleanupRef = useRef(null);
   const isAssistantSpeakingRef = useRef(false);
   const pendingBargeInRef = useRef(null);
+  const pendingSpeechEndTimerRef = useRef(null);
+  const pendingSpeechEndMetricsRef = useRef(null);
+  const speechStartSentRef = useRef(false);
   const sessionAudioRecorder = useSessionAudioRecorder();
 
   const activeSessionId = resolveSessionId(session, sessionId);
@@ -105,7 +109,6 @@ export function useVoiceInterviewSession({
     const rawText = String(latestQuestion?.text || '').trim();
     return preferDisplayText ? (displayText || rawText) : (rawText || displayText);
   }, [session]);
-
 
   const setReadyState = useCallback(() => {
     if (!enabled) return;
@@ -175,6 +178,14 @@ export function useVoiceInterviewSession({
     pendingBargeInRef.current = null;
   }, []);
 
+  const clearPendingSpeechEnd = useCallback(() => {
+    if (pendingSpeechEndTimerRef.current) {
+      window.clearTimeout(pendingSpeechEndTimerRef.current);
+      pendingSpeechEndTimerRef.current = null;
+    }
+    pendingSpeechEndMetricsRef.current = null;
+  }, []);
+
   const scheduleLatencyAcknowledgement = useCallback(() => {
     clearLatencyAcknowledgementTimer();
     latencyAcknowledgementTimerRef.current = window.setTimeout(() => {
@@ -193,10 +204,9 @@ export function useVoiceInterviewSession({
     }, LATENCY_ACK_DELAY_MS);
   }, [clearLatencyAcknowledgementTimer]);
 
-
   const audioQueue = useAssistantAudioQueue({
     onPlaybackStart: () => {
-      console.log(`[FRONTEND-TTS-TRACE] Assistant audio playback started.`);
+      console.log('[FRONTEND-TTS-TRACE] Assistant audio playback started.');
       stopLatencyAcknowledgement();
       isAssistantSpeakingRef.current = true;
       activeVoiceTurnTraceRef.current?.mark('assistant_audio_play_start');
@@ -208,7 +218,7 @@ export function useVoiceInterviewSession({
       activeVoiceTurnTraceRef.current?.mark('assistant_audio_play_end');
     },
     onQueueDrained: () => {
-      console.log(`[FRONTEND-TTS-TRACE] Assistant audio queue drained.`);
+      console.log('[FRONTEND-TTS-TRACE] Assistant audio queue drained.');
       isAssistantSpeakingRef.current = false;
       clearPendingBargeIn();
       if (autoLoopActiveRef.current && !isPaused && !isCompleted && !isProcessingTurn) {
@@ -223,12 +233,11 @@ export function useVoiceInterviewSession({
     },
   });
 
-
   const duplexSocket = useDuplexVoiceSocket({
     onAudioChunk: (chunk) => {
       stopLatencyAcknowledgement();
       if (!firstAudioChunkSeenRef.current) {
-        console.log(`[FRONTEND-TTS-TRACE] Received first TTS audio chunk from backend.`);
+        console.log('[FRONTEND-TTS-TRACE] Received first TTS audio chunk from backend.');
         firstAudioChunkSeenRef.current = true;
         const firstAudioDelayMs = activeVoiceTurnStartedAtRef.current
           ? Math.round(performance.now() - activeVoiceTurnStartedAtRef.current)
@@ -247,12 +256,12 @@ export function useVoiceInterviewSession({
       setAssistantTextPreview((current) => `${current}${payload.text || ''}`);
     },
     onSpeechDone: () => {
-      console.log(`[FRONTEND-STT-TRACE] Backend finished processing speech (speech_done).`);
+      console.log('[FRONTEND-TTS-TRACE] Assistant speech stream done.');
       audioQueue.finishAudioStream?.();
       setIsProcessingTurn(false);
     },
     onTranscriptRejected: (payload) => {
-      console.log(`[FRONTEND-STT-TRACE] Transcript rejected by backend (repair prompt).`);
+      console.log('[FRONTEND-STT-TRACE] Transcript rejected by backend (repair prompt).');
       stopLatencyAcknowledgement();
       setIsProcessingTurn(false);
       setIsVoiceTakingLong(false);
@@ -264,12 +273,13 @@ export function useVoiceInterviewSession({
       setVoiceStatus(buildVoiceStatus('warning', 'Voice did not catch that clearly', payload?.message || 'Please answer again so KiwiCoach can score the right content.'));
     },
     onTurnDone: (payload) => {
-      console.log(`[FRONTEND-STT-TRACE] Turn done received. Final transcript:`, payload?.transcription?.text);
+      console.log('[FRONTEND-STT-TRACE] Turn done received. Final transcript:', payload?.transcription?.text);
       stopLatencyAcknowledgement();
       activeVoiceTurnTraceRef.current?.mark('auto_submit_response');
       setIsProcessingTurn(false);
       setIsVoiceTakingLong(false);
       setLastTranscriptRejection(null);
+      speechStartSentRef.current = false;
       activeBackendLatencyRef.current = payload?.latency || null;
       logVoiceLatencySummary('duplex_turn_done', activeBackendLatencyRef.current);
       if (payload?.session) onVoiceSessionUpdate?.(payload.session);
@@ -326,27 +336,39 @@ export function useVoiceInterviewSession({
     setSendAudio,
   } = realtimeMic;
 
+  const sendSpeechStartIfNeeded = useCallback(() => {
+    if (speechStartSentRef.current) return false;
+    speechStartSentRef.current = true;
+    setSendAudio?.(true);
+    const sent = sendSpeechStart();
+    if (!sent) {
+      speechStartSentRef.current = false;
+    }
+    return sent;
+  }, [sendSpeechStart, setSendAudio]);
+
   const confirmPendingBargeIn = useCallback(() => {
     const pending = pendingBargeInRef.current;
     if (!pending || pending.confirmed || !isAssistantSpeakingRef.current) return false;
     pendingBargeInRef.current = { ...pending, confirmed: true };
-    setSendAudio?.(true);
-    sendSpeechStart();
+    sendSpeechStartIfNeeded();
     audioQueue.clearQueue();
     sendBargeIn('user_started_speaking');
     setVoiceState('interrupted');
     setVoiceStatus(buildVoiceStatus('info', 'Interrupting KiwiCoach', 'Your voice interrupted the assistant. Keep speaking.'));
     return true;
-  }, [audioQueue, sendBargeIn, sendSpeechStart, setSendAudio]);
+  }, [audioQueue, sendBargeIn, sendSpeechStartIfNeeded]);
 
   const stopListening = useCallback(async (reason = 'speech_end') => {
+    clearPendingSpeechEnd();
     console.log(`[FRONTEND-STT-TRACE] Stopping listening. Reason: ${reason}`);
     const { turnId } = startVoiceTurnTrace(reason);
     activeVoiceTurnTraceRef.current?.mark('auto_submit_start', { reason, turnId });
     activeVoiceTurnTraceRef.current?.mark('stt_stop_sent', { reason, turnId });
     vad.stopVad?.();
-    console.log(`[FRONTEND-STT-TRACE] Sending speech_end to backend.`);
+    console.log('[FRONTEND-STT-TRACE] Sending speech_end to backend.');
     sendSpeechEnd(vadMetricsRef.current || null);
+    speechStartSentRef.current = false;
     setSendAudio?.(false);
     setIsProcessingTurn(true);
     setVoiceState('agent_thinking');
@@ -354,7 +376,7 @@ export function useVoiceInterviewSession({
     scheduleLatencyAcknowledgement();
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scheduleLatencyAcknowledgement, sendSpeechEnd, setSendAudio, startVoiceTurnTrace]);
+  }, [clearPendingSpeechEnd, scheduleLatencyAcknowledgement, sendSpeechEnd, setSendAudio, startVoiceTurnTrace]);
 
   const handleVadFrame = useCallback((frame = {}) => {
     const pending = pendingBargeInRef.current;
@@ -374,7 +396,8 @@ export function useVoiceInterviewSession({
   }, [clearPendingBargeIn, confirmPendingBargeIn]);
 
   const handleVadSpeechStart = useCallback((metrics = {}) => {
-    console.log(`[FRONTEND-STT-TRACE] VAD detected speech start.`);
+    clearPendingSpeechEnd();
+    console.log('[FRONTEND-STT-TRACE] VAD detected speech start.');
     stopLatencyAcknowledgement();
     setLastTranscriptRejection(null);
     vadMetricsRef.current = { ...(vadMetricsRef.current || {}), ...metrics };
@@ -386,18 +409,39 @@ export function useVoiceInterviewSession({
         confirmed: false,
       };
     } else {
-      console.log(`[FRONTEND-STT-TRACE] Arming microphone and sending speech_start.`);
-      setSendAudio?.(true);
-      sendSpeechStart();
+      console.log('[FRONTEND-STT-TRACE] Arming microphone and sending speech_start.');
+      sendSpeechStartIfNeeded();
       setVoiceState('user_speaking');
       setVoiceStatus(buildVoiceStatus('info', 'Listening', 'Keep answering naturally. KiwiCoach will stop when you pause.'));
     }
-  }, [sendSpeechStart, setSendAudio, stopLatencyAcknowledgement]);
+  }, [clearPendingSpeechEnd, sendSpeechStartIfNeeded, stopLatencyAcknowledgement]);
 
-  const handleVadSpeechEnd = useCallback(async (metrics = {}) => {
+  const handleVadSpeechEnd = useCallback((metrics = {}) => {
     clearPendingBargeIn();
+
+    pendingSpeechEndMetricsRef.current = metrics;
     vadMetricsRef.current = { ...(vadMetricsRef.current || {}), ...metrics };
-    await stopListening('vad_speech_end');
+
+    console.log('[FRONTEND-STT-TRACE] VAD possible speech_end detected. Waiting before final submit.', metrics);
+    setVoiceStatus(buildVoiceStatus(
+      'info',
+      'Still listening',
+      'Pause detected. Continue speaking if you have more to add.'
+    ));
+
+    if (pendingSpeechEndTimerRef.current) {
+      window.clearTimeout(pendingSpeechEndTimerRef.current);
+    }
+
+    pendingSpeechEndTimerRef.current = window.setTimeout(async () => {
+      pendingSpeechEndTimerRef.current = null;
+      const finalMetrics = pendingSpeechEndMetricsRef.current || metrics;
+      pendingSpeechEndMetricsRef.current = null;
+      vadMetricsRef.current = { ...(vadMetricsRef.current || {}), ...finalMetrics };
+
+      console.log('[FRONTEND-STT-TRACE] VAD speech_end confirmed after grace window.');
+      await stopListening('vad_speech_end_confirmed');
+    }, SPEECH_END_CONFIRMATION_MS);
   }, [clearPendingBargeIn, stopListening]);
 
   const handleNoSpeechTimeout = useCallback(() => {
@@ -407,9 +451,10 @@ export function useVoiceInterviewSession({
   }, []);
 
   const handleMaxAnswerTimeout = useCallback(async (metrics = {}) => {
+    clearPendingSpeechEnd();
     vadMetricsRef.current = { ...(vadMetricsRef.current || {}), ...metrics, maxAnswerTimeout: true };
     await stopListening('vad_max_answer_timeout');
-  }, [stopListening]);
+  }, [clearPendingSpeechEnd, stopListening]);
 
   const vad = useVoiceActivityDetection({
     stream: micMediaStream,
@@ -423,6 +468,14 @@ export function useVoiceInterviewSession({
 
   const startListening = useCallback(async () => {
     if (!enabled || !activeSessionId || isPaused || isCompleted) return;
+    if (isAssistantSpeakingRef.current || isProcessingTurn) {
+      console.warn('[FRONTEND-STT-TRACE] Blocked startListening because assistant or backend is busy.', {
+        isAssistantSpeaking: isAssistantSpeakingRef.current,
+        isProcessingTurn,
+      });
+      return;
+    }
+
     let permissionResult = { ok: true, stream: null };
     try {
       if (!micMediaStream) {
@@ -433,12 +486,14 @@ export function useVoiceInterviewSession({
           return;
         }
       }
+      clearPendingSpeechEnd();
+      speechStartSentRef.current = false;
       noSpeechPromptedRef.current = false;
       setVoiceState('arming_mic');
       setVoiceStatus(buildVoiceStatus('info', 'Opening microphone', 'Duplex Voice Agent is ready to hear your answer.'));
-      sendSpeechStart();
-      setSendAudio?.(true);
-      const stream = micMediaStream || await startStream({ sendAudio: true, stream: permissionResult.stream });
+
+      setSendAudio?.(false);
+      const stream = micMediaStream || await startStream({ sendAudio: false, stream: permissionResult.stream });
       sessionAudioRecorder.startRecording(stream);
       await vad.startVad({ stream, ignoreFirstMs: VAD_WARMUP_IGNORE_MS });
       activeVoiceTurnTraceRef.current?.mark('mic_ready');
@@ -449,7 +504,7 @@ export function useVoiceInterviewSession({
       setVoiceState('error');
       setVoiceStatus(buildVoiceStatus('error', 'Voice failed', error.message || 'Could not start duplex voice.'));
     }
-  }, [enabled, activeSessionId, isPaused, isCompleted, requestPermission, micMediaStream, sendSpeechStart, setSendAudio, startStream, vad, sessionAudioRecorder]);
+  }, [enabled, activeSessionId, isPaused, isCompleted, isProcessingTurn, requestPermission, micMediaStream, clearPendingSpeechEnd, setSendAudio, startStream, vad, sessionAudioRecorder]);
 
   useEffect(() => {
     startListeningRef.current = startListening;
@@ -499,6 +554,8 @@ export function useVoiceInterviewSession({
         }
       }
 
+      clearPendingSpeechEnd();
+      speechStartSentRef.current = false;
       setSendAudio?.(false);
       const stream = micMediaStream || await startStream({ sendAudio: false, stream: permissionResult.stream });
       sessionAudioRecorder.startRecording(stream);
@@ -509,8 +566,7 @@ export function useVoiceInterviewSession({
       permissionResult.stream?.getTracks?.().forEach((track) => track.stop());
       throw error;
     }
-  }, [enabled, activeSessionId, isPaused, isCompleted, requestPermission, micMediaStream, setSendAudio, startStream, vad, sessionAudioRecorder]);
-
+  }, [enabled, activeSessionId, isPaused, isCompleted, requestPermission, micMediaStream, clearPendingSpeechEnd, setSendAudio, startStream, vad, sessionAudioRecorder]);
 
   const ensureInterviewStarted = useCallback(async () => {
     if (session?.status !== 'ready') return session;
@@ -532,6 +588,8 @@ export function useVoiceInterviewSession({
       stopLatencyAcknowledgement();
       audioQueue.clearQueue();
       clearPendingBargeIn();
+      clearPendingSpeechEnd();
+      speechStartSentRef.current = false;
       vad.stopVad?.();
       await sessionAudioRecorder.stopCurrentSegment();
       await stopStream();
@@ -567,12 +625,7 @@ export function useVoiceInterviewSession({
       setVoiceStatus(buildVoiceStatus('info', 'Starting duplex voice interview', 'KiwiCoach will speak, listen, and allow interruption.'));
       await ensureDuplexConnected();
       await startPassiveMicMonitor();
-      
-      // Delay the first audio playback by 1.2s.
-      // Why? When startPassiveMicMonitor activates the microphone, macOS and Windows
-      // often switch Bluetooth headsets from high-quality (A2DP) to mono+mic (HFP).
-      // This profile switch takes ~1-2 seconds, during which ALL audio is muted.
-      // Delaying ensures the user actually hears the first few words of the question.
+
       window.setTimeout(async () => {
         try {
           if (!autoLoopActiveRef.current) return;
@@ -589,7 +642,7 @@ export function useVoiceInterviewSession({
       setVoiceState('error');
       setVoiceStatus(buildVoiceStatus('error', 'Duplex voice failed', error.message || 'Could not start Voice Mode.'));
     }
-  }, [enabled, isCompleted, isPaused, isSupported, isAutoLoopActive, isMicStreaming, stopLatencyAcknowledgement, audioQueue, clearPendingBargeIn, vad, stopStream, stopSession, setReadyState, activeSessionId, ensureDuplexConnected, startPassiveMicMonitor, speakQuestionText, getLatestAssistantQuestionText, ensureInterviewStarted, startListening, sessionAudioRecorder, updateVoiceNetworkQuality]);
+  }, [enabled, isCompleted, isPaused, isSupported, isAutoLoopActive, isMicStreaming, stopLatencyAcknowledgement, audioQueue, clearPendingBargeIn, clearPendingSpeechEnd, vad, stopStream, stopSession, setReadyState, activeSessionId, ensureDuplexConnected, startPassiveMicMonitor, speakQuestionText, getLatestAssistantQuestionText, ensureInterviewStarted, startListening, sessionAudioRecorder, updateVoiceNetworkQuality]);
 
   const handleRequestPermission = useCallback(async () => {
     setVoiceState('requesting_permission');
@@ -613,6 +666,8 @@ export function useVoiceInterviewSession({
     stopLatencyAcknowledgement();
     audioQueue.clearQueue();
     clearPendingBargeIn();
+    clearPendingSpeechEnd();
+    speechStartSentRef.current = false;
     vad.stopVad?.();
     await sessionAudioRecorder.stopCurrentSegment();
     await stopStream();
@@ -628,14 +683,14 @@ export function useVoiceInterviewSession({
     consecutiveSlowTurnsRef.current = 0;
     updateVoiceNetworkQuality({ firstAudioDelayMs: null, consecutiveSlowTurns: 0 });
     setReadyState();
-  }, [audioQueue, clearPendingBargeIn, vad, stopStream, closeDuplexSocket, setReadyState, sessionAudioRecorder, stopLatencyAcknowledgement, updateVoiceNetworkQuality]);
+  }, [audioQueue, clearPendingBargeIn, clearPendingSpeechEnd, vad, stopStream, closeDuplexSocket, setReadyState, sessionAudioRecorder, stopLatencyAcknowledgement, updateVoiceNetworkQuality]);
 
   const handleRetryVoice = useCallback(async () => {
     await handleResetShell();
     if (!isCompleted && !isPaused) {
       window.setTimeout(() => {
         handleToggleRecording();
-      }, 300); // Give the sockets and mic a moment to fully close before reopening
+      }, 300);
     }
   }, [handleResetShell, handleToggleRecording, isCompleted, isPaused]);
 
@@ -663,13 +718,15 @@ export function useVoiceInterviewSession({
     stopLatencyAcknowledgement();
     audioQueue.clearQueue();
     clearPendingBargeIn();
+    clearPendingSpeechEnd();
+    speechStartSentRef.current = false;
     vad.stopVad?.();
     stopSession();
     await uploadRecordingIfAvailable();
     await stopStream();
     closeDuplexSocket();
     voiceSessionTraceRef.current?.mark('voice_session_stopped', { reason });
-  }, [audioQueue, clearPendingBargeIn, vad, stopSession, uploadRecordingIfAvailable, stopStream, closeDuplexSocket, stopLatencyAcknowledgement]);
+  }, [audioQueue, clearPendingBargeIn, clearPendingSpeechEnd, vad, stopSession, uploadRecordingIfAvailable, stopStream, closeDuplexSocket, stopLatencyAcknowledgement]);
 
   useEffect(() => {
     if (!enabled || !isCompleted || completedCleanupDoneRef.current) return;
@@ -704,7 +761,7 @@ export function useVoiceInterviewSession({
 
   useEffect(() => {
     if (!finalTranscript?.displayText) return;
-    console.log(`[FRONTEND-STT-TRACE] Final transcript segment received:`, finalTranscript.displayText);
+    console.log('[FRONTEND-STT-TRACE] Final transcript segment received:', finalTranscript.displayText);
     activeVoiceTurnTraceRef.current?.mark('final_transcript_received', {
       source: finalTranscript.type || 'duplex_socket',
       confidence: finalTranscript.confidence ?? null,
@@ -752,12 +809,14 @@ export function useVoiceInterviewSession({
       stopLatencyAcknowledgement();
       audioQueue.clearQueue();
       clearPendingBargeIn();
+      clearPendingSpeechEnd();
+      speechStartSentRef.current = false;
       vad.stopVad?.();
       sessionAudioRecorder.resetRecording();
       stopStream();
       closeDuplexSocket();
     };
-  }, [audioQueue, clearPendingBargeIn, vad, stopStream, closeDuplexSocket, sessionAudioRecorder, stopLatencyAcknowledgement]);
+  }, [audioQueue, clearPendingBargeIn, clearPendingSpeechEnd, vad, stopStream, closeDuplexSocket, sessionAudioRecorder, stopLatencyAcknowledgement]);
 
   useEffect(() => () => cleanupRef.current?.(), []);
 
