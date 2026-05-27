@@ -168,7 +168,12 @@ export function useDuplexVoiceSocket({
     };
 
     socket.onmessage = (event) => {
-      const payload = JSON.parse(String(event.data || '{}'));
+      let payload = null;
+      try {
+        payload = JSON.parse(String(event.data || '{}'));
+      } catch {
+        return;
+      }
       console.debug('[FRONTEND-WS-TRACE] inbound_json', {
         socketTraceSession: socketTraceSessionRef.current,
         speechTurnTrace: speechTurnTraceRef.current,
@@ -324,7 +329,7 @@ export function useDuplexVoiceSocket({
     if (!speechActiveRef.current) {
       ignoredPreSpeechChunksRef.current += 1;
       if (ignoredPreSpeechChunksRef.current === 1 || ignoredPreSpeechChunksRef.current % AUDIO_CHUNK_TRACE_EVERY === 0) {
-        console.log('[FRONTEND-WS-TRACE] Ignoring mic audio before speech_start', {
+        console.log('[FRONTEND-WS-TRACE] Ignoring mic audio before backend listening_started', {
           socketTraceSession: socketTraceSessionRef.current,
           speechTurnTrace: speechTurnTraceRef.current,
           ignoredPreSpeechChunks: ignoredPreSpeechChunksRef.current,
@@ -364,7 +369,6 @@ export function useDuplexVoiceSocket({
     speechTurnTraceRef.current += 1;
     chunksSentRef.current = 0;
     ignoredPreSpeechChunksRef.current = 0;
-    speechActiveRef.current = true;
     const clientTurnId = `voice-turn-${socketTraceSessionRef.current}-${speechTurnTraceRef.current}`;
     console.info('[FRONTEND-WS-TRACE] speech_start', {
       socketTraceSession: socketTraceSessionRef.current,
@@ -372,7 +376,16 @@ export function useDuplexVoiceSocket({
       clientTurnId,
       at: Date.now(),
     });
-    return sendJson({ type: 'speech_start', clientTurnId, clientTimestamp: Date.now() });
+    const sent = sendJson({ type: 'speech_start', clientTurnId, clientTimestamp: Date.now() });
+    if (!sent) {
+      speechTurnTraceRef.current = Math.max(0, speechTurnTraceRef.current - 1);
+      chunksSentRef.current = 0;
+      ignoredPreSpeechChunksRef.current = 0;
+      speechActiveRef.current = false;
+      return false;
+    }
+    speechActiveRef.current = true;
+    return true;
   }, [sendJson]);
 
   const sendSpeechEnd = useCallback((vad = null) => {
@@ -396,8 +409,9 @@ export function useDuplexVoiceSocket({
       vad,
       at: Date.now(),
     });
-    speechActiveRef.current = false;
-    return sendJson({ type: 'speech_end', clientTurnId, vad, clientTimestamp: Date.now() });
+    const sent = sendJson({ type: 'speech_end', clientTurnId, vad, clientTimestamp: Date.now() });
+    if (sent) speechActiveRef.current = false;
+    return sent;
   }, [sendJson]);
 
   const sendBargeIn = useCallback((reason = 'user_started_speaking') => sendJson({ type: 'barge_in', reason, clientTimestamp: Date.now() }), [sendJson]);
