@@ -19,6 +19,7 @@ export function useVoiceSessionLifecycleController({
   isSupported,
   isAutoLoopActive,
   isMicStreaming,
+  isProcessingTurn,
   refs,
   audioQueue,
   latency,
@@ -63,10 +64,10 @@ export function useVoiceSessionLifecycleController({
 
   const startListening = useCallback(async () => {
     if (!enabled || !activeSessionId || isPaused || isCompleted) return;
-    if (isAssistantSpeakingRef.current || vad.isProcessingTurnRef?.current) {
+    if (isAssistantSpeakingRef.current || isProcessingTurn) {
       console.warn('[FRONTEND-STT-TRACE] Blocked startListening because assistant or backend is busy.', {
         isAssistantSpeaking: isAssistantSpeakingRef.current,
-        isProcessingTurn: vad.isProcessingTurnRef?.current,
+        isProcessingTurn,
       });
       return;
     }
@@ -108,6 +109,7 @@ export function useVoiceSessionLifecycleController({
     isAssistantSpeakingRef,
     isCompleted,
     isPaused,
+    isProcessingTurn,
     micMediaStream,
     noSpeechPromptedRef,
     requestPermission,
