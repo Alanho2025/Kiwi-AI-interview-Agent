@@ -22,16 +22,10 @@ const buildFallbackSelection = (fallbackPlan = {}, error = '') => ({
   modelSelectionError: error || null,
 });
 
-const isModelSelectionEnabled = ({ sessionSettings = {} } = {}) => (
-  sessionSettings.enableModelActionSelection === true
-  || process.env.ENABLE_MODEL_ACTION_SELECTION === 'true'
-);
-
 const isModelSelectionDisabled = ({ sessionSettings = {}, fallbackPlan = {} } = {}) => (
   fallbackPlan.allowModelSelection === false
   || sessionSettings.disableModelActionSelection === true
   || process.env.DISABLE_MODEL_ACTION_SELECTION === 'true'
-  || !isModelSelectionEnabled({ sessionSettings })
 );
 
 const buildSelectorPrompt = ({
@@ -98,10 +92,10 @@ export const selectActionWithModel = async ({
 } = {}) => {
   const allowedCandidates = ensureArray(candidateActions).filter((candidate) => candidate?.action);
   if (isModelSelectionDisabled({ sessionSettings, fallbackPlan })) {
-    return buildFallbackSelection(fallbackPlan, 'Model action selection disabled; using rule fallback.');
+    return buildFallbackSelection(fallbackPlan, '');
   }
   if (allowedCandidates.length <= 1) {
-    return buildFallbackSelection(fallbackPlan, 'Only one candidate action available.');
+    return buildFallbackSelection(fallbackPlan, '');
   }
 
   const allowedActions = new Set(allowedCandidates.map((candidate) => candidate.action));
