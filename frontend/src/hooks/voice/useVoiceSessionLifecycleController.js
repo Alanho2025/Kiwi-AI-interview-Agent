@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { uploadSessionRecording } from '../../api/recordingApi.js';
 import { createVoiceLatencyTrace } from '../../utils/voiceLatencyTrace.js';
 import { DEFAULT_VAD_CONFIG } from '../../utils/voiceActivityDetectionCore.js';
@@ -431,7 +431,7 @@ export function useVoiceSessionLifecycleController({
     voiceSessionTraceRef,
   ]);
 
-  return {
+  return useMemo(() => ({
     handleRequestPermission,
     handleReplayAssistantAudio,
     handleResetShell,
@@ -439,5 +439,13 @@ export function useVoiceSessionLifecycleController({
     handleToggleRecording,
     speakQuestionText,
     stopVoiceSession,
-  };
+  }), [
+    handleReplayAssistantAudio,
+    handleRequestPermission,
+    handleResetShell,
+    handleRetryVoice,
+    handleToggleRecording,
+    speakQuestionText,
+    stopVoiceSession,
+  ]);
 }
