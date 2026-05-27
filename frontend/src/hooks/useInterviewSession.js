@@ -15,12 +15,6 @@ import { exportTranscript } from '../api/exportApi.js';
 import { getSession } from '../api/sessionApi.js';
 import { buildInterviewDisplayModel } from '../utils/buildInterviewDisplayModel.js';
 
-/**
- * Purpose: Execute the main responsibility for buildStatus.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
 const buildStatus = (type, title, message) => ({ type, title, message });
 
 const appendTranscriptMessage = (transcript = [], role, text, metadata = {}) => [
@@ -28,23 +22,11 @@ const appendTranscriptMessage = (transcript = [], role, text, metadata = {}) => 
   { role, text, metadata, timestamp: new Date().toISOString() },
 ];
 
-/**
- * Purpose: Execute the main responsibility for getCurrentPlanItem.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
 const getCurrentPlanItem = (session) => {
   const items = session?.interviewPlan?.questionPool || [];
   return items[Math.max(0, (session?.currentQuestionIndex || 1) - 1)] || null;
 };
 
-/**
- * Purpose: Execute the main responsibility for downloadTranscriptFile.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
 const downloadTranscriptFile = ({ transcriptText, sessionId }) => {
   const blob = new Blob([transcriptText], { type: 'text/plain' });
   const url = URL.createObjectURL(blob);
@@ -55,17 +37,51 @@ const downloadTranscriptFile = ({ transcriptText, sessionId }) => {
   URL.revokeObjectURL(url);
 };
 
-/**
- * Purpose: Execute the main responsibility for useInterviewSession.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
+const toSafeElapsedSeconds = (value) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 0;
+};
+
+const getActiveElapsedSeconds = (session = {}, nowMs = Date.now()) => {
+  if (session?.status !== 'in_progress' || !session?.lastResumedAt) return 0;
+  const resumedAtMs = new Date(session.lastResumedAt).getTime();
+  if (!Number.isFinite(resumedAtMs)) return 0;
+  const elapsedMs = nowMs - resumedAtMs;
+  return elapsedMs > 0 ? Math.floor(elapsedMs / 1000) : 0;
+};
+
+const getDisplayElapsedSeconds = (session = {}, nowMs = Date.now()) => (
+  toSafeElapsedSeconds(session?.elapsedSeconds) + getActiveElapsedSeconds(session, nowMs)
+);
+
+const buildCompletedStatus = (session = {}) => {
+  const reason = session?.completedBecause || session?.metadata?.completedBecause;
+  if (reason === 'time_limit_reached') {
+    return buildStatus(
+      'success',
+      'Interview time limit reached',
+      'The planned interview time has ended. Your session is saved, and you can now review the report.'
+    );
+  }
+  if (reason === 'manual_end') {
+    return buildStatus(
+      'success',
+      'Interview ended',
+      'Your session is saved. You can now review the report or export the transcript.'
+    );
+  }
+  return buildStatus(
+    'success',
+    'Interview completed',
+    'The planned question set is finished. You can now review the report.'
+  );
+};
+
 export function useInterviewSession({ sessionId, navigate }) {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [timerOffset, setTimerOffset] = useState(0);
+  const [timerTick, setTimerTick] = useState(0);
   const [pageStatus, setPageStatus] = useState(null);
   const [endSessionProgress, setEndSessionProgress] = useState({
     active: false,
@@ -73,7 +89,6 @@ export function useInterviewSession({ sessionId, navigate }) {
     error: null,
   });
   const warmedAdaptiveRef = useRef(new Set());
-
 
   const warmAdaptiveInBackground = useCallback((nextSession) => {
     const nextSessionId = nextSession?.id || nextSession?._id || sessionId;
@@ -93,7 +108,6 @@ export function useInterviewSession({ sessionId, navigate }) {
       const data = await getSession(sessionId);
       setSession(data.session);
       warmAdaptiveInBackground(data.session);
-
     } catch (error) {
       setPageStatus(buildStatus('error', 'Could not load interview', error.message || 'Failed to load session.'));
       navigate('/analysis');
@@ -106,21 +120,17 @@ export function useInterviewSession({ sessionId, navigate }) {
     loadSession();
   }, [loadSession]);
 
-
   useEffect(() => {
     warmAdaptiveInBackground(session);
   }, [session, warmAdaptiveInBackground]);
 
-  const timerSessionKey = `${session?.id || session?._id || sessionId}:${session?.status || 'unknown'}:${session?.lastResumedAt || session?.startedAt || ''}`;
-  const isTimerActive = session?.status === 'in_progress';
+  const timerSessionKey = `${session?.id || session?._id || sessionId}:${session?.status || 'unknown'}:${session?.lastResumedAt || ''}:${session?.elapsedSeconds || 0}`;
+  const isTimerActive = session?.status === 'in_progress' && Boolean(session?.lastResumedAt);
 
   useEffect(() => {
-    if (!isTimerActive) {
-      return undefined;
-    }
-
-    setTimerOffset(0);
-    const interval = setInterval(() => setTimerOffset((value) => value + 1), 1000);
+    setTimerTick(0);
+    if (!isTimerActive) return undefined;
+    const interval = setInterval(() => setTimerTick((value) => value + 1), 1000);
     return () => clearInterval(interval);
   }, [isTimerActive, timerSessionKey]);
 
@@ -131,6 +141,7 @@ export function useInterviewSession({ sessionId, navigate }) {
     setIsSubmitting(true);
     try {
       const data = await startInterview(sessionId);
+      setTimerTick(0);
       setSession(data.session);
       warmAdaptiveInBackground(data.session);
       return data.session;
@@ -142,7 +153,6 @@ export function useInterviewSession({ sessionId, navigate }) {
     }
   }, [isSubmitting, session, sessionId, warmAdaptiveInBackground]);
 
-
   const handleReply = useCallback(async (answer) => {
     const cleanAnswer = answer?.trim();
     if (isSubmitting || !cleanAnswer) return;
@@ -153,6 +163,7 @@ export function useInterviewSession({ sessionId, navigate }) {
     try {
       if (session?.status === 'ready') {
         const startData = await startInterview(sessionId);
+        setTimerTick(0);
         setSession(startData.session);
         warmAdaptiveInBackground(startData.session);
       }
@@ -162,10 +173,11 @@ export function useInterviewSession({ sessionId, navigate }) {
         : prev);
 
       const data = await replyInterview(sessionId, cleanAnswer);
+      setTimerTick(0);
       setSession(data.session);
 
       if (data.session?.status === 'completed') {
-        setPageStatus(buildStatus('success', 'Interview completed', 'The planned question set is finished. You can now review the report.'));
+        setPageStatus(buildCompletedStatus(data.session));
       }
     } catch (error) {
       if (previousSession) {
@@ -177,26 +189,44 @@ export function useInterviewSession({ sessionId, navigate }) {
     }
   }, [isSubmitting, session, sessionId, warmAdaptiveInBackground]);
 
-
   const handleVoiceSessionUpdate = useCallback((nextSession) => {
+    setTimerTick(0);
     setSession(nextSession);
     if (nextSession?.status === 'completed') {
-      setPageStatus(buildStatus('success', 'Interview completed', 'The planned question set is finished. You can now review the report.'));
+      setPageStatus(buildCompletedStatus(nextSession));
     }
   }, []);
 
   const handlePauseToggle = useCallback(async () => {
-    if (session?.status === 'completed') return;
+    if (session?.status === 'completed' || isSubmitting) return;
 
+    setIsSubmitting(true);
     try {
+      if (session?.status === 'in_progress') {
+        const frozenElapsedSeconds = getDisplayElapsedSeconds(session);
+        setSession((prev) => prev ? {
+          ...prev,
+          status: 'paused',
+          elapsedSeconds: frozenElapsedSeconds,
+          lastResumedAt: null,
+        } : prev);
+        setTimerTick(0);
+      }
+
       const data = session?.status === 'paused'
         ? await resumeInterview(sessionId)
         : await pauseInterview(sessionId);
+
+      setTimerTick(0);
       setSession(data.session);
     } catch (error) {
       setPageStatus(buildStatus('error', 'Pause/resume failed', error.message || 'Could not update interview status.'));
+      await loadSession();
+    } finally {
+      setIsSubmitting(false);
     }
-  }, [session?.status, sessionId]);
+  }, [isSubmitting, loadSession, session, sessionId]);
+
   const handleRepeat = useCallback(async () => {
     if (session?.status === 'completed') return;
 
@@ -230,6 +260,16 @@ export function useInterviewSession({ sessionId, navigate }) {
     const mode = options.mode || session?.mode || 'text';
     const isVoiceEnd = String(mode).toLowerCase() === 'voice';
 
+    if (session?.status === 'in_progress') {
+      const frozenElapsedSeconds = getDisplayElapsedSeconds(session);
+      setSession((prev) => prev ? {
+        ...prev,
+        elapsedSeconds: frozenElapsedSeconds,
+        lastResumedAt: null,
+      } : prev);
+      setTimerTick(0);
+    }
+
     setEndSessionProgress({ active: false, step: 'idle', error: null });
     setPageStatus(buildStatus(
       'confirm-end',
@@ -238,7 +278,7 @@ export function useInterviewSession({ sessionId, navigate }) {
         ? 'This will stop the voice session, save your transcript, and generate your report.'
         : 'This will save your transcript and generate your report.'
     ));
-  }, [session?.mode]);
+  }, [session]);
 
   const handleConfirmEnd = useCallback(async () => {
     let progressTimer = null;
@@ -255,6 +295,7 @@ export function useInterviewSession({ sessionId, navigate }) {
       const data = await endInterview(sessionId);
       if (progressTimer) window.clearTimeout(progressTimer);
 
+      setTimerTick(0);
       setSession(data.session);
       setEndSessionProgress({ active: true, step: 'completed', error: null });
       setPageStatus(buildStatus(
@@ -294,14 +335,15 @@ export function useInterviewSession({ sessionId, navigate }) {
   const viewModel = useMemo(() => {
     const currentPlanItem = getCurrentPlanItem(session);
     const displayModel = buildInterviewDisplayModel(session, currentPlanItem);
+    const nowMs = Date.now() + timerTick * 0;
 
     return {
       currentPlanItem,
       ...displayModel,
-      elapsedSeconds: (session?.elapsedSeconds || 0) + (session?.status === 'in_progress' ? timerOffset : 0),
+      elapsedSeconds: getDisplayElapsedSeconds(session, nowMs),
       statusLabel: session?.status === 'in_progress' ? 'Live' : session?.status,
     };
-  }, [session, timerOffset]);
+  }, [session, timerTick]);
 
   return {
     session,
