@@ -165,6 +165,8 @@ export function useVoiceInterviewSession({
     setSendAudio,
   } = realtimeMic;
 
+
+
   const vadTurn = useVoiceVadTurnController({
     refs,
     enabled,
@@ -266,6 +268,8 @@ export function useVoiceInterviewSession({
     activeVoiceTurnTraceRef.current?.mark('backend_listening_started');
     setSendAudio(true);
   }, [activeVoiceTurnTraceRef, duplexSocketState, setSendAudio, speechStartSentRef]);
+
+
 
   useEffect(() => {
     if (partialTranscript) setTranscriptionPreview(partialTranscript);
@@ -396,10 +400,10 @@ export function useVoiceInterviewSession({
     handleResetShell: lifecycle.handleResetShell,
     handleRetryVoice: lifecycle.handleRetryVoice,
     stopVoiceSession: lifecycle.stopVoiceSession,
-    handleAudioFileSelect: () => {},
-    handleSubmitSelectedAudio: () => {},
-    setBackupText: () => {},
-    setIsBackupExpanded: () => {},
+    handleAudioFileSelect: () => { },
+    handleSubmitSelectedAudio: () => { },
+    setBackupText: () => { },
+    setIsBackupExpanded: () => { },
     onPause,
     onRepeat,
     onEnd,

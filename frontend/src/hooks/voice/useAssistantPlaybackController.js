@@ -24,6 +24,7 @@ export function useAssistantPlaybackController({
   clearPendingBargeIn,
   stopLatencyAcknowledgement,
   logVoiceLatencySummary,
+  setSendAudio,
 }) {
   const {
     autoLoopActiveRef,
@@ -39,6 +40,8 @@ export function useAssistantPlaybackController({
       console.log('[FRONTEND-TTS-TRACE] Assistant audio playback started.');
       stopLatencyAcknowledgement();
       isAssistantSpeakingRef.current = true;
+      setSendAudio?.(false);
+
 
       const activeTrace = activeVoiceTurnTraceRef.current;
       if (firstAudioChunkSeenRef.current && hasCurrentTurnFirstAudioChunk(activeTrace)) {
@@ -68,6 +71,7 @@ export function useAssistantPlaybackController({
         window.setTimeout(() => startListeningRef.current?.(), MIC_ARM_DELAY_MS);
         return;
       }
+
       if (!isPaused && !isCompleted) setReadyState();
     },
     onPlaybackError: (message) => {
