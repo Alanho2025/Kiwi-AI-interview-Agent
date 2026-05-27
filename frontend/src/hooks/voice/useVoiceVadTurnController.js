@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { DEFAULT_VAD_CONFIG } from '../../utils/voiceActivityDetectionCore.js';
 import { useVoiceActivityDetection } from './useVoiceActivityDetection.js';
 import { BARGE_IN_CONFIRMATION_MS, SPEECH_END_CONFIRMATION_MS } from './voiceSessionConstants.js';
@@ -33,6 +33,8 @@ export function useVoiceVadTurnController({
     speechStartSentRef,
     voiceSessionTraceRef,
   } = refs;
+
+  const isFinalizingSpeechEndRef = useRef(false);
 
   const clearPendingBargeIn = useCallback(() => {
     pendingBargeInRef.current = null;
@@ -69,6 +71,9 @@ export function useVoiceVadTurnController({
   }, [audioQueue, isAssistantSpeakingRef, pendingBargeInRef, sendBargeIn, sendSpeechStartIfNeeded, setVoiceState, setVoiceStatus]);
 
   const stopListening = useCallback(async (reason = 'speech_end') => {
+    if (isFinalizingSpeechEndRef.current) return false;
+    isFinalizingSpeechEndRef.current = true;
+
     clearPendingSpeechEnd();
     console.log(`[FRONTEND-STT-TRACE] Stopping listening. Reason: ${reason}`);
     const { turnId } = startVoiceTurnTrace(reason);
@@ -83,6 +88,7 @@ export function useVoiceVadTurnController({
     setVoiceState('agent_thinking');
     setVoiceStatus(buildVoiceStatus('info', 'Processing your answer', 'KiwiCoach is preparing the next turn. This may take a few seconds.'));
     scheduleLatencyAcknowledgement();
+    return true;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clearPendingSpeechEnd, scheduleLatencyAcknowledgement, sendSpeechEnd, setSendAudio, startVoiceTurnTrace]);
 
@@ -104,6 +110,7 @@ export function useVoiceVadTurnController({
   }, [clearPendingBargeIn, confirmPendingBargeIn, isAssistantSpeakingRef, pendingBargeInRef]);
 
   const handleVadSpeechStart = useCallback((metrics = {}) => {
+    isFinalizingSpeechEndRef.current = false;
     clearPendingSpeechEnd();
     console.log('[FRONTEND-STT-TRACE] VAD detected speech start.');
     stopLatencyAcknowledgement();
@@ -141,10 +148,16 @@ export function useVoiceVadTurnController({
     pendingSpeechEndMetricsRef.current = metrics;
     vadMetricsRef.current = { ...(vadMetricsRef.current || {}), ...metrics };
 
+    if (isFinalizingSpeechEndRef.current) return;
+
+    if (pendingSpeechEndTimerRef.current) {
+      console.log('[FRONTEND-STT-TRACE] VAD speech_end already pending. Keeping existing final submit timer.', metrics);
+      return;
+    }
+
     console.log('[FRONTEND-STT-TRACE] VAD possible speech_end detected. Waiting before final submit.', metrics);
     setVoiceStatus(buildVoiceStatus('info', 'Still listening', 'Pause detected. Continue speaking if you have more to add.'));
 
-    if (pendingSpeechEndTimerRef.current) window.clearTimeout(pendingSpeechEndTimerRef.current);
     pendingSpeechEndTimerRef.current = window.setTimeout(async () => {
       pendingSpeechEndTimerRef.current = null;
       const finalMetrics = pendingSpeechEndMetricsRef.current || metrics;
