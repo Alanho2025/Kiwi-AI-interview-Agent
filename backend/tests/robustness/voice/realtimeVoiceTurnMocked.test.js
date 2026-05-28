@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   enqueueBackgroundJob: vi.fn(),
   persistVoiceDeliveryMetrics: vi.fn(),
   recordAgentTraceEvent: vi.fn(),
+  backgroundJobs: [],
 }));
 
 vi.mock('../../../src/services/sessionService.js', () => ({
@@ -61,6 +62,10 @@ vi.mock('../../../src/services/aiControl/agentTraceService.js', () => ({
 
 const { processRealtimeVoiceTurn } = await import('../../../src/services/voice/realtimeVoiceTurnService.js');
 
+const flushBackgroundJobs = async () => {
+  await Promise.all(mocks.backgroundJobs.splice(0).map((job) => job.catch((error) => error)));
+};
+
 const baseSession = () => ({
   id: 'voice-session-1',
   userId: 'user-1',
@@ -83,6 +88,7 @@ const validVad = {
 describe('mocked realtime voice turn', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.backgroundJobs = [];
     mocks.getLatestQuestionForSession.mockResolvedValue({ id: 'question-1', text: 'Tell me about model validation.' });
     mocks.appendTranscriptTurn.mockResolvedValue(null);
     mocks.saveInterviewAnswerWithDetails.mockResolvedValue(null);
@@ -95,7 +101,11 @@ describe('mocked realtime voice turn', () => {
         { role: 'ai', text: 'How did you validate that split?', questionId: 'question-2' },
       ],
     });
-    mocks.enqueueBackgroundJob.mockImplementation((_name, job) => job?.());
+    mocks.enqueueBackgroundJob.mockImplementation((_name, job) => {
+      const promise = Promise.resolve().then(() => job?.());
+      mocks.backgroundJobs.push(promise);
+      return promise;
+    });
     mocks.saveBufferToLocalStorage.mockResolvedValue({ storageKey: 'voice-output/test.mp3' });
     mocks.synthesizeSpeech.mockResolvedValue({
       provider: 'mock-tts',
@@ -122,6 +132,7 @@ describe('mocked realtime voice turn', () => {
       vad: validVad,
       inputMode: 'realtime_voice',
     });
+    await flushBackgroundJobs();
 
     expect(mocks.appendTranscriptTurn).toHaveBeenCalledWith('voice-session-1', expect.objectContaining({
       role: 'user',
@@ -166,6 +177,7 @@ describe('mocked realtime voice turn', () => {
       vad: validVad,
       onSentence,
     });
+    await flushBackgroundJobs();
 
     expect(onSentence).toHaveBeenCalledWith('How did you validate that split?', 0);
     expect(result.assistantAudio).toBeNull();
@@ -188,6 +200,7 @@ describe('mocked realtime voice turn', () => {
       asrConfidence: 0.2,
       vad: validVad,
     })).rejects.toThrow();
+    await flushBackgroundJobs();
 
     expect(mocks.appendTranscriptTurn).not.toHaveBeenCalled();
     expect(mocks.saveInterviewAnswerWithDetails).not.toHaveBeenCalled();
