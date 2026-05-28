@@ -22,6 +22,17 @@ const classifySpecificity = (answerText = '') => {
   return 'low';
 };
 
+const detectCandidateDifficultySignal = (answerText = '') => {
+  const normalized = normalizeText(answerText).toLowerCase();
+  if (!normalized) return false;
+  return /\b(question|questions|this|that)\b.{0,45}\b(tough|hard|difficult|confusing|complicated|unclear)\b/.test(normalized)
+    || /\b(tough|hard|difficult|confusing|complicated)\b.{0,45}\b(question|questions|answer|explain)\b/.test(normalized)
+    || normalized.includes('i am feeling these questions quite tough')
+    || normalized.includes("i'm feeling these questions quite tough")
+    || normalized.includes('this question is tough')
+    || normalized.includes('these questions are tough');
+};
+
 const detectMisunderstanding = (answerText = '', topic = '') => {
   const normalized = normalizeText(answerText).toLowerCase();
   if (!normalized) return true;
@@ -64,7 +75,6 @@ const detectFrictionSignals = (answerText = '') => {
 };
 
 const extractMentionedEntities = (answerText = '') => {
-  // Simple regex for capitalized phrases that might be project names or companies
   const candidates = answerText.match(/\b[A-Z][a-zA-Z0-9]{2,}(?:\s+[A-Z][a-zA-Z0-9]{1,})*\b/g) || [];
   const filters = ['I', 'The', 'And', 'What', 'How', 'You', 'They', 'We', 'Our', 'My', 'When', 'Then', 'To', 'In', 'A', 'An'];
   return [...new Set(candidates)]
@@ -153,20 +163,23 @@ const buildPlannerSignals = ({
   coveragePressure,
   starBreakdown = null,
   candidateRepetitionComplaint = false,
+  candidateDifficultySignal = false,
 } = {}) => ({
   evidenceGainScore,
   specificity,
   missingEvidence: ensureArray(answerUnderstanding?.missingEvidence),
   roleRelevance,
   semanticOpportunity: normalizeText(answerUnderstanding?.semanticOpportunity),
-  followUpValue: answerUnderstanding?.followUpValue || (evidenceGainScore >= 0.45 && evidenceGainScore < 0.7 ? 'high' : evidenceGainScore >= 0.7 ? 'medium' : 'medium'),
-  emotionalOrFrictionSignal: ensureArray(frictionState.frictionKeywords)[0] || '',
+  followUpValue: candidateDifficultySignal
+    ? 'high'
+    : answerUnderstanding?.followUpValue || (evidenceGainScore >= 0.45 && evidenceGainScore < 0.7 ? 'high' : evidenceGainScore >= 0.7 ? 'medium' : 'medium'),
+  emotionalOrFrictionSignal: candidateDifficultySignal ? 'candidate_found_question_tough' : ensureArray(frictionState.frictionKeywords)[0] || '',
   coveragePressure,
   candidateRepetitionComplaint,
+  candidateDifficultySignal,
   starScores: starBreakdown?.scores || {},
   starMainMissingElement: starBreakdown?.mainMissingElement || '',
 });
-
 
 const detectGapClosure = ({ answerText = '', topic = '' } = {}) => {
   const tokens = tokenize(answerText);
@@ -181,7 +194,8 @@ const detectGapClosure = ({ answerText = '', topic = '' } = {}) => {
   return { hardestTradeoff, handlingApproach, successJudgement, closeCurrentIntent };
 };
 
-const suggestNextMode = ({ misunderstandingFlag = false, evidenceGainScore = 0, repetitionRisk = false, closeCurrentIntent = false } = {}) => {
+const suggestNextMode = ({ misunderstandingFlag = false, evidenceGainScore = 0, repetitionRisk = false, closeCurrentIntent = false, candidateDifficultySignal = false } = {}) => {
+  if (candidateDifficultySignal) return 'rephrase';
   if (misunderstandingFlag) return 'rephrase';
   if (closeCurrentIntent) return 'advance';
   if (repetitionRisk && evidenceGainScore < 0.55) return 'switch';
@@ -190,7 +204,8 @@ const suggestNextMode = ({ misunderstandingFlag = false, evidenceGainScore = 0, 
   return 'advance';
 };
 
-const mergeSuggestedNextMode = ({ baseMode, answerUnderstanding = null, misunderstandingFlag = false } = {}) => {
+const mergeSuggestedNextMode = ({ baseMode, answerUnderstanding = null, misunderstandingFlag = false, candidateDifficultySignal = false } = {}) => {
+  if (candidateDifficultySignal) return 'rephrase';
   if (misunderstandingFlag) return 'rephrase';
   const understandingMode = answerUnderstanding?.suggestedFollowUp?.mode;
   const confidence = Number(answerUnderstanding?.confidence || 0);
@@ -214,7 +229,9 @@ export const evaluateInterviewTurn = ({ environment = {}, decisionContext = null
   const answerUnderstanding = environment?.latestAnswerUnderstanding || null;
   const specificity = classifySpecificity(answerText);
   const candidateRepetitionComplaint = detectRepetitionComplaint(answerText);
+  const candidateDifficultySignal = detectCandidateDifficultySignal(answerText);
   const misunderstandingFlag = detectMisunderstanding(answerText, currentTopic)
+    || candidateDifficultySignal
     || answerUnderstanding?.suggestedFollowUp?.mode === 'rephrase';
   const hasCandidateQuestion = detectCandidateQuestion(answerText);
   const evidenceGainScore = computeEvidenceGainScore({ answerText, topic: currentTopic, requiredSkills });
@@ -226,12 +243,13 @@ export const evaluateInterviewTurn = ({ environment = {}, decisionContext = null
   const interactionStatus = classifyInteractionStatus({ overallInteractionScore, misunderstandingFlag, turnTakingScore });
   const repetitionRisk = detectRepetitionRisk({ previousTopics: environment?.questionContext?.previousQuestionTopics || [], currentTopic });
   const gapClosure = detectGapClosure({ answerText, topic: currentTopic });
-  const baseSuggestedNextMode = suggestNextMode({ misunderstandingFlag, evidenceGainScore, repetitionRisk, closeCurrentIntent: gapClosure.closeCurrentIntent });
-  const suggestedNextMode = mergeSuggestedNextMode({ baseMode: baseSuggestedNextMode, answerUnderstanding, misunderstandingFlag });
+  const baseSuggestedNextMode = suggestNextMode({ misunderstandingFlag, evidenceGainScore, repetitionRisk, closeCurrentIntent: gapClosure.closeCurrentIntent, candidateDifficultySignal });
+  const suggestedNextMode = mergeSuggestedNextMode({ baseMode: baseSuggestedNextMode, answerUnderstanding, misunderstandingFlag, candidateDifficultySignal });
   const rawFrictionState = detectFrictionSignals(answerText);
   const frictionKeywords = [...new Set([
     ...(rawFrictionState.frictionKeywords || []),
     ...(answerUnderstanding?.frictionSignals || []),
+    ...(candidateDifficultySignal ? ['candidate_found_question_tough'] : []),
   ])];
   const frictionState = {
     frictionDetected: rawFrictionState.frictionDetected || frictionKeywords.length > 0,
@@ -242,7 +260,7 @@ export const evaluateInterviewTurn = ({ environment = {}, decisionContext = null
     ...extractMentionedEntities(answerText),
     ...(answerUnderstanding?.mentionedEntities || []),
   ])];
-  const reflectionNeeded = misunderstandingFlag || (evidenceGainScore < 0.45 && repetitionRisk) || overallInteractionScore < 0.5;
+  const reflectionNeeded = misunderstandingFlag || (evidenceGainScore < 0.45 && repetitionRisk) || overallInteractionScore < 0.5 || candidateDifficultySignal;
   const roleRelevance = inferRoleRelevance({ answerText, currentTopic, requiredSkills, answerUnderstanding });
   const coveragePressure = inferCoveragePressure({ coverageState: decisionContext?.coverageState || {}, repetitionRisk });
   const starBreakdown = analyzeStarBreakdown(answerText);
@@ -255,6 +273,7 @@ export const evaluateInterviewTurn = ({ environment = {}, decisionContext = null
     coveragePressure,
     starBreakdown,
     candidateRepetitionComplaint,
+    candidateDifficultySignal,
   });
 
   return {
@@ -266,6 +285,7 @@ export const evaluateInterviewTurn = ({ environment = {}, decisionContext = null
     evidenceGainScore,
     misunderstandingFlag,
     candidateRepetitionComplaint,
+    candidateDifficultySignal,
     hasCandidateQuestion,
     frictionState,
     mentionedEntities,
@@ -278,7 +298,7 @@ export const evaluateInterviewTurn = ({ environment = {}, decisionContext = null
     repetitionRisk,
     reflectionNeeded,
     gapClosure,
-    closeCurrentIntent: gapClosure.closeCurrentIntent,
+    closeCurrentIntent: candidateDifficultySignal ? false : gapClosure.closeCurrentIntent,
     starBreakdown,
     plannerSignals,
     suggestedNextMode,
@@ -293,13 +313,15 @@ export const evaluateInterviewTurn = ({ environment = {}, decisionContext = null
         confidence: answerUnderstanding.confidence,
       }
       : null,
-    rationale: misunderstandingFlag
-      ? 'The latest answer likely did not address the question clearly enough.'
-      : suggestedNextMode !== baseSuggestedNextMode && answerUnderstanding?.suggestedFollowUp?.questionGoal
-        ? `Fast answer understanding found concrete facts to preserve: ${answerUnderstanding.suggestedFollowUp.questionGoal}.`
-        : evidenceGainScore >= 0.7
-          ? 'The latest answer added concrete evidence that can support downstream scoring and reporting.'
-          : 'The latest answer added some evidence, but the next turn should still tighten specificity or coverage.',
+    rationale: candidateDifficultySignal
+      ? 'The candidate signalled that the question felt tough, so the next turn should reduce cognitive load and rephrase or scaffold.'
+      : misunderstandingFlag
+        ? 'The latest answer likely did not address the question clearly enough.'
+        : suggestedNextMode !== baseSuggestedNextMode && answerUnderstanding?.suggestedFollowUp?.questionGoal
+          ? `Fast answer understanding found concrete facts to preserve: ${answerUnderstanding.suggestedFollowUp.questionGoal}.`
+          : evidenceGainScore >= 0.7
+            ? 'The latest answer added concrete evidence that can support downstream scoring and reporting.'
+            : 'The latest answer added some evidence, but the next turn should still tighten specificity or coverage.',
   };
 };
 
