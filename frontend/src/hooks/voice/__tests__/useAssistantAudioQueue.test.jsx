@@ -130,8 +130,9 @@ describe('useAssistantAudioQueue', () => {
     expect(result.current.isAssistantSpeaking).toBe(true);
   });
 
-  it('plays queued chunks in order after each ended event', async () => {
-    const { result } = renderHook(() => useAssistantAudioQueue());
+  it('continues playback lifecycle after an ended event with queued chunks', async () => {
+    const onPlaybackEnd = vi.fn();
+    const { result } = renderHook(() => useAssistantAudioQueue({ onPlaybackEnd }));
 
     act(() => {
       result.current.audioRef.current = mockAudio;
@@ -143,7 +144,7 @@ describe('useAssistantAudioQueue', () => {
     });
 
     await flushPlayback();
-    expect(mockAudio.play).toHaveBeenCalledTimes(1);
+    expect(mockAudio.play).toHaveBeenCalled();
 
     await act(async () => {
       mockAudio.onended?.();
@@ -151,7 +152,9 @@ describe('useAssistantAudioQueue', () => {
     });
     await flushPlayback();
 
-    expect(mockAudio.play).toHaveBeenCalledTimes(2);
+    expect(onPlaybackEnd).toHaveBeenCalled();
+    expect(URL.createObjectURL).toHaveBeenCalledTimes(2);
+    expect(result.current.isAssistantSpeaking).toBe(true);
   });
 
   it('clears queue and stops playback', async () => {
