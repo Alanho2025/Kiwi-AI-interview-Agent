@@ -6,6 +6,9 @@ import { deriveDynamicSlots } from '../../../src/services/aiControl/dynamicSlotS
 import { deriveAbductiveState } from '../../../src/services/aiControl/abductiveReasoningService.js';
 import { inferInterviewSection, buildSectionState } from '../../../src/services/aiControl/sectionPlannerService.js';
 
+const tokenLength = (text = '') => String(text).trim().split(/\s+/).filter(Boolean).length;
+const expectVoiceLikeLength = (text, minTokens = 35) => expect(tokenLength(text)).toBeGreaterThanOrEqual(minTokens);
+
 const baseAnalysis = ({ priorityTopics = ['api_security', 'system_design'], validationTargets = [] } = {}) => ({
   explanation: { strengths: ['Node.js'], gaps: ['Need stronger role evidence'] },
   matchingDetails: {
@@ -13,11 +16,11 @@ const baseAnalysis = ({ priorityTopics = ['api_security', 'system_design'], vali
     validationTargets,
   },
   parsedCvProfile: {
-    skills: ['Node.js', 'JWT', 'Python', 'SQL'],
+    skills: ['Node.js', 'JWT', 'Python', 'SQL', 'model evaluation'],
     projects: ['API Platform', 'Data Mining Model'],
   },
   parsedJdProfile: {
-    requiredSkills: ['API Security', 'System Design', 'Python', 'SQL'],
+    requiredSkills: ['API Security', 'System Design', 'Python', 'SQL', 'model validation'],
   },
 });
 
@@ -106,49 +109,56 @@ const runController = (session) => {
   return { environment, evaluatorOutput, plan, coverageState, dynamicSlotState, abductiveState, sectionState };
 };
 
-describe('interview controller action completeness', () => {
-  it('rephrases when the candidate does not understand the question', () => {
-    const { evaluatorOutput, plan } = runController(buildSession({
-      userText: 'Sorry, I am not sure what you mean by that.',
-    }));
+describe('interview controller action completeness with realistic voice-length transcripts', () => {
+  it('rephrases when the candidate does not understand the question in a real voice-style answer', () => {
+    const userText = 'Sorry, I am not really sure what you mean by system design here. Like I can talk about the project structure or the API routes, but I am not sure whether you want architecture, database, or deployment, so could you repeat or make the question a bit clearer?';
+    expectVoiceLikeLength(userText, 40);
+
+    const { evaluatorOutput, plan } = runController(buildSession({ userText }));
 
     expect(evaluatorOutput.suggestedNextMode).toBe('rephrase');
     expect(plan.selectedAction).toBe('REPHRASE_QUESTION');
   });
 
-  it('rephrases when the candidate says the question is tough', () => {
-    const { evaluatorOutput, plan } = runController(buildSession({
-      userText: 'I am feeling these questions quite tough. Could you make it simpler?',
-    }));
+  it('rephrases when the candidate says the question is tough in a long spoken turn', () => {
+    const userText = 'Um I am feeling these questions quite tough because I understand the project generally, but when you ask it in this way I am not sure what level of technical detail you expect. I can explain the model or the evaluation, but maybe can you make the question simpler first?';
+    expectVoiceLikeLength(userText, 40);
+
+    const { evaluatorOutput, plan } = runController(buildSession({ userText }));
 
     expect(evaluatorOutput.candidateDifficultySignal).toBe(true);
     expect(evaluatorOutput.suggestedNextMode).toBe('rephrase');
     expect(plan.selectedAction).toBe('REPHRASE_QUESTION');
   });
 
-  it('asks a deep dive when the answer is usable but still misses trade-off detail', () => {
-    const { evaluatorOutput, plan } = runController(buildSession({
-      userText: 'I implemented JWT auth and rate limiting for our Node API, but I have not explained the trade-offs yet.',
-    }));
+  it('asks a deep dive for a realistic usable answer that still misses trade-off detail', () => {
+    const userText = 'In that API project I implemented JWT authentication and rate limiting for the Node backend. I added middleware, checked the token before protected routes, and tested common failed cases like missing tokens and expired tokens. It worked for the demo, but I did not really explain the trade-off between security, user experience, and request limits yet.';
+    expectVoiceLikeLength(userText, 50);
+
+    const { evaluatorOutput, plan } = runController(buildSession({ userText }));
 
     expect(evaluatorOutput.suggestedNextMode).toBe('deepen');
     expect(plan.selectedAction).toBe('ASK_DEEP_DIVE_QUESTION');
   });
 
-  it('asks a probing question for a thin answer with weak evidence', () => {
-    const { evaluatorOutput, plan } = runController(buildSession({
-      userText: 'I helped with it a bit and learned some things.',
-    }));
+  it('asks a probe for a long but vague answer with filler and weak evidence', () => {
+    const userText = 'Yeah so basically I helped with that part of the project and I was involved in the backend side, like I joined meetings and checked some things when the team needed help. I learned a lot from it and it was useful experience, but I cannot remember a very specific decision or result right now.';
+    expectVoiceLikeLength(userText, 45);
+
+    const { evaluatorOutput, plan } = runController(buildSession({ userText }));
 
     expect(evaluatorOutput.suggestedNextMode).toBe('probe');
     expect(['ASK_PROBING_QUESTION', 'ASK_ABDUCTIVE_PROBE_QUESTION']).toContain(plan.selectedAction);
   });
 
-  it('asks validation when a CV-JD validation target remains uncovered', () => {
+  it('asks validation for a realistic model-split answer with a CV-JD validation target', () => {
+    const userText = 'For the model evaluation I compared different train test splits, mainly 70 30, 60 40, and 80 20. I finally used 70 30 because the accuracy looked more stable and it gave enough testing data. I also checked the output against the project objective, but I probably need to explain the validation method more clearly.';
+    expectVoiceLikeLength(userText, 50);
+
     const { plan } = runController(buildSession({
       aiTopic: 'python_model_validation',
-      aiText: 'Tell me about how you validated your model.',
-      userText: 'I used Python and compared the output accuracy across different splits.',
+      aiText: 'Tell me about how you validated your model and why you selected the split.',
+      userText,
       analysisResult: baseAnalysis({
         priorityTopics: ['python_model_validation'],
         validationTargets: ['python_model_validation'],
@@ -158,13 +168,16 @@ describe('interview controller action completeness', () => {
     expect(plan.selectedAction).toBe('ASK_VALIDATION_QUESTION');
   });
 
-  it('switches or shifts when the current answer closes the topic and coverage remains', () => {
+  it('switches or shifts after a realistic topic-closing answer with concrete result evidence', () => {
+    const userText = 'For that backend API redesign, I handled the hardest trade-off between keeping the old endpoints stable and improving response time. I updated the route structure, checked the database calls, and validated the result by comparing latency before and after the change. The final result was around 30 percent faster in our test data.';
+    expectVoiceLikeLength(userText, 50);
+
     const { evaluatorOutput, plan } = runController(buildSession({
       currentQuestionIndex: 4,
       aiStage: 'experience',
       aiTopic: 'ownership',
       aiText: 'What result did your backend API redesign lead to?',
-      userText: 'I handled the hardest trade-off, updated the API design, and validated the result by reducing latency by 30 percent.',
+      userText,
       analysisResult: baseAnalysis({ priorityTopics: ['teamwork', 'problem_solving'], validationTargets: [] }),
       extraTranscript: [
         { role: 'ai', text: 'Tell me about a project you owned.', metadata: { stage: 'experience', topic: 'project' } },
@@ -173,5 +186,20 @@ describe('interview controller action completeness', () => {
 
     expect(evaluatorOutput.suggestedNextMode).toBe('advance');
     expect(['SHIFT_SECTION', 'SWITCH_TOPIC', 'ASK_POOL_QUESTION']).toContain(plan.selectedAction);
+  });
+
+  it('preserves self-correction in a realistic spoken answer instead of treating the first phrase as final evidence', () => {
+    const userText = 'I managed the database, no sorry, I mean I did not manage the whole database. I helped design part of the schema and tested SQL queries for the dashboard feature. The main thing I owned was checking whether the query returned the right fields and whether the result matched the requirement from the menu dataset.';
+    expectVoiceLikeLength(userText, 50);
+
+    const { evaluatorOutput, plan } = runController(buildSession({
+      aiTopic: 'database_sql',
+      aiText: 'Tell me about one database or SQL task you handled yourself.',
+      userText,
+      analysisResult: baseAnalysis({ priorityTopics: ['database_sql'], validationTargets: ['database_sql'] }),
+    }));
+
+    expect(evaluatorOutput.specificity).not.toBe('low');
+    expect(['ASK_DEEP_DIVE_QUESTION', 'ASK_VALIDATION_QUESTION', 'SHIFT_SECTION', 'ASK_POOL_QUESTION']).toContain(plan.selectedAction);
   });
 });
