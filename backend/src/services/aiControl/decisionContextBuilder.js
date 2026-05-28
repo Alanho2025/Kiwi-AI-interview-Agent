@@ -18,12 +18,21 @@ import { logger } from '../../utils/logger.js';
 
 const nowMs = () => Number(process.hrtime.bigint()) / 1_000_000;
 
+const FOLLOW_UP_MEMORY_FAST_MODES = new Set(['probe', 'deepen', 'rephrase', 'scaffold']);
+const FRESH_OR_SHIFT_MODES = new Set(['advance', 'shift_section', 'switch_topic', 'fresh_question']);
+
 const recordDiagnosticStep = (diagnostics, step, startedAt, extra = {}) => {
   diagnostics.push({
     step,
     durationMs: Math.round(nowMs() - startedAt),
     ...extra,
   });
+};
+
+const markSkippedContextStep = (trace, diagnostics, step, reason = 'not_required_before_first_audio') => {
+  const startedAt = nowMs();
+  recordDiagnosticStep(diagnostics, step, startedAt, { ok: true, skipped: true, reason });
+  trace?.mark?.(`adaptive.decision_context.${step}`, { ok: true, skipped: true, reason });
 };
 
 const measureContextStep = async (trace, diagnostics, step, fn, extra = {}) => {
@@ -112,6 +121,81 @@ const buildCoverageState = ({ session = {}, evidenceBundle = {} } = {}) => {
   };
 };
 
+const inferSuggestedFollowUpMode = ({ latestEvaluation = null, latestAnswerUnderstanding = null } = {}) => normalizeText(
+  latestEvaluation?.suggestedNextMode
+  || latestAnswerUnderstanding?.followUpRecommendation?.mode
+  || latestAnswerUnderstanding?.suggestedFollowUp?.mode
+);
+
+export const shouldUseFollowUpMemoryFastPath = ({
+  taskType,
+  session = {},
+  latestEvaluation = null,
+  latestAnswerUnderstanding = null,
+  requestedPolicy = 'auto',
+} = {}) => {
+  if (requestedPolicy === 'full') return false;
+  if (requestedPolicy === 'follow_up_fast') return true;
+  if (taskType !== 'interview_next_turn') return false;
+  if (!isCompactVoiceContext({ session })) return false;
+  if (!latestEvaluation && !latestAnswerUnderstanding) return false;
+  if (latestEvaluation?.closeCurrentIntent) return false;
+
+  const suggestedMode = inferSuggestedFollowUpMode({ latestEvaluation, latestAnswerUnderstanding });
+  if (FRESH_OR_SHIFT_MODES.has(suggestedMode)) return false;
+  if (latestEvaluation?.misunderstandingFlag) return true;
+  if (FOLLOW_UP_MEMORY_FAST_MODES.has(suggestedMode)) return true;
+
+  const missingEvidence = ensureArray(
+    latestEvaluation?.plannerSignals?.missingEvidence
+    || latestAnswerUnderstanding?.missingEvidence
+    || latestAnswerUnderstanding?.coreEvidence?.missing
+  );
+  const followUpValue = normalizeText(latestAnswerUnderstanding?.followUpValue || latestEvaluation?.plannerSignals?.followUpValue);
+  return missingEvidence.length > 0 && followUpValue !== 'low';
+};
+
+const resolveMemoryState = async ({
+  trace,
+  diagnostics,
+  session,
+  latestEvaluation,
+  useFollowUpMemoryFastPath,
+} = {}) => {
+  if (useFollowUpMemoryFastPath) {
+    markSkippedContextStep(trace, diagnostics, 'get_agent_memory', 'follow_up_action_can_use_current_turn_context');
+    markSkippedContextStep(trace, diagnostics, 'get_dynamic_slot_state', 'derive_lightweight_slots_from_current_turn');
+    markSkippedContextStep(trace, diagnostics, 'get_session_reflection_memory', 'background_memory_refresh_for_follow_up');
+    markSkippedContextStep(trace, diagnostics, 'get_user_coaching_memory', 'background_memory_refresh_for_follow_up');
+    const resolvedLatestEvaluation = await measureContextStep(
+      trace,
+      diagnostics,
+      'get_latest_evaluator_record',
+      () => latestEvaluation || getLatestEvaluatorRecord(session.id),
+      { providedEvaluation: Boolean(latestEvaluation), memoryPolicy: 'follow_up_fast' }
+    );
+    return {
+      agentMemory: {},
+      resolvedLatestEvaluation,
+      storedDynamicSlotState: {},
+      sessionReflectionMemory: null,
+      userCoachingMemory: null,
+    };
+  }
+
+  const [agentMemory, resolvedLatestEvaluation, storedDynamicSlotState, sessionReflectionMemory, userCoachingMemory] = await Promise.all([
+    measureContextStep(trace, diagnostics, 'get_agent_memory', () => getAgentMemory(session.id), { memoryPolicy: 'full' }),
+    measureContextStep(trace, diagnostics, 'get_latest_evaluator_record', () => latestEvaluation || getLatestEvaluatorRecord(session.id), {
+      providedEvaluation: Boolean(latestEvaluation),
+      memoryPolicy: 'full',
+    }),
+    measureContextStep(trace, diagnostics, 'get_dynamic_slot_state', () => getDynamicSlotState(session.id), { memoryPolicy: 'full' }),
+    measureContextStep(trace, diagnostics, 'get_session_reflection_memory', () => getSessionReflectionMemory(session.id), { memoryPolicy: 'full' }),
+    measureContextStep(trace, diagnostics, 'get_user_coaching_memory', () => getUserCoachingMemory(session.userId), { memoryPolicy: 'full' }),
+  ]);
+  return { agentMemory, resolvedLatestEvaluation, storedDynamicSlotState, sessionReflectionMemory, userCoachingMemory };
+};
+
 export const buildDecisionContext = async ({
   taskType,
   session = {},
@@ -119,10 +203,23 @@ export const buildDecisionContext = async ({
   latestEvaluation = null,
   latestAnswerUnderstanding = null,
   trace = null,
+  memoryLoadPolicy = 'auto',
 } = {}) => {
   const diagnostics = [];
   const latestAnswer = measureSyncContextStep(trace, diagnostics, 'latest_answer_extract', () => getLastUserAnswer(session.transcript || []));
   const useCompactContext = taskType === 'interview_next_turn' && isCompactVoiceContext({ session });
+  const useFollowUpMemoryFastPath = shouldUseFollowUpMemoryFastPath({
+    taskType,
+    session,
+    latestEvaluation,
+    latestAnswerUnderstanding,
+    requestedPolicy: memoryLoadPolicy,
+  });
+  trace?.mark?.('adaptive.decision_context.memory_policy', {
+    policy: useFollowUpMemoryFastPath ? 'follow_up_fast' : 'full',
+    requestedPolicy: memoryLoadPolicy,
+    compactContext: useCompactContext,
+  });
   const contextRetrievalBundle = measureSyncContextStep(
     trace,
     diagnostics,
@@ -140,15 +237,19 @@ export const buildDecisionContext = async ({
     { compactContext: useCompactContext }
   );
 
-  const [agentMemory, resolvedLatestEvaluation, storedDynamicSlotState, sessionReflectionMemory, userCoachingMemory] = await Promise.all([
-    measureContextStep(trace, diagnostics, 'get_agent_memory', () => getAgentMemory(session.id)),
-    measureContextStep(trace, diagnostics, 'get_latest_evaluator_record', () => latestEvaluation || getLatestEvaluatorRecord(session.id), {
-      providedEvaluation: Boolean(latestEvaluation),
-    }),
-    measureContextStep(trace, diagnostics, 'get_dynamic_slot_state', () => getDynamicSlotState(session.id)),
-    measureContextStep(trace, diagnostics, 'get_session_reflection_memory', () => getSessionReflectionMemory(session.id)),
-    measureContextStep(trace, diagnostics, 'get_user_coaching_memory', () => getUserCoachingMemory(session.userId)),
-  ]);
+  const {
+    agentMemory,
+    resolvedLatestEvaluation,
+    storedDynamicSlotState,
+    sessionReflectionMemory,
+    userCoachingMemory,
+  } = await resolveMemoryState({
+    trace,
+    diagnostics,
+    session,
+    latestEvaluation,
+    useFollowUpMemoryFastPath,
+  });
 
   const resolvedAnswerUnderstanding = latestAnswerUnderstanding || resolvedLatestEvaluation?.fastAnswerUnderstanding || null;
   const environment = measureSyncContextStep(trace, diagnostics, 'environment_build', () => buildInterviewEnvironment({
@@ -174,6 +275,7 @@ export const buildDecisionContext = async ({
   );
   const currentTopic = measureSyncContextStep(trace, diagnostics, 'current_topic_resolve', () => (
     (shouldPreferEvaluationTopic ? resolvedLatestEvaluation?.currentTopic : null)
+    || resolvedAnswerUnderstanding?.followUpRecommendation?.topic
     || resolvedAnswerUnderstanding?.suggestedFollowUp?.topic
     || environment.questionContext.latestQuestionTopic
     || resolvedLatestEvaluation?.currentTopic
@@ -210,6 +312,7 @@ export const buildDecisionContext = async ({
       sessionId: session.id,
       userId: session.userId,
       compactContext: useCompactContext,
+      memoryPolicy: useFollowUpMemoryFastPath ? 'follow_up_fast' : 'full',
       steps: diagnostics,
     });
   }
@@ -280,6 +383,11 @@ export const buildDecisionContext = async ({
     evidenceBundle,
     latestAnswerUnderstanding: resolvedAnswerUnderstanding,
     latestAnswer,
+    memoryLoadPolicy: {
+      requested: memoryLoadPolicy,
+      effective: useFollowUpMemoryFastPath ? 'follow_up_fast' : 'full',
+      heavyMemorySkippedBeforeFirstAudio: useFollowUpMemoryFastPath,
+    },
     diagnostics: {
       decisionContextSteps: diagnostics,
     },
