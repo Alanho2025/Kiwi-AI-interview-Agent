@@ -7,9 +7,7 @@
  */
 
 import { AGENT_ACTION_TYPES } from '../../constants/agentActionTypes.js';
-
-const normalizeText = (value = '') => String(value || '').trim();
-const normalizeKey = (value = '') => normalizeText(value).toLowerCase().replace('behavioural', 'behavioral');
+import { normalizeText, normalizeKey } from '../../utils/commonHelpers.js';
 
 const TECHNICAL_STAGE_PATTERN = /technical|implementation|architecture|system[_\s-]?design|coding|algorithm|pipeline|schema|query|model|ml|machine[_\s-]?learning|engineering/i;
 

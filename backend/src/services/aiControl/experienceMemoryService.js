@@ -1,7 +1,5 @@
 import { SessionAnalysis } from '../../db/models/sessionAnalysisModel.js';
-
-const ensureArray = (value) => (Array.isArray(value) ? value : []);
-const normalizeText = (value = '') => String(value || '').trim().toLowerCase();
+import { ensureArray, normalizeText } from '../../utils/commonHelpers.js';
 
 const dedupeMemories = (records = []) => {
   const seen = new Set();

@@ -1,9 +1,9 @@
 import { AGENT_ACTION_TYPES } from '../../constants/agentActionTypes.js';
+import { ensureArray, clamp } from '../../utils/commonHelpers.js';
 
 const includesAny = (values = [], needles = []) => needles.some((needle) => values.includes(needle));
 const normalizeFocusAreaKey = (value = 'combined') => String(value || 'combined').trim().toLowerCase().replace('behavioural', 'behavioral');
-const ensureArray = (value) => (Array.isArray(value) ? value : []);
-const clampPriority = (value = 0) => Math.max(0, Math.min(1, Number.isFinite(Number(value)) ? Number(value) : 0));
+const clampPriority = (value = 0) => clamp(value, 0, 1);
 
 const MODEL_SELECTION_BLOCKED_ACTIONS = new Set([
   AGENT_ACTION_TYPES.GENERATE_REPORT_DRAFT,

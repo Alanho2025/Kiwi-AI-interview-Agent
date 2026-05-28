@@ -13,10 +13,7 @@ import {
   buildCompactRetrievalBundle,
   isCompactVoiceContext,
 } from './compactInterviewContextService.js';
-
-const ensureArray = (value) => (Array.isArray(value) ? value : []);
-const normalizeText = (value = '') => String(value || '').trim();
-const tokenize = (value = '') => normalizeText(value).toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+import { ensureArray, normalizeText, tokenize } from '../../utils/commonHelpers.js';
 
 const getLastUserAnswer = (transcript = []) => [...ensureArray(transcript)].reverse().find((turn) => turn.role === 'user')?.text || '';
 
@@ -128,23 +125,23 @@ export const buildDecisionContext = async ({ taskType, session = {}, retrievalBu
     environment,
     evaluatorState: resolvedLatestEvaluation
       ? {
-          successStatus: resolvedLatestEvaluation.successStatus,
-          evidenceGainScore: resolvedLatestEvaluation.evidenceGainScore,
-          misunderstandingFlag: resolvedLatestEvaluation.misunderstandingFlag,
-          interactionStatus: resolvedLatestEvaluation.interactionStatus,
-          overallInteractionScore: resolvedLatestEvaluation.overallInteractionScore || 0,
-          repetitionRisk: resolvedLatestEvaluation.repetitionRisk,
-          reflectionNeeded: resolvedLatestEvaluation.reflectionNeeded,
-          suggestedNextMode: resolvedLatestEvaluation.suggestedNextMode,
-          currentTopic: resolvedLatestEvaluation.currentTopic,
-          frictionState: resolvedLatestEvaluation.frictionState || null,
-          mentionedEntities: ensureArray(resolvedLatestEvaluation.mentionedEntities),
-          answerUnderstandingSummary: resolvedLatestEvaluation.answerUnderstandingSummary || null,
-          plannerSignals: resolvedLatestEvaluation.plannerSignals || null,
-          fastAnswerUnderstanding: resolvedAnswerUnderstanding,
-          gapClosure: resolvedLatestEvaluation.gapClosure || null,
-          closeCurrentIntent: Boolean(resolvedLatestEvaluation.closeCurrentIntent),
-        }
+        successStatus: resolvedLatestEvaluation.successStatus,
+        evidenceGainScore: resolvedLatestEvaluation.evidenceGainScore,
+        misunderstandingFlag: resolvedLatestEvaluation.misunderstandingFlag,
+        interactionStatus: resolvedLatestEvaluation.interactionStatus,
+        overallInteractionScore: resolvedLatestEvaluation.overallInteractionScore || 0,
+        repetitionRisk: resolvedLatestEvaluation.repetitionRisk,
+        reflectionNeeded: resolvedLatestEvaluation.reflectionNeeded,
+        suggestedNextMode: resolvedLatestEvaluation.suggestedNextMode,
+        currentTopic: resolvedLatestEvaluation.currentTopic,
+        frictionState: resolvedLatestEvaluation.frictionState || null,
+        mentionedEntities: ensureArray(resolvedLatestEvaluation.mentionedEntities),
+        answerUnderstandingSummary: resolvedLatestEvaluation.answerUnderstandingSummary || null,
+        plannerSignals: resolvedLatestEvaluation.plannerSignals || null,
+        fastAnswerUnderstanding: resolvedAnswerUnderstanding,
+        gapClosure: resolvedLatestEvaluation.gapClosure || null,
+        closeCurrentIntent: Boolean(resolvedLatestEvaluation.closeCurrentIntent),
+      }
       : null,
     candidateState: {
       answerStyle: latestAnswer ? (latestAnswer.split(/\s+/).length < 18 ? 'brief' : 'expanded') : 'none',

@@ -1,6 +1,5 @@
 import { SessionAnalysis } from '../../db/models/sessionAnalysisModel.js';
-
-const ensureArray = (value) => (Array.isArray(value) ? value : []);
+import { ensureArray } from '../../utils/commonHelpers.js';
 
 const getStepDuration = (latency = {}, stepName = '') => ensureArray(latency.steps).find((step) => step.step === stepName)?.durationMs ?? null;
 const getMarkMs = (latency = {}, stepName = '') => ensureArray(latency.steps).find((step) => step.step === stepName)?.msFromStart ?? null;
