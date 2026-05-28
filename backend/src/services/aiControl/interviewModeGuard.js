@@ -47,7 +47,7 @@ const BEHAVIOURAL_QUESTION_PATTERNS = [
 export const normalizeInterviewMode = (value = 'combined') => {
   const normalized = normalizeKey(value || 'combined');
   if (normalized === 'technical') return 'technical';
-  if (normalized === 'behavioral') return 'behavioral';
+  if (['behavioral', 'behavioural'].includes(normalized)) return 'behavioral';
   return 'combined';
 };
 
