@@ -275,15 +275,20 @@ export function useVoiceSessionLifecycleController({
       setVoiceStatus(buildVoiceStatus('info', 'Starting duplex voice interview', 'KiwiCoach will speak, listen, and allow interruption.'));
 
       await ensureDuplexConnected();
-      await startPassiveMicMonitor();
 
-      try {
+      window.setTimeout(async () => {
         if (!autoLoopActiveRef.current) return;
+
         const spoke = speakQuestionText(firstQuestionText);
-        if (!spoke) await startListening();
-      } catch (error) {
-        console.error('Failed to start first voice turn', error);
-      }
+        if (!spoke) {
+          await startListening();
+          return;
+        }
+
+        startPassiveMicMonitor().catch((error) => {
+          console.error('Failed to start passive mic monitor', error);
+        });
+      }, 400);
     } catch (error) {
       autoLoopActiveRef.current = false;
       setIsAutoLoopActive(false);
