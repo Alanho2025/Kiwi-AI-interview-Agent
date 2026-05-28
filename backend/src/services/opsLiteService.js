@@ -2,51 +2,26 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { SessionAnalysis } from '../db/models/sessionAnalysisModel.js';
 import { SessionReport } from '../db/models/sessionReportModel.js';
-
-const ensureArray = (value) => (Array.isArray(value) ? value : []);
-const average = (values = []) => {
-  const nums = values.map(Number).filter((value) => Number.isFinite(value));
-  return nums.length ? Number((nums.reduce((sum, value) => sum + value, 0) / nums.length).toFixed(2)) : 0;
-};
-
-const latestReportArtifact = (analysis = {}) => ensureArray(analysis.reportArtifacts).at(-1) || {};
-
-const REPORT_DIR_CANDIDATES = [
-  path.resolve('eval/reports'),
-  path.resolve('backend/eval/reports'),
-];
-
-const PLAN_RISK_CATEGORIES = [
-  'factual_grounding',
-  'cv_jd_alignment',
-  'star_completeness',
-  'interview_control',
-  'rag_quality',
-  'multi_turn_adaptiveness',
-  'voice_quality',
-  'safety_boundary',
-  'company_research_grounding',
-  'report_quality',
-];
-
-const SUITE_META = Object.freeze({
-  'cv-parse-eval': { group: 'analysisQuality', label: 'CV parse analysis', categories: ['cv_jd_alignment'] },
-  'jd-parse-eval': { group: 'analysisQuality', label: 'JD parse analysis', categories: ['cv_jd_alignment'] },
-  'jd-parse-seek-benchmark': { group: 'analysisQuality', label: 'Real SEEK JD parsing', categories: ['cv_jd_alignment', 'safety_boundary'] },
-  'cv-jd-match-eval': { group: 'analysisQuality', label: 'CV-JD match analysis', categories: ['cv_jd_alignment', 'factual_grounding'] },
-  'interview-controller-eval': { group: 'trajectoryQuality', label: 'Interview decision control', categories: ['interview_control', 'multi_turn_adaptiveness'] },
-  'agent-trajectory-eval': { group: 'trajectoryQuality', label: 'Agent trajectory quality', categories: ['interview_control', 'multi_turn_adaptiveness', 'factual_grounding', 'star_completeness'] },
-  'end-to-end-interview-eval': { group: 'trajectoryQuality', label: 'Fixed scenario E2E', categories: ['interview_control', 'report_quality', 'factual_grounding', 'star_completeness'] },
-  'kiwi-green-agent-eval': { group: 'trajectoryQuality', label: 'Kiwi Green Agent benchmark', categories: ['interview_control', 'report_quality', 'factual_grounding', 'star_completeness'] },
-  'retrieval-eval': { group: 'groundingSafety', label: 'RAG retrieval grounding', categories: ['rag_quality', 'factual_grounding'] },
-  'report-qa-eval': { group: 'groundingSafety', label: 'Report QA grounding', categories: ['report_quality', 'factual_grounding', 'star_completeness'] },
-  'company-research-eval': { group: 'groundingSafety', label: 'Company research grounding', categories: ['company_research_grounding', 'factual_grounding'] },
-  'baseline-comparison-eval': { group: 'groundingSafety', label: 'Generic baseline comparison', categories: ['report_quality'] },
-  'voice-quality-eval': { group: 'voiceQuality', label: 'Voice transcript coaching quality', categories: ['voice_quality', 'multi_turn_adaptiveness'] },
-  'voice-robustness-eval': { group: 'voiceQuality', label: 'Voice robustness', categories: ['voice_quality'] },
-  'stability-eval': { group: 'reliability', label: 'Multi-trial stability', categories: ['multi_turn_adaptiveness', 'safety_boundary'] },
-  'plan-eval-suite': { group: 'reliability', label: 'Plan eval execution coverage', categories: ['safety_boundary'] },
-});
+import {
+  REPORT_DIR_CANDIDATES,
+  PLAN_RISK_CATEGORIES,
+  SUITE_META,
+  DEFAULT_GROUPS,
+} from '../config/opsLiteConfig.js';
+import {
+  ensureArray,
+  average,
+  latestReportArtifact,
+  didSuitePass,
+  collectFailedCases,
+  buildEmptyEvalReportSummary,
+  getLatencyPayload,
+  resolveVoiceResponseLatencyMs,
+  resolveRuntimeTotalMs,
+  resolveLatencyDurationMs,
+  firstFinite,
+  getStepMarkMs,
+} from '../utils/opsLiteHelpers.js';
 
 const safeReadJson = async (filePath) => {
   try {
@@ -68,112 +43,17 @@ const resolveEvalReportDirectory = async () => {
   return null;
 };
 
-const thresholdValue = (thresholds = {}, key, fallback = 0) => {
-  const value = Number(thresholds[key]);
-  return Number.isFinite(value) ? value : fallback;
-};
-
-const didSuitePass = (summary = {}) => {
-  if (summary.label === 'Plan Eval Suite Summary') {
-    return Number(summary.reportsAvailable || 0) === Number(summary.suitesAttempted || 0)
-      && Number(summary.processPassRate || 0) === 1;
-  }
-
-  const thresholds = summary.thresholds || {};
-  const minAverage = thresholdValue(thresholds, 'minAverage', 0);
-  const failBelow = thresholdValue(thresholds, 'failBelow', 0);
-  const minCriticalAverage = thresholdValue(thresholds, 'minCriticalAverage', 0);
-  const criticalFailBelow = thresholdValue(thresholds, 'criticalFailBelow', 0);
-
-  const averagePassed = Number(summary.average || 0) >= minAverage;
-  const criticalAveragePassed = summary.criticalAverage === undefined || Number(summary.criticalAverage || 0) >= minCriticalAverage;
-  const casesPassed = ensureArray(summary.results).every((item) => Number(item.score || 0) >= failBelow);
-  const criticalCasesPassed = ensureArray(summary.results).every((item) => item.criticalScore === undefined || Number(item.criticalScore || 0) >= criticalFailBelow);
-
-  return averagePassed && criticalAveragePassed && casesPassed && criticalCasesPassed;
-};
-
-const collectFailedCases = (summary = {}) => ensureArray(summary.results)
-  .filter((item) => ensureArray(item.failedChecks).length > 0)
-  .map((item) => ({
-    id: item.id || item.case || 'case',
-    score: item.score,
-    failedChecks: ensureArray(item.failedChecks),
-  }));
-
-const buildEmptyEvalReportSummary = () => ({
-  reportDirectoryFound: false,
-  totalSuites: 0,
-  totalCases: 0,
-  averageScore: 0,
-  passRate: 0,
-  warningCaseCount: 0,
-  failedSuites: [],
-  failedCases: [],
-  suites: [],
-  groups: {
-    analysisQuality: [],
-    trajectoryQuality: [],
-    groundingSafety: [],
-    voiceQuality: [],
-    reliability: [],
-  },
-  riskCoverage: PLAN_RISK_CATEGORIES.map((category) => ({ category, covered: false, suiteCount: 0 })),
-});
-
-const findStep = (latency = {}, names = []) => {
-  const steps = ensureArray(latency.steps);
-  return steps.find((step) => names.includes(step.step) || names.includes(step.name));
-};
-
-const firstFinite = (...values) => values.map(Number).find((value) => Number.isFinite(value));
-
-const getStepMarkMs = (latency = {}, names = []) => firstFinite(
-  findStep(latency, names)?.msFromStart,
-  findStep(latency, names)?.timestampMs,
-  findStep(latency, names)?.atMs,
-);
-
-const getStepDurationMs = (latency = {}, names = []) => firstFinite(
-  findStep(latency, names)?.durationMs,
-  findStep(latency, names)?.ms,
-);
-
-const getLatencyPayload = (event = {}) => event.latencyBreakdown || event.latency || event.realtimeLatency || {};
-
-const resolveVoiceResponseLatencyMs = (event = {}) => {
-  const latency = getLatencyPayload(event);
-
-  // These marks are stored as msFromStart by realtimeVoiceLatencySummary.js.
-  // In realtime voice requests, the backend request starts after the client has finalized the user voice turn,
-  // so first_audio_sent is the closest stored operational measure for "AI starts speaking" latency.
-  return firstFinite(
-    latency.voiceResponseLatencyMs,
-    latency.firstAudioSentMs,
-    latency.firstAudioSent,
-    latency.ttsFirstAudioMs,
-    getStepMarkMs(latency, ['first_audio_sent']),
-    getStepMarkMs(latency, ['adaptive.tts_first_audio']),
-    getStepMarkMs(latency, ['first_sentence_ready']),
-  );
-};
-
-const resolveRuntimeTotalMs = (event = {}) => {
-  const latency = getLatencyPayload(event);
-  return firstFinite(latency.totalTurnMs, latency.totalMs, latency.runtimeTraceTotalMs);
-};
-
-const resolveLatencyDurationMs = (event = {}, names = [], flatKeys = []) => {
-  const latency = getLatencyPayload(event);
-  return firstFinite(
-    ...flatKeys.map((key) => latency[key]),
-    getStepDurationMs(latency, names),
-  );
-};
-
 export const buildEvalReportSummary = async () => {
   const reportDir = await resolveEvalReportDirectory();
-  if (!reportDir) return buildEmptyEvalReportSummary();
+  if (!reportDir) {
+    const emptySummary = buildEmptyEvalReportSummary();
+    emptySummary.riskCoverage = PLAN_RISK_CATEGORIES.map((category) => ({
+      category,
+      covered: false,
+      suiteCount: 0,
+    }));
+    return emptySummary;
+  }
 
   const files = (await fs.readdir(reportDir)).filter((file) => file.endsWith('.latest.json')).sort();
   const suites = [];
@@ -210,13 +90,7 @@ export const buildEvalReportSummary = async () => {
   const groups = suites.reduce((acc, suite) => {
     acc[suite.group] = [...(acc[suite.group] || []), suite];
     return acc;
-  }, {
-    analysisQuality: [],
-    trajectoryQuality: [],
-    groundingSafety: [],
-    voiceQuality: [],
-    reliability: [],
-  });
+  }, { ...DEFAULT_GROUPS });
 
   const categoryCounts = suites.flatMap((suite) => suite.categories).reduce((acc, category) => {
     acc[category] = (acc[category] || 0) + 1;
@@ -335,3 +209,5 @@ export const buildOpsLiteSummary = async ({ userId = null } = {}) => {
     },
   };
 };
+
+// Made with Bob

@@ -19,85 +19,31 @@ import {
   resolveInterviewModeConfig,
 } from '../../config/interviewBlueprints.js';
 import { buildCapabilityPrompt, isTechnicalCapabilityGroup } from './capabilityQuestionPromptService.js';
+import {
+  buildFullTranscript,
+  retentionDate,
+  clampVarchar,
+  titleCaseWords,
+  cleanDisplayTitle,
+  extractDisplayTitle,
+  findUniversalRequirementTarget,
+} from '../../utils/sessionHelpers.js';
+import {
+  buildOpeningQuestion,
+  buildWrapUpQuestion,
+  buildTechnicalPrompt,
+  buildRoleCompetencyPrompt,
+  buildBehaviouralPrompt,
+} from '../../utils/questionBuilders.js';
 
-export const buildFullTranscript = (turns) => turns.map((turn) => `${turn.role.toUpperCase()}: ${turn.text}`).join('\n\n');
-export const retentionDate = () => new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
-
-export const clampVarchar = (value, maxLength = 255, fallback = '') => {
-  const text = String(value ?? fallback ?? '').trim() || fallback;
-  return text.length > maxLength ? text.slice(0, maxLength) : text;
-};
-
-const ROLE_ACRONYMS = new Set(['QA', 'NZ', 'API', 'SQL', 'AWS', 'GCP', 'UI', 'UX']);
-export const titleCaseWords = (value = '') => value
-  .split(/\s+/)
-  .filter(Boolean)
-  .map((part) => {
-    if (ROLE_ACRONYMS.has(part.toUpperCase())) return part.toUpperCase();
-    if (/^\.?net$/i.test(part)) return '.NET';
-    const parenthetical = part.match(/^\(([^)]+)\)$/);
-    if (parenthetical?.[1]) {
-      const inner = parenthetical[1];
-      const upperInner = inner.toUpperCase();
-      if (ROLE_ACRONYMS.has(upperInner)) return `(${upperInner})`;
-      return `(${inner.charAt(0).toUpperCase()}${inner.slice(1).toLowerCase()})`;
-    }
-    if (/^[A-Z0-9_/-]{2,}$/.test(part)) return part;
-    return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
-  })
-  .join(' ');
-
-const DISPLAY_TITLE_ROLE_NOUN_PATTERN = /\b(?:engineer|developer|designer|analyst|architect|consultant|specialist|intern|scientist|administrator|programme|program|product manager|coordinator|assistant|psychologist)\b/i;
-const DISPLAY_TITLE_FALSE_POSITIVE_HIRING_ROLES = /\b(?:hiring manager|hiring coordinator|recruitment manager|talent acquisition specialist|people & culture advisor|people and culture advisor)\b/i;
-const DISPLAY_TITLE_MARKETING_PREFIX_PATTERNS = [
-  /^(?:we\s+are\s+)?(?:now\s+)?hiring\s*[:：]?\s+(?:for\s+)?(?:(?:a|an|the)\s+)?/i,
-  /^we\s+are\s+looking\s+for\s+(?:(?:a|an|the)\s+)?/i,
-  /^join\s+us\s+as\s+(?:(?:a|an|the)\s+)?/i,
-  /^open\s+role\s*[:：]?\s*/i,
-  /^role\s*[:：]?\s*/i,
-  /^position\s*[:：]?\s*/i,
-];
-
-export const cleanDisplayTitle = (value = '') => {
-  let text = String(value || '')
-    .replace(/\s+/g, ' ')
-    .replace(/[.,;:!?-]+\s*$/, '')
-    .trim();
-
-  if (!text || DISPLAY_TITLE_FALSE_POSITIVE_HIRING_ROLES.test(text)) return text;
-
-  for (const pattern of DISPLAY_TITLE_MARKETING_PREFIX_PATTERNS) {
-    const cleaned = text.replace(pattern, '').replace(/[.,;:!?-]+\s*$/, '').trim();
-    if (cleaned && cleaned !== text && DISPLAY_TITLE_ROLE_NOUN_PATTERN.test(cleaned)) {
-      text = cleaned;
-      break;
-    }
-  }
-
-  return text;
-};
-
-export const extractDisplayTitle = (...candidates) => {
-  for (const candidate of candidates) {
-    const text = String(candidate || '').replace(/\s+/g, ' ').trim();
-    if (!text) continue;
-
-    const directTitleMatch = text.match(/(?:job\s*title|position|role)\s*:\s*([^\n.]{3,120})/i);
-    if (directTitleMatch?.[1]) return cleanDisplayTitle(directTitleMatch[1]);
-
-    const commonRoleMatch = text.match(/\b((?:Junior|Senior|Lead|Principal|Staff|Graduate|Mid-Level|Solutions|Software|Backend|Frontend|Full[-\s]?Stack|Mobile|DevOps|Data|Civil|Platform|QA|Test|Product|AI|Machine Learning|Cloud|Automation|Telehealth)?\s*(?:Software Engineer|Solutions Engineer|Backend Engineer|Frontend Engineer|Full Stack Engineer|Mobile Developer|React Native Developer|DevOps Engineer|Data Engineer|Data \w+ AI Engineer|Data & AI Engineer|AI Engineer|Automation Coordinator|Workflow Automation Assistant|Civil Engineer|Platform Engineer|QA Engineer|Test Engineer|Product Manager|Developer|Data Scientist|Machine Learning Engineer|Cloud Engineer|Psychologist|Coordinator|Assistant))\b/i);
-    if (commonRoleMatch?.[1]) return cleanDisplayTitle(commonRoleMatch[1]);
-
-    const firstLine = text.split('\n').map((line) => line.trim()).find(Boolean) || '';
-    if (firstLine && firstLine.length <= 120 && !/^(we|our|about|in\b)\b/i.test(firstLine)) return cleanDisplayTitle(firstLine);
-
-    const sentenceMatch = text.match(/^([^.!?]{8,140}?)(?:[.!?]|$)/);
-    if (sentenceMatch?.[1] && !/^(we|our|in\b)\b/i.test(sentenceMatch[1].trim())) return cleanDisplayTitle(sentenceMatch[1]);
-
-    return cleanDisplayTitle(text.slice(0, 80));
-  }
-
-  return 'Interview Session';
+// Re-export helper functions for backward compatibility
+export {
+  buildFullTranscript,
+  retentionDate,
+  clampVarchar,
+  titleCaseWords,
+  cleanDisplayTitle,
+  extractDisplayTitle,
 };
 
 export const mapSessionRow = (row) => ({
@@ -348,8 +294,24 @@ export const buildQuestionPoolFromAnalysis = (analysisResult, settings = {}, opt
   for (let index = 0; index < technicalQuestionCount; index += 1) {
     const skill = technicalSkills[index] || technicalSkills[0] || 'a relevant role capability';
     const requirementTarget = findUniversalRequirementTarget({ topic: skill, rubric });
-    const promptText = buildRoleCompetencyPrompt({ target: requirementTarget, skill, level: modeConfig.level, roleLabel, followUpDepth: 0 });
-    const followUpText = buildRoleCompetencyPrompt({ target: requirementTarget, skill, level: modeConfig.level, roleLabel, followUpDepth: 1 });
+    const promptText = buildRoleCompetencyPrompt({
+      target: requirementTarget,
+      skill,
+      level: modeConfig.level,
+      roleLabel,
+      followUpDepth: 0,
+      isTechnicalRequirementCategory,
+      buildCapabilityPrompt,
+    });
+    const followUpText = buildRoleCompetencyPrompt({
+      target: requirementTarget,
+      skill,
+      level: modeConfig.level,
+      roleLabel,
+      followUpDepth: 1,
+      isTechnicalRequirementCategory,
+      buildCapabilityPrompt,
+    });
     const isTechnical = requirementTarget ? isTechnicalRequirementCategory(requirementTarget.category, requirementTarget.capabilityGroup) : true;
     const competencyType = requirementTarget && !isTechnical ? 'role_competency_core' : 'technical_core';
     questions.push({
