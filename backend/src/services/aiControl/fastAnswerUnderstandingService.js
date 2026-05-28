@@ -39,13 +39,46 @@ const OWNERSHIP_VERBS = [
 const EVIDENCE_TERMS = [
   'result', 'outcome', 'impact', 'measured', 'validated', 'verified', 'tested', 'test',
   'reduced', 'improved', 'increased', 'decreased', 'saved', 'faster', 'slower',
-  'latency', 'throughput', 'uptime', 'conversion', 'accuracy',
+  'latency', 'throughput', 'uptime', 'conversion', 'accuracy', 'quality', 'safety',
+  'satisfaction', 'retention', 'revenue', 'cost', 'time', 'efficiency',
 ];
 
 const FRICTION_TERMS = [
   'failed', 'failure', 'bug', 'debug', 'incident', 'bottleneck', 'blocked', 'constraint',
   'tradeoff', 'trade-off', 'deadline', 'limited', 'conflict', 'disagreed', 'risk',
-  'regression', 'outage', 'error', 'issue', 'problem',
+  'regression', 'outage', 'error', 'issue', 'problem', 'complaint', 'escalation',
+  'pressure', 'difficult', 'challenging', 'urgent',
+];
+
+const DECISION_TERMS = [
+  'decided', 'choose', 'chose', 'selected', 'prioritized', 'prioritised', 'compared',
+  'evaluated', 'tradeoff', 'trade-off', 'because', 'instead', 'option', 'alternative',
+  'reason', 'criteria', 'constraint',
+];
+
+const COMMUNICATION_TERMS = [
+  'explained', 'presented', 'communicated', 'clarified', 'documented', 'reported',
+  'discussed', 'listened', 'asked', 'confirmed', 'aligned', 'negotiated',
+];
+
+const COLLABORATION_TERMS = [
+  'team', 'worked with', 'collaborated', 'paired', 'supported', 'helped', 'coordinated',
+  'stakeholder', 'manager', 'customer', 'client', 'colleague', 'mentor', 'partner',
+];
+
+const LEADERSHIP_TERMS = [
+  'led', 'managed', 'mentored', 'guided', 'owned', 'planned', 'organized', 'organised',
+  'delegated', 'influenced', 'coached', 'facilitated',
+];
+
+const CUSTOMER_OR_STAKEHOLDER_TERMS = [
+  'customer', 'client', 'stakeholder', 'patient', 'user', 'supplier', 'vendor', 'complaint',
+  'requirement', 'feedback', 'expectation', 'service', 'support',
+];
+
+const PROBLEM_SOLVING_TERMS = [
+  'solved', 'fixed', 'debugged', 'investigated', 'diagnosed', 'analyzed', 'analysed',
+  'root cause', 'workaround', 'improved', 'optimized', 'optimised', 'resolved',
 ];
 
 const MISUNDERSTANDING_TERMS = [
@@ -80,35 +113,87 @@ const extractCapitalizedPhrases = (answerText = '') => {
   return unique(matches.filter((item) => !blocked.has(item)));
 };
 
+const splitSentences = (text = '') => normalizeText(text)
+  .split(/(?<=[.!?。！？])\s+|\n+/)
+  .map((item) => item.trim())
+  .filter(Boolean)
+  .slice(0, 12);
+
+const sentenceMatchesAny = (sentence = '', terms = []) => terms.some((term) => containsPhrase(sentence, term));
+
+const collectEvidenceSnippets = (answerText = '', terms = [], limit = 3) => splitSentences(answerText)
+  .filter((sentence) => sentenceMatchesAny(sentence, terms))
+  .map((sentence) => sentence.length > 220 ? `${sentence.slice(0, 217).trim()}...` : sentence)
+  .slice(0, limit);
+
+const extractSignalBucket = (answerText = '', terms = [], limit = 8) => unique([
+  ...extractSignals(answerText, terms),
+  ...collectEvidenceSnippets(answerText, terms, 3),
+]).slice(0, limit);
+
 export const buildAnswerUnderstandingLexicon = (session = {}) => {
   const analysis = session.analysisResult || {};
   const profile = analysis.parsedCvProfile || session.cvProfile || {};
   const jdProfile = analysis.parsedJdProfile || {};
   const questionHints = analysis.matchingDetails?.questionPlanHints || {};
+  const matchingDetails = analysis.matchingDetails || {};
   const interviewPlan = session.interviewPlan || {};
 
-  const rawTerms = [
-    session.targetRole,
-    ...collectStrings(profile.skills),
-    ...collectStrings(profile.projects),
-    ...collectStrings(profile.experience),
+  const requiredTerms = unique([
     ...collectStrings(jdProfile.requiredSkills),
     ...collectStrings(jdProfile.technicalSkillRequirements),
     ...collectStrings(jdProfile.mustHaveRequirements),
+    ...collectStrings(jdProfile.requiredCapabilities),
+    ...collectStrings(jdProfile.responsibilities),
+    ...collectStrings(jdProfile.behaviouralSignals),
+    ...collectStrings(jdProfile.softSkills),
     ...collectStrings(jdProfile.sections?.mustHaveRequirements),
     ...collectStrings(jdProfile.sections?.technicalSkills),
+    ...collectStrings(jdProfile.sections?.responsibilities),
+    ...collectStrings(jdProfile.sections?.behaviouralSignals),
+  ]);
+
+  const candidateEvidenceTerms = unique([
+    ...collectStrings(profile.skills),
+    ...collectStrings(profile.projects),
+    ...collectStrings(profile.experience),
+    ...collectStrings(profile.strongestEvidence),
+    ...collectStrings(profile.jdRelevantEvidence),
+    ...collectStrings(profile.suggestedInterviewHooks),
+  ]);
+
+  const gapTerms = unique([
+    ...collectStrings(matchingDetails.validationTargets),
+    ...collectStrings(matchingDetails.missingRequiredSkills),
+    ...collectStrings(matchingDetails.missingPreferredSkills),
+    ...collectStrings(matchingDetails.capabilityGaps),
+    ...collectStrings(profile.weakOrMissingEvidence),
+  ]);
+
+  const priorityTopics = unique([
     ...collectStrings(questionHints.priorityTopics),
-    ...collectStrings(analysis.matchingDetails?.validationTargets),
+    ...collectStrings(matchingDetails.validationTargets),
+  ]).slice(0, 20);
+
+  const rawTerms = [
+    session.targetRole,
+    ...candidateEvidenceTerms,
+    ...requiredTerms,
+    ...gapTerms,
+    ...priorityTopics,
     ...collectStrings(interviewPlan.questionPool?.map((question) => [question.topic, question.stage, question.text])),
   ];
 
   const terms = unique(rawTerms)
     .flatMap((item) => String(item).split(/[,/|]/).map((part) => part.trim()))
     .filter((item) => item.length >= 2)
-    .slice(0, 120);
+    .slice(0, 160);
 
   return {
     terms,
+    requiredTerms: requiredTerms.slice(0, 80),
+    candidateEvidenceTerms: candidateEvidenceTerms.slice(0, 80),
+    gapTerms: gapTerms.slice(0, 80),
     technologies: unique([
       ...terms.filter((term) => {
         const lower = normalizeKey(term);
@@ -116,10 +201,7 @@ export const buildAnswerUnderstandingLexicon = (session = {}) => {
       }),
       ...[...TECHNOLOGY_ALIASES.keys()],
     ]),
-    priorityTopics: unique([
-      ...collectStrings(questionHints.priorityTopics),
-      ...collectStrings(analysis.matchingDetails?.validationTargets),
-    ]).slice(0, 20),
+    priorityTopics,
   };
 };
 
@@ -139,7 +221,7 @@ const extractTechnologies = (answerText, lexicon) => {
     }
   }
 
-  return unique(found).slice(0, 10);
+  return unique(found).slice(0, 12);
 };
 
 const extractSignals = (answerText, terms) => {
@@ -148,12 +230,48 @@ const extractSignals = (answerText, terms) => {
   return terms.filter((term) => normalized.includes(term) || answerTokens.has(term));
 };
 
-const extractMetrics = (answerText) => unique(answerText.match(/\b\d+(?:\.\d+)?\s*(?:%|percent|ms|seconds?|minutes?|hours?|x|times|users?|requests?|queries?)?\b/gi) || []);
+const extractMetrics = (answerText) => unique(answerText.match(/\b\d+(?:\.\d+)?\s*(?:%|percent|ms|seconds?|minutes?|hours?|x|times|users?|requests?|queries?|customers?|clients?|patients?|tickets?|dollars?|\$)?\b/gi) || []);
 
-const inferIntent = ({ technologies = [], ownershipSignals = [], frictionSignals = [], latestQuestionStage = '', answerText = '' } = {}) => {
+const extractRoleHits = (answerText = '', terms = [], limit = 10) => unique(ensureArray(terms)
+  .filter((term) => {
+    const clean = normalizeText(term);
+    return clean.length >= 3 && !GENERIC_LOW_SIGNAL_TERMS.has(normalizeKey(clean)) && containsPhrase(answerText, clean);
+  }))
+  .slice(0, limit);
+
+const buildStarSignals = ({ answerText = '', ownershipSignals = [], evidenceSignals = [], frictionSignals = [], metrics = [] } = {}) => ({
+  situation: collectEvidenceSnippets(answerText, ['when', 'while', 'during', 'at the time', 'in my', 'in our', 'there was', 'we had'], 3),
+  task: collectEvidenceSnippets(answerText, ['needed to', 'had to', 'goal', 'required', 'responsible', 'task', 'asked to', 'expected'], 3),
+  action: unique([
+    ...ownershipSignals,
+    ...collectEvidenceSnippets(answerText, OWNERSHIP_VERBS, 3),
+  ]).slice(0, 6),
+  result: unique([
+    ...metrics,
+    ...evidenceSignals.filter((item) => ['result', 'outcome', 'impact', 'reduced', 'improved', 'increased', 'saved', 'faster'].includes(normalizeKey(item))),
+    ...collectEvidenceSnippets(answerText, EVIDENCE_TERMS, 3),
+  ]).slice(0, 6),
+  friction: unique([
+    ...frictionSignals,
+    ...collectEvidenceSnippets(answerText, FRICTION_TERMS, 3),
+  ]).slice(0, 6),
+});
+
+const buildEvidenceSignalBuckets = (answerText = '') => ({
+  ownership: extractSignalBucket(answerText, OWNERSHIP_VERBS),
+  decisionMaking: extractSignalBucket(answerText, DECISION_TERMS),
+  problemSolving: extractSignalBucket(answerText, PROBLEM_SOLVING_TERMS),
+  communication: extractSignalBucket(answerText, COMMUNICATION_TERMS),
+  collaboration: extractSignalBucket(answerText, COLLABORATION_TERMS),
+  leadership: extractSignalBucket(answerText, LEADERSHIP_TERMS),
+  customerOrStakeholder: extractSignalBucket(answerText, CUSTOMER_OR_STAKEHOLDER_TERMS),
+});
+
+const inferIntent = ({ technologies = [], roleVocabularyHits = [], ownershipSignals = [], frictionSignals = [], latestQuestionStage = '', answerText = '' } = {}) => {
   const lowerStage = normalizeKey(latestQuestionStage);
   if (MISUNDERSTANDING_TERMS.some((term) => containsPhrase(answerText, term))) return 'clarification_needed';
-  if (technologies.length || lowerStage.includes('technical')) return 'technical_example';
+  if (technologies.length || lowerStage.includes('technical')) return 'technical_or_domain_example';
+  if (roleVocabularyHits.length && lowerStage.includes('technical')) return 'technical_or_domain_example';
   if (frictionSignals.length || lowerStage.includes('behaviour')) return 'behavioural_example';
   if (ownershipSignals.length) return 'experience_example';
   return 'general_answer';
@@ -162,27 +280,54 @@ const inferIntent = ({ technologies = [], ownershipSignals = [], frictionSignals
 const inferMissingEvidence = ({ ownershipSignals = [], metrics = [], evidenceSignals = [], frictionSignals = [], tokenCount = 0 } = {}) => {
   const missing = [];
   if (!ownershipSignals.length) missing.push('personal_ownership');
-  if (!metrics.length && !evidenceSignals.some((item) => ['result', 'outcome', 'impact', 'reduced', 'improved', 'increased'].includes(item))) {
+  if (!metrics.length && !evidenceSignals.some((item) => ['result', 'outcome', 'impact', 'reduced', 'improved', 'increased', 'saved'].includes(normalizeKey(item)))) {
     missing.push('result_or_impact');
   }
-  if (!evidenceSignals.some((item) => ['validated', 'verified', 'tested', 'test', 'measured'].includes(item))) {
+  if (!evidenceSignals.some((item) => ['validated', 'verified', 'tested', 'test', 'measured', 'checked'].includes(normalizeKey(item)))) {
     missing.push('validation_method');
   }
   if (!frictionSignals.length && tokenCount >= 18) missing.push('tradeoff_or_failure_detail');
   return missing;
 };
 
-const buildSuggestedFollowUp = ({ intent, technologies, frictionSignals, missingEvidence, latestQuestionTopic, priorityTopics, tokenCount, misunderstanding }) => {
+const buildRoleAlignment = ({ answerText = '', lexicon = {} } = {}) => {
+  const roleVocabularyHits = extractRoleHits(answerText, lexicon.terms, 12);
+  const matchedRequirements = extractRoleHits(answerText, lexicon.requiredTerms, 8);
+  const matchedCvEvidence = extractRoleHits(answerText, lexicon.candidateEvidenceTerms, 8);
+  const matchedGaps = extractRoleHits(answerText, lexicon.gapTerms, 8);
+  const unresolvedGaps = unique(ensureArray(lexicon.gapTerms)
+    .filter((term) => normalizeText(term).length >= 3 && !matchedGaps.some((hit) => normalizeKey(hit) === normalizeKey(term))))
+    .slice(0, 6);
+
+  return {
+    roleVocabularyHits,
+    matchedRequirements,
+    matchedCvEvidence,
+    matchedGaps,
+    unresolvedGaps,
+    roleMatchConfidence: Math.max(0.2, Math.min(0.95, Number((
+      0.35
+      + Math.min(0.25, roleVocabularyHits.length * 0.04)
+      + Math.min(0.2, matchedRequirements.length * 0.05)
+      + Math.min(0.15, matchedCvEvidence.length * 0.04)
+    ).toFixed(2)))),
+  };
+};
+
+const buildSuggestedFollowUp = ({ intent, technologies, roleAlignment, frictionSignals, missingEvidence, latestQuestionTopic, priorityTopics, tokenCount, misunderstanding }) => {
   if (misunderstanding) {
     return {
       mode: 'rephrase',
       topic: latestQuestionTopic || priorityTopics[0] || 'current_topic',
       questionGoal: 'restate the current question in simpler terms and ask for one concrete example',
+      sourceType: 'clarification',
     };
   }
 
   const topicParts = unique([
-    ...technologies.slice(0, 3),
+    ...technologies.slice(0, 2),
+    ...ensureArray(roleAlignment?.matchedRequirements).slice(0, 2),
+    ...ensureArray(roleAlignment?.matchedGaps).slice(0, 2),
     ...(frictionSignals.length ? ['failure analysis'] : []),
     latestQuestionTopic,
     priorityTopics[0],
@@ -194,6 +339,7 @@ const buildSuggestedFollowUp = ({ intent, technologies, frictionSignals, missing
       mode: 'probe',
       topic,
       questionGoal: 'ask for one specific example with the candidate personal action and outcome',
+      sourceType: 'common_template',
     };
   }
 
@@ -202,15 +348,17 @@ const buildSuggestedFollowUp = ({ intent, technologies, frictionSignals, missing
       mode: 'deepen',
       topic,
       questionGoal: `ask for ${missingEvidence.slice(0, 2).join(' and ')} while staying on the same answer facts`,
+      sourceType: roleAlignment?.matchedGaps?.length ? 'match_gap' : roleAlignment?.matchedRequirements?.length ? 'jd_requirement' : 'common_template',
     };
   }
 
   return {
-    mode: intent === 'technical_example' ? 'deepen' : 'advance',
+    mode: intent === 'technical_or_domain_example' ? 'deepen' : 'advance',
     topic,
-    questionGoal: intent === 'technical_example'
-      ? 'test the trade-off, failure mode, or validation behind the technical example'
+    questionGoal: intent === 'technical_or_domain_example'
+      ? 'test the trade-off, failure mode, or validation behind the role-specific example'
       : 'advance only after briefly acknowledging the concrete evidence',
+    sourceType: roleAlignment?.matchedRequirements?.length ? 'jd_requirement' : 'common_template',
   };
 };
 
@@ -219,22 +367,37 @@ export const extractFastAnswerUnderstanding = ({ session = {}, environment = {},
   const latestQuestionTopic = environment?.questionContext?.latestQuestionTopic || '';
   const latestQuestionStage = environment?.questionContext?.latestQuestionStage || '';
   const lexicon = buildAnswerUnderstandingLexicon(session);
-  const tokenCount = tokenize(cleanAnswer).length;
+  const tokens = tokenize(cleanAnswer);
+  const tokenCount = tokens.length;
+  const sentenceCount = splitSentences(cleanAnswer).length;
   const technologies = extractTechnologies(cleanAnswer, lexicon);
   const ownershipSignals = extractSignals(cleanAnswer, OWNERSHIP_VERBS);
   const evidenceSignals = extractSignals(cleanAnswer, EVIDENCE_TERMS);
   const frictionSignals = extractSignals(cleanAnswer, FRICTION_TERMS);
+  const decisionSignals = extractSignals(cleanAnswer, DECISION_TERMS);
   const metrics = extractMetrics(cleanAnswer);
+  const roleAlignment = buildRoleAlignment({ answerText: cleanAnswer, lexicon });
   const mentionedEntities = unique([
     ...extractCapitalizedPhrases(cleanAnswer),
     ...technologies,
-  ]).slice(0, 12);
+    ...roleAlignment.roleVocabularyHits,
+  ]).slice(0, 14);
   const misunderstanding = MISUNDERSTANDING_TERMS.some((term) => containsPhrase(cleanAnswer, term));
-  const intent = inferIntent({ technologies, ownershipSignals, frictionSignals, latestQuestionStage, answerText: cleanAnswer });
+  const intent = inferIntent({
+    technologies,
+    roleVocabularyHits: roleAlignment.roleVocabularyHits,
+    ownershipSignals,
+    frictionSignals,
+    latestQuestionStage,
+    answerText: cleanAnswer,
+  });
   const missingEvidence = inferMissingEvidence({ ownershipSignals, metrics, evidenceSignals, frictionSignals, tokenCount });
+  const starSignals = buildStarSignals({ answerText: cleanAnswer, ownershipSignals, evidenceSignals, frictionSignals, metrics });
+  const evidenceSignalBuckets = buildEvidenceSignalBuckets(cleanAnswer);
   const suggestedFollowUp = buildSuggestedFollowUp({
     intent,
     technologies,
+    roleAlignment,
     frictionSignals,
     missingEvidence,
     latestQuestionTopic,
@@ -242,35 +405,77 @@ export const extractFastAnswerUnderstanding = ({ session = {}, environment = {},
     tokenCount,
     misunderstanding,
   });
+  const structureConfidence = Math.max(0.25, Math.min(0.95, Number((
+    0.32
+    + Math.min(0.18, ownershipSignals.length * 0.04)
+    + Math.min(0.14, evidenceSignals.length * 0.03)
+    + Math.min(0.12, decisionSignals.length * 0.03)
+    + (metrics.length ? 0.06 : 0)
+    + (starSignals.result.length ? 0.05 : 0)
+    - (tokenCount < 6 ? 0.12 : 0)
+  ).toFixed(2))));
   const confidence = Math.max(0.35, Math.min(0.94, Number((
-    0.42
-    + Math.min(0.18, technologies.length * 0.04)
-    + Math.min(0.14, ownershipSignals.length * 0.035)
-    + Math.min(0.12, evidenceSignals.length * 0.025)
-    + (frictionSignals.length ? 0.06 : 0)
+    0.38
+    + Math.min(0.14, technologies.length * 0.035)
+    + Math.min(0.14, roleAlignment.roleVocabularyHits.length * 0.03)
+    + Math.min(0.12, ownershipSignals.length * 0.03)
+    + Math.min(0.1, evidenceSignals.length * 0.02)
+    + (frictionSignals.length ? 0.05 : 0)
     + (metrics.length ? 0.04 : 0)
     - (tokenCount < 6 ? 0.12 : 0)
   ).toFixed(2))));
+  const answerCompleteness = missingEvidence.length >= 3 || tokenCount < 10
+    ? 'thin'
+    : missingEvidence.length ? 'partial' : 'strong';
 
   return {
     source: 'local_js',
+    parserVersion: 'role_agnostic_v2',
     intent,
-    answerCompleteness: missingEvidence.length >= 3 || tokenCount < 10 ? 'thin' : missingEvidence.length ? 'partial' : 'strong',
+    answerCompleteness,
+    answerStats: {
+      tokenCount,
+      sentenceCount,
+      hasNumbers: metrics.length > 0,
+      hasOutcomeLanguage: evidenceSignals.some((item) => ['result', 'outcome', 'impact', 'reduced', 'improved', 'increased', 'saved'].includes(normalizeKey(item))),
+      hasRoleVocabulary: roleAlignment.roleVocabularyHits.length > 0,
+      hasDecisionLanguage: decisionSignals.length > 0,
+    },
+    coreEvidence: {
+      starSignals,
+      missing: missingEvidence,
+      evidenceStrength: answerCompleteness,
+      evidenceSignals: evidenceSignalBuckets,
+      decisionSignals,
+    },
+    roleAlignment,
+    followUpRecommendation: {
+      ...suggestedFollowUp,
+      reason: missingEvidence.length
+        ? `Missing evidence: ${missingEvidence.slice(0, 2).join(', ')}`
+        : roleAlignment.matchedRequirements.length
+          ? 'Answer mentions role requirement evidence.'
+          : 'Use generic interview evidence structure.',
+    },
     keyFacts: unique([
       ...technologies.map((item) => `mentioned ${item}`),
+      ...roleAlignment.roleVocabularyHits.slice(0, 4).map((item) => `role vocabulary: ${item}`),
       ...ownershipSignals.slice(0, 3).map((item) => `ownership signal: ${item}`),
       ...frictionSignals.slice(0, 3).map((item) => `friction signal: ${item}`),
       ...metrics.slice(0, 3).map((item) => `metric: ${item}`),
-    ]).slice(0, 10),
+    ]).slice(0, 12),
     technologies,
     metrics,
     ownershipSignals,
     evidenceSignals,
     frictionSignals,
+    decisionSignals,
     mentionedEntities,
     missingEvidence,
     suggestedFollowUp,
     confidence,
+    structureConfidence,
+    roleMatchConfidence: roleAlignment.roleMatchConfidence,
   };
 };
 
@@ -355,6 +560,10 @@ const normalizeAdapterResult = (result = {}, fallback = {}) => ({
     ...(fallback.suggestedFollowUp || {}),
     ...(result.suggestedFollowUp || {}),
   },
+  followUpRecommendation: {
+    ...(fallback.followUpRecommendation || {}),
+    ...(result.followUpRecommendation || {}),
+  },
   technologies: unique(result.technologies || fallback.technologies || []),
   keyFacts: unique(result.keyFacts || fallback.keyFacts || []),
   mentionedEntities: unique(result.mentionedEntities || fallback.mentionedEntities || []),
@@ -365,11 +574,13 @@ const normalizeAdapterResult = (result = {}, fallback = {}) => ({
 const estimateEvidenceGainScore = (understanding = {}, tokenCount = 0) => {
   const hasOwnership = ensureArray(understanding.ownershipSignals).length > 0;
   const hasEvidence = ensureArray(understanding.evidenceSignals).length > 0 || ensureArray(understanding.metrics).length > 0;
+  const hasRoleAlignment = ensureArray(understanding.roleAlignment?.roleVocabularyHits).length > 0;
   const base = understanding.answerCompleteness === 'strong' ? 0.72 : understanding.answerCompleteness === 'partial' ? 0.54 : 0.34;
   return Math.max(0, Math.min(1, Number((
     base
     + (hasOwnership ? 0.06 : 0)
     + (hasEvidence ? 0.08 : 0)
+    + (hasRoleAlignment ? 0.05 : 0)
     + (tokenCount > 35 ? 0.04 : 0)
   ).toFixed(2))));
 };
@@ -393,9 +604,15 @@ const shouldUseSemanticUnderstanding = ({ localUnderstanding = {}, answerText = 
   const nearFinalTurn = Boolean(environment?.interviewStructure?.isFinalPlannedTurn || environment?.questionContext?.isFinalPlannedTurn);
   const complexStorySignals = tokenCount > 35
     && (ensureArray(localUnderstanding.frictionSignals).length || ensureArray(localUnderstanding.ownershipSignals).length);
+  const lowStructureConfidence = Number(localUnderstanding.structureConfidence || localUnderstanding.confidence || 0) < 0.52;
+  const lowRoleMatchButRoleQuestion = Number(localUnderstanding.roleMatchConfidence || 0) < 0.35
+    && normalizeText(environment?.questionContext?.latestQuestionTopic).length > 0
+    && tokenCount > 20;
 
   return (
     Number(localUnderstanding.confidence || 0) < 0.58
+    || lowStructureConfidence
+    || lowRoleMatchButRoleQuestion
     || (tokenCount > 25 && evidenceGainScore < 0.45)
     || (missingEvidence.length >= 3 && tokenCount > 35)
     || hasConflictingRuleSignals(localUnderstanding)
@@ -423,6 +640,7 @@ const normalizeSemanticResult = (result = {}) => ({
   ownershipSignals: unique(result.ownershipSignals || []),
   evidenceSignals: unique(result.evidenceSignals || []),
   frictionSignals: unique(result.frictionSignals || []),
+  decisionSignals: unique(result.decisionSignals || []),
   missingEvidence: unique(result.missingEvidence || []),
   semanticOpportunity: normalizeText(result.semanticOpportunity),
   followUpValue: ['low', 'medium', 'high'].includes(result.followUpValue) ? result.followUpValue : '',
@@ -434,7 +652,7 @@ const buildSemanticPrompt = ({ answerText = '', environment = {}, localUnderstan
 Return valid JSON only with this exact shape:
 {
   "source": "model_assisted",
-  "intent": "technical_example | behavioural_example | clarification_needed | experience_example | general_answer",
+  "intent": "technical_or_domain_example | behavioural_example | clarification_needed | experience_example | general_answer",
   "answerCompleteness": "thin | partial | strong",
   "keyFacts": ["string"],
   "technologies": ["string"],
@@ -442,6 +660,7 @@ Return valid JSON only with this exact shape:
   "ownershipSignals": ["string"],
   "evidenceSignals": ["string"],
   "frictionSignals": ["string"],
+  "decisionSignals": ["string"],
   "missingEvidence": ["personal_ownership", "result_or_impact", "validation_method", "tradeoff_or_failure_detail"],
   "semanticOpportunity": "string",
   "followUpValue": "low | medium | high",
@@ -453,6 +672,7 @@ Rules:
 - Missing evidence should describe what the answer did not prove.
 - semanticOpportunity should identify the best safe follow-up opportunity in one sentence.
 - Prefer concrete candidate-owned actions, measurable results, validation method, and trade-offs.
+- Treat role-specific evidence broadly. It may be technical, clinical, customer, operational, project, leadership, or domain evidence depending on the role.
 
 Context:
 ${JSON.stringify({
@@ -478,6 +698,7 @@ const mergeSemanticUnderstanding = ({ localUnderstanding = {}, semanticUnderstan
   ownershipSignals: unique([...(localUnderstanding.ownershipSignals || []), ...(semanticUnderstanding.ownershipSignals || [])]).slice(0, 8),
   evidenceSignals: unique([...(localUnderstanding.evidenceSignals || []), ...(semanticUnderstanding.evidenceSignals || [])]).slice(0, 8),
   frictionSignals: unique([...(localUnderstanding.frictionSignals || []), ...(semanticUnderstanding.frictionSignals || [])]).slice(0, 8),
+  decisionSignals: unique([...(localUnderstanding.decisionSignals || []), ...(semanticUnderstanding.decisionSignals || [])]).slice(0, 8),
   missingEvidence: unique(semanticUnderstanding.missingEvidence || localUnderstanding.missingEvidence || []).slice(0, 6),
   semanticOpportunity: semanticUnderstanding.semanticOpportunity || localUnderstanding.semanticOpportunity || '',
   followUpValue: semanticUnderstanding.followUpValue || localUnderstanding.followUpValue || '',
@@ -485,6 +706,10 @@ const mergeSemanticUnderstanding = ({ localUnderstanding = {}, semanticUnderstan
   suggestedFollowUp: {
     ...(localUnderstanding.suggestedFollowUp || {}),
     questionGoal: semanticUnderstanding.semanticOpportunity || localUnderstanding.suggestedFollowUp?.questionGoal,
+  },
+  followUpRecommendation: {
+    ...(localUnderstanding.followUpRecommendation || localUnderstanding.suggestedFollowUp || {}),
+    questionGoal: semanticUnderstanding.semanticOpportunity || localUnderstanding.followUpRecommendation?.questionGoal || localUnderstanding.suggestedFollowUp?.questionGoal,
   },
 });
 
