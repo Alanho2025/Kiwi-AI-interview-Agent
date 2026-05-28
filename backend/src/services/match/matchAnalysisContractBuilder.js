@@ -1,8 +1,6 @@
 import { buildMatchValidationTargets } from './matchValidationTargetBuilder.js';
 import { buildMatchExplanation } from './matchExplanationBuilder.js';
-
-const ensureArray = (value) => (Array.isArray(value) ? value : []);
-const unique = (items = []) => [...new Set(items.map((item) => String(item || '').trim()).filter(Boolean))];
+import { ensureArray, unique } from '../../utils/commonHelpers.js';
 
 export const buildMatchAnalysisContract = (analysis = {}) => {
   const explanation = buildMatchExplanation({

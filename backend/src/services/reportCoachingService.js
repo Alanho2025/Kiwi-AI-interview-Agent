@@ -10,6 +10,7 @@
  */
 
 import { callDeepSeek } from './deepseekService.js';
+import { ensureString, ensureArray } from '../utils/commonHelpers.js';
 
 /**
  * Purpose: Execute the main responsibility for ensureString.
@@ -17,8 +18,6 @@ import { callDeepSeek } from './deepseekService.js';
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-const ensureString = (value, fallback = '') => (typeof value === 'string' ? value.trim() : fallback);
-const ensureArray = (value) => (Array.isArray(value) ? value : []);
 const TRUST_LABELS = new Set(['supported_by_cv', 'supported_by_jd', 'supported_by_answer', 'supported_by_nz_guide', 'needs_user_confirmation']);
 const CONFIDENCE_LEVELS = new Set(['high', 'medium', 'low']);
 const FEEDBACK_STATUSES = new Set(['confirmed_feedback', 'downgraded_feedback', 'needs_confirmation', 'refused_claim']);

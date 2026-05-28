@@ -1,9 +1,9 @@
+import { normalizeText } from '../../utils/commonHelpers.js';
 /**
  * File responsibility: Classify short spoken replies to transcript confirmation prompts.
  * Keep this deterministic for latency and reliability in the duplex voice loop.
  */
 
-const normalizeText = (value = '') => String(value || '').trim().toLowerCase().replace(/[^\w\s']/g, ' ').replace(/\s+/g, ' ');
 
 const CONFIRM_PATTERNS = [
   /\byes\b/,

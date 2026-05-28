@@ -4,10 +4,10 @@ import { buildCvAnalysis } from './cvAnalysisBuilderService.js';
 import { buildCvDisplayView } from './cvDisplayViewService.js';
 import { buildCvEvidenceProfile } from './cvEvidenceProfileBuilder.js';
 import { getOwnedCvDocumentOrThrow, getOwnedCvRecordOrThrow } from './cvOwnershipService.js';
+import { normalizeText } from '../../utils/commonHelpers.js';
 
 const REVIEW_SECTION_KEYS = new Set(['personal_statement', 'summary', 'skills', 'experience', 'projects', 'education', 'certifications', 'key_competencies']);
 
-const normalizeText = (value = '') => String(value || '').replace(/\r/g, '').trim();
 
 const normalizeList = (items = []) => (Array.isArray(items) ? items : String(items || '').split(/\n|,/))
   .map((item) => (typeof item === 'string' ? item : item?.label || item?.name || ''))

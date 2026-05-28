@@ -1,6 +1,6 @@
 import { canonicalizeRoleTitle, inferRoleFamily, inferSeniority } from './jobDescriptionNormalizer.js';
+import { ensureArray } from '../../utils/commonHelpers.js';
 
-const ensureArray = (value) => (Array.isArray(value) ? value : []);
 
 const pickTechnicalFocus = ({ requiredSkills = [], preferredSkills = [], interviewTargets = [] } = {}) => {
   const merged = [...ensureArray(requiredSkills), ...ensureArray(preferredSkills), ...ensureArray(interviewTargets)];

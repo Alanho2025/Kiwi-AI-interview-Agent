@@ -13,8 +13,9 @@ import { extractCvSections } from './cvSectionParser.js';
 import { buildCvEvidenceProfile } from './cvEvidenceProfileBuilder.js';
 import { buildCvAnalysis } from './cvAnalysisBuilderService.js';
 import { CV_TECHNICAL_SKILLS } from './cvSkillTaxonomy.js';
+import { normalizeTextWithSpaces } from '../../utils/commonHelpers.js';
 
-const normalizeText = (text = '') => String(text || '').replace(/\s+/g, ' ').trim();
+const normalizeText = normalizeTextWithSpaces;
 const normalizeLineBreaks = (text = '') => String(text || '').replace(/\r/g, '');
 
 const extractCandidateName = (text = '') => {

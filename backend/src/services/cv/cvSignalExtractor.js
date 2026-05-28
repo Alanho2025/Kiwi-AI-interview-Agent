@@ -1,5 +1,4 @@
-const ensureArray = (value) => (Array.isArray(value) ? value : []);
-const unique = (items = []) => [...new Set(items.map((item) => String(item || '').trim()).filter(Boolean))];
+import { ensureArray, unique } from '../../utils/commonHelpers.js';
 
 export const buildCvSignals = (profile = {}) => {
   const skills = unique(ensureArray(profile.skills).map((item) => item?.label || item));

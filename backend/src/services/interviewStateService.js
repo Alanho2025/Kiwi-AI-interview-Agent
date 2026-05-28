@@ -1,5 +1,6 @@
 import { buildInterviewStructure, getQuestionCategory } from './interview/interviewTurnPolicy.js';
 import { resolveInterviewSessionConfig } from './interview/interviewSessionConfigResolver.js';
+import { normalizeText, normalizeKey } from '../utils/commonHelpers.js';
 
 /**
  * File responsibility: Service module.
@@ -18,8 +19,6 @@ import { resolveInterviewSessionConfig } from './interview/interviewSessionConfi
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-const normalizeText = (value = '') => String(value || '').trim();
-const normalizeKey = (value = '') => normalizeText(value).toLowerCase();
 
 const buildQuestionRootKey = (question = {}) => {
   const topic = normalizeKey(question.topic || question.metadata?.topic || '');

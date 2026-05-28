@@ -13,9 +13,8 @@ import { retrieveGlobalKnowledge } from '../retrieval/globalKnowledgeRetriever.j
 import { assessRetrievalQuality } from '../retrieval/retrievalQualityAssessor.js';
 import { runCorrectiveRetrieval } from '../retrieval/correctiveRetrievalService.js';
 import { RETRIEVAL_SOURCES } from '../retrieval/retrievalSourceRegistry.js';
+import { ensureArray, unique } from '../../utils/commonHelpers.js';
 
-const ensureArray = (value) => (Array.isArray(value) ? value : []);
-const unique = (items = []) => [...new Set(items.filter(Boolean))];
 
 const buildRetrievalErrorBundle = (source, error) => ({
   items: [],

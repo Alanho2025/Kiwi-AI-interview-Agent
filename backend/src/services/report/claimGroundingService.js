@@ -1,6 +1,4 @@
-const ensureArray = (value) => (Array.isArray(value) ? value : []);
-const normalizeText = (value = '') => String(value || '').trim();
-const tokenize = (value = '') => normalizeText(value).toLowerCase().split(/[^a-z0-9+#.]+/).filter((token) => token.length >= 3);
+import { ensureArray, normalizeText, tokenize } from '../../utils/commonHelpers.js';
 
 const collectStrings = (value, depth = 0) => {
   if (depth > 4 || value == null) return [];

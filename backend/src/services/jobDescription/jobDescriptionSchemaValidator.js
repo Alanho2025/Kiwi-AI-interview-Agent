@@ -1,5 +1,4 @@
-const ensureArray = (value) => (Array.isArray(value) ? value : []);
-const ensureObject = (value, fallback = {}) => (value && typeof value === 'object' && !Array.isArray(value) ? value : fallback);
+import { ensureArray, ensureObject } from '../../utils/commonHelpers.js';
 
 export const validateJobDescriptionRubric = (rubric = {}) => ({
   ...rubric,

@@ -1,6 +1,6 @@
-const ensureArray = (value) => (Array.isArray(value) ? value : []);
-const normalizeText = (value = '') => String(value || '').replace(/\s+/g, ' ').trim();
-const unique = (items = []) => [...new Set(items.map((item) => normalizeText(item)).filter(Boolean))];
+import { ensureArray, normalizeTextWithSpaces, unique } from '../../utils/commonHelpers.js';
+
+const normalizeText = normalizeTextWithSpaces;
 
 const truncate = (value = '', maxLength = 220) => {
   const text = normalizeText(value);

@@ -14,8 +14,7 @@ import { getNextPoolQuestion, hasReachedQuestionLimit, hasReachedTimeLimit } fro
 import { callDeepSeek, callDeepSeekStream } from '../deepseekService.js';
 import { guardGeneratedTextForInterviewMode, guardQuestionForInterviewMode } from '../aiControl/interviewModeGuard.js';
 import { buildQuestionDecisionTrace } from '../aiControl/questionRanker.js';
-const normalizeText = (value = '') => String(value || '').trim();
-const tokenize = (value = '') => normalizeText(value).toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+import { normalizeText, tokenize, normalizeKey } from '../../utils/commonHelpers.js';
 const getLastUserAnswer = (transcript = []) => [...transcript].reverse().find((turn) => turn.role === 'user')?.text || '';
 
 const inferQuestionGoal = (question = {}, actionType = '') => {
@@ -94,7 +93,6 @@ const pickRetrievedQuestion = (retrievalBundle, selectedQuestion, targetTopic = 
 };
 
 
-const normalizeKey = (value = '') => String(value || '').trim().toLowerCase();
 
 const buildQuestionRootKey = (question = {}) => {
   const topic = normalizeKey(question.topic || '');
