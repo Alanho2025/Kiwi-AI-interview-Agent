@@ -211,9 +211,12 @@ describe('useVoiceDeviceCheck', () => {
 
             const { result } = renderHook(() => useVoiceDeviceCheck());
 
+            // Run checkMicrophone and advance timers concurrently
             await act(async () => {
-                await result.current.checkMicrophone();
+                const checkPromise = result.current.checkMicrophone();
+                // Advance timers to allow sampleInputLevel to complete
                 await vi.advanceTimersByTimeAsync(1500);
+                await checkPromise;
             });
 
             expect(result.current.deviceCheck.mic.status).toBe('ok');
@@ -254,8 +257,9 @@ describe('useVoiceDeviceCheck', () => {
             const { result } = renderHook(() => useVoiceDeviceCheck());
 
             await act(async () => {
-                await result.current.checkMicrophone();
+                const checkPromise = result.current.checkMicrophone();
                 await vi.advanceTimersByTimeAsync(1500);
+                await checkPromise;
             });
 
             expect(result.current.deviceCheck.mic.status).toBe('silent');
@@ -325,8 +329,9 @@ describe('useVoiceDeviceCheck', () => {
             const { result } = renderHook(() => useVoiceDeviceCheck());
 
             await act(async () => {
-                await result.current.checkSpeaker();
+                const checkPromise = result.current.checkSpeaker();
                 await vi.advanceTimersByTimeAsync(400);
+                await checkPromise;
             });
 
             expect(result.current.deviceCheck.speaker.status).toBe('needs_confirmation');
@@ -337,8 +342,9 @@ describe('useVoiceDeviceCheck', () => {
             const { result } = renderHook(() => useVoiceDeviceCheck());
 
             await act(async () => {
-                await result.current.checkSpeaker();
+                const checkPromise = result.current.checkSpeaker();
                 await vi.advanceTimersByTimeAsync(400);
+                await checkPromise;
             });
 
             act(() => {
@@ -353,8 +359,9 @@ describe('useVoiceDeviceCheck', () => {
             const { result } = renderHook(() => useVoiceDeviceCheck());
 
             await act(async () => {
-                await result.current.checkSpeaker();
+                const checkPromise = result.current.checkSpeaker();
                 await vi.advanceTimersByTimeAsync(400);
+                await checkPromise;
             });
 
             act(() => {
@@ -449,10 +456,21 @@ describe('useVoiceDeviceCheck', () => {
 
             await act(async () => {
                 result.current.checkBrowser();
-                await result.current.checkMicrophone();
+            });
+
+            await act(async () => {
+                const micPromise = result.current.checkMicrophone();
                 await vi.advanceTimersByTimeAsync(1500);
-                await result.current.checkSpeaker();
+                await micPromise;
+            });
+
+            await act(async () => {
+                const speakerPromise = result.current.checkSpeaker();
                 await vi.advanceTimersByTimeAsync(400);
+                await speakerPromise;
+            });
+
+            act(() => {
                 result.current.confirmSpeakerHeard();
             });
 
@@ -469,7 +487,7 @@ describe('useVoiceDeviceCheck', () => {
                 result.current.checkBrowser();
             });
 
-            expect(result.current.statusLabel).toContain('not ready');
+            expect(result.current.statusLabel).toContain('does not support AudioContext');
         });
 
         it('should show stale message on device change', () => {
