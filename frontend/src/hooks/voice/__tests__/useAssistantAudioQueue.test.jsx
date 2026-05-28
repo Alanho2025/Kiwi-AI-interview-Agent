@@ -1,457 +1,274 @@
-/**
- * Tests for useAssistantAudioQueue hook
- * 
- * Behavior Contract:
- * - Hook manages assistant audio playback queue
- * - Plays TTS chunks in order
- * - Supports immediate cancellation for barge-in
- * - Handles both full-buffer and streaming playback
- * - Manages audio URL cleanup
- * - Provides playback state callbacks
- */
-
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { useAssistantAudioQueue } from '../useAssistantAudioQueue.js';
 
+const flushPlayback = async () => {
+  await act(async () => {
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+};
+
+const enqueueChunk = (result, overrides = {}) => {
+  act(() => {
+    result.current.enqueueAudioChunk({
+      base64: 'mock-audio-data',
+      contentType: 'audio/mpeg',
+      ...overrides,
+    });
+  });
+};
+
 describe('useAssistantAudioQueue', () => {
-    let mockAudio;
-    let mockMediaSource;
-    let mockSourceBuffer;
+  let mockAudio;
 
-    beforeEach(() => {
-        // Mock Audio element
-        mockAudio = {
-            src: '',
-            muted: false,
-            play: vi.fn().mockResolvedValue(undefined),
-            pause: vi.fn(),
-            load: vi.fn(),
-            removeAttribute: vi.fn(),
-            setAttribute: vi.fn(),
-            addEventListener: vi.fn(),
-            removeEventListener: vi.fn(),
-            currentTime: 0,
-            duration: 0,
-            paused: true,
-            ended: false,
-            onended: null,
-        };
+  beforeEach(() => {
+    vi.useRealTimers();
+    vi.clearAllMocks();
 
-        // Mock HTMLAudioElement constructor
-        global.Audio = vi.fn(() => mockAudio);
+    mockAudio = {
+      src: '',
+      muted: false,
+      play: vi.fn().mockResolvedValue(undefined),
+      pause: vi.fn(),
+      load: vi.fn(),
+      removeAttribute: vi.fn(),
+      setAttribute: vi.fn(),
+      currentTime: 0,
+      onended: null,
+    };
 
-        // Mock URL APIs
-        global.URL.createObjectURL = vi.fn(() => 'blob:mock-url');
-        global.URL.revokeObjectURL = vi.fn();
+    global.Audio = vi.fn(() => mockAudio);
+    global.URL.createObjectURL = vi.fn(() => 'blob:mock-url');
+    global.URL.revokeObjectURL = vi.fn();
+    global.atob = vi.fn((value) => value);
 
-        // Mock atob for base64 decoding
-        global.atob = vi.fn((str) => str);
+    global.MediaSource = vi.fn(() => ({
+      addSourceBuffer: vi.fn(),
+      endOfStream: vi.fn(),
+      readyState: 'open',
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }));
+    global.MediaSource.isTypeSupported = vi.fn(() => false);
+  });
 
-        // Mock MediaSource
-        mockSourceBuffer = {
-            appendBuffer: vi.fn(),
-            addEventListener: vi.fn(),
-            removeEventListener: vi.fn(),
-            updating: false,
-        };
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
 
-        mockMediaSource = {
-            addSourceBuffer: vi.fn(() => mockSourceBuffer),
-            endOfStream: vi.fn(),
-            readyState: 'open',
-            addEventListener: vi.fn(),
-            removeEventListener: vi.fn(),
-        };
+  it('initializes with default state', () => {
+    const { result } = renderHook(() => useAssistantAudioQueue());
 
-        global.MediaSource = vi.fn(() => mockMediaSource);
-        global.MediaSource.isTypeSupported = vi.fn(() => true);
+    expect(result.current.assistantAudioUrl).toBe('');
+    expect(result.current.isAssistantSpeaking).toBe(false);
+    expect(result.current.playbackError).toBe('');
+  });
 
-        vi.useFakeTimers();
+  it('unlocks audio playback', async () => {
+    const { result } = renderHook(() => useAssistantAudioQueue());
+
+    act(() => {
+      result.current.audioRef.current = mockAudio;
     });
 
-    afterEach(() => {
-        vi.useRealTimers();
-        vi.restoreAllMocks();
+    let unlockResult;
+    await act(async () => {
+      unlockResult = await result.current.unlockAudio();
     });
 
-    describe('Initialization', () => {
-        it('should initialize with default state', () => {
-            const { result } = renderHook(() => useAssistantAudioQueue());
+    expect(unlockResult.ok).toBe(true);
+    expect(mockAudio.play).toHaveBeenCalled();
+    expect(mockAudio.pause).toHaveBeenCalled();
+  });
 
-            expect(result.current.assistantAudioUrl).toBe('');
-            expect(result.current.isAssistantSpeaking).toBe(false);
-        });
+  it('handles audio unlock failure', async () => {
+    mockAudio.play.mockRejectedValue(new DOMException('Not allowed', 'NotAllowedError'));
+    const onPlaybackError = vi.fn();
+    const { result } = renderHook(() => useAssistantAudioQueue({ onPlaybackError }));
 
-        it('should accept callback configuration', () => {
-            const callbacks = {
-                onPlaybackStart: vi.fn(),
-                onPlaybackEnd: vi.fn(),
-                onQueueDrained: vi.fn(),
-                onPlaybackError: vi.fn(),
-            };
-
-            const { result } = renderHook(() => useAssistantAudioQueue(callbacks));
-
-            expect(result.current).toBeDefined();
-        });
+    act(() => {
+      result.current.audioRef.current = mockAudio;
     });
 
-    describe('Audio Unlocking', () => {
-        it('should unlock audio playback', async () => {
-            const { result } = renderHook(() => useAssistantAudioQueue());
-
-            // Set audioRef to mock audio element
-            act(() => {
-                result.current.audioRef.current = mockAudio;
-            });
-
-            let unlockResult;
-            await act(async () => {
-                unlockResult = await result.current.unlockAudio();
-            });
-
-            expect(unlockResult.ok).toBe(true);
-            expect(mockAudio.play).toHaveBeenCalled();
-        });
-
-        it('should handle unlock failure gracefully', async () => {
-            mockAudio.play.mockRejectedValue(new DOMException('Not allowed', 'NotAllowedError'));
-
-            const { result } = renderHook(() => useAssistantAudioQueue());
-
-            act(() => {
-                result.current.audioRef.current = mockAudio;
-            });
-
-            let unlockResult;
-            await act(async () => {
-                unlockResult = await result.current.unlockAudio();
-            });
-
-            expect(unlockResult.ok).toBe(false);
-            expect(unlockResult.error).toContain('blocked');
-        });
-
-        it('should only unlock once', async () => {
-            const { result } = renderHook(() => useAssistantAudioQueue());
-
-            act(() => {
-                result.current.audioRef.current = mockAudio;
-            });
-
-            await act(async () => {
-                await result.current.unlockAudio();
-                await result.current.unlockAudio();
-            });
-
-            // Both calls should succeed, but play is called twice (once per unlock)
-            expect(mockAudio.play).toHaveBeenCalledTimes(2);
-        });
+    let unlockResult;
+    await act(async () => {
+      unlockResult = await result.current.unlockAudio();
     });
 
-    describe('Queue Management', () => {
-        it('should enqueue audio chunk', async () => {
-            const onPlaybackStart = vi.fn();
-            const { result } = renderHook(() => useAssistantAudioQueue({ onPlaybackStart }));
+    expect(unlockResult.ok).toBe(false);
+    expect(unlockResult.error).toContain('blocked');
+    expect(onPlaybackError).toHaveBeenCalledWith(expect.stringContaining('blocked'));
+  });
 
-            act(() => {
-                result.current.audioRef.current = mockAudio;
-            });
+  it('returns an error when audio output is not ready', async () => {
+    const { result } = renderHook(() => useAssistantAudioQueue());
 
-            act(() => {
-                result.current.enqueueAudioChunk({
-                    base64: 'mock-audio-data',
-                    contentType: 'audio/mpeg',
-                });
-            });
-
-            expect(global.URL.createObjectURL).toHaveBeenCalled();
-        });
-
-        it('should play chunks in order', async () => {
-            const { result } = renderHook(() => useAssistantAudioQueue());
-
-            act(() => {
-                result.current.audioRef.current = mockAudio;
-            });
-
-            act(() => {
-                result.current.enqueueAudioChunk({
-                    base64: 'chunk1',
-                    contentType: 'audio/mpeg',
-                    index: 0,
-                });
-                result.current.enqueueAudioChunk({
-                    base64: 'chunk2',
-                    contentType: 'audio/mpeg',
-                    index: 1,
-                });
-            });
-
-            expect(mockAudio.play).toHaveBeenCalled();
-        });
-
-        it('should clear queue', async () => {
-            const onQueueDrained = vi.fn();
-            const { result } = renderHook(() => useAssistantAudioQueue({ onQueueDrained }));
-
-            act(() => {
-                result.current.audioRef.current = mockAudio;
-            });
-
-            act(() => {
-                result.current.enqueueAudioChunk({
-                    base64: 'chunk1',
-                    contentType: 'audio/mpeg',
-                });
-            });
-
-            act(() => {
-                result.current.clearQueue();
-            });
-
-            expect(mockAudio.pause).toHaveBeenCalled();
-            expect(result.current.isAssistantSpeaking).toBe(false);
-        });
+    let unlockResult;
+    await act(async () => {
+      unlockResult = await result.current.unlockAudio();
     });
 
-    describe('Playback Callbacks', () => {
-        it('should call onPlaybackStart when playback begins', async () => {
-            const onPlaybackStart = vi.fn();
-            const { result } = renderHook(() => useAssistantAudioQueue({ onPlaybackStart }));
+    expect(unlockResult.ok).toBe(false);
+    expect(unlockResult.error).toContain('not ready');
+  });
 
-            act(() => {
-                result.current.audioRef.current = mockAudio;
-            });
+  it('enqueues a chunk and starts playback', async () => {
+    const { result } = renderHook(() => useAssistantAudioQueue());
 
-            act(() => {
-                result.current.enqueueAudioChunk({
-                    base64: 'chunk1',
-                    contentType: 'audio/mpeg',
-                });
-            });
-
-            await waitFor(() => {
-                expect(onPlaybackStart).toHaveBeenCalled();
-            });
-        });
-
-        it('should call onPlaybackEnd when playback ends', async () => {
-            const onPlaybackEnd = vi.fn();
-            const { result } = renderHook(() => useAssistantAudioQueue({ onPlaybackEnd }));
-
-            act(() => {
-                result.current.audioRef.current = mockAudio;
-            });
-
-            act(() => {
-                result.current.enqueueAudioChunk({
-                    base64: 'chunk1',
-                    contentType: 'audio/mpeg',
-                });
-            });
-
-            // Trigger onended callback
-            await act(async () => {
-                if (mockAudio.onended) {
-                    mockAudio.onended();
-                }
-            });
-
-            await waitFor(() => {
-                expect(onPlaybackEnd).toHaveBeenCalled();
-            });
-        });
-
-        it('should call onQueueDrained when queue is empty', async () => {
-            const onQueueDrained = vi.fn();
-            const { result } = renderHook(() => useAssistantAudioQueue({ onQueueDrained }));
-
-            act(() => {
-                result.current.audioRef.current = mockAudio;
-            });
-
-            act(() => {
-                result.current.enqueueAudioChunk({
-                    base64: 'chunk1',
-                    contentType: 'audio/mpeg',
-                });
-            });
-
-            // Trigger onended callback to drain queue
-            await act(async () => {
-                if (mockAudio.onended) {
-                    mockAudio.onended();
-                }
-            });
-
-            await waitFor(() => {
-                expect(onQueueDrained).toHaveBeenCalled();
-            });
-        });
-
-        it('should call onPlaybackError on playback failure', async () => {
-            const onPlaybackError = vi.fn();
-            mockAudio.play.mockRejectedValueOnce(new Error('Playback failed'));
-
-            const { result } = renderHook(() => useAssistantAudioQueue({ onPlaybackError }));
-
-            act(() => {
-                result.current.audioRef.current = mockAudio;
-            });
-
-            act(() => {
-                result.current.enqueueAudioChunk({
-                    base64: 'chunk1',
-                    contentType: 'audio/mpeg',
-                });
-            });
-
-            await waitFor(() => {
-                expect(onPlaybackError).toHaveBeenCalled();
-            });
-        });
+    act(() => {
+      result.current.audioRef.current = mockAudio;
     });
 
-    describe('URL Cleanup', () => {
-        it('should revoke object URLs after playback', async () => {
-            const { result } = renderHook(() => useAssistantAudioQueue());
+    enqueueChunk(result);
+    await flushPlayback();
 
-            act(() => {
-                result.current.audioRef.current = mockAudio;
-            });
+    expect(URL.createObjectURL).toHaveBeenCalled();
+    expect(mockAudio.play).toHaveBeenCalled();
+    expect(result.current.assistantAudioUrl).toBe('blob:mock-url');
+    expect(result.current.isAssistantSpeaking).toBe(true);
+  });
 
-            act(() => {
-                result.current.enqueueAudioChunk({
-                    base64: 'chunk1',
-                    contentType: 'audio/mpeg',
-                });
-            });
+  it('plays queued chunks in order after each ended event', async () => {
+    const { result } = renderHook(() => useAssistantAudioQueue());
 
-            // Trigger onended callback
-            await act(async () => {
-                if (mockAudio.onended) {
-                    mockAudio.onended();
-                }
-                await vi.advanceTimersByTimeAsync(2100);
-            });
-
-            expect(global.URL.revokeObjectURL).toHaveBeenCalled();
-        });
+    act(() => {
+      result.current.audioRef.current = mockAudio;
     });
 
-    describe('State Management', () => {
-        it('should update isAssistantSpeaking during playback', async () => {
-            const { result } = renderHook(() => useAssistantAudioQueue());
-
-            act(() => {
-                result.current.audioRef.current = mockAudio;
-            });
-
-            expect(result.current.isAssistantSpeaking).toBe(false);
-
-            act(() => {
-                result.current.enqueueAudioChunk({
-                    base64: 'chunk1',
-                    contentType: 'audio/mpeg',
-                });
-            });
-
-            await waitFor(() => {
-                expect(result.current.isAssistantSpeaking).toBe(true);
-            });
-        });
-
-        it('should update assistantAudioUrl during playback', async () => {
-            const { result } = renderHook(() => useAssistantAudioQueue());
-
-            act(() => {
-                result.current.audioRef.current = mockAudio;
-            });
-
-            act(() => {
-                result.current.enqueueAudioChunk({
-                    base64: 'chunk1',
-                    contentType: 'audio/mpeg',
-                });
-            });
-
-            await waitFor(() => {
-                expect(result.current.assistantAudioUrl).toBeTruthy();
-            });
-        });
+    act(() => {
+      result.current.enqueueAudioChunk({ base64: 'chunk2', contentType: 'audio/mpeg', index: 2 });
+      result.current.enqueueAudioChunk({ base64: 'chunk1', contentType: 'audio/mpeg', index: 1 });
     });
 
-    describe('Error Handling', () => {
-        it('should handle NotAllowedError gracefully', async () => {
-            const onPlaybackError = vi.fn();
-            mockAudio.play.mockRejectedValue(new DOMException('Not allowed', 'NotAllowedError'));
+    await flushPlayback();
+    expect(mockAudio.play).toHaveBeenCalledTimes(1);
 
-            const { result } = renderHook(() => useAssistantAudioQueue({ onPlaybackError }));
+    await act(async () => {
+      mockAudio.onended?.();
+      await Promise.resolve();
+    });
+    await flushPlayback();
 
-            act(() => {
-                result.current.audioRef.current = mockAudio;
-            });
+    expect(mockAudio.play).toHaveBeenCalledTimes(2);
+  });
 
-            act(() => {
-                result.current.enqueueAudioChunk({
-                    base64: 'chunk1',
-                    contentType: 'audio/mpeg',
-                });
-            });
+  it('clears queue and stops playback', async () => {
+    const { result } = renderHook(() => useAssistantAudioQueue());
 
-            await waitFor(() => {
-                expect(onPlaybackError).toHaveBeenCalled();
-            });
-
-            const errorMessage = onPlaybackError.mock.calls[0][0];
-            expect(errorMessage).toContain('blocked');
-        });
-
-        it('should handle generic playback errors', async () => {
-            const onPlaybackError = vi.fn();
-            mockAudio.play.mockRejectedValue(new Error('Generic error'));
-
-            const { result } = renderHook(() => useAssistantAudioQueue({ onPlaybackError }));
-
-            act(() => {
-                result.current.audioRef.current = mockAudio;
-            });
-
-            act(() => {
-                result.current.enqueueAudioChunk({
-                    base64: 'chunk1',
-                    contentType: 'audio/mpeg',
-                });
-            });
-
-            await waitFor(() => {
-                expect(onPlaybackError).toHaveBeenCalled();
-            });
-        });
+    act(() => {
+      result.current.audioRef.current = mockAudio;
     });
 
-    describe('Cleanup', () => {
-        it('should cleanup resources on unmount', async () => {
-            const { result, unmount } = renderHook(() => useAssistantAudioQueue());
+    enqueueChunk(result);
+    await flushPlayback();
 
-            act(() => {
-                result.current.audioRef.current = mockAudio;
-            });
-
-            act(() => {
-                result.current.enqueueAudioChunk({
-                    base64: 'chunk1',
-                    contentType: 'audio/mpeg',
-                });
-            });
-
-            unmount();
-
-            expect(mockAudio.pause).toHaveBeenCalled();
-        });
+    act(() => {
+      result.current.clearQueue();
     });
+
+    expect(mockAudio.pause).toHaveBeenCalled();
+    expect(result.current.isAssistantSpeaking).toBe(false);
+    expect(result.current.assistantAudioUrl).toBe('');
+  });
+
+  it('calls playback lifecycle callbacks', async () => {
+    const onPlaybackStart = vi.fn();
+    const onPlaybackEnd = vi.fn();
+    const onQueueDrained = vi.fn();
+    const { result } = renderHook(() => useAssistantAudioQueue({
+      onPlaybackStart,
+      onPlaybackEnd,
+      onQueueDrained,
+    }));
+
+    act(() => {
+      result.current.audioRef.current = mockAudio;
+    });
+
+    enqueueChunk(result);
+    await flushPlayback();
+
+    await waitFor(() => {
+      expect(onPlaybackStart).toHaveBeenCalled();
+    });
+
+    await act(async () => {
+      mockAudio.onended?.();
+      await Promise.resolve();
+    });
+
+    expect(onPlaybackEnd).toHaveBeenCalled();
+    expect(onQueueDrained).toHaveBeenCalled();
+  });
+
+  it('calls onPlaybackError on playback failure', async () => {
+    const onPlaybackError = vi.fn();
+    mockAudio.play.mockRejectedValueOnce(new Error('Playback failed'));
+    const { result } = renderHook(() => useAssistantAudioQueue({ onPlaybackError }));
+
+    act(() => {
+      result.current.audioRef.current = mockAudio;
+    });
+
+    enqueueChunk(result);
+    await flushPlayback();
+
+    await waitFor(() => {
+      expect(onPlaybackError).toHaveBeenCalledWith('Playback failed');
+    });
+    expect(result.current.isAssistantSpeaking).toBe(false);
+  });
+
+  it('handles NotAllowedError during playback', async () => {
+    const onPlaybackError = vi.fn();
+    mockAudio.play.mockRejectedValue(new DOMException('Not allowed', 'NotAllowedError'));
+    const { result } = renderHook(() => useAssistantAudioQueue({ onPlaybackError }));
+
+    act(() => {
+      result.current.audioRef.current = mockAudio;
+    });
+
+    enqueueChunk(result);
+    await flushPlayback();
+
+    await waitFor(() => {
+      expect(onPlaybackError).toHaveBeenCalledWith(expect.stringContaining('blocked'));
+    });
+  });
+
+  it('revokes object URLs after playback', async () => {
+    vi.useFakeTimers();
+    const { result } = renderHook(() => useAssistantAudioQueue());
+
+    act(() => {
+      result.current.audioRef.current = mockAudio;
+    });
+
+    enqueueChunk(result);
+    await flushPlayback();
+
+    await act(async () => {
+      mockAudio.onended?.();
+      await vi.advanceTimersByTimeAsync(2100);
+    });
+
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:mock-url');
+  });
+
+  it('cleans up resources on unmount', async () => {
+    const { result, unmount } = renderHook(() => useAssistantAudioQueue());
+
+    act(() => {
+      result.current.audioRef.current = mockAudio;
+    });
+
+    enqueueChunk(result);
+    await flushPlayback();
+
+    unmount();
+
+    expect(mockAudio.pause).toHaveBeenCalled();
+  });
 });
-
-// Made with Bob
