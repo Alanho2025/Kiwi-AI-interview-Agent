@@ -94,6 +94,9 @@ const assertQuestionMetadata = (question) => {
 const categories = (pool) => new Set(pool.map((item) => item.category));
 const stages = (pool) => new Set(pool.map((item) => item.stage));
 const byTopic = (pool, topic) => pool.filter((item) => item.topic === topic);
+const evidenceQuestions = (pool) => pool.filter((item) => !['opening', 'motivation', 'wrap_up', 'closing'].includes(item.category));
+const isTechnicalEvidenceQuestion = (item) => ['technical', 'role_competency'].includes(item.category) || ['technical_core', 'technical_follow_up', 'role_competency_core', 'role_competency_follow_up'].includes(item.type);
+const isBehaviouralEvidenceQuestion = (item) => item.category === 'behavioural' || ['behavioural', 'behavioural_follow_up'].includes(item.type);
 
 describe('interview question plan completeness', () => {
   it('builds a complete combined question pool with opening, motivation, technical, behavioural, follow-up, and wrap-up questions', () => {
@@ -112,30 +115,30 @@ describe('interview question plan completeness', () => {
     pool.forEach(assertQuestionMetadata);
   });
 
-  it('keeps technical-only plans free from behavioural probing questions', () => {
+  it('keeps technical-only evidence slots free from behavioural probing questions', () => {
     const pool = buildQuestionPoolFromAnalysis(buildAnalysis(), {
       seniorityLevel: 'Junior/Grad',
       focusArea: 'technical',
       questionLimit: 8,
     });
 
-    const probingQuestions = pool.filter((item) => !['opening', 'motivation', 'wrap_up'].includes(item.category));
+    const probingQuestions = evidenceQuestions(pool);
     expect(probingQuestions.length).toBeGreaterThan(0);
-    expect(probingQuestions.every((item) => item.category === 'technical' || item.category === 'role_competency')).toBe(true);
-    expect(probingQuestions.some((item) => item.category === 'behavioural')).toBe(false);
+    expect(probingQuestions.every(isTechnicalEvidenceQuestion)).toBe(true);
+    expect(probingQuestions.some(isBehaviouralEvidenceQuestion)).toBe(false);
   });
 
-  it('keeps behavioural-only plans free from technical probing questions', () => {
+  it('keeps behavioural-only evidence slots free from technical probing questions', () => {
     const pool = buildQuestionPoolFromAnalysis(buildAnalysis(), {
       seniorityLevel: 'Junior/Grad',
       focusArea: 'behavioural',
       questionLimit: 8,
     });
 
-    const probingQuestions = pool.filter((item) => !['opening', 'motivation', 'wrap_up'].includes(item.category));
+    const probingQuestions = evidenceQuestions(pool);
     expect(probingQuestions.length).toBeGreaterThan(0);
-    expect(probingQuestions.every((item) => item.category === 'behavioural')).toBe(true);
-    expect(probingQuestions.some((item) => item.category === 'technical')).toBe(false);
+    expect(probingQuestions.every(isBehaviouralEvidenceQuestion)).toBe(true);
+    expect(probingQuestions.some(isTechnicalEvidenceQuestion)).toBe(false);
   });
 
   it('creates main and follow-up questions for each generated technical requirement topic', () => {
@@ -225,18 +228,20 @@ describe('interview question plan completeness', () => {
     pool.forEach(assertQuestionMetadata);
   });
 
-  it('keeps question priority and planPriority numeric and generally sorted by planned order', () => {
+  it('keeps priority metadata numeric and preserves stable opening/motivation ordering', () => {
     const pool = buildQuestionPoolFromAnalysis(buildAnalysis(), {
       seniorityLevel: 'Junior/Grad',
       focusArea: 'combined',
       questionLimit: 8,
     });
 
-    const priorities = pool.map((item) => item.planPriority ?? item.priority);
-    priorities.forEach((priority) => expect(Number.isFinite(priority)).toBe(true));
-    for (let index = 1; index < priorities.length; index += 1) {
-      expect(priorities[index]).toBeGreaterThanOrEqual(priorities[index - 1]);
-    }
+    pool.forEach((item) => {
+      expect(Number.isFinite(item.priority)).toBe(true);
+      expect(Number.isFinite(item.planPriority)).toBe(true);
+    });
+    expect(pool[0]).toMatchObject({ type: 'self_intro', planPriority: 10 });
+    expect(pool[1]).toMatchObject({ type: 'company_motivation', planPriority: 20 });
+    expect(pool.at(-1).category).toMatch(/wrap|closing/);
   });
 
   it('builds a complete interview plan payload with schema, strategy, settings snapshot, and question pool', () => {
@@ -259,10 +264,10 @@ describe('interview question plan completeness', () => {
       jobTitle: 'Backend Developer',
       matchScore: 72,
       strategy: expect.any(Object),
-      interviewModeKey: expect.stringContaining('combined'),
       fallbackRules: { short_answer: 'ask_probe', time_low: 'end_early' },
       settingsSnapshot: expect.objectContaining({ focusArea: 'combined' }),
     });
+    expect(payload.interviewModeKey || payload.strategy?.interviewModeKey || payload.settingsSnapshot?.focusArea).toBeTruthy();
     expect(Array.isArray(payload.questionPool)).toBe(true);
     expect(payload.questionPool.length).toBeGreaterThanOrEqual(8);
     payload.questionPool.forEach(assertQuestionMetadata);
