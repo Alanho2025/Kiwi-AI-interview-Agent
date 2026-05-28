@@ -84,6 +84,18 @@ export const generatedTextLooksBehavioural = (text = '') => {
   return BEHAVIOURAL_QUESTION_PATTERNS.some((pattern) => pattern.test(normalized));
 };
 
+const sanitizeUngroundedEntityFraming = (text = '') => {
+  const normalized = normalizeText(text);
+  if (!normalized) return text;
+  return normalized
+    .replace(/^I see you(?:'ve| have) worked with ([^.?!]+)\.\s*/i, 'Let us focus on $1. ')
+    .replace(/^I see you mentioned ([^.?!]+)\.\s*/i, 'Let us focus on $1. ')
+    .replace(/^You mentioned ([^.?!]+)\.\s*/i, 'Let us focus on $1. ')
+    .replace(/^You brought up ([^.?!]+)\.\s*/i, 'Let us focus on $1. ')
+    .replace(/\bI see you(?:'ve| have) worked with ([^.?!]+)\.\s*Let's talk about/i, 'Let us move to $1. Tell me about')
+    .replace(/\bYou mentioned ([^.?!]+)\.\s*Let's talk about/i, 'Let us move to $1. Tell me about');
+};
+
 const buildTechnicalModeQuestion = ({ selectedQuestion = {}, targetTopic = '' } = {}) => {
   const safeQuestion = selectedQuestion || {};
   const topic = normalizeText(targetTopic || safeQuestion.topic || 'implementation') || 'implementation';
@@ -173,20 +185,21 @@ export const guardQuestionForInterviewMode = ({ focusArea = 'combined', actionTy
 
 export const guardGeneratedTextForInterviewMode = ({ focusArea = 'combined', generatedText = '', fallbackText = '', selectedQuestion = null } = {}) => {
   const mode = normalizeInterviewMode(focusArea);
-  const text = normalizeText(generatedText);
+  const sanitizedText = sanitizeUngroundedEntityFraming(generatedText);
+  const text = normalizeText(sanitizedText);
   if (mode === 'behavioral') {
-    if (!generatedTextLooksTechnical(text)) return generatedText;
+    if (!generatedTextLooksTechnical(text)) return sanitizedText;
     return normalizeText(fallbackText) || 'Using that project as the context, tell me about one challenge you faced. What action did you personally take, and what result did it lead to?';
   }
 
   if (mode === 'technical') {
     const technicalFallback = normalizeText(fallbackText) || buildTechnicalModeQuestion({ selectedQuestion }).text;
-    if (!generatedTextLooksBehavioural(text) || generatedTextLooksTechnical(text)) return generatedText;
+    if (!generatedTextLooksBehavioural(text) || generatedTextLooksTechnical(text)) return sanitizedText;
     if (generatedTextLooksBehavioural(technicalFallback) && !generatedTextLooksTechnical(technicalFallback)) {
       return buildTechnicalModeQuestion({ selectedQuestion }).text;
     }
     return technicalFallback;
   }
 
-  return generatedText;
+  return sanitizedText;
 };
