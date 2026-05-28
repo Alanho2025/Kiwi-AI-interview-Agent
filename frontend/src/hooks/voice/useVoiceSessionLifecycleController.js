@@ -277,15 +277,13 @@ export function useVoiceSessionLifecycleController({
       await ensureDuplexConnected();
       await startPassiveMicMonitor();
 
-      window.setTimeout(async () => {
-        try {
-          if (!autoLoopActiveRef.current) return;
-          const spoke = speakQuestionText(firstQuestionText);
-          if (!spoke) await startListening();
-        } catch (error) {
-          console.error('Failed to start first voice turn', error);
-        }
-      }, 1200);
+      try {
+        if (!autoLoopActiveRef.current) return;
+        const spoke = speakQuestionText(firstQuestionText);
+        if (!spoke) await startListening();
+      } catch (error) {
+        console.error('Failed to start first voice turn', error);
+      }
     } catch (error) {
       autoLoopActiveRef.current = false;
       setIsAutoLoopActive(false);
