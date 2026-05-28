@@ -40,8 +40,6 @@ const extractJsonObject = (text = '') => {
 export const generatePlan = async (cvText, jdText, settings, analysisResult = {}) => {
   const prompt = `Analyze this CV and job description and return JSON only.
 Required keys: candidateName, jobTitle, matchScore, confidence, interviewFocus, planPreview, strategy, questionPool, fallbackRules.
-Each questionPool item must include: id, sourceType, category, topic, competency, text, linkedCvEvidence, linkedJdRequirement, matchGapId, cultureFitDimension, expectedSignal, followUpStrategy, priorityWeight.
-Allowed sourceType values: culture_fit, cv_template, jd_requirement, match_gap, common_template.
 Use this analysis summary when available: ${JSON.stringify({
     strengths: analysisResult.strengths || [],
     gaps: analysisResult.gaps || [],
@@ -87,38 +85,7 @@ CV Text:\n${String(cvText || '').slice(0, 1800)}\n\nJD Text:\n${String(jdText ||
       interviewFocus: analysisResult.interviewFocus || ['technical depth', 'behavioural scenarios'],
       planPreview: 'A balanced interview focusing on technical depth and behavioural examples.',
       strategy: { opening: 1, followUp: 3, technical: 2, behavioural: 2 },
-      questionPool: [
-        {
-          id: 'fallback_opening_001',
-          sourceType: 'common_template',
-          category: 'opening',
-          topic: 'background',
-          competency: 'communication',
-          text: 'Could you briefly introduce yourself and your background for this role?',
-          linkedCvEvidence: [],
-          linkedJdRequirement: [],
-          matchGapId: null,
-          cultureFitDimension: null,
-          expectedSignal: ['background_summary', 'role_interest'],
-          followUpStrategy: 'ask_role_fit_follow_up',
-          priorityWeight: 0.55,
-        },
-        {
-          id: 'fallback_match_gap_001',
-          sourceType: 'match_gap',
-          category: 'technical',
-          topic: 'role_fit',
-          competency: 'evidence_validation',
-          text: 'Tell me about one project or experience that best shows your fit for this role. What did you own, and what was the result?',
-          linkedCvEvidence: [],
-          linkedJdRequirement: [],
-          matchGapId: 'fallback_role_fit_gap',
-          cultureFitDimension: null,
-          expectedSignal: ['ownership', 'specific_example', 'result'],
-          followUpStrategy: 'probe_ownership_and_result',
-          priorityWeight: 0.85,
-        },
-      ],
+      questionPool: [],
       fallbackRules: { short_answer: 'ask_probe', time_low: 'end_early' },
       settingsSnapshot: settings,
     });

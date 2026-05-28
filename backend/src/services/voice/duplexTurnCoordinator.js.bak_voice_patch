@@ -24,10 +24,9 @@ export const createDuplexTurnCoordinator = ({
   bargeInController,
   logger,
   clientTurnId = null,
-  getPendingTranscriptConfirmation = () => null,
-  setPendingTranscriptConfirmation = () => {},
 } = {}) => {
   let sentenceIndex = 0;
+  let pendingTranscriptConfirmation = null;
 
   const trace = (message, payload = {}) => {
     logger?.info?.(`[DUPLEX-TURN-TRACE] ${message}`, {
@@ -197,7 +196,7 @@ export const createDuplexTurnCoordinator = ({
 
   const streamTranscriptConfirmationPrompt = async ({ assessment, transcriptText, asrConfidence, vad }) => {
     const confirmationPrompt = buildTranscriptConfirmationPrompt(transcriptText);
-    const nextPendingTranscriptConfirmation = {
+    pendingTranscriptConfirmation = {
       id: `pending-${Date.now()}`,
       originalTranscript: transcriptText,
       asrConfidence,
@@ -207,7 +206,6 @@ export const createDuplexTurnCoordinator = ({
       createdAt: new Date().toISOString(),
       currentQuestionIndex: session?.currentQuestionIndex || null,
     };
-    setPendingTranscriptConfirmation(nextPendingTranscriptConfirmation);
 
     trace('stream_transcript_confirmation_start', {
       reason: assessment?.reason || 'LOW_CONFIDENCE_CONTENTFUL_TRANSCRIPT',
@@ -270,7 +268,7 @@ export const createDuplexTurnCoordinator = ({
     return {
       transcriptConfirmationRequested: true,
       assessment,
-      pendingTranscriptConfirmation: nextPendingTranscriptConfirmation,
+      pendingTranscriptConfirmation,
     };
   };
 
@@ -284,7 +282,6 @@ export const createDuplexTurnCoordinator = ({
       vad,
     });
 
-    const pendingTranscriptConfirmation = getPendingTranscriptConfirmation?.() || null;
     if (pendingTranscriptConfirmation) {
       const confirmationDecision = classifyTranscriptConfirmationReply(cleanTranscript);
       trace('pending_transcript_confirmation_reply', {
@@ -295,7 +292,7 @@ export const createDuplexTurnCoordinator = ({
 
       if (confirmationDecision === 'confirm') {
         const pending = pendingTranscriptConfirmation;
-        setPendingTranscriptConfirmation(null);
+        pendingTranscriptConfirmation = null;
         sendJson?.({
           type: 'transcript_confirmation_resolved',
           decision: 'confirm',
@@ -313,7 +310,7 @@ export const createDuplexTurnCoordinator = ({
       }
 
       if (confirmationDecision === 'reject') {
-        setPendingTranscriptConfirmation(null);
+        pendingTranscriptConfirmation = null;
         return streamRepairPrompt({
           assessment: {
             ok: false,
@@ -485,15 +482,11 @@ export const createDuplexTurnCoordinator = ({
 
   const triggerWarmupForNextTurn = async (updatedSession, turnResult) => {
     try {
-      const nextQuestionOrder = turnResult?.agentResult?.nextQuestionOrder;
-      const zeroBasedIndex = Math.max(0, Number(nextQuestionOrder || 1) - 1);
-      const nextQuestionId = updatedSession?.interviewPlan?.questionPool?.[zeroBasedIndex]?.id
-        || updatedSession?.interviewPlan?.questions?.[zeroBasedIndex]?.id
-        || updatedSession?.interviewPlan?.questionPool?.[nextQuestionOrder]?.id
-        || updatedSession?.interviewPlan?.questions?.[nextQuestionOrder]?.id;
+      const nextQuestionIndex = turnResult?.agentResult?.nextQuestionOrder;
+      const nextQuestionId = updatedSession?.interviewPlan?.questions?.[nextQuestionIndex]?.id;
       
       if (!nextQuestionId) {
-        trace('warmup_skipped_no_next_question', { nextQuestionOrder, zeroBasedIndex });
+        trace('warmup_skipped_no_next_question', { nextQuestionIndex });
         return;
       }
 
@@ -506,7 +499,7 @@ export const createDuplexTurnCoordinator = ({
       }
 
       trace('warmup_trigger_start', {
-        nextQuestionIndex: nextQuestionOrder,
+        nextQuestionIndex,
         nextQuestionId,
         nextClientTurnId,
       });
@@ -516,12 +509,12 @@ export const createDuplexTurnCoordinator = ({
         userId,
         currentQuestionId: nextQuestionId,
         clientTurnId: nextClientTurnId,
-        currentQuestionIndex: nextQuestionOrder,
+        currentQuestionIndex: nextQuestionIndex,
         transcriptLength: updatedSession?.transcript?.length || 0,
       });
 
       trace('warmup_trigger_done', {
-        nextQuestionIndex: nextQuestionOrder,
+        nextQuestionIndex,
         nextQuestionId,
         nextClientTurnId,
       });
