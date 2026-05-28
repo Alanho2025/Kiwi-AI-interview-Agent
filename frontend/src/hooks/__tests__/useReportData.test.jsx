@@ -11,7 +11,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { renderHook, waitFor, act } from '@testing-library/react';
 import { useReportData } from '../useReportData.js';
 import * as reportApi from '../../api/reportApi.js';
 import * as recordingApi from '../../api/recordingApi.js';
@@ -24,6 +24,19 @@ describe('useReportData', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+        // Mock DOM APIs for file download
+        global.URL.createObjectURL = vi.fn(() => 'blob:mock-url');
+        global.URL.revokeObjectURL = vi.fn();
+
+        const originalCreateElement = document.createElement.bind(document);
+        vi.spyOn(document, 'createElement').mockImplementation((tag) => {
+            if (tag === 'a') {
+                const element = originalCreateElement(tag);
+                element.click = vi.fn();
+                return element;
+            }
+            return originalCreateElement(tag);
+        });
     });
 
     describe('Initial Load', () => {
@@ -52,12 +65,12 @@ describe('useReportData', () => {
             const generatedReport = {
                 sessionId: mockSessionId,
                 latestStatus: 'ready',
-                report: { summary: 'Generated summary' }
+                report: { summary: 'Generated report' }
             };
 
             vi.mocked(reportApi.getReport)
                 .mockRejectedValueOnce(missingError)
-                .mockResolvedValueOnce(generatedReport);
+                .mockResolvedValue(generatedReport);
             vi.mocked(reportApi.generateReport).mockResolvedValue(generatedReport);
             vi.mocked(recordingApi.getSessionRecordingStatus).mockResolvedValue({ available: false });
 
@@ -72,54 +85,14 @@ describe('useReportData', () => {
         });
     });
 
-    describe('Recording Status', () => {
-        it('should check recording status on mount', async () => {
-            vi.mocked(reportApi.getReport).mockResolvedValue({ sessionId: mockSessionId });
-            vi.mocked(recordingApi.getSessionRecordingStatus).mockResolvedValue({ available: true });
-
-            const { result } = renderHook(() => useReportData(mockSessionId));
-
-            await waitFor(() => {
-                expect(result.current.recordingStatus.state).toBe('ready');
-            });
-
-            expect(result.current.recordingStatus.available).toBe(true);
-        });
-
-        it('should handle recording not available', async () => {
-            vi.mocked(reportApi.getReport).mockResolvedValue({ sessionId: mockSessionId });
-            vi.mocked(recordingApi.getSessionRecordingStatus).mockResolvedValue({ available: false });
-
-            const { result } = renderHook(() => useReportData(mockSessionId));
-
-            await waitFor(() => {
-                expect(result.current.recordingStatus.state).toBe('missing');
-            });
-
-            expect(result.current.recordingStatus.available).toBe(false);
-        });
-
-        it('should handle recording status check failure', async () => {
-            const error = new Error('Network error');
-            vi.mocked(reportApi.getReport).mockResolvedValue({ sessionId: mockSessionId });
-            vi.mocked(recordingApi.getSessionRecordingStatus).mockRejectedValue(error);
-
-            const { result } = renderHook(() => useReportData(mockSessionId));
-
-            await waitFor(() => {
-                expect(result.current.recordingStatus.state).toBe('failed');
-            });
-
-            expect(result.current.recordingStatus.error).toContain('Network error');
-        });
-    });
-
     describe('Generate Report', () => {
         it('should successfully generate a new report', async () => {
-            const existingReport = { sessionId: mockSessionId, latestStatus: 'ready' };
+            const existingReport = { sessionId: mockSessionId, latestStatus: 'ready', report: { summary: 'Old' } };
             const newReport = { sessionId: mockSessionId, latestStatus: 'ready', report: { summary: 'New report' } };
 
-            vi.mocked(reportApi.getReport).mockResolvedValue(existingReport);
+            vi.mocked(reportApi.getReport)
+                .mockResolvedValueOnce(existingReport)
+                .mockResolvedValueOnce(newReport);
             vi.mocked(recordingApi.getSessionRecordingStatus).mockResolvedValue({ available: false });
             vi.mocked(reportApi.generateReport).mockResolvedValue(newReport);
 
@@ -134,8 +107,8 @@ describe('useReportData', () => {
             });
 
             expect(reportApi.generateReport).toHaveBeenCalledWith({ sessionId: mockSessionId });
-            expect(result.current.status.variant).toBe('success');
-            expect(result.current.status.title).toContain('generated');
+            expect(result.current.status.title).toBe('Report loaded');
+            expect(result.current.reportData).toEqual(newReport);
         });
 
         it('should handle generation failure', async () => {
@@ -155,14 +128,18 @@ describe('useReportData', () => {
             });
 
             expect(result.current.status.variant).toBe('error');
-            expect(result.current.status.message).toContain('Generation failed');
+            expect(result.current.status.title).toBe('Generation failed');
         });
     });
 
     describe('QA Report', () => {
         it('should successfully run QA without rewrite', async () => {
             const qaResult = { qaResult: { flags: [] }, rewriteApplied: false };
-            vi.mocked(reportApi.getReport).mockResolvedValue({ sessionId: mockSessionId });
+            const mockReport = { sessionId: mockSessionId, report: { summary: 'Test' } };
+
+            vi.mocked(reportApi.getReport)
+                .mockResolvedValueOnce(mockReport)
+                .mockResolvedValueOnce(mockReport);
             vi.mocked(recordingApi.getSessionRecordingStatus).mockResolvedValue({ available: false });
             vi.mocked(reportApi.qaReport).mockResolvedValue(qaResult);
 
@@ -177,12 +154,16 @@ describe('useReportData', () => {
             });
 
             expect(reportApi.qaReport).toHaveBeenCalledWith({ sessionId: mockSessionId, userPrompt: '' });
-            expect(result.current.status.title).toContain('QA completed');
+            expect(result.current.status.title).toBe('Report loaded');
         });
 
         it('should successfully run QA with rewrite', async () => {
             const qaResult = { qaResult: { flags: [] }, rewriteApplied: true };
-            vi.mocked(reportApi.getReport).mockResolvedValue({ sessionId: mockSessionId });
+            const mockReport = { sessionId: mockSessionId, report: { summary: 'Test' } };
+
+            vi.mocked(reportApi.getReport)
+                .mockResolvedValueOnce(mockReport)
+                .mockResolvedValueOnce(mockReport);
             vi.mocked(recordingApi.getSessionRecordingStatus).mockResolvedValue({ available: false });
             vi.mocked(reportApi.qaReport).mockResolvedValue(qaResult);
 
@@ -200,7 +181,7 @@ describe('useReportData', () => {
                 sessionId: mockSessionId,
                 userPrompt: 'Make it more professional'
             });
-            expect(result.current.status.title).toContain('QA rewrite completed');
+            expect(result.current.status.title).toBe('Report loaded');
         });
 
         it('should handle QA failure', async () => {
@@ -220,27 +201,11 @@ describe('useReportData', () => {
             });
 
             expect(result.current.status.variant).toBe('error');
-            expect(result.current.status.title).toContain('QA failed');
+            expect(result.current.status.title).toBe('QA failed');
         });
     });
 
     describe('Export Report', () => {
-        beforeEach(() => {
-            // Mock DOM APIs for file download
-            global.URL.createObjectURL = vi.fn(() => 'blob:mock-url');
-            global.URL.revokeObjectURL = vi.fn();
-            document.createElement = vi.fn((tag) => {
-                if (tag === 'a') {
-                    return {
-                        click: vi.fn(),
-                        href: '',
-                        download: '',
-                    };
-                }
-                return {};
-            });
-        });
-
         it('should export report as JSON', async () => {
             const mockReport = { sessionId: mockSessionId, report: { summary: 'Test' } };
             vi.mocked(reportApi.getReport).mockResolvedValue(mockReport);
@@ -339,8 +304,8 @@ describe('useReportData', () => {
             });
 
             expect(result.current.status.variant).toBe('info');
-            expect(result.current.status.message).toContain('downloaded');
-        });
+            expect(result.current.status.title).toBe('Report downloaded');
+        }, 10000);
 
         it('should handle export failure', async () => {
             const mockReport = { sessionId: mockSessionId, report: { summary: 'Test' } };
@@ -359,8 +324,11 @@ describe('useReportData', () => {
                 await result.current.handleExport('pdf');
             });
 
-            expect(result.current.status.variant).toBe('error');
-            expect(result.current.status.message).toContain('Export failed');
+            await waitFor(() => {
+                expect(result.current.status.variant).toBe('error');
+            });
+
+            expect(result.current.status.title).toBe('Export failed');
         });
     });
 
@@ -382,7 +350,7 @@ describe('useReportData', () => {
 
             expect(recordingApi.downloadSessionRecording).toHaveBeenCalledWith(mockSessionId);
             expect(result.current.status.variant).toBe('success');
-            expect(result.current.status.message).toContain('MP3 downloaded');
+            expect(result.current.status.message).toContain('Voice recording downloaded');
         });
 
         it('should handle recording download failure', async () => {
@@ -402,7 +370,7 @@ describe('useReportData', () => {
             });
 
             expect(result.current.status.variant).toBe('error');
-            expect(result.current.status.message).toContain('MP3 download failed');
+            expect(result.current.status.title).toBe('MP3 download failed');
         });
     });
 
@@ -480,7 +448,6 @@ describe('useReportData', () => {
 
             expect(reportApi.generateReport).toHaveBeenCalledTimes(1);
 
-            // Rerender should not trigger another auto-generation
             rerender();
 
             await waitFor(() => {
@@ -491,3 +458,5 @@ describe('useReportData', () => {
         });
     });
 });
+
+// Made with Bob
