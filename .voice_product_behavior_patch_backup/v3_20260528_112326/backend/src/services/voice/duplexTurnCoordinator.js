@@ -24,10 +24,9 @@ export const createDuplexTurnCoordinator = ({
   bargeInController,
   logger,
   clientTurnId = null,
-  getPendingTranscriptConfirmation = () => null,
-  setPendingTranscriptConfirmation = () => {},
 } = {}) => {
   let sentenceIndex = 0;
+  let pendingTranscriptConfirmation = null;
 
   const trace = (message, payload = {}) => {
     logger?.info?.(`[DUPLEX-TURN-TRACE] ${message}`, {
@@ -104,100 +103,9 @@ export const createDuplexTurnCoordinator = ({
 
   const processFinalTranscript = async ({ transcriptText, asrConfidence = null, vad = null } = {}) => {
 
-  const processConfirmedPendingTranscript = async ({ pending, confirmationReply }) => {
-    sendJson?.({
-      type: 'agent_thinking',
-      tool: AGENT_TOOL_NAMES.ORCHESTRATE_DUPLEX_VOICE,
-      timestamp: new Date().toISOString(),
-    });
-
-    const speechToken = bargeInController?.startAssistantSpeech?.();
-    sentenceIndex = 0;
-
-    const result = await processRealtimeVoiceTurn({
-      session,
-      userId,
-      transcriptText: pending.originalTranscript,
-      language,
-      asrConfidence: pending.asrConfidence,
-      asrSource,
-      voiceName,
-      inputMode: 'duplex_voice',
-      vad: pending.vad,
-      clientTurnId,
-      skipTranscriptGate: true,
-      transcriptConfirmation: {
-        confirmedByUser: true,
-        confirmationReply,
-        pendingConfirmationId: pending.id,
-        originalAssessment: pending.assessment || null,
-      },
-      onSentence: async (text, index) => {
-        try {
-          const nextIndex = Number.isFinite(index) ? index : sentenceIndex;
-          sentenceIndex = nextIndex + 1;
-          trace('assistant_sentence_ready', {
-            index: nextIndex,
-            text,
-            speechTokenActive: bargeInController?.isTokenActive?.(speechToken),
-          });
-          if (!bargeInController?.isTokenActive?.(speechToken)) return;
-          sendJson?.({
-            type: 'assistant_text_delta',
-            tool: AGENT_TOOL_NAMES.GENERATE_INTERVIEW_QUESTION,
-            text,
-            index: nextIndex,
-            timestamp: new Date().toISOString(),
-          });
-          await streamAssistantSpeech({
-            text,
-            voiceName,
-            sendJson,
-            bargeInController,
-            index: nextIndex,
-            speechToken,
-            usageContext: {
-              userId,
-              sessionId: session?.id || null,
-              stage: 'interview',
-              source: 'duplex_confirmed_interview_sentence',
-            },
-          });
-        } catch (error) {
-          logger?.error?.('Failed to process sentence after transcript confirmation', {
-            sessionId: session?.id,
-            index,
-            text,
-            error: error.message,
-          });
-        }
-      },
-    });
-
-    bargeInController?.finishAssistantSpeech?.(speechToken);
-    sendJson?.({
-      type: 'assistant_speech_done',
-      tool: AGENT_TOOL_NAMES.SYNTHESIZE_ASSISTANT_SPEECH,
-      timestamp: new Date().toISOString(),
-    });
-
-    sendJson?.({
-      type: 'turn_done',
-      tool: AGENT_TOOL_NAMES.ORCHESTRATE_DUPLEX_VOICE,
-      session: result?.updatedSession || session,
-      transcription: result?.transcription || null,
-      latency: result?.latency || null,
-      isComplete: Boolean(result?.agentResult?.isComplete),
-      completedBecause: result?.agentResult?.completedBecause || null,
-      timestamp: new Date().toISOString(),
-    });
-
-    return result;
-  };
-
   const streamTranscriptConfirmationPrompt = async ({ assessment, transcriptText, asrConfidence, vad }) => {
     const confirmationPrompt = buildTranscriptConfirmationPrompt(transcriptText);
-    const nextPendingTranscriptConfirmation = {
+    pendingTranscriptConfirmation = {
       id: `pending-${Date.now()}`,
       originalTranscript: transcriptText,
       asrConfidence,
@@ -207,7 +115,6 @@ export const createDuplexTurnCoordinator = ({
       createdAt: new Date().toISOString(),
       currentQuestionIndex: session?.currentQuestionIndex || null,
     };
-    setPendingTranscriptConfirmation(nextPendingTranscriptConfirmation);
 
     trace('stream_transcript_confirmation_start', {
       reason: assessment?.reason || 'LOW_CONFIDENCE_CONTENTFUL_TRANSCRIPT',
@@ -270,7 +177,7 @@ export const createDuplexTurnCoordinator = ({
     return {
       transcriptConfirmationRequested: true,
       assessment,
-      pendingTranscriptConfirmation: nextPendingTranscriptConfirmation,
+      pendingTranscriptConfirmation,
     };
   };
 
@@ -284,7 +191,6 @@ export const createDuplexTurnCoordinator = ({
       vad,
     });
 
-    const pendingTranscriptConfirmation = getPendingTranscriptConfirmation?.() || null;
     if (pendingTranscriptConfirmation) {
       const confirmationDecision = classifyTranscriptConfirmationReply(cleanTranscript);
       trace('pending_transcript_confirmation_reply', {
@@ -295,7 +201,7 @@ export const createDuplexTurnCoordinator = ({
 
       if (confirmationDecision === 'confirm') {
         const pending = pendingTranscriptConfirmation;
-        setPendingTranscriptConfirmation(null);
+        pendingTranscriptConfirmation = null;
         sendJson?.({
           type: 'transcript_confirmation_resolved',
           decision: 'confirm',
@@ -313,7 +219,7 @@ export const createDuplexTurnCoordinator = ({
       }
 
       if (confirmationDecision === 'reject') {
-        setPendingTranscriptConfirmation(null);
+        pendingTranscriptConfirmation = null;
         return streamRepairPrompt({
           assessment: {
             ok: false,
@@ -485,15 +391,11 @@ export const createDuplexTurnCoordinator = ({
 
   const triggerWarmupForNextTurn = async (updatedSession, turnResult) => {
     try {
-      const nextQuestionOrder = turnResult?.agentResult?.nextQuestionOrder;
-      const zeroBasedIndex = Math.max(0, Number(nextQuestionOrder || 1) - 1);
-      const nextQuestionId = updatedSession?.interviewPlan?.questionPool?.[zeroBasedIndex]?.id
-        || updatedSession?.interviewPlan?.questions?.[zeroBasedIndex]?.id
-        || updatedSession?.interviewPlan?.questionPool?.[nextQuestionOrder]?.id
-        || updatedSession?.interviewPlan?.questions?.[nextQuestionOrder]?.id;
+      const nextQuestionIndex = turnResult?.agentResult?.nextQuestionOrder;
+      const nextQuestionId = updatedSession?.interviewPlan?.questions?.[nextQuestionIndex]?.id;
       
       if (!nextQuestionId) {
-        trace('warmup_skipped_no_next_question', { nextQuestionOrder, zeroBasedIndex });
+        trace('warmup_skipped_no_next_question', { nextQuestionIndex });
         return;
       }
 
@@ -506,7 +408,7 @@ export const createDuplexTurnCoordinator = ({
       }
 
       trace('warmup_trigger_start', {
-        nextQuestionIndex: nextQuestionOrder,
+        nextQuestionIndex,
         nextQuestionId,
         nextClientTurnId,
       });
@@ -516,12 +418,12 @@ export const createDuplexTurnCoordinator = ({
         userId,
         currentQuestionId: nextQuestionId,
         clientTurnId: nextClientTurnId,
-        currentQuestionIndex: nextQuestionOrder,
+        currentQuestionIndex: nextQuestionIndex,
         transcriptLength: updatedSession?.transcript?.length || 0,
       });
 
       trace('warmup_trigger_done', {
-        nextQuestionIndex: nextQuestionOrder,
+        nextQuestionIndex,
         nextQuestionId,
         nextClientTurnId,
       });

@@ -39,8 +39,6 @@ export function useDuplexVoiceSocket({
   onBargeInAck,
   onSpeechDone,
   onTranscriptRejected,
-  onTranscriptConfirmationRequested,
-  onTranscriptConfirmationResolved,
 } = {}) {
   const socketRef = useRef(null);
   const [socketState, setSocketState] = useState('idle');
@@ -64,8 +62,6 @@ export function useDuplexVoiceSocket({
     onBargeInAck,
     onSpeechDone,
     onTranscriptRejected,
-    onTranscriptConfirmationRequested,
-    onTranscriptConfirmationResolved,
   });
 
   callbacksRef.current = {
@@ -75,8 +71,6 @@ export function useDuplexVoiceSocket({
     onBargeInAck,
     onSpeechDone,
     onTranscriptRejected,
-    onTranscriptConfirmationRequested,
-    onTranscriptConfirmationResolved,
   };
 
   const closeSocket = useCallback(() => {
@@ -264,28 +258,6 @@ export function useDuplexVoiceSocket({
           at: Date.now(),
         });
         callbacksRef.current.onSpeechDone?.(payload);
-        return;
-      }
-      if (payload.type === 'transcript_confirmation_requested') {
-        console.info('[FRONTEND-WS-TRACE] transcript_confirmation_requested', {
-          socketTraceSession: socketTraceSessionRef.current,
-          speechTurnTrace: speechTurnTraceRef.current,
-          reason: payload.reason,
-          message: payload.message,
-          transcription: payload.transcription || null,
-          at: Date.now(),
-        });
-        callbacksRef.current.onTranscriptConfirmationRequested?.(payload);
-        return;
-      }
-      if (payload.type === 'transcript_confirmation_resolved') {
-        console.info('[FRONTEND-WS-TRACE] transcript_confirmation_resolved', {
-          socketTraceSession: socketTraceSessionRef.current,
-          speechTurnTrace: speechTurnTraceRef.current,
-          decision: payload.decision,
-          at: Date.now(),
-        });
-        callbacksRef.current.onTranscriptConfirmationResolved?.(payload);
         return;
       }
       if (payload.type === 'transcript_rejected') {

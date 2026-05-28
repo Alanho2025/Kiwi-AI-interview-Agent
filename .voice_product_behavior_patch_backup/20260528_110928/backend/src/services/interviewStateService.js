@@ -48,12 +48,7 @@ const toPositiveInteger = (value) => {
 };
 
 const getAnsweredQuestionCount = (session = {}) => (session?.transcript || [])
-  .filter((turn) => {
-    if (turn?.role !== 'user' || !String(turn?.text || '').trim()) return false;
-    if (turn?.metadata?.countsAsQuestion === false) return false;
-    if (['transcript_confirmation', 'clarification', 'repair_prompt', 'system'].includes(turn?.metadata?.turnType)) return false;
-    return true;
-  })
+  .filter((turn) => turn?.role === 'user' && String(turn?.text || '').trim())
   .length;
 
 
