@@ -10,31 +10,26 @@
  */
 
 import { buildAnalyzeOutput, buildExplanationObject } from './scoringSchemaService.js';
-
-/**
- * Purpose: Execute the main responsibility for isObject.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
-const isObject = (value) => value && typeof value === 'object' && !Array.isArray(value);
-const ensureArray = (value) => (Array.isArray(value) ? value : []);
-const ensureNumber = (value, fallback = 0) => (Number.isFinite(Number(value)) ? Number(value) : fallback);
-/**
- * Purpose: Execute the main responsibility for ensureString.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
-const ensureString = (value, fallback = '') => (typeof value === 'string' ? value : fallback);
-const TRUST_LABELS = new Set(['supported_by_cv', 'supported_by_jd', 'supported_by_answer', 'supported_by_nz_guide', 'needs_user_confirmation']);
-const CONFIDENCE_LEVELS = new Set(['high', 'medium', 'low']);
-const FEEDBACK_STATUSES = new Set(['confirmed_feedback', 'downgraded_feedback', 'needs_confirmation', 'refused_claim']);
-
-const normalizeDecision = (decision = {}) => ({
-  label: ensureString(decision.label, 'manual_review'),
-  reasonCodes: ensureArray(decision.reasonCodes).filter(Boolean),
-});
+import {
+  DEFAULT_SCHEMA_VERSION,
+  DEFAULT_CANDIDATE_NAME,
+  DEFAULT_JOB_TITLE,
+  DEFAULT_CONFIDENCE,
+} from '../config/schemaValidationConstants.js';
+import {
+  isObject,
+  ensureArray,
+  ensureNumber,
+  ensureString,
+  normalizeDecision,
+  normalizeSection,
+  normalizeCandidateFeedbackItem,
+  normalizeScoreExplanations,
+  normalizeTurnBreakdown,
+  normalizeNzWorkplaceFit,
+  normalizeCompanyMotivationFit,
+  normalizeVoiceDeliverySummary,
+} from '../utils/schemaHelpers.js';
 
 /**
  * Purpose: Execute the main responsibility for validateAnalyzeOutput.
@@ -45,10 +40,10 @@ const normalizeDecision = (decision = {}) => ({
 export const validateAnalyzeOutput = (payload = {}) => {
   const safePayload = isObject(payload) ? payload : {};
   return buildAnalyzeOutput({
-    candidateName: ensureString(safePayload.candidateName, 'Candidate'),
-    jobTitle: ensureString(safePayload.jobTitle, 'Target Role'),
+    candidateName: ensureString(safePayload.candidateName, DEFAULT_CANDIDATE_NAME),
+    jobTitle: ensureString(safePayload.jobTitle, DEFAULT_JOB_TITLE),
     overallScore: ensureNumber(safePayload.overallScore ?? safePayload.matchScore, 0),
-    confidence: ensureNumber(safePayload.confidence, 0.4),
+    confidence: ensureNumber(safePayload.confidence, DEFAULT_CONFIDENCE),
     decision: normalizeDecision(safePayload.decision || {}),
     parsedCvProfile: isObject(safePayload.parsedCvProfile) ? safePayload.parsedCvProfile : {},
     parsedJdProfile: isObject(safePayload.parsedJdProfile) ? safePayload.parsedJdProfile : {},
@@ -58,11 +53,11 @@ export const validateAnalyzeOutput = (payload = {}) => {
     scoreBreakdown: isObject(safePayload.scoreBreakdown) ? safePayload.scoreBreakdown : {},
     explanation: isObject(safePayload.explanation)
       ? {
-          strengths: ensureArray(safePayload.explanation.strengths),
-          gaps: ensureArray(safePayload.explanation.gaps),
-          risks: ensureArray(safePayload.explanation.risks),
-          summary: ensureString(safePayload.explanation.summary),
-        }
+        strengths: ensureArray(safePayload.explanation.strengths),
+        gaps: ensureArray(safePayload.explanation.gaps),
+        risks: ensureArray(safePayload.explanation.risks),
+        summary: ensureString(safePayload.explanation.summary),
+      }
       : buildExplanationObject(),
     evidenceMap: ensureArray(safePayload.evidenceMap),
     sourceSnapshots: ensureArray(safePayload.sourceSnapshots),
@@ -81,20 +76,20 @@ export const validateAnalyzeOutput = (payload = {}) => {
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
 export const validateInterviewPlan = (plan = {}) => ({
-  schemaVersion: ensureString(plan.schemaVersion, 'v3'),
-  candidateName: ensureString(plan.candidateName, 'Candidate'),
-  jobTitle: ensureString(plan.jobTitle, 'Target Role'),
+  schemaVersion: ensureString(plan.schemaVersion, DEFAULT_SCHEMA_VERSION),
+  candidateName: ensureString(plan.candidateName, DEFAULT_CANDIDATE_NAME),
+  jobTitle: ensureString(plan.jobTitle, DEFAULT_JOB_TITLE),
   matchScore: ensureNumber(plan.matchScore, 0),
   decision: normalizeDecision(plan.decision || {}),
-  confidence: ensureNumber(plan.confidence, 0.4),
+  confidence: ensureNumber(plan.confidence, DEFAULT_CONFIDENCE),
   requirementChecks: ensureArray(plan.requirementChecks),
   explanation: isObject(plan.explanation)
     ? {
-        strengths: ensureArray(plan.explanation.strengths),
-        gaps: ensureArray(plan.explanation.gaps),
-        risks: ensureArray(plan.explanation.risks),
-        summary: ensureString(plan.explanation.summary),
-      }
+      strengths: ensureArray(plan.explanation.strengths),
+      gaps: ensureArray(plan.explanation.gaps),
+      risks: ensureArray(plan.explanation.risks),
+      summary: ensureString(plan.explanation.summary),
+    }
     : buildExplanationObject(),
   interviewFocus: ensureArray(plan.interviewFocus),
   planPreview: ensureString(plan.planPreview),
@@ -105,209 +100,17 @@ export const validateInterviewPlan = (plan = {}) => ({
 });
 
 /**
- * Purpose: Execute the main responsibility for normalizeSection.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
-const normalizeSection = (section = {}, index = 0) => ({
-  id: ensureString(section.id, `section_${index + 1}`),
-  title: ensureString(section.title, `Section ${index + 1}`),
-  content: ensureString(section.content),
-});
-
-/**
- * Purpose: Execute the main responsibility for normalizeCandidateFeedbackItem.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
-const normalizeCandidateFeedbackItem = (item = {}) => ({
-  id: ensureString(item.id),
-  label: ensureString(item.label),
-  title: ensureString(item.title),
-  theme: ensureString(item.theme),
-  value: ensureNumber(item.value, 0),
-  interpretation: ensureString(item.interpretation),
-  explanation: ensureString(item.explanation),
-  whyItMatters: ensureString(item.whyItMatters),
-  action: ensureString(item.action),
-  advice: ensureString(item.advice),
-  example: ensureString(item.example),
-  weak: ensureString(item.weak),
-  better: ensureString(item.better),
-  quote: ensureString(item.quote),
-  context: ensureString(item.context),
-  critique: ensureString(item.critique),
-  rewrite: ensureString(item.rewrite),
-  description: ensureString(item.description),
-  displayValue: ensureString(item.displayValue),
-  unit: ensureString(item.unit),
-  evidenceLabel: TRUST_LABELS.has(item.evidenceLabel) ? item.evidenceLabel : 'supported_by_answer',
-  confidenceLevel: CONFIDENCE_LEVELS.has(item.confidenceLevel) ? item.confidenceLevel : 'medium',
-  evidenceSources: ensureArray(item.evidenceSources).filter(Boolean),
-  evidenceReason: ensureString(item.evidenceReason),
-  needsUserConfirmation: Boolean(item.needsUserConfirmation),
-  feedbackStatus: FEEDBACK_STATUSES.has(item.feedbackStatus) ? item.feedbackStatus : 'confirmed_feedback',
-});
-
-const normalizeScoreExplanation = (item = {}) => ({
-  summary: ensureString(item.summary),
-  helped: ensureString(item.helped),
-  lowered: ensureString(item.lowered),
-  next: ensureString(item.next),
-});
-
-const normalizeScoreExplanations = (value = {}) => ({
-  overall: normalizeScoreExplanation(value.overall),
-  cvJdMatch: normalizeScoreExplanation(value.cvJdMatch),
-  interview: normalizeScoreExplanation(value.interview),
-});
-
-const normalizeDimensionReasons = (value = {}) => ({
-  business: ensureString(value.business),
-  logic: ensureString(value.logic),
-  evidence: ensureString(value.evidence),
-});
-
-const normalizeStarBreakdown = (value = {}) => {
-  if (value == null) return null;
-  const normalizePart = (part) => ['clear', 'partial', 'missing'].includes(part) ? part : 'missing';
-  return {
-    situation: normalizePart(value.situation),
-    task: normalizePart(value.task),
-    action: normalizePart(value.action),
-    result: normalizePart(value.result),
-    mainMissingElement: ensureString(value.mainMissingElement, 'result'),
-    scoreReason: ensureString(value.scoreReason),
-  };
-};
-
-const normalizeStructureBreakdown = (value = {}) => {
-  if (!isObject(value)) return null;
-  return {
-    ...value,
-    mainMissingElement: ensureString(value.mainMissingElement),
-    scoreReason: ensureString(value.scoreReason),
-  };
-};
-
-const normalizeTurnBreakdown = (item = {}) => ({
-  question: ensureString(item.question),
-  answer: ensureString(item.answer),
-  feedback: ensureString(item.feedback),
-  questionType: ensureString(item.questionType),
-  questionStage: ensureString(item.questionStage),
-  questionTopic: ensureString(item.questionTopic),
-  rubricType: ensureString(item.rubricType, 'star'),
-  starApplicable: item.starApplicable !== false,
-  structureLabel: ensureString(item.structureLabel, item.starApplicable === false ? 'Answer structure' : 'STAR evidence'),
-  structureBreakdown: normalizeStructureBreakdown(item.structureBreakdown || item.starBreakdown),
-  scores: isObject(item.scores) 
-    ? {
-        business: ensureNumber(item.scores.business, 0),
-        logic: ensureNumber(item.scores.logic, 0),
-        evidence: ensureNumber(item.scores.evidence, 0),
-      }
-    : { business: 0, logic: 0, evidence: 0 },
-  dimensionReasons: normalizeDimensionReasons(item.dimensionReasons || item.scoreReasons),
-  starBreakdown: item.starApplicable === false ? null : normalizeStarBreakdown(item.starBreakdown || {}),
-  evidenceLabel: TRUST_LABELS.has(item.evidenceLabel) ? item.evidenceLabel : 'supported_by_answer',
-  confidenceLevel: CONFIDENCE_LEVELS.has(item.confidenceLevel) ? item.confidenceLevel : 'medium',
-  evidenceSources: ensureArray(item.evidenceSources).filter(Boolean),
-  evidenceReason: ensureString(item.evidenceReason),
-  needsUserConfirmation: Boolean(item.needsUserConfirmation),
-  feedbackStatus: FEEDBACK_STATUSES.has(item.feedbackStatus) ? item.feedbackStatus : 'confirmed_feedback',
-});
-
-const normalizeNzWorkplaceDimension = (item = {}) => ({
-  id: ensureString(item.id),
-  label: ensureString(item.label),
-  score: ensureNumber(item.score, 0),
-  observed: Boolean(item.observed),
-  riskDetected: Boolean(item.riskDetected),
-  evidenceQuote: ensureString(item.evidenceQuote),
-  riskQuote: ensureString(item.riskQuote),
-  feedback: ensureString(item.feedback),
-});
-
-const normalizeNzWorkplaceEvidence = (item = {}) => ({
-  dimension: ensureString(item.dimension),
-  quote: ensureString(item.quote),
-  signal: ensureString(item.signal),
-});
-
-const normalizeNzSuggestedRewrite = (item = null) => isObject(item)
-  ? {
-      weak: ensureString(item.weak),
-      better: ensureString(item.better),
-      reason: ensureString(item.reason),
-    }
-  : null;
-
-const normalizeNzWorkplaceFit = (value = {}) => ({
-  enabled: Boolean(value.enabled),
-  score: Number.isFinite(Number(value.score)) ? Number(value.score) : null,
-  summary: ensureString(value.summary),
-  dimensionScores: ensureArray(value.dimensionScores).map(normalizeNzWorkplaceDimension),
-  strengths: ensureArray(value.strengths).filter(Boolean),
-  gaps: ensureArray(value.gaps).filter(Boolean),
-  evidence: ensureArray(value.evidence).map(normalizeNzWorkplaceEvidence),
-  suggestedRewrite: normalizeNzSuggestedRewrite(value.suggestedRewrite),
-});
-
-const normalizeCompanyMotivationSignal = (value = {}) => ({
-  score: ensureNumber(value.score, 0),
-  comment: ensureString(value.comment),
-});
-
-const normalizeCompanyMotivationFit = (value = {}) => ({
-  source: ensureString(value.source, 'general_fallback'),
-  score: ensureNumber(value.score, 0),
-  summary: ensureString(value.summary),
-  matchedValues: ensureArray(value.matchedValues).map((item) => ({
-    value: ensureString(item.value),
-    candidateQuote: ensureString(item.candidateQuote),
-    comment: ensureString(item.comment),
-  })),
-  missingValues: ensureArray(value.missingValues).map((item) => ({
-    value: ensureString(item.value),
-    whyItMatters: ensureString(item.whyItMatters),
-    suggestion: ensureString(item.suggestion),
-  })),
-  candidateResearchSignal: normalizeCompanyMotivationSignal(value.candidateResearchSignal),
-  roleMotivationSignal: normalizeCompanyMotivationSignal(value.roleMotivationSignal),
-  suggestedRewrite: ensureString(value.suggestedRewrite),
-  fallbackReason: ensureString(value.fallbackReason),
-  evidenceStrength: ensureString(value.evidenceStrength),
-});
-
-const normalizeVoiceDeliverySummary = (value = {}) => isObject(value)
-  ? {
-      turnCount: ensureNumber(value.turnCount, 0),
-      averageWordsPerMinute: Number.isFinite(Number(value.averageWordsPerMinute)) ? Number(value.averageWordsPerMinute) : null,
-      averageSpeakingDurationSeconds: Number.isFinite(Number(value.averageSpeakingDurationSeconds)) ? Number(value.averageSpeakingDurationSeconds) : null,
-      totalFillerCount: ensureNumber(value.totalFillerCount, 0),
-      totalLongPauseCount: ensureNumber(value.totalLongPauseCount, 0),
-      totalRepeatedCorrections: ensureNumber(value.totalRepeatedCorrections, 0),
-      totalUnclearSpeechSegments: ensureNumber(value.totalUnclearSpeechSegments, 0),
-      deliveryConfidence: ensureString(value.deliveryConfidence),
-      feedback: ensureArray(value.feedback).filter(Boolean),
-    }
-  : null;
-
-/**
  * Purpose: Execute the main responsibility for validateReportOutput.
  * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
 export const validateReportOutput = (report = {}) => ({
-  schemaVersion: ensureString(report.schemaVersion, 'v3'),
+  schemaVersion: ensureString(report.schemaVersion, DEFAULT_SCHEMA_VERSION),
   id: ensureString(report.id, report.sessionId || ''),
   sessionId: ensureString(report.sessionId),
-  candidateName: ensureString(report.candidateName, 'Candidate'),
-  jobTitle: ensureString(report.jobTitle, 'Target Role'),
+  candidateName: ensureString(report.candidateName, DEFAULT_CANDIDATE_NAME),
+  jobTitle: ensureString(report.jobTitle, DEFAULT_JOB_TITLE),
   generatedAt: ensureString(report.generatedAt, new Date().toISOString()),
   status: ensureString(report.status, 'draft'),
   summary: ensureString(report.summary),
@@ -323,39 +126,39 @@ export const validateReportOutput = (report = {}) => ({
   companyMotivationFit: normalizeCompanyMotivationFit(report.companyMotivationFit || {}),
   candidateFeedback: isObject(report.candidateFeedback)
     ? {
-        overallTakeaway: ensureString(report.candidateFeedback.overallTakeaway),
-        scoreBand: ensureString(report.candidateFeedback.scoreBand),
-        generationSource: ensureString(report.candidateFeedback.generationSource),
-        scoreExplanations: normalizeScoreExplanations(report.candidateFeedback.scoreExplanations || {}),
-        communicationProfile: isObject(report.candidateFeedback.communicationProfile)
-          ? {
-              summary: ensureString(report.candidateFeedback.communicationProfile.summary),
-              keyTraits: ensureArray(report.candidateFeedback.communicationProfile.keyTraits).map(normalizeCandidateFeedbackItem),
-              fillerWords: ensureString(report.candidateFeedback.communicationProfile.fillerWords),
-            }
-          : { summary: '', keyTraits: [], fillerWords: '' },
-        plainEnglishMetrics: ensureArray(report.candidateFeedback.plainEnglishMetrics).map(normalizeCandidateFeedbackItem),
-        strengthHighlights: ensureArray(report.candidateFeedback.strengthHighlights).map(normalizeCandidateFeedbackItem),
-        improvementPriorities: ensureArray(report.candidateFeedback.improvementPriorities).map(normalizeCandidateFeedbackItem),
-        coachingAdvice: ensureArray(report.candidateFeedback.coachingAdvice).map(normalizeCandidateFeedbackItem),
-        answerRewriteExamples: ensureArray(report.candidateFeedback.answerRewriteExamples).map(normalizeCandidateFeedbackItem),
-        quoteAnalyses: ensureArray(report.candidateFeedback.quoteAnalyses).map(normalizeCandidateFeedbackItem),
-        turnBreakdowns: ensureArray(report.candidateFeedback.turnBreakdowns).map(normalizeTurnBreakdown),
-      }
+      overallTakeaway: ensureString(report.candidateFeedback.overallTakeaway),
+      scoreBand: ensureString(report.candidateFeedback.scoreBand),
+      generationSource: ensureString(report.candidateFeedback.generationSource),
+      scoreExplanations: normalizeScoreExplanations(report.candidateFeedback.scoreExplanations || {}),
+      communicationProfile: isObject(report.candidateFeedback.communicationProfile)
+        ? {
+          summary: ensureString(report.candidateFeedback.communicationProfile.summary),
+          keyTraits: ensureArray(report.candidateFeedback.communicationProfile.keyTraits).map(normalizeCandidateFeedbackItem),
+          fillerWords: ensureString(report.candidateFeedback.communicationProfile.fillerWords),
+        }
+        : { summary: '', keyTraits: [], fillerWords: '' },
+      plainEnglishMetrics: ensureArray(report.candidateFeedback.plainEnglishMetrics).map(normalizeCandidateFeedbackItem),
+      strengthHighlights: ensureArray(report.candidateFeedback.strengthHighlights).map(normalizeCandidateFeedbackItem),
+      improvementPriorities: ensureArray(report.candidateFeedback.improvementPriorities).map(normalizeCandidateFeedbackItem),
+      coachingAdvice: ensureArray(report.candidateFeedback.coachingAdvice).map(normalizeCandidateFeedbackItem),
+      answerRewriteExamples: ensureArray(report.candidateFeedback.answerRewriteExamples).map(normalizeCandidateFeedbackItem),
+      quoteAnalyses: ensureArray(report.candidateFeedback.quoteAnalyses).map(normalizeCandidateFeedbackItem),
+      turnBreakdowns: ensureArray(report.candidateFeedback.turnBreakdowns).map(normalizeTurnBreakdown),
+    }
     : {
-        overallTakeaway: '',
-        scoreBand: '',
-        generationSource: '',
-        scoreExplanations: normalizeScoreExplanations({}),
-        communicationProfile: { summary: '', keyTraits: [], fillerWords: '' },
-        plainEnglishMetrics: [],
-        strengthHighlights: [],
-        improvementPriorities: [],
-        coachingAdvice: [],
-        answerRewriteExamples: [],
-        quoteAnalyses: [],
-        turnBreakdowns: [],
-      },
+      overallTakeaway: '',
+      scoreBand: '',
+      generationSource: '',
+      scoreExplanations: normalizeScoreExplanations({}),
+      communicationProfile: { summary: '', keyTraits: [], fillerWords: '' },
+      plainEnglishMetrics: [],
+      strengthHighlights: [],
+      improvementPriorities: [],
+      coachingAdvice: [],
+      answerRewriteExamples: [],
+      quoteAnalyses: [],
+      turnBreakdowns: [],
+    },
 });
 
 /**
@@ -365,7 +168,7 @@ export const validateReportOutput = (report = {}) => ({
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
 export const validateReportQaOutput = (qa = {}) => ({
-  schemaVersion: ensureString(qa.schemaVersion, 'v3'),
+  schemaVersion: ensureString(qa.schemaVersion, DEFAULT_SCHEMA_VERSION),
   reportId: ensureString(qa.reportId),
   status: ensureString(qa.status, qa.passed || qa.pass ? 'ready' : 'needs_review'),
   qualityFlags: ensureArray(qa.qualityFlags),
@@ -375,3 +178,5 @@ export const validateReportQaOutput = (qa = {}) => ({
   passed: Boolean(qa.passed ?? qa.pass),
   diagnostics: isObject(qa.diagnostics) ? qa.diagnostics : {},
 });
+
+// Made with Bob
