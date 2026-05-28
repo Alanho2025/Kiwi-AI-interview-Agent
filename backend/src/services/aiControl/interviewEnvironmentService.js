@@ -1,6 +1,4 @@
-const ensureArray = (value) => (Array.isArray(value) ? value : []);
-const normalizeText = (value = '') => String(value || '').trim();
-const tokenize = (value = '') => normalizeText(value).toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+import { ensureArray, normalizeText, tokenize } from '../../utils/commonHelpers.js';
 
 const getLatestTurn = (transcript = [], role) => [...ensureArray(transcript)].reverse().find((turn) => turn.role === role) || null;
 

@@ -348,7 +348,16 @@ export function useVoiceInterviewSession({
     vad,
   ]);
 
-  useEffect(() => () => cleanupRef.current?.(), [cleanupRef]);
+  // Only cleanup on component unmount, not on dependency changes
+  // This keeps the WebSocket connection alive during the voice session
+  // as required by VOICE_INTERVIEW_PRODUCT_BEHAVIOR.md
+  useEffect(() => {
+    return () => {
+      // Execute cleanup only on unmount
+      cleanupRef.current?.();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty deps array = only run on mount/unmount
 
   const stateLabel = useMemo(() => getVoiceStateLabel(voiceState), [voiceState]);
   const liveTranscript = useMemo(() => (session?.transcript || []).slice(-8), [session?.transcript]);

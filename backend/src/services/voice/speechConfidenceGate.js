@@ -6,66 +6,20 @@
  * - Block unsafe realtime voice turns before they are saved as interview answers.
  */
 
-const DEFAULT_THRESHOLDS = {
-  high: 0.75,
-  medium: 0.45,
-};
+import {
+  DEFAULT_CONFIDENCE_THRESHOLDS,
+  DEFAULT_ACCEPTANCE_RULES,
+  FILLER_TRANSCRIPTS,
+} from '../../config/speechConfidenceConfig.js';
 
-const DEFAULT_ACCEPTANCE_RULES = {
-  minWords: 2,
-  minCharacters: 8,
-  minAcceptedSpeechMs: 900,
-  mediumMinWords: 6,
-  mediumMinSpeechMs: 2500,
-  unknownMinWords: 8,
-  unknownMinSpeechMs: 3500,
-  lowConfidenceContentfulMinWords: 25,
-  lowConfidenceContentfulMinCharacters: 120,
-  lowConfidenceContentfulMinSpeechMs: 8000,
-  contentfulLowConfidenceMinWords: 25,
-  contentfulLowConfidenceMinCharacters: 120,
-  contentfulLowConfidenceMinSpeechMs: 8000,
-};
-
-const normalizeText = (value = '') => String(value || '').trim();
-const countWords = (value = '') => normalizeText(value).split(/\s+/).filter(Boolean).length;
-const normalizeForFillerCheck = (value = '') => normalizeText(value).toLowerCase().replace(/[^\w\s']/g, '').replace(/\s+/g, ' ');
-const getSpeechDurationMs = (vad = null) => {
-  const duration = Number(vad?.speechDurationMs ?? vad?.durationMs ?? 0);
-  return Number.isFinite(duration) ? Math.max(0, duration) : 0;
-};
-const getSttSegmentCount = (vad = null) => {
-  const segmentCount = Number(vad?.sttSegmentCount);
-  return Number.isFinite(segmentCount) ? segmentCount : null;
-};
-
-const FILLER_TRANSCRIPTS = new Set([
-  'ok',
-  'okay',
-  'yeah',
-  'yes',
-  'yep',
-  'no',
-  'nope',
-  'hello',
-  'hi',
-  'um',
-  'uh',
-  'thanks',
-  'thank you',
-]);
-
-const isFillerTranscript = (value = '') => FILLER_TRANSCRIPTS.has(normalizeForFillerCheck(value));
-
-const hasContentfulLowConfidenceEvidence = ({ words, characters, speechDurationMs, sttSegmentCount, rules }) => {
-  const minWords = rules.contentfulLowConfidenceMinWords ?? rules.lowConfidenceContentfulMinWords ?? 25;
-  const minCharacters = rules.contentfulLowConfidenceMinCharacters ?? rules.lowConfidenceContentfulMinCharacters ?? 120;
-  const minSpeechMs = rules.contentfulLowConfidenceMinSpeechMs ?? rules.lowConfidenceContentfulMinSpeechMs ?? 8000;
-  const hasEnoughText = words >= minWords && characters >= minCharacters;
-  const hasEnoughSpeech = speechDurationMs >= minSpeechMs;
-  const hasFinalSpeechEvidence = sttSegmentCount === null || sttSegmentCount > 0;
-  return hasEnoughText && hasEnoughSpeech && hasFinalSpeechEvidence;
-};
+import {
+  normalizeText,
+  countWords,
+  getSpeechDurationMs,
+  getSttSegmentCount,
+  isFillerTranscript,
+  hasContentfulLowConfidenceEvidence,
+} from '../../utils/speechHelpers.js';
 
 const traceGateDecision = (decision, context = {}) => {
   // Intentionally console-based because this helper is pure and has no request logger.
@@ -78,7 +32,7 @@ const traceGateDecision = (decision, context = {}) => {
   return decision;
 };
 
-export function getConfidenceStatus(confidence, thresholds = DEFAULT_THRESHOLDS) {
+export function getConfidenceStatus(confidence, thresholds = DEFAULT_CONFIDENCE_THRESHOLDS) {
   if (typeof confidence !== 'number' || Number.isNaN(confidence)) {
     return 'unknown';
   }
@@ -173,7 +127,7 @@ export function assessRealtimeVoiceTranscript({
     }, traceContext);
   }
 
-  if (isFillerTranscript(text)) {
+  if (isFillerTranscript(text, FILLER_TRANSCRIPTS)) {
     return traceGateDecision({
       ok: false,
       decision: 'reject',

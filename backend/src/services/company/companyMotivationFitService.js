@@ -1,11 +1,9 @@
 import { callDeepSeek } from '../deepseekService.js';
 import { buildGeneralCompanyValuesFallback } from './companyGeneralValuesFallback.js';
+import { ensureArray, ensureString, ensureNumber } from '../../utils/commonHelpers.js';
 
 const MOTIVATION_QUESTION_TEXT = 'what attracted you to this company and role';
 
-const ensureArray = (value) => (Array.isArray(value) ? value : []);
-const ensureString = (value = '') => String(value || '').trim();
-const ensureNumber = (value, fallback = 0) => (Number.isFinite(Number(value)) ? Number(value) : fallback);
 
 const extractJsonObject = (text = '') => {
   const fencedMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);

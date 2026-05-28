@@ -1,8 +1,7 @@
 import { buildJobDescriptionSignals } from './jobDescriptionSignals.js';
 import { splitRequiredAndPreferred } from './jobDescriptionNormalizer.js';
+import { ensureArray, unique } from '../../utils/commonHelpers.js';
 
-const ensureArray = (value) => (Array.isArray(value) ? value : []);
-const unique = (items = []) => [...new Set(items.map((item) => String(item || '').trim()).filter(Boolean))];
 
 const readRubricRequirements = (rubric = {}) => ensureArray(rubric.requirements)
   .map((item) => ({

@@ -1,6 +1,5 @@
 import { buildMatchAnalysis, buildNormalizedCvProfile, buildNormalizedJdRubric } from './sessionStateService.js';
-
-const ensureArray = (value) => (Array.isArray(value) ? value : []);
+import { ensureArray } from '../../utils/commonHelpers.js';
 
 const collectTranscriptSupport = (transcript = []) => transcript
   .filter((turn) => turn.role === 'user' && String(turn.text || '').trim())

@@ -1,7 +1,5 @@
 import { callDeepSeek } from '../deepseekService.js';
-
-const ensureArray = (value) => (Array.isArray(value) ? value : []);
-const normalizeText = (value = '') => String(value || '').trim();
+import { ensureArray, normalizeText, unique } from '../../utils/commonHelpers.js';
 
 const extractJsonObject = (text = '') => {
   const fencedMatch = String(text || '').match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
@@ -11,8 +9,6 @@ const extractJsonObject = (text = '') => {
   if (start >= 0 && end > start) return String(text).slice(start, end + 1);
   return String(text || '').trim();
 };
-
-const unique = (items = []) => [...new Set(items.map((item) => normalizeText(item)).filter(Boolean))];
 
 const buildFallbackDecision = ({ fallbackPlan = {}, localUnderstanding = {}, error = '' } = {}) => ({
   latestAnswerUnderstanding: {

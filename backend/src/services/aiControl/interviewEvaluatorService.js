@@ -1,35 +1,77 @@
 import crypto from 'crypto';
 import { SessionAnalysis } from '../../db/models/sessionAnalysisModel.js';
 import { analyzeStarBreakdown } from './starRubricService.js';
-
-const ensureArray = (value) => (Array.isArray(value) ? value : []);
-const normalizeText = (value = '') => String(value || '').trim();
-const tokenize = (value = '') => normalizeText(value).toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+import { ensureArray, normalizeText, tokenize } from '../../utils/commonHelpers.js';
 
 const countOverlap = (source = [], target = []) => {
   const targetSet = new Set(target);
   return source.filter((item) => targetSet.has(item)).length;
 };
 
+const detectSelfCorrection = (answerText = '') => {
+  const normalized = normalizeText(answerText).toLowerCase();
+  if (!normalized) return false;
+  return /\b(no sorry|sorry,? i mean|i mean|actually|let me correct|to be clear|what i mean is)\b/.test(normalized)
+    && /\b(i|we|my|our)\b/.test(normalized);
+};
+
+const detectIncompleteEvidenceAdmission = (answerText = '') => {
+  const normalized = normalizeText(answerText).toLowerCase();
+  if (!normalized) return false;
+  return /\b(i|we)\b.{0,25}\b(not|haven't|have not|didn't|did not|probably need to|need to)\b.{0,65}\b(explain|show|prove|mention|describe|cover|validate)\b/.test(normalized)
+    || /\b(cannot|can't|do not|don't)\b.{0,40}\b(remember|recall)\b.{0,40}\b(specific|decision|result|example|detail)\b/.test(normalized)
+    || /\b(without|no)\b.{0,35}\b(specific|clear|concrete)\b.{0,35}\b(result|example|decision|impact|evidence)\b/.test(normalized);
+};
+
+const detectVagueLongAnswer = (answerText = '') => {
+  const normalized = normalizeText(answerText).toLowerCase();
+  const tokens = tokenize(answerText);
+  if (tokens.length < 28) return false;
+  const vaguePhrases = [
+    'helped with', 'involved in', 'joined meetings', 'checked some things', 'learned a lot',
+    'useful experience', 'cannot remember', "can't remember", 'not a very specific',
+    'some things', 'a bit', 'generally', 'basically', 'kind of', 'sort of',
+  ];
+  const vagueHits = vaguePhrases.filter((phrase) => normalized.includes(phrase)).length;
+  const concreteSignals = ['implemented', 'built', 'designed', 'validated', 'measured', 'reduced', 'improved', 'tested', 'deployed']
+    .filter((signal) => tokens.includes(signal)).length;
+  const hasMetric = /\d/.test(normalized);
+  return vagueHits >= 2 && concreteSignals <= 1 && !hasMetric;
+};
+
 const classifySpecificity = (answerText = '') => {
   const tokens = tokenize(answerText);
   const hasNumbers = /\d/.test(answerText);
-  const strongVerbs = ['built', 'designed', 'implemented', 'led', 'improved', 'reduced', 'deployed', 'owned', 'measured'];
-  const outcomeSignals = ['result', 'impact', 'latency', 'uptime', 'throughput', 'percent'];
+  const strongVerbs = ['built', 'designed', 'implemented', 'led', 'improved', 'reduced', 'deployed', 'owned', 'measured', 'validated', 'tested'];
+  const outcomeSignals = ['result', 'impact', 'latency', 'uptime', 'throughput', 'percent', 'accuracy', 'stable'];
   const hasStrongVerb = strongVerbs.some((verb) => tokens.includes(verb));
   const hasOutcomeSignal = outcomeSignals.some((signal) => tokens.includes(signal));
   const hasCompactEvidence = tokens.length >= 10 && hasStrongVerb && (hasNumbers || hasOutcomeSignal);
+  if (detectVagueLongAnswer(answerText)) return 'low';
   if ((tokens.length >= 35 && (hasNumbers || hasStrongVerb)) || hasCompactEvidence) return 'high';
   if (tokens.length >= 18 && (hasNumbers || hasStrongVerb || tokens.length >= 24)) return 'medium';
   if (tokens.length >= 10 && (hasStrongVerb || hasNumbers)) return 'medium';
   return 'low';
 };
 
+const detectCandidateDifficultySignal = (answerText = '') => {
+  const normalized = normalizeText(answerText).toLowerCase();
+  if (!normalized) return false;
+  return /\b(question|questions|this|that)\b.{0,45}\b(tough|hard|difficult|confusing|complicated|unclear)\b/.test(normalized)
+    || /\b(tough|hard|difficult|confusing|complicated)\b.{0,45}\b(question|questions|answer|explain)\b/.test(normalized)
+    || normalized.includes('i am feeling these questions quite tough')
+    || normalized.includes("i'm feeling these questions quite tough")
+    || normalized.includes('this question is tough')
+    || normalized.includes('these questions are tough');
+};
+
 const detectMisunderstanding = (answerText = '', topic = '') => {
   const normalized = normalizeText(answerText).toLowerCase();
   if (!normalized) return true;
-  const confusionPhrases = ['not sure', "don't know", 'do you mean', 'could you repeat', 'sorry', 'unclear'];
+  if (detectSelfCorrection(answerText)) return false;
+  const confusionPhrases = ['not sure', "don't know", 'do you mean', 'could you repeat', 'unclear'];
   if (confusionPhrases.some((phrase) => normalized.includes(phrase))) return true;
+  if (/\bsorry\b/.test(normalized) && /\b(not sure|repeat|unclear|what you mean|do you mean)\b/.test(normalized)) return true;
   const topicTokens = tokenize(topic);
   if (!topicTokens.length) return false;
   const answerTokens = tokenize(answerText);
@@ -67,7 +109,6 @@ const detectFrictionSignals = (answerText = '') => {
 };
 
 const extractMentionedEntities = (answerText = '') => {
-  // Simple regex for capitalized phrases that might be project names or companies
   const candidates = answerText.match(/\b[A-Z][a-zA-Z0-9]{2,}(?:\s+[A-Z][a-zA-Z0-9]{1,})*\b/g) || [];
   const filters = ['I', 'The', 'And', 'What', 'How', 'You', 'They', 'We', 'Our', 'My', 'When', 'Then', 'To', 'In', 'A', 'An'];
   return [...new Set(candidates)]
@@ -81,10 +122,12 @@ const computeEvidenceGainScore = ({ answerText = '', topic = '', requiredSkills 
   const overlap = countOverlap(answerTokens, [...topicTokens, ...requiredSkills.flatMap((item) => tokenize(item))]);
   const specificity = classifySpecificity(answerText);
   const hasNumbers = /\d/.test(answerText);
-  const strongVerbs = ['built', 'designed', 'implemented', 'led', 'improved', 'reduced', 'deployed', 'owned', 'measured'];
+  const strongVerbs = ['built', 'designed', 'implemented', 'led', 'improved', 'reduced', 'deployed', 'owned', 'measured', 'validated', 'tested'];
   const compactEvidenceBonus = answerTokens.length >= 10 && strongVerbs.some((verb) => answerTokens.includes(verb)) && hasNumbers ? 0.08 : 0;
-  const base = specificity === 'high' ? 0.85 : specificity === 'medium' ? 0.62 : 0.35;
-  return Math.max(0, Math.min(1, Number((base + compactEvidenceBonus + Math.min(0.15, overlap * 0.03)).toFixed(2))));
+  const base = specificity === 'high' ? 0.78 : specificity === 'medium' ? 0.56 : 0.34;
+  const penalty = (detectIncompleteEvidenceAdmission(answerText) ? 0.18 : 0)
+    + (detectVagueLongAnswer(answerText) ? 0.24 : 0);
+  return Math.max(0, Math.min(1, Number((base + compactEvidenceBonus + Math.min(0.12, overlap * 0.025) - penalty).toFixed(2))));
 };
 
 const scoreEngagement = ({ answerText = '', misunderstandingFlag = false } = {}) => {
@@ -156,25 +199,37 @@ const buildPlannerSignals = ({
   coveragePressure,
   starBreakdown = null,
   candidateRepetitionComplaint = false,
+  candidateDifficultySignal = false,
+  selfCorrectionDetected = false,
+  incompleteEvidenceAdmission = false,
+  vagueLongAnswer = false,
 } = {}) => ({
   evidenceGainScore,
   specificity,
   missingEvidence: ensureArray(answerUnderstanding?.missingEvidence),
   roleRelevance,
   semanticOpportunity: normalizeText(answerUnderstanding?.semanticOpportunity),
-  followUpValue: answerUnderstanding?.followUpValue || (evidenceGainScore >= 0.45 && evidenceGainScore < 0.7 ? 'high' : evidenceGainScore >= 0.7 ? 'medium' : 'medium'),
-  emotionalOrFrictionSignal: ensureArray(frictionState.frictionKeywords)[0] || '',
+  followUpValue: candidateDifficultySignal || incompleteEvidenceAdmission || vagueLongAnswer
+    ? 'high'
+    : answerUnderstanding?.followUpValue || (evidenceGainScore >= 0.45 && evidenceGainScore < 0.7 ? 'high' : evidenceGainScore >= 0.7 ? 'medium' : 'medium'),
+  emotionalOrFrictionSignal: candidateDifficultySignal ? 'candidate_found_question_tough' : ensureArray(frictionState.frictionKeywords)[0] || '',
   coveragePressure,
   candidateRepetitionComplaint,
+  candidateDifficultySignal,
+  selfCorrectionDetected,
+  incompleteEvidenceAdmission,
+  vagueLongAnswer,
   starScores: starBreakdown?.scores || {},
   starMainMissingElement: starBreakdown?.mainMissingElement || '',
 });
 
-
 const detectGapClosure = ({ answerText = '', topic = '' } = {}) => {
+  if (detectIncompleteEvidenceAdmission(answerText) || detectVagueLongAnswer(answerText)) {
+    return { hardestTradeoff: false, handlingApproach: false, successJudgement: false, closeCurrentIntent: false };
+  }
   const tokens = tokenize(answerText);
   const normalized = normalizeText(answerText).toLowerCase();
-  const hardestTradeoff = ['trade', 'difficulty', 'challenge', 'problem', 'decision', 'pressure', 'gap'].some((token) => tokens.includes(token));
+  const hardestTradeoff = ['trade', 'tradeoff', 'difficulty', 'challenge', 'problem', 'decision', 'pressure', 'gap'].some((token) => tokens.includes(token));
   const handlingApproach = ['i', 'my', 'we'].some((token) => tokens.includes(token))
     && ['used', 'checked', 'grouped', 'validated', 'compared', 'built', 'implemented', 'handled', 'separated', 'updated'].some((token) => tokens.includes(token));
   const successJudgement = ['result', 'outcome', 'reduced', 'improved', 'worked', 'judge', 'validated', 'reproduced', 'consistent'].some((token) => tokens.includes(token))
@@ -184,8 +239,11 @@ const detectGapClosure = ({ answerText = '', topic = '' } = {}) => {
   return { hardestTradeoff, handlingApproach, successJudgement, closeCurrentIntent };
 };
 
-const suggestNextMode = ({ misunderstandingFlag = false, evidenceGainScore = 0, repetitionRisk = false, closeCurrentIntent = false } = {}) => {
+const suggestNextMode = ({ misunderstandingFlag = false, evidenceGainScore = 0, repetitionRisk = false, closeCurrentIntent = false, candidateDifficultySignal = false, incompleteEvidenceAdmission = false, vagueLongAnswer = false } = {}) => {
+  if (candidateDifficultySignal) return 'rephrase';
   if (misunderstandingFlag) return 'rephrase';
+  if (vagueLongAnswer) return 'probe';
+  if (incompleteEvidenceAdmission) return evidenceGainScore >= 0.42 ? 'deepen' : 'probe';
   if (closeCurrentIntent) return 'advance';
   if (repetitionRisk && evidenceGainScore < 0.55) return 'switch';
   if (evidenceGainScore < 0.45) return 'probe';
@@ -193,7 +251,8 @@ const suggestNextMode = ({ misunderstandingFlag = false, evidenceGainScore = 0, 
   return 'advance';
 };
 
-const mergeSuggestedNextMode = ({ baseMode, answerUnderstanding = null, misunderstandingFlag = false } = {}) => {
+const mergeSuggestedNextMode = ({ baseMode, answerUnderstanding = null, misunderstandingFlag = false, candidateDifficultySignal = false } = {}) => {
+  if (candidateDifficultySignal) return 'rephrase';
   if (misunderstandingFlag) return 'rephrase';
   const understandingMode = answerUnderstanding?.suggestedFollowUp?.mode;
   const confidence = Number(answerUnderstanding?.confidence || 0);
@@ -217,7 +276,12 @@ export const evaluateInterviewTurn = ({ environment = {}, decisionContext = null
   const answerUnderstanding = environment?.latestAnswerUnderstanding || null;
   const specificity = classifySpecificity(answerText);
   const candidateRepetitionComplaint = detectRepetitionComplaint(answerText);
+  const candidateDifficultySignal = detectCandidateDifficultySignal(answerText);
+  const selfCorrectionDetected = detectSelfCorrection(answerText);
+  const incompleteEvidenceAdmission = detectIncompleteEvidenceAdmission(answerText);
+  const vagueLongAnswer = detectVagueLongAnswer(answerText);
   const misunderstandingFlag = detectMisunderstanding(answerText, currentTopic)
+    || candidateDifficultySignal
     || answerUnderstanding?.suggestedFollowUp?.mode === 'rephrase';
   const hasCandidateQuestion = detectCandidateQuestion(answerText);
   const evidenceGainScore = computeEvidenceGainScore({ answerText, topic: currentTopic, requiredSkills });
@@ -229,12 +293,13 @@ export const evaluateInterviewTurn = ({ environment = {}, decisionContext = null
   const interactionStatus = classifyInteractionStatus({ overallInteractionScore, misunderstandingFlag, turnTakingScore });
   const repetitionRisk = detectRepetitionRisk({ previousTopics: environment?.questionContext?.previousQuestionTopics || [], currentTopic });
   const gapClosure = detectGapClosure({ answerText, topic: currentTopic });
-  const baseSuggestedNextMode = suggestNextMode({ misunderstandingFlag, evidenceGainScore, repetitionRisk, closeCurrentIntent: gapClosure.closeCurrentIntent });
-  const suggestedNextMode = mergeSuggestedNextMode({ baseMode: baseSuggestedNextMode, answerUnderstanding, misunderstandingFlag });
+  const baseSuggestedNextMode = suggestNextMode({ misunderstandingFlag, evidenceGainScore, repetitionRisk, closeCurrentIntent: gapClosure.closeCurrentIntent, candidateDifficultySignal, incompleteEvidenceAdmission, vagueLongAnswer });
+  const suggestedNextMode = mergeSuggestedNextMode({ baseMode: baseSuggestedNextMode, answerUnderstanding, misunderstandingFlag, candidateDifficultySignal });
   const rawFrictionState = detectFrictionSignals(answerText);
   const frictionKeywords = [...new Set([
     ...(rawFrictionState.frictionKeywords || []),
     ...(answerUnderstanding?.frictionSignals || []),
+    ...(candidateDifficultySignal ? ['candidate_found_question_tough'] : []),
   ])];
   const frictionState = {
     frictionDetected: rawFrictionState.frictionDetected || frictionKeywords.length > 0,
@@ -245,7 +310,7 @@ export const evaluateInterviewTurn = ({ environment = {}, decisionContext = null
     ...extractMentionedEntities(answerText),
     ...(answerUnderstanding?.mentionedEntities || []),
   ])];
-  const reflectionNeeded = misunderstandingFlag || (evidenceGainScore < 0.45 && repetitionRisk) || overallInteractionScore < 0.5;
+  const reflectionNeeded = misunderstandingFlag || (evidenceGainScore < 0.45 && repetitionRisk) || overallInteractionScore < 0.5 || candidateDifficultySignal;
   const roleRelevance = inferRoleRelevance({ answerText, currentTopic, requiredSkills, answerUnderstanding });
   const coveragePressure = inferCoveragePressure({ coverageState: decisionContext?.coverageState || {}, repetitionRisk });
   const starBreakdown = analyzeStarBreakdown(answerText);
@@ -258,6 +323,10 @@ export const evaluateInterviewTurn = ({ environment = {}, decisionContext = null
     coveragePressure,
     starBreakdown,
     candidateRepetitionComplaint,
+    candidateDifficultySignal,
+    selfCorrectionDetected,
+    incompleteEvidenceAdmission,
+    vagueLongAnswer,
   });
 
   return {
@@ -269,6 +338,10 @@ export const evaluateInterviewTurn = ({ environment = {}, decisionContext = null
     evidenceGainScore,
     misunderstandingFlag,
     candidateRepetitionComplaint,
+    candidateDifficultySignal,
+    selfCorrectionDetected,
+    incompleteEvidenceAdmission,
+    vagueLongAnswer,
     hasCandidateQuestion,
     frictionState,
     mentionedEntities,
@@ -281,7 +354,7 @@ export const evaluateInterviewTurn = ({ environment = {}, decisionContext = null
     repetitionRisk,
     reflectionNeeded,
     gapClosure,
-    closeCurrentIntent: gapClosure.closeCurrentIntent,
+    closeCurrentIntent: candidateDifficultySignal || incompleteEvidenceAdmission || vagueLongAnswer ? false : gapClosure.closeCurrentIntent,
     starBreakdown,
     plannerSignals,
     suggestedNextMode,
@@ -289,20 +362,26 @@ export const evaluateInterviewTurn = ({ environment = {}, decisionContext = null
     fastAnswerUnderstanding: answerUnderstanding,
     answerUnderstandingSummary: answerUnderstanding
       ? {
-          intent: answerUnderstanding.intent,
-          suggestedFollowUp: answerUnderstanding.suggestedFollowUp,
-          technologies: answerUnderstanding.technologies || [],
-          missingEvidence: answerUnderstanding.missingEvidence || [],
-          confidence: answerUnderstanding.confidence,
-        }
+        intent: answerUnderstanding.intent,
+        suggestedFollowUp: answerUnderstanding.suggestedFollowUp,
+        technologies: answerUnderstanding.technologies || [],
+        missingEvidence: answerUnderstanding.missingEvidence || [],
+        confidence: answerUnderstanding.confidence,
+      }
       : null,
-    rationale: misunderstandingFlag
-      ? 'The latest answer likely did not address the question clearly enough.'
-      : suggestedNextMode !== baseSuggestedNextMode && answerUnderstanding?.suggestedFollowUp?.questionGoal
-        ? `Fast answer understanding found concrete facts to preserve: ${answerUnderstanding.suggestedFollowUp.questionGoal}.`
-      : evidenceGainScore >= 0.7
-        ? 'The latest answer added concrete evidence that can support downstream scoring and reporting.'
-        : 'The latest answer added some evidence, but the next turn should still tighten specificity or coverage.',
+    rationale: candidateDifficultySignal
+      ? 'The candidate signalled that the question felt tough, so the next turn should reduce cognitive load and rephrase or scaffold.'
+      : incompleteEvidenceAdmission
+        ? 'The candidate gave useful evidence but explicitly admitted that key evidence is still missing, so the next turn should deepen rather than advance.'
+        : vagueLongAnswer
+          ? 'The candidate spoke at length but gave weak concrete evidence, so the next turn should probe for a specific example.'
+          : misunderstandingFlag
+            ? 'The latest answer likely did not address the question clearly enough.'
+            : suggestedNextMode !== baseSuggestedNextMode && answerUnderstanding?.suggestedFollowUp?.questionGoal
+              ? `Fast answer understanding found concrete facts to preserve: ${answerUnderstanding.suggestedFollowUp.questionGoal}.`
+              : evidenceGainScore >= 0.7
+                ? 'The latest answer added concrete evidence that can support downstream scoring and reporting.'
+                : 'The latest answer added some evidence, but the next turn should still tighten specificity or coverage.',
   };
 };
 

@@ -11,8 +11,8 @@
 
 import { joinLabels } from './reportGeneratorShared.js';
 import { buildCompactTraceSummary } from '../../aiControl/agentTraceService.js';
+import { ensureArray } from '../../../utils/commonHelpers.js';
 
-const ensureArray = (value) => (Array.isArray(value) ? value : []);
 
 export const buildSummary = ({ analysisResult, evidenceSummary, interviewMetrics, reflectionRecords = [] }) => {
   const direct = evidenceSummary.totals.direct_past_experience || 0;

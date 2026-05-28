@@ -1,9 +1,9 @@
 import { AGENT_ACTION_TYPES } from '../../constants/agentActionTypes.js';
+import { ensureArray, clamp } from '../../utils/commonHelpers.js';
 
 const includesAny = (values = [], needles = []) => needles.some((needle) => values.includes(needle));
 const normalizeFocusAreaKey = (value = 'combined') => String(value || 'combined').trim().toLowerCase().replace('behavioural', 'behavioral');
-const ensureArray = (value) => (Array.isArray(value) ? value : []);
-const clampPriority = (value = 0) => Math.max(0, Math.min(1, Number.isFinite(Number(value)) ? Number(value) : 0));
+const clampPriority = (value = 0) => clamp(value, 0, 1);
 
 const MODEL_SELECTION_BLOCKED_ACTIONS = new Set([
   AGENT_ACTION_TYPES.GENERATE_REPORT_DRAFT,
@@ -105,8 +105,8 @@ const withDefaultCandidates = ({ basePlan, targetTopic, coverageState = {}, matc
   if (ensureArray(matchState.validationTargets).length && focusAreaKey !== 'behavioral') {
     candidates.push(buildCandidateAction(
       AGENT_ACTION_TYPES.ASK_VALIDATION_QUESTION,
-      basePlan.selectedAction === AGENT_ACTION_TYPES.ASK_VALIDATION_QUESTION ? basePlan.confidence || 0.82 : 0.58,
-      'A validation target remains unresolved and could be checked with direct evidence.',
+      basePlan.selectedAction === AGENT_ACTION_TYPES.ASK_VALIDATION_QUESTION ? basePlan.confidence || 0.82 : 0.74,
+      'A validation target remains unresolved and should be checked with direct evidence before generic friction probes.',
       ['claim_validation'],
       'medium',
       { targetTopic: matchState.validationTargets[0], probeType: 'validation', forceEvidence: true },
@@ -146,6 +146,7 @@ export const selectNextAction = (decisionContext = {}) => {
     || abductiveState.probeTopic
     || coverageState.missingTopics?.[0]
     || 'role_fit';
+  const shouldProbeWeakEvidence = candidateState.specificityLevel === 'low' || evaluatorState.suggestedNextMode === 'probe';
   const finalizePlan = (basePlan, candidateActions = null) => (
     candidateActions
       ? withCandidateActions(basePlan, candidateActions)
@@ -161,7 +162,6 @@ export const selectNextAction = (decisionContext = {}) => {
       allowModelSelection: false,
     });
   }
-
 
   const isFinalPlannedTurn = Boolean(interviewStructure.isFinalPlannedTurn);
   if (isFinalPlannedTurn && !evaluatorState.misunderstandingFlag) {
@@ -278,7 +278,15 @@ export const selectNextAction = (decisionContext = {}) => {
     });
   }
 
-  // --- STRATEGIC INTENTS ---
+  if (matchState.validationTargets?.length && focusAreaKey !== 'behavioral' && !shouldProbeWeakEvidence) {
+    return finalizePlan({
+      selectedAction: AGENT_ACTION_TYPES.ASK_VALIDATION_QUESTION,
+      rationale: 'There are unresolved validation targets and the latest answer has enough substance for direct validation before generic friction or stress probes.',
+      confidence: 0.88,
+      actionInput: { targetTopic: matchState.validationTargets[0], probeType: 'validation', forceEvidence: true },
+    });
+  }
+
   const projectUsage = agentMemory.projectUsage || {};
   const overusedProject = Object.keys(projectUsage).find((project) => projectUsage[project] >= 2);
   if (overusedProject && !evaluatorState.misunderstandingFlag && evaluatorState.suggestedNextMode !== 'rephrase') {
@@ -295,7 +303,6 @@ export const selectNextAction = (decisionContext = {}) => {
     && (evaluatorState.frictionState?.frictionLevel === 'low' || !evaluatorState.frictionState?.frictionDetected);
 
   if (isTooPerfect && !isFinalPlannedTurn) {
-    // If the answer is strong but "happy path", introduce stress or look for friction
     const useFriction = focusAreaKey === 'behavioral' || Math.random() > 0.5;
     return finalizePlan({
       selectedAction: useFriction ? AGENT_ACTION_TYPES.PROBE_FRICTION : AGENT_ACTION_TYPES.PROBE_STRESS,
@@ -307,7 +314,6 @@ export const selectNextAction = (decisionContext = {}) => {
       buildCandidateAction(AGENT_ACTION_TYPES.ASK_DEEP_DIVE_QUESTION, 0.64, 'A deep dive can still test decision quality without forcing a stress scenario.', ['decision_quality', 'validation_method'], 'low', { targetTopic, probeType: 'deepen', forceEvidence: true }),
     ]);
   }
-  // -------------------------
 
   if (abductiveState.shouldProbe) {
     if (focusAreaKey === 'behavioral') {
@@ -357,7 +363,7 @@ export const selectNextAction = (decisionContext = {}) => {
     });
   }
 
-  if ((candidateState.specificityLevel === 'low' || evaluatorState.suggestedNextMode === 'probe')
+  if (shouldProbeWeakEvidence
     && (Number(interviewStructure.currentTopicState?.followUpCount || 0) >= 2 || evaluatorState.lowEvidenceRepeated)) {
     return finalizePlan({
       selectedAction: AGENT_ACTION_TYPES.ASK_SCAFFOLD_QUESTION,
@@ -368,10 +374,10 @@ export const selectNextAction = (decisionContext = {}) => {
     });
   }
 
-  if (candidateState.specificityLevel === 'low' || evaluatorState.suggestedNextMode === 'probe') {
+  if (shouldProbeWeakEvidence) {
     return finalizePlan({
       selectedAction: AGENT_ACTION_TYPES.ASK_PROBING_QUESTION,
-      rationale: 'The latest answer was too broad, so a probing question is needed before switching topics.',
+      rationale: 'The latest answer was too broad, so a probing question is needed before switching topics or validating a claim.',
       confidence: 0.84,
       actionInput: { targetTopic, probeType: 'specific_example', forceEvidence: true },
     });
