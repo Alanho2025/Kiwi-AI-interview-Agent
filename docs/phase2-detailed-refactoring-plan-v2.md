@@ -1,10 +1,10 @@
 # Phase 2: Safe Detailed Refactoring Plan
 
 **Date:** 2026-05-28  
-**Version:** 3.1  
-**Status:** Ready for review and staged execution  
+**Version:** 3.2  
+**Status:** Ready for Bob review and staged execution  
 **Goal:** Reduce large files toward maintainable size without changing product behaviour  
-**Primary target:** Files over 200 lines, especially voice, agent orchestration, parsing, matching, reporting, and frontend hooks
+**Primary target:** All files over 200 lines, especially voice, agent orchestration, parsing, matching, reporting, retrieval, and frontend hooks
 
 ---
 
@@ -20,58 +20,74 @@ The most important rule is simple:
 
 > Split files safely. Do not change runtime behaviour unless the change is explicitly approved and tested.
 
-This matters most for the voice interview flow. The current voice flow includes realtime STT, audio buffering, speech_start and speech_end state, partial transcript fallback, clientTurnId guards, TTS streaming, barge-in, and WebSocket message handling. These are user-facing critical behaviours. They must not be simplified away during refactoring.
+This plan applies to **all files selected for refactoring**, not only the voice service. Before Bob changes any target file, Bob must write down that file's current behaviour and map it to tests.
 
 ---
 
-## 2. Refactoring Principles
+## 2. Non-Negotiable Rule: Every Target File Needs a Behaviour Contract First
 
-### 2.1 Core Rules
+Before refactoring any file over 200 lines, Bob must create a behaviour contract for that file.
 
-1. **Preserve external APIs**
-   - Do not change exported function names.
-   - Do not change handler return contracts.
-   - Do not change request or WebSocket message contracts.
+A behaviour contract is a short checklist that describes what the file currently does. It must be written before code is moved.
 
-2. **Preserve runtime sequence**
-   - Move code only when the order of events stays the same.
-   - Do not move stateful logic into a new module unless tests prove the same behaviour.
+### 2.1 Required Behaviour Contract Template
 
-3. **Prefer pure extraction first**
-   - Extract pure functions before stateful managers.
-   - Pure functions are safer because they do not own runtime state.
+For every target file, document these items:
 
-4. **Keep files focused**
-   - Target file size should be under 200 lines where practical.
-   - Some orchestration files may remain above 200 lines if reducing them would increase risk.
+```txt
+File path:
+Current line count:
+Risk level: High / Medium / Low
+Current responsibility:
+Public exports:
+External callers:
+Inputs accepted:
+Outputs returned:
+Events/messages emitted:
+State owned:
+Side effects:
+Database writes/reads:
+Network calls:
+LLM calls:
+STT/TTS/audio calls:
+Environment variables used:
+Error handling behaviour:
+Fallback behaviour:
+Logging/telemetry emitted:
+Security/privacy behaviour:
+Existing tests covering this file:
+Missing tests that must be added before refactor:
+Behaviours that must not change:
+Allowed extraction candidates:
+Disallowed changes:
+Post-refactor test commands:
+```
 
-5. **One behaviour, one test**
-   - Every extracted module needs focused unit tests.
-   - Every critical flow needs at least one integration or robustness test.
+### 2.2 Hard Rule
 
-6. **No assumed latency improvement**
-   - Refactoring improves maintainability.
-   - Latency improvement is optional and must be measured.
-   - p95 latency must not regress.
+Bob must not refactor a file until this contract is completed.
 
-7. **Do not delete regression tests**
-   - Existing behaviour tests are safety rails.
-   - Add tests around extracted modules.
-   - Do not replace current voice regression tests with weaker helper-only tests.
+If a behaviour is unknown, Bob must stop and inspect the current code/tests instead of guessing.
 
 ---
 
-## 3. Pre-Refactor Inventory Step
+## 3. Pre-Refactor Large File Inventory
 
 Before changing code, generate a large-file inventory.
 
 Run from the repository root:
 
 ```bash
-find backend/src frontend/src -type f \( -name "*.js" -o -name "*.jsx" \) -print0 | xargs -0 wc -l | sort -nr | head -40
+find backend/src frontend/src -type f \( -name "*.js" -o -name "*.jsx" \) -print0 | xargs -0 wc -l | sort -nr | head -60
 ```
 
-Create a short working list with these categories:
+Create a working table:
+
+```txt
+File | Lines | Risk | Existing tests | Behaviour contract status | Refactor phase | Owner
+```
+
+Classify every large file as:
 
 ```txt
 High risk runtime orchestration
@@ -86,144 +102,171 @@ Rules:
 - Prioritise files that are long and hard to test.
 - Prioritise files where pure extraction can reduce risk.
 - Do not start with high-risk lifecycle rewrites.
+- Do not refactor multiple high-risk files in one commit.
 
 ---
 
-## 4. Non-Negotiable Behaviour Preservation Gates
+## 4. Global Refactoring Principles
 
-A refactor is only acceptable if all of the following remain true.
+1. **Preserve external APIs**
+   - Do not change exported function names.
+   - Do not change route contracts.
+   - Do not change WebSocket contracts.
+   - Do not change response schemas unless explicitly approved.
 
-### 4.1 Voice Session Contract
+2. **Preserve runtime sequence**
+   - Move code only when event order stays the same.
+   - Do not move stateful logic unless tests prove the same behaviour.
 
-`createDuplexVoiceAgentSession()` must continue to return:
+3. **Extract pure logic first**
+   - Pure helpers first.
+   - Payload builders second.
+   - Guard/validation helpers third.
+   - Stateful coordination last.
 
-```js
-return { handleJsonMessage, handleBinaryAudio, close };
-```
+4. **Keep files focused**
+   - Target files should move toward under 200 lines where practical.
+   - Critical orchestrators may remain 180-260 lines if forced splitting would hide state and increase risk.
 
-Do not replace this with lower-level methods such as `handleSpeechStart`, `handleSpeechEnd`, or `handleAudioChunk` unless all WebSocket callers are updated in the same commit and covered by tests.
+5. **Do not delete regression tests**
+   - Existing behaviour tests are safety rails.
+   - Add tests around extracted modules.
+   - Do not replace integration or robustness tests with weaker helper-only tests.
 
-### 4.2 Voice Event Sequence
-
-The following sequence must remain intact:
-
-```txt
-session_ready
-speech_start
-restart or start realtime STT session
-ignore pre-speech audio
-buffer audio while STT starts
-write audio live when STT is ready
-stt_partial
-stt_final
-speech_end
-flush pending audio before STT stop
-stop realtime STT with timeout
-use final transcript segments
-fallback to latest partial transcript if no final exists
-process final transcript
-stream assistant TTS
-support barge-in and cancel
-close or session_stop cleanup
-```
-
-### 4.3 STT Quality Guards
-
-The refactor must preserve:
-
-- `buildSessionSpeechPhraseList(activeSession)`
-- `extraPhrases` passed into realtime STT provider
-- STT `usageContext`
-- `activeSpeechCaptureId` guard
-- `activeSttProviderName`
-- provider-specific ASR source resolution
-- partial transcript fallback when final transcript is missing
-- `stt_partial` and `stt_final` message shapes
-
-### 4.4 Turn Safety Guards
-
-The refactor must preserve:
-
-- generated fallback `clientTurnId` when frontend does not provide one
-- duplicate `speech_start` protection
-- speech_start ignored while previous turn is processing
-- speech_end ignored when there is no active turn
-- speech_end ignored when clientTurnId does not match
-- duplicate or late speech_end ignored after finalization
-- `lastFinalizedClientTurnId`
-- `currentClientTurnId` reset rules
-
-### 4.5 Audio Buffer Semantics
-
-The refactor must preserve:
-
-- audio before `speech_start` is ignored and counted
-- audio after `speech_start` is accepted
-- audio is buffered only while STT starts
-- buffered audio is flushed before STT stop
-- live audio is written directly to the active STT session
-- dropped chunks are counted
-- written chunks are counted
-- total audio bytes and estimated audio duration are tracked
-- audio trace logs remain available
-
-### 4.6 Hidden Behaviour That Must Not Be Cleaned Away
-
-The following behaviours may look redundant, but they are part of the current runtime contract until proven otherwise.
-
-1. **Double `session_ready` emission**
-   - The service currently sends `session_ready` when the duplex agent session is created.
-   - It also sends `session_ready` again when a `session_start` message arrives.
-   - Do not remove either emission unless the frontend flow is reviewed and tests are updated.
-
-2. **`context.lastVad` mutation**
-   - `finalizeCapturedSpeech()` stores `context.lastVad` with the stop reason.
-   - Later VAD metadata is merged into the turn processing payload.
-   - Preserve this until downstream turn coordination and report generation are verified not to depend on it.
-
-3. **Dynamic turn coordinator creation**
-   - `createDuplexTurnCoordinator()` should remain inside `processFinalTranscript()` unless a test proves that pre-creating it does not freeze stale `activeSession`, `asrSource`, or `clientTurnId`.
+6. **No assumed performance gain**
+   - Refactoring improves maintainability.
+   - Performance improvement is optional and must be measured.
+   - p95 latency must not regress.
 
 ---
 
-## 5. Success Criteria
+## 5. Global Behaviour Categories That Must Be Preserved
 
-### 5.1 Maintainability Targets
+The following behaviour categories apply to all refactored files.
 
-- Reduce large files toward 200 lines where practical.
-- Move reusable helpers into focused modules.
-- Reduce mixed responsibilities in voice, agent, parsing, matching, and frontend hooks.
-- Make tests easier to write and read.
+### 5.1 API and Schema Behaviour
 
-### 5.2 Safety Targets
+Preserve:
 
-- No product behaviour regression.
-- No change to public API unless explicitly approved.
-- No change to WebSocket protocol.
-- No voice transcript quality regression.
-- No increase in p95 voice latency.
-- No loss of telemetry needed for debugging.
+- exported function names
+- function parameter names and defaults
+- response object shape
+- route response schema
+- WebSocket message schema
+- report schema
+- parsed CV/JD schema
+- match result schema
+- error response shape
 
-### 5.3 Testing Targets
+Do not rename fields unless all downstream code and tests are updated in the same commit.
+
+### 5.2 State Behaviour
+
+Preserve:
+
+- module-level state
+- closure state
+- session state updates
+- current turn state
+- cached values
+- pending queues
+- retry counters
+- fallback state
+- confirmation state
+
+If state is moved into a helper, add tests for the old state transition sequence.
+
+### 5.3 Side Effects
+
+Preserve:
+
+- database writes
+- database reads
+- file reads
+- file writes
+- network calls
+- LLM calls
+- STT/TTS provider calls
+- analytics or telemetry calls
+- auth/session/cookie behaviour
+
+Side effects must not run earlier, later, more often, or fewer times unless explicitly approved.
+
+### 5.4 Error and Fallback Behaviour
+
+Preserve:
+
+- thrown error types
+- returned error payloads
+- fallback provider logic
+- deterministic fallback text
+- transcript repair fallback
+- missing field handling
+- retry behaviour
+- timeout behaviour
+- human-review flags
+- unsupported evidence handling
+
+Do not turn a recoverable error into a fatal error.
+
+Do not turn an uncertain result into a confident result.
+
+### 5.5 Logging and Telemetry Behaviour
+
+Preserve:
+
+- trace event names
+- latency fields
+- provider names
+- session IDs
+- user-safe metadata
+- redaction behaviour
+- error logging
+- p50/p95/p99 metric collection if present
+
+Do not remove logs needed for debugging voice latency, parsing quality, retrieval grounding, or report hallucination control.
+
+### 5.6 Security and Privacy Behaviour
+
+Preserve:
+
+- auth checks
+- ownership checks
+- CSRF protection
+- cookie-based auth behaviour
+- WebSocket origin checks
+- rate limiting
+- redaction of sensitive fields
+- human-review safeguards
+- no token leakage into logs
+
+Security code must not be moved into weaker helper abstractions without tests.
+
+---
+
+## 6. Required Test Gate Strategy
 
 Use staged gates. Do not run the heaviest eval suite after every tiny helper extraction.
 
-#### Every small refactor commit
+### 6.1 Every Small Refactor Commit
 
 ```bash
 npm run lint
 ```
 
-Also run the most relevant focused test, for example:
+Also run the most relevant focused suite:
 
 ```bash
 npm run test:voice
 npm run test:match
 npm run test:jd
 npm run test:cv
+npm run test:report
+npm run test:retrieval
+npm run test:agent
 ```
 
-#### Every backend voice phase
+### 6.2 Every Backend Voice Phase
 
 ```bash
 npm run lint
@@ -231,15 +274,15 @@ npm run test:voice
 npm run eval:voice-robustness
 ```
 
-#### Voice Phase 4, Phase 5, and Phase 6
+### 6.3 Voice Phase 4-6
 
-These phases touch audio buffering, STT lifecycle, or the main voice orchestrator. They must also run:
+These phases touch audio buffering, STT lifecycle, or the main voice orchestrator. Also run:
 
 ```bash
 npm run benchmark:voice-latency:gate
 ```
 
-#### Full Phase 2 completion gate
+### 6.4 Full Phase 2 Completion Gate
 
 ```bash
 npm run test:all
@@ -252,7 +295,9 @@ Run real evals only when API keys and environment are available:
 npm run eval:real
 ```
 
-For backend tests, use Vitest style:
+### 6.5 Test Style
+
+Use Vitest style:
 
 ```js
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -260,700 +305,677 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 Do not write new Jest-style tests such as `jest.fn()` or `jest.mock()`.
 
-### 5.4 Test Location Rules
+### 6.6 Test Location Rules
 
-- Unit and robustness tests for voice helpers should go under `backend/tests/robustness/voice`.
-- WebSocket integration tests should go under `backend/tests/integration/voice`.
-- `npm run test:voice` runs the robustness voice tests.
+- Voice helper and robustness tests go under `backend/tests/robustness/voice`.
+- WebSocket integration tests go under `backend/tests/integration/voice`.
+- `npm run test:voice` runs robustness voice tests.
 - `npm run test:voice` does not cover all WebSocket integration tests.
-- Use `npm run test:all` before large phase completion to include integration coverage.
+- Use `npm run test:all` before major phase completion.
 
 ---
 
-## 6. Risk Classification
+## 7. Required Behaviour Contracts by Area
 
-### High Risk
-
-These files affect user-facing critical flows. Refactor only after tests are in place.
-
-- `backend/src/services/voice/duplexVoiceAgentService.js`
-- `backend/src/services/voice/duplexTurnCoordinator.js`
-- `backend/src/services/masterAiService.js`
-- interview controller and adaptive planning services
-
-### Medium Risk
-
-These affect major product behaviour but can be refactored with focused tests.
-
-- CV parsing services
-- JD parsing services
-- CV-JD matching services
-- report generation services
-- retrieval and evidence anchoring services
-
-### Lower Risk
-
-These can be refactored earlier if public props and UI behaviour are preserved.
-
-- pure utility modules
-- payload builders
-- frontend formatting helpers
-- isolated UI components
-- non-critical hooks
+The following sections define what Bob must document and preserve for each major target area.
 
 ---
 
-## 7. Existing Voice Regression Tests To Preserve
+## 8. Voice Behaviour Contract
 
-Do not delete or weaken existing voice regression tests.
+This applies to:
 
-The following current tests are especially important and should remain as the main behaviour safety net:
+```txt
+backend/src/services/voice/duplexVoiceAgentService.js
+backend/src/services/voice/duplexTurnCoordinator.js
+backend/src/services/voice/realtimeSpeechProviderRouter.js
+backend/src/services/voice/ttsStreamQueue.js
+backend/src/services/voice/bargeInController.js
+frontend voice hooks and voice UI files
+```
+
+### 8.1 Public Voice Contract
+
+Preserve:
+
+```js
+createDuplexVoiceAgentSession({ context, session, userId, logger, sendJson })
+return { handleJsonMessage, handleBinaryAudio, close }
+```
+
+Preserve handlers:
+
+```txt
+handleJsonMessage(payload)
+handleBinaryAudio(message)
+close()
+```
+
+### 8.2 Current Voice Defaults and State
+
+Preserve:
+
+```txt
+language defaults to en-NZ
+sampleRate defaults to 16000
+voiceName from context.voiceName
+VOICE_STT_TURN_STOP_TIMEOUT_MS fallback to 2500
+MAX_PENDING_AUDIO_CHUNKS = 1200
+PCM encoding = pcm_s16le
+PCM channels = 1
+PCM bytes per sample = 2
+AUDIO_CONTRACT_TRACE_EVERY = 25
+```
+
+Preserve runtime state or equivalent tested behaviour:
+
+```txt
+speechSession
+isSpeechSessionStarted
+sessionStartPromise
+activeSession
+finalTranscriptSegments
+latestPartialTranscript
+isProcessingBufferedTurn
+isCapturingSpeech
+ignoredPreSpeechAudioChunks
+pendingAudioChunks
+audioChunksWritten
+audioChunksDropped
+audioBytesWritten
+currentClientTurnId
+lastFinalizedClientTurnId
+pendingTranscriptConfirmation
+activeSttProviderName
+speechCaptureSequence
+activeSpeechCaptureId
+context.lastVad
+```
+
+### 8.3 Voice Message Behaviour
+
+Preserve JSON message handling:
+
+```txt
+session_start -> send session_ready
+audio_chunk + audioBase64 -> decode and queue audio
+speech_start -> start/restart capture and send listening_started
+speech_end -> validate clientTurnId and finalize captured speech
+speak_text -> stream assistant speech and send assistant_speech_done
+barge_in -> cancel assistant audio
+cancel_assistant_audio -> cancel assistant audio
+ping -> pong
+session_stop -> finalize active speech or stop session, then send session_stopped
+stop -> same cleanup path as session_stop
+unknown type -> no behaviour change
+handler error -> send MESSAGE_HANDLING_FAILED
+```
+
+Preserve binary audio behaviour:
+
+```txt
+binary message -> queueCapturedAudio(message)
+errors are logged but do not crash socket process
+```
+
+Preserve close behaviour:
+
+```txt
+if capturing speech -> finalizeCapturedSpeech(reason: socket_close)
+else -> clear pending audio and stop speech session
+```
+
+### 8.4 `session_ready` Behaviour
+
+Preserve double ready behaviour until frontend is reviewed:
+
+```txt
+send session_ready when duplex agent session is created
+send session_ready again when session_start arrives
+```
+
+Payload must preserve:
+
+```txt
+type: session_ready
+tool: AGENT_TOOL_NAMES.ORCHESTRATE_DUPLEX_VOICE
+sessionId
+language
+sampleRate
+audioContract.encoding: pcm_s16le
+audioContract.sampleRate
+audioContract.channels
+audioContract.bytesPerSample
+timestamp
+```
+
+### 8.5 STT Session Behaviour
+
+Preserve:
+
+```txt
+buildSessionSpeechPhraseList(activeSession)
+extraPhrases passed to createRoutedRealtimeSpeechSession
+usageContext.userId
+usageContext.sessionId
+usageContext.stage = interview
+usageContext.source = duplex_voice_stt
+captureId increment per session
+activeSpeechCaptureId guard
+sessionStartPromise guard
+activeSttProviderName after start
+provider name in logs
+```
+
+Preserve callbacks:
+
+```txt
+onPartialTranscript -> stale guard, normalize, set latestPartialTranscript if text, send stt_partial
+onFinalTranscript -> stale guard, normalize, send stt_final, append final segment if text
+onError -> send STT_ERROR
+onSessionStarted -> send speech_session_started or payload.type
+onSessionStopped -> send speech_session_stopped
+```
+
+### 8.6 Audio Buffer Behaviour
+
+Preserve:
+
+```txt
+audio before speech_start is ignored and counted
+first ignored pre-speech audio emits warning
+audio during capture is accepted
+if pending buffer is full, chunk is dropped and counted
+if STT is ready, audio writes live immediately
+if STT is starting, audio is buffered
+pending audio flushes before STT stop
+writeAudioChunk increments audioChunksWritten
+writeAudioChunk increments audioBytesWritten
+writeAudioChunk logs first chunk and every 25th chunk
+audio duration is estimated from PCM bytes
+```
+
+### 8.7 Finalization Behaviour
+
+Preserve:
+
+```txt
+finalize does nothing if not currently capturing
+processingClientTurnId uses provided clientTurnId or currentClientTurnId
+context.lastVad is updated with stopReason
+isCapturingSpeech becomes false before STT stop
+pending audio flushes before stopSpeechSession
+stopSpeechSession is wrapped with timeout
+STT stop errors are captured but do not block turn processing
+activeSpeechCaptureId resets to 0 after stop attempt
+if no final transcript exists, latestPartialTranscript is used
+finalTranscriptSegments and latestPartialTranscript reset after capture
+asrSource is resolved from segments or active provider name
+isProcessingBufferedTurn prevents duplicate processing
+processFinalTranscript receives transcriptText, asrConfidence, asrSource, clientTurnId, vad metadata
+vad includes sttSegmentCount, sttSource, sttProvider, sttStopError, usedPartialFallback, ignoredPreSpeechAudioChunks, audioChunksWritten, audioChunksDropped, audioMsWritten
+turn errors emit DUPLEX_TURN_FAILED
+currentClientTurnId resets after matching finalized turn
+lastFinalizedClientTurnId updates after finalization
+```
+
+### 8.8 Turn Coordinator Behaviour
+
+Preserve:
+
+```txt
+createDuplexTurnCoordinator is created inside processFinalTranscript
+activeSession is passed at processing time
+asrSource is passed at processing time
+clientTurnId is passed at processing time
+pendingTranscriptConfirmation getter/setter are passed through
+updatedSession updates activeSession
+```
+
+Do not pre-create the turn coordinator unless tests prove no stale session, stale asrSource, or stale clientTurnId bug.
+
+### 8.9 Voice Existing Tests To Preserve
+
+Do not delete or weaken:
 
 ```txt
 backend/tests/robustness/voice/duplexVoiceBufferedTurn.test.js
 backend/tests/integration/voice/duplexVoiceSocket.integration.test.js
 ```
 
-The buffered turn test already protects behaviours such as:
+These tests protect:
 
-- final transcript segments are processed only after explicit `speech_end`
-- binary audio writes during active capture
-- active long answers finalize before `session_stop`
-- STT stop failure still passes the turn to repair/processing
-- hung STT stop does not block turn repair
-- latest partial transcript is used when no final segment exists
-
-The WebSocket integration test validates routing with a mocked duplex agent. This is useful for socket contract coverage, but it does not prove the real duplex agent state machine end-to-end.
-
-If Phase 5 or Phase 6 changes the real voice agent heavily, add a real-agent integration test using mocked STT and TTS dependencies.
+```txt
+final transcript segments process only after speech_end
+binary audio writes during active capture
+session_stop finalizes long answer
+STT stop failure still processes turn
+hung STT stop does not block repair/processing
+latest partial transcript is used when no final exists
+WebSocket route passes JSON and binary messages to the agent contract
+unauthenticated socket is rejected
+```
 
 ---
 
-## 8. Phase 1: Extract Pure Backend Helpers
+## 9. Agent Orchestration Behaviour Contract
 
-**Purpose:** Reduce large files without changing runtime behaviour.
-
-**Risk:** Low
-
-### 8.1 Extract Transcript Segment Processing
-
-Create:
+This applies to large files such as:
 
 ```txt
-backend/src/services/voice/transcriptSegmentProcessor.js
+backend/src/services/masterAiService.js
+backend/src/services/interviewController*.js
+backend/src/services/agent*.js
+backend/src/services/*orchestrator*.js
 ```
 
-Move these pure functions from `duplexVoiceAgentService.js`:
-
-```js
-normalizeTranscriptText()
-mergeTranscriptSegments()
-averageConfidence()
-resolveAsrSource()
-```
-
-Rules:
-
-- Do not change function logic.
-- Do not change fallback priority.
-- Do not change duplicate segment handling.
-- Export the same behaviour with unit tests.
-
-Tests:
+Bob must document and preserve:
 
 ```txt
-backend/tests/robustness/voice/transcriptSegmentProcessor.test.js
+public exports and callers
+agent/tool selection order
+intent detection behaviour
+fallback model/provider behaviour
+retrieval call order
+reasoning/evaluation steps
+response schema
+streaming or non-streaming behaviour
+tool names used in traces
+error handling
+retry behaviour
+human-review or uncertainty flags
+latency trace fields
 ```
 
-Required cases:
+Disallowed changes unless explicitly approved:
 
-- `displayText` wins over `normalizedText`, `text`, and `rawText`
-- fallback to `normalizedText`
-- fallback to `text`
-- fallback to `rawText`
-- null payload returns empty string
-- duplicate consecutive segments are removed
-- whitespace is normalized
-- average confidence ignores invalid scores
-- ASR provider names are normalized from hyphen to underscore
+```txt
+changing tool selection policy
+removing retrieval/evidence grounding
+removing deterministic fallback
+changing response schema
+changing confidence or uncertainty handling
+removing trace fields used by evals
+```
 
-Acceptance:
+Required tests before/after refactor:
 
-- `duplexVoiceAgentService.js` imports helpers.
-- Existing voice tests pass.
-- No event sequence changes.
+```bash
+npm run test:agent
+npm run eval:agent-trajectory
+npm run eval:retrieval
+npm run eval:stability
+```
+
+If interview behaviour is affected, also run:
+
+```bash
+npm run eval:interview
+npm run eval:e2e
+```
 
 ---
 
-### 8.2 Extract Audio Duration Utilities
+## 10. CV Parsing Behaviour Contract
 
-Create:
+This applies to large CV parsing files.
 
-```txt
-backend/src/services/voice/audioDurationUtils.js
-```
-
-Move:
-
-```js
-estimatePcmDurationMs()
-parsePositiveInteger()
-```
-
-Also handle shared PCM constants carefully:
-
-```js
-PCM_BYTES_PER_SAMPLE
-PCM_CHANNELS
-```
-
-Rules:
-
-- Preserve default sample rate of 16000.
-- Preserve mono PCM s16le assumptions.
-- Preserve null return for invalid byte input.
-- Do not duplicate PCM constants in multiple files unless there is a clear reason.
-- If `sendReady()` still needs the PCM constants for `audioContract`, import them from one shared source.
-
-Tests:
+Bob must document and preserve:
 
 ```txt
-backend/tests/robustness/voice/audioDurationUtils.test.js
+accepted input formats
+file parsing behaviour
+text normalization
+section detection
+name/contact extraction
+education extraction
+experience extraction
+technical skill extraction
+soft skill extraction
+project extraction
+certification extraction
+missing field handling
+schema returned to frontend/match pipeline
+confidence or quality indicators
+fallback parsing behaviour
+error payloads
 ```
 
-Required cases:
-
-- 32000 bytes at 16000 Hz returns 1000 ms
-- invalid bytes returns null
-- invalid sample rate falls back safely
-- positive integer parsing accepts valid positive values
-- zero, negative, or invalid values return fallback
-
-Acceptance:
-
-- Existing trace logs still show estimated chunk duration and total audio duration.
-- `session_ready.audioContract` remains unchanged.
-
----
-
-### 8.3 Extract Voice Payload Builders
-
-Create:
+Disallowed changes unless explicitly approved:
 
 ```txt
-backend/src/services/voice/voicePayloadBuilders.js
+removing extracted fields
+renaming schema keys
+weakening missing-field handling
+reducing extraction coverage
+turning uncertain extraction into confident extraction
 ```
-
-Move only payload construction, not control flow.
-
-Candidate builders:
-
-```js
-buildSessionReadyPayload()
-buildListeningStartedPayload()
-buildPongPayload()
-buildSessionStoppedPayload()
-buildVoiceErrorPayload()
-buildAssistantTextDeltaPayload()
-buildAssistantSpeechDonePayload()
-```
-
-Rules:
-
-- Builders must be stateless.
-- Builders must not call `sendJson`.
-- Builders must not read or mutate session state.
-- Builders only return plain objects.
-- Preserve the current double `session_ready` emission behaviour.
-
-Acceptance:
-
-- `handleJsonMessage()` still controls when messages are sent.
-- Message shapes remain identical.
-
----
-
-## 9. Phase 2: Extract Voice Guards Without Changing Handler Contract
-
-**Purpose:** Reduce complexity inside `handleJsonMessage()` while preserving WebSocket behaviour.
-
-**Risk:** Medium
-
-Create:
-
-```txt
-backend/src/services/voice/voiceTurnGuards.js
-```
-
-Move guard decision helpers only.
-
-Candidate helpers:
-
-```js
-shouldIgnoreDuplicateSpeechStart()
-shouldIgnoreSpeechStartWhileProcessing()
-shouldIgnoreSpeechEndWithoutClientTurnId()
-shouldIgnoreSpeechEndWithNoActiveTurn()
-shouldIgnoreLateSpeechEnd()
-shouldIgnoreMismatchedSpeechEnd()
-```
-
-Rules:
-
-- Helpers return decisions only.
-- Helpers do not log by themselves unless a logger is explicitly passed.
-- Helpers do not mutate `currentClientTurnId`.
-- Helpers do not mutate `lastFinalizedClientTurnId`.
-- `handleJsonMessage()` remains the owner of state transitions.
-- Do not move `currentClientTurnId = incomingClientTurnId` out of the main flow unless tests prove the same sequence.
 
 Required tests:
 
-```txt
-backend/tests/robustness/voice/voiceTurnGuards.test.js
+```bash
+npm run test:cv
+npm run eval:cv
 ```
 
-Required cases:
+If CV-JD downstream is affected, also run:
 
-- duplicate speech_start is rejected while capturing
-- speech_start is rejected while previous turn is processing
-- speech_end with missing clientTurnId is rejected
-- speech_end with no current turn is rejected
-- late duplicate speech_end is rejected
-- mismatched speech_end is rejected
-- matching speech_end is accepted
-
-Acceptance:
-
-- `createDuplexVoiceAgentSession()` still returns `{ handleJsonMessage, handleBinaryAudio, close }`.
-- Existing WebSocket route needs no change.
-- Existing frontend needs no change.
+```bash
+npm run test:match
+npm run eval:match
+```
 
 ---
 
-## 10. Phase 3: Extract Voice Metrics and Trace Helpers
+## 11. JD Parsing Behaviour Contract
 
-**Purpose:** Reduce logging noise in `duplexVoiceAgentService.js` while keeping debug visibility.
+This applies to large JD parsing files.
 
-**Risk:** Low to medium
-
-Create:
+Bob must document and preserve:
 
 ```txt
-backend/src/services/voice/voiceAudioMetrics.js
-backend/src/services/voice/voiceTracePayloads.js
+raw JD text input handling
+URL/source handling if present
+job title extraction
+company extraction
+location extraction
+work type extraction
+seniority extraction
+responsibility extraction
+must-have requirement extraction
+nice-to-have extraction
+technical skill extraction
+soft skill extraction
+education requirement extraction
+experience requirement extraction
+missing evidence handling
+schema returned to match pipeline
+error handling and fallback behaviour
 ```
 
-Move metrics calculations and trace payload construction.
-
-Candidate responsibilities:
-
-```js
-createInitialAudioMetrics()
-recordWrittenAudioChunk()
-recordDroppedAudioChunk()
-recordIgnoredPreSpeechChunk()
-resetAudioMetrics()
-buildAudioChunkTracePayload()
-buildAudioFlushTracePayload()
-buildTurnFailureTracePayload()
-```
-
-Rules:
-
-- Do not move STT write timing yet.
-- Do not move `writeAudioChunk()` completely in this phase unless tests cover it.
-- Keep trace fields stable.
-- Keep `AUDIO_CONTRACT_TRACE_EVERY` behaviour stable.
-- Preserve provider, source, chunk index, bytes, estimated duration, total audio ms, sample rate, and encoding in logs.
-
-Acceptance:
-
-- Voice debugging remains possible.
-- Existing voice regression tests pass.
-
----
-
-## 11. Phase 4: Extract Audio Capture Buffer Carefully
-
-**Purpose:** Reduce audio buffering complexity after pure helpers, guards, and metrics are stable.
-
-**Risk:** High
-
-Do not use a generic queue-only `audioBufferManager`. The current voice flow needs a capture-aware buffer.
-
-This phase must be split into three smaller sub-phases.
-
-### 11.1 Extract Audio Capture Metrics Only
-
-Create:
+Disallowed changes unless explicitly approved:
 
 ```txt
-backend/src/services/voice/audioCaptureMetrics.js
+weakening must-have vs nice-to-have detection
+treating missing evidence as matched
+renaming JD schema fields
+removing education or experience requirements
+removing human-review flags
 ```
-
-Candidate responsibilities:
-
-```js
-createAudioCaptureMetrics()
-recordWrittenChunk()
-recordDroppedChunk()
-recordIgnoredPreSpeechChunk()
-resetAudioCaptureMetrics()
-getAudioCaptureMetricsSnapshot()
-```
-
-Rules:
-
-- Do not move `queueCapturedAudio()` yet.
-- Do not move `flushPendingAudioChunks()` yet.
-- Do not move `writeAudioChunk()` yet.
-
-### 11.2 Extract Pending Audio Queue Only
-
-Create:
-
-```txt
-backend/src/services/voice/pendingAudioQueue.js
-```
-
-Candidate responsibilities:
-
-```js
-enqueuePendingAudio()
-drainPendingAudio()
-clearPendingAudio()
-getPendingAudioCount()
-```
-
-Rules:
-
-- The queue should not know about STT sessions.
-- The queue should not write audio.
-- The queue should not call `startSpeechSession()`.
-- The queue should not call `processFinalTranscript()`.
-
-### 11.3 Extract Capture Coordination Last
-
-Only after 11.1 and 11.2 pass, consider:
-
-```txt
-backend/src/services/voice/duplexAudioCaptureBuffer.js
-```
-
-This module may own:
-
-```js
-queueCapturedAudio()
-flushPendingAudioChunks()
-clearPendingAudioChunks()
-getAudioMetrics()
-```
-
-But it must preserve current semantics:
-
-```txt
-if not capturing, ignore and count pre-speech audio
-if STT is ready, write live immediately
-if STT is starting, buffer pending audio
-if buffer is full, drop and count chunk
-on speech_end, flush pending chunks before stopping STT
-```
-
-Suggested factory only if coordination extraction is still clear:
-
-```js
-export const createDuplexAudioCaptureBuffer = ({
-  logger,
-  getSessionId,
-  getProviderName,
-  getSampleRate,
-  isCapturingSpeech,
-  isSpeechSessionReady,
-  getSpeechSession,
-  startSpeechSession,
-  writeAudioChunk,
-  maxPendingChunks,
-}) => {
-  // preserve current behaviour
-};
-```
-
-Important:
-
-- Prefer smaller metrics and queue extraction over a large all-in-one buffer abstraction.
-- The module can call injected functions.
-- It should not create STT sessions directly.
-- It should not know about interview turn processing.
-- It should not call `processFinalTranscript()`.
 
 Required tests:
 
-```txt
-backend/tests/robustness/voice/audioCaptureMetrics.test.js
-backend/tests/robustness/voice/pendingAudioQueue.test.js
-backend/tests/robustness/voice/duplexAudioCaptureBuffer.test.js
+```bash
+npm run test:jd
+npm run eval:jd
+npm run eval:seek
 ```
 
-Required cases:
+If match output is affected, also run:
 
-- audio before speech_start is ignored
-- first ignored pre-speech audio can be logged
-- audio is buffered while STT starts
-- buffered chunks flush in order
-- audio writes live when STT is ready
-- buffer full drops new chunks and increments dropped count
-- metrics reset between turns
-- flush happens before stop in integration or robustness test
-
-Acceptance:
-
-- No transcript loss.
-- No increase in dropped chunks in normal cases.
-- No regression in `eval:voice-robustness`.
-- `npm run benchmark:voice-latency:gate` passes.
+```bash
+npm run test:match
+npm run eval:match
+```
 
 ---
 
-## 12. Phase 5: Extract Speech Session Lifecycle Only After Buffer Tests Pass
+## 12. CV-JD Matching Behaviour Contract
 
-**Purpose:** Reduce STT lifecycle complexity while preserving provider behaviour.
+This applies to large matching files.
 
-**Risk:** High
-
-Create only after Phase 4 passes:
+Bob must document and preserve:
 
 ```txt
-backend/src/services/voice/duplexSpeechSessionLifecycle.js
+input CV schema
+input JD schema
+technical skill matching
+soft skill matching
+education matching
+experience matching
+gap detection
+matched evidence anchors
+missing evidence handling
+score calculation
+score normalization
+confidence flags
+human-review flags
+recommendation generation
+frontend output schema
 ```
 
-This module may own:
+Critical rule:
 
-```js
-startSpeechSession()
-stopSpeechSession()
-restartSpeechSessionForNewTurn()
+```txt
+Do not mark education as matched unless at least one education requirement is actually satisfied.
 ```
 
-It must preserve:
+Disallowed changes unless explicitly approved:
 
-- `buildSessionSpeechPhraseList(activeSession)`
-- `extraPhrases`
-- `usageContext`
-- `onPartialTranscript`
-- `onFinalTranscript`
-- `onError`
-- `onSessionStarted`
-- `onSessionStopped`
-- `activeSpeechCaptureId`
-- `activeSttProviderName`
-- `sessionStartPromise`
-- stop timeout behaviour when used by caller
+```txt
+renaming match output fields
+changing scoring weights silently
+removing evidence anchors
+removing gap reasons
+removing human-review flags
+turning partial matches into full matches
+```
 
-Rules:
+Required tests:
 
-- Do not hide transcript callback behaviour inside unclear abstractions.
-- Do not remove `captureId !== activeSpeechCaptureId` checks.
-- Do not remove phrase hints.
-- Do not remove provider name tracking.
-- Do not change message type names such as `stt_partial` or `stt_final`.
-- Do not move `createDuplexTurnCoordinator()` into lifecycle code.
+```bash
+npm run test:match
+npm run eval:match
+npm run eval:cv-jd-match
+```
 
-Acceptance:
+If guarded safeguards are touched, also run:
 
-- STT final and partial payloads remain identical.
-- Phrase hints are still sent.
-- Provider-specific logs still work.
-- Realtime STT restart per turn still works.
-- `npm run benchmark:voice-latency:gate` passes.
+```bash
+npm run test:match-safeguard
+```
 
 ---
 
-## 13. Phase 6: Clean Main `duplexVoiceAgentService.js`
+## 13. Report Generation Behaviour Contract
 
-**Purpose:** Reduce the main file after safe extractions are complete.
+This applies to large report files.
 
-**Risk:** Medium to high
-
-At this phase, `duplexVoiceAgentService.js` should mainly coordinate:
-
-- WebSocket JSON message routing
-- binary audio routing
-- turn-level state transitions
-- calls to extracted helper modules
-- final cleanup
-
-It should still own or clearly coordinate:
-
-- `activeSession`
-- `currentClientTurnId`
-- `lastFinalizedClientTurnId`
-- `isCapturingSpeech`
-- `isProcessingBufferedTurn`
-- `pendingTranscriptConfirmation`
-- `context.lastVad` update or equivalent preserved behaviour
-
-Do not move all state out just to reduce line count. A smaller file with hidden state spread across too many modules is worse than a slightly larger but clear orchestrator.
-
-Target:
+Bob must document and preserve:
 
 ```txt
-duplexVoiceAgentService.js: ideally 180-260 lines after safe extraction
+input interview transcript schema
+input CV/JD/match schema
+section generation order
+STAR feedback logic
+evidence anchor usage
+risk labels
+unsupported claim handling
+recommendation generation
+uncertainty wording
+report output schema
+export behaviour
+error handling
+redaction behaviour
 ```
 
-Note: The hard target is not always under 200 for critical orchestrators. For this file, safety is more important than a forced line count.
+Disallowed changes unless explicitly approved:
 
-Acceptance:
+```txt
+allowing unsupported claims
+removing evidence anchors
+removing uncertainty labels
+changing report schema
+removing hallucination safeguards
+removing redaction
+```
 
-- public API unchanged
-- voice event sequence unchanged
-- all voice tests pass
-- voice robustness eval passes
-- p95 voice latency does not increase
-- `npm run benchmark:voice-latency:gate` passes
+Required tests:
+
+```bash
+npm run test:report
+npm run eval:report
+```
+
+If interview output feeds report generation, also run:
+
+```bash
+npm run eval:interview
+npm run eval:e2e
+```
 
 ---
 
-## 14. Phase 7: Refactor Other Large Backend Files
+## 14. Retrieval and Evidence Behaviour Contract
 
-After voice helper extraction is stable, apply the same pattern to other files over 200 lines.
+This applies to large retrieval/RAG/evidence files.
 
-### 14.1 General Pattern
-
-For each large file:
-
-1. Check the large-file inventory.
-2. Identify public APIs and current tests.
-3. Identify pure functions.
-4. Extract pure functions first.
-5. Extract payload builders next.
-6. Extract validation guards next.
-7. Extract stateful coordination last.
-8. Keep public APIs stable.
-9. Add focused tests.
-10. Run relevant grouped tests.
-
-### 14.2 Candidate Areas
-
-#### Master AI Orchestration
-
-Potential modules:
+Bob must document and preserve:
 
 ```txt
-agentIntentResolver.js
-agentToolSelectionPolicy.js
-agentExecutionTraceBuilder.js
-agentFallbackPolicy.js
-agentResponseShapeValidator.js
+query construction
+retrieval source selection
+ranking logic
+top-k behaviour
+fallback when no evidence exists
+evidence anchor format
+source attribution
+NZ workplace/localisation retrieval
+filtering logic
+error handling
+latency trace fields
 ```
 
-Rules:
-
-- Do not change tool selection behaviour without eval approval.
-- Do not weaken fallback behaviour.
-- Do not remove evidence anchoring.
-
-#### CV Parsing
-
-Potential modules:
+Disallowed changes unless explicitly approved:
 
 ```txt
-cvSectionNormalizer.js
-cvSkillExtractor.js
-cvExperienceExtractor.js
-cvEducationExtractor.js
-cvParseQualityGuards.js
+removing evidence grounding
+changing source ranking silently
+returning unsupported evidence
+removing no-evidence fallback
+removing trace fields
 ```
 
-Rules:
+Required tests:
 
-- Do not reduce extraction coverage.
-- Do not change schema fields without updating downstream match tests.
-
-#### JD Parsing
-
-Potential modules:
-
-```txt
-jdRequirementExtractor.js
-jdSkillNormalizer.js
-jdEducationRequirementParser.js
-jdSeniorityDetector.js
-jdParseQualityGuards.js
+```bash
+npm run test:retrieval
+npm run eval:retrieval
 ```
-
-Rules:
-
-- Do not weaken must-have vs nice-to-have detection.
-- Do not treat missing evidence as matched.
-
-#### CV-JD Matching
-
-Potential modules:
-
-```txt
-technicalSkillMatcher.js
-softSkillMatcher.js
-educationMatcher.js
-experienceMatcher.js
-gapEvidenceBuilder.js
-matchScoreNormalizer.js
-```
-
-Rules:
-
-- Do not mark education as matched unless at least one requirement is actually satisfied.
-- Preserve evidence-based reasoning.
-- Preserve human-review flags.
-
-#### Report Generation
-
-Potential modules:
-
-```txt
-reportSectionBuilder.js
-reportEvidenceAnchorBuilder.js
-reportRiskLabeler.js
-reportRecommendationBuilder.js
-reportHallucinationGuard.js
-```
-
-Rules:
-
-- Do not allow unsupported claims.
-- Preserve labels such as CV evidence, JD requirement, or needs user confirmation if implemented.
 
 ---
 
-## 15. Phase 8: Frontend Hook and Component Refactoring
+## 15. Auth, Server, Contract, and Security Behaviour Contract
 
-Frontend refactoring should also target files over 200 lines, but it must preserve UI behaviour.
+This applies to large auth/server/route/contract files.
 
-### 15.1 Voice Hooks
-
-Candidate split:
+Bob must document and preserve:
 
 ```txt
-useVoiceSessionLifecycleController.js
-useVoiceTurnState.js
-useVoiceTranscriptState.js
-useVoiceLatencyTrace.js
-useVoicePlaybackState.js
-useVoiceErrorState.js
+route paths
+HTTP methods
+request body schemas
+response schemas
+auth ownership checks
+cookie behaviour
+CSRF checks
+JWT secret fail-fast behaviour
+WebSocket auth behaviour
+Origin checks
+rate limits
+error codes
+redaction
+logging
 ```
 
-Rules:
+Disallowed changes unless explicitly approved:
 
-- Do not change microphone permission flow.
-- Do not change speech_start timing.
-- Do not change speech_end timing.
-- Do not change first audio chunk sending behaviour.
-- Do not break TTS playback start.
-- Do not remove latency trace fields.
+```txt
+weakening auth
+removing ownership checks
+allowing query token leakage where cookie auth is required
+removing CSRF checks
+changing route prefixes silently
+changing error codes used by frontend
+```
 
-### 15.2 UI Components
+Required tests:
 
-For large pages:
+```bash
+npm run test:server
+npm run test:contracts
+```
+
+For WebSocket voice routes, also run:
+
+```bash
+npm run test:voice
+npm run test:all
+```
+
+---
+
+## 16. Frontend Hook Behaviour Contract
+
+This applies to large frontend hooks, especially voice hooks.
+
+Bob must document and preserve:
+
+```txt
+hook public return values
+state names exposed to components
+callback names
+side effects in useEffect
+cleanup behaviour
+WebSocket connection timing
+microphone permission flow
+audio capture timing
+first audio chunk sending
+speech_start timing
+speech_end timing
+TTS playback start
+latency trace fields
+error state behaviour
+loading state behaviour
+```
+
+Disallowed changes unless explicitly approved:
+
+```txt
+renaming returned hook fields
+changing speech_start/speech_end timing
+removing cleanup
+removing latency traces
+breaking TTS playback start
+changing user-facing status messages without UI review
+```
+
+Required tests:
+
+```bash
+npm run lint
+```
+
+If frontend test scripts exist, run the relevant frontend test suite. If no test exists for the refactored hook, add one or add a clear manual QA checklist.
+
+Manual QA for voice UI:
+
+```txt
+mic permission prompt appears correctly
+speech_start sends before first intended audio chunk
+first audio chunk reaches backend
+partial transcript displays if enabled
+assistant TTS starts after backend response
+barge-in/cancel works
+session_stop cleans up microphone and socket
+error banner appears for backend errors
+```
+
+---
+
+## 17. Frontend Page and Component Behaviour Contract
+
+This applies to large pages such as:
 
 ```txt
 AnalyzePage.jsx
@@ -962,154 +984,77 @@ ReportPage.jsx
 DashboardPage.jsx
 ```
 
-Extract:
+Bob must document and preserve:
 
 ```txt
-Header sections
-Form sections
-Result cards
-Status panels
-Error banners
-Action buttons
+route path
+props passed to child components
+API calls
+loading state
+error state
+empty state
+success state
+form validation
+button actions
+navigation behaviour
+accessibility labels
+responsive layout
+admin-only visibility
 ```
 
-Rules:
-
-- Keep props simple.
-- Do not move business logic into visual components.
-- Do not create tiny components that only wrap one div.
-- Preserve accessibility labels.
-
----
-
-## 16. Commit Strategy
-
-Use small commits. One extraction per commit.
-
-Suggested commit style:
+Disallowed changes unless explicitly approved:
 
 ```txt
-refactor(voice): extract transcript segment processor
-refactor(voice): extract audio duration utilities
-refactor(voice): extract voice payload builders
-refactor(voice): extract turn guard helpers
-refactor(voice): extract audio metrics helpers
-refactor(voice): extract pending audio queue
-refactor(voice): extract capture-aware audio buffer
-refactor(voice): extract speech session lifecycle
-refactor(agent): extract tool selection policy
-refactor(match): extract education matcher
+moving business logic into visual-only components
+renaming props without updating callers
+removing accessibility labels
+changing admin visibility
+changing route behaviour
+changing empty/error state behaviour
 ```
 
-Each commit must include:
+Manual QA:
 
-- extracted module
-- updated import in original file
-- focused tests
-- no unrelated formatting churn
-
-Avoid large mixed commits.
-
----
-
-## 17. Rollback Strategy
-
-For every phase:
-
-1. Commit after tests pass.
-2. If tests fail, fix before continuing.
-3. If voice behaviour regresses, revert the last refactor commit.
-4. If production behaviour is uncertain, keep old implementation behind a temporary feature flag.
-5. Remove feature flags only after dev testing and evals pass.
-
-For voice-specific changes, rollback threshold is strict:
-
-- transcript becomes empty more often
-- STT final stops arriving
-- partial fallback stops working
-- speech_end fires duplicate turns
-- first TTS audio is delayed
-- barge-in stops working
-- p95 voice latency increases
-- `session_ready` timing changes unexpectedly
-- VAD metadata disappears from turn processing
-
-Any of these should block the phase.
-
----
-
-## 18. Required Test Commands
-
-Run these after every small commit:
-
-```bash
-npm run lint
-```
-
-Run the relevant focused suite based on the touched area.
-
-For backend voice work:
-
-```bash
-npm run test:voice
-```
-
-For every backend voice phase:
-
-```bash
-npm run lint
-npm run test:voice
-npm run eval:voice-robustness
-```
-
-For voice Phase 4, Phase 5, and Phase 6:
-
-```bash
-npm run benchmark:voice-latency:gate
-```
-
-Before marking Phase 2 complete:
-
-```bash
-npm run test:all
-npm run eval:local
-```
-
-Run real evals only when API keys and environment are available:
-
-```bash
-npm run eval:real
+```txt
+page loads
+main action works
+error state renders
+empty state renders
+mobile layout still usable
+admin-only areas remain hidden from non-admin users
 ```
 
 ---
 
-## 19. Definition of Done
+## 18. Safe Extraction Order
 
-Phase 2 refactoring is done only when:
+For each file:
 
-- large-file inventory has been reviewed
-- large files are reduced where practical
-- extracted modules have clear responsibility
-- public APIs remain stable
-- voice WebSocket contract remains stable
-- voice state machine remains stable
-- existing regression tests are preserved
-- focused tests pass
-- relevant grouped tests pass
-- evals pass
-- voice latency gate passes for risky voice phases
-- no p95 latency regression is observed
-- no known transcript quality regression exists
-- documentation reflects the new module boundaries
+```txt
+1. Write behaviour contract
+2. Identify existing tests
+3. Add missing regression tests
+4. Extract pure helpers
+5. Extract constants only if shared safely
+6. Extract payload builders
+7. Extract validation guards
+8. Extract metrics/trace helpers
+9. Extract stateful coordination last
+10. Run focused tests
+11. Run phase gate tests
+12. Commit
+```
+
+Do not start by extracting lifecycle managers or orchestration classes.
 
 ---
 
-## 20. Implementation Order Summary
+## 19. Voice-Specific Safe Extraction Order
 
 Recommended order:
 
 ```txt
-0. large-file inventory and risk classification
+0. Confirm current voice behaviour contract
 1. transcriptSegmentProcessor.js
 2. audioDurationUtils.js
 3. voicePayloadBuilders.js
@@ -1120,17 +1065,108 @@ Recommended order:
 8. duplexAudioCaptureBuffer.js only if still useful
 9. duplexSpeechSessionLifecycle.js
 10. final cleanup of duplexVoiceAgentService.js
-11. apply same pattern to master AI, parsing, matching, reports, and frontend hooks
 ```
 
-Do not start with lifecycle extraction. Do not start with a full rewrite of `duplexVoiceAgentService.js`.
+Do not start with lifecycle extraction.
+
+Do not start with a full rewrite of `duplexVoiceAgentService.js`.
 
 ---
 
-## 21. Final Note
+## 20. Commit Strategy
+
+Use small commits. One extraction per commit.
+
+Suggested commit style:
+
+```txt
+refactor(voice): extract transcript segment processor
+refactor(voice): extract audio duration utilities
+refactor(voice): extract voice payload builders
+refactor(voice): extract turn guard helpers
+refactor(voice): extract pending audio queue
+refactor(agent): extract tool selection policy
+refactor(cv): extract section normalizer
+refactor(jd): extract requirement parser
+refactor(match): extract education matcher
+refactor(report): extract evidence anchor builder
+refactor(frontend): extract interview status panel
+```
+
+Each commit must include:
+
+- behaviour contract update for the touched file
+- extracted module
+- updated imports
+- focused tests
+- no unrelated formatting churn
+
+Avoid large mixed commits.
+
+---
+
+## 21. Rollback Strategy
+
+For every phase:
+
+1. Commit after tests pass.
+2. If tests fail, fix before continuing.
+3. If behaviour regresses, revert the last refactor commit.
+4. If production behaviour is uncertain, keep old implementation behind a temporary feature flag.
+5. Remove feature flags only after dev testing and evals pass.
+
+Rollback threshold is strict for these regressions:
+
+```txt
+voice transcript becomes empty more often
+STT final stops arriving
+partial fallback stops working
+speech_end fires duplicate turns
+first TTS audio is delayed
+barge-in stops working
+p95 voice latency increases
+session_ready timing changes unexpectedly
+VAD metadata disappears from turn processing
+CV parser returns fewer fields
+JD parser loses must-have requirements
+education match becomes over-permissive
+match evidence anchors disappear
+report includes unsupported claims
+auth or ownership checks weaken
+frontend route/action breaks
+admin-only UI becomes visible to non-admin users
+```
+
+Any of these should block the phase.
+
+---
+
+## 22. Definition of Done
+
+Phase 2 refactoring is done only when:
+
+- large-file inventory has been reviewed
+- every touched file has a behaviour contract
+- large files are reduced where practical
+- extracted modules have clear responsibility
+- public APIs remain stable
+- route/WebSocket contracts remain stable
+- existing regression tests are preserved
+- focused tests pass
+- relevant grouped tests pass
+- evals pass
+- voice latency gate passes for risky voice phases
+- no p95 latency regression is observed
+- no known transcript quality regression exists
+- no known parsing/matching/report regression exists
+- documentation reflects the new module boundaries
+
+---
+
+## 23. Final Note
 
 This refactor is approved in direction, but only under a behaviour-preserving execution model.
 
 The codebase does need smaller files. The 200-line maintainability target is valid. However, critical files must be split like surgery, not like a blind rewrite.
 
-For voice, correctness beats line count. A 230-line orchestrator that preserves the state machine is better than a 120-line file that hides broken behaviour across four managers.
+For every target file, Bob must first write down the current behaviour, then refactor, then prove the same behaviour still works with tests.
