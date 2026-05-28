@@ -34,10 +34,18 @@ const truncate = (value = '', maxLength = 260) => {
 
 const buildProjectEvidenceText = (profile = {}) => {
   const directProjectText = getSectionText(profile, 'projects');
-  const projects = profile.evidenceProfile?.sections?.projects || [];
-  const techEvidenceItems = profile.evidenceProfile?.evidenceItems || [];
 
-  const projectRows = projects.map((project) => {
+  // Prefer the canonical projects section when it exists. Do not merge generated
+  // evidenceProfile rows back into the editable review field because reviewed CVs
+  // rebuild evidenceProfile from this text. Re-merging generated evidence causes
+  // repeated save cycles to multiply evidenceItems.
+  if (directProjectText) {
+    return directProjectText;
+  }
+
+  const projects = profile.evidenceProfile?.sections?.projects || [];
+
+  return projects.map((project) => {
     const title = project.title || 'Project';
     const techStack = Array.isArray(project.techStack) && project.techStack.length
       ? `Tech stack: ${project.techStack.join(', ')}`
@@ -48,17 +56,9 @@ const buildProjectEvidenceText = (profile = {}) => {
     const outcomes = Array.isArray(project.outcomes) && project.outcomes.length
       ? `Outcomes: ${project.outcomes.slice(0, 2).join(' ')}`
       : '';
+
     return [title, techStack, responsibilities, outcomes].filter(Boolean).join('\n');
-  });
-
-  const techEvidenceRows = techEvidenceItems
-    .filter((item) => item.sourceType === 'project_tech_stack')
-    .map((item) => item.text)
-    .filter(Boolean);
-
-  return [directProjectText, ...projectRows, ...techEvidenceRows]
-    .filter(Boolean)
-    .join('\n\n');
+  }).filter(Boolean).join('\n\n');
 };
 
 
