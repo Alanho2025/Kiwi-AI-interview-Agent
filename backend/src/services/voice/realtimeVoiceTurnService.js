@@ -50,6 +50,40 @@ const buildSessionPatch = (agentResult, session) => {
       };
 };
 
+const measureTtsProviderCall = async ({ trace, synthesizeAssistantSpeech, text, voiceName, usageContext }) => {
+  const synthesis = await trace.measure('tts.provider_call', () => synthesizeAssistantSpeech({
+    text,
+    voiceName,
+    usageContext,
+  }), {
+    textLength: String(text || '').length,
+  });
+  trace.mark('tts.provider_result', {
+    provider: synthesis.provider,
+    contentType: synthesis.contentType,
+    outputFormat: synthesis.outputFormat,
+    audioBytes: synthesis.audioBuffer?.length || 0,
+    hasProviderDiagnostics: Boolean(synthesis.diagnostics?.length),
+  });
+  if (Array.isArray(synthesis.diagnostics)) {
+    synthesis.diagnostics.forEach((item) => {
+      trace.mark(`tts.provider.${item.step}`, item);
+    });
+  }
+  return synthesis;
+};
+
+const encodeAssistantAudio = ({ trace, synthesis }) => {
+  const startedAt = Date.now();
+  const base64 = toBase64(synthesis.audioBuffer);
+  trace.mark('tts.base64_encode', {
+    durationMs: Date.now() - startedAt,
+    audioBytes: synthesis.audioBuffer?.length || 0,
+    base64Length: base64.length,
+  });
+  return base64;
+};
+
 export const processRealtimeVoiceTurn = async ({
   session,
   userId,
@@ -168,6 +202,8 @@ export const processRealtimeVoiceTurn = async ({
       answer: normalizedAnswer,
       inputMode,
       vad,
+      clientTurnId,
+      currentQuestionId: latestQuestion?.id || null,
     },
     onSentence: tracedOnSentence,
     trace,
@@ -215,7 +251,9 @@ export const processRealtimeVoiceTurn = async ({
       }, { sessionId: session.id, questionId });
     } else {
       try {
-        const synthesis = await trace.measure('tts_synthesis', () => synthesizeAssistantSpeech({
+        const synthesis = await measureTtsProviderCall({
+          trace,
+          synthesizeAssistantSpeech,
           text: assistantText,
           voiceName,
           usageContext: {
@@ -224,11 +262,12 @@ export const processRealtimeVoiceTurn = async ({
             stage: 'interview',
             source: 'realtime_voice_turn',
           },
-        }));
+        });
         trace.mark('adaptive.tts_first_audio', { mode: 'full_synthesis' });
         const aiTurns = updatedSession?.transcript?.filter((turn) => turn.role === 'ai') || [];
         const latestAiTurn = aiTurns[aiTurns.length - 1] || null;
         const questionId = latestAiTurn?.questionId || null;
+        const base64 = encodeAssistantAudio({ trace, synthesis });
 
         assistantAudio = {
           provider: synthesis.provider,
@@ -236,8 +275,14 @@ export const processRealtimeVoiceTurn = async ({
           voiceName: synthesis.voiceName,
           outputFormat: synthesis.outputFormat,
           storageKey: null,
-          base64: toBase64(synthesis.audioBuffer),
+          base64,
         };
+        trace.mark('assistant_audio_payload_ready', {
+          provider: synthesis.provider,
+          contentType: synthesis.contentType,
+          audioBytes: synthesis.audioBuffer?.length || 0,
+          base64Length: base64.length,
+        });
 
         enqueueBackgroundJob('archive-realtime-assistant-audio', async () => {
           const savedOutputAudio = await saveBufferToLocalStorage({

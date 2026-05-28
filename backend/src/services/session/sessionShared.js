@@ -19,85 +19,31 @@ import {
   resolveInterviewModeConfig,
 } from '../../config/interviewBlueprints.js';
 import { buildCapabilityPrompt, isTechnicalCapabilityGroup } from './capabilityQuestionPromptService.js';
+import {
+  buildFullTranscript,
+  retentionDate,
+  clampVarchar,
+  titleCaseWords,
+  cleanDisplayTitle,
+  extractDisplayTitle,
+  findUniversalRequirementTarget,
+} from '../../utils/sessionHelpers.js';
+import {
+  buildOpeningQuestion,
+  buildWrapUpQuestion,
+  buildTechnicalPrompt,
+  buildRoleCompetencyPrompt,
+  buildBehaviouralPrompt,
+} from '../../utils/questionBuilders.js';
 
-export const buildFullTranscript = (turns) => turns.map((turn) => `${turn.role.toUpperCase()}: ${turn.text}`).join('\n\n');
-export const retentionDate = () => new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
-
-export const clampVarchar = (value, maxLength = 255, fallback = '') => {
-  const text = String(value ?? fallback ?? '').trim() || fallback;
-  return text.length > maxLength ? text.slice(0, maxLength) : text;
-};
-
-const ROLE_ACRONYMS = new Set(['QA', 'NZ', 'API', 'SQL', 'AWS', 'GCP', 'UI', 'UX']);
-export const titleCaseWords = (value = '') => value
-  .split(/\s+/)
-  .filter(Boolean)
-  .map((part) => {
-    if (ROLE_ACRONYMS.has(part.toUpperCase())) return part.toUpperCase();
-    if (/^\.?net$/i.test(part)) return '.NET';
-    const parenthetical = part.match(/^\(([^)]+)\)$/);
-    if (parenthetical?.[1]) {
-      const inner = parenthetical[1];
-      const upperInner = inner.toUpperCase();
-      if (ROLE_ACRONYMS.has(upperInner)) return `(${upperInner})`;
-      return `(${inner.charAt(0).toUpperCase()}${inner.slice(1).toLowerCase()})`;
-    }
-    if (/^[A-Z0-9_/-]{2,}$/.test(part)) return part;
-    return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
-  })
-  .join(' ');
-
-const DISPLAY_TITLE_ROLE_NOUN_PATTERN = /\b(?:engineer|developer|designer|analyst|architect|consultant|specialist|intern|scientist|administrator|programme|program|product manager|coordinator|assistant|psychologist)\b/i;
-const DISPLAY_TITLE_FALSE_POSITIVE_HIRING_ROLES = /\b(?:hiring manager|hiring coordinator|recruitment manager|talent acquisition specialist|people & culture advisor|people and culture advisor)\b/i;
-const DISPLAY_TITLE_MARKETING_PREFIX_PATTERNS = [
-  /^(?:we\s+are\s+)?(?:now\s+)?hiring\s*[:：]?\s+(?:for\s+)?(?:(?:a|an|the)\s+)?/i,
-  /^we\s+are\s+looking\s+for\s+(?:(?:a|an|the)\s+)?/i,
-  /^join\s+us\s+as\s+(?:(?:a|an|the)\s+)?/i,
-  /^open\s+role\s*[:：]?\s*/i,
-  /^role\s*[:：]?\s*/i,
-  /^position\s*[:：]?\s*/i,
-];
-
-export const cleanDisplayTitle = (value = '') => {
-  let text = String(value || '')
-    .replace(/\s+/g, ' ')
-    .replace(/[.,;:!?-]+\s*$/, '')
-    .trim();
-
-  if (!text || DISPLAY_TITLE_FALSE_POSITIVE_HIRING_ROLES.test(text)) return text;
-
-  for (const pattern of DISPLAY_TITLE_MARKETING_PREFIX_PATTERNS) {
-    const cleaned = text.replace(pattern, '').replace(/[.,;:!?-]+\s*$/, '').trim();
-    if (cleaned && cleaned !== text && DISPLAY_TITLE_ROLE_NOUN_PATTERN.test(cleaned)) {
-      text = cleaned;
-      break;
-    }
-  }
-
-  return text;
-};
-
-export const extractDisplayTitle = (...candidates) => {
-  for (const candidate of candidates) {
-    const text = String(candidate || '').replace(/\s+/g, ' ').trim();
-    if (!text) continue;
-
-    const directTitleMatch = text.match(/(?:job\s*title|position|role)\s*:\s*([^\n.]{3,120})/i);
-    if (directTitleMatch?.[1]) return cleanDisplayTitle(directTitleMatch[1]);
-
-    const commonRoleMatch = text.match(/\b((?:Junior|Senior|Lead|Principal|Staff|Graduate|Mid-Level|Solutions|Software|Backend|Frontend|Full[-\s]?Stack|Mobile|DevOps|Data|Civil|Platform|QA|Test|Product|AI|Machine Learning|Cloud|Automation|Telehealth)?\s*(?:Software Engineer|Solutions Engineer|Backend Engineer|Frontend Engineer|Full Stack Engineer|Mobile Developer|React Native Developer|DevOps Engineer|Data Engineer|Data \w+ AI Engineer|Data & AI Engineer|AI Engineer|Automation Coordinator|Workflow Automation Assistant|Civil Engineer|Platform Engineer|QA Engineer|Test Engineer|Product Manager|Developer|Data Scientist|Machine Learning Engineer|Cloud Engineer|Psychologist|Coordinator|Assistant))\b/i);
-    if (commonRoleMatch?.[1]) return cleanDisplayTitle(commonRoleMatch[1]);
-
-    const firstLine = text.split('\n').map((line) => line.trim()).find(Boolean) || '';
-    if (firstLine && firstLine.length <= 120 && !/^(we|our|about|in\b)\b/i.test(firstLine)) return cleanDisplayTitle(firstLine);
-
-    const sentenceMatch = text.match(/^([^.!?]{8,140}?)(?:[.!?]|$)/);
-    if (sentenceMatch?.[1] && !/^(we|our|in\b)\b/i.test(sentenceMatch[1].trim())) return cleanDisplayTitle(sentenceMatch[1]);
-
-    return cleanDisplayTitle(text.slice(0, 80));
-  }
-
-  return 'Interview Session';
+// Re-export helper functions for backward compatibility
+export {
+  buildFullTranscript,
+  retentionDate,
+  clampVarchar,
+  titleCaseWords,
+  cleanDisplayTitle,
+  extractDisplayTitle,
 };
 
 export const mapSessionRow = (row) => ({
@@ -161,135 +107,16 @@ export const buildCanonicalRoleMeta = ({ resolvedTargetRole = '', normalizedAnal
   };
 };
 
-const buildOpeningQuestion = ({ roleLabel = 'the role', companyName = '', level = 'junior' } = {}) => {
-  const companyClause = companyName ? ` with ${companyName}` : '';
-  if (String(level) === 'advanced') {
-    return `Hi, thanks for joining today${companyClause}. To get us started, could you introduce yourself and walk me through the parts of your background that best prepare you for this ${roleLabel} interview?`;
-  }
-  if (String(level) === 'intermediate') {
-    return `Hi, thanks for being here today${companyClause}. To start, could you briefly introduce yourself and highlight the experience most relevant to this ${roleLabel} interview?`;
-  }
-  return `Hi, thanks for joining today${companyClause}. Could you briefly introduce yourself and explain what interested you in this ${roleLabel} interview?`;
-};
+// buildOpeningQuestion and buildWrapUpQuestion are now imported from questionBuilders.js (line 32-33)
 
-const buildWrapUpQuestion = () => ({
-  type: 'wrap_up',
-  category: 'closing',
-  stage: 'wrap_up',
-  topic: 'candidate_questions',
-  followUpDepth: 0,
-  text: 'Before we finish, what questions do you have for me about the role or team?',
-  reason: 'Close the conversation naturally.',
-  priority: 999,
-  basedOnSkills: [],
-  sourceType: 'closing',
-  matchedRequirementId: 'closing_questions',
-  matchedSkill: 'candidate_questions',
-  cvEvidenceRefs: [],
-  generationReason: 'Finish naturally and give the candidate space for questions.',
-  confidence: 1,
-  planPriority: 999,
-});
-
-const buildTechnicalPrompt = ({ skill, level, roleLabel, followUpDepth }) => {
-  if (followUpDepth > 0) {
-    if (level === 'advanced') return `What trade-off, risk, or debugging judgement did you handle yourself around ${skill}, and how did you know your approach worked?`;
-    if (level === 'intermediate') return `What was your exact approach with ${skill}, and how did you judge whether it worked?`;
-    return `What was your exact approach with ${skill}, and what result came from it?`;
-  }
-  if (level === 'advanced') return `Tell me about a production-level example where you made an important design, trade-off, or implementation decision using ${skill} for a ${roleLabel} problem.`;
-  if (level === 'intermediate') return `Tell me about a project where you used ${skill} and explain the key decisions you made.`;
-  return `Tell me about a project where you used ${skill} in a practical way.`;
-};
+// buildTechnicalPrompt, findUniversalRequirementTarget, and buildRoleCompetencyPrompt
+// are now imported from questionBuilders.js and sessionHelpers.js (lines 29-36)
 
 const normalizeRequirementKey = (value = '') => String(value || '').toLowerCase().replace(/[^a-z0-9+#.]+/g, ' ').replace(/\s+/g, ' ').trim();
 
-const findUniversalRequirementTarget = ({ topic = '', rubric = {} } = {}) => {
-  const key = normalizeRequirementKey(topic);
-  const requirements = rubric.universalRoleProfile?.requirements || rubric.metadata?.universalRoleProfile?.requirements || [];
-  return requirements.find((item) => {
-    if (!item || typeof item !== 'object') return false;
-    const labels = [item.text, item.label, item.normalizedCapability].map(normalizeRequirementKey).filter(Boolean);
-    return labels.includes(key) || labels.some((label) => key.includes(label) || label.includes(key));
-  }) || null;
-};
-
 const isTechnicalRequirementCategory = (category = '', capabilityGroup = '') => isTechnicalCapabilityGroup(capabilityGroup, category);
 
-const buildRoleCompetencyPrompt = ({ target = {}, skill = '', level = 'junior', roleLabel = 'the role', followUpDepth = 0 } = {}) => {
-  const safeTarget = target && typeof target === 'object' ? target : {};
-  const category = safeTarget.category || '';
-  const capabilityGroup = safeTarget.capabilityGroup || '';
-  const capability = safeTarget.normalizedCapability || safeTarget.text || safeTarget.label || skill;
-  const capabilityPrompt = buildCapabilityPrompt({ capabilityGroup, category, capability, roleLabel, followUpDepth });
-  if (capabilityPrompt) return capabilityPrompt;
-
-  if (!category || isTechnicalRequirementCategory(category, capabilityGroup)) {
-    return buildTechnicalPrompt({ skill: capability, level, roleLabel, followUpDepth });
-  }
-
-  if (followUpDepth > 0) {
-    if (['qualification', 'certification', 'professional_registration', 'insurance_or_indemnity', 'compliance_or_safety', 'availability_or_location'].includes(category)) {
-      return `What specific evidence can you provide for ${capability}, and where have you applied it in practice?`;
-    }
-    if (category === 'customer_or_stakeholder') {
-      return `What made that stakeholder situation difficult, what did you do personally, and what was the outcome?`;
-    }
-    if (category === 'communication' || category === 'report_writing') {
-      return `How did you adapt your communication for the audience, and how did you know the message landed?`;
-    }
-    if (category === 'leadership') {
-      return `What decision or support did you personally provide, and what changed for the team or work afterwards?`;
-    }
-    return `What was the situation, what did you personally do around ${capability}, and what result came from it?`;
-  }
-
-  if (['qualification', 'certification', 'professional_registration', 'insurance_or_indemnity'].includes(category)) {
-    return `Can you walk me through your ${capability} evidence and how it prepares you for this ${roleLabel} role?`;
-  }
-  if (category === 'assessment_delivery') {
-    return `Tell me about a time you delivered a structured assessment, service, or analysis. What method did you use, and how did you maintain quality?`;
-  }
-  if (category === 'report_writing') {
-    return `Tell me about a professional report or written output you produced. Who used it, and how did you make it accurate and clear?`;
-  }
-  if (category === 'scheduling_or_time_management') {
-    return `Tell me about a time you managed a schedule, calendar, or competing deadlines. How did you keep the work under control?`;
-  }
-  if (category === 'compliance_or_safety') {
-    return `Tell me about a time you had to follow or apply ${capability}. What checks did you make, and what was at stake?`;
-  }
-  if (category === 'availability_or_location') {
-    return `Can you confirm your fit for ${capability}, and explain any practical constraints the team should know about?`;
-  }
-  if (category === 'customer_or_stakeholder') {
-    return `Tell me about a time you worked with a client, customer, referrer, or stakeholder. What happened, what did you do, and what was the outcome?`;
-  }
-  if (category === 'communication') {
-    return `Tell me about a time you used ${capability} in a real work or project situation. Who was the audience, and what result did your communication achieve?`;
-  }
-  if (category === 'leadership') {
-    return `Tell me about a time you showed ${capability}. What did you lead or influence, and what changed because of your actions?`;
-  }
-  if (category === 'responsibility' || category === 'experience' || category === 'case_management') {
-    return `Tell me about a real example where you handled ${capability} for a ${roleLabel} responsibility. What did you own, and what was the result?`;
-  }
-  if (category === 'nice_to_have') {
-    return `The role lists ${capability} as useful. What exposure have you had to it, and how would you build on it if needed?`;
-  }
-  return `Tell me about a time you demonstrated ${capability}. What was the context, what did you do, and what was the outcome?`;
-};
-
-const buildBehaviouralPrompt = ({ topic, level, followUpDepth }) => {
-  if (followUpDepth > 0) {
-    return level === 'advanced'
-      ? 'What was the situation, what decision did you personally drive, and what changed because of it?'
-      : 'What was the situation, what did you do, and what was the outcome?';
-  }
-  if (level === 'advanced') return `Tell me about a time when you had to show ${topic} in a situation with judgement, ambiguity, or stakeholder pressure.`;
-  if (level === 'intermediate') return `Tell me about a time when you had to show ${topic} in a real work or project situation.`;
-  return `Tell me about a time when you had to show ${topic}.`;
-};
+// buildBehaviouralPrompt is now imported from questionBuilders.js (line 36)
 
 export const buildQuestionPoolFromAnalysis = (analysisResult, settings = {}, options = {}) => {
   const hints = analysisResult?.matchingDetails?.questionPlanHints || {};
@@ -348,8 +175,24 @@ export const buildQuestionPoolFromAnalysis = (analysisResult, settings = {}, opt
   for (let index = 0; index < technicalQuestionCount; index += 1) {
     const skill = technicalSkills[index] || technicalSkills[0] || 'a relevant role capability';
     const requirementTarget = findUniversalRequirementTarget({ topic: skill, rubric });
-    const promptText = buildRoleCompetencyPrompt({ target: requirementTarget, skill, level: modeConfig.level, roleLabel, followUpDepth: 0 });
-    const followUpText = buildRoleCompetencyPrompt({ target: requirementTarget, skill, level: modeConfig.level, roleLabel, followUpDepth: 1 });
+    const promptText = buildRoleCompetencyPrompt({
+      target: requirementTarget,
+      skill,
+      level: modeConfig.level,
+      roleLabel,
+      followUpDepth: 0,
+      isTechnicalRequirementCategory,
+      buildCapabilityPrompt,
+    });
+    const followUpText = buildRoleCompetencyPrompt({
+      target: requirementTarget,
+      skill,
+      level: modeConfig.level,
+      roleLabel,
+      followUpDepth: 1,
+      isTechnicalRequirementCategory,
+      buildCapabilityPrompt,
+    });
     const isTechnical = requirementTarget ? isTechnicalRequirementCategory(requirementTarget.category, requirementTarget.capabilityGroup) : true;
     const competencyType = requirementTarget && !isTechnical ? 'role_competency_core' : 'technical_core';
     questions.push({

@@ -13,10 +13,79 @@ import {
   buildCompactRetrievalBundle,
   isCompactVoiceContext,
 } from './compactInterviewContextService.js';
+import { ensureArray, normalizeText, tokenize } from '../../utils/commonHelpers.js';
+import { logger } from '../../utils/logger.js';
 
-const ensureArray = (value) => (Array.isArray(value) ? value : []);
-const normalizeText = (value = '') => String(value || '').trim();
-const tokenize = (value = '') => normalizeText(value).toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+const nowMs = () => Number(process.hrtime.bigint()) / 1_000_000;
+
+const FOLLOW_UP_MEMORY_FAST_MODES = new Set(['probe', 'deepen', 'rephrase', 'scaffold']);
+const FRESH_OR_SHIFT_MODES = new Set(['advance', 'shift_section', 'switch_topic', 'fresh_question']);
+
+const recordDiagnosticStep = (diagnostics, step, startedAt, extra = {}) => {
+  diagnostics.push({
+    step,
+    durationMs: Math.round(nowMs() - startedAt),
+    ...extra,
+  });
+};
+
+const markSkippedContextStep = (trace, diagnostics, step, reason = 'not_required_before_first_audio') => {
+  const startedAt = nowMs();
+  recordDiagnosticStep(diagnostics, step, startedAt, { ok: true, skipped: true, reason });
+  trace?.mark?.(`adaptive.decision_context.${step}`, { ok: true, skipped: true, reason });
+};
+
+const measureContextStep = async (trace, diagnostics, step, fn, extra = {}) => {
+  const startedAt = nowMs();
+  try {
+    const result = await fn();
+    recordDiagnosticStep(diagnostics, step, startedAt, { ok: true, ...extra });
+    if (trace?.mark) {
+      trace.mark(`adaptive.decision_context.${step}`, { ok: true, ...extra });
+    }
+    return result;
+  } catch (error) {
+    recordDiagnosticStep(diagnostics, step, startedAt, {
+      ok: false,
+      error: error?.message || String(error),
+      ...extra,
+    });
+    if (trace?.mark) {
+      trace.mark(`adaptive.decision_context.${step}`, {
+        ok: false,
+        error: error?.message || String(error),
+        ...extra,
+      });
+    }
+    throw error;
+  }
+};
+
+const measureSyncContextStep = (trace, diagnostics, step, fn, extra = {}) => {
+  const startedAt = nowMs();
+  try {
+    const result = fn();
+    recordDiagnosticStep(diagnostics, step, startedAt, { ok: true, ...extra });
+    if (trace?.mark) {
+      trace.mark(`adaptive.decision_context.${step}`, { ok: true, ...extra });
+    }
+    return result;
+  } catch (error) {
+    recordDiagnosticStep(diagnostics, step, startedAt, {
+      ok: false,
+      error: error?.message || String(error),
+      ...extra,
+    });
+    if (trace?.mark) {
+      trace.mark(`adaptive.decision_context.${step}`, {
+        ok: false,
+        error: error?.message || String(error),
+        ...extra,
+      });
+    }
+    throw error;
+  }
+};
 
 const getLastUserAnswer = (transcript = []) => [...ensureArray(transcript)].reverse().find((turn) => turn.role === 'user')?.text || '';
 
@@ -52,42 +121,161 @@ const buildCoverageState = ({ session = {}, evidenceBundle = {} } = {}) => {
   };
 };
 
-export const buildDecisionContext = async ({ taskType, session = {}, retrievalBundle = null, latestEvaluation = null, latestAnswerUnderstanding = null } = {}) => {
-  const latestAnswer = getLastUserAnswer(session.transcript || []);
-  const useCompactContext = taskType === 'interview_next_turn' && isCompactVoiceContext({ session });
-  const contextRetrievalBundle = useCompactContext ? buildCompactRetrievalBundle(retrievalBundle) : retrievalBundle;
-  const evidenceBundle = useCompactContext
-    ? buildCompactEvidenceBundle({ session, retrievalBundle: contextRetrievalBundle })
-    : buildEvidenceBundle({ session, retrievalBundle: contextRetrievalBundle });
+const inferSuggestedFollowUpMode = ({ latestEvaluation = null, latestAnswerUnderstanding = null } = {}) => normalizeText(
+  latestEvaluation?.suggestedNextMode
+  || latestAnswerUnderstanding?.followUpRecommendation?.mode
+  || latestAnswerUnderstanding?.suggestedFollowUp?.mode
+);
+
+export const shouldUseFollowUpMemoryFastPath = ({
+  taskType,
+  session = {},
+  latestEvaluation = null,
+  latestAnswerUnderstanding = null,
+  requestedPolicy = 'auto',
+} = {}) => {
+  if (requestedPolicy === 'full') return false;
+  if (requestedPolicy === 'follow_up_fast') return true;
+  if (taskType !== 'interview_next_turn') return false;
+  if (!isCompactVoiceContext({ session })) return false;
+  if (!latestEvaluation && !latestAnswerUnderstanding) return false;
+  if (latestEvaluation?.closeCurrentIntent) return false;
+
+  const suggestedMode = inferSuggestedFollowUpMode({ latestEvaluation, latestAnswerUnderstanding });
+  if (FRESH_OR_SHIFT_MODES.has(suggestedMode)) return false;
+  if (latestEvaluation?.misunderstandingFlag) return true;
+  if (FOLLOW_UP_MEMORY_FAST_MODES.has(suggestedMode)) return true;
+
+  const missingEvidence = ensureArray(
+    latestEvaluation?.plannerSignals?.missingEvidence
+    || latestAnswerUnderstanding?.missingEvidence
+    || latestAnswerUnderstanding?.coreEvidence?.missing
+  );
+  const followUpValue = normalizeText(latestAnswerUnderstanding?.followUpValue || latestEvaluation?.plannerSignals?.followUpValue);
+  return missingEvidence.length > 0 && followUpValue !== 'low';
+};
+
+const resolveMemoryState = async ({
+  trace,
+  diagnostics,
+  session,
+  latestEvaluation,
+  useFollowUpMemoryFastPath,
+} = {}) => {
+  if (useFollowUpMemoryFastPath) {
+    markSkippedContextStep(trace, diagnostics, 'get_agent_memory', 'follow_up_action_can_use_current_turn_context');
+    markSkippedContextStep(trace, diagnostics, 'get_dynamic_slot_state', 'derive_lightweight_slots_from_current_turn');
+    markSkippedContextStep(trace, diagnostics, 'get_session_reflection_memory', 'background_memory_refresh_for_follow_up');
+    markSkippedContextStep(trace, diagnostics, 'get_user_coaching_memory', 'background_memory_refresh_for_follow_up');
+    const resolvedLatestEvaluation = await measureContextStep(
+      trace,
+      diagnostics,
+      'get_latest_evaluator_record',
+      () => latestEvaluation || getLatestEvaluatorRecord(session.id),
+      { providedEvaluation: Boolean(latestEvaluation), memoryPolicy: 'follow_up_fast' }
+    );
+    return {
+      agentMemory: {},
+      resolvedLatestEvaluation,
+      storedDynamicSlotState: {},
+      sessionReflectionMemory: null,
+      userCoachingMemory: null,
+    };
+  }
+
   const [agentMemory, resolvedLatestEvaluation, storedDynamicSlotState, sessionReflectionMemory, userCoachingMemory] = await Promise.all([
-    getAgentMemory(session.id),
-    latestEvaluation || getLatestEvaluatorRecord(session.id),
-    getDynamicSlotState(session.id),
-    getSessionReflectionMemory(session.id),
-    getUserCoachingMemory(session.userId),
+    measureContextStep(trace, diagnostics, 'get_agent_memory', () => getAgentMemory(session.id), { memoryPolicy: 'full' }),
+    measureContextStep(trace, diagnostics, 'get_latest_evaluator_record', () => latestEvaluation || getLatestEvaluatorRecord(session.id), {
+      providedEvaluation: Boolean(latestEvaluation),
+      memoryPolicy: 'full',
+    }),
+    measureContextStep(trace, diagnostics, 'get_dynamic_slot_state', () => getDynamicSlotState(session.id), { memoryPolicy: 'full' }),
+    measureContextStep(trace, diagnostics, 'get_session_reflection_memory', () => getSessionReflectionMemory(session.id), { memoryPolicy: 'full' }),
+    measureContextStep(trace, diagnostics, 'get_user_coaching_memory', () => getUserCoachingMemory(session.userId), { memoryPolicy: 'full' }),
   ]);
+  return { agentMemory, resolvedLatestEvaluation, storedDynamicSlotState, sessionReflectionMemory, userCoachingMemory };
+};
+
+export const buildDecisionContext = async ({
+  taskType,
+  session = {},
+  retrievalBundle = null,
+  latestEvaluation = null,
+  latestAnswerUnderstanding = null,
+  trace = null,
+  memoryLoadPolicy = 'auto',
+} = {}) => {
+  const diagnostics = [];
+  const latestAnswer = measureSyncContextStep(trace, diagnostics, 'latest_answer_extract', () => getLastUserAnswer(session.transcript || []));
+  const useCompactContext = taskType === 'interview_next_turn' && isCompactVoiceContext({ session });
+  const useFollowUpMemoryFastPath = shouldUseFollowUpMemoryFastPath({
+    taskType,
+    session,
+    latestEvaluation,
+    latestAnswerUnderstanding,
+    requestedPolicy: memoryLoadPolicy,
+  });
+  trace?.mark?.('adaptive.decision_context.memory_policy', {
+    policy: useFollowUpMemoryFastPath ? 'follow_up_fast' : 'full',
+    requestedPolicy: memoryLoadPolicy,
+    compactContext: useCompactContext,
+  });
+  const contextRetrievalBundle = measureSyncContextStep(
+    trace,
+    diagnostics,
+    'compact_retrieval_bundle',
+    () => (useCompactContext ? buildCompactRetrievalBundle(retrievalBundle) : retrievalBundle),
+    { compactContext: useCompactContext }
+  );
+  const evidenceBundle = measureSyncContextStep(
+    trace,
+    diagnostics,
+    'evidence_bundle_build',
+    () => (useCompactContext
+      ? buildCompactEvidenceBundle({ session, retrievalBundle: contextRetrievalBundle })
+      : buildEvidenceBundle({ session, retrievalBundle: contextRetrievalBundle })),
+    { compactContext: useCompactContext }
+  );
+
+  const {
+    agentMemory,
+    resolvedLatestEvaluation,
+    storedDynamicSlotState,
+    sessionReflectionMemory,
+    userCoachingMemory,
+  } = await resolveMemoryState({
+    trace,
+    diagnostics,
+    session,
+    latestEvaluation,
+    useFollowUpMemoryFastPath,
+  });
 
   const resolvedAnswerUnderstanding = latestAnswerUnderstanding || resolvedLatestEvaluation?.fastAnswerUnderstanding || null;
-  const environment = buildInterviewEnvironment({
+  const environment = measureSyncContextStep(trace, diagnostics, 'environment_build', () => buildInterviewEnvironment({
     session,
     retrievalBundle: contextRetrievalBundle,
     latestEvaluation: resolvedLatestEvaluation,
     latestAnswerUnderstanding: resolvedAnswerUnderstanding,
+  }));
+  const currentStage = measureSyncContextStep(trace, diagnostics, 'current_stage_infer', () => inferCurrentStage(session));
+  const coverageState = measureSyncContextStep(trace, diagnostics, 'coverage_state_build', () => buildCoverageState({ session, evidenceBundle }));
+  const candidateSpecificity = measureSyncContextStep(trace, diagnostics, 'specificity_infer', () => inferSpecificityLevel(latestAnswer, resolvedLatestEvaluation), {
+    answerLength: latestAnswer.length,
   });
-  const currentStage = inferCurrentStage(session);
-  const coverageState = buildCoverageState({ session, evidenceBundle });
-  const candidateSpecificity = inferSpecificityLevel(latestAnswer, resolvedLatestEvaluation);
-  const dynamicSlotState = deriveDynamicSlots({
+  const dynamicSlotState = measureSyncContextStep(trace, diagnostics, 'dynamic_slots_derive', () => deriveDynamicSlots({
     latestAnswer,
     coverageState,
     existingState: storedDynamicSlotState,
-  });
+  }));
   const shouldPreferEvaluationTopic = Boolean(
     resolvedLatestEvaluation?.currentTopic
     && resolvedLatestEvaluation?.suggestedNextMode
     && resolvedLatestEvaluation?.suggestedNextMode !== 'shift_section',
   );
-  const currentTopic = (shouldPreferEvaluationTopic ? resolvedLatestEvaluation?.currentTopic : null)
+  const currentTopic = measureSyncContextStep(trace, diagnostics, 'current_topic_resolve', () => (
+    (shouldPreferEvaluationTopic ? resolvedLatestEvaluation?.currentTopic : null)
+    || resolvedAnswerUnderstanding?.followUpRecommendation?.topic
     || resolvedAnswerUnderstanding?.suggestedFollowUp?.topic
     || environment.questionContext.latestQuestionTopic
     || resolvedLatestEvaluation?.currentTopic
@@ -96,27 +284,38 @@ export const buildDecisionContext = async ({ taskType, session = {}, retrievalBu
     || coverageState.missingTopics[0]
     || evidenceBundle.missingEvidence[0]
     || evidenceBundle.matchAnalysis?.questionPlanHints?.priorityTopics?.[0]
-    || 'role_fit';
-  const interviewStructure = buildInterviewTurnPolicy(session, { currentTopic, evaluatorState: resolvedLatestEvaluation });
-  const abductiveState = deriveAbductiveState({
+    || 'role_fit'
+  ));
+  const interviewStructure = measureSyncContextStep(trace, diagnostics, 'interview_turn_policy_build', () => buildInterviewTurnPolicy(session, { currentTopic, evaluatorState: resolvedLatestEvaluation }));
+  const abductiveState = measureSyncContextStep(trace, diagnostics, 'abductive_state_derive', () => deriveAbductiveState({
     latestAnswer,
     currentTopic,
     candidateState: { specificityLevel: candidateSpecificity },
     dynamicSlotState,
-  });
-  const currentSection = inferInterviewSection({
+  }));
+  const currentSection = measureSyncContextStep(trace, diagnostics, 'current_section_infer', () => inferInterviewSection({
     currentStage,
     currentTopic,
     coverageState,
     dynamicSlotState,
     interviewStructure,
-  });
-  const sectionState = buildSectionState({
+  }));
+  const sectionState = measureSyncContextStep(trace, diagnostics, 'section_state_build', () => buildSectionState({
     currentSection,
     coverageState,
     dynamicSlotState,
     interviewStructure,
-  });
+  }));
+
+  if (!trace?.mark && taskType === 'interview_next_turn') {
+    logger.info('Decision context diagnostic breakdown', {
+      sessionId: session.id,
+      userId: session.userId,
+      compactContext: useCompactContext,
+      memoryPolicy: useFollowUpMemoryFastPath ? 'follow_up_fast' : 'full',
+      steps: diagnostics,
+    });
+  }
 
   return {
     taskType,
@@ -128,23 +327,23 @@ export const buildDecisionContext = async ({ taskType, session = {}, retrievalBu
     environment,
     evaluatorState: resolvedLatestEvaluation
       ? {
-          successStatus: resolvedLatestEvaluation.successStatus,
-          evidenceGainScore: resolvedLatestEvaluation.evidenceGainScore,
-          misunderstandingFlag: resolvedLatestEvaluation.misunderstandingFlag,
-          interactionStatus: resolvedLatestEvaluation.interactionStatus,
-          overallInteractionScore: resolvedLatestEvaluation.overallInteractionScore || 0,
-          repetitionRisk: resolvedLatestEvaluation.repetitionRisk,
-          reflectionNeeded: resolvedLatestEvaluation.reflectionNeeded,
-          suggestedNextMode: resolvedLatestEvaluation.suggestedNextMode,
-          currentTopic: resolvedLatestEvaluation.currentTopic,
-          frictionState: resolvedLatestEvaluation.frictionState || null,
-          mentionedEntities: ensureArray(resolvedLatestEvaluation.mentionedEntities),
-          answerUnderstandingSummary: resolvedLatestEvaluation.answerUnderstandingSummary || null,
-          plannerSignals: resolvedLatestEvaluation.plannerSignals || null,
-          fastAnswerUnderstanding: resolvedAnswerUnderstanding,
-          gapClosure: resolvedLatestEvaluation.gapClosure || null,
-          closeCurrentIntent: Boolean(resolvedLatestEvaluation.closeCurrentIntent),
-        }
+        successStatus: resolvedLatestEvaluation.successStatus,
+        evidenceGainScore: resolvedLatestEvaluation.evidenceGainScore,
+        misunderstandingFlag: resolvedLatestEvaluation.misunderstandingFlag,
+        interactionStatus: resolvedLatestEvaluation.interactionStatus,
+        overallInteractionScore: resolvedLatestEvaluation.overallInteractionScore || 0,
+        repetitionRisk: resolvedLatestEvaluation.repetitionRisk,
+        reflectionNeeded: resolvedLatestEvaluation.reflectionNeeded,
+        suggestedNextMode: resolvedLatestEvaluation.suggestedNextMode,
+        currentTopic: resolvedLatestEvaluation.currentTopic,
+        frictionState: resolvedLatestEvaluation.frictionState || null,
+        mentionedEntities: ensureArray(resolvedLatestEvaluation.mentionedEntities),
+        answerUnderstandingSummary: resolvedLatestEvaluation.answerUnderstandingSummary || null,
+        plannerSignals: resolvedLatestEvaluation.plannerSignals || null,
+        fastAnswerUnderstanding: resolvedAnswerUnderstanding,
+        gapClosure: resolvedLatestEvaluation.gapClosure || null,
+        closeCurrentIntent: Boolean(resolvedLatestEvaluation.closeCurrentIntent),
+      }
       : null,
     candidateState: {
       answerStyle: latestAnswer ? (latestAnswer.split(/\s+/).length < 18 ? 'brief' : 'expanded') : 'none',
@@ -184,5 +383,13 @@ export const buildDecisionContext = async ({ taskType, session = {}, retrievalBu
     evidenceBundle,
     latestAnswerUnderstanding: resolvedAnswerUnderstanding,
     latestAnswer,
+    memoryLoadPolicy: {
+      requested: memoryLoadPolicy,
+      effective: useFollowUpMemoryFastPath ? 'follow_up_fast' : 'full',
+      heavyMemorySkippedBeforeFirstAudio: useFollowUpMemoryFastPath,
+    },
+    diagnostics: {
+      decisionContextSteps: diagnostics,
+    },
   };
 };

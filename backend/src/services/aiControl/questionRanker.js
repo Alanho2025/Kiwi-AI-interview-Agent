@@ -15,10 +15,7 @@ const SOURCE_WEIGHTS = {
   agent_generated: 0.45,
 };
 
-const normalizeText = (value = '') => String(value || '').trim();
-const normalizeKey = (value = '') => normalizeText(value).toLowerCase();
-
-const ensureArray = (value) => (Array.isArray(value) ? value : []).filter(Boolean);
+import { normalizeText, normalizeKey, ensureArray } from '../../utils/commonHelpers.js';
 
 const inferSourceType = (question = {}) => {
   const explicit = normalizeKey(question.sourceType);

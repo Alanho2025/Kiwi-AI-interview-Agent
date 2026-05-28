@@ -1,8 +1,6 @@
 import { normalizeCvEvidence } from './cvEvidenceNormalizer.js';
 import { buildCvSignals } from './cvSignalExtractor.js';
-
-const ensureArray = (value) => (Array.isArray(value) ? value : []);
-const unique = (items = []) => [...new Set(items.map((item) => String(item || '').trim()).filter(Boolean))];
+import { ensureArray, unique } from '../../utils/commonHelpers.js';
 
 const normalizeProjects = (projects = []) => ensureArray(projects).map((item) => {
   if (typeof item === 'string') return { title: item, summary: item };

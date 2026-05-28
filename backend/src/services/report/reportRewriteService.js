@@ -1,7 +1,7 @@
 import { callDeepSeek } from '../deepseekService.js';
 import { validateReportOutput } from '../schemaValidationService.js';
+import { ensureArray } from '../../utils/commonHelpers.js';
 
-const ensureArray = (value) => (Array.isArray(value) ? value : []);
 const normalizePrompt = (value = '') => String(value || '').trim().slice(0, 2000);
 
 const extractJsonObject = (text = '') => {

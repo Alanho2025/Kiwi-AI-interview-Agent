@@ -1,8 +1,6 @@
 import crypto from 'crypto';
 import { SessionAnalysis } from '../../db/models/sessionAnalysisModel.js';
-
-const ensureArray = (value) => (Array.isArray(value) ? value : []);
-const normalizeText = (value = '') => String(value || '').trim();
+import { ensureArray, normalizeText } from '../../utils/commonHelpers.js';
 
 const buildLesson = ({ evaluatorState = {}, decisionContext = {}, trajectoryStep = {} } = {}) => {
   const topic = decisionContext.currentTopic || trajectoryStep.targetTopic || evaluatorState.currentTopic || 'role_fit';

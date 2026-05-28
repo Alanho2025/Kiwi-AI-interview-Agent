@@ -1,4 +1,4 @@
-const ensureArray = (value) => (Array.isArray(value) ? value : []);
+import { ensureArray } from '../../utils/commonHelpers.js';
 
 const normalizeLabel = (value = '') => String(value || '')
   .toLowerCase()

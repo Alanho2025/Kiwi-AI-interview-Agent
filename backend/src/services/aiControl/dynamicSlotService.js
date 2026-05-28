@@ -1,8 +1,5 @@
 import { SessionAnalysis } from '../../db/models/sessionAnalysisModel.js';
-
-const normalizeText = (value = '') => String(value || '').trim();
-const tokenize = (value = '') => normalizeText(value).toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
-const unique = (value = []) => [...new Set((Array.isArray(value) ? value : []).filter(Boolean).map((item) => String(item)))];
+import { normalizeText, tokenize, unique } from '../../utils/commonHelpers.js';
 
 const DEFAULT_DYNAMIC_SLOT_STATE = {
   activeSlots: [],

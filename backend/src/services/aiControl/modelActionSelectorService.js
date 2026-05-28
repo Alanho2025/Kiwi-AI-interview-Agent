@@ -1,7 +1,5 @@
 import { callDeepSeek } from '../deepseekService.js';
-
-const ensureArray = (value) => (Array.isArray(value) ? value : []);
-const normalizeText = (value = '') => String(value || '').trim();
+import { ensureArray, normalizeText } from '../../utils/commonHelpers.js';
 
 const extractJsonObject = (text = '') => {
   const fencedMatch = String(text || '').match(/```(?:json)?\s*([\s\S]*?)\s*```/i);

@@ -1,4 +1,5 @@
 import { SessionAnalysis } from '../../db/models/sessionAnalysisModel.js';
+import { normalizeText } from '../../utils/commonHelpers.js';
 
 const FILLER_PATTERNS = [
   /\bum+\b/gi,
@@ -11,7 +12,6 @@ const FILLER_PATTERNS = [
   /\bkind of\b/gi,
 ];
 
-const normalizeText = (value = '') => String(value || '').trim();
 const words = (value = '') => normalizeText(value).split(/\s+/).filter(Boolean);
 const countMatches = (text = '', pattern) => (String(text || '').match(pattern) || []).length;
 

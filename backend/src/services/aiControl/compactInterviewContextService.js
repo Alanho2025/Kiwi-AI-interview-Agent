@@ -1,7 +1,5 @@
 import { buildMatchAnalysis, buildNormalizedCvProfile, buildNormalizedJdRubric } from './sessionStateService.js';
-
-const ensureArray = (value) => (Array.isArray(value) ? value : []);
-const normalizeText = (value = '') => String(value || '').trim();
+import { ensureArray, normalizeText } from '../../utils/commonHelpers.js';
 const truncateText = (value = '', maxLength = 240) => {
   const text = normalizeText(value);
   return text.length > maxLength ? `${text.slice(0, maxLength).trim()}...` : text;
