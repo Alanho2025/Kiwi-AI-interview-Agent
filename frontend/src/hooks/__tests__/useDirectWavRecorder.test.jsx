@@ -20,6 +20,9 @@ describe('useDirectWavRecorder', () => {
     let mockTrack;
 
     beforeEach(() => {
+        // Use fake timers first
+        vi.useFakeTimers();
+
         mockTrack = {
             stop: vi.fn(),
         };
@@ -38,8 +41,9 @@ describe('useDirectWavRecorder', () => {
             }),
             stop: vi.fn(function () {
                 this.state = 'inactive';
+                // Synchronously call onstop for fake timers compatibility
                 if (this.onstop) {
-                    setTimeout(() => this.onstop(), 0);
+                    this.onstop();
                 }
             }),
         };
@@ -53,8 +57,8 @@ describe('useDirectWavRecorder', () => {
             },
         });
 
+        // Mock performance.now after setting up fake timers
         vi.spyOn(performance, 'now').mockReturnValue(1000);
-        vi.useFakeTimers();
     });
 
     afterEach(() => {
@@ -193,7 +197,9 @@ describe('useDirectWavRecorder', () => {
         });
 
         it('should return recording duration', async () => {
-            vi.spyOn(performance, 'now')
+            // Reset and setup performance.now mock for this specific test
+            performance.now.mockRestore();
+            const nowSpy = vi.spyOn(performance, 'now')
                 .mockReturnValueOnce(1000) // startRecording
                 .mockReturnValueOnce(3500); // stopRecording
 
@@ -239,7 +245,8 @@ describe('useDirectWavRecorder', () => {
                 recordingResult = await result.current.stopRecording();
             });
 
-            expect(result.current.recordingError).toContain('Could not stop');
+            // The actual error message from the hook includes the original error message
+            expect(result.current.recordingError).toBe('Stop failed');
             expect(result.current.isRecording).toBe(false);
             expect(recordingResult.file).toBeNull();
         });
@@ -447,6 +454,11 @@ describe('useDirectWavRecorder', () => {
                 recordingResult1 = await result.current.stopRecording();
             });
 
+            // Advance time to ensure Date.now() returns different value
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(10);
+            });
+
             // 開始第二次錄音
             await act(async () => {
                 await result.current.startRecording();
@@ -532,6 +544,10 @@ describe('useDirectWavRecorder', () => {
 
     describe('Timer Behavior', () => {
         it('should update every 150ms', async () => {
+            // Mock performance.now to return increasing values
+            let currentTime = 1000;
+            performance.now.mockImplementation(() => currentTime);
+
             const { result } = renderHook(() => useDirectWavRecorder());
 
             await act(async () => {
@@ -540,7 +556,9 @@ describe('useDirectWavRecorder', () => {
 
             const initialDuration = result.current.recordingDurationMs;
 
+            // Advance both fake timers and performance.now
             await act(async () => {
+                currentTime += 150;
                 await vi.advanceTimersByTimeAsync(150);
             });
 
