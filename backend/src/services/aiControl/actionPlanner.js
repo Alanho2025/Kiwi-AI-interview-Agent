@@ -105,8 +105,8 @@ const withDefaultCandidates = ({ basePlan, targetTopic, coverageState = {}, matc
   if (ensureArray(matchState.validationTargets).length && focusAreaKey !== 'behavioral') {
     candidates.push(buildCandidateAction(
       AGENT_ACTION_TYPES.ASK_VALIDATION_QUESTION,
-      basePlan.selectedAction === AGENT_ACTION_TYPES.ASK_VALIDATION_QUESTION ? basePlan.confidence || 0.82 : 0.58,
-      'A validation target remains unresolved and could be checked with direct evidence.',
+      basePlan.selectedAction === AGENT_ACTION_TYPES.ASK_VALIDATION_QUESTION ? basePlan.confidence || 0.82 : 0.74,
+      'A validation target remains unresolved and should be checked with direct evidence before generic friction probes.',
       ['claim_validation'],
       'medium',
       { targetTopic: matchState.validationTargets[0], probeType: 'validation', forceEvidence: true },
@@ -278,6 +278,15 @@ export const selectNextAction = (decisionContext = {}) => {
     });
   }
 
+  if (matchState.validationTargets?.length && focusAreaKey !== 'behavioral') {
+    return finalizePlan({
+      selectedAction: AGENT_ACTION_TYPES.ASK_VALIDATION_QUESTION,
+      rationale: 'There are unresolved validation targets that should be checked with direct evidence before generic friction or stress probes.',
+      confidence: 0.88,
+      actionInput: { targetTopic: matchState.validationTargets[0], probeType: 'validation', forceEvidence: true },
+    });
+  }
+
   // --- STRATEGIC INTENTS ---
   const projectUsage = agentMemory.projectUsage || {};
   const overusedProject = Object.keys(projectUsage).find((project) => projectUsage[project] >= 2);
@@ -295,7 +304,6 @@ export const selectNextAction = (decisionContext = {}) => {
     && (evaluatorState.frictionState?.frictionLevel === 'low' || !evaluatorState.frictionState?.frictionDetected);
 
   if (isTooPerfect && !isFinalPlannedTurn) {
-    // If the answer is strong but "happy path", introduce stress or look for friction
     const useFriction = focusAreaKey === 'behavioral' || Math.random() > 0.5;
     return finalizePlan({
       selectedAction: useFriction ? AGENT_ACTION_TYPES.PROBE_FRICTION : AGENT_ACTION_TYPES.PROBE_STRESS,
@@ -307,7 +315,6 @@ export const selectNextAction = (decisionContext = {}) => {
       buildCandidateAction(AGENT_ACTION_TYPES.ASK_DEEP_DIVE_QUESTION, 0.64, 'A deep dive can still test decision quality without forcing a stress scenario.', ['decision_quality', 'validation_method'], 'low', { targetTopic, probeType: 'deepen', forceEvidence: true }),
     ]);
   }
-  // -------------------------
 
   if (abductiveState.shouldProbe) {
     if (focusAreaKey === 'behavioral') {
