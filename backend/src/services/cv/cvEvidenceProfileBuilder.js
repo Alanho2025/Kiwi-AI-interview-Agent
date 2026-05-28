@@ -50,6 +50,12 @@ const inferDomain = (text = '') => {
   return '';
 };
 
+const normalizeEvidenceText = (text = '') => String(text || '')
+  .replace(/\s+/g, ' ')
+  .replace(/[.,;:\s]+$/g, '')
+  .trim()
+  .toLowerCase();
+
 const extractTools = (text = '') => [...new Set((String(text || '').match(TOOL_PATTERN) || [])
   .map((item) => item.replace(/^node$/i, 'Node.js')))] ;
 
@@ -74,6 +80,18 @@ const withEvidenceStrength = (item = {}, index = 0) => {
     responsibilitySignal: Boolean(item.responsibilitySignal ?? /built|owned|led|managed|coordinated|supported|handled|delivered|implemented|resolved|prepared|maintained|designed|developed|evaluated|benchmarked/i.test(text)),
     achievementSignal: Boolean(item.achievementSignal ?? /\d|%|reduced|improved|increased|saved|delivered|launched|achieved/i.test(text)),
   };
+};
+
+const dedupeEvidenceItems = (items = []) => {
+  const seen = new Set();
+  return items.filter((item) => {
+    const normalizedText = normalizeEvidenceText(item.text);
+    if (!normalizedText) return false;
+    const key = `${item.sourceType || 'unknown'}:${item.projectTitle || ''}:${normalizedText}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 };
 
 const extractQuantifiedEvidence = ({ achievements = [], evidenceItems = [], normalizedText = '' } = {}) => {
@@ -111,7 +129,7 @@ export const buildCvEvidenceProfile = (cvProfile = {}, normalizedText = '', opti
     skillLabels: hardSkills,
   });
 
-  const evidenceItems = [
+  const evidenceItems = dedupeEvidenceItems([
     ...(personalStatement ? [{ sourceType: 'summary', text: personalStatement }] : []),
     ...experienceEntries.map((text) => ({ sourceType: 'experience', text })),
     ...projects.flatMap((project) => {
@@ -134,7 +152,7 @@ export const buildCvEvidenceProfile = (cvProfile = {}, normalizedText = '', opti
     ...volunteerEntries.map((text) => ({ sourceType: 'volunteer', text })),
     ...hardSkills.map((text) => ({ sourceType: 'skill', text })),
     ...achievements.map((item) => ({ sourceType: 'achievement', text: item.text, achievementType: item.type })),
-  ].map(withEvidenceStrength);
+  ]).map(withEvidenceStrength);
 
   return {
     schemaVersion: 'cv_evidence_profile_v1',
