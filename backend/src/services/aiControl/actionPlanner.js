@@ -146,6 +146,7 @@ export const selectNextAction = (decisionContext = {}) => {
     || abductiveState.probeTopic
     || coverageState.missingTopics?.[0]
     || 'role_fit';
+  const shouldProbeWeakEvidence = candidateState.specificityLevel === 'low' || evaluatorState.suggestedNextMode === 'probe';
   const finalizePlan = (basePlan, candidateActions = null) => (
     candidateActions
       ? withCandidateActions(basePlan, candidateActions)
@@ -161,7 +162,6 @@ export const selectNextAction = (decisionContext = {}) => {
       allowModelSelection: false,
     });
   }
-
 
   const isFinalPlannedTurn = Boolean(interviewStructure.isFinalPlannedTurn);
   if (isFinalPlannedTurn && !evaluatorState.misunderstandingFlag) {
@@ -278,16 +278,15 @@ export const selectNextAction = (decisionContext = {}) => {
     });
   }
 
-  if (matchState.validationTargets?.length && focusAreaKey !== 'behavioral') {
+  if (matchState.validationTargets?.length && focusAreaKey !== 'behavioral' && !shouldProbeWeakEvidence) {
     return finalizePlan({
       selectedAction: AGENT_ACTION_TYPES.ASK_VALIDATION_QUESTION,
-      rationale: 'There are unresolved validation targets that should be checked with direct evidence before generic friction or stress probes.',
+      rationale: 'There are unresolved validation targets and the latest answer has enough substance for direct validation before generic friction or stress probes.',
       confidence: 0.88,
       actionInput: { targetTopic: matchState.validationTargets[0], probeType: 'validation', forceEvidence: true },
     });
   }
 
-  // --- STRATEGIC INTENTS ---
   const projectUsage = agentMemory.projectUsage || {};
   const overusedProject = Object.keys(projectUsage).find((project) => projectUsage[project] >= 2);
   if (overusedProject && !evaluatorState.misunderstandingFlag && evaluatorState.suggestedNextMode !== 'rephrase') {
@@ -364,7 +363,7 @@ export const selectNextAction = (decisionContext = {}) => {
     });
   }
 
-  if ((candidateState.specificityLevel === 'low' || evaluatorState.suggestedNextMode === 'probe')
+  if (shouldProbeWeakEvidence
     && (Number(interviewStructure.currentTopicState?.followUpCount || 0) >= 2 || evaluatorState.lowEvidenceRepeated)) {
     return finalizePlan({
       selectedAction: AGENT_ACTION_TYPES.ASK_SCAFFOLD_QUESTION,
@@ -375,10 +374,10 @@ export const selectNextAction = (decisionContext = {}) => {
     });
   }
 
-  if (candidateState.specificityLevel === 'low' || evaluatorState.suggestedNextMode === 'probe') {
+  if (shouldProbeWeakEvidence) {
     return finalizePlan({
       selectedAction: AGENT_ACTION_TYPES.ASK_PROBING_QUESTION,
-      rationale: 'The latest answer was too broad, so a probing question is needed before switching topics.',
+      rationale: 'The latest answer was too broad, so a probing question is needed before switching topics or validating a claim.',
       confidence: 0.84,
       actionInput: { targetTopic, probeType: 'specific_example', forceEvidence: true },
     });
