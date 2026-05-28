@@ -1,4 +1,4 @@
-const ensureArray = (value) => (Array.isArray(value) ? value : []);
+import { ensureArray } from '../utils/commonHelpers.js';
 const toNumber = (value) => {
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : null;

@@ -1,6 +1,6 @@
 import { analyzeStarBreakdown } from '../aiControl/starRubricService.js';
+import { normalizeText } from '../../utils/commonHelpers.js';
 
-const normalizeText = (value = '') => String(value || '').trim();
 const lower = (value = '') => normalizeText(value).toLowerCase();
 const wordCount = (value = '') => normalizeText(value).split(/\s+/).filter(Boolean).length;
 

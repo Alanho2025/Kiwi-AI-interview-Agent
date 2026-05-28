@@ -1,9 +1,9 @@
+import { normalizeText } from '../../utils/commonHelpers.js';
 /**
  * File responsibility: Build safe deterministic confirmation prompts for low-confidence transcripts.
  * This helper intentionally avoids LLM calls so the voice repair path stays fast and predictable.
  */
 
-const normalizeText = (value = '') => String(value || '').replace(/\s+/g, ' ').trim();
 
 const truncateTranscript = (text = '', maxLength = 180) => {
   const clean = normalizeText(text);

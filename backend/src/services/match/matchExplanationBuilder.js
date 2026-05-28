@@ -1,4 +1,4 @@
-const ensureArray = (value) => (Array.isArray(value) ? value : []);
+import { ensureArray } from '../../utils/commonHelpers.js';
 
 export const buildMatchExplanation = ({ strengths = [], gaps = [], risks = [] } = {}) => {
   const safeStrengths = ensureArray(strengths).slice(0, 6);

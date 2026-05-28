@@ -1,7 +1,6 @@
 import { resolveInterviewSessionConfig } from './interviewSessionConfigResolver.js';
+import { ensureArray, normalizeText } from '../../utils/commonHelpers.js';
 
-const ensureArray = (value) => (Array.isArray(value) ? value : []);
-const normalizeText = (value = '') => String(value || '').trim().toLowerCase();
 const buildRootQuestionKey = (question = {}) => {
   const topic = normalizeText(question.topic || question.metadata?.topic || '');
   const category = normalizeText(getQuestionCategory({ category: question.questionCategory || question.category || question.metadata?.questionCategory, stage: question.stage || question.metadata?.stage, type: question.type || question.metadata?.questionType }));

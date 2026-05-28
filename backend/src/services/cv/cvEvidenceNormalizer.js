@@ -1,7 +1,5 @@
 import { extractCapabilities } from './cvCapabilityExtractor.js';
-
-const ensureArray = (value) => (Array.isArray(value) ? value : []);
-const unique = (items = []) => [...new Set(items.map((item) => String(item || '').trim()).filter(Boolean))];
+import { ensureArray, unique } from '../../utils/commonHelpers.js';
 
 const normalizeTextField = (...values) => values
   .flatMap((value) => Array.isArray(value) ? value : [value])
