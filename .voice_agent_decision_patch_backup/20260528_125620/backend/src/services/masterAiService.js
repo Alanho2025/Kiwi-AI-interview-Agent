@@ -22,7 +22,6 @@ import { buildInterviewEnvironment } from './aiControl/interviewEnvironmentServi
 import { createDecisionRecord } from './aiControl/decisionRecordService.js';
 import { selectNextAction } from './aiControl/actionPlanner.js';
 import { selectActionWithModel } from './aiControl/modelActionSelectorService.js';
-import { resolveVoiceAgentDecisionOnce } from './aiControl/voiceAgentDecisionService.js';
 import { updateAgentMemory } from './aiControl/agentMemoryService.js';
 import { executeInterviewAction } from './aiControl/interviewActionExecutor.js';
 import { evaluateInterviewTurn, persistEvaluatorRecord } from './aiControl/interviewEvaluatorService.js';
@@ -204,26 +203,8 @@ const runInterviewController = async ({ session, payload = {}, onSentence = null
     baseEnvironment = await measureAdaptiveStep(trace, 'adaptive.environment_build', () => buildInterviewEnvironment({ session, retrievalBundle: initialRetrievalBundle }));
   }
   let latestAnswerUnderstanding;
-  let localVoiceAnswerUnderstanding = null;
-  const useVoiceAgentDecisionFastPath = isVoiceMode
-    && optimizationsEnabled
-    && typeof voiceOptimizationConfig.isAgentDecisionFastPathEnabled === 'function'
-    && voiceOptimizationConfig.isAgentDecisionFastPathEnabled();
-
-  if (useVoiceAgentDecisionFastPath) {
-    const { extractFastAnswerUnderstanding } = await import('./aiControl/fastAnswerUnderstandingService.js');
-    localVoiceAnswerUnderstanding = extractFastAnswerUnderstanding({
-      session,
-      environment: baseEnvironment,
-      answerText: payload.answer || baseEnvironment.latestAnswer?.text || '',
-    });
-    latestAnswerUnderstanding = localVoiceAnswerUnderstanding;
-    trace?.mark?.('adaptive.voice_local_understanding', {
-      source: 'local_js_seed',
-      technologiesCount: latestAnswerUnderstanding.technologies?.length || 0,
-    });
-  } else if (optimizationsEnabled && voiceOptimizationConfig.isFastPathEnabled()) {
-    // Rule-only fast path. Keep disabled by default because it removes model-assisted action selection.
+  if (optimizationsEnabled && voiceOptimizationConfig.isFastPathEnabled()) {
+    // Voice mode: use local fast understanding only (saves ~2.9s)
     const { extractFastAnswerUnderstanding } = await import('./aiControl/fastAnswerUnderstandingService.js');
     latestAnswerUnderstanding = extractFastAnswerUnderstanding({
       session,
@@ -235,6 +216,7 @@ const runInterviewController = async ({ session, payload = {}, onSentence = null
       technologiesCount: latestAnswerUnderstanding.technologies?.length || 0,
     });
   } else {
+    // Text mode: use full semantic understanding
     latestAnswerUnderstanding = await measureAdaptiveStep(trace, 'adaptive.fast_answer_understanding', () => resolveFastAnswerUnderstanding({
       session,
       environment: baseEnvironment,
@@ -298,30 +280,15 @@ decisionType: AGENT_DECISION_TYPES.BUILD_CONTEXT,
   const fallbackPlan = await measureAdaptiveStep(trace, 'adaptive.action_selection', () => selectNextAction(decisionContext));
   
   let plan;
-  if (useVoiceAgentDecisionFastPath) {
-    const voiceDecision = await measureAdaptiveStep(trace, 'adaptive.voice_agent_decision', () => resolveVoiceAgentDecisionOnce({
-      decisionContext,
-      evaluatorOutput,
-      localUnderstanding: localVoiceAnswerUnderstanding || latestAnswerUnderstanding,
-      candidateActions: fallbackPlan.candidateActions,
-      fallbackPlan,
-      sessionSettings: session.settings || {},
-    }));
-    latestAnswerUnderstanding = voiceDecision.latestAnswerUnderstanding || latestAnswerUnderstanding;
-    plan = voiceDecision.plan;
-    trace?.mark?.('adaptive.voice_agent_decision_selected', {
-      selectedAction: plan.selectedAction,
-      selectionSource: plan.selectionSource,
-      confidence: plan.confidence,
-    });
-  } else if (optimizationsEnabled && voiceOptimizationConfig.isFastPathEnabled()) {
-    // Rule-only fast path. Keep disabled by default because it removes model-assisted action selection.
+  if (optimizationsEnabled && voiceOptimizationConfig.isFastPathEnabled()) {
+    // Voice mode: use rule-based selection (fast, saves ~1.9s)
     plan = fallbackPlan;
     trace?.mark?.('adaptive.voice_fast_path_action_selection', {
       selectedAction: plan.selectedAction,
       source: 'rule_based',
     });
   } else {
+    // Text mode: use model-based selection (high quality)
     plan = await measureAdaptiveStep(trace, 'adaptive.model_action_selection', () => selectActionWithModel({
       decisionContext,
       evaluatorOutput,

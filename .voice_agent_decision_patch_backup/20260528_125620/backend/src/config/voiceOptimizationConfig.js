@@ -33,9 +33,7 @@ const hashString = (str) => {
 class VoiceOptimizationConfig {
   constructor() {
     this.warmContextEnabled = parseBoolean(process.env.VOICE_WARM_CONTEXT_ENABLED, true);
-    // Rule-only fast path is intentionally off by default because it removes model-assisted action selection.
     this.fastPathEnabled = parseBoolean(process.env.VOICE_FAST_PATH_ENABLED, false);
-    this.agentDecisionFastPathEnabled = parseBoolean(process.env.VOICE_AGENT_DECISION_FAST_PATH_ENABLED, true);
     this.backgroundQualityEnabled = parseBoolean(process.env.VOICE_BACKGROUND_QUALITY_ENABLED, true);
     this.warmContextTTL = parseInt(process.env.WARM_CONTEXT_TTL_MS, 90000);
     this.rolloutPercentage = Math.min(100, Math.max(0, parseInt(process.env.WARM_CONTEXT_ROLLOUT_PERCENTAGE, 100)));
@@ -60,15 +58,6 @@ class VoiceOptimizationConfig {
    */
   isFastPathEnabled() {
     return this.fastPathEnabled && this.warmContextEnabled;
-  }
-
-  /**
-   * Check if voice mode should use one model-assisted decision call.
-   * This keeps DeepSeek involved in deciding the next question while avoiding separate
-   * answer-understanding and model-action-selection calls.
-   */
-  isAgentDecisionFastPathEnabled() {
-    return this.agentDecisionFastPathEnabled && this.warmContextEnabled;
   }
 
   /**
@@ -99,7 +88,6 @@ class VoiceOptimizationConfig {
     return {
       warmContextEnabled: this.warmContextEnabled,
       fastPathEnabled: this.fastPathEnabled,
-      agentDecisionFastPathEnabled: this.agentDecisionFastPathEnabled,
       backgroundQualityEnabled: this.backgroundQualityEnabled,
       warmContextTTL: this.warmContextTTL,
       rolloutPercentage: this.rolloutPercentage,
@@ -112,7 +100,6 @@ class VoiceOptimizationConfig {
   disableAll() {
     this.warmContextEnabled = false;
     this.fastPathEnabled = false;
-    this.agentDecisionFastPathEnabled = false;
     this.backgroundQualityEnabled = false;
   }
 
@@ -122,7 +109,6 @@ class VoiceOptimizationConfig {
   enableAll() {
     this.warmContextEnabled = true;
     this.fastPathEnabled = true;
-    this.agentDecisionFastPathEnabled = true;
     this.backgroundQualityEnabled = true;
     this.rolloutPercentage = 100;
   }
