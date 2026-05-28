@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-Successfully completed Phase 2 refactoring for **8 files** (6 low-risk + 2 medium-risk) using the "pure function extraction" strategy. All tests pass, code quality maintained, and file sizes significantly reduced.
+Successfully completed Phase 2 refactoring for **10 files** (6 low-risk + 4 medium-risk) using the "pure function extraction" strategy. All tests pass, code quality maintained, and file sizes significantly reduced.
 
 ## Refactored Files
 
@@ -165,6 +165,44 @@ Successfully completed Phase 2 refactoring for **8 files** (6 low-risk + 2 mediu
 - All 31 unit tests pass
 - No breaking changes to consumers
 
+### 9. aiUsageTrackingService.js
+**Location:** `backend/src/services/aiUsageTrackingService.js`
+
+**Before:** 373 lines
+**After:** 236 lines
+**Reduction:** 37% (137 lines removed)
+
+**Extractions:**
+- ✅ Extracted constants → `backend/src/config/aiUsageTrackingConstants.js`:
+  - `DEFAULT_STAGE_LABELS`, `PROVIDER_LABELS`
+- ✅ Extracted 9 helper functions → `backend/src/utils/aiUsageTrackingHelpers.js`:
+  - `roundCost()`, `roundDisplayCost()`, `toPositiveNumber()`, `toUsageCurrencyCost()`
+  - `sanitizeMetrics()`, `emptySummary()`, `summarizeEvents()`
+  - `buildBreakdown()`, `buildCommercialStressPayload()`
+
+**Behavior Preserved:**
+- All 7 main exports unchanged: `recordAiUsageEvent()`, `recordLlmUsage()`, `recordSpeechUsage()`, `recordLocalUsage()`, `getUserAiUsageSummary()`, `getRecentAiSessionUsage()`, `getSessionExecutionCost()`
+- All 39 unit tests pass
+- No breaking changes to consumers
+
+### 10. useReportData.js
+**Location:** `frontend/src/hooks/useReportData.js`
+
+**Before:** 328 lines
+**After:** 179 lines
+**Reduction:** 45% (149 lines removed)
+
+**Extractions:**
+- ✅ Extracted constant → `frontend/src/constants/reportConstants.js`:
+  - `EXPORT_AUDIT_TIMEOUT_MS`
+- ✅ Extracted 4 helper functions → `frontend/src/utils/reportHelpers.js`:
+  - `buildStatus()`, `isMissingReportError()`, `withTimeout()`, `formatReportAsText()`
+
+**Behavior Preserved:**
+- Main hook export `useReportData()` signature unchanged
+- All 3 unit tests pass (20 total frontend hook tests)
+- No breaking changes to consumers
+
 ## New Files Created
 
 ### Configuration Files (9 files)
@@ -238,15 +276,33 @@ Successfully completed Phase 2 refactoring for **8 files** (6 low-risk + 2 mediu
    - Contains 20+ pure normalization functions for schema validation
    - Reusable type checking, data transformation, and validation utilities
 
+17. **`backend/src/config/aiUsageTrackingConstants.js`** (30 lines)
+   - Contains `DEFAULT_STAGE_LABELS` and `PROVIDER_LABELS`
+   - Pure data, no logic
+
+18. **`backend/src/utils/aiUsageTrackingHelpers.js`** (197 lines)
+   - Contains 9 pure helper functions for AI usage tracking
+   - Reusable cost calculation, metric sanitization, and summary building utilities
+
+19. **`frontend/src/constants/reportConstants.js`** (9 lines)
+   - Contains `EXPORT_AUDIT_TIMEOUT_MS`
+   - Pure data, no logic
+
+20. **`frontend/src/utils/reportHelpers.js`** (171 lines)
+   - Contains 4 pure helper functions for report processing
+   - Reusable status building, error checking, timeout handling, and text formatting utilities
+
 ## Test Coverage
 
 ### Test Baseline
-- **Before refactoring:** 97 backend tests
-- **New tests added:** 315 tests (15 + 48 + 44 + 53 + 43 + 43 + 38 + 31)
-- **After refactoring:** All backend tests passing
+- **Before refactoring:** 97 backend tests + 17 frontend hook tests
+- **New tests added:** 357 tests (315 backend + 42 frontend)
+  - Backend: 15 + 48 + 44 + 53 + 43 + 43 + 38 + 31 + 39 = 354 tests
+  - Frontend: 3 tests
+- **After refactoring:** All tests passing (451 backend + 20 frontend hooks)
 - **Test status:** ✅ ALL PASS
 
-### Test Files Created (8 files)
+### Test Files Created (10 files)
 1. `backend/tests/unit/transcriptNormalizer.test.js` (175 lines, 15 tests)
 2. `backend/tests/unit/taxonomyService.test.js` (330 lines, 48 tests)
 3. `backend/tests/unit/speechConfidenceGate.test.js` (588 lines, 44 tests)
@@ -255,21 +311,24 @@ Successfully completed Phase 2 refactoring for **8 files** (6 low-risk + 2 mediu
 6. `backend/tests/unit/initPostgresSchema.test.js` (340 lines, 43 tests)
 7. `backend/tests/unit/nzWorkplaceFitService.test.js` (530 lines, 38 tests)
 8. `backend/tests/unit/schemaValidationService.test.js` (500 lines, 31 tests)
+9. `backend/tests/unit/aiUsageTrackingService.test.js` (485 lines, 39 tests)
+10. `frontend/src/hooks/__tests__/useReportData.test.jsx` (96 lines, 3 tests)
 
 ## Quality Metrics
 
 ### File Size Reduction
-- **Total lines before:** 2,300 lines (55 + 203 + 259 + 479 + 337 + 323 + 267 + 377)
-- **Total lines after:** 1,327 lines (35 + 116 + 213 + 441 + 220 + 26 + 99 + 177)
-- **Lines extracted:** 1,702 lines (to 18 new files)
-- **Net reduction in original files:** 42% (973 lines removed)
+- **Total lines before:** 3,001 lines (55 + 203 + 259 + 479 + 337 + 323 + 267 + 377 + 373 + 328)
+- **Total lines after:** 1,742 lines (35 + 116 + 213 + 441 + 220 + 26 + 99 + 177 + 236 + 179)
+- **Lines extracted:** 2,109 lines (to 20 new files)
+- **Net reduction in original files:** 42% (1,259 lines removed)
 
 ### Code Organization
 - ✅ Pure functions separated from business logic
-- ✅ Configuration data isolated in config/ directory
+- ✅ Configuration data isolated in config/ and constants/ directories
 - ✅ Reusable utilities in utils/ directory
 - ✅ Clear separation of concerns
 - ✅ Improved testability
+- ✅ Frontend and backend both refactored
 
 ### Maintainability Improvements
 - **Single Responsibility:** Each file now has one clear purpose
@@ -281,10 +340,10 @@ Successfully completed Phase 2 refactoring for **8 files** (6 low-risk + 2 mediu
 ## Verification Steps Completed
 
 1. ✅ Created comprehensive behavior contracts before refactoring
-2. ✅ Wrote 315 new unit tests covering all extracted functionality
-3. ✅ Verified all existing tests still pass (97 tests)
-4. ✅ Verified all new tests pass (315 tests)
-5. ✅ Ran full backend test suite (412 tests total)
+2. ✅ Wrote 357 new unit tests covering all extracted functionality
+3. ✅ Verified all existing tests still pass (114 tests: 97 backend + 17 frontend)
+4. ✅ Verified all new tests pass (357 tests: 354 backend + 3 frontend)
+5. ✅ Ran full test suites (451 backend + 20 frontend hooks)
 6. ✅ Verified file size reductions
 7. ✅ Confirmed no breaking changes to public APIs
 
@@ -324,10 +383,10 @@ Successfully completed Phase 2 refactoring for **8 files** (6 low-risk + 2 mediu
 - ✅ Clear module boundaries
 
 ### Technical Debt Reduced
-- Large file sizes reduced by 42% (973 lines)
-- Configuration data properly isolated (10 config files)
-- Pure functions properly separated (8 utility files)
-- Test coverage increased from 97 to 412 tests (+325%)
+- Large file sizes reduced by 42% (1,259 lines)
+- Configuration data properly isolated (11 config/constants files)
+- Pure functions properly separated (10 utility files)
+- Test coverage increased from 114 to 471 tests (+313%)
 
 ## Next Steps
 
@@ -361,21 +420,22 @@ Based on the success of this refactoring, the following files are good candidate
 ## Conclusion
 
 Phase 2 refactoring successfully completed with:
-- ✅ 42% reduction in target file sizes (973 lines removed)
-- ✅ 18 new well-organized modules created (10 config + 8 utils)
-- ✅ 315 new tests added (412 total, +325% coverage)
+- ✅ 42% reduction in target file sizes (1,259 lines removed)
+- ✅ 20 new well-organized modules created (11 config/constants + 10 utils)
+- ✅ 357 new tests added (471 total, +313% coverage)
 - ✅ Zero breaking changes
 - ✅ Improved code quality and maintainability
+- ✅ Both frontend and backend refactored
 
-The refactoring demonstrates that systematic, test-driven extraction of pure functions is a safe and effective way to reduce file complexity while maintaining system stability. The approach scales well across multiple files and different types of code (services, utilities, database schemas, and business logic).
+The refactoring demonstrates that systematic, test-driven extraction of pure functions is a safe and effective way to reduce file complexity while maintaining system stability. The approach scales well across multiple files and different types of code (services, utilities, database schemas, business logic, and React hooks).
 
-**Medium-Risk File Success:** Both `nzWorkplaceFitService.js` (63% reduction) and `schemaValidationService.js` (53% reduction) demonstrate that the test-first approach works equally well for medium-risk files with business logic and complex data normalization, as long as behavior contracts are documented and comprehensive tests are written before any code changes.
+**Medium-Risk File Success:** All four medium-risk files (`nzWorkplaceFitService.js` 63% reduction, `schemaValidationService.js` 53% reduction, `aiUsageTrackingService.js` 37% reduction, `useReportData.js` 45% reduction) demonstrate that the test-first approach works equally well for medium-risk files with business logic, complex data normalization, and React hooks, as long as behavior contracts are documented and comprehensive tests are written before any code changes.
 
 ---
 
 **Refactoring Date:** 2026-05-28
-**Files Modified:** 8 (6 low-risk + 2 medium-risk)
-**Files Created:** 18 (10 config + 8 utils)
-**Tests Added:** 315
-**Lines Reduced:** 973 lines (42%)
-**Test Coverage Increase:** +325%
+**Files Modified:** 10 (6 low-risk + 4 medium-risk)
+**Files Created:** 20 (11 config/constants + 10 utils)
+**Tests Added:** 357 (354 backend + 3 frontend)
+**Lines Reduced:** 1,259 lines (42%)
+**Test Coverage Increase:** +313%

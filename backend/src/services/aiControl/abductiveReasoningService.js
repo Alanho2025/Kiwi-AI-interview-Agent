@@ -1,5 +1,4 @@
-const normalizeText = (value = '') => String(value || '').trim();
-const tokenize = (value = '') => normalizeText(value).toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+import { normalizeText, tokenize } from '../../utils/commonHelpers.js';
 
 export const deriveAbductiveState = ({ latestAnswer = '', currentTopic: _currentTopic = '', candidateState = {}, dynamicSlotState = {} } = {}) => {
   const tokens = tokenize(latestAnswer);

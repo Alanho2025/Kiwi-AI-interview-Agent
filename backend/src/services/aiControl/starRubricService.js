@@ -1,5 +1,4 @@
-const normalizeText = (value = '') => String(value || '').trim();
-const tokenize = (value = '') => normalizeText(value).toLowerCase().split(/[^a-z0-9%]+/).filter(Boolean);
+import { normalizeText, tokenize } from '../../utils/commonHelpers.js';
 
 const hasAny = (tokens = [], values = []) => values.some((value) => tokens.includes(value));
 const hasPattern = (text = '', pattern) => pattern.test(String(text || '').toLowerCase());

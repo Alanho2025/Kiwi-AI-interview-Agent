@@ -1,10 +1,7 @@
 import crypto from 'crypto';
 import { SessionAnalysis } from '../../db/models/sessionAnalysisModel.js';
 import { analyzeStarBreakdown } from './starRubricService.js';
-
-const ensureArray = (value) => (Array.isArray(value) ? value : []);
-const normalizeText = (value = '') => String(value || '').trim();
-const tokenize = (value = '') => normalizeText(value).toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+import { ensureArray, normalizeText, tokenize } from '../../utils/commonHelpers.js';
 
 const countOverlap = (source = [], target = []) => {
   const targetSet = new Set(target);
@@ -289,20 +286,20 @@ export const evaluateInterviewTurn = ({ environment = {}, decisionContext = null
     fastAnswerUnderstanding: answerUnderstanding,
     answerUnderstandingSummary: answerUnderstanding
       ? {
-          intent: answerUnderstanding.intent,
-          suggestedFollowUp: answerUnderstanding.suggestedFollowUp,
-          technologies: answerUnderstanding.technologies || [],
-          missingEvidence: answerUnderstanding.missingEvidence || [],
-          confidence: answerUnderstanding.confidence,
-        }
+        intent: answerUnderstanding.intent,
+        suggestedFollowUp: answerUnderstanding.suggestedFollowUp,
+        technologies: answerUnderstanding.technologies || [],
+        missingEvidence: answerUnderstanding.missingEvidence || [],
+        confidence: answerUnderstanding.confidence,
+      }
       : null,
     rationale: misunderstandingFlag
       ? 'The latest answer likely did not address the question clearly enough.'
       : suggestedNextMode !== baseSuggestedNextMode && answerUnderstanding?.suggestedFollowUp?.questionGoal
         ? `Fast answer understanding found concrete facts to preserve: ${answerUnderstanding.suggestedFollowUp.questionGoal}.`
-      : evidenceGainScore >= 0.7
-        ? 'The latest answer added concrete evidence that can support downstream scoring and reporting.'
-        : 'The latest answer added some evidence, but the next turn should still tighten specificity or coverage.',
+        : evidenceGainScore >= 0.7
+          ? 'The latest answer added concrete evidence that can support downstream scoring and reporting.'
+          : 'The latest answer added some evidence, but the next turn should still tighten specificity or coverage.',
   };
 };
 

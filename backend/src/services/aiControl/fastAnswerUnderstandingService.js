@@ -1,13 +1,9 @@
 import { spawn } from 'node:child_process';
 import { callDeepSeek } from '../deepseekService.js';
+import { ensureArray, normalizeText, normalizeKey, tokenize } from '../../utils/commonHelpers.js';
 
 const DEFAULT_TIMEOUT_MS = 180;
 const MAX_ADAPTER_PAYLOAD_CHARS = 12000;
-
-const ensureArray = (value) => (Array.isArray(value) ? value : []);
-const normalizeText = (value = '') => String(value || '').trim();
-const normalizeKey = (value = '') => normalizeText(value).toLowerCase();
-const tokenize = (value = '') => normalizeKey(value).split(/[^a-z0-9+#.]+/).filter(Boolean);
 
 const TECHNOLOGY_ALIASES = new Map([
   ['postgresql', ['postgresql', 'postgres', 'postgre sql']],
@@ -385,8 +381,8 @@ const hasConflictingRuleSignals = (understanding = {}) => {
   return (
     understanding.answerCompleteness === 'strong' && missingCount >= 3
   ) || (
-    understanding.intent === 'general_answer' && (ownershipCount > 0 || evidenceCount > 0)
-  );
+      understanding.intent === 'general_answer' && (ownershipCount > 0 || evidenceCount > 0)
+    );
 };
 
 const shouldUseSemanticUnderstanding = ({ localUnderstanding = {}, answerText = '', environment = {} } = {}) => {
