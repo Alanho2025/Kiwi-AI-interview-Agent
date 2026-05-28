@@ -309,6 +309,17 @@ decisionType: AGENT_DECISION_TYPES.BUILD_CONTEXT,
     }));
     latestAnswerUnderstanding = voiceDecision.latestAnswerUnderstanding || latestAnswerUnderstanding;
     plan = voiceDecision.plan;
+    if (latestAnswerUnderstanding) {
+      decisionContext.latestAnswerUnderstanding = latestAnswerUnderstanding;
+
+      if (decisionContext.environment) {
+        decisionContext.environment.latestAnswerUnderstanding = latestAnswerUnderstanding;
+      }
+
+      if (decisionContext.evaluatorState) {
+        decisionContext.evaluatorState.fastAnswerUnderstanding = latestAnswerUnderstanding;
+      }
+    }
     trace?.mark?.('adaptive.voice_agent_decision_selected', {
       selectedAction: plan.selectedAction,
       selectionSource: plan.selectionSource,
