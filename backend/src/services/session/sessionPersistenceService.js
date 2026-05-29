@@ -311,7 +311,12 @@ export const persistInterviewPlan = async ({ id, userId, normalizedAnalysis, set
       userId,
       ...validatedPlan,
       strategy: { ...(validatedPlan.strategy || {}), matchAnalysisId },
-      questionPlanSnapshot: { matchAnalysisId, evidenceRefs },
+      questionPlanSnapshot: {
+        matchAnalysisId,
+        evidenceRefs,
+        source: 'legacy_plan_plus_db_pool',
+        dbBackedPoolExpected: true,
+      },
       retentionUntil: retentionDate(),
     },
     { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }

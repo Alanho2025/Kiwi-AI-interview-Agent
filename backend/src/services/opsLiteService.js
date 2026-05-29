@@ -23,6 +23,20 @@ import {
   getStepMarkMs,
 } from '../utils/opsLiteHelpers.js';
 
+const RUNTIME_ANALYSIS_FIELDS = [
+  'sessionId',
+  'reportArtifacts',
+  'agentTraceEvents',
+  'trajectoryRecords',
+  'latestVoiceDeliverySummary',
+].join(' ');
+
+const RUNTIME_REPORT_FIELDS = [
+  'sessionId',
+  'qaResult',
+  'report.evidenceDiagnostics.claimEvidence',
+].join(' ');
+
 const safeReadJson = async (filePath) => {
   try {
     return JSON.parse(await fs.readFile(filePath, 'utf8'));
@@ -119,10 +133,77 @@ export const buildEvalReportSummary = async () => {
   };
 };
 
+const buildEmptyRuntimeOpsSummary = ({ warning = null } = {}) => ({
+  overview: {
+    totalSessions: 0,
+    textSessions: 0,
+    voiceSessions: 0,
+    averageCoachingConfidence: 0,
+    averageReportQualityScore: 0,
+    runtimeQaPassRate: 0,
+    modelAssistedTurnRate: 0,
+  },
+  latency: {
+    measurement: 'actual_voice_interview_session_trace',
+    note: 'Voice response latency uses stored interview-session trace marks and prioritises first_audio_sent, then adaptive.tts_first_audio, then first_sentence_ready. Runtime trace total is shown separately as a full-turn diagnostic.',
+    traceSampleCount: 0,
+    voiceLatencySampleCount: 0,
+    voiceResponseLatencyMs: 0,
+    runtimeTraceTotalMs: 0,
+    sttMs: 0,
+    retrievalMs: 0,
+    planningMs: 0,
+    llmFirstTokenMs: 0,
+    ttsFirstAudioMs: 0,
+    firstAudioSentMs: 0,
+  },
+  rag: {
+    activationRate: 0,
+    sourceUsage: {},
+    degradedRetrievalRate: 0,
+    unsupportedEvidenceBlockedCount: 0,
+  },
+  voice: {
+    sessionsWithVoiceMetrics: 0,
+    averageWordsPerMinute: 0,
+    totalFillerCount: 0,
+    totalLongPauseCount: 0,
+    lowConfidenceDeliverySessions: 0,
+  },
+  evals: {
+    qaCases: 0,
+    passedQaCases: 0,
+    failedCases: [],
+    stabilityScore: 0,
+  },
+  runtimeStatus: {
+    ok: !warning,
+    warning,
+  },
+});
+
+const findRecentSessionAnalyses = (query) => SessionAnalysis.find(query)
+  .sort({ updatedAt: -1 })
+  .allowDiskUse(true)
+  .limit(100)
+  .select(RUNTIME_ANALYSIS_FIELDS)
+  .lean();
+
+const findSessionReports = (sessionIds = []) => SessionReport.find({ sessionId: { $in: sessionIds } })
+  .select(RUNTIME_REPORT_FIELDS)
+  .lean();
+
 export const buildRuntimeOpsSummary = async ({ userId = null } = {}) => {
-  const analyses = await SessionAnalysis.find(userId ? { userId } : {}).sort({ updatedAt: -1 }).limit(100).lean();
-  const sessionIds = analyses.map((item) => item.sessionId).filter(Boolean);
-  const reports = await SessionReport.find({ sessionId: { $in: sessionIds } }).lean();
+  let runtimeRecords;
+  try {
+    const analyses = await findRecentSessionAnalyses(userId ? { userId } : {});
+    const sessionIds = analyses.map((item) => item.sessionId).filter(Boolean);
+    const reports = sessionIds.length ? await findSessionReports(sessionIds) : [];
+    runtimeRecords = { analyses, reports };
+  } catch (error) {
+    return buildEmptyRuntimeOpsSummary({ warning: error.message });
+  }
+  const { analyses, reports } = runtimeRecords;
   const reportBySession = new Map(reports.map((report) => [report.sessionId, report]));
   const traceEvents = analyses.flatMap((item) => ensureArray(item.agentTraceEvents));
   const trajectories = analyses.flatMap((item) => ensureArray(item.trajectoryRecords));

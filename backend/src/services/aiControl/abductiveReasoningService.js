@@ -1,4 +1,4 @@
-import { normalizeText, tokenize } from '../../utils/commonHelpers.js';
+import { tokenize } from '../../utils/commonHelpers.js';
 
 export const deriveAbductiveState = ({ latestAnswer = '', currentTopic: _currentTopic = '', candidateState = {}, dynamicSlotState = {} } = {}) => {
   const tokens = tokenize(latestAnswer);

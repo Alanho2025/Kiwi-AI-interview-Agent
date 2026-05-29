@@ -35,6 +35,7 @@ const STRICT_TECH_PATTERNS = {
   redis: /\bredis\b/i,
   elasticsearch: /\belasticsearch\b/i,
   kafka: /\b(kafka|distributed queue|distributed queueing|message queue|event streaming)\b/i,
+  sql: /\b(sql|structured query language|postgresql|postgres|mysql|database query|query writing)\b/i,
   python: /\bpython\b/i,
   postgres: /\b(postgresql|postgres)\b/i,
   typescript: /\btypescript\b/i,
@@ -85,6 +86,7 @@ const LABEL_ALIASES = {
   'learn quickly': ['learning new technologies quickly', 'learning quickly', 'learn new technologies quickly', 'adapted quickly', 'new tools'],
   'software engineering': ['software developer', 'software development', 'engineering'],
   'computer science': ['software engineering', 'information technology', 'information systems'],
+  sql: ['postgresql', 'postgres', 'mysql', 'database query', 'query writing'],
   'tertiary qualification': ['bachelor', 'master', 'degree', 'university'],
   'api development': ['rest endpoints', 'rest api', 'rest apis', 'api endpoints', 'backend endpoints'],
 };

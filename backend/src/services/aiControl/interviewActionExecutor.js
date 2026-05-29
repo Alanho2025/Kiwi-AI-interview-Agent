@@ -15,7 +15,7 @@ export const executeInterviewAction = async ({
     retrievalBundle = await agentRegistry.retrieval({
       query: `${session.targetRole || ''} ${actionInput.targetTopic || ''} ${actionInput.probeType || ''}`.trim(),
       sessionId: session.id,
-      sourceTypes: ['question_bank', 'behavioural_bank', 'interview_plan', 'jd_rubric', 'cv_profile', 'transcript'],
+      sourceTypes: ['question_bank', 'behavioural_bank', 'interview_plan', 'prepared_question_pool', 'jd_rubric', 'cv_profile', 'transcript'],
       topK: 5,
       objective: selectedAction,
       targetTopic: actionInput.targetTopic,
