@@ -143,7 +143,10 @@ export function useVoiceVadTurnController({
     setIsProcessingTurn(true);
     setVoiceState('agent_thinking');
     setVoiceStatus(buildVoiceStatus('info', 'Processing your answer', 'KiwiCoach is preparing the next turn. This may take a few seconds.'));
-    scheduleLatencyAcknowledgement();
+    scheduleLatencyAcknowledgement({
+      reason,
+      answerWordCount: vadMetricsRef.current?.wordCount || 0,
+    });
     traceVadTurn('stopListening_done', { reason, turnId, speechEndSent });
     return true;
   // eslint-disable-next-line react-hooks/exhaustive-deps
