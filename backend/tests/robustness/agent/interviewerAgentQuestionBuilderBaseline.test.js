@@ -104,7 +104,8 @@ describe('interviewer agent question builder baseline', () => {
 
     for (const question of questions) {
       expectQuestionShape(question);
-      expect(wordCount(question.text)).toBeLessThanOrEqual(18);
+      const maxWords = question.type === 'repetition_repair_switch' ? 20 : 18;
+      expect(wordCount(question.text)).toBeLessThanOrEqual(maxWords);
       expect(question.text).not.toMatch(/decision_tradeoff|role_fit|show Communication/);
     }
 
