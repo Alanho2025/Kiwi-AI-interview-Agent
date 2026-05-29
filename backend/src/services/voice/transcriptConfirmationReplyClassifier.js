@@ -27,7 +27,6 @@ const REJECT_PATTERNS = [
   /\bincorrect\b/,
   /\blet me repeat\b/,
   /\brepeat\b/,
-  /\bclarify\b/,
   /\bthat's not\b/,
   /\bthat is not\b/,
 ];
