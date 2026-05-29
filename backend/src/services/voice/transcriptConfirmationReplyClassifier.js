@@ -83,7 +83,7 @@ export const analyzeTranscriptConfirmationReply = (replyText = '') => {
       ? 'confirm'
       : 'unclear';
 
-  const extraContent = extractExtraContent(replyText);
+  const extraContent = decision === 'confirm' ? extractExtraContent(replyText) : '';
 
   return {
     decision,
