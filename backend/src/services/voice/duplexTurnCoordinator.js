@@ -15,6 +15,8 @@ import { buildTranscriptConfirmationPrompt } from './transcriptUnderstandingSumm
 import { classifyTranscriptConfirmationReply } from './transcriptConfirmationReplyClassifier.js';
 import { generateVoiceMicroAcknowledgement } from './voiceAcknowledgementService.js';
 
+const VOICE_BRIDGE_DELAY_MS = Number(process.env.VOICE_BRIDGE_DELAY_MS || 1200);
+
 const getQuestionIdentifier = (question = null) => question?.id
   || question?.questionId
   || question?._id
@@ -65,6 +67,7 @@ const buildNextClientTurnIds = (clientTurnId = null) => {
   }
   return [...ids].filter(Boolean);
 };
+
 export const createDuplexTurnCoordinator = ({
   session,
   userId,
@@ -79,6 +82,7 @@ export const createDuplexTurnCoordinator = ({
   setPendingTranscriptConfirmation = () => {},
 } = {}) => {
   let sentenceIndex = 0;
+
   const trace = (message, payload = {}) => {
     logger?.info?.(`[DUPLEX-TURN-TRACE] ${message}`, {
       sessionId: session?.id || null,
@@ -105,6 +109,7 @@ export const createDuplexTurnCoordinator = ({
         return false;
       }
 
+      const acknowledgementIndex = sentenceIndex;
       trace('early_acknowledgement_ready', {
         text: acknowledgementText,
         durationMs: Date.now() - startedAt,
@@ -115,7 +120,9 @@ export const createDuplexTurnCoordinator = ({
         type: 'assistant_text_delta',
         tool: AGENT_TOOL_NAMES.SYNTHESIZE_ASSISTANT_SPEECH,
         text: acknowledgementText,
-        index: sentenceIndex,
+        index: acknowledgementIndex,
+        turnType: 'bridge_acknowledgement',
+        countsAsQuestion: false,
         timestamp: new Date().toISOString(),
       });
 
@@ -124,17 +131,17 @@ export const createDuplexTurnCoordinator = ({
         voiceName,
         sendJson,
         bargeInController,
-        index: sentenceIndex,
+        index: acknowledgementIndex,
         speechToken,
         usageContext: {
           userId,
           sessionId: session?.id || null,
           stage: 'interview',
-          source,
+          source: source || 'duplex_bridge_acknowledgement',
         },
       });
 
-      sentenceIndex += 1;
+      sentenceIndex = Math.max(sentenceIndex, acknowledgementIndex + 1);
 
       trace('early_acknowledgement_tts_done', {
         text: acknowledgementText,
@@ -148,6 +155,144 @@ export const createDuplexTurnCoordinator = ({
         durationMs: Date.now() - startedAt,
       });
       return false;
+    }
+  };
+
+  const processRealtimeTurnWithDelayedBridge = async ({
+    transcriptText,
+    asrConfidence,
+    vad,
+    speechToken,
+    skipTranscriptGate = false,
+    transcriptConfirmation = null,
+    acknowledgementSource = 'duplex_bridge_acknowledgement',
+    sentenceSource = 'duplex_interview_sentence',
+  }) => {
+    let firstSentenceReady = false;
+    let bridgeStarted = false;
+    let bridgeDonePromise = Promise.resolve(false);
+    let bridgeTimer = null;
+    let realSentenceBaseIndex = null;
+
+    const clearBridgeTimer = () => {
+      if (!bridgeTimer) return;
+      clearTimeout(bridgeTimer);
+      bridgeTimer = null;
+    };
+
+    bridgeTimer = setTimeout(() => {
+      if (firstSentenceReady) return;
+      if (!bargeInController?.isTokenActive?.(speechToken)) return;
+
+      bridgeStarted = true;
+      bridgeDonePromise = streamEarlyAcknowledgement({
+        transcriptText,
+        asrConfidence,
+        vad,
+        speechToken,
+        source: acknowledgementSource,
+      }).catch((error) => {
+        logger?.warn?.('Bridge acknowledgement failed', {
+          sessionId: session?.id,
+          error: error?.message || String(error),
+        });
+        return false;
+      });
+    }, VOICE_BRIDGE_DELAY_MS);
+
+    trace('process_realtime_voice_turn_start', {
+      transcriptText,
+      asrConfidence,
+      asrSource,
+    });
+
+    try {
+      const result = await processRealtimeVoiceTurn({
+        session,
+        userId,
+        transcriptText,
+        language,
+        asrConfidence,
+        asrSource,
+        voiceName,
+        inputMode: 'duplex_voice',
+        vad,
+        clientTurnId,
+        skipTranscriptGate,
+        transcriptConfirmation,
+        onSentence: async (text, index) => {
+          try {
+            firstSentenceReady = true;
+            clearBridgeTimer();
+
+            if (!bargeInController?.isTokenActive?.(speechToken)) return;
+
+            if (bridgeStarted) {
+              await bridgeDonePromise;
+            }
+
+            if (realSentenceBaseIndex === null) {
+              realSentenceBaseIndex = sentenceIndex;
+            }
+
+            const nextIndex = Number.isFinite(index) ? realSentenceBaseIndex + index : sentenceIndex;
+            sentenceIndex = Math.max(sentenceIndex, nextIndex + 1);
+
+            trace('assistant_sentence_ready', {
+              index: nextIndex,
+              text,
+              speechTokenActive: bargeInController?.isTokenActive?.(speechToken),
+            });
+
+            sendJson?.({
+              type: 'assistant_text_delta',
+              tool: AGENT_TOOL_NAMES.GENERATE_INTERVIEW_QUESTION,
+              text,
+              index: nextIndex,
+              timestamp: new Date().toISOString(),
+            });
+
+            await streamAssistantSpeech({
+              text,
+              voiceName,
+              sendJson,
+              bargeInController,
+              index: nextIndex,
+              speechToken,
+              usageContext: {
+                userId,
+                sessionId: session?.id || null,
+                stage: 'interview',
+                source: sentenceSource,
+              },
+            });
+
+            trace('assistant_sentence_tts_done', {
+              index: nextIndex,
+              text,
+            });
+          } catch (error) {
+            logger?.error?.('Failed to process sentence in duplex turn', {
+              sessionId: session?.id,
+              index,
+              text,
+              error: error.message,
+            });
+          }
+        },
+      });
+
+      firstSentenceReady = true;
+      clearBridgeTimer();
+      if (bridgeStarted) {
+        await bridgeDonePromise;
+      }
+
+      return result;
+    } catch (error) {
+      firstSentenceReady = true;
+      clearBridgeTimer();
+      throw error;
     }
   };
 
@@ -188,15 +333,15 @@ export const createDuplexTurnCoordinator = ({
       voiceName,
       sendJson,
       bargeInController,
-        index: 0,
-        speechToken,
-        usageContext: {
-          userId,
-          sessionId: session?.id || null,
-          stage: 'interview',
-          source: 'duplex_repair_prompt',
-        },
-      });
+      index: 0,
+      speechToken,
+      usageContext: {
+        userId,
+        sessionId: session?.id || null,
+        stage: 'interview',
+        source: 'duplex_repair_prompt',
+      },
+    });
     bargeInController?.finishAssistantSpeech?.(speechToken);
     sendJson?.({
       type: 'assistant_speech_done',
@@ -213,184 +358,131 @@ export const createDuplexTurnCoordinator = ({
   };
 
   const processFinalTranscript = async ({ transcriptText, asrConfidence = null, vad = null } = {}) => {
+    const processConfirmedPendingTranscript = async ({ pending, confirmationReply }) => {
+      sendJson?.({
+        type: 'agent_thinking',
+        tool: AGENT_TOOL_NAMES.ORCHESTRATE_DUPLEX_VOICE,
+        timestamp: new Date().toISOString(),
+      });
 
-  const processConfirmedPendingTranscript = async ({ pending, confirmationReply }) => {
-    sendJson?.({
-      type: 'agent_thinking',
-      tool: AGENT_TOOL_NAMES.ORCHESTRATE_DUPLEX_VOICE,
-      timestamp: new Date().toISOString(),
-    });
+      const speechToken = bargeInController?.startAssistantSpeech?.();
+      sentenceIndex = 0;
 
-    const speechToken = bargeInController?.startAssistantSpeech?.();
-    sentenceIndex = 0;
+      const result = await processRealtimeTurnWithDelayedBridge({
+        transcriptText: pending.originalTranscript,
+        asrConfidence: pending.asrConfidence,
+        vad: pending.vad,
+        speechToken,
+        skipTranscriptGate: true,
+        transcriptConfirmation: {
+          confirmedByUser: true,
+          confirmationReply,
+          pendingConfirmationId: pending.id,
+          originalAssessment: pending.assessment || null,
+        },
+        acknowledgementSource: 'duplex_confirmed_bridge_acknowledgement',
+        sentenceSource: 'duplex_confirmed_interview_sentence',
+      });
 
-    await streamEarlyAcknowledgement({
-      transcriptText: pending.originalTranscript,
-      asrConfidence: pending.asrConfidence,
-      vad: pending.vad,
-      speechToken,
-      source: 'duplex_confirmed_interview_acknowledgement',
-    });
+      bargeInController?.finishAssistantSpeech?.(speechToken);
+      sendJson?.({
+        type: 'assistant_speech_done',
+        tool: AGENT_TOOL_NAMES.SYNTHESIZE_ASSISTANT_SPEECH,
+        timestamp: new Date().toISOString(),
+      });
 
-    const result = await processRealtimeVoiceTurn({
-      session,
-      userId,
-      transcriptText: pending.originalTranscript,
-      language,
-      asrConfidence: pending.asrConfidence,
-      asrSource,
-      voiceName,
-      inputMode: 'duplex_voice',
-      vad: pending.vad,
-      clientTurnId,
-      skipTranscriptGate: true,
-      transcriptConfirmation: {
-        confirmedByUser: true,
-        confirmationReply,
-        pendingConfirmationId: pending.id,
-        originalAssessment: pending.assessment || null,
-      },
-      onSentence: async (text, index) => {
-        try {
-          const nextIndex = Number.isFinite(index) ? sentenceIndex + index : sentenceIndex;
-          trace('assistant_sentence_ready', {
-            index: nextIndex,
-            text,
-            speechTokenActive: bargeInController?.isTokenActive?.(speechToken),
-          });
-          if (!bargeInController?.isTokenActive?.(speechToken)) return;
-          sendJson?.({
-            type: 'assistant_text_delta',
-            tool: AGENT_TOOL_NAMES.GENERATE_INTERVIEW_QUESTION,
-            text,
-            index: nextIndex,
-            timestamp: new Date().toISOString(),
-          });
-          await streamAssistantSpeech({
-            text,
-            voiceName,
-            sendJson,
-            bargeInController,
-            index: nextIndex,
-            speechToken,
-            usageContext: {
-              userId,
-              sessionId: session?.id || null,
-              stage: 'interview',
-              source: 'duplex_confirmed_interview_sentence',
-            },
-          });
-          sentenceIndex = nextIndex + 1;
-        } catch (error) {
-          logger?.error?.('Failed to process sentence after transcript confirmation', {
-            sessionId: session?.id,
-            index,
-            text,
-            error: error.message,
-          });
-        }
-      },
-    });
+      sendJson?.({
+        type: 'turn_done',
+        tool: AGENT_TOOL_NAMES.ORCHESTRATE_DUPLEX_VOICE,
+        session: result?.updatedSession || session,
+        transcription: result?.transcription || null,
+        latency: result?.latency || null,
+        isComplete: Boolean(result?.agentResult?.isComplete),
+        completedBecause: result?.agentResult?.completedBecause || null,
+        timestamp: new Date().toISOString(),
+      });
 
-    bargeInController?.finishAssistantSpeech?.(speechToken);
-    sendJson?.({
-      type: 'assistant_speech_done',
-      tool: AGENT_TOOL_NAMES.SYNTHESIZE_ASSISTANT_SPEECH,
-      timestamp: new Date().toISOString(),
-    });
-
-    sendJson?.({
-      type: 'turn_done',
-      tool: AGENT_TOOL_NAMES.ORCHESTRATE_DUPLEX_VOICE,
-      session: result?.updatedSession || session,
-      transcription: result?.transcription || null,
-      latency: result?.latency || null,
-      isComplete: Boolean(result?.agentResult?.isComplete),
-      completedBecause: result?.agentResult?.completedBecause || null,
-      timestamp: new Date().toISOString(),
-    });
-
-    return result;
-  };
-
-  const streamTranscriptConfirmationPrompt = async ({ assessment, transcriptText, asrConfidence, vad }) => {
-    const confirmationPrompt = buildTranscriptConfirmationPrompt(transcriptText);
-    const nextPendingTranscriptConfirmation = {
-      id: `pending-${Date.now()}`,
-      originalTranscript: transcriptText,
-      asrConfidence,
-      vad,
-      assessment,
-      confirmationPrompt,
-      createdAt: new Date().toISOString(),
-      currentQuestionIndex: session?.currentQuestionIndex || null,
+      return result;
     };
-    setPendingTranscriptConfirmation(nextPendingTranscriptConfirmation);
 
-    trace('stream_transcript_confirmation_start', {
-      reason: assessment?.reason || 'LOW_CONFIDENCE_CONTENTFUL_TRANSCRIPT',
-      transcriptText,
-      asrConfidence,
-      confidenceGate: assessment?.confidenceGate || null,
-      metrics: assessment?.metrics || null,
-      confirmationPrompt,
-    });
+    const streamTranscriptConfirmationPrompt = async ({ assessment, transcriptText, asrConfidence, vad: confirmationVad }) => {
+      const confirmationPrompt = buildTranscriptConfirmationPrompt(transcriptText);
+      const nextPendingTranscriptConfirmation = {
+        id: `pending-${Date.now()}`,
+        originalTranscript: transcriptText,
+        asrConfidence,
+        vad: confirmationVad,
+        assessment,
+        confirmationPrompt,
+        createdAt: new Date().toISOString(),
+        currentQuestionIndex: session?.currentQuestionIndex || null,
+      };
+      setPendingTranscriptConfirmation(nextPendingTranscriptConfirmation);
 
-    const speechToken = bargeInController?.startAssistantSpeech?.();
-    sendJson?.({
-      type: 'transcript_confirmation_requested',
-      tool: AGENT_TOOL_NAMES.TRANSCRIBE_REALTIME_SPEECH,
-      reason: assessment?.reason || 'LOW_CONFIDENCE_CONTENTFUL_TRANSCRIPT',
-      message: confirmationPrompt,
-      confirmationPrompt,
-      transcription: {
-        accepted: false,
-        text: transcriptText,
-        confidence: asrConfidence,
+      trace('stream_transcript_confirmation_start', {
+        reason: assessment?.reason || 'LOW_CONFIDENCE_CONTENTFUL_TRANSCRIPT',
+        transcriptText,
+        asrConfidence,
         confidenceGate: assessment?.confidenceGate || null,
         metrics: assessment?.metrics || null,
-        requiresUnderstandingConfirmation: true,
-      },
-      turnType: 'transcript_confirmation',
-      countsAsQuestion: false,
-      timestamp: new Date().toISOString(),
-    });
-    sendJson?.({
-      type: 'assistant_text_delta',
-      tool: AGENT_TOOL_NAMES.SYNTHESIZE_ASSISTANT_SPEECH,
-      text: confirmationPrompt,
-      index: 0,
-      timestamp: new Date().toISOString(),
-    });
-    await streamAssistantSpeech({
-      text: confirmationPrompt,
-      voiceName,
-      sendJson,
-      bargeInController,
-      index: 0,
-      speechToken,
-      usageContext: {
-        userId,
-        sessionId: session?.id || null,
-        stage: 'interview',
-        source: 'duplex_transcript_confirmation',
-      },
-    });
-    bargeInController?.finishAssistantSpeech?.(speechToken);
-    sendJson?.({
-      type: 'assistant_speech_done',
-      tool: AGENT_TOOL_NAMES.SYNTHESIZE_ASSISTANT_SPEECH,
-      timestamp: new Date().toISOString(),
-    });
-    trace('stream_transcript_confirmation_done', {
-      reason: assessment?.reason || 'LOW_CONFIDENCE_CONTENTFUL_TRANSCRIPT',
-    });
-    return {
-      transcriptConfirmationRequested: true,
-      assessment,
-      pendingTranscriptConfirmation: nextPendingTranscriptConfirmation,
+        confirmationPrompt,
+      });
+
+      const speechToken = bargeInController?.startAssistantSpeech?.();
+      sendJson?.({
+        type: 'transcript_confirmation_requested',
+        tool: AGENT_TOOL_NAMES.TRANSCRIBE_REALTIME_SPEECH,
+        reason: assessment?.reason || 'LOW_CONFIDENCE_CONTENTFUL_TRANSCRIPT',
+        message: confirmationPrompt,
+        confirmationPrompt,
+        transcription: {
+          accepted: false,
+          text: transcriptText,
+          confidence: asrConfidence,
+          confidenceGate: assessment?.confidenceGate || null,
+          metrics: assessment?.metrics || null,
+          requiresUnderstandingConfirmation: true,
+        },
+        turnType: 'transcript_confirmation',
+        countsAsQuestion: false,
+        timestamp: new Date().toISOString(),
+      });
+      sendJson?.({
+        type: 'assistant_text_delta',
+        tool: AGENT_TOOL_NAMES.SYNTHESIZE_ASSISTANT_SPEECH,
+        text: confirmationPrompt,
+        index: 0,
+        timestamp: new Date().toISOString(),
+      });
+      await streamAssistantSpeech({
+        text: confirmationPrompt,
+        voiceName,
+        sendJson,
+        bargeInController,
+        index: 0,
+        speechToken,
+        usageContext: {
+          userId,
+          sessionId: session?.id || null,
+          stage: 'interview',
+          source: 'duplex_transcript_confirmation',
+        },
+      });
+      bargeInController?.finishAssistantSpeech?.(speechToken);
+      sendJson?.({
+        type: 'assistant_speech_done',
+        tool: AGENT_TOOL_NAMES.SYNTHESIZE_ASSISTANT_SPEECH,
+        timestamp: new Date().toISOString(),
+      });
+      trace('stream_transcript_confirmation_done', {
+        reason: assessment?.reason || 'LOW_CONFIDENCE_CONTENTFUL_TRANSCRIPT',
+      });
+      return {
+        transcriptConfirmationRequested: true,
+        assessment,
+        pendingTranscriptConfirmation: nextPendingTranscriptConfirmation,
+      };
     };
-  };
 
     const startedAt = Date.now();
     const cleanTranscript = String(transcriptText || '').trim();
@@ -501,69 +593,13 @@ export const createDuplexTurnCoordinator = ({
     const speechToken = bargeInController?.startAssistantSpeech?.();
     sentenceIndex = 0;
 
-    await streamEarlyAcknowledgement({
+    const result = await processRealtimeTurnWithDelayedBridge({
       transcriptText: cleanTranscript,
       asrConfidence,
       vad,
       speechToken,
-      source: 'duplex_interview_acknowledgement',
-    });
-
-    trace('process_realtime_voice_turn_start', {
-      transcriptText: cleanTranscript,
-      asrConfidence,
-      asrSource,
-    });
-    const result = await processRealtimeVoiceTurn({
-      session,
-      userId,
-      transcriptText: cleanTranscript,
-      language,
-      asrConfidence,
-      asrSource,
-      voiceName,
-      inputMode: 'duplex_voice',
-      vad,
-      clientTurnId,
-      onSentence: async (text, index) => {
-        try {
-          const nextIndex = Number.isFinite(index) ? sentenceIndex + index : sentenceIndex;
-          trace('assistant_sentence_ready', {
-            index: nextIndex,
-            text,
-            speechTokenActive: bargeInController?.isTokenActive?.(speechToken),
-          });
-          if (!bargeInController?.isTokenActive?.(speechToken)) return;
-          sendJson?.({
-            type: 'assistant_text_delta',
-            tool: AGENT_TOOL_NAMES.GENERATE_INTERVIEW_QUESTION,
-            text,
-            index: nextIndex,
-            timestamp: new Date().toISOString(),
-          });
-          await streamAssistantSpeech({
-            text,
-            voiceName,
-            sendJson,
-            bargeInController,
-            index: nextIndex,
-            speechToken,
-            usageContext: {
-              userId,
-              sessionId: session?.id || null,
-              stage: 'interview',
-              source: 'duplex_interview_sentence',
-            },
-          });
-          sentenceIndex = nextIndex + 1;
-          trace('assistant_sentence_tts_done', {
-            index: nextIndex,
-            text,
-          });
-        } catch (error) {
-          logger?.error?.('Failed to process sentence in duplex turn', { sessionId: session?.id, index, text, error: error.message });
-        }
-      },
+      acknowledgementSource: 'duplex_bridge_acknowledgement',
+      sentenceSource: 'duplex_interview_sentence',
     });
 
     trace('process_realtime_voice_turn_done', {
@@ -579,8 +615,7 @@ export const createDuplexTurnCoordinator = ({
       tool: AGENT_TOOL_NAMES.SYNTHESIZE_ASSISTANT_SPEECH,
       timestamp: new Date().toISOString(),
     });
-    
-    // Trigger warmup for next turn if session is still in progress
+
     const updatedSession = result?.updatedSession || session;
     if (updatedSession?.status === 'in_progress' && !result?.agentResult?.isComplete) {
       triggerWarmupForNextTurn(updatedSession, result).catch((error) => {
@@ -590,7 +625,7 @@ export const createDuplexTurnCoordinator = ({
         });
       });
     }
-    
+
     sendJson?.({
       type: 'turn_done',
       tool: AGENT_TOOL_NAMES.ORCHESTRATE_DUPLEX_VOICE,
