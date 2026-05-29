@@ -9,6 +9,37 @@ import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
 import { afterEach, vi } from 'vitest';
 
+const createMemoryStorage = () => {
+  const values = new Map();
+
+  return {
+    get length() {
+      return values.size;
+    },
+    clear: vi.fn(() => values.clear()),
+    getItem: vi.fn((key) => values.get(String(key)) ?? null),
+    key: vi.fn((index) => Array.from(values.keys())[index] ?? null),
+    removeItem: vi.fn((key) => values.delete(String(key))),
+    setItem: vi.fn((key, value) => values.set(String(key), String(value))),
+  };
+};
+
+const installLocalStorageShim = () => {
+  if (globalThis.window?.localStorage) return;
+
+  const storage = createMemoryStorage();
+  Object.defineProperty(globalThis.window, 'localStorage', {
+    configurable: true,
+    value: storage,
+  });
+  Object.defineProperty(globalThis, 'localStorage', {
+    configurable: true,
+    value: storage,
+  });
+};
+
+installLocalStorageShim();
+
 if (!globalThis.URL.createObjectURL) {
   globalThis.URL.createObjectURL = vi.fn(() => 'blob:test-audio');
 }
@@ -21,5 +52,5 @@ if (!globalThis.atob) {
 
 afterEach(() => {
   cleanup();
-  window.localStorage.clear();
+  window.localStorage?.clear?.();
 });
