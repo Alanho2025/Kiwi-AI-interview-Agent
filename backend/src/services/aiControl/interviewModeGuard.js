@@ -105,7 +105,7 @@ const buildTechnicalModeQuestion = ({ selectedQuestion = {}, targetTopic = '' } 
     topic,
     category: 'technical',
     followUpDepth: Math.max(0, Number(safeQuestion.followUpDepth || 0)),
-    text: `Could you walk me through the technical approach you used for ${topic}? Please cover the tools, key implementation steps, and how you checked it worked.`,
+    text: `What technical approach did you use for ${topic}?`,
     reason: 'The selected interview mode is technical, so the backend mode guard replaced a behavioural-style question with an implementation-focused technical question.',
     sourceType: 'mode_guard',
     modeGuardApplied: true,
@@ -125,18 +125,18 @@ const inferBehaviouralTopic = ({ targetTopic = '', latestAnswer = '', selectedQu
 const buildBehaviouralModeQuestionText = ({ topic = 'behavioural_example', latestAnswer = '' } = {}) => {
   const answer = latestAnswer.toLowerCase();
   if (topic === 'collaboration_conflict') {
-    return 'Tell me about that disagreement in the project. What was the situation, what did you personally do, and what was the result?';
+    return 'What did you personally do in that disagreement?';
   }
   if (topic === 'pressure_and_prioritisation') {
-    return 'Tell me about a time you had to work under pressure. What made it difficult, what action did you take, and what changed because of your action?';
+    return 'What action did you take under pressure?';
   }
   if (topic === 'learning_from_challenge') {
-    return 'Tell me about one challenge from that experience. What did you do first, how did you adjust, and what did you learn?';
+    return 'What did you do first in that challenge?';
   }
   if (/python|model|machine learning|database|dashboard|data/.test(answer) || topic === 'project_behaviour') {
-    return 'Using that project as the context, tell me about one challenge you faced. What action did you personally take, and what result did it lead to?';
+    return 'Using that project as context, what challenge did you personally handle?';
   }
-  return 'Can you give me one specific example that shows your behaviour in that situation? Please cover the situation, your personal action, and the result.';
+  return 'Can you give one specific example of your behaviour there?';
 };
 
 export const buildBehaviouralModeQuestion = ({ selectedQuestion = {}, targetTopic = '', latestAnswer = '', reason = '' } = {}) => {
@@ -189,7 +189,7 @@ export const guardGeneratedTextForInterviewMode = ({ focusArea = 'combined', gen
   const text = normalizeText(sanitizedText);
   if (mode === 'behavioral') {
     if (!generatedTextLooksTechnical(text)) return sanitizedText;
-    return normalizeText(fallbackText) || 'Using that project as the context, tell me about one challenge you faced. What action did you personally take, and what result did it lead to?';
+    return normalizeText(fallbackText) || 'Using that project as context, what challenge did you personally handle?';
   }
 
   if (mode === 'technical') {
