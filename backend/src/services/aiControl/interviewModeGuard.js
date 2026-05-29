@@ -115,7 +115,7 @@ const buildTechnicalModeQuestion = ({ selectedQuestion = {}, targetTopic = '' } 
 
 const inferBehaviouralTopic = ({ targetTopic = '', latestAnswer = '', selectedQuestion = {} } = {}) => {
   const source = `${targetTopic} ${selectedQuestion.topic || ''} ${latestAnswer}`.toLowerCase();
-  if (/disagree|conflict|opinion|stakeholder|team|discuss|consensus|communication/.test(source)) return 'collaboration_conflict';
+  if (/disagree|conflict|opinion|stakeholder|consensus|communication/.test(source)) return 'collaboration_conflict';
   if (/pressure|deadline|stress|urgent|emergency|constraint/.test(source)) return 'pressure_and_prioritisation';
   if (/mistake|fail|error|wrong|challenge|difficult/.test(source)) return 'learning_from_challenge';
   if (/dashboard|python|model|data|database|project|analysis/.test(source)) return 'project_behaviour';
