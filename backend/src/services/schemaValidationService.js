@@ -31,6 +31,8 @@ import {
   normalizeVoiceDeliverySummary,
 } from '../utils/schemaHelpers.js';
 
+const clampUnitNumber = (value, fallback = 0.5) => Math.max(0, Math.min(1, ensureNumber(value, fallback)));
+
 /**
  * Purpose: Execute the main responsibility for validateAnalyzeOutput.
  * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
@@ -98,6 +100,29 @@ export const validateInterviewPlan = (plan = {}) => ({
   fallbackRules: isObject(plan.fallbackRules) ? plan.fallbackRules : {},
   settingsSnapshot: isObject(plan.settingsSnapshot) ? plan.settingsSnapshot : {},
 });
+
+export const validatePreparedQuestionPoolItem = (item = {}) => {
+  const safeItem = isObject(item) ? item : {};
+  const text = ensureString(safeItem.text || safeItem.fallbackText);
+  return {
+    ...safeItem,
+    questionId: ensureString(safeItem.questionId),
+    sessionId: ensureString(safeItem.sessionId),
+    text,
+    fallbackText: ensureString(safeItem.fallbackText || text),
+    category: ensureString(safeItem.category, 'experience'),
+    topic: ensureString(safeItem.topic, 'role_fit'),
+    sourceType: ensureString(safeItem.sourceType || safeItem.sourceStage, 'prepared_question_pool'),
+    sourceStage: ensureString(safeItem.sourceStage || safeItem.sourceType, 'prepared_question_pool'),
+    priorityWeight: clampUnitNumber(safeItem.priorityWeight),
+    coverageWeight: clampUnitNumber(safeItem.coverageWeight),
+    riskWeight: clampUnitNumber(safeItem.riskWeight),
+  };
+};
+
+export const validatePreparedQuestionPool = (items = []) => ensureArray(items)
+  .map(validatePreparedQuestionPoolItem)
+  .filter((item) => item.questionId && item.sessionId && (item.text || item.fallbackText) && item.category && item.topic && (item.sourceType || item.sourceStage));
 
 /**
  * Purpose: Execute the main responsibility for validateReportOutput.

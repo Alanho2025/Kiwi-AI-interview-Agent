@@ -275,7 +275,7 @@ export function useVoiceSessionLifecycleController({
       setVoiceStatus(buildVoiceStatus('info', 'Starting duplex voice interview', 'KiwiCoach will speak, listen, and allow interruption.'));
 
       await ensureDuplexConnected();
-
+      await startListening();
       window.setTimeout(async () => {
         if (!autoLoopActiveRef.current) return;
 

@@ -16,6 +16,7 @@ import { EMBEDDING_DIMENSION, EMBEDDING_MODEL, embedBatch, normalizeForRetrieval
 import { SessionAnalysis } from '../db/models/sessionAnalysisModel.js';
 import { InterviewPlan } from '../db/models/interviewPlanModel.js';
 import { SessionTranscript } from '../db/models/sessionTranscriptModel.js';
+import { InterviewQuestionPoolItem } from '../db/models/interviewQuestionPoolItemModel.js';
 import { RETRIEVAL_SOURCES } from './retrieval/retrievalSourceRegistry.js';
 import { redactSensitiveText } from './privacyRedactionService.js';
 
@@ -99,6 +100,28 @@ const shouldIndexControllerPayload = (payload = {}) => [
   payload.agentMemory,
   payload.evidenceBundleSnapshot,
 ].some(hasContent);
+
+export const buildPreparedQuestionPoolIndexPayload = (items = []) => ({
+  schemaVersion: 'v1',
+  questionCount: Array.isArray(items) ? items.length : 0,
+  questions: (Array.isArray(items) ? items : []).map((item) => ({
+    questionId: item.questionId,
+    sourceStage: item.sourceStage,
+    sourceType: item.sourceType,
+    category: item.category,
+    stage: item.stage,
+    topic: item.topic,
+    competency: item.competency,
+    questionIntent: item.questionIntent,
+    text: item.fallbackText || item.text || '',
+    expectedSignal: item.expectedSignal || [],
+    evidenceNeed: item.evidenceNeed || [],
+    priorityWeight: item.priorityWeight,
+    coverageWeight: item.coverageWeight,
+    riskWeight: item.riskWeight,
+    status: item.status,
+  })),
+});
 
 const upsertLegacyMongoChunkMirror = async (record) => {
   // Runtime retrieval reads PostgreSQL pgvector. Mongo remains a legacy mirror for migration/debug compatibility.
@@ -209,10 +232,11 @@ export const indexTextSource = async ({ sourceType, sourceId, documentType, text
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
 export const indexSessionArtifacts = async (sessionId) => {
-  const [analysis, plan, transcript] = await Promise.all([
+  const [analysis, plan, transcript, preparedQuestionPool] = await Promise.all([
     SessionAnalysis.findOne({ sessionId }).lean(),
     InterviewPlan.findOne({ sessionId }).lean(),
     SessionTranscript.findOne({ sessionId }).lean(),
+    InterviewQuestionPoolItem.find({ sessionId, status: { $in: ['active', 'asked'] } }).sort({ priorityWeight: -1, createdAt: 1 }).lean(),
   ]);
 
   const indexed = [];
@@ -284,6 +308,23 @@ export const indexSessionArtifacts = async (sessionId) => {
         explanation: plan.explanation,
       }, null, 2),
       metadata: { schemaVersion: plan.schemaVersion || 'v3' },
+    }));
+  }
+
+  if (preparedQuestionPool?.length) {
+    indexed.push(...await indexTextSource({
+      sourceType: RETRIEVAL_SOURCES.SESSION_PREPARED_QUESTION_POOL,
+      sourceId: sessionId,
+      documentType: 'prepared_question_pool',
+      sessionId,
+      userId: preparedQuestionPool[0]?.userId || analysis?.userId || plan?.userId || null,
+      text: JSON.stringify(buildPreparedQuestionPoolIndexPayload(preparedQuestionPool), null, 2),
+      metadata: {
+        schemaVersion: 'v1',
+        questionCount: preparedQuestionPool.length,
+        activeCount: preparedQuestionPool.filter((item) => item.status === 'active').length,
+        askedCount: preparedQuestionPool.filter((item) => item.status === 'asked').length,
+      },
     }));
   }
 

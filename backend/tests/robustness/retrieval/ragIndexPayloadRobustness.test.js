@@ -3,7 +3,10 @@ import { describe, expect, it } from 'vitest';
 import {
   buildControllerDecisionIndexPayload,
   buildMatchAnalysisIndexPayload,
+  buildPreparedQuestionPoolIndexPayload,
 } from '../../../src/services/ragIndexService.js';
+import { RETRIEVAL_SOURCES } from '../../../src/services/retrieval/retrievalSourceRegistry.js';
+import { selectRetrievalSources } from '../../../src/services/retrieval/retrievalSourceSelector.js';
 
 describe('RAG index payload builders', () => {
   it('builds a match_analysis payload from the stored session analysis fields', () => {
@@ -64,5 +67,48 @@ describe('RAG index payload builders', () => {
     expect(payload.dynamicSlotRecords).toHaveLength(1);
     expect(payload.reflectionRecords).toHaveLength(1);
     expect(payload.agentMemory).toEqual({ weakAreas: ['examples'] });
+  });
+
+  it('builds a prepared_question_pool payload without raw CV or JD text', () => {
+    const payload = buildPreparedQuestionPoolIndexPayload([{
+      questionId: 'poolq-1',
+      sourceStage: 'match_gap',
+      sourceType: 'match_gap',
+      category: 'technical',
+      stage: 'validation',
+      topic: 'database',
+      questionIntent: 'risk_probe',
+      text: 'Tell me about a database task you owned.',
+      fallbackText: 'Tell me about a database task you owned.',
+      expectedSignal: ['ownership'],
+      evidenceNeed: ['validation_method'],
+      priorityWeight: 0.9,
+      coverageWeight: 0.8,
+      riskWeight: 0.7,
+      status: 'active',
+      linkedCvEvidence: [{ text: 'Sensitive raw CV evidence should not be copied.' }],
+      linkedJdRequirement: [{ text: 'Sensitive raw JD evidence should not be copied.' }],
+    }]);
+
+    expect(payload).toMatchObject({
+      schemaVersion: 'v1',
+      questionCount: 1,
+      questions: [expect.objectContaining({
+        questionId: 'poolq-1',
+        sourceType: 'match_gap',
+        topic: 'database',
+        text: 'Tell me about a database task you owned.',
+      })],
+    });
+    expect(JSON.stringify(payload)).not.toContain('Sensitive raw CV evidence');
+    expect(JSON.stringify(payload)).not.toContain('Sensitive raw JD evidence');
+  });
+
+  it('includes prepared_question_pool in interview and report retrieval source selection', () => {
+    const bootstrapSources = selectRetrievalSources({ objective: 'BOOTSTRAP_INTERVIEW_CONTEXT' });
+    const reportSources = selectRetrievalSources({ objective: 'COLLECT_REPORT_EVIDENCE' });
+
+    expect(bootstrapSources).toContain(RETRIEVAL_SOURCES.SESSION_PREPARED_QUESTION_POOL);
+    expect(reportSources).toContain(RETRIEVAL_SOURCES.SESSION_PREPARED_QUESTION_POOL);
   });
 });

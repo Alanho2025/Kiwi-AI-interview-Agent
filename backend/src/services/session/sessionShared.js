@@ -31,7 +31,6 @@ import {
 import {
   buildOpeningQuestion,
   buildWrapUpQuestion,
-  buildTechnicalPrompt,
   buildRoleCompetencyPrompt,
   buildBehaviouralPrompt,
 } from '../../utils/questionBuilders.js';
@@ -111,8 +110,6 @@ export const buildCanonicalRoleMeta = ({ resolvedTargetRole = '', normalizedAnal
 
 // buildTechnicalPrompt, findUniversalRequirementTarget, and buildRoleCompetencyPrompt
 // are now imported from questionBuilders.js and sessionHelpers.js (lines 29-36)
-
-const normalizeRequirementKey = (value = '') => String(value || '').toLowerCase().replace(/[^a-z0-9+#.]+/g, ' ').replace(/\s+/g, ' ').trim();
 
 const isTechnicalRequirementCategory = (category = '', capabilityGroup = '') => isTechnicalCapabilityGroup(capabilityGroup, category);
 

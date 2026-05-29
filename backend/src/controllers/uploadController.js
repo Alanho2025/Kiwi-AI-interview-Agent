@@ -25,6 +25,24 @@ import { asyncHandler } from '../middleware/asyncHandler.js';
 import { badRequest, notFound } from '../utils/appError.js';
 import { logger, getRequestLogMeta } from '../utils/logger.js';
 import { recordLocalUsage } from '../services/aiUsageTrackingService.js';
+import { generateCvQuestionSeeds } from '../services/questions/cvQuestionSeedService.js';
+
+const refreshCvQuestionSeeds = async ({ req, userId, cvFileId, cvProfile, action }) => {
+  try {
+    await generateCvQuestionSeeds({
+      userId,
+      cvFileId,
+      cvProfile,
+    });
+  } catch (error) {
+    logger.warn('CV question seed generation failed', getRequestLogMeta(req, {
+      userId,
+      cvFileId,
+      action,
+      error: error.message,
+    }));
+  }
+};
 
 export const uploadCV = asyncHandler(async (req, res) => {
   if (!req.file) {
@@ -87,6 +105,14 @@ export const uploadCV = asyncHandler(async (req, res) => {
     extractedSections: cvProfile.sections || [],
     cvProfile,
     displayProfile,
+  });
+
+  await refreshCvQuestionSeeds({
+    req,
+    userId: user.id,
+    cvFileId: fileId,
+    cvProfile,
+    action: 'upload_cv',
   });
 
   const fileMetadata = await getCvRecordById(fileId, user.id);
@@ -156,6 +182,13 @@ export const reviewCvProfile = asyncHandler(async (req, res) => {
     cvId: req.params.cvId,
     userId: user.id,
     reviewProfile: req.body?.reviewProfile || req.body || {},
+  });
+  await refreshCvQuestionSeeds({
+    req,
+    userId: user.id,
+    cvFileId: req.params.cvId,
+    cvProfile: updatedCv.profile || {},
+    action: 'review_cv_profile',
   });
   await createAuditLog({
     actorUserId: user.id,
