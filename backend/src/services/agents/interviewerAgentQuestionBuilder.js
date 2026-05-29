@@ -79,6 +79,30 @@ export const pickRetrievedQuestion = (retrievalBundle, selectedQuestion, targetT
 
 export const normalizeKey = (value = '') => String(value || '').trim().toLowerCase();
 
+const CANDIDATE_TOPIC_PHRASES = {
+  communication: 'explaining a complex idea clearly',
+  teamwork: 'working with others to solve a problem',
+  leadership: 'helping guide a team decision',
+  problem_solving: 'solving a difficult problem',
+  problem: 'solving a difficult problem',
+  adaptability: 'changing your approach after feedback',
+  stakeholder: 'working with a stakeholder',
+  customer: 'handling a customer situation',
+  decision_tradeoff: 'making a difficult trade-off',
+  role_fit: 'your fit for this role',
+  behavioural_example: 'that behavioural example',
+  project_behaviour: 'your behaviour in that project',
+  claim: 'that claim',
+  ownership: 'your ownership',
+  technical_depth: 'your technical approach',
+};
+
+export const toCandidatePhrase = (topic = '') => {
+  const clean = normalizeText(topic);
+  const key = normalizeKey(clean).replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  return CANDIDATE_TOPIC_PHRASES[key] || clean || 'this area';
+};
+
 export const buildQuestionRootKey = (question = {}) => {
   const topic = normalizeKey(question.topic || '');
   const category = normalizeKey(question.category || (String(question.stage || '').includes('behaviour') ? 'behavioural' : String(question.stage || '').includes('technical') ? 'technical' : 'experience'));
@@ -127,29 +151,30 @@ export const buildMatchedTechnicalQuestion = ({ topic = 'implementation' } = {})
   const normalizedTopic = normalizeText(topic) || 'implementation';
   const lower = normalizedTopic.toLowerCase();
   const inferredCategory = inferRequirementCategoryFromTopic(normalizedTopic);
+  const spokenTopic = toCandidatePhrase(normalizedTopic);
   const skillAwareText = inferredCategory === 'qualification'
-    ? `Let us validate a key role requirement. Can you walk me through your evidence for ${normalizedTopic}, and where you have applied it in practice?`
+    ? `What evidence shows your ${spokenTopic} in practice?`
     : inferredCategory === 'compliance_or_safety'
-      ? `Let us validate a key role requirement. Tell me about a time you had to follow or apply ${normalizedTopic}. What checks did you make, and what was at stake?`
+      ? `Tell me about a time you applied ${spokenTopic}.`
       : inferredCategory === 'customer_or_stakeholder'
-        ? `Let us focus on the role requirements. Tell me about a time you handled a difficult customer or stakeholder situation involving ${normalizedTopic}. What happened, what did you do, and what was the outcome?`
+        ? `How did you handle a difficult ${spokenTopic} situation?`
         : inferredCategory === 'communication'
-          ? `Let us focus on the role requirements. Tell me about a time you used ${normalizedTopic}. Who was the audience, and what result did your communication achieve?`
+          ? 'Tell me about a time you explained a complex idea clearly.'
           : inferredCategory === 'leadership'
-            ? `Let us focus on the role requirements. Tell me about a time you showed ${normalizedTopic}. What did you lead or influence, and what changed afterwards?`
+            ? 'Tell me about a time you helped guide a team decision.'
             : lower.includes('react')
-    ? `Let us move to the technical side. Tell me about one React feature or frontend flow you implemented yourself. What decisions did you make, and how did you know it worked?`
+    ? 'What React feature or frontend flow did you build yourself?'
     : lower.includes('postgres') || lower.includes('sql') || lower.includes('database')
-      ? `Let us move to the technical side. Tell me about one database or SQL task you handled yourself. What query, schema, or trade-off did you work through, and what result came from it?`
+      ? 'What database or SQL task did you handle yourself?'
       : lower.includes('aws') || lower.includes('cloud') || lower.includes('deploy')
-        ? `Let us move to the technical side. Tell me about one cloud or deployment task you handled yourself using ${normalizedTopic}. What part did you own, and what did you have to troubleshoot?`
+        ? 'What cloud or deployment task did you own?'
         : lower.includes('debug') || lower.includes('troubleshoot')
-          ? `Let us move to the technical side. Tell me about one debugging or troubleshooting example from your work. What was the issue, what did you check first, and how did you fix it?`
+          ? 'Tell me about one debugging problem you solved.'
           : lower.includes('automation')
-            ? `Let us move to the technical side. Tell me about one automation task you built or improved. What did you implement yourself, and how did it change the workflow?`
+            ? 'What automation task did you build or improve?'
             : inferredCategory === 'responsibility'
-              ? `Let us focus on the role requirements. Tell me about a real example where you handled ${normalizedTopic}. What did you own, and what was the result?`
-              : `Let us move to the technical side. Tell me about one concrete example where you used ${normalizedTopic}. What did you implement yourself, what trade-off did you handle, and what was the result?`;
+              ? `Tell me about a real example where you handled ${spokenTopic}.`
+              : `What is one concrete example where you used ${spokenTopic}?`;
 
   return {
     type: inferredCategory === 'technical' ? 'technical_recovery_follow_up' : 'role_competency_recovery_follow_up',
@@ -175,7 +200,7 @@ export const buildClosingQuestion = ({ session = {}, decisionContext = {} } = {}
       topic,
       category: 'closing',
       followUpDepth: 0,
-      text: `Before we wrap up, I want one final role-specific example. Thinking about ${topic}, what did you own yourself, what was the hardest part, and what result came from it?`,
+      text: `Before we wrap up, what did you personally own in ${toCandidatePhrase(topic)}?`,
       reason: 'The session is at its final planned turn, so the interviewer is using a clear closing question that still checks concrete role ownership.',
       sourceType: 'controller_directed',
     };
@@ -213,7 +238,7 @@ export const buildProbingQuestion = ({ targetTopic = 'project' } = {}) => ({
   topic: targetTopic,
   category: 'technical',
   followUpDepth: 1,
-  text: `Can you walk me through one concrete ${targetTopic} example, what you personally did, and what result it led to?`,
+  text: 'What did you personally do in that example?',
   reason: 'A probing question is needed to collect one concrete example before moving on.',
   sourceType: 'controller_directed',
 });
@@ -224,7 +249,7 @@ export const buildRephrasedQuestion = ({ targetTopic = 'project', environment = 
   topic: targetTopic,
   category: String(environment?.questionContext?.latestQuestionStage || '').includes('behaviour') ? 'behavioural' : 'technical',
   followUpDepth: 1,
-  text: `Let me rephrase that more clearly. For ${targetTopic}, please pick one real example and tell me your role, what you did, and the outcome.`,
+  text: 'Let me rephrase that. Pick one real example and explain your role, action, and outcome.',
   reason: 'The evaluator detected likely misunderstanding, so the interviewer should restate the question with a tighter structure.',
   sourceType: 'controller_directed',
 });
@@ -235,7 +260,7 @@ export const buildDeepDiveQuestion = ({ targetTopic = 'project' } = {}) => ({
   topic: targetTopic,
   category: 'technical',
   followUpDepth: 2,
-  text: `Staying with ${targetTopic}, what trade-off, difficulty, or decision did you handle yourself, and how did you judge whether it worked?`,
+  text: 'What was the hardest decision you made there?',
   reason: 'The latest answer was usable but still partial, so a deeper question should capture decision quality and ownership.',
   sourceType: 'controller_directed',
 });
@@ -246,7 +271,7 @@ export const buildValidationQuestion = ({ targetTopic = 'claim' } = {}) => ({
   topic: targetTopic,
   category: 'technical',
   followUpDepth: 1,
-  text: `You mentioned ${targetTopic}. What exactly did you own, and how did you know it worked well in practice?`,
+  text: 'How did you know your part worked?',
   reason: 'This question validates a claim that still needs direct supporting evidence.',
   sourceType: 'controller_directed',
 });
@@ -257,7 +282,7 @@ export const buildSwitchTopicQuestion = ({ targetTopic = 'role_fit' } = {}) => (
   topic: targetTopic,
   category: 'experience',
   followUpDepth: 0,
-  text: `I would like to move to ${targetTopic}. Can you share one example that shows your experience in that area?`,
+  text: `Can you share one example that shows ${toCandidatePhrase(targetTopic)}?`,
   reason: 'The controller switched topic because an important requirement has not been covered yet.',
   sourceType: 'controller_directed',
 });
@@ -268,7 +293,7 @@ export const buildRepetitionRepairSwitchQuestion = ({ targetTopic = 'role_fit' }
   topic: targetTopic,
   category: 'experience',
   followUpDepth: 0,
-  text: `You're right, we have covered that angle. Let us move on to ${targetTopic}: can you share one different example that shows your fit in that area?`,
+  text: `You're right, we covered that. Can you use a different example for ${toCandidatePhrase(targetTopic)}?`,
   reason: 'The candidate flagged repetition, so the interviewer acknowledges it and moves to a fresh topic.',
   sourceType: 'controller_directed',
 });
@@ -279,7 +304,9 @@ export const buildAbductiveProbeQuestion = ({ targetTopic = 'decision_tradeoff',
   topic: targetTopic,
   category: 'technical',
   followUpDepth: 2,
-  text: `You hinted at ${hiddenGap || targetTopic}. What was the hardest trade-off or gap there, and how did you handle it in practice?`,
+  text: hiddenGap
+    ? `You hinted at ${hiddenGap}. What was hardest there?`
+    : `What was hardest about ${toCandidatePhrase(targetTopic)}?`,
   reason: 'The controller inferred a hidden gap that should be tested before moving on.',
   sourceType: 'controller_directed',
 });
@@ -291,14 +318,14 @@ export const buildSectionShiftQuestion = ({ nextSectionKey = 'motivation' } = {}
   category: nextSectionKey === 'technical' ? 'technical' : nextSectionKey === 'behavioural' ? 'behavioural' : nextSectionKey === 'closing' ? 'closing' : 'experience',
   followUpDepth: 0,
   text: nextSectionKey === 'motivation'
-    ? 'Let us shift to motivation. What makes this role a strong fit for you now?'
+    ? 'What makes this role a strong fit for you now?'
     : nextSectionKey === 'behavioural'
-      ? 'Let us move to teamwork and problem solving. Can you share one situation where you had to work through a challenge with others?'
+      ? 'Tell me about one challenge you worked through with others.'
       : nextSectionKey === 'technical'
-        ? 'Let us move to technical depth. Can you share one example where you made an important implementation or design decision?'
+        ? 'What technical decision did you make yourself?'
         : nextSectionKey === 'reflection_close'
-          ? 'Before we close, what would you improve about one of your past answers or examples if you could answer again?'
-          : `Let us move to ${nextSectionKey}. Can you share one concrete example from that area?`,
+          ? 'What would you improve if you answered one past question again?'
+          : `Can you share one example from ${toCandidatePhrase(nextSectionKey)}?`,
   reason: 'The current section is sufficiently covered, so the interviewer is moving to the next planned section.',
   sourceType: 'controller_directed',
 });
@@ -309,7 +336,7 @@ export const buildForceShiftProjectQuestion = ({ targetTopic = 'experience', for
   topic: targetTopic,
   category: 'experience',
   followUpDepth: 1,
-  text: `I've heard a good deal about your work on "${forbiddenProject}". To help me see the full breadth of your experience, could you share a different example from your CV for ${targetTopic}?`,
+  text: `Let's use a different CV example. What shows ${toCandidatePhrase(targetTopic)}?`,
   reason: `The candidate has overused the "${forbiddenProject}" example, so the interviewer is forcing a context switch to ensure CV coverage.`,
   sourceType: 'controller_directed',
 });
@@ -320,7 +347,7 @@ export const buildProbeStressQuestion = ({ targetTopic = 'technical_depth' } = {
   topic: targetTopic,
   category: 'technical',
   followUpDepth: 2,
-  text: `That solution works well in a standard scenario. But what if you faced a major constraint—like 10x the traffic or a 50% cut in timeline? How would your approach for ${targetTopic} change?`,
+  text: `What would change if ${toCandidatePhrase(targetTopic)} had a tighter deadline?`,
   reason: 'The candidate provided a stable answer, so the interviewer is applying a stress constraint to test boundaries.',
   sourceType: 'controller_directed',
 });
@@ -331,7 +358,7 @@ export const buildProbeFrictionQuestion = ({ targetTopic = 'ownership' } = {}) =
   topic: targetTopic,
   category: 'behavioural',
   followUpDepth: 2,
-  text: `Every successful project has its friction points. In that example for ${targetTopic}, what was the hardest trade-off you had to make, or a time when a stakeholder strongly disagreed with your direction?`,
+  text: 'What was the hardest friction point in that project?',
   reason: 'The candidate gave a "happy path" answer, so the interviewer is probing for real-world friction and conflict resolution.',
   sourceType: 'controller_directed',
 });

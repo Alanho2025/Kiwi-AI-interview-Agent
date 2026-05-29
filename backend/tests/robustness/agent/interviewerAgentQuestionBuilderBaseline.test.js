@@ -19,6 +19,7 @@ import {
   inferQuestionGoal,
   normalizeQuestionIntent,
   pickPriorityTechnicalTopic,
+  toCandidatePhrase,
 } from '../../../src/services/agents/interviewerAgentQuestionBuilder.js';
 
 import {
@@ -43,6 +44,8 @@ const expectQuestionShape = (question, overrides = {}) => {
   }));
 };
 
+const wordCount = (text = '') => text.split(/\s+/).filter(Boolean).length;
+
 describe('interviewer agent question builder baseline', () => {
   it('preserves question goal and evidence need mappings', () => {
     expect(inferQuestionGoal({ type: 'deep_dive_follow_up' })).toBe('deep_dive_on_decision_quality');
@@ -51,20 +54,11 @@ describe('interviewer agent question builder baseline', () => {
     expect(inferQuestionGoal({ type: 'probe_stress_follow_up' })).toBe('test_constraints_and_adaptation');
     expect(inferQuestionGoal({ type: 'probe_friction_follow_up' })).toBe('surface_tradeoff_conflict_or_failure');
 
-    expect(inferEvidenceNeed({ type: 'deep_dive_follow_up' })).toEqual([
-      'tradeoff',
-      'personal_action',
-      'validation_method',
-      'result',
-    ]);
-    expect(inferEvidenceNeed({ type: 'validation_follow_up' })).toEqual([
-      'personal_ownership',
-      'validation_method',
-      'result_or_impact',
-    ]);
+    expect(inferEvidenceNeed({ type: 'deep_dive_follow_up' })).toEqual(['tradeoff', 'personal_action', 'validation_method', 'result']);
+    expect(inferEvidenceNeed({ type: 'validation_follow_up' })).toEqual(['personal_ownership', 'validation_method', 'result_or_impact']);
   });
 
-  it('normalizes question intent while preserving existing text and fallback fields', () => {
+  it('normalizes question intent while preserving fallback fields', () => {
     const question = normalizeQuestionIntent({
       question: {
         type: 'deep_dive_follow_up',
@@ -83,11 +77,17 @@ describe('interviewer agent question builder baseline', () => {
     expect(question.fallbackText).toBe('How did you judge whether it worked?');
     expect(question.text).toBe('How did you judge whether it worked?');
     expect(question.questionGoal).toBe('deep_dive_on_decision_quality');
-    expect(question.evidenceNeed).toEqual(['tradeoff', 'personal_action', 'validation_method', 'result']);
     expect(question.constraints).toEqual(expect.arrayContaining(['ask_one_question_only', 'stay_on_same_example', 'technical_evidence_only']));
   });
 
-  it('builds stable baseline question objects for controller-directed follow-ups', () => {
+  it('maps internal topics to candidate-facing phrases', () => {
+    expect(toCandidatePhrase('Communication')).toBe('explaining a complex idea clearly');
+    expect(toCandidatePhrase('role_fit')).toBe('your fit for this role');
+    expect(toCandidatePhrase('decision_tradeoff')).toBe('making a difficult trade-off');
+    expect(toCandidatePhrase('PostgreSQL')).toBe('PostgreSQL');
+  });
+
+  it('builds short controller-directed follow-up questions', () => {
     const questions = [
       buildProbingQuestion({ targetTopic: 'recommendation system' }),
       buildRephrasedQuestion({ targetTopic: 'testing' }),
@@ -104,31 +104,29 @@ describe('interviewer agent question builder baseline', () => {
 
     for (const question of questions) {
       expectQuestionShape(question);
+      expect(wordCount(question.text)).toBeLessThanOrEqual(18);
+      expect(question.text).not.toMatch(/decision_tradeoff|role_fit|show Communication/);
     }
 
-    expect(questions.map((question) => question.sourceType)).toEqual(expect.arrayContaining(['controller_directed']));
-    expect(questions.some((question) => question.text.includes('what you personally did'))).toBe(true);
-    expect(questions.some((question) => question.text.includes('trade-off'))).toBe(true);
+    expect(buildProbingQuestion().text).toBe('What did you personally do in that example?');
+    expect(buildDeepDiveQuestion().text).toBe('What was the hardest decision you made there?');
+    expect(buildValidationQuestion().text).toBe('How did you know your part worked?');
   });
 
-  it('builds matched technical recovery questions from topic categories', () => {
+  it('builds recovery questions without leaking internal labels', () => {
     const communicationQuestion = buildMatchedTechnicalQuestion({ topic: 'Communication' });
     const reactQuestion = buildMatchedTechnicalQuestion({ topic: 'React' });
     const databaseQuestion = buildMatchedTechnicalQuestion({ topic: 'PostgreSQL database' });
 
-    expectQuestionShape(communicationQuestion, {
-      type: 'role_competency_recovery_follow_up',
-      stage: 'technical',
-      topic: 'Communication',
-      category: 'technical',
-    });
-    expect(communicationQuestion.text).toContain('Tell me about a time you used Communication');
+    expectQuestionShape(communicationQuestion, { type: 'role_competency_recovery_follow_up' });
+    expect(communicationQuestion.text).toBe('Tell me about a time you explained a complex idea clearly.');
+    expect(communicationQuestion.text).not.toContain('Communication');
 
     expectQuestionShape(reactQuestion, { type: 'technical_recovery_follow_up' });
-    expect(reactQuestion.text).toContain('React feature or frontend flow');
+    expect(reactQuestion.text).toBe('What React feature or frontend flow did you build yourself?');
 
     expectQuestionShape(databaseQuestion, { type: 'technical_recovery_follow_up' });
-    expect(databaseQuestion.text).toContain('database or SQL task');
+    expect(databaseQuestion.text).toBe('What database or SQL task did you handle yourself?');
   });
 
   it('preserves priority topic picking, root key, and closing question behaviour', () => {
@@ -161,6 +159,7 @@ describe('interviewer agent question builder baseline', () => {
 
     expectQuestionShape(closing, { stage: 'closing', category: 'closing' });
     expect(closing.text).toContain('Before we wrap up');
+    expect(wordCount(closing.text)).toBeLessThanOrEqual(18);
   });
 });
 
@@ -172,7 +171,7 @@ describe('interview mode guard baseline', () => {
     expect(normalizeInterviewMode('anything_else')).toBe('combined');
 
     expect(questionLooksTechnical({ text: 'How did you implement the database schema?' })).toBe(true);
-    expect(questionLooksBehavioural({ text: 'Tell me about a time you handled stakeholder conflict.' })).toBe(true);
+    expect(questionLooksBehavioural({ text: 'Tell me about a time you handled a team challenge.' })).toBe(true);
   });
 
   it('rewrites technical-looking selected questions in behavioural mode', () => {
@@ -184,14 +183,9 @@ describe('interview mode guard baseline', () => {
       latestAnswer: 'I worked on a database dashboard project with my team.',
     });
 
-    expectQuestionShape(guarded, {
-      type: 'behavioural_mode_guard_follow_up',
-      stage: 'behavioural',
-      category: 'behavioural',
-      sourceType: 'mode_guard',
-      modeGuardApplied: true,
-    });
-    expect(guarded.text).toContain('Using that project as the context');
+    expectQuestionShape(guarded, { type: 'behavioural_mode_guard_follow_up', sourceType: 'mode_guard', modeGuardApplied: true });
+    expect(guarded.text).toBe('Using that project as context, what challenge did you personally handle?');
+    expect(wordCount(guarded.text)).toBeLessThanOrEqual(12);
   });
 
   it('rewrites behavioural-looking selected questions in technical mode', () => {
@@ -204,7 +198,7 @@ describe('interview mode guard baseline', () => {
         topic: 'teamwork',
         category: 'behavioural',
         followUpDepth: 1,
-        text: 'Tell me about a time you handled conflict in a team.',
+        text: 'Tell me about a time you handled a team challenge.',
         reason: 'Baseline behavioural question.',
         sourceType: 'fallback',
       },
@@ -212,15 +206,8 @@ describe('interview mode guard baseline', () => {
       latestAnswer: 'I used SQL in a team project.',
     });
 
-    expectQuestionShape(guarded, {
-      type: 'technical_mode_guard_follow_up',
-      stage: 'technical_core',
-      category: 'technical',
-      sourceType: 'mode_guard',
-      modeGuardApplied: true,
-    });
-    expect(guarded.text).toContain('technical approach');
-    expect(guarded.text).toContain('tools, key implementation steps');
+    expectQuestionShape(guarded, { type: 'technical_mode_guard_follow_up', sourceType: 'mode_guard', modeGuardApplied: true });
+    expect(guarded.text).toBe('What technical approach did you use for database?');
   });
 
   it('guards generated text without changing valid combined-mode text', () => {
@@ -235,21 +222,17 @@ describe('interview mode guard baseline', () => {
       latestAnswer: 'I built a data dashboard.',
     }).text;
 
-    const guardedBehavioural = guardGeneratedTextForInterviewMode({
+    expect(guardGeneratedTextForInterviewMode({
       focusArea: 'behavioral',
       generatedText: 'How did you implement the SQL schema and API endpoint?',
       fallbackText: behaviouralFallback,
-    });
+    })).toBe(behaviouralFallback);
 
-    expect(guardedBehavioural).toBe(behaviouralFallback);
-
-    const guardedTechnical = guardGeneratedTextForInterviewMode({
+    expect(guardGeneratedTextForInterviewMode({
       focusArea: 'technical',
-      generatedText: 'Tell me about a time you handled team conflict.',
-      fallbackText: 'Could you walk me through the technical approach you used for PostgreSQL?',
+      generatedText: 'Tell me about a time you handled a team challenge.',
+      fallbackText: 'What technical approach did you use for PostgreSQL?',
       selectedQuestion: buildValidationQuestion({ targetTopic: 'PostgreSQL' }),
-    });
-
-    expect(guardedTechnical).toContain('technical approach');
+    })).toContain('technical approach');
   });
 });
