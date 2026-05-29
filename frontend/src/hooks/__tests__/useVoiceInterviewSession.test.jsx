@@ -419,7 +419,7 @@ describe('useVoiceInterviewSession', () => {
 
   describe('STT Flow', () => {
     it('should update caption when partial transcript received', async () => {
-      const { result } = renderHook(() => useVoiceInterviewSession({
+      renderHook(() => useVoiceInterviewSession({
         enabled: true,
         session: buildSession(),
         sessionId: 'session-1',
@@ -436,7 +436,7 @@ describe('useVoiceInterviewSession', () => {
     });
 
     it('should update answer when final transcript received', async () => {
-      const { result } = renderHook(() => useVoiceInterviewSession({
+      renderHook(() => useVoiceInterviewSession({
         enabled: true,
         session: buildSession(),
         sessionId: 'session-1',

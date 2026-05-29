@@ -274,7 +274,7 @@ Tech: React, Express, Python, PostgreSQL, MongoDB, DeepSeek API, Azure Speech, W
 Built a full-stack AI interview coaching system with CV-JD matching, adaptive questioning, voice interaction, and structured feedback.
 
 Work Experience
-Senior Electrical Engineer, Foxconn
+Oct 2021 - Jul 2024 Senior Electrical Engineer, Foxconn
 Improved test process outcomes by using design of experiments and failure analysis to help reduce retest rates from 15% to 5%.
 
 Volunteer Experience
@@ -283,6 +283,7 @@ Supported more than ten new international students.`);
 
     expect(profile.summary).toMatch(/full-stack AI products/i);
     expect(profile.evidenceProfile.quantifiedEvidence.join(' ')).toMatch(/15% to 5%/);
+    expect(profile.evidenceProfile.quantifiedEvidence.join(' ')).not.toMatch(/Oct 2021 - Jul 2024/);
     expect(profile.evidenceProfile.sections.volunteer.join(' ')).toMatch(/Buddy Program/i);
     expect(profile.cvAnalysis.strongestEvidence.map((item) => item.text).join(' ')).toMatch(/KIWI Mock Interview AI Agent|15% to 5%/i);
     expect(profile.cvAnalysis.weakOrMissingEvidence).not.toEqual(expect.arrayContaining([expect.stringMatching(/Project evidence is limited/i)]));

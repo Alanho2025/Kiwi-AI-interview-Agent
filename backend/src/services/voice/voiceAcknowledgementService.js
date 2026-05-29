@@ -4,7 +4,7 @@ const ACKNOWLEDGEMENT_TIMEOUT_MS = Number(process.env.VOICE_ACKNOWLEDGEMENT_TIME
 
 const cleanAcknowledgement = (value = '') => String(value || '')
   .replace(/```[a-z]*|```/gi, '')
-  .replace(/^[\"'`]+|[\"'`]+$/g, '')
+  .replace(/^["'`]+|["'`]+$/g, '')
   .replace(/\s+/g, ' ')
   .trim();
 

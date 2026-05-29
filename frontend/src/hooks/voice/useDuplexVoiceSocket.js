@@ -174,7 +174,7 @@ export function useDuplexVoiceSocket({
     };
 
     socket.onmessage = (event) => {
-      let payload = null;
+      let payload;
       try {
         payload = JSON.parse(String(event.data || '{}'));
       } catch {
