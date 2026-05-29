@@ -39,6 +39,8 @@ import { persistUserCoachingMemory } from './aiControl/userCoachingMemoryService
 import { rebuildBoundedMemory } from './aiControl/experienceMemoryService.js';
 import { enqueueBackgroundJob } from '../jobs/backgroundJobQueue.js';
 import { recordLocalUsage } from './aiUsageTrackingService.js';
+import { markQuestionPoolItemAsked } from './questions/questionPoolComposerService.js';
+import { cleanupQuestionArtifactsAfterReport } from './questions/questionArtifactCleanupService.js';
 
 const persistControllerSnapshot = async ({ sessionId, decisionContext = null, evidenceBundle = null } = {}) => {
   await SessionAnalysis.findOneAndUpdate(
@@ -97,6 +99,34 @@ const persistReportArtifact = async ({ sessionId, report, qaResult }) => {
   );
 };
 
+const getSessionMatchAnalysisId = (session = {}) =>
+  session?.interviewPlan?.strategy?.matchAnalysisId
+  || session?.interviewPlan?.questionPlanSnapshot?.matchAnalysisId
+  || session?.analysisResult?.retrievalSnapshots?.[0]?.matchAnalysisId
+  || null;
+
+const cleanupQuestionArtifactsForCompletedReport = async ({ session }) => {
+  try {
+    const result = await cleanupQuestionArtifactsAfterReport({
+      userId: session.userId,
+      sessionId: session.id,
+      cvFileId: session.cvFileId || null,
+      matchAnalysisId: getSessionMatchAnalysisId(session),
+    });
+    logger.info('Question preparation artifacts cleaned after report generation', {
+      sessionId: session.id,
+      userId: session.userId,
+      ...result,
+    });
+  } catch (error) {
+    logger.warn('Question preparation artifact cleanup failed after report generation', {
+      sessionId: session.id,
+      userId: session.userId,
+      error: error.message,
+    });
+  }
+};
+
 
 const measureAdaptiveStep = async (trace, stepName, fn) => {
   if (!trace?.measure) return fn();
@@ -111,7 +141,7 @@ const measureAdaptiveStep = async (trace, stepName, fn) => {
 const buildInterviewRetrievalInput = ({ session, payload = {}, objective = 'bootstrap_interview_context' } = {}) => ({
   query: buildDefaultRetrievalQuery({ session, payload, mode: 'interview' }),
   sessionId: session.id,
-  sourceTypes: ['question_bank', 'behavioural_bank', 'interview_plan', 'jd_rubric', 'cv_profile', 'transcript'],
+  sourceTypes: ['question_bank', 'behavioural_bank', 'interview_plan', 'prepared_question_pool', 'jd_rubric', 'cv_profile', 'transcript'],
   topK: objective === 'warm_adaptive_session' ? 3 : 5,
   objective,
   targetTopic: session.targetRole,
@@ -518,15 +548,33 @@ decisionType: AGENT_DECISION_TYPES.EXECUTE_ACTION,
   }
 
   const nextQuestionOrder = getNextQuestionOrder(session);
+  const resolvedQuestionSource = interviewerOutput.sourceType || interviewerOutput.questionDecision?.sourceType || 'agent_generated';
   const questionId = await createInterviewQuestion({
     sessionId: session.id,
     questionOrder: nextQuestionOrder,
     questionType: interviewerOutput.questionType || 'follow_up',
-    sourceType: interviewerOutput.sourceType || 'agent_generated',
+    sourceType: resolvedQuestionSource,
     questionText: interviewerOutput.displayText || interviewerOutput.nextQuestion,
-    basedOnCv: ['cv_template', 'match_gap'].includes(interviewerOutput.sourceType || interviewerOutput.questionDecision?.sourceType),
-    basedOnJd: ['jd_requirement', 'match_gap'].includes(interviewerOutput.sourceType || interviewerOutput.questionDecision?.sourceType),
+    basedOnCv: ['cv_template', 'match_gap', 'cv_seed', 'prepared_question_pool', 'cv_project', 'cv_skill', 'cv_behavioural', 'cv_achievement', 'cv_transition', 'cv_experience'].includes(resolvedQuestionSource),
+    basedOnJd: ['jd_requirement', 'match_gap', 'jd_filter', 'universal_requirement_competency', 'match_validation'].includes(resolvedQuestionSource),
   });
+  const preparedQuestionId = interviewerOutput?.questionDecision?.preparedQuestionId || interviewerOutput?.preparedQuestionId || null;
+  if (preparedQuestionId) {
+    try {
+      await markQuestionPoolItemAsked({
+        sessionId: session.id,
+        questionId: preparedQuestionId,
+        askedTurnIndex: nextQuestionOrder,
+        rankTrace: interviewerOutput.questionDecision?.rankTrace || interviewerOutput.rankTrace || {},
+      });
+    } catch (error) {
+      logger.warn('Prepared question pool asked-state update failed', {
+        sessionId: session.id,
+        preparedQuestionId,
+        error: error.message,
+      });
+    }
+  }
 
   await appendTranscriptTurn(session.id, {
     role: 'ai',
@@ -578,7 +626,7 @@ const runReportController = async ({ session }) => {
   const retrievalBundle = await agentRegistry.retrieval({
     query: buildDefaultRetrievalQuery({ session, mode: 'report' }),
     sessionId: session.id,
-    sourceTypes: ['cv_profile', 'jd_rubric', 'interview_plan', 'transcript'],
+    sourceTypes: ['cv_profile', 'jd_rubric', 'interview_plan', 'prepared_question_pool', 'transcript'],
     topK: 8,
     objective: 'ground_report_generation',
     targetTopic: 'report',
@@ -670,6 +718,7 @@ decisionType: AGENT_DECISION_TYPES.EXECUTE_ACTION,
     report: executionResult.report,
     qaResult: executionResult.qaResult,
   });
+  await cleanupQuestionArtifactsForCompletedReport({ session });
   await recordAgentTraceEvent({
     sessionId: session.id,
     eventType: 'report_generation_completed',
@@ -742,7 +791,7 @@ export const runTask = async ({ taskType, sessionId, payload = {}, onSentence = 
     const retrievalBundle = await agentRegistry.retrieval({
       query: `${session.targetRole} report qa evidence`,
       sessionId: session.id,
-      sourceTypes: ['cv_profile', 'jd_rubric', 'interview_plan', 'transcript'],
+      sourceTypes: ['cv_profile', 'jd_rubric', 'interview_plan', 'prepared_question_pool', 'transcript'],
       topK: 8,
       objective: 'qa_existing_report',
       targetTopic: 'report',

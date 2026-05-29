@@ -63,4 +63,6 @@ const SessionAnalysisSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+SessionAnalysisSchema.index({ userId: 1, updatedAt: -1 });
+
 export const SessionAnalysis = mongoose.models.SessionAnalysis || mongoose.model('SessionAnalysis', SessionAnalysisSchema);
