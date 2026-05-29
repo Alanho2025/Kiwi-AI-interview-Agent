@@ -81,7 +81,7 @@ export function useInterviewSession({ sessionId, navigate }) {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [timerTick, setTimerTick] = useState(0);
+  const [timerNowMs, setTimerNowMs] = useState(0);
   const [pageStatus, setPageStatus] = useState(null);
   const [endSessionProgress, setEndSessionProgress] = useState({
     active: false,
@@ -128,9 +128,10 @@ export function useInterviewSession({ sessionId, navigate }) {
   const isTimerActive = session?.status === 'in_progress' && Boolean(session?.lastResumedAt);
 
   useEffect(() => {
-    setTimerTick(0);
+    setTimerNowMs(0);
     if (!isTimerActive) return undefined;
-    const interval = setInterval(() => setTimerTick((value) => value + 1), 1000);
+    setTimerNowMs(Date.now());
+    const interval = setInterval(() => setTimerNowMs(Date.now()), 1000);
     return () => clearInterval(interval);
   }, [isTimerActive, timerSessionKey]);
 
@@ -141,7 +142,7 @@ export function useInterviewSession({ sessionId, navigate }) {
     setIsSubmitting(true);
     try {
       const data = await startInterview(sessionId);
-      setTimerTick(0);
+      setTimerNowMs(0);
       setSession(data.session);
       warmAdaptiveInBackground(data.session);
       return data.session;
@@ -163,7 +164,7 @@ export function useInterviewSession({ sessionId, navigate }) {
     try {
       if (session?.status === 'ready') {
         const startData = await startInterview(sessionId);
-        setTimerTick(0);
+        setTimerNowMs(0);
         setSession(startData.session);
         warmAdaptiveInBackground(startData.session);
       }
@@ -173,7 +174,7 @@ export function useInterviewSession({ sessionId, navigate }) {
         : prev);
 
       const data = await replyInterview(sessionId, cleanAnswer);
-      setTimerTick(0);
+      setTimerNowMs(0);
       setSession(data.session);
 
       if (data.session?.status === 'completed') {
@@ -190,7 +191,7 @@ export function useInterviewSession({ sessionId, navigate }) {
   }, [isSubmitting, session, sessionId, warmAdaptiveInBackground]);
 
   const handleVoiceSessionUpdate = useCallback((nextSession) => {
-    setTimerTick(0);
+    setTimerNowMs(0);
     setSession(nextSession);
     if (nextSession?.status === 'completed') {
       setPageStatus(buildCompletedStatus(nextSession));
@@ -210,14 +211,14 @@ export function useInterviewSession({ sessionId, navigate }) {
           elapsedSeconds: frozenElapsedSeconds,
           lastResumedAt: null,
         } : prev);
-        setTimerTick(0);
+        setTimerNowMs(0);
       }
 
       const data = session?.status === 'paused'
         ? await resumeInterview(sessionId)
         : await pauseInterview(sessionId);
 
-      setTimerTick(0);
+      setTimerNowMs(0);
       setSession(data.session);
     } catch (error) {
       setPageStatus(buildStatus('error', 'Pause/resume failed', error.message || 'Could not update interview status.'));
@@ -285,7 +286,7 @@ export function useInterviewSession({ sessionId, navigate }) {
       const data = await endInterview(sessionId);
       if (progressTimer) window.clearTimeout(progressTimer);
 
-      setTimerTick(0);
+      setTimerNowMs(0);
       setSession(data.session);
       setEndSessionProgress({ active: true, step: 'completed', error: null });
       setPageStatus(buildStatus(
@@ -325,7 +326,7 @@ export function useInterviewSession({ sessionId, navigate }) {
   const viewModel = useMemo(() => {
     const currentPlanItem = getCurrentPlanItem(session);
     const displayModel = buildInterviewDisplayModel(session, currentPlanItem);
-    const nowMs = Date.now() + timerTick * 0;
+    const nowMs = timerNowMs || new Date(session?.lastResumedAt || 0).getTime();
 
     return {
       currentPlanItem,
@@ -333,7 +334,7 @@ export function useInterviewSession({ sessionId, navigate }) {
       elapsedSeconds: getDisplayElapsedSeconds(session, nowMs),
       statusLabel: session?.status === 'in_progress' ? 'Live' : session?.status,
     };
-  }, [session, timerTick]);
+  }, [session, timerNowMs]);
 
   return {
     session,

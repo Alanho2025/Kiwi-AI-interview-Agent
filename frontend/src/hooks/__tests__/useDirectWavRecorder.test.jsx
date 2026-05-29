@@ -10,7 +10,7 @@
  * - Cleans up media resources properly
  */
 
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { useDirectWavRecorder } from '../useDirectWavRecorder.js';
 
@@ -199,7 +199,7 @@ describe('useDirectWavRecorder', () => {
         it('should return recording duration', async () => {
             // Reset and setup performance.now mock for this specific test
             performance.now.mockRestore();
-            const nowSpy = vi.spyOn(performance, 'now')
+            vi.spyOn(performance, 'now')
                 .mockReturnValueOnce(1000) // startRecording
                 .mockReturnValueOnce(3500); // stopRecording
 
