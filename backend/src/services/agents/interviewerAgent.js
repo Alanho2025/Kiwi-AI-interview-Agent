@@ -14,6 +14,7 @@ import { getNextPoolQuestion, hasReachedQuestionLimit, hasReachedTimeLimit } fro
 import { callDeepSeek, callDeepSeekStream } from '../deepseekService.js';
 import { guardGeneratedTextForInterviewMode, guardQuestionForInterviewMode } from '../aiControl/interviewModeGuard.js';
 import { buildQuestionDecisionTrace } from '../aiControl/questionRanker.js';
+import { getPreparedQuestionPool } from '../questions/questionPoolComposerService.js';
 import {
   buildAbductiveProbeQuestion,
   buildClosingQuestion,
@@ -37,29 +38,164 @@ import {
   pickRetrievedQuestion,
 } from './interviewerAgentQuestionBuilder.js';
 
+const selectPreparedPoolQuestion = async ({
+  session = {},
+  actionType = '',
+  targetTopic = '',
+  probeType = '',
+  freshOnly = false,
+  category = null,
+  focusArea = 'combined',
+} = {}) => {
+  if (!session?.id) return null;
+
+  const normalizeValue = (value = '') => String(value || '').trim().toLowerCase();
+  const normalizeMode = (value = 'combined') => {
+    const normalized = normalizeValue(value);
+    if (normalized === 'technical') return 'technical';
+    if (['behavioral', 'behavioural'].includes(normalized)) return 'behavioural';
+    return 'combined';
+  };
+
+  const mode = normalizeMode(focusArea);
+
+  try {
+    let pool = await getPreparedQuestionPool({ sessionId: session.id, category });
+    if ((!Array.isArray(pool) || pool.length === 0) && category) {
+      pool = await getPreparedQuestionPool({ sessionId: session.id });
+    }
+
+    const items = Array.isArray(pool) ? pool : [];
+    if (!items.length) return null;
+
+    const askedIds = new Set(
+      (session.askedPreparedQuestionIds || session.preparedQuestionHistory || [])
+        .map((id) => String(id || '').trim())
+        .filter(Boolean)
+    );
+
+    const target = normalizeValue(targetTopic || probeType || '');
+    const selected = items
+      .filter((item) => item && item.status !== 'inactive')
+      .filter((item) => !freshOnly || !item.questionId || !askedIds.has(String(item.questionId)))
+      .filter((item) => {
+        const compatibility = item.modeCompatibility || {};
+        if (mode === 'technical') return compatibility.technical !== false;
+        if (mode === 'behavioural') return compatibility.behavioural !== false && compatibility.behavioral !== false;
+        return compatibility.combined !== false;
+      })
+      .sort((a, b) => {
+        const score = (item) => {
+          const topic = normalizeValue(item.topic);
+          const stage = normalizeValue(item.stage);
+          const sourceStage = normalizeValue(item.sourceStage);
+          const questionIntent = normalizeValue(item.questionIntent);
+          let value = 0;
+          value += Number(item.priorityWeight || 0) * 100;
+          value += Number(item.coverageWeight || 0) * 30;
+          value += Number(item.riskWeight || 0) * 20;
+          if (target && (topic.includes(target) || target.includes(topic))) value += 50;
+          if (normalizeValue(category) && normalizeValue(item.category) === normalizeValue(category)) value += 25;
+          if (actionType === AGENT_ACTION_TYPES.ASK_VALIDATION_QUESTION && /validation|gap|requirement|risk/.test(`${stage} ${sourceStage} ${questionIntent}`)) value += 25;
+          return value;
+        };
+        return score(b) - score(a);
+      })[0];
+
+    if (!selected) return null;
+
+    const text = selected.spokenDraft || selected.fallbackText || selected.text || selected.draftQuestion || '';
+    if (!text) return null;
+
+    return {
+      type: selected.questionIntent || selected.type || selected.stage || 'prepared_pool_question',
+      stage: selected.stage || selected.category || 'prepared_pool',
+      topic: selected.topic || selected.competency || targetTopic || 'role_fit',
+      category: selected.category || category || 'experience',
+      followUpDepth: Number(selected.followUpDepth || 0),
+      text,
+      fallbackText: selected.fallbackText || text,
+      reason: selected.reason || `Selected from prepared interview question pool (${selected.sourceStage || selected.sourceType || 'prepared'}).`,
+      sourceType: selected.sourceType || selected.sourceStage || 'prepared_question_pool',
+      sourceId: selected.questionId || selected.sourceSeedId || null,
+      preparedQuestionId: selected.questionId || null,
+      evidenceNeed: Array.isArray(selected.evidenceNeed) ? selected.evidenceNeed : undefined,
+      constraints: Array.isArray(selected.constraints) ? selected.constraints : undefined,
+      rankTrace: {
+        questionId: selected.questionId || null,
+        selectionSource: 'prepared_question_pool',
+        sourceStage: selected.sourceStage || null,
+        sourceType: selected.sourceType || null,
+        topic: selected.topic || null,
+        category: selected.category || null,
+        priorityWeight: selected.priorityWeight ?? null,
+        coverageWeight: selected.coverageWeight ?? null,
+        riskWeight: selected.riskWeight ?? null,
+        actionType,
+        targetTopic,
+        focusArea: mode,
+      },
+    };
+  } catch {
+    return null;
+  }
+};
+
 const generateConversationalTurn = async ({ baseQuestion, actionType, lastUserAnswer, decisionContext, retrievalBundle, focusArea = 'combined', onSentence }) => {
   const environment = decisionContext?.environment || {};
   const nzCoachingDirective = environment.nzCultureContext?.enabled ? `\n\n${environment.nzCultureContext.coachingDirective}` : '';
-  const systemInstruction = `You are a professional, empathetic, and highly restrained Tech Lead conducting an interview.
-Your goal is to output the EXACT words you will say next to the candidate.
-DO NOT output any internal tags, XML, or json. Output ONLY the conversational text.
+  const systemInstruction = `ROLE:
+You are a professional, adaptive interviewer conducting a live voice interview.
+When the selected mode is technical, behave like a sharp Tech Lead.
+When the selected mode is behavioral, behave like a structured but natural hiring interviewer.
 
-NEGATIVE_CONSTRAINTS:
-- NEVER use generic robotic compliments like: "That's a [great/solid/impressive/smart/good] [example/approach/outcome/way/start]".
-- NEVER use mechanical transitions like: "Shifting gears a bit", "Now, I'd like to shift gears", or "Moving on to...".
-- NEVER make qualitative judgments or definitive conclusions about the candidate's expertise during the interview (e.g., Ban phrases like "It sounds like you have a lot of experience in..." or "Clearly you are an expert at...").
+TASK:
+Output the exact next words you will say to the candidate.
+Ask one useful follow-up question.
+Usually ask directly.
+Base the question on the candidate's latest answer and the missing evidence.
+Probe the strongest unfinished point: ownership, decision, trade-off, validation, result, or reflection.
 
-DIRECTIVE:
-- Ask one useful follow-up question.
-- Usually ask directly.
-- Add a short bridge only when the candidate needs context.
-- Stay professional, sharp, and focused on gathering depth without over-praising or using cliches.
+CONTEXT:
+This is a real-time voice interview.
+The response will be spoken by TTS immediately.
+Latency and natural speech matter.
+The candidate's transcript may contain ASR errors.
+Use technical projects as technical evidence only in technical mode.
+Use technical projects as behavioural context only in behavioral mode.
 
-MODE_BOUNDARY:
+EXAMPLES:
+Good:
+- "What part did you personally own?"
+- "How did you test the agent's recommendations?"
+- "What was the hardest decision you made there?"
+- "What changed after your action?"
+
+Bad:
+- "That's a great example."
+- "Shifting gears, let us move on."
+- "Tell me about a time when you had to show Communication."
+- "You mentioned testing with the AI agent and user behavior. Can you walk me through..."
+
+OUTPUT_FORMAT:
+Output only the spoken interviewer text.
+Do not output JSON, XML, markdown, bullet points, labels, headings, or internal reasoning.
+Ask exactly one main question.
+
+CONSTRAINTS:
 - Current selected mode: ${focusArea}.
-- If current selected mode is behavioral, ask only STAR-style behavioural evidence questions about situation, personal action, communication, conflict, pressure, result, or reflection.
-- If current selected mode is behavioral, do NOT ask about libraries, code, algorithms, architecture, database schema, SQL query, model accuracy, training/testing pipelines, scalability, latency, or implementation details.
-- If a technical project is mentioned in behavioral mode, use it only as context for behaviour. Do not turn it into a technical interview.${nzCoachingDirective}`;
+- Prefer 8 to 18 words for normal follow-ups.
+- Add a short bridge only when the candidate needs context.
+- Avoid multi-part questions.
+- Avoid repeating the candidate's answer unless clarification is needed.
+- Do not over-praise or judge the candidate's expertise.
+- Never expose internal variables such as targetTopic, decision_tradeoff, role_fit, questionGoal, evidenceNeed, or constraints.
+- Never say rubric labels directly, such as Communication, Leadership, Teamwork, role_fit, or decision_tradeoff.
+- If the answer is unclear or ASR may be noisy, ask a short clarification question.
+- If the mode is technical, ask about concrete technical evidence: implementation, design choice, debugging, trade-off, validation, performance, data, architecture, or tooling.
+- If the mode is behavioral, ask about real workplace behaviour: situation, personal action, communication, conflict, pressure, collaboration, result, or reflection.
+- In behavioral mode, do not ask for libraries, code, algorithms, database schema, SQL queries, model metrics, training pipelines, scalability, latency, or implementation details.
+- In technical mode, do not turn the question into a pure STAR behavioural story unless technical ownership is unclear.${nzCoachingDirective}`;
 
   const retrievedTexts = (retrievalBundle?.items || [])
     .map(i => i.text || i.metadata?.question || i.metadata?.skillTags?.join(', '))
