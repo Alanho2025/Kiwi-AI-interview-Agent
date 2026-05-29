@@ -59,6 +59,17 @@ const normalizeEvidenceText = (text = '') => String(text || '')
 const extractTools = (text = '') => [...new Set((String(text || '').match(TOOL_PATTERN) || [])
   .map((item) => item.replace(/^node$/i, 'Node.js')))] ;
 
+const QUANTIFIED_EVIDENCE_ACTION_PATTERN = /\b(reduce|reduced|lower|lowered|improve|improved|increase|increased|decrease|decreased|save|saved|cut|automate|automated|design|designed|develop|developed|build|built|deliver|delivered|launch|launched|achieve|achieved|prepare|prepared|collect|collected|clean|cleaned|coordinate|coordinated|analyse|analysed|analyze|analyzed|support|supported|benchmark|benchmarked|evaluate|evaluated|deploy|deployed|migrate|migrated|lead|led)\b/i;
+
+const DATE_RANGE_LINE_PATTERN = /^(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec|January|February|March|April|June|July|August|September|October|November|December)\s+\d{4}\s*[-–]/i;
+
+const isQuantifiedEvidenceCandidate = (text = '') => {
+  const normalizedText = String(text || '').trim();
+  if (!/\d|%|percent/i.test(normalizedText)) return false;
+  if (DATE_RANGE_LINE_PATTERN.test(normalizedText) && !QUANTIFIED_EVIDENCE_ACTION_PATTERN.test(normalizedText)) return false;
+  return QUANTIFIED_EVIDENCE_ACTION_PATTERN.test(normalizedText);
+};
+
 const resolveEvidenceStrength = (item = {}, text = '') => {
   const baseStrength = EVIDENCE_STRENGTH_BY_SOURCE[item.sourceType] || 'weak';
   if (item.sourceType === 'key_competency' && TECHNICAL_PRODUCT_EVIDENCE_PATTERN.test(text)) {
@@ -105,7 +116,7 @@ const extractQuantifiedEvidence = ({ achievements = [], evidenceItems = [], norm
 
   return [...new Set([...achievementTexts, ...evidenceTexts, ...lineTexts]
     .map((text) => String(text || '').trim())
-    .filter((text) => /\d|%|percent/i.test(text)))];
+    .filter(isQuantifiedEvidenceCandidate))];
 };
 
 const inferRoleSignals = ({ projects = [], achievements = [], hardSkills = [], capabilities = [] } = {}) => ({
