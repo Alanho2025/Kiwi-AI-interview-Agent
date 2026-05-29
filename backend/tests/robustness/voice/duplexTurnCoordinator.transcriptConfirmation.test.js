@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const processRealtimeVoiceTurnMock = vi.fn();
 
@@ -36,6 +36,10 @@ vi.mock('../../../src/services/voice/voiceAcknowledgementService.js', () => ({
 }));
 
 describe('duplexTurnCoordinator transcript confirmation flow', () => {
+    beforeEach(() => {
+        processRealtimeVoiceTurnMock.mockReset();
+    });
+
     const createBaseOptions = ({ pendingConfirmation }) => {
         const sentMessages = [];
         let pending = pendingConfirmation;
