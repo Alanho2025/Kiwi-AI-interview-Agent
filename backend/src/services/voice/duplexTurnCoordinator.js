@@ -13,7 +13,58 @@ import { AGENT_TOOL_NAMES } from '../../constants/agentToolNames.js';
 import warmContextService from './voiceTurnWarmContextService.js';
 import { buildTranscriptConfirmationPrompt } from './transcriptUnderstandingSummary.js';
 import { classifyTranscriptConfirmationReply } from './transcriptConfirmationReplyClassifier.js';
+import { generateVoiceMicroAcknowledgement } from './voiceAcknowledgementService.js';
 
+const getQuestionIdentifier = (question = null) => question?.id
+  || question?.questionId
+  || question?._id
+  || question?.preparedQuestionId
+  || question?.metadata?.questionId
+  || null;
+
+const findLatestAiQuestionId = (updatedSession = {}) => {
+  const transcript = Array.isArray(updatedSession?.transcript) ? updatedSession.transcript : [];
+  const latestAiTurn = [...transcript].reverse().find((turn) => turn?.role === 'ai' && turn?.questionId);
+  return latestAiTurn?.questionId || null;
+};
+
+const resolveWarmupQuestionId = ({ updatedSession = {}, turnResult = {} } = {}) => {
+  const nextQuestionOrder = turnResult?.agentResult?.nextQuestionOrder;
+  const latestAiQuestionId = findLatestAiQuestionId(updatedSession);
+  if (latestAiQuestionId) return latestAiQuestionId;
+
+  const plan = updatedSession?.interviewPlan || {};
+  const questionPool = Array.isArray(plan.questionPool) ? plan.questionPool : [];
+  const questions = Array.isArray(plan.questions) ? plan.questions : [];
+  const oneBasedOrder = Number(nextQuestionOrder);
+  const zeroBasedIndex = Number.isFinite(oneBasedOrder) ? Math.max(0, oneBasedOrder - 1) : 0;
+
+  const candidateItems = [
+    questionPool[zeroBasedIndex],
+    questions[zeroBasedIndex],
+    questionPool[oneBasedOrder],
+    questions[oneBasedOrder],
+    turnResult?.agentResult?.interviewerTurn,
+    turnResult?.agentResult?.questionDecision,
+  ];
+
+  for (const item of candidateItems) {
+    const id = getQuestionIdentifier(item);
+    if (id) return id;
+  }
+
+  return null;
+};
+
+const buildNextClientTurnIds = (clientTurnId = null) => {
+  if (!clientTurnId) return [];
+  const ids = new Set([`${clientTurnId}-next`]);
+  const match = String(clientTurnId).match(/^(.*?)(\d+)$/);
+  if (match) {
+    ids.add(`${match[1]}${Number(match[2]) + 1}`);
+  }
+  return [...ids].filter(Boolean);
+};
 export const createDuplexTurnCoordinator = ({
   session,
   userId,
@@ -28,7 +79,6 @@ export const createDuplexTurnCoordinator = ({
   setPendingTranscriptConfirmation = () => {},
 } = {}) => {
   let sentenceIndex = 0;
-
   const trace = (message, payload = {}) => {
     logger?.info?.(`[DUPLEX-TURN-TRACE] ${message}`, {
       sessionId: session?.id || null,
@@ -39,6 +89,66 @@ export const createDuplexTurnCoordinator = ({
       at: new Date().toISOString(),
       ...payload,
     });
+  };
+
+  const streamEarlyAcknowledgement = async ({ transcriptText, asrConfidence, vad, speechToken, source }) => {
+    const startedAt = Date.now();
+    try {
+      const acknowledgementText = await generateVoiceMicroAcknowledgement({
+        session,
+        transcriptText,
+        asrConfidence,
+        vad,
+      });
+
+      if (!acknowledgementText || !bargeInController?.isTokenActive?.(speechToken)) {
+        return false;
+      }
+
+      trace('early_acknowledgement_ready', {
+        text: acknowledgementText,
+        durationMs: Date.now() - startedAt,
+        speechTokenActive: bargeInController?.isTokenActive?.(speechToken),
+      });
+
+      sendJson?.({
+        type: 'assistant_text_delta',
+        tool: AGENT_TOOL_NAMES.SYNTHESIZE_ASSISTANT_SPEECH,
+        text: acknowledgementText,
+        index: sentenceIndex,
+        timestamp: new Date().toISOString(),
+      });
+
+      await streamAssistantSpeech({
+        text: acknowledgementText,
+        voiceName,
+        sendJson,
+        bargeInController,
+        index: sentenceIndex,
+        speechToken,
+        usageContext: {
+          userId,
+          sessionId: session?.id || null,
+          stage: 'interview',
+          source,
+        },
+      });
+
+      sentenceIndex += 1;
+
+      trace('early_acknowledgement_tts_done', {
+        text: acknowledgementText,
+        durationMs: Date.now() - startedAt,
+      });
+
+      return true;
+    } catch (error) {
+      trace('early_acknowledgement_failed', {
+        error: error?.message || String(error),
+        durationMs: Date.now() - startedAt,
+      });
+      return false;
+    }
   };
 
   const streamRepairPrompt = async ({ assessment, transcriptText, asrConfidence }) => {
@@ -114,6 +224,14 @@ export const createDuplexTurnCoordinator = ({
     const speechToken = bargeInController?.startAssistantSpeech?.();
     sentenceIndex = 0;
 
+    await streamEarlyAcknowledgement({
+      transcriptText: pending.originalTranscript,
+      asrConfidence: pending.asrConfidence,
+      vad: pending.vad,
+      speechToken,
+      source: 'duplex_confirmed_interview_acknowledgement',
+    });
+
     const result = await processRealtimeVoiceTurn({
       session,
       userId,
@@ -134,8 +252,7 @@ export const createDuplexTurnCoordinator = ({
       },
       onSentence: async (text, index) => {
         try {
-          const nextIndex = Number.isFinite(index) ? index : sentenceIndex;
-          sentenceIndex = nextIndex + 1;
+          const nextIndex = Number.isFinite(index) ? sentenceIndex + index : sentenceIndex;
           trace('assistant_sentence_ready', {
             index: nextIndex,
             text,
@@ -163,6 +280,7 @@ export const createDuplexTurnCoordinator = ({
               source: 'duplex_confirmed_interview_sentence',
             },
           });
+          sentenceIndex = nextIndex + 1;
         } catch (error) {
           logger?.error?.('Failed to process sentence after transcript confirmation', {
             sessionId: session?.id,
@@ -383,6 +501,14 @@ export const createDuplexTurnCoordinator = ({
     const speechToken = bargeInController?.startAssistantSpeech?.();
     sentenceIndex = 0;
 
+    await streamEarlyAcknowledgement({
+      transcriptText: cleanTranscript,
+      asrConfidence,
+      vad,
+      speechToken,
+      source: 'duplex_interview_acknowledgement',
+    });
+
     trace('process_realtime_voice_turn_start', {
       transcriptText: cleanTranscript,
       asrConfidence,
@@ -401,8 +527,7 @@ export const createDuplexTurnCoordinator = ({
       clientTurnId,
       onSentence: async (text, index) => {
         try {
-          const nextIndex = Number.isFinite(index) ? index : sentenceIndex;
-          sentenceIndex = nextIndex + 1;
+          const nextIndex = Number.isFinite(index) ? sentenceIndex + index : sentenceIndex;
           trace('assistant_sentence_ready', {
             index: nextIndex,
             text,
@@ -430,6 +555,7 @@ export const createDuplexTurnCoordinator = ({
               source: 'duplex_interview_sentence',
             },
           });
+          sentenceIndex = nextIndex + 1;
           trace('assistant_sentence_tts_done', {
             index: nextIndex,
             text,
@@ -486,21 +612,20 @@ export const createDuplexTurnCoordinator = ({
   const triggerWarmupForNextTurn = async (updatedSession, turnResult) => {
     try {
       const nextQuestionOrder = turnResult?.agentResult?.nextQuestionOrder;
-      const zeroBasedIndex = Math.max(0, Number(nextQuestionOrder || 1) - 1);
-      const nextQuestionId = updatedSession?.interviewPlan?.questionPool?.[zeroBasedIndex]?.id
-        || updatedSession?.interviewPlan?.questions?.[zeroBasedIndex]?.id
-        || updatedSession?.interviewPlan?.questionPool?.[nextQuestionOrder]?.id
-        || updatedSession?.interviewPlan?.questions?.[nextQuestionOrder]?.id;
-      
+      const nextQuestionId = resolveWarmupQuestionId({ updatedSession, turnResult });
+      const nextClientTurnIds = buildNextClientTurnIds(clientTurnId);
+
       if (!nextQuestionId) {
-        trace('warmup_skipped_no_next_question', { nextQuestionOrder, zeroBasedIndex });
+        trace('warmup_skipped_no_next_question', {
+          nextQuestionOrder,
+          transcriptLength: updatedSession?.transcript?.length || 0,
+          questionPoolSize: updatedSession?.interviewPlan?.questionPool?.length || 0,
+          questionsSize: updatedSession?.interviewPlan?.questions?.length || 0,
+        });
         return;
       }
 
-      // Generate next turn ID (will be validated when user actually speaks)
-      const nextClientTurnId = clientTurnId ? `${clientTurnId}-next` : null;
-      
-      if (!nextClientTurnId) {
+      if (!nextClientTurnIds.length) {
         trace('warmup_skipped_no_turn_id');
         return;
       }
@@ -508,22 +633,22 @@ export const createDuplexTurnCoordinator = ({
       trace('warmup_trigger_start', {
         nextQuestionIndex: nextQuestionOrder,
         nextQuestionId,
-        nextClientTurnId,
+        nextClientTurnIds,
       });
 
-      await warmContextService.prepareWarmContext({
+      await Promise.all(nextClientTurnIds.map((nextClientTurnId) => warmContextService.prepareWarmContext({
         session: updatedSession,
         userId,
         currentQuestionId: nextQuestionId,
         clientTurnId: nextClientTurnId,
         currentQuestionIndex: nextQuestionOrder,
         transcriptLength: updatedSession?.transcript?.length || 0,
-      });
+      })));
 
       trace('warmup_trigger_done', {
         nextQuestionIndex: nextQuestionOrder,
         nextQuestionId,
-        nextClientTurnId,
+        nextClientTurnIds,
       });
     } catch (error) {
       trace('warmup_trigger_error', {
