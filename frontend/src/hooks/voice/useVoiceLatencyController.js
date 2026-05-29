@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { createVoiceLatencyTrace } from '../../utils/voiceLatencyTrace.js';
 import { buildVoiceLatencyDebugSummary, buildVoiceLatencyTargetSummary } from '../../utils/voiceLatencySummary.js';
 import { DEFAULT_VAD_CONFIG } from '../../utils/voiceActivityDetectionCore.js';
@@ -10,6 +10,38 @@ import {
   SLOW_FIRST_AUDIO_MS,
   VAD_WARMUP_IGNORE_MS,
 } from './voiceSessionConstants.js';
+
+const BLOCKED_ACK_REASONS = new Set([
+  'session_start',
+  'session_complete',
+  'transcript_confirmation',
+  'transcript_rejected',
+  'repair_prompt',
+  'clear_follow_up',
+]);
+
+const CLEAR_NEXT_ACTIONS = new Set([
+  'ASK_NEXT_PLANNED_QUESTION',
+  'ASK_INTRO_QUESTION',
+  'ASK_CLOSING_QUESTION',
+]);
+
+const shouldPlayInterviewerBridge = ({
+  firstAudioSeen,
+  autoLoopActive,
+  recentlyPlayed,
+  turnReason,
+  answerWordCount,
+  expectedNextAction,
+}) => {
+  if (!autoLoopActive) return false;
+  if (firstAudioSeen) return false;
+  if (recentlyPlayed) return false;
+  if (answerWordCount > 0 && answerWordCount < 8) return false;
+  if (BLOCKED_ACK_REASONS.has(turnReason)) return false;
+  if (CLEAR_NEXT_ACTIONS.has(expectedNextAction)) return false;
+  return true;
+};
 
 export function useVoiceLatencyController({
   activeSessionId,
@@ -29,6 +61,7 @@ export function useVoiceLatencyController({
     latencyAcknowledgementTimerRef,
     lastLatencyAcknowledgementAtRef,
   } = refs;
+  const latencyAcknowledgementUsedPhrasesRef = useRef(new Set());
 
   const logVoiceLatencySummary = useCallback((phase = 'turn', backendLatency = null) => {
     const trace = activeVoiceTurnTraceRef.current?.toJSON?.();
@@ -92,15 +125,35 @@ export function useVoiceLatencyController({
     cancelLatencyAcknowledgement();
   }, [clearLatencyAcknowledgementTimer]);
 
-  const scheduleLatencyAcknowledgement = useCallback(() => {
+  const scheduleLatencyAcknowledgement = useCallback((context = {}) => {
     clearLatencyAcknowledgementTimer();
+
     latencyAcknowledgementTimerRef.current = window.setTimeout(() => {
       const now = Date.now();
       const recentlyPlayed = now - lastLatencyAcknowledgementAtRef.current < LATENCY_ACK_COOLDOWN_MS;
-      if (recentlyPlayed || !autoLoopActiveRef.current || firstAudioChunkSeenRef.current) return;
 
-      const played = playLatencyAcknowledgement({ index: voiceTurnSequenceRef.current });
-      if (played) lastLatencyAcknowledgementAtRef.current = now;
+      const shouldPlay = shouldPlayInterviewerBridge({
+        firstAudioSeen: firstAudioChunkSeenRef.current,
+        autoLoopActive: autoLoopActiveRef.current,
+        recentlyPlayed,
+        turnReason: context.reason,
+        answerWordCount: context.answerWordCount || 0,
+        expectedNextAction: context.expectedNextAction || null,
+      });
+
+      if (!shouldPlay) return;
+
+      const phrase = playLatencyAcknowledgement({
+        usedPhrases: [...latencyAcknowledgementUsedPhrasesRef.current],
+        expectedNextAction: context.expectedNextAction || null,
+        currentSection: context.currentSection || null,
+        questionType: context.questionType || null,
+      });
+
+      if (phrase) {
+        latencyAcknowledgementUsedPhrasesRef.current.add(phrase);
+        lastLatencyAcknowledgementAtRef.current = now;
+      }
     }, LATENCY_ACK_DELAY_MS);
   }, [
     autoLoopActiveRef,
@@ -108,7 +161,6 @@ export function useVoiceLatencyController({
     firstAudioChunkSeenRef,
     lastLatencyAcknowledgementAtRef,
     latencyAcknowledgementTimerRef,
-    voiceTurnSequenceRef,
   ]);
 
   const handleFirstAudioChunk = useCallback((chunk) => {

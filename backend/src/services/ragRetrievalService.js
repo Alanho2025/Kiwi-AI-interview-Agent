@@ -126,3 +126,37 @@ export const retrieveEvidenceBundle = async ({ query, sessionId, sourceTypes = [
     sourceTypes,
   };
 };
+
+export const retrieveForInterviewTurn = async ({
+  session,
+  userId,
+  currentQuestionId = null,
+  topK = 6,
+} = {}) => {
+  const questions = [
+    ...(session?.interviewPlan?.questionPool || []),
+    ...(session?.interviewPlan?.questions || []),
+  ];
+
+  const currentQuestion = questions.find((question) => question.id === currentQuestionId) || null;
+
+  const query = [
+    session?.targetRole,
+    session?.companyName,
+    currentQuestion?.text,
+    currentQuestion?.question,
+    currentQuestion?.skill,
+    currentQuestion?.competency,
+    userId ? `user:${userId}` : null,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .trim() || 'interview turn evidence';
+
+  return retrieveEvidenceBundle({
+    query,
+    sessionId: session?.id,
+    sourceTypes: ['cv', 'job_description', 'match_analysis', 'interview_plan'],
+    topK,
+  });
+};
