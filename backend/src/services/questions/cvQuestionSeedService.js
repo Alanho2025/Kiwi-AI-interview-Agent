@@ -66,7 +66,7 @@ const extractProjectSeeds = ({ userId, cvFileId, evidenceProfile = {}, cvProfile
   const projects = ensureArray(evidenceProfile.sections?.projects || cvProfile.projects).slice(0, 4);
   return projects.map((project, index) => {
     const title = normalizeText(project.title || project.projectTitle || project.name || `project ${index + 1}`);
-    const skills = normalizeSkillTags(project.skills || project.skillTags || project.technologies || cvProfile.skills);
+    const skills = normalizeSkillTags(project.skills || project.skillTags || project.technologies || project.techStack || cvProfile.skills);
     const topic = skills[0] || title;
     return buildSeed({
       userId,
@@ -175,7 +175,8 @@ const extractTransitionSeed = ({ userId, cvFileId, evidenceProfile = {}, cvProfi
 const deduplicateSeeds = (seeds = []) => {
   const seen = new Set();
   return seeds.filter((seed) => {
-    const key = [normalizeKey(seed.topic), normalizeKey(seed.category), normalizeKey(seed.questionIntent)].join(':');
+    const projectKey = seed.sourceType === 'cv_project' ? normalizeKey(seed.projectTags?.[0] || '') : '';
+    const key = [normalizeKey(seed.topic), normalizeKey(seed.category), normalizeKey(seed.questionIntent), projectKey].join(':');
     if (seen.has(key)) return false;
     seen.add(key);
     return normalizeText(seed.draftQuestion);
