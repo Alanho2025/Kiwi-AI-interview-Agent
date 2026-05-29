@@ -15,6 +15,8 @@ import { callDeepSeek, callDeepSeekStream } from '../deepseekService.js';
 import { guardGeneratedTextForInterviewMode, guardQuestionForInterviewMode } from '../aiControl/interviewModeGuard.js';
 import { buildQuestionDecisionTrace } from '../aiControl/questionRanker.js';
 import { normalizeText, tokenize, normalizeKey } from '../../utils/commonHelpers.js';
+import { getPreparedQuestionPool } from '../questions/questionPoolComposerService.js';
+import { rankPreparedQuestionPool, selectBestPreparedQuestion } from '../questions/questionPoolRankerService.js';
 const getLastUserAnswer = (transcript = []) => [...transcript].reverse().find((turn) => turn.role === 'user')?.text || '';
 
 const inferQuestionGoal = (question = {}, actionType = '') => {
@@ -63,6 +65,74 @@ const normalizeQuestionIntent = ({ question = {}, actionType = '', focusArea = '
     fallbackText,
     text: question.text || fallbackText,
   };
+};
+
+const mapPreparedPoolItemToAgentQuestion = (item = {}) => ({
+  id: item.questionId,
+  preparedQuestionId: item.questionId,
+  type: item.questionIntent || item.sourceType || 'prepared_pool_question',
+  stage: item.stage,
+  category: item.category,
+  topic: item.topic,
+  followUpDepth: 0,
+  text: item.text,
+  fallbackText: item.fallbackText || item.text,
+  reason: `Selected from prepared DB-backed question pool. Topic: ${item.topic}.`,
+  sourceType: item.sourceType || item.sourceStage || 'prepared_question_pool',
+  questionGoal: item.questionIntent,
+  evidenceNeed: item.evidenceNeed || item.expectedSignal || [],
+  constraints: item.constraints || [],
+  linkedCvEvidence: item.linkedCvEvidence || [],
+  linkedJdRequirement: item.linkedJdRequirement || [],
+  matchGapId: item.matchGapId || '',
+  requirementId: item.requirementId || '',
+  rankTrace: item.rankTrace || null,
+});
+
+const shouldPreferPreparedPool = (actionType = '') => [
+  AGENT_ACTION_TYPES.ASK_POOL_QUESTION,
+  AGENT_ACTION_TYPES.ASK_VALIDATION_QUESTION,
+  AGENT_ACTION_TYPES.SWITCH_TOPIC,
+  AGENT_ACTION_TYPES.SHIFT_SECTION,
+  AGENT_ACTION_TYPES.WRAP_STAGE,
+].includes(actionType);
+
+const selectPreparedPoolQuestion = async ({
+  session,
+  decisionContext,
+  evaluatorState,
+  actionType,
+  targetTopic,
+  probeType,
+  freshOnly,
+  category,
+  focusArea,
+}) => {
+  if (!shouldPreferPreparedPool(actionType)) return null;
+  try {
+    const preparedPool = await getPreparedQuestionPool({
+      sessionId: session.id,
+      category,
+      status: 'active',
+    });
+    const rankedPool = rankPreparedQuestionPool({
+      poolItems: preparedPool,
+      session,
+      decisionContext,
+      evaluatorState,
+      actionInput: { actionType, targetTopic, probeType, freshOnly, category, focusArea },
+    });
+    const selected = selectBestPreparedQuestion(rankedPool, {
+      actionType,
+      targetTopic,
+      category,
+      focusArea,
+    });
+    return selected ? mapPreparedPoolItemToAgentQuestion(selected) : null;
+  } catch (error) {
+    console.warn('Prepared question pool selection failed, falling back to legacy pool', error);
+    return null;
+  }
 };
 
 const buildRoleLockedQuestion = (retrievedItem, fallback = {}) => ({
@@ -571,7 +641,20 @@ export const runInterviewerAgent = async ({
   }
 
   const lockedCategory = focusArea === 'technical' ? 'technical' : focusArea === 'behavioral' ? 'behavioural' : category;
-  let selectedQuestion = getNextPoolQuestion(session, { freshOnly, category: lockedCategory });
+  let selectedQuestion = await selectPreparedPoolQuestion({
+    session,
+    decisionContext,
+    evaluatorState,
+    actionType,
+    targetTopic,
+    probeType,
+    freshOnly,
+    category: lockedCategory,
+    focusArea,
+  });
+  if (!selectedQuestion) {
+    selectedQuestion = getNextPoolQuestion(session, { freshOnly, category: lockedCategory });
+  }
 
   if (actionType === AGENT_ACTION_TYPES.ASK_PROBING_QUESTION) {
     selectedQuestion = buildProbingQuestion({ targetTopic: targetTopic || decisionContext?.currentTopic || evidenceBundle?.validationTargets?.[0] || 'project' });
@@ -582,20 +665,26 @@ export const runInterviewerAgent = async ({
       ? buildProbingQuestion({ targetTopic: targetTopic || decisionContext?.currentTopic || 'behavioural_example' })
       : buildDeepDiveQuestion({ targetTopic: targetTopic || decisionContext?.currentTopic || 'project' });
   } else if (actionType === AGENT_ACTION_TYPES.ASK_VALIDATION_QUESTION) {
-    selectedQuestion = focusArea === 'behavioral'
-      ? buildProbingQuestion({ targetTopic: targetTopic || decisionContext?.currentTopic || 'behavioural_example' })
-      : buildValidationQuestion({ targetTopic: targetTopic || decisionContext?.matchState?.validationTargets?.[0] || 'claim' });
+    if (!selectedQuestion?.preparedQuestionId) {
+      selectedQuestion = focusArea === 'behavioral'
+        ? buildProbingQuestion({ targetTopic: targetTopic || decisionContext?.currentTopic || 'behavioural_example' })
+        : buildValidationQuestion({ targetTopic: targetTopic || decisionContext?.matchState?.validationTargets?.[0] || 'claim' });
+    }
   } else if (actionType === AGENT_ACTION_TYPES.SWITCH_TOPIC) {
-    selectedQuestion = probeType === 'repetition_repair_switch'
-      ? buildRepetitionRepairSwitchQuestion({ targetTopic: targetTopic || decisionContext?.coverageState?.missingTopics?.[0] || 'role_fit' })
-      : buildSwitchTopicQuestion({ targetTopic: targetTopic || decisionContext?.coverageState?.missingTopics?.[0] || 'role_fit' });
+    if (!selectedQuestion?.preparedQuestionId) {
+      selectedQuestion = probeType === 'repetition_repair_switch'
+        ? buildRepetitionRepairSwitchQuestion({ targetTopic: targetTopic || decisionContext?.coverageState?.missingTopics?.[0] || 'role_fit' })
+        : buildSwitchTopicQuestion({ targetTopic: targetTopic || decisionContext?.coverageState?.missingTopics?.[0] || 'role_fit' });
+    }
   } else if (actionType === AGENT_ACTION_TYPES.ASK_ABDUCTIVE_PROBE_QUESTION) {
     selectedQuestion = buildAbductiveProbeQuestion({ targetTopic: targetTopic || decisionContext?.abductiveState?.probeTopic || 'decision_tradeoff', hiddenGap: decisionContext?.abductiveState?.hiddenGap || '' });
   } else if (actionType === AGENT_ACTION_TYPES.SHIFT_SECTION) {
-    if ((category || decisionContext?.interviewStructure?.forceCategory) === 'technical' || probeType === 'technical_recovery' || targetTopic === 'technical') {
-      selectedQuestion = getNextPoolQuestion(session, { freshOnly: true, category: 'technical' }) || buildTechnicalRecoveryQuestion({ targetTopic: decisionContext?.matchState?.validationTargets?.[0] || 'implementation', session, decisionContext });
-    } else {
-      selectedQuestion = buildSectionShiftQuestion({ nextSectionKey: targetTopic || decisionContext?.sectionState?.nextSectionKey || 'motivation' });
+    if (!selectedQuestion?.preparedQuestionId) {
+      if ((category || decisionContext?.interviewStructure?.forceCategory) === 'technical' || probeType === 'technical_recovery' || targetTopic === 'technical') {
+        selectedQuestion = getNextPoolQuestion(session, { freshOnly: true, category: 'technical' }) || buildTechnicalRecoveryQuestion({ targetTopic: decisionContext?.matchState?.validationTargets?.[0] || 'implementation', session, decisionContext });
+      } else {
+        selectedQuestion = buildSectionShiftQuestion({ nextSectionKey: targetTopic || decisionContext?.sectionState?.nextSectionKey || 'motivation' });
+      }
     }
   } else if (actionType === AGENT_ACTION_TYPES.FORCE_SHIFT_PROJECT) {
     selectedQuestion = buildForceShiftProjectQuestion({ targetTopic: targetTopic || 'experience', forbiddenProject: decisionContext?.latestDecision?.actionInput?.forbiddenProject || 'the previous project' });
@@ -615,7 +704,9 @@ export const runInterviewerAgent = async ({
       sourceType: 'controller_directed',
     };
   } else if (actionType === AGENT_ACTION_TYPES.WRAP_STAGE) {
-    selectedQuestion = buildClosingQuestion({ session, decisionContext });
+    if (!selectedQuestion?.preparedQuestionId) {
+      selectedQuestion = buildClosingQuestion({ session, decisionContext });
+    }
   } else {
     const retrievedQuestion = pickRetrievedQuestion(retrievalBundle, selectedQuestion, targetTopic || decisionContext?.currentTopic || '');
     if (selectedQuestion && retrievedQuestion && !['opening', 'wrap_up'].includes(selectedQuestion.stage) && actionType !== AGENT_ACTION_TYPES.ASK_POOL_QUESTION) {
@@ -718,6 +809,11 @@ export const runInterviewerAgent = async ({
     confidence: decisionContext?.latestDecision?.confidence || null,
     selectionSource: decisionContext?.latestDecision?.selectionSource || 'rule_fallback',
   });
+  if (selectedQuestion.preparedQuestionId) {
+    questionDecision.preparedQuestionId = selectedQuestion.preparedQuestionId;
+    questionDecision.rankTrace = selectedQuestion.rankTrace || null;
+    questionDecision.selectionSource = 'prepared_question_pool';
+  }
 
   return {
     questionType: selectedQuestion.type,
@@ -734,6 +830,8 @@ export const runInterviewerAgent = async ({
     evidenceTypeHint: inferEvidenceTypeHint(selectedQuestion),
     questionDecision,
     questionRanking: questionDecision.ranking,
+    preparedQuestionId: selectedQuestion.preparedQuestionId || null,
+    rankTrace: selectedQuestion.rankTrace || null,
     retrievalSnapshot: retrievalBundle,
     isComplete: false,
     reactTrace,

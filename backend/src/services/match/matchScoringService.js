@@ -35,6 +35,7 @@ const STRICT_TECH_PATTERNS = {
   redis: /\bredis\b/i,
   elasticsearch: /\belasticsearch\b/i,
   kafka: /\b(kafka|distributed queue|distributed queueing|message queue|event streaming)\b/i,
+  sql: /\b(sql|structured query language|postgresql|postgres|mysql|database query|query writing)\b/i,
   python: /\bpython\b/i,
   postgres: /\b(postgresql|postgres)\b/i,
   typescript: /\btypescript\b/i,
@@ -352,6 +353,25 @@ const sanitizeRequirementEvidence = ({ requirement = {}, status = 'not_met', evi
   });
 };
 
+const resolveRequirementFinalStatus = ({ requirement = {}, judgement = null, match = {} } = {}) => {
+  if (!judgement?.status) return match.finalStatus;
+  if ((STATUS_ORDER[judgement.status] || 0) >= (STATUS_ORDER[match.finalStatus] || 0)) return judgement.status;
+
+  const label = requirement.label || requirement.text || '';
+  const hasQualificationSectionMatch = isQualificationLabel(label)
+    && match.matchedSection === 'education'
+    && ['met', 'partial'].includes(match.finalStatus);
+  const hasExactHardTechMatch = isHardTechnicalRequirement(requirement, label)
+    && match.evidenceStrength !== 'missing'
+    && (match.evidence || []).some((item) => hasStrictTechEvidence(label, item));
+
+  if (hasQualificationSectionMatch || hasExactHardTechMatch) {
+    return match.finalStatus;
+  }
+
+  return judgement.status;
+};
+
 export const buildMacroScores = (macroCriteria = [], _cvText, weights = {}, evidenceProfile = {}, semanticEvidenceContext = {}) =>
   macroCriteria.map((criterion) => {
     const match = computeEnhancedMatch(criterion.label, 'macro', evidenceProfile, semanticEvidenceContext);
@@ -391,7 +411,7 @@ export const buildRequirementChecks = (requirements = [], _cvText, evidenceProfi
       getSemanticMatchesForLabel(semanticEvidenceContext, requirement.label),
       requirement
     ).slice(0, 3);
-    const finalStatus = judgement?.status || match.finalStatus;
+    const finalStatus = resolveRequirementFinalStatus({ requirement, judgement, match });
     const judgementEvidence = semanticEvidence.map((item) => `Matched evidence (${item.evidenceStrength || 'weak'}, ${Number(item.score || 0).toFixed(2)}): ${item.text}`);
     const rawEvidence = [...(requirement.evidence || []), ...match.evidence, ...judgementEvidence];
     const cleanedEvidence = sanitizeRequirementEvidence({ requirement, status: finalStatus, evidence: rawEvidence });

@@ -171,7 +171,7 @@ class VoiceTurnWarmContextService {
    * @param {Object} currentState - Current session state
    * @returns {Object} Validation result with ok flag and reason
    */
-  validateWarmContext(cache, currentState) {
+  validateWarmContext(cache, currentState, { allowClientTurnMismatch = false } = {}) {
     const now = Date.now();
 
     // Check session ID matches
@@ -193,7 +193,7 @@ class VoiceTurnWarmContextService {
     }
 
     // Check turn ID matches
-    if (cache.clientTurnId !== currentState.clientTurnId) {
+    if (!allowClientTurnMismatch && cache.clientTurnId !== currentState.clientTurnId) {
       return {
         ok: false,
         reason: 'turn_id_mismatch',
@@ -239,6 +239,20 @@ class VoiceTurnWarmContextService {
     };
   }
 
+  findCompatibleWarmContext({ sessionId, questionId, currentQuestionIndex }) {
+    const now = Date.now();
+    const candidates = [...this.cache.values()]
+      .filter((entry) => (
+        entry.sessionId === sessionId
+        && entry.questionId === questionId
+        && entry.currentQuestionIndex === currentQuestionIndex
+        && now <= entry.expiresAt
+      ))
+      .sort((a, b) => b.createdAt - a.createdAt);
+
+    return candidates[0] || null;
+  }
+
   /**
    * Retrieve warm context if valid
    * @param {Object} params
@@ -257,16 +271,28 @@ class VoiceTurnWarmContextService {
     sessionStatus = 'in_progress',
   }) {
     const cacheKey = this.buildCacheKey({ sessionId, questionId, clientTurnId });
-    const cache = this.cache.get(cacheKey);
+    let cache = this.cache.get(cacheKey);
+    let resolvedCacheKey = cacheKey;
+    let allowClientTurnMismatch = false;
 
     if (!cache) {
-      logger.info('Warm context cache miss', {
-        sessionId,
-        clientTurnId,
-        cacheKey,
-        reason: 'not_found',
-      });
-      return null;
+      cache = this.findCompatibleWarmContext({ sessionId, questionId, currentQuestionIndex });
+      if (cache) {
+        resolvedCacheKey = this.buildCacheKey({
+          sessionId: cache.sessionId,
+          questionId: cache.questionId,
+          clientTurnId: cache.clientTurnId,
+        });
+        allowClientTurnMismatch = true;
+      } else {
+        logger.info('Warm context cache miss', {
+          sessionId,
+          clientTurnId,
+          cacheKey,
+          reason: 'not_found',
+        });
+        return null;
+      }
     }
 
     const validation = this.validateWarmContext(cache, {
@@ -275,13 +301,13 @@ class VoiceTurnWarmContextService {
       clientTurnId,
       currentQuestionIndex,
       sessionStatus,
-    });
+    }, { allowClientTurnMismatch });
 
     if (!validation.ok) {
       logger.warn('Warm context validation failed', {
         sessionId,
         clientTurnId,
-        cacheKey,
+        cacheKey: resolvedCacheKey,
         reason: validation.reason,
         message: validation.message,
         cacheAge: validation.ageMs,
@@ -295,9 +321,10 @@ class VoiceTurnWarmContextService {
     logger.info('Warm context cache hit', {
       sessionId,
       clientTurnId,
-      cacheKey,
+      cacheKey: resolvedCacheKey,
       cacheAge: validation.ageMs,
       preparationDuration: cache.preparationDurationMs,
+      matchMode: allowClientTurnMismatch ? 'question_index_fallback' : 'exact',
     });
 
     return {
@@ -308,6 +335,9 @@ class VoiceTurnWarmContextService {
         cacheAge: validation.ageMs,
         preparationDuration: cache.preparationDurationMs,
         createdAt: cache.createdAt,
+        cacheClientTurnId: cache.clientTurnId,
+        requestedClientTurnId: clientTurnId,
+        matchMode: allowClientTurnMismatch ? 'question_index_fallback' : 'exact',
       },
     };
   }

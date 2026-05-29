@@ -239,8 +239,8 @@ describe('interview question plan completeness', () => {
       expect(Number.isFinite(item.priority)).toBe(true);
       expect(Number.isFinite(item.planPriority)).toBe(true);
     });
-    expect(pool[0]).toMatchObject({ type: 'self_intro', planPriority: 10 });
-    expect(pool[1]).toMatchObject({ type: 'company_motivation', planPriority: 20 });
+    expect(pool[0]).toMatchObject({ type: 'self_intro', planPriority: 1 });
+    expect(pool[1]).toMatchObject({ type: 'company_motivation', planPriority: 2 });
     expect(pool.at(-1).category).toMatch(/wrap|closing/);
   });
 

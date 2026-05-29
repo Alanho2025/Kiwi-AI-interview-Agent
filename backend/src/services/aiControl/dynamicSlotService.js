@@ -1,5 +1,5 @@
 import { SessionAnalysis } from '../../db/models/sessionAnalysisModel.js';
-import { normalizeText, tokenize, unique } from '../../utils/commonHelpers.js';
+import { tokenize, unique } from '../../utils/commonHelpers.js';
 
 const DEFAULT_DYNAMIC_SLOT_STATE = {
   activeSlots: [],

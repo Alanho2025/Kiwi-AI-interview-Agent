@@ -186,6 +186,68 @@ Bachelor of Engineering`;
     expect((requirement.evidence || []).join(' ')).toMatch(/Matched in education/i);
   });
 
+  it('keeps related in-progress degree evidence visible instead of marking the requirement missing', async () => {
+    process.env.MATCH_ENGINE = 'semantic';
+    process.env.AI_TEST_MODE = 'mock';
+
+    const cvText = `Alan Ho
+Master of Information Technology student building AI products.
+
+Education
+Feb 2025 - Present Master of Information Technology, University of Auckland
+Expected graduation: Nov 2026
+Sep 2014 - Jun 2016 Master of Electrical Engineering, Chung Yuan Christian University`;
+    const rubric = buildRubric([
+      {
+        id: 'req_recent_degree',
+        label: 'Recent graduate with a degree in Data Science, Computer Science, Software Engineering, Engineering Science, or similar field',
+        category: 'qualification',
+        mustHave: true,
+        type: 'hard',
+        importance: 'high',
+      },
+    ]);
+
+    const result = await compareCvToJobDescription(cvText, 'Graduate Data JD', rubric, { matchEngine: 'semantic' });
+    const requirement = result.requirementChecks[0];
+
+    expect(requirement.status).not.toBe('not_met');
+    expect((requirement.evidence || []).join(' ')).toMatch(/Matched in education/i);
+  });
+
+  it('treats PostgreSQL evidence as related SQL evidence for hard SQL requirements', async () => {
+    process.env.MATCH_ENGINE = 'semantic';
+    process.env.AI_TEST_MODE = 'mock';
+
+    const cvText = `Alan Ho
+Full-stack AI product developer.
+
+Skills
+PostgreSQL
+Python
+
+Projects
+AI Interview Agent
+- Built backend data flows using PostgreSQL and MongoDB.`;
+    const rubric = buildRubric([
+      {
+        id: 'req_sql',
+        label: 'Experience with SQL',
+        category: 'technical_skill',
+        mustHave: true,
+        type: 'hard',
+        importance: 'high',
+      },
+    ]);
+
+    const result = await compareCvToJobDescription(cvText, 'Graduate Data JD', rubric, { matchEngine: 'semantic' });
+    const requirement = result.requirementChecks[0];
+
+    expect(['partial', 'met']).toContain(requirement.status);
+    expect(requirement.status).not.toBe('not_met');
+    expect((requirement.evidence || []).join(' ')).toMatch(/sql|postgres/i);
+  });
+
   it('does not use education evidence to satisfy non-qualification behavioural or role-context requirements', async () => {
     process.env.MATCH_ENGINE = 'semantic';
     const cvText = `Alan Ho

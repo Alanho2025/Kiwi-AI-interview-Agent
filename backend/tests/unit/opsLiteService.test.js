@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import fs from 'node:fs/promises';
-import path from 'node:path';
 
 // Mock dependencies before importing the service
 vi.mock('node:fs/promises');
@@ -8,13 +7,16 @@ vi.mock('../../src/db/models/sessionAnalysisModel.js', () => ({
     SessionAnalysis: {
         find: vi.fn().mockReturnThis(),
         sort: vi.fn().mockReturnThis(),
+        allowDiskUse: vi.fn().mockReturnThis(),
         limit: vi.fn().mockReturnThis(),
+        select: vi.fn().mockReturnThis(),
         lean: vi.fn(),
     },
 }));
 vi.mock('../../src/db/models/sessionReportModel.js', () => ({
     SessionReport: {
         find: vi.fn().mockReturnThis(),
+        select: vi.fn().mockReturnThis(),
         lean: vi.fn(),
     },
 }));
@@ -812,6 +814,19 @@ describe('opsLiteService', () => {
         it('should handle both summaries being empty', async () => {
             const result = await buildOpsLiteSummary();
 
+            expect(result.overview.totalSessions).toBe(0);
+            expect(result.agentEvaluation.totalSuites).toBe(0);
+        });
+
+        it('should degrade instead of failing when runtime records cannot be read', async () => {
+            SessionAnalysis.lean.mockRejectedValue(new Error('Sort exceeded memory limit'));
+
+            const result = await buildOpsLiteSummary({ userId: 'user1' });
+
+            expect(result.runtimeStatus).toEqual({
+                ok: false,
+                warning: 'Sort exceeded memory limit',
+            });
             expect(result.overview.totalSessions).toBe(0);
             expect(result.agentEvaluation.totalSuites).toBe(0);
         });

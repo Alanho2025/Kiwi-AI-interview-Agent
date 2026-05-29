@@ -72,7 +72,7 @@ export const qaRewriteReport = asyncHandler(async (req, res) => {
   const retrievalBundle = await agentRegistry.retrieval({
     query: `${session.targetRole || ''} report qa rewrite evidence`,
     sessionId: session.id,
-    sourceTypes: ['cv_profile', 'jd_rubric', 'interview_plan', 'transcript'],
+    sourceTypes: ['cv_profile', 'jd_rubric', 'interview_plan', 'prepared_question_pool', 'transcript'],
     topK: 8,
     objective: 'qa_prompt_rewrite_report',
     targetTopic: 'report',

@@ -13,7 +13,7 @@ import { formatSuccess } from '../utils/responseFormatter.js';
 import { runCvJdMatchAnalysis } from '../services/cv/cvAnalysisService.js';
 import { createMatchAnalysisRecord } from '../services/cv/matchAnalysisRecordService.js';
 import { getOwnedCvDocumentOrThrow, getOwnedMatchAnalysisOrThrow } from '../services/cv/cvOwnershipService.js';
-import { createSession } from '../services/sessionService.js';
+import { createSession, getOwnedSessionById } from '../services/sessionService.js';
 import * as authService from '../services/authService.js';
 import { createAuditLog } from '../services/auditService.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
@@ -29,6 +29,9 @@ import {
   getCompanyValuesProfileByFingerprint,
 } from '../services/company/companyValuesRepository.js';
 import { startCompanyValuesEnrichment } from '../services/company/companyValuesEnrichmentService.js';
+import { buildJdQuestionFilter } from '../services/questions/jdQuestionFilterService.js';
+import { generateCvQuestionSeeds, getCvQuestionSeeds } from '../services/questions/cvQuestionSeedService.js';
+import { composeInterviewQuestionPool } from '../services/questions/questionPoolComposerService.js';
 
 export const matchCV = asyncHandler(async (req, res) => {
   const { cvId, rawJD, jdRubric, settings } = req.body;
@@ -51,6 +54,25 @@ export const matchCV = asyncHandler(async (req, res) => {
   });
   const cvDocument = await getOwnedCvDocumentOrThrow({ cvId, userId: user.id });
   const persisted = await createMatchAnalysisRecord({ userId: user.id, cvFileId: cvId, jdStructuredText: rawJD || '', jdRubric, matchData, cvDocument });
+  try {
+    await buildJdQuestionFilter({
+      userId: user.id,
+      cvFileId: cvId,
+      jdFingerprint: matchData?.parsedJdProfile?.metadata?.jdFingerprint || jdRubric?.metadata?.jdFingerprint || '',
+      rawJD,
+      jdRubric: jdRubric || matchData?.parsedJdProfile || null,
+      analysisResult: matchData,
+      matchAnalysisId: persisted.matchAnalysisId,
+      settings,
+    });
+  } catch (error) {
+    logger.warn('JD question filter generation failed', getRequestLogMeta(req, {
+      userId: user.id,
+      cvId,
+      matchAnalysisId: persisted.matchAnalysisId,
+      error: error.message,
+    }));
+  }
   logger.info('CV and JD match completed', getRequestLogMeta(req, {
     strengthsCount: matchData?.strengths?.length || 0,
     gapsCount: matchData?.gaps?.length || 0,
@@ -70,6 +92,30 @@ const extractTargetRole = ({ jdText = '', jdRubric = null, analysisResult = null
 const hasReliableCompanyValuesProfile = (profile = null) => {
   if (!profile || profile.status !== 'ready') return false;
   return ['manual', 'official_website'].includes(profile.source);
+};
+
+const ensureCvQuestionSeedsForPlan = async ({ userId, cvId, settings, requestMeta }) => {
+  if (!cvId) return [];
+  try {
+    const existingSeeds = await getCvQuestionSeeds({ userId, cvFileId: cvId, status: 'active' });
+    if (existingSeeds.length) return existingSeeds;
+    const cvDocument = await getOwnedCvDocumentOrThrow({ cvId, userId });
+    return generateCvQuestionSeeds({
+      userId,
+      cvFileId: cvId,
+      cvProfile: cvDocument.cvProfile,
+      normalizedText: cvDocument.normalizedText,
+      settings,
+    });
+  } catch (error) {
+    logger.warn('CV question seed recovery failed during plan generation', {
+      ...requestMeta,
+      userId,
+      cvId,
+      error: error.message,
+    });
+    return [];
+  }
 };
 
 export const generateInterviewPlan = asyncHandler(async (req, res) => {
@@ -102,6 +148,32 @@ export const generateInterviewPlan = asyncHandler(async (req, res) => {
     currentQuestionIndex: 1,
     candidateName: resolvedAnalysis?.candidateName || 'Candidate',
   });
+  await ensureCvQuestionSeedsForPlan({
+    userId: user.id,
+    cvId,
+    settings,
+    requestMeta: getRequestLogMeta(req, {}),
+  });
+  let preparedQuestionPool = [];
+  try {
+    preparedQuestionPool = await composeInterviewQuestionPool({
+      userId: user.id,
+      sessionId: session.id,
+      cvFileId: cvId || null,
+      matchAnalysisId: matchAnalysisId || null,
+      jdFingerprint: companyValuesContext.jdFingerprint,
+      analysisResult: resolvedAnalysis,
+      jdRubric: jdRubric || resolvedAnalysis?.parsedJdProfile || null,
+      settings,
+    });
+  } catch (error) {
+    logger.warn('Prepared interview question pool composition failed', getRequestLogMeta(req, {
+      userId: user.id,
+      sessionId: session.id,
+      matchAnalysisId: matchAnalysisId || null,
+      error: error.message,
+    }));
+  }
   const existingCompanyValuesProfile = await getCompanyValuesProfileByFingerprint({
     userId: user.id,
     jdFingerprint: companyValuesContext.jdFingerprint,
@@ -199,5 +271,19 @@ export const generateInterviewPlan = asyncHandler(async (req, res) => {
     targetRole: session.targetRole,
   }));
 
-  res.json(formatSuccess('Interview plan generated', { sessionId: session.id, session }));
+  const updatedSession = await getOwnedSessionById(session.id, user.id);
+  const sourceCounts = preparedQuestionPool.reduce((counts, item) => {
+    const source = item.sourceStage || item.sourceType || 'unknown';
+    counts[source] = (counts[source] || 0) + 1;
+    return counts;
+  }, {});
+  res.json(formatSuccess('Interview plan generated', {
+    sessionId: session.id,
+    session: updatedSession || session,
+    questionPool: {
+      prepared: preparedQuestionPool.length > 0,
+      count: preparedQuestionPool.length,
+      sources: sourceCounts,
+    },
+  }));
 });
