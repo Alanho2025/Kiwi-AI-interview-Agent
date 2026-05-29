@@ -12,7 +12,7 @@ import { assessRealtimeVoiceTranscript } from './speechConfidenceGate.js';
 import { AGENT_TOOL_NAMES } from '../../constants/agentToolNames.js';
 import warmContextService from './voiceTurnWarmContextService.js';
 import { buildTranscriptConfirmationPrompt } from './transcriptUnderstandingSummary.js';
-import { classifyTranscriptConfirmationReply } from './transcriptConfirmationReplyClassifier.js';
+import { analyzeTranscriptConfirmationReply } from './transcriptConfirmationReplyClassifier.js';
 import { generateVoiceMicroAcknowledgement } from './voiceAcknowledgementService.js';
 
 const VOICE_BRIDGE_DELAY_MS = Number(process.env.VOICE_BRIDGE_DELAY_MS || 1200);
@@ -68,6 +68,26 @@ const buildNextClientTurnIds = (clientTurnId = null) => {
   return [...ids].filter(Boolean);
 };
 
+const mergeConfirmedTranscript = ({ pending, confirmationDetails, confirmationReply }) => {
+  const originalTranscript = String(pending?.originalTranscript || '').trim();
+  const replyText = String(confirmationReply || '').trim();
+  const extraContent = String(confirmationDetails?.extraContent || '').trim();
+
+  if (confirmationDetails?.isContentfulClarification && replyText) {
+    return `${originalTranscript}
+
+User clarification after transcript check: ${replyText}`.trim();
+  }
+
+  if (extraContent) {
+    return `${originalTranscript}
+
+User clarification after confirming transcript: ${extraContent}`.trim();
+  }
+
+  return originalTranscript;
+};
+
 export const createDuplexTurnCoordinator = ({
   session,
   userId,
@@ -79,7 +99,7 @@ export const createDuplexTurnCoordinator = ({
   logger,
   clientTurnId = null,
   getPendingTranscriptConfirmation = () => null,
-  setPendingTranscriptConfirmation = () => {},
+  setPendingTranscriptConfirmation = () => { },
 } = {}) => {
   let sentenceIndex = 0;
 
@@ -358,7 +378,12 @@ export const createDuplexTurnCoordinator = ({
   };
 
   const processFinalTranscript = async ({ transcriptText, asrConfidence = null, vad = null } = {}) => {
-    const processConfirmedPendingTranscript = async ({ pending, confirmationReply }) => {
+    const processConfirmedPendingTranscript = async ({
+      pending,
+      confirmationReply,
+      confirmationDecision = 'confirm',
+      resolvedTranscriptText = null,
+    }) => {
       sendJson?.({
         type: 'agent_thinking',
         tool: AGENT_TOOL_NAMES.ORCHESTRATE_DUPLEX_VOICE,
@@ -368,8 +393,10 @@ export const createDuplexTurnCoordinator = ({
       const speechToken = bargeInController?.startAssistantSpeech?.();
       sentenceIndex = 0;
 
+      const transcriptForPlanning = String(resolvedTranscriptText || pending.originalTranscript || '').trim();
+
       const result = await processRealtimeTurnWithDelayedBridge({
-        transcriptText: pending.originalTranscript,
+        transcriptText: transcriptForPlanning,
         asrConfidence: pending.asrConfidence,
         vad: pending.vad,
         speechToken,
@@ -377,7 +404,10 @@ export const createDuplexTurnCoordinator = ({
         transcriptConfirmation: {
           confirmedByUser: true,
           confirmationReply,
+          confirmationDecision,
           pendingConfirmationId: pending.id,
+          resolvedTranscriptText: transcriptForPlanning,
+          usedClarification: transcriptForPlanning !== String(pending.originalTranscript || '').trim(),
           originalAssessment: pending.assessment || null,
         },
         acknowledgementSource: 'duplex_confirmed_bridge_acknowledgement',
@@ -496,29 +526,54 @@ export const createDuplexTurnCoordinator = ({
 
     const pendingTranscriptConfirmation = getPendingTranscriptConfirmation?.() || null;
     if (pendingTranscriptConfirmation) {
-      const confirmationDecision = classifyTranscriptConfirmationReply(cleanTranscript);
+      const confirmationDetails = analyzeTranscriptConfirmationReply(cleanTranscript);
+      const confirmationDecision = confirmationDetails.decision;
+
       trace('pending_transcript_confirmation_reply', {
         confirmationDecision,
         replyText: cleanTranscript,
         pendingId: pendingTranscriptConfirmation.id,
+        hasExtraContent: confirmationDetails.hasExtraContent,
+        isContentfulClarification: confirmationDetails.isContentfulClarification,
       });
 
-      if (confirmationDecision === 'confirm') {
+      if (confirmationDecision === 'confirm' || confirmationDetails.isContentfulClarification) {
         const pending = pendingTranscriptConfirmation;
+
+        const resolvedTranscriptText = mergeConfirmedTranscript({
+          pending,
+          confirmationDetails,
+          confirmationReply: cleanTranscript,
+        });
+
+        const resolvedDecision = confirmationDetails.isContentfulClarification
+          ? 'clarification'
+          : confirmationDetails.hasExtraContent
+            ? 'confirm_with_clarification'
+            : 'confirm';
+
         setPendingTranscriptConfirmation(null);
+
         sendJson?.({
           type: 'transcript_confirmation_resolved',
-          decision: 'confirm',
+          decision: resolvedDecision,
           turnType: 'transcript_confirmation',
           countsAsQuestion: false,
           timestamp: new Date().toISOString(),
         });
+
         trace('pending_transcript_confirmation_confirmed', {
           pendingId: pending.id,
+          confirmationDecision: resolvedDecision,
+          resolvedTranscriptText,
+          usedClarification: resolvedTranscriptText !== String(pending.originalTranscript || '').trim(),
         });
+
         return processConfirmedPendingTranscript({
           pending,
           confirmationReply: cleanTranscript,
+          confirmationDecision: resolvedDecision,
+          resolvedTranscriptText,
         });
       }
 
@@ -543,7 +598,7 @@ export const createDuplexTurnCoordinator = ({
           ok: false,
           decision: 'reject',
           reason: 'TRANSCRIPT_CONFIRMATION_UNCLEAR',
-          message: 'Please say yes if I understood correctly, or say no and clarify your answer.',
+          message: 'Please briefly confirm or correct what I heard. You can say yes and add one short clarification, or correct the answer.',
           confidenceGate: null,
           metrics: null,
         },

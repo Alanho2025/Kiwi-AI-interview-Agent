@@ -1,9 +1,9 @@
 import { normalizeText } from '../../utils/commonHelpers.js';
+
 /**
- * File responsibility: Classify short spoken replies to transcript confirmation prompts.
+ * File responsibility: Classify spoken replies to transcript confirmation prompts.
  * Keep this deterministic for latency and reliability in the duplex voice loop.
  */
-
 
 const CONFIRM_PATTERNS = [
   /\byes\b/,
@@ -27,22 +27,72 @@ const REJECT_PATTERNS = [
   /\bincorrect\b/,
   /\blet me repeat\b/,
   /\brepeat\b/,
-  /\bclarify\b/,
   /\bthat's not\b/,
   /\bthat is not\b/,
 ];
 
-export const classifyTranscriptConfirmationReply = (replyText = '') => {
+const CONFIRMATION_FILLER_PATTERNS = [
+  /\bi think you (are|'re)? correct\b/gi,
+  /\byou understood (it )?correctly\b/gi,
+  /\byes\b/gi,
+  /\byeah\b/gi,
+  /\byep\b/gi,
+  /\bcorrect\b/gi,
+  /\bright\b/gi,
+  /\bthat's right\b/gi,
+  /\bthat is right\b/gi,
+  /\bexactly\b/gi,
+];
+
+const countWords = (text = '') => String(text || '')
+  .trim()
+  .split(/\s+/)
+  .filter(Boolean)
+  .length;
+
+const extractExtraContent = (replyText = '') => {
+  let extraText = String(replyText || '').trim();
+
+  for (const pattern of CONFIRMATION_FILLER_PATTERNS) {
+    extraText = extraText.replace(pattern, ' ');
+  }
+
+  extraText = extraText
+    .replace(/\s+/g, ' ')
+    .replace(/^[,.\s]+|[,.\s]+$/g, '')
+    .trim();
+
+  return countWords(extraText) >= 6 ? extraText : '';
+};
+
+export const analyzeTranscriptConfirmationReply = (replyText = '') => {
   const clean = normalizeText(replyText);
-  if (!clean) return 'unclear';
 
-  if (REJECT_PATTERNS.some((pattern) => pattern.test(clean))) {
-    return 'reject';
+  if (!clean) {
+    return {
+      decision: 'unclear',
+      extraContent: '',
+      hasExtraContent: false,
+      isContentfulClarification: false,
+    };
   }
 
-  if (CONFIRM_PATTERNS.some((pattern) => pattern.test(clean))) {
-    return 'confirm';
-  }
+  const decision = REJECT_PATTERNS.some((pattern) => pattern.test(clean))
+    ? 'reject'
+    : CONFIRM_PATTERNS.some((pattern) => pattern.test(clean))
+      ? 'confirm'
+      : 'unclear';
 
-  return 'unclear';
+  const extraContent = decision === 'confirm' ? extractExtraContent(replyText) : '';
+
+  return {
+    decision,
+    extraContent,
+    hasExtraContent: Boolean(extraContent),
+    isContentfulClarification: decision === 'unclear' && countWords(clean) >= 8,
+  };
+};
+
+export const classifyTranscriptConfirmationReply = (replyText = '') => {
+  return analyzeTranscriptConfirmationReply(replyText).decision;
 };
