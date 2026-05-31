@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { SessionAnalysis } from '../../db/models/sessionAnalysisModel.js';
-import { analyzeStarBreakdown } from './starRubricService.js';
+import { analyzeStarrBreakdown } from './starRubricService.js';
 import { ensureArray, normalizeText, tokenize } from '../../utils/commonHelpers.js';
 
 const countOverlap = (source = [], target = []) => {
@@ -313,7 +313,7 @@ export const evaluateInterviewTurn = ({ environment = {}, decisionContext = null
   const reflectionNeeded = misunderstandingFlag || (evidenceGainScore < 0.45 && repetitionRisk) || overallInteractionScore < 0.5 || candidateDifficultySignal;
   const roleRelevance = inferRoleRelevance({ answerText, currentTopic, requiredSkills, answerUnderstanding });
   const coveragePressure = inferCoveragePressure({ coverageState: decisionContext?.coverageState || {}, repetitionRisk });
-  const starBreakdown = analyzeStarBreakdown(answerText);
+  const starBreakdown = analyzeStarrBreakdown(answerText);
   const plannerSignals = buildPlannerSignals({
     evidenceGainScore,
     specificity,
