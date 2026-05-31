@@ -16,7 +16,17 @@ const SessionReportSchema = new mongoose.Schema(
     sessionId: { type: String, required: true, unique: true, index: true },
     report: { type: mongoose.Schema.Types.Mixed, default: {} },
     qaResult: { type: mongoose.Schema.Types.Mixed, default: {} },
-    latestStatus: { type: String, default: 'draft' },
+    latestStatus: {
+      type: String,
+      enum: ['draft', 'ready', 'ready_after_repair', 'needs_review', 'repair_failed'],
+      default: 'draft',
+    },
+    reportVersions: { type: [mongoose.Schema.Types.Mixed], default: [] },
+    repairHistory: { type: [mongoose.Schema.Types.Mixed], default: [] },
+    qaAttemptCount: { type: Number, default: 0 },
+    scoreExplanations: { type: mongoose.Schema.Types.Mixed, default: null },
+    trustSummary: { type: mongoose.Schema.Types.Mixed, default: null },
+    calibrationStatus: { type: mongoose.Schema.Types.Mixed, default: null },
   },
   { timestamps: true }
 );
