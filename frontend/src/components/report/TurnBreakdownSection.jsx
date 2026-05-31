@@ -71,7 +71,7 @@ function TrustMeta({ turn }) {
 }
 
 function StructureBreakdown({ turn }) {
-  const breakdown = turn.structureBreakdown || turn.starBreakdown;
+  const breakdown = turn.structureBreakdown || turn.starrBreakdown || turn.starBreakdown;
   if (!breakdown) return null;
   if (turn.starApplicable === false) {
     const entries = Object.entries(breakdown)
@@ -94,21 +94,27 @@ function StructureBreakdown({ turn }) {
       </div>
     );
   }
-  const starBreakdown = turn.starBreakdown;
+  const starBreakdown = turn.starrBreakdown || turn.starBreakdown;
   if (!starBreakdown) return null;
   const parts = [
     ['Situation', starBreakdown.situation],
     ['Task', starBreakdown.task],
     ['Action', starBreakdown.action],
-    ['Result', starBreakdown.result],
+    [turn.resultOrReactionLabel || 'Result', starBreakdown.resultOrReaction || starBreakdown.result],
   ];
+  if (starBreakdown.reflection) {
+    parts.push(['Reflection', starBreakdown.reflection]);
+  }
+  
+  const gridCols = parts.length === 5 ? 'sm:grid-cols-5' : 'sm:grid-cols-4';
+
   return (
     <div className="rounded-xl border border-slate-100 bg-white/70 p-4">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-        <h5 className="text-xs font-semibold uppercase tracking-wider text-slate-500">STAR Evidence</h5>
+        <h5 className="text-xs font-semibold uppercase tracking-wider text-slate-500">STARR Evidence</h5>
         {starBreakdown.mainMissingElement ? <p className="text-xs text-slate-500">Main gap: {starBreakdown.mainMissingElement}</p> : null}
       </div>
-      <div className="mt-3 grid gap-2 sm:grid-cols-4">
+      <div className={`mt-3 grid gap-2 ${gridCols}`}>
         {parts.map(([label, value]) => (
           <div key={label} className="rounded-lg bg-slate-50 px-3 py-2">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{label}</p>
