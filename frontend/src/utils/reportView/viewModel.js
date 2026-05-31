@@ -63,5 +63,6 @@ export const buildReportViewModel = (reportData) => {
     turnBreakdowns: candidateFeedback.turnBreakdowns || [],
     scoreExplanations: report.scoreExplanations || null,
     scoreLimitations: report.scoreLimitations || [],
+    authenticityMetrics: report.authenticityMetrics || null,
   };
 };
