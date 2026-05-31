@@ -13,6 +13,7 @@ import { joinLabels } from './reportGeneratorShared.js';
 import { buildCompactTraceSummary } from '../../aiControl/agentTraceService.js';
 import { ensureArray } from '../../../utils/commonHelpers.js';
 import { buildScoreExplanations, getScoreLimitations } from '../../report/reportScoringExplanationService.js';
+import { evaluateAuthenticity } from '../../report/conversationalAuthenticityService.js';
 
 
 export const buildSummary = ({ analysisResult, evidenceSummary, interviewMetrics, reflectionRecords = [] }) => {
@@ -297,6 +298,7 @@ export const buildReportDraft = ({
     nzWorkplaceFit,
     voiceDeliverySummary,
     companyMotivationFit,
+    authenticityMetrics: evaluateAuthenticity({ transcript: session.transcript || [], candidateFeedback }),
     candidateFeedback,
   };
 };

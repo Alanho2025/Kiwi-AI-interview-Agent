@@ -26,6 +26,7 @@ import { ReportDetailSections } from '../components/report/ReportDetailSections.
 import { ReportHeroCard } from '../components/report/ReportHeroCard.jsx';
 import { ScoreBreakdownCard } from '../components/report/ScoreBreakdownCard.jsx';
 import { CommercialStressTestSection } from '../components/report/CommercialStressTestSection.jsx';
+import { CommunicationAuthenticitySection } from '../components/report/CommunicationAuthenticitySection.jsx';
 import { LoadingInsightPanel } from '../components/common/LoadingInsightPanel.jsx';
 import { useReportData } from '../hooks/useReportData.js';
 import { buildReportViewModel } from '../utils/reportView/index.js';
@@ -117,6 +118,7 @@ export function ReportPage() {
             />
 
             <div id="tour-report-insights" className="space-y-6">
+              <CommunicationAuthenticitySection authenticityMetrics={viewModel.authenticityMetrics} />
               <CommercialStressTestSection commercialStressTest={viewModel.commercialStressTest} />
               <InsightsSection dataInsights={viewModel.dataInsights} strengthHighlights={viewModel.strengthHighlights} />
             </div>

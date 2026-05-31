@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../common/Card.jsx';
+import { EvidenceBadge } from './EvidenceBadge.jsx';
 
 const clampMicroScore = (score = 0) => Math.max(0, Math.min(10, Number(score || 0)));
 
@@ -57,18 +58,7 @@ function ScoreBar({ label, score, colorClass, reason }) {
   );
 }
 
-function TrustMeta({ turn }) {
-  if (!turn?.evidenceLabel && !turn?.confidenceLevel && !turn?.feedbackStatus) return null;
-  return (
-    <div className="flex flex-wrap gap-2 text-xs">
-      {turn.evidenceLabel ? <span className="rounded-full bg-white px-2.5 py-1 font-medium text-indigo-800">{turn.evidenceLabel}</span> : null}
-      {turn.confidenceLevel ? <span className="rounded-full bg-white px-2.5 py-1 font-medium text-slate-700">{turn.confidenceLevel} confidence</span> : null}
-      {turn.feedbackStatus ? <span className="rounded-full bg-white px-2.5 py-1 font-medium text-slate-700">{turn.feedbackStatus}</span> : null}
-      {turn.needsUserConfirmation ? <span className="rounded-full bg-amber-100 px-2.5 py-1 font-medium text-amber-900">needs confirmation</span> : null}
-      {turn.evidenceReason ? <p className="basis-full pt-1 leading-5 text-slate-600">{turn.evidenceReason}</p> : null}
-    </div>
-  );
-}
+
 
 function StructureBreakdown({ turn }) {
   const breakdown = turn.structureBreakdown || turn.starrBreakdown || turn.starBreakdown;
@@ -210,7 +200,9 @@ export function TurnBreakdownSection({ turnBreakdowns }) {
                     )}
 
                     <StructureBreakdown turn={turn} />
-                    <TrustMeta turn={turn} />
+                    <div className="mt-2">
+                      <EvidenceBadge {...turn} />
+                    </div>
 
                     <div>
                       <h5 className="text-xs font-semibold uppercase tracking-wider text-faint mb-2">Your Answer Summary</h5>
