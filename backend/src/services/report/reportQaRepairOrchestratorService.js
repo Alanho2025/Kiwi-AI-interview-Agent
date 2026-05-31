@@ -1,0 +1,129 @@
+/**
+ * File responsibility: Service module.
+ * Main responsibilities:
+ * - Handle QA failure loops by automatically triggering targeted LLM rewrites.
+ * - Re-ground candidate feedback claims post-rewrite to prevent hallucinations.
+ */
+
+import { rewriteReportWithQaPrompt } from './reportRewriteService.js';
+import { groundCandidateFeedbackClaims } from './claimGroundingService.js';
+import { logger } from '../../utils/logger.js';
+
+export const buildRepairInstructionFromQa = (qaResult = {}) => {
+  const flags = qaResult.qualityFlags || [];
+  const failedChecks = (qaResult.consistencyChecks || []).filter((item) => !item.passed);
+
+  const instructions = [];
+
+  if (flags.includes('missing_feedback_trust_fields')) {
+    instructions.push('Add or preserve evidenceLabel, confidenceLevel, feedbackStatus, evidenceSources, and needsUserConfirmation fields for every feedback item.');
+  }
+
+  if (flags.includes('missing_star_breakdown')) {
+    instructions.push('Add STAR breakdowns only for STAR-applicable behavioural answers. Do not apply STAR to self-introduction or company motivation answers.');
+  }
+
+  if (flags.includes('self_intro_star_misapplied')) {
+    instructions.push('Rewrite self-introduction feedback using an introduction-specific rubric instead of STAR scoring.');
+  }
+
+  if (flags.includes('unsupported_high_confidence_feedback')) {
+    instructions.push('Downgrade unsupported high-confidence feedback to needs confirmation or medium/low confidence. Do not present weak evidence as confirmed.');
+  }
+
+  if (flags.includes('missing_actionable_coaching')) {
+    instructions.push('Add specific next-step coaching advice grounded in the CV, JD, transcript, or NZ guide evidence.');
+  }
+
+  if (flags.includes('missing_metric_translation')) {
+    instructions.push('Explain numeric scores in plain English so the user understands why the score was given.');
+  }
+
+  if (flags.includes('missing_rewrite_examples')) {
+    instructions.push('Add answer rewrite examples without inventing new achievements, skills, or interview content.');
+  }
+
+  if (failedChecks.length) {
+    instructions.push(`Fix failed consistency checks: ${failedChecks.map((item) => item.rule).join(', ')}.`);
+  }
+
+  return instructions.join('\n');
+};
+
+export const runReportQaRepairLoop = async ({
+  report = {},
+  qaResult = {},
+  session = {},
+  retrievalBundle = null,
+  maxAttempts = 2,
+  agentRegistry,
+} = {}) => {
+  const repairHistory = [];
+  let currentReport = report;
+  let currentQaResult = qaResult;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    if (currentQaResult.passed) {
+      break;
+    }
+
+    const repairInstruction = buildRepairInstructionFromQa(currentQaResult);
+    if (!repairInstruction) {
+      logger.warn('QA failed but no repair instructions could be generated', { sessionId: session.id, flags: currentQaResult.qualityFlags });
+      break;
+    }
+
+    logger.info(`Starting QA repair loop attempt ${attempt}`, { sessionId: session.id });
+
+    const rewriteResult = await rewriteReportWithQaPrompt({
+      report: currentReport,
+      qaResult: currentQaResult,
+      session,
+      retrievalBundle,
+      userPrompt: repairInstruction,
+    });
+
+    // Mandatory post-repair grounding to prevent hallucination
+    const groundedResult = groundCandidateFeedbackClaims({
+      candidateFeedback: rewriteResult.report.candidateFeedback || {},
+      session,
+      analysisResult: session.analysisResult || {},
+      retrievalBundle,
+    });
+
+    const groundedReport = {
+      ...rewriteResult.report,
+      candidateFeedback: groundedResult.candidateFeedback,
+      evidenceReferences: groundedResult.claimEvidenceReferences,
+      evidenceDiagnostics: {
+        ...(rewriteResult.report.evidenceDiagnostics || {}),
+        claimEvidence: groundedResult.claimEvidenceDiagnostics,
+      },
+    };
+
+    const newQaResult = await agentRegistry.reportQa({
+      report: groundedReport,
+      analysisResult: session.analysisResult || {},
+      retrievalBundle,
+    });
+
+    repairHistory.push({
+      attempt,
+      qaBefore: currentQaResult,
+      repairInstruction,
+      rewriteMetadata: rewriteResult.rewriteMetadata,
+      qaAfter: newQaResult,
+      status: newQaResult.passed ? 'repaired' : 'repair_failed',
+      createdAt: new Date().toISOString(),
+    });
+
+    currentReport = groundedReport;
+    currentQaResult = newQaResult;
+  }
+
+  return {
+    report: currentReport,
+    qaResult: currentQaResult,
+    repairHistory,
+  };
+};

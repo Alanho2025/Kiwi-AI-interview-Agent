@@ -72,7 +72,11 @@ const persistControllerSnapshot = async ({ sessionId, decisionContext = null, ev
   );
 };
 
-const persistReportArtifact = async ({ sessionId, report, qaResult }) => {
+const persistReportArtifact = async ({ sessionId, report, qaResult, repairHistory = [] }) => {
+  const latestStatus = qaResult?.passed 
+    ? (repairHistory.length > 0 ? 'ready_after_repair' : 'ready')
+    : (repairHistory.length > 0 ? 'repair_failed' : 'needs_review');
+
   await SessionAnalysis.findOneAndUpdate(
     { sessionId },
     {
@@ -81,6 +85,8 @@ const persistReportArtifact = async ({ sessionId, report, qaResult }) => {
           createdAt: new Date(),
           report,
           qaResult,
+          repairHistory,
+          status: latestStatus,
         },
       },
     },
@@ -93,7 +99,18 @@ const persistReportArtifact = async ({ sessionId, report, qaResult }) => {
       sessionId,
       report,
       qaResult,
-      latestStatus: qaResult?.passed ? 'ready' : 'needs_review',
+      latestStatus,
+      repairHistory,
+      qaAttemptCount: repairHistory.length + 1,
+      $push: {
+        reportVersions: {
+          version: Date.now(),
+          report,
+          qaResult,
+          status: latestStatus,
+          createdAt: new Date(),
+        }
+      }
     },
     { upsert: true, new: true, setDefaultsOnInsert: true }
   );
@@ -717,6 +734,7 @@ decisionType: AGENT_DECISION_TYPES.EXECUTE_ACTION,
     sessionId: session.id,
     report: executionResult.report,
     qaResult: executionResult.qaResult,
+    repairHistory: executionResult.repairHistory || [],
   });
   await cleanupQuestionArtifactsForCompletedReport({ session });
   await recordAgentTraceEvent({
