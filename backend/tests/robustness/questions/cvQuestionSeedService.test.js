@@ -25,8 +25,17 @@ describe('cvQuestionSeedService', () => {
     expect(seeds.some((seed) => seed.category === 'technical')).toBe(true);
     expect(seeds.some((seed) => seed.category === 'behavioural')).toBe(true);
     expect(seeds.some((seed) => seed.questionIntent === 'validate_result')).toBe(true);
+    expect(seeds.map((seed) => seed.questionIntent)).toEqual(expect.arrayContaining([
+      'validate_ownership',
+      'validate_depth',
+      'behavioural_star',
+      'validate_result',
+    ]));
     expect(seeds.every((seed) => seed.userId === 'user-1' && seed.cvFileId === 'cv-1')).toBe(true);
     expect(seeds.every((seed) => !seed.rawText && !seed.normalizedText)).toBe(true);
+    const projectSeed = seeds.find((seed) => seed.sourceType === 'cv_project');
+    expect(projectSeed.draftQuestion).toMatch(/Your CV says you used React in Analytics dashboard/i);
+    expect(projectSeed.draftQuestion).toMatch(/actual implementation/i);
   });
 
   it('does not crash on a sparse CV profile', () => {
@@ -90,5 +99,6 @@ Improved test process outcomes by using design of experiments and failure analys
     ]));
     expect(projectSeeds.every((seed) => seed.skillTags.includes('react'))).toBe(true);
     expect(projectSeeds.every((seed) => !seed.skillTags.includes('c'))).toBe(true);
+    expect(projectSeeds.every((seed) => /Your CV says you used/i.test(seed.draftQuestion))).toBe(true);
   });
 });

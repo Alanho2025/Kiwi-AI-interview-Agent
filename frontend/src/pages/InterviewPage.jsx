@@ -5,7 +5,7 @@
  * - Let voice mode replace only the centre interaction panel while the sidebar and right rail stay shared.
  */
 
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { InterviewChatPanel } from '../components/interview/InterviewChatPanel.jsx';
 import { InterviewPageHeader } from '../components/interview/InterviewPageHeader.jsx';
@@ -94,6 +94,13 @@ export function InterviewPage() {
     handleEnd({ mode: isVoiceMode ? 'voice' : 'text' });
   };
 
+  const handleViewReport = useCallback(async () => {
+    if (isVoiceMode) {
+      await voiceShell.stopVoiceSession?.('view_report');
+    }
+    navigate(`/report/${sessionId}`);
+  }, [isVoiceMode, navigate, sessionId, voiceShell]);
+
   const handleDownloadRecording = async () => {
     try {
       await downloadSessionRecording(sessionId);
@@ -136,7 +143,7 @@ export function InterviewPage() {
         controlMode={viewModel.controlMode}
         timeLimitSeconds={viewModel.timeLimitSeconds}
         isVoiceMode={isVoiceMode}
-        onViewReport={() => navigate(`/report/${sessionId}`)}
+        onViewReport={handleViewReport}
       />
 
       <main className="flex-1 max-w-[1600px] w-full mx-auto px-4 py-4 sm:px-6 sm:py-6 flex flex-col gap-4 lg:p-6 lg:grid lg:grid-cols-8 xl:grid-cols-12 lg:gap-6 lg:h-[calc(100vh-64px)] lg:overflow-hidden lg:min-h-0">

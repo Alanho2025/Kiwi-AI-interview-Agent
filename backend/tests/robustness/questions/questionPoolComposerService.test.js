@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { buildInterviewQuestionPoolItems } from '../../../src/services/questions/questionPoolComposerService.js';
+import {
+  buildInterviewQuestionPoolItems,
+  buildPreparedRootQuestionPoolQuery,
+} from '../../../src/services/questions/questionPoolComposerService.js';
 
 const baseArgs = {
   userId: 'user-1',
@@ -46,6 +49,11 @@ describe('questionPoolComposerService', () => {
     expect(pool.some((item) => item.sourceStage === 'match_gap')).toBe(true);
     expect(pool.some((item) => item.category === 'behavioural')).toBe(true);
     expect(pool.some((item) => item.category === 'closing')).toBe(true);
+    expect(pool.every((item) => ['root_question', 'fallback_root', 'wrap_up'].includes(item.questionRole))).toBe(true);
+    expect(pool.every((item) => Number.isFinite(item.maxFollowUps))).toBe(true);
+    expect(pool.every((item) => Array.isArray(item.followUpStrategies))).toBe(true);
+    expect(pool.find((item) => item.category === 'closing').questionRole).toBe('wrap_up');
+    expect(pool.find((item) => item.sourceStage === 'match_gap').questionRole).toBe('root_question');
   });
 
   it('deduplicates similar questions and keeps fallback technical and behavioural coverage', () => {
@@ -80,5 +88,25 @@ describe('questionPoolComposerService', () => {
     expect(reactDepthItems).toHaveLength(1);
     expect(pool.some((item) => ['technical', 'role_competency'].includes(item.category))).toBe(true);
     expect(pool.some((item) => item.category === 'behavioural')).toBe(true);
+  });
+
+  it('queries prepared root questions with backward compatibility for legacy records', () => {
+    const query = buildPreparedRootQuestionPoolQuery({
+      sessionId: 'session-1',
+      category: 'Technical',
+      status: 'active',
+    });
+
+    expect(query).toEqual({
+      sessionId: 'session-1',
+      status: 'active',
+      category: 'technical',
+      $or: [
+        { questionRole: 'root_question' },
+        { questionRole: { $exists: false } },
+        { questionRole: null },
+        { questionRole: '' },
+      ],
+    });
   });
 });

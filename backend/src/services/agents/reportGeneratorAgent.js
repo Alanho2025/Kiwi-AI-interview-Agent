@@ -28,39 +28,106 @@ import { analyzeTurnStructure } from '../report/turnRubricService.js';
 import { buildVoiceDeliverySummaryFromTranscript } from '../voice/voiceDeliveryAnalyzerService.js';
 import { groundCandidateFeedbackClaims } from '../report/claimGroundingService.js';
 
+const isCandidateTurn = (turn = {}) => turn.role === 'user' && String(turn.text || '').trim();
+
+const isBridgeOrAcknowledgementTurn = (turn = {}) => {
+  const metadata = turn.metadata || {};
+  const text = String(turn.text || '').trim().toLowerCase();
+  return metadata.countsAsQuestion === false
+    || metadata.turnType === 'bridge_acknowledgement'
+    || metadata.turnKind === 'bridge_acknowledgement'
+    || metadata.sourceType === 'bridge_acknowledgement'
+    || metadata.isAcknowledgement === true
+    || /^(that helps|thanks|got it|i see|understood|that gives me)/i.test(text);
+};
+
+const isReportQuestionTurn = (turn = {}) => {
+  if (!['ai', 'assistant', 'interviewer'].includes(turn.role)) return false;
+  const text = String(turn.text || '').trim();
+  if (!text || isBridgeOrAcknowledgementTurn(turn)) return false;
+
+  const metadata = turn.metadata || {};
+  if (metadata.countsAsQuestion === true) return true;
+  if (metadata.questionType || metadata.type || metadata.stage || metadata.topic || metadata.preparedQuestionId) return true;
+  return /[?？]\s*$/.test(text);
+};
+
+const buildQuestionAnswerPairs = (transcript = []) => {
+  const pairs = [];
+  let pendingQuestion = null;
+
+  for (const turn of transcript) {
+    if (isReportQuestionTurn(turn)) {
+      pendingQuestion = turn;
+      continue;
+    }
+
+    if (isCandidateTurn(turn)) {
+      pairs.push({ questionTurn: pendingQuestion || {}, answerTurn: turn });
+      pendingQuestion = null;
+    }
+  }
+
+  return pairs;
+};
+
+const formatStarrElementName = (element = '') => String(element || 'resultOrReaction')
+  .replace(/^resultOrReaction$/i, 'result')
+  .replace(/([A-Z])/g, ' $1')
+  .trim()
+  .toLowerCase();
+
+const hasMissingCoreStarrEvidence = (breakdown = {}) => [
+  'situation',
+  'task',
+  'action',
+  'resultOrReaction',
+].some((key) => breakdown[key] === 'missing');
+
+const buildStarrFeedback = ({ mainMissing = 'resultOrReaction', breakdown = {} } = {}) => {
+  if (hasMissingCoreStarrEvidence(breakdown)) {
+    return 'Add a clear situation, task, action, and result first. Then add a short reflection about what you learned or would improve.';
+  }
+  if (breakdown.reflection === 'missing') {
+    return 'The core STAR structure is present. Add one short reflection about what you learned or what you would do better next time.';
+  }
+  if (mainMissing === 'resultOrReaction' || mainMissing === 'result') {
+    return 'Add a clearer result, impact, or stakeholder reaction so the answer proves what changed.';
+  }
+  return `Strengthen the ${formatStarrElementName(mainMissing)} part of this STARR answer.`;
+};
+
 const buildDeterministicTurnBreakdowns = (transcript = [], analysedAnswers = []) => {
-  const userTurns = transcript.filter((turn) => turn.role === 'user');
-  const aiTurns = transcript.filter((turn) => turn.role === 'ai');
-  return userTurns.map((turn, index) => {
-    const aiTurn = aiTurns[index] || {};
+  const questionAnswerPairs = buildQuestionAnswerPairs(transcript);
+  return questionAnswerPairs.map(({ questionTurn = {}, answerTurn = {} }, index) => {
     const analysis = analysedAnswers[index] || {};
     const turnStructure = analyzeTurnStructure({
-      question: aiTurn.text,
-      answer: turn.text,
-      metadata: aiTurn.metadata || {},
+      question: questionTurn.text,
+      answer: answerTurn.text,
+      metadata: questionTurn.metadata || {},
     });
-    const mainMissing = turnStructure.structureBreakdown?.mainMissingElement || 'specificity';
+    const breakdown = turnStructure.starBreakdown || turnStructure.structureBreakdown || {};
+    const mainMissing = breakdown.mainMissingElement || 'specificity';
     const nonStarFeedback = turnStructure.rubricType === 'self_intro'
       ? 'Strengthen this introduction by linking your background, role interest, and one relevant project or product example in a cleaner sequence.'
       : turnStructure.rubricType === 'company_motivation'
         ? 'Keep the role interest, but add one company-specific reason and connect it to your own AI/game/product experience.'
         : 'Answer the conversational prompt directly and keep the response concise.';
     return {
-      question: aiTurn.text || 'Interview question',
-      answer: turn.text || '',
-      questionType: aiTurn.metadata?.questionType || aiTurn.metadata?.type || '',
-      questionStage: aiTurn.metadata?.stage || '',
-      questionTopic: aiTurn.metadata?.topic || '',
+      question: questionTurn.text || 'Interview question',
+      answer: answerTurn.text || '',
+      questionType: questionTurn.metadata?.questionType || questionTurn.metadata?.type || '',
+      questionStage: questionTurn.metadata?.stage || '',
+      questionTopic: questionTurn.metadata?.topic || '',
       rubricType: turnStructure.rubricType,
       starApplicable: turnStructure.starApplicable,
       structureLabel: turnStructure.structureLabel,
       structureBreakdown: turnStructure.structureBreakdown,
       starBreakdown: turnStructure.starBreakdown,
-      feedback: turnStructure.starApplicable && mainMissing === 'result'
-        ? 'Add a clearer result, impact, or lesson so the answer proves what changed.'
-        : turnStructure.starApplicable
-          ? `Strengthen the ${mainMissing} part of this STAR answer.`
-          : nonStarFeedback,
+      resultOrReactionLabel: turnStructure.resultOrReactionLabel,
+      feedback: turnStructure.starApplicable
+        ? buildStarrFeedback({ mainMissing, breakdown })
+        : nonStarFeedback,
       scores: {
         business: Math.min(10, 4 + Number(analysis.evidenceStrength || 0)),
         logic: Math.min(10, 4 + Math.round(Number((turnStructure.starBreakdown || turnStructure.structureBreakdown)?.totalScore || Object.values(turnStructure.structureBreakdown?.scores || {}).reduce((sum, value) => sum + Number(value || 0), 0)) / 2)),
@@ -69,7 +136,7 @@ const buildDeterministicTurnBreakdowns = (transcript = [], analysedAnswers = [])
       dimensionReasons: {
         business: 'Scored from role relevance and whether the answer connects work to practical value.',
         logic: turnStructure.starApplicable
-          ? 'Scored from STAR structure and answer sequence.'
+          ? 'Scored from STARR structure and answer sequence.'
           : `Scored from ${turnStructure.structureLabel.toLowerCase()} and answer sequence.`,
         evidence: 'Scored from direct evidence, validation, and measurable result signals.',
       },
@@ -91,31 +158,35 @@ const sanitizeNonStarFeedback = (turn = {}, fallback = {}) => {
 };
 
 const mergeTurnBreakdownsWithRubrics = (candidateTurns = [], deterministicTurns = []) => {
-  const source = candidateTurns?.length ? candidateTurns : deterministicTurns;
-  return source.map((turn, index) => {
+  const maxLength = Math.max(candidateTurns?.length || 0, deterministicTurns?.length || 0);
+  return Array.from({ length: maxLength }).map((_, index) => {
+    const turn = candidateTurns[index] || {};
     const fallback = deterministicTurns[index] || {};
+    const hasAlignedFallback = Boolean(fallback.question || fallback.answer);
     const merged = {
       ...turn,
-      question: turn.question || fallback.question,
-      answer: turn.answer || fallback.answer,
+      question: hasAlignedFallback ? fallback.question : turn.question,
+      answer: hasAlignedFallback ? fallback.answer : turn.answer,
       questionType: fallback.questionType || turn.questionType || '',
       questionStage: fallback.questionStage || turn.questionStage || '',
       questionTopic: fallback.questionTopic || turn.questionTopic || '',
       rubricType: fallback.rubricType || turn.rubricType || 'star',
       starApplicable: fallback.starApplicable ?? turn.starApplicable ?? true,
-      structureLabel: fallback.structureLabel || turn.structureLabel || 'STAR evidence',
+      structureLabel: fallback.structureLabel || turn.structureLabel || 'STARR evidence',
       structureBreakdown: fallback.structureBreakdown || turn.structureBreakdown || turn.starBreakdown || null,
-      starBreakdown: (fallback.starApplicable ?? turn.starApplicable ?? true) ? (turn.starBreakdown || fallback.starBreakdown) : null,
+      starBreakdown: (fallback.starApplicable ?? turn.starApplicable ?? true) ? (fallback.starBreakdown || turn.starBreakdown) : null,
+      resultOrReactionLabel: fallback.resultOrReactionLabel || turn.resultOrReactionLabel,
+      scores: fallback.scores || turn.scores || {},
       dimensionReasons: {
         ...(turn.dimensionReasons || turn.scoreReasons || {}),
-        ...(fallback.starApplicable === false ? fallback.dimensionReasons || {} : {}),
+        ...(fallback.dimensionReasons || {}),
       },
     };
     return {
       ...merged,
-      feedback: sanitizeNonStarFeedback(merged, fallback),
+      feedback: fallback.feedback || sanitizeNonStarFeedback(merged, fallback),
     };
-  });
+  }).filter((item) => item.question && item.answer);
 };
 
 const resolveCompanyValuesProfile = async ({ session = {}, analysisRecord = null } = {}) => {
@@ -212,15 +283,18 @@ export const runReportGeneratorAgent = async ({ session = {}, analysisResult = {
     candidateFeedback: groundedFeedback.candidateFeedback,
     claimEvidenceReferences: groundedFeedback.claimEvidenceReferences,
     claimEvidenceDiagnostics: groundedFeedback.claimEvidenceDiagnostics,
-    evaluatorRecords: analysisRecord?.evaluatorRecords || [],
-    trajectoryRecords: analysisRecord?.trajectoryRecords || [],
-    reflectionRecords: analysisRecord?.reflectionRecords || [],
-    agentTraceEvents: analysisRecord?.agentTraceEvents || [],
     userCoachingMemory,
     nzWorkplaceFit,
-    voiceDeliverySummary,
     companyMotivationFit,
   });
 
-  return validateReportOutput(draft);
+  const validated = validateReportOutput({
+    ...draft,
+    metadata: {
+      ...(draft.metadata || {}),
+      claimEvidenceReferences: groundedFeedback.claimEvidenceReferences,
+      claimEvidenceDiagnostics: groundedFeedback.claimEvidenceDiagnostics,
+    },
+  });
+  return validated;
 };

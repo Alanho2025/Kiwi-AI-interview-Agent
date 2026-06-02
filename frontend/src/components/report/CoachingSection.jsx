@@ -12,18 +12,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../common/Card.jsx';
 
-function TrustMeta({ item }) {
-  if (!item?.evidenceLabel && !item?.confidenceLevel && !item?.feedbackStatus) return null;
-  return (
-    <div className="mt-3 flex flex-wrap gap-2 text-xs">
-      {item.evidenceLabel ? <span className="rounded-full bg-white/70 px-2.5 py-1 font-medium text-sky-900">{item.evidenceLabel}</span> : null}
-      {item.confidenceLevel ? <span className="rounded-full bg-white/70 px-2.5 py-1 font-medium text-slate-700">{item.confidenceLevel} confidence</span> : null}
-      {item.feedbackStatus ? <span className="rounded-full bg-white/70 px-2.5 py-1 font-medium text-slate-700">{item.feedbackStatus}</span> : null}
-      {item.needsUserConfirmation ? <span className="rounded-full bg-amber-100 px-2.5 py-1 font-medium text-amber-900">needs confirmation</span> : null}
-      {item.evidenceReason ? <p className="basis-full pt-1 leading-5 text-slate-600">{item.evidenceReason}</p> : null}
-    </div>
-  );
-}
+import { EvidenceBadge } from './EvidenceBadge.jsx';
 
 /**
  * Purpose: Execute the main responsibility for CoachingSection.
@@ -47,7 +36,9 @@ export function CoachingSection({ improvementPriorities, coachingAdvice }) {
                 <p className="mt-3 rounded-xl glass/80 p-3 text-sm leading-6 text-sky-900">
                   <span className="font-semibold">What to do next:</span> {item.action || item.example}
                 </p>
-                <TrustMeta item={item} />
+                <div className="mt-3">
+                  <EvidenceBadge {...item} />
+                </div>
               </div>
             ))}
           </div>
@@ -67,7 +58,9 @@ export function CoachingSection({ improvementPriorities, coachingAdvice }) {
                 <p className="mt-3 rounded-xl bg-sky-50 p-3 text-sm leading-6 text-sky-900">
                   <span className="font-semibold">Try this next time:</span> {item.example}
                 </p>
-                <TrustMeta item={item} />
+                <div className="mt-3">
+                  <EvidenceBadge {...item} />
+                </div>
               </div>
             ))}
           </div>

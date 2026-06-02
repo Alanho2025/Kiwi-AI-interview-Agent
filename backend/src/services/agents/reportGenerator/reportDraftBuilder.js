@@ -12,6 +12,8 @@
 import { joinLabels } from './reportGeneratorShared.js';
 import { buildCompactTraceSummary } from '../../aiControl/agentTraceService.js';
 import { ensureArray } from '../../../utils/commonHelpers.js';
+import { buildScoreExplanations, getScoreLimitations } from '../../report/reportScoringExplanationService.js';
+import { evaluateAuthenticity } from '../../report/conversationalAuthenticityService.js';
 
 
 export const buildSummary = ({ analysisResult, evidenceSummary, interviewMetrics, reflectionRecords = [] }) => {
@@ -181,8 +183,29 @@ export const buildReportDraft = ({
     report: { candidateFeedback },
   });
 
+  const computedScores = {
+    overall: computeBlendedOverallScore(
+      analysisResult.overallScore || 0,
+      computeInterviewPerformanceScore(evidenceSummary, candidateFeedback),
+    ),
+    cvJdMatch: analysisResult.overallScore || 0,
+    interviewPerformance: computeInterviewPerformanceScore(evidenceSummary, candidateFeedback),
+    macro: analysisResult.scoreBreakdown?.macro || 0,
+    micro: analysisResult.scoreBreakdown?.micro || 0,
+    requirements: analysisResult.scoreBreakdown?.requirements || 0,
+    evidenceStrength: evidenceSummary.averageStrength,
+    directEvidenceTurns: evidenceSummary.totals?.direct_past_experience || 0,
+    hypotheticalTurns: evidenceSummary.totals?.hypothetical_understanding || 0,
+    averageInteractionScore,
+    nzWorkplaceFit: Number.isFinite(Number(nzWorkplaceFit.score)) ? Number(nzWorkplaceFit.score) : null,
+    trajectoryCount: ensureArray(trajectoryRecords).length,
+    reflectionCount: ensureArray(reflectionRecords).length,
+    evaluatedTurnCount: ensureArray(evaluatorRecords).length,
+    voiceDeliveryConfidence: voiceDeliverySummary?.deliveryConfidence || null,
+  };
+
   return {
-    schemaVersion: 'v3',
+    schemaVersion: 'v4',
     sessionId: session.id,
     candidateName: analysisResult.candidateName || session.candidateName || 'Candidate',
     jobTitle: analysisResult.jobTitle || session.targetRole || 'Target Role',
@@ -246,33 +269,16 @@ export const buildReportDraft = ({
         content: buildCompanyMotivationFitText(companyMotivationFit),
       },
     ],
-    scores: {
-      overall: computeBlendedOverallScore(
-        analysisResult.overallScore || 0,
-        computeInterviewPerformanceScore(evidenceSummary, candidateFeedback),
-      ),
-      cvJdMatch: analysisResult.overallScore || 0,
-      interviewPerformance: computeInterviewPerformanceScore(evidenceSummary, candidateFeedback),
-      macro: analysisResult.scoreBreakdown?.macro || 0,
-      micro: analysisResult.scoreBreakdown?.micro || 0,
-      requirements: analysisResult.scoreBreakdown?.requirements || 0,
-      evidenceStrength: evidenceSummary.averageStrength,
-      directEvidenceTurns: evidenceSummary.totals.direct_past_experience || 0,
-      hypotheticalTurns: evidenceSummary.totals.hypothetical_understanding || 0,
-      averageInteractionScore,
-      nzWorkplaceFit: Number.isFinite(Number(nzWorkplaceFit.score)) ? Number(nzWorkplaceFit.score) : null,
-      trajectoryCount: ensureArray(trajectoryRecords).length,
-      reflectionCount: ensureArray(reflectionRecords).length,
-      evaluatedTurnCount: ensureArray(evaluatorRecords).length,
-      voiceDeliveryConfidence: voiceDeliverySummary?.deliveryConfidence || null,
-    },
+    scores: computedScores,
+    scoreExplanations: buildScoreExplanations({ scores: computedScores, evidenceSummary, candidateFeedback }),
+    scoreLimitations: getScoreLimitations(),
     recommendations: [
       (evidenceSummary.totals.hypothetical_understanding || 0) > 0
         ? 'Replace hypothetical wording with one real project example for each major technology question.'
         : 'Keep using concrete project examples with measurable outcomes.',
       interviewMetrics.interviewerQuestionCount !== (session.totalQuestions || interviewMetrics.interviewerQuestionCount)
         ? 'Align the interview flow so the number of asked questions matches the planned question count.'
-        : 'Continue using STAR-style examples to tighten impact and outcome statements.',
+        : 'Continue using STARR-style examples to tighten impact and outcome statements.',
     ],
     evidenceReferences: [
       ...(analysisResult.evidenceMap || []).slice(0, 5),
@@ -292,6 +298,7 @@ export const buildReportDraft = ({
     nzWorkplaceFit,
     voiceDeliverySummary,
     companyMotivationFit,
+    authenticityMetrics: evaluateAuthenticity({ transcript: session.transcript || [], candidateFeedback }),
     candidateFeedback,
   };
 };
