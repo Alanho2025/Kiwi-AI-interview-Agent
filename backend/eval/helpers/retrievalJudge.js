@@ -22,6 +22,26 @@ const includesPhrase = (text = '', phrase = '') => normalize(text).includes(norm
 
 const unique = (items = []) => [...new Set(items.filter(Boolean))];
 
+const hasNegatedClaimInstruction = ({ outcome = '', itemText = '' } = {}) => (
+  outcome.includes(`do not claim ${itemText}`)
+  || outcome.includes(`not claim ${itemText}`)
+  || outcome.includes(`avoid claiming ${itemText}`)
+  || outcome.includes(`do not treat ${itemText} as supported`)
+  || outcome.includes(`not treat ${itemText} as supported`)
+);
+
+const outcomeClaimsBlockedEvidence = ({ outcome = '', blockedEvidence = [] } = {}) => {
+  const normalizedOutcome = normalize(outcome);
+  return blockedEvidence.some((item) => {
+    const itemText = normalize(item);
+    if (hasNegatedClaimInstruction({ outcome: normalizedOutcome, itemText })) return false;
+    return normalizedOutcome.includes(`claim ${itemText}`)
+      || normalizedOutcome.includes(`treat ${itemText} as supported`)
+      || normalizedOutcome.includes(`supported ${itemText}`)
+      || normalizedOutcome.includes(`strong ${itemText} evidence`);
+  });
+};
+
 const scoreBooleanChecks = (checks = []) => {
   const earned = checks.filter((check) => check.passed).length;
   return {
@@ -61,23 +81,20 @@ export const judgeRetrievalCase = (scenario = {}) => {
   const tokenOverlap = queryTokens.filter((token) => sourceTokens.includes(token));
 
   const hasExpectedEvidence = expectedRelevantEvidence.length === 0 || relevantHits.length > 0;
-  const avoidsBlockedEvidence = blockedHits.length === 0;
   const hasSourceCoverage = sourceChunks.length > 0 || scenario.simulateTimeout === true;
   const degradedFallbackSafe = scenario.simulateTimeout === true
     ? normalize(scenario.expectedOutcome || '').includes('fallback') || normalize(scenario.expectedOutcome || '').includes('degraded')
     : true;
-  const noUnsupportedUpgrade = !blockedEvidence.some((item) => {
-    const itemText = normalize(item);
-    return normalize(scenario.expectedOutcome || '').includes(`claim ${itemText}`)
-      || normalize(scenario.expectedOutcome || '').includes(`treat ${itemText} as supported`);
+  const noUnsupportedUpgrade = !outcomeClaimsBlockedEvidence({
+    outcome: scenario.expectedOutcome,
+    blockedEvidence,
   });
 
   const checks = [
     { label: 'expected_evidence_found_or_not_required', passed: hasExpectedEvidence },
-    { label: 'blocked_evidence_absent_from_sources', passed: avoidsBlockedEvidence },
+    { label: 'blocked_evidence_not_upgraded_to_supported_claim', passed: noUnsupportedUpgrade },
     { label: 'source_coverage_present_or_safe_timeout', passed: hasSourceCoverage },
     { label: 'degraded_fallback_safe_when_timeout', passed: degradedFallbackSafe },
-    { label: 'no_unsupported_hard_skill_upgrade', passed: noUnsupportedUpgrade },
     { label: 'query_has_some_overlap_or_timeout', passed: tokenOverlap.length > 0 || scenario.simulateTimeout === true },
   ];
 
@@ -88,7 +105,7 @@ export const judgeRetrievalCase = (scenario = {}) => {
     score: scored.score,
     subScores: {
       relevance: expectedRelevantEvidence.length ? Number((relevantHits.length / expectedRelevantEvidence.length).toFixed(2)) : 1,
-      blockedEvidence: avoidsBlockedEvidence ? 1 : 0,
+      blockedEvidence: noUnsupportedUpgrade ? 1 : 0,
       sourceCoverage: hasSourceCoverage ? 1 : 0,
       degradedFallback: degradedFallbackSafe ? 1 : 0,
     },

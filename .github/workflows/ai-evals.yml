@@ -37,4 +37,4 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           MONGODB_URI: ${{ secrets.MONGODB_URI }}
-          PG_CONNECTION_STRING: ${{ secrets.PG_CONNECTION_STRING }}
+          POSTGRES_URL: ${{ secrets.POSTGRES_URL || secrets.PG_CONNECTION_STRING }}

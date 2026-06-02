@@ -1,33 +1,118 @@
 {
   "label": "Agent Trajectory Eval",
-  "generatedAt": "2026-05-26T00:00:00.000Z",
+  "generatedAt": "2026-06-02T20:48:45.881Z",
   "casesRun": 3,
   "average": 1,
-  "thresholds": {
-    "minAverage": 0.8,
-    "failBelow": 0.65
-  },
   "results": [
     {
       "id": "behavioral_vague_answer_followup",
       "score": 1,
       "rawScore": 1,
-      "failedChecks": []
+      "subScores": {
+        "traceCompleteness": 1,
+        "correctAction": 1,
+        "evidenceGrounding": 1,
+        "finalQuestionQuality": 1,
+        "blockedBehaviourControl": 1
+      },
+      "failedChecks": [],
+      "diagnostics": {
+        "stages": [
+          "cv_parse",
+          "jd_parse",
+          "match_analysis",
+          "question_generation",
+          "answer_evaluation",
+          "retrieval",
+          "followup_decision",
+          "report_generation"
+        ],
+        "selectedAction": "ask_followup_question",
+        "finalQuestion": "Can you give one specific result from that teamwork example?",
+        "rag": {
+          "used": true,
+          "sources": [
+            "cv",
+            "jd",
+            "star_guide"
+          ],
+          "retrievalConfidence": 0.82,
+          "degraded": false,
+          "degradedReason": null
+        },
+        "blockedBehaviours": []
+      }
     },
     {
       "id": "technical_mode_blocks_behavioural_drift",
       "score": 1,
       "rawScore": 1,
-      "failedChecks": []
+      "subScores": {
+        "traceCompleteness": 1,
+        "correctAction": 1,
+        "evidenceGrounding": 1,
+        "finalQuestionQuality": 1,
+        "blockedBehaviourControl": 1
+      },
+      "failedChecks": [],
+      "diagnostics": {
+        "stages": [
+          "cv_parse",
+          "jd_parse",
+          "match_analysis",
+          "question_generation",
+          "answer_evaluation",
+          "followup_decision"
+        ],
+        "selectedAction": "ask_technical_followup",
+        "finalQuestion": "How did you structure the Node.js API to keep the recommendation logic maintainable?",
+        "rag": {
+          "used": true,
+          "sources": [
+            "cv",
+            "jd"
+          ],
+          "retrievalConfidence": 0.78,
+          "degraded": false,
+          "degradedReason": null
+        },
+        "blockedBehaviours": []
+      }
     },
     {
       "id": "report_generation_trace_missing_evidence",
       "score": 1,
       "rawScore": 0.54,
+      "subScores": {
+        "traceCompleteness": 0,
+        "correctAction": 1,
+        "evidenceGrounding": 0.7,
+        "finalQuestionQuality": 1,
+        "blockedBehaviourControl": 0
+      },
       "failedChecks": [
         "trace_incomplete",
         "blocked_behaviour_present"
-      ]
+      ],
+      "diagnostics": {
+        "stages": [
+          "cv_parse",
+          "jd_parse",
+          "report_generation"
+        ],
+        "selectedAction": "generate_report",
+        "finalQuestion": "",
+        "rag": {
+          "used": false,
+          "sources": [],
+          "retrievalConfidence": 0,
+          "degraded": true,
+          "degradedReason": "retrieval_missing"
+        },
+        "blockedBehaviours": [
+          "unsupported_skill_claim"
+        ]
+      }
     }
   ]
 }
