@@ -1,0 +1,72 @@
+{
+  "label": "Company Research Eval",
+  "generatedAt": "2026-06-02T20:48:46.331Z",
+  "casesRun": 5,
+  "average": 0.93,
+  "results": [
+    {
+      "id": "company_info_available",
+      "score": 1,
+      "failedChecks": [],
+      "diagnostics": {
+        "companyName": "ExampleTech NZ",
+        "searchResultCount": 2,
+        "blockedHits": [],
+        "generatedQuestion": "ExampleTech NZ builds logistics software for local businesses. What attracts you to this role and how would your project experience help their practical automation work?",
+        "reportComment": "The candidate connected their backend API project to ExampleTech NZ's local logistics software context."
+      }
+    },
+    {
+      "id": "company_info_missing",
+      "score": 1,
+      "failedChecks": [],
+      "diagnostics": {
+        "companyName": "Unknown Kiwi Startup X",
+        "searchResultCount": 0,
+        "blockedHits": [],
+        "generatedQuestion": "What attracted you to this company and role, based on your own research?",
+        "reportComment": "The candidate should research the company before the real interview because no reliable company evidence was available."
+      }
+    },
+    {
+      "id": "ambiguous_company_name",
+      "score": 1,
+      "failedChecks": [],
+      "diagnostics": {
+        "companyName": "Green",
+        "searchResultCount": 1,
+        "blockedHits": [],
+        "generatedQuestion": "Because the company name is ambiguous, can you explain what you know about the specific Green role you applied for?",
+        "reportComment": "The system did not assume company facts because the search result was ambiguous."
+      }
+    },
+    {
+      "id": "irrelevant_search_result",
+      "score": 1,
+      "failedChecks": [],
+      "diagnostics": {
+        "companyName": "KiwiBuild AI",
+        "searchResultCount": 1,
+        "blockedHits": [],
+        "generatedQuestion": "What attracted you to this role, and what would you confirm about the company before the interview?",
+        "reportComment": "Irrelevant search results were ignored."
+      }
+    },
+    {
+      "id": "company_fit_report_grounding",
+      "score": 0.67,
+      "failedChecks": [
+        "no_blocked_company_claims"
+      ],
+      "diagnostics": {
+        "companyName": "Southbase",
+        "searchResultCount": 1,
+        "blockedHits": [
+          "construction engineering expertise"
+        ],
+        "generatedQuestion": "How would your IT support experience help you work with users in a New Zealand construction environment?",
+        "reportComment": "The candidate's IT support experience can be linked to user support, but the report should not claim construction engineering expertise."
+      }
+    }
+  ]
+}

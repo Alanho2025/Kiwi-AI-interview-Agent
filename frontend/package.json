@@ -20,10 +20,12 @@
     "test:e2e": "node e2e/interview-browser-flow.playwright.mjs",
     "test:e2e:headed": "node e2e/interview-browser-flow.playwright.mjs --headed",
     "test:e2e:debug": "node e2e/interview-browser-flow.playwright.mjs --debug",
+    "test:e2e:human-flow": "node e2e/specs/full-interview-human-flow.spec.js",
     "test:e2e:question-pipeline": "node e2e/specs/question-pipeline.spec.js",
     "test:e2e:browser": "node e2e/interview-browser-flow.playwright.mjs",
     "quality:all": "npm run lint && npm run test:all && npm run build",
     "test:e2e:voice-smoke": "node e2e/voice-realtime-latency.playwright.mjs",
+    "test:e2e:voice-real-backend": "node e2e/voice-real-backend.playwright.mjs",
     "test:e2e:voice-fixture": "node e2e/fixtures/generateVoiceFixture.mjs",
     "test:e2e:voice-latency": "npm run test:e2e:voice-smoke"
   },

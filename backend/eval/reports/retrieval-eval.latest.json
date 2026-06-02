@@ -1,8 +1,8 @@
 {
   "label": "Retrieval Eval",
-  "generatedAt": "2026-05-26T09:08:05.456Z",
+  "generatedAt": "2026-06-02T20:48:45.430Z",
   "casesRun": 8,
-  "average": 0.9,
+  "average": 0.97,
   "results": [
     {
       "id": "direct_skill_match",
@@ -59,16 +59,14 @@
     },
     {
       "id": "weak_evidence_not_upgraded",
-      "score": 0.5,
+      "score": 0.8,
       "subScores": {
         "relevance": 1,
-        "blockedEvidence": 0,
+        "blockedEvidence": 1,
         "sourceCoverage": 1,
         "degradedFallback": 1
       },
       "failedChecks": [
-        "blocked_evidence_absent_from_sources",
-        "no_unsupported_hard_skill_upgrade",
         "query_has_some_overlap_or_timeout"
       ],
       "diagnostics": {
@@ -90,16 +88,14 @@
     },
     {
       "id": "irrelevant_evidence_blocked",
-      "score": 0.83,
+      "score": 1,
       "subScores": {
         "relevance": 1,
-        "blockedEvidence": 0,
+        "blockedEvidence": 1,
         "sourceCoverage": 1,
         "degradedFallback": 1
       },
-      "failedChecks": [
-        "blocked_evidence_absent_from_sources"
-      ],
+      "failedChecks": [],
       "diagnostics": {
         "relevantHits": [
           "Vitest tests",
@@ -121,16 +117,14 @@
     },
     {
       "id": "cv_jd_gap_detected",
-      "score": 0.83,
+      "score": 1,
       "subScores": {
         "relevance": 1,
-        "blockedEvidence": 0,
+        "blockedEvidence": 1,
         "sourceCoverage": 1,
         "degradedFallback": 1
       },
-      "failedChecks": [
-        "blocked_evidence_absent_from_sources"
-      ],
+      "failedChecks": [],
       "diagnostics": {
         "relevantHits": [
           "Azure Speech",

@@ -1,70 +1,87 @@
 # Kiwi AI Interview Agent
 
-Kiwi AI Interview Agent is a CV and job-description based interview practice platform. It helps a candidate upload a CV, parse a job description, compare the CV against the role, generate an interview plan, run a text or voice interview session, and produce a grounded feedback report.
+Kiwi AI Interview Agent is a CV and job-description grounded interview coaching platform. It helps a candidate upload a CV, review parsed CV evidence, paste and review a structured job description, generate a CV-JD match analysis, run a text or voice mock interview, and receive an evidence-grounded feedback report with QA checks.
 
-The current codebase is no longer a toy chatbot. It now has a real React frontend, an Express backend, PostgreSQL for structured session data, MongoDB for AI artifacts, DeepSeek-backed generation paths, Azure Speech support, RAG retrieval, robustness tests, and real AI evaluation runners.
+This repository is prepared for academic marking. The project is not a simple chatbot. It is a compound AI system that combines a React frontend, an Express backend, PostgreSQL, MongoDB, RAG retrieval, LLM-backed reasoning, Azure Speech, WebSocket voice interaction, report QA, diagnostics, and robustness tests.
 
-## Core workflow
+## Marker quick links
+
+| Need | File |
+| --- | --- |
+| Rubric-facing overview | `docs/marker-review-guide.md` |
+| End-to-end workflow | `docs/implementation-workflows.md` |
+| Key services and functions | `docs/implementation-functions.md` |
+| Testing and evaluation plan | `docs/testing-and-evaluation.md` |
+| Code-to-document alignment | `docs/code-document-alignment.md` |
+| Collaboration and AI-agent rules | `AGENTS.md` |
+
+## Product problem
+
+Generic interview practice tools often ask broad questions and give broad feedback. They do not reliably use the candidate's actual CV, the target job description, previous answers, or evidence from the interview transcript.
+
+Kiwi AI Interview Agent addresses this gap by turning CV evidence and JD requirements into a controlled interview workflow. It supports personalised question preparation, adaptive follow-up, voice or text delivery, and evidence-grounded reporting.
+
+## Commercial logic
+
+The system is designed as a SaaS-style interview coaching product. It can create value by reducing repeated manual coaching effort and by giving candidates role-specific practice at lower marginal cost than human coaching.
+
+The final report should connect this product logic to subscription or pay-per-session pricing, saved human coaching time, provider cost per session, reliability checks, and comparison with generic interview chatbots or manual mock interviews.
+
+## Current implemented workflow
 
 ```text
-Login
-  -> Upload or select CV
-  -> Review parsed CV match fields
-  -> Paste JD
-  -> Parse JD into structured rubric
-  -> Review parsed JD rubric
-  -> Match CV against JD
-  -> Generate interview plan
-  -> Run text or voice interview
-  -> Export transcript
-  -> Generate report
-  -> Run report QA
+Google login
+  -> upload or select CV
+  -> parse CV into profile and match evidence
+  -> user reviews parsed CV match fields
+  -> paste JD
+  -> parse JD into a guarded structured rubric
+  -> user reviews structured JD rubric
+  -> run CV-JD match analysis
+  -> build JD question filter and match evidence
+  -> generate interview plan and prepared question pool
+  -> start text or voice interview
+  -> adaptive controller selects follow-up or next question
+  -> transcript and question metadata are stored
+  -> interview ends by question limit, time limit, or manual end
+  -> report is generated from CV, JD, plan, pool, and transcript evidence
+  -> report QA checks grounding and quality
+  -> report is stored as ready or needs review
 ```
 
-## Current feature status
+## Why this is a compound AI system
 
-For the full Notion-to-code documentation map, see `docs/code-document-alignment.md`.
+| Layer | Implementation role |
+| --- | --- |
+| Input agents | CV upload, CV parsing, JD parsing, JD safeguard checks, human review gates |
+| Retrieval layer | Session artifact indexing, CV/JD/transcript retrieval, prepared question pool retrieval, knowledge retrieval |
+| Reasoning layer | CV-JD match analysis, evaluator, answer understanding, decision context, action planning |
+| Action layer | Interview question generation, voice TTS streaming, transcript persistence, report generation |
+| Quality layer | Report QA, QA repair orchestration, claim grounding, diagnostics, test and eval runners |
+| Memory and trace layer | Transcript metadata, decision records, user coaching memory, latency traces, AI usage events |
 
-### Implemented
+The system uses LLMs, but it does not rely on one large prompt alone. It builds structured evidence first, then uses controller logic and guardrails to decide what to do next.
 
-- Google login flow
-- Protected frontend routes
-- CV upload and recent CV selection
-- PDF and DOCX CV text extraction
-- CV profile parsing and evidence building
-- CV parse confidence and match-field human review before matching
-- JD parsing, normalization, rubric building, and safeguard checks
-- JD summary human review before matching, even when AI confidence is high
-- CV-JD match analysis
-- Guarded CV-JD match behavior for unreviewed blocked JDs and human-reviewed JDs
-- Interview setup with seniority, focus area, control mode, question limit, and time limit
-- Text interview session flow
-- Duplex voice interview socket attachment and frontend voice shell
-- Session MP3 recording upload, conversion, status, and download routes
-- Pause, resume, repeat, reply, end, and report navigation
-- Transcript storage and export route
-- Report generation and report QA
-- Session-aware retrieval, global interview knowledge retrieval, and RAG chunk indexing
-- PostgreSQL + MongoDB hybrid persistence
-- Structured backend logging and shared error handling
-- Backend robustness tests
-- Frontend voice-related unit tests
-- Real AI eval runners for parser, SEEK JD benchmark, match, interview, and report quality
+## Main user-facing features
 
-### In progress or partially wired
+- Google login and protected routes
+- CV upload and recent CV reuse
+- PDF and DOCX text extraction
+- CV profile parsing and match-field human review
+- Pasted JD parsing into a structured rubric
+- JD safeguard checks and human review
+- CV-JD match analysis with strengths, gaps, evidence references, and fit signals
+- Interview setup with question-limited or time-limited modes
+- Technical, behavioural, or combined interview focus
+- Text interview flow with pause, resume, repeat, reply, end, and transcript export
+- Product-wired voice interview through WebSocket, STT, transcript gating, adaptive turn handling, and TTS streaming
+- Prepared question pool based on CV seeds, JD filters, match gaps, and interview settings
+- Adaptive follow-up based on candidate answers and coverage state
+- Evidence-grounded report generation
+- Report QA, QA repair orchestration, evidence badges, score breakdowns, and communication authenticity feedback
+- Backend robustness tests, frontend tests, Playwright E2E, and AI eval runners
 
-- Fine-grained ownership hardening across all resources
-- Service-level test coverage for every domain service
-- Further split of older broad services
-- Security and governance hardening after core product flow is complete
-
-### Voice integration status
-
-The frontend is wired for the product-level duplex voice flow through `useVoiceInterviewSession` and `useDuplexVoiceSocket`. The backend now attaches both `attachRealtimeVoiceSocketServer(server)` and `attachDuplexVoiceSocketServer(server)` in `index.js`, so the live STT socket and the product-level duplex voice socket are both mounted from the HTTP server entry point.
-
-Text interview mode remains the safest low-dependency demo path. Voice mode is product-wired, but it still depends on browser microphone permission, authenticated WebSocket access, valid Azure Speech credentials, and a live interview session.
-
-## Tech stack
+## Current technology stack
 
 ### Frontend
 
@@ -72,194 +89,108 @@ Text interview mode remains the safest low-dependency demo path. Voice mode is p
 - Vite 6
 - React Router 7
 - Tailwind CSS 4
-- Lucide React
-- Motion
-- Vitest + Testing Library
-- WebSocket-based voice hooks
+- Google OAuth frontend integration
+- WebSocket voice hooks
 - Browser microphone APIs
+- Vitest, Testing Library, and Playwright E2E scripts
 
 ### Backend
 
-- Node.js 22+
+- Node.js 20+ runtime, with Node.js 22 recommended
 - Express 4
-- ES modules
 - PostgreSQL through `pg`
-- MongoDB through Mongoose and MongoDB driver
+- MongoDB through Mongoose and the MongoDB driver
 - Google OAuth verification
 - JWT authentication
-- DeepSeek API integration
+- CSRF and rate limiting middleware
+- LLM provider integration
 - Azure Speech SDK
 - WebSocket server through `ws`
-- Vitest robustness tests
+- Vitest robustness tests and real AI eval runners
 
-## Frontend structure
-
-```text
-frontend/
-├── index.html
-├── package.json
-├── vite.config.js
-└── src/
-    ├── App.jsx
-    ├── main.jsx
-    ├── index.css
-    ├── api/
-    │   ├── analyzeApi.js
-    │   ├── authApi.js
-    │   ├── client.js
-    │   ├── exportApi.js
-    │   ├── interviewApi.js
-    │   ├── reportApi.js
-    │   ├── sessionApi.js
-    │   └── uploadApi.js
-    ├── components/
-    │   ├── analyze/
-    │   ├── auth/
-    │   ├── common/
-    │   ├── home/
-    │   ├── interview/
-    │   ├── layout/
-    │   └── report/
-    ├── hooks/
-    │   ├── voice/
-    │   ├── useInterviewSession.js
-    │   ├── useMicrophonePermission.js
-    │   ├── useReportData.js
-    │   ├── useVoiceDeviceCheck.js
-    │   └── useVoiceInterviewSession.js
-    ├── pages/
-    │   ├── AnalyzePage.jsx
-    │   ├── HomePage.jsx
-    │   ├── InterviewPage.jsx
-    │   ├── Login.jsx
-    │   └── ReportPage.jsx
-    └── utils/
-```
-
-### Main frontend pages
-
-- `/login` - Google sign-in page
-- `/home` - dashboard, profile, privacy card, recent sessions, start session card, and session defaults
-- `/analysis` - CV selection, JD input, NZ/interview settings, analysis, and plan generation
-- `/interview/:sessionId` - text or voice interview session
-- `/report/:sessionId` - feedback report, coaching, insights, answer rewrite, and export actions
-
-### Frontend interview setup
-
-The analysis page passes the following setup into backend plan generation:
-
-- `deliveryMode`: text or voice
-- `controlMode`: `question_limited` or `time_limited`
-- `questionLimit`: `8`, `12`, or `15`
-- `timeLimitMinutes`: `5` or `10`
-- `questionType`: technical, behavioral, or combined
-- `seniorityLevel`: Junior/Grad, Intermediate, or Advanced
-- `enableNZCultureFit`: enabled or disabled
-
-The analysis page also enforces two trust gates before CV-JD matching:
-
-- CV parse review: the user reviews only match-relevant parsed CV fields, not contact details.
-- JD parse review: the user reviews the structured JD rubric before matching, even when parser confidence is above the 90% gate.
-
-## Backend structure
+## Repository structure
 
 ```text
-backend/
-├── index.js
-├── package.json
-├── .env.example
-├── eval/
-├── tests/
-└── src/
-    ├── api.js
-    ├── api/
-    │   ├── realtimeVoiceSocket.js
-    │   ├── duplexVoiceSocket.js
-    │   └── routes/
-    ├── config/
-    ├── constants/
-    ├── controllers/
-    ├── db/
-    │   └── models/
-    ├── jobs/
-    ├── middleware/
-    ├── repositories/
-    ├── scripts/
-    ├── services/
-    │   ├── agenticSafeguards/
-    │   ├── agents/
-    │   ├── aiControl/
-    │   ├── cv/
-    │   ├── interview/
-    │   ├── jobDescription/
-    │   ├── latency/
-    │   ├── match/
-    │   ├── retrieval/
-    │   ├── session/
-    │   └── voice/
-    └── utils/
+.
+├── README.md
+├── AGENTS.md
+├── PLAN.md
+├── docs/
+│   ├── marker-review-guide.md
+│   ├── implementation-workflows.md
+│   ├── implementation-functions.md
+│   ├── testing-and-evaluation.md
+│   ├── code-document-alignment.md
+│   ├── commercial-product-plan.md
+│   ├── full-code-review-plan.md
+│   └── version-history.md
+├── backend/
+│   ├── index.js
+│   ├── package.json
+│   ├── eval/
+│   ├── tests/
+│   └── src/
+│       ├── api/
+│       ├── controllers/
+│       ├── db/
+│       ├── middleware/
+│       ├── repositories/
+│       ├── services/
+│       └── utils/
+└── frontend/
+    ├── package.json
+    ├── e2e/
+    └── src/
+        ├── api/
+        ├── components/
+        ├── hooks/
+        ├── pages/
+        └── utils/
 ```
 
-## Backend architecture
+## Key backend areas
 
-```text
-index.js
-  -> creates Express app and HTTP server
-  -> bootstraps PostgreSQL and MongoDB
-  -> mounts /api
-  -> attaches realtime and duplex voice WebSocket servers
-
-src/api.js
-  -> applies CORS, JSON parsing, request context, optional auth
-  -> mounts route groups
-  -> applies shared error handler
-
-routes
-  -> map HTTP endpoints to controllers
-
-controllers
-  -> validate request-level input
-  -> call service layer
-  -> return formatted response
-
-services
-  -> own business logic, AI orchestration, parsing, matching, retrieval, voice, and reporting
-
-repositories/db models
-  -> own database access and persistence shape
-```
+| Area | Key paths |
+| --- | --- |
+| Routes and controllers | `backend/src/api/routes/`, `backend/src/controllers/` |
+| CV processing | `backend/src/services/cv/`, `backend/src/controllers/uploadController.js` |
+| JD processing | `backend/src/services/jobDescription/`, `backend/src/controllers/jobDescriptionController.js` |
+| Match analysis | `backend/src/services/match/`, `backend/src/services/cv/matchAnalysisRecordService.js` |
+| Question pipeline | `backend/src/services/questions/` |
+| Interview AI control | `backend/src/services/masterAiService.js`, `backend/src/services/aiControl/`, `backend/src/services/agents/interviewerAgent.js` |
+| Voice pipeline | `backend/src/api/duplexVoiceSocket.js`, `backend/src/services/voice/` |
+| Report generation and QA | `backend/src/services/agents/reportGeneratorAgent.js`, `backend/src/services/agents/reportQaAgent.js`, `backend/src/services/report/` |
+| Retrieval and RAG | `backend/src/services/retrieval/`, `backend/src/scripts/importInterviewKnowledge.js` |
+| Tests and eval | `backend/tests/`, `backend/eval/` |
 
 ## API summary
 
 Base path: `/api`
 
-### Public or semi-public routes
+### Auth
 
-- `GET /api/health`
 - `GET /api/auth/google/config`
 - `POST /api/auth/google`
 - `GET /api/auth/me`
 - `POST /api/auth/logout`
 
-### Upload routes
+### Upload and CV review
 
 - `POST /api/upload/cv`
 - `GET /api/upload/recent-cvs`
 - `POST /api/upload/select-cv`
+- `POST /api/upload/cv/:cvId/review-profile`
 - `POST /api/upload/cv/:cvId/rebuild-profile`
 - `DELETE /api/upload/cv/:cvId`
 - `GET /api/upload/cv/:cvId/export`
 
-### Job description routes
+### JD, analysis, and plan generation
 
 - `POST /api/job-description/paraphrase`
-
-### Analysis routes
-
 - `POST /api/analyze/match`
 - `POST /api/analyze/interview-plan`
 
-### Interview routes
+### Interview
 
 - `POST /api/interview/start`
 - `POST /api/interview/warm-adaptive`
@@ -271,34 +202,18 @@ Base path: `/api`
 - `POST /api/interview/resume`
 - `POST /api/interview/end`
 - `POST /api/interview/synthesize`
+- `GET /api/interview/:sessionId/diagnostics/questions`
 
-### Session routes
-
-- `POST /api/session/save`
-- `GET /api/session/history`
-- `GET /api/session/:sessionId`
-- `POST /api/session/resume`
-- `DELETE /api/session/:sessionId`
-
-### Export routes
-
-- `POST /api/export/transcript`
-
-### Recording routes
-
-- `POST /api/recordings/session-audio`
-- `GET /api/recordings/session-audio/:sessionId/status`
-- `GET /api/recordings/session-audio/:sessionId/download`
-
-### Report routes
+### Report, export, recording, and RAG
 
 - `POST /api/report/generate`
 - `POST /api/report/qa`
 - `GET /api/report/:sessionId`
 - `POST /api/report/:sessionId/export`
-
-### RAG routes
-
+- `POST /api/export/transcript`
+- `POST /api/recordings/session-audio`
+- `GET /api/recordings/session-audio/:sessionId/status`
+- `GET /api/recordings/session-audio/:sessionId/download`
 - `POST /api/rag/import-benchmark`
 - `POST /api/rag/import-interview-knowledge`
 - `POST /api/rag/rebuild-session`
@@ -306,116 +221,30 @@ Base path: `/api`
 
 ### WebSocket routes
 
-- `/api/interview/:sessionId/voice/live` - live STT socket attached in the backend entry point
-- `/api/interview/:sessionId/voice/duplex` - product-level duplex voice socket attached in the backend entry point
-
-## Interview control behavior
-
-The backend normalizes interview settings in `src/config/interviewBlueprints.js`.
-
-### Supported control modes
-
-| Mode | Behavior |
-| --- | --- |
-| `question_limited` | Ends by configured question count |
-| `time_limited` | Uses time limit and maps to a backend question capacity |
-
-### Supported question limits
-
-- 8 questions
-- 12 questions
-- 15 questions
-
-### Supported time limits
-
-| Time limit | Backend question capacity |
-| --- | --- |
-| 5 minutes | 10 questions |
-| 10 minutes | 15 questions |
-
-### Supported focus areas
-
-| Focus area | Sections used |
-| --- | --- |
-| Technical | Opening, technical, wrap-up |
-| Behavioral | Opening, behavioural, wrap-up |
-| Combined | Opening, technical, behavioural, wrap-up |
-
-## AI and agentic workflow
-
-The backend has moved toward an agentic design without depending on an external agent framework as the only control layer.
-
-Current AI-related groups include:
-
-- `masterAiService.js` - high-level AI coordination
-- `services/agents` - interviewer, retrieval, report generator, and report QA agents
-- `services/aiControl` - action planning, decision context, evidence bundles, section planning, trajectory, reflection, and memory
-- `services/agenticSafeguards` - shared safeguard utilities and DeepSeek JSON client
-- `services/jobDescription` - guarded JD parsing, reparse, critic, schema validation, and normalization
-- `services/match` - guarded match analysis, scoring, explanation, and validation target building
-- `services/retrieval` - global knowledge retrieval, session evidence retrieval, corrective retrieval, quality assessment, and source selection
-
-The intent is:
-
-```text
-Plan
-  -> choose action
-  -> retrieve evidence
-  -> generate or refine output
-  -> validate/guardrail result
-  -> persist decision and session state
-```
+- `/api/interview/:sessionId/voice/live`
+- `/api/interview/:sessionId/voice/duplex`
 
 ## Data layer
 
-### PostgreSQL
-
-PostgreSQL stores structured operational data, including:
-
-- users
-- uploaded file metadata
-- parsed profile records
-- skills
-- interview sessions
-- session control fields such as control mode, question limit, and time limit
-- pgvector-backed RAG `document_chunks` for runtime vector retrieval
-
-### MongoDB
-
-MongoDB stores flexible AI-oriented data, including:
-
-- AI logs
-- legacy document chunk mirror records for migration/debug compatibility
-- document content
-- evaluation ground truth
-- interview plans
-- match analysis records
-- normalized CV profiles
-- normalized JD rubrics
-- RAG benchmark cases
-- session analysis
-- session feedback detail
-- session reports
-- session transcripts
-- user coaching memory
-
-### Local filesystem
-
-The backend still uses local file persistence for uploaded CV files, transcript/report export artifacts, and converted session MP3 recordings.
+| Store | Role |
+| --- | --- |
+| PostgreSQL | Structured operational data, users, uploaded file metadata, sessions, AI usage events, and pgvector-backed runtime RAG chunks |
+| MongoDB | Flexible AI-oriented records, document content, match analysis, CV/JD normalized artifacts, transcripts, session reports, and coaching memory |
+| Local filesystem | Development upload and recording artifacts |
 
 ## Environment setup
 
 ### Prerequisites
 
-- Node.js 22+
+- Node.js 20+, with Node.js 22 recommended
 - npm
 - PostgreSQL
 - MongoDB
-- Google OAuth client ID
-- DeepSeek API key for real AI generation and eval
-- Azure Speech resource for voice features
+- Google OAuth client configuration
+- LLM provider configuration for real AI generation and eval
+- Azure Speech configuration for live voice features
 
-### Backend setup
+### Backend
 
 ```bash
 cd backend
@@ -424,33 +253,7 @@ cp .env.example .env
 npm run dev
 ```
 
-Expected backend environment values:
-
-```bash
-PORT=3000
-POSTGRES_URL=postgresql://user:password@host:5432/database
-MongoDB_URI=mongodb://localhost:27017/kiwi_ai
-JWT_SECRET=replace_with_a_real_secret
-GOOGLE_CLIENT_ID=your_google_client_id
-DEEPSEEK_API_KEY=your_deepseek_key
-AZURE_SPEECH_KEY=your_azure_speech_key
-AZURE_SPEECH_REGION=eastasia
-AZURE_SPEECH_ENDPOINT=https://eastasia.api.cognitive.microsoft.com/
-AZURE_SPEECH_TTS_VOICE=en-NZ-MollyNeural
-AZURE_SPEECH_STT_LANGUAGE=en-NZ
-```
-
-Notes:
-
-- `POSTGRES_URL` is required for PostgreSQL.
-- `MongoDB_URI` or `MONGODB_URI` can be used for MongoDB.
-- `MONGO_REQUIRED=true` makes backend startup fail if MongoDB is unavailable.
-- `AI_TEST_MODE=real` requires `DEEPSEEK_API_KEY` and should fail fast if the key is missing.
-- `AI_TEST_MODE=mock` uses deterministic mock AI output for robustness tests.
-- `ENABLE_AGENTIC_SAFEGUARDS=true` enables safeguard-specific test paths.
-- RAG runtime retrieval uses PostgreSQL pgvector. MongoDB document chunks are kept as a legacy mirror, not the primary vector store.
-
-### Frontend setup
+### Frontend
 
 ```bash
 cd frontend
@@ -458,225 +261,73 @@ npm install
 npm run dev
 ```
 
-By default, the frontend calls `/api`. Vite proxies `/api` to `http://127.0.0.1:3000` and supports WebSocket proxying.
+By default, the frontend calls `/api`. Vite proxies `/api` to the local backend and supports WebSocket proxying.
 
-Optional frontend environment value:
+## Development and test commands
 
-```bash
-VITE_API_BASE_URL=/api
-```
-
-## Scripts
-
-### Backend scripts
+### Backend
 
 ```bash
-npm run dev
-npm run start
-npm run test
+cd backend
+npm run lint
 npm run test:all
-npm run test:jd-safeguard
-npm run test:match-safeguard
-npm run eval:jd
-npm run eval:seek
-npm run eval:cv
-npm run eval:match
-npm run eval:interview
-npm run eval:report
-npm run eval:e2e
-npm run eval:green
+npm run test:questions
+npm run test:report
+npm run test:voice
+npm run eval:local
+npm run eval:real
 npm run eval:all
+npm run quality:local
 npm run quality:all
 ```
 
-### Backend script meaning
-
-| Script | Purpose |
-| --- | --- |
-| `npm run dev` | Start backend server |
-| `npm run start` | Start backend server |
-| `npm run test:all` | Run robustness test group in mock AI mode |
-| `npm run test:jd-safeguard` | Run JD safeguard robustness test |
-| `npm run test:match-safeguard` | Run match safeguard robustness test |
-| `npm run eval:jd` | Run real JD parse eval |
-| `npm run eval:seek` | Run the 10-case SEEK JD benchmark |
-| `npm run eval:cv` | Run real CV parse eval |
-| `npm run eval:match` | Run real CV-JD match eval |
-| `npm run eval:interview` | Run real interview controller eval |
-| `npm run eval:report` | Run real report QA eval |
-| `npm run eval:e2e` | Run deterministic end-to-end interview eval |
-| `npm run eval:green` | Run Kiwi Green Agent benchmark |
-| `npm run quality:all` | Run robustness tests, then real AI evals |
-
-### Frontend scripts
+### Frontend
 
 ```bash
-npm run dev
-npm run build
-npm run preview
-npm run clean
-npm run start
-npm run test
+cd frontend
+npm run lint
 npm run test:all
+npm run test:e2e:question-pipeline
+npm run test:e2e:voice-latency
+npm run build
 npm run quality:all
 ```
 
-### Frontend script meaning
+## Safe demo path
 
-| Script | Purpose |
-| --- | --- |
-| `npm run dev` | Start Vite dev server |
-| `npm run build` | Build frontend |
-| `npm run preview` | Preview production build |
-| `npm run clean` | Remove `dist` |
-| `npm run start` | Start Vite preview on `0.0.0.0` |
-| `npm run test:all` | Run frontend Vitest tests |
-| `npm run quality:all` | Run frontend tests, then build |
+For the most stable marker demo:
 
-## Testing strategy
+1. Start PostgreSQL and MongoDB.
+2. Start backend.
+3. Start frontend.
+4. Login with Google.
+5. Upload a CV.
+6. Review the parsed CV match fields.
+7. Paste a JD.
+8. Generate and review the structured JD rubric.
+9. Run CV-JD match.
+10. Generate the interview plan.
+11. Start text interview mode.
+12. Complete the interview.
+13. Open the report page.
+14. Show evidence badges, score breakdown, coaching, QA status, and commercial stress-test information where available.
 
-The current test direction is robustness-first.
+Voice mode is product-wired, but it should only be demonstrated when Azure Speech credentials, browser microphone permission, authenticated WebSocket access, and a live in-progress interview session are all working in the same environment.
 
-`npm run dev` already proves the app can start. The automated tests focus on edge cases and regressions that normal manual clicking may miss.
+## Honest limitations
 
-### Backend robustness coverage
+- Voice mode is wired, but live quality depends on Azure Speech credentials, browser audio permissions, WebSocket connection health, and microphone conditions.
+- Some preparation steps are resilient by design. If CV seeds, JD filters, or prepared question pool creation fail, the system may fall back instead of blocking the interview.
+- The deterministic local embedding is acceptable for MVP retrieval experiments, but a production semantic retrieval plan would need a stronger embedding model.
+- Some ownership checks and route-level tests still need hardening before production use.
+- Commercial value evidence must be supported by the final report's market analysis and cost-benefit analysis. The repository provides implementation and measurement hooks, not market proof by itself.
+- Report QA can mark outputs as ready or needs review and includes repair orchestration support, but any final paper claim should describe the exact verified behavior.
 
-Current backend robustness tests cover:
+## How to read this repository for marking
 
-- CV parsing edge cases
-- JD parsing edge cases
-- JD parser agentic safeguards
-- Luma Analytics JD safeguard regression
-- Guarded match human-review behavior
-- Interview control behavior
-- Tool trace contract stability
-- Retrieval behavior
-- RAG index payload and embedding behavior
-- Recording upload guard behavior
-- Report grounding
-- DeepSeek mock vs real mode behavior
-- Duplex voice behavior
-- Legacy batch voice removal
-
-### Frontend test coverage
-
-Current frontend tests cover:
-
-- Voice interview panel behavior
-- Microphone permission hook
-- Voice interview session hook
-- Realtime mic stream helper
-- Realtime speech socket helper
-- Voice activity detection core
-- Voice latency trace and summary helpers
-- CV review view model
-- JD human review metadata stamping
-- Interview page voice-mode behavior
-
-### Eval coverage
-
-The backend `eval/` folder contains curated datasets and runners for:
-
-- CV parse quality
-- JD parse quality
-- SEEK JD parsing quality
-- CV-JD match quality
-- Interview controller quality
-- Report QA quality
-- End-to-end interview scenario quality
-- Green Agent benchmark quality
-
-Eval reports are written into:
-
-```text
-backend/eval/reports/*.latest.json
-backend/eval/reports/*.latest.md
-```
-
-## Data import and RAG utilities
-
-Important script files:
-
-- `backend/src/scripts/importResumeScoreDetails.js`
-- `backend/src/scripts/importInterviewKnowledge.js`
-- `backend/src/scripts/transformResumeScoreDetails.js`
-
-RAG-related routes support:
-
-- benchmark import
-- interview knowledge import
-- session index rebuild
-- context retrieval
-
-RAG services support:
-
-- PostgreSQL pgvector runtime retrieval
-- legacy Mongo chunk mirroring for migration/debug compatibility
-- 256-dimensional weighted hash embeddings
-- token, word n-gram, character n-gram, estimated IDF, and keyword fusion scoring
-- duplicate cleanup and idempotent source/session/chunk indexing
-- session evidence retrieval
-- global knowledge retrieval
-- corrective retrieval
-- retrieval quality assessment
-- retrieval objective building
-- retrieval source selection
-
-## Current strengths
-
-- Clear frontend page split
-- Stronger backend modularity than earlier versions
-- Better JD parsing safeguards
-- Human review gates for CV and JD parse quality before matching
-- Hardened RAG indexing and retrieval storage
-- Better interview control settings
-- More realistic test strategy
-- Real AI eval runners instead of only mocked tests
-- Hybrid data model fits the product use case
-- Report generation has QA and evidence-based sections
-- Voice groundwork is meaningful and not just a UI button
-
-## Known gaps and technical debt
-
-- Duplex voice is now mounted in the backend entry point, but it still depends on valid Azure Speech credentials, valid auth, and an in-progress interview session.
-- Some broad services still need more splitting.
-- Some ownership checks should be hardened across every route and resource.
-- `.env.example` has a typo-like duplicated `POSTGRES_URL=POSTGRES_URL=...` value and should be cleaned.
-- `JWT_SECRET` still has development fallback behavior in some auth paths.
-- Transcript export and report export behavior should be reviewed for final submission requirements.
-- MongoDB degraded mode is useful for development, but final deployment should define whether MongoDB is required.
-- Frontend still uses local draft persistence for analysis setup. This is useful, but privacy wording should match actual storage behavior.
-- Full end-to-end voice testing still needs real browser microphone, Azure Speech, and authenticated session coverage.
-- CV-JD match eval coverage is still small and should be expanded beyond the current curated cases before claiming broad random-JD reliability.
-- The deterministic local embedding is acceptable for MVP retrieval experiments, but a real embedding model migration plan is still needed for production-grade semantic retrieval.
-
-## Recommended next engineering steps
-
-1. Fix `.env.example` so PostgreSQL setup is clean.
-2. Run backend `npm run test:all` and frontend `npm run quality:all` after every structural change.
-3. Run `npm run eval:all` only when a real DeepSeek key is configured.
-4. Expand CV-JD match eval coverage with more weak, partial, transition, overqualified, and noisy SEEK cases.
-5. Add route-level ownership tests for CV, session, report, transcript, recording, and RAG access.
-6. Continue splitting older broad services into smaller domain services.
-7. Keep README, version history, and test docs aligned after each release-level change.
-
-## Suggested demo path
-
-For a stable current demo:
-
-1. Start backend.
-2. Start frontend.
-3. Login with Google.
-4. Upload a CV.
-5. Review the parsed CV match fields and mark the CV as reviewed.
-6. Paste a JD.
-7. Generate the structured JD summary.
-8. Review the parsed JD rubric and mark the JD as reviewed.
-9. Run CV-JD match analysis.
-10. Select text interview mode.
-11. Choose question-limited or time-limited setup.
-12. Run the interview.
-13. Export transcript.
-14. Generate report and QA.
-
-Use voice mode after backend, frontend, Azure Speech credentials, auth token storage, and microphone permission are all available in the same environment.
+1. Read `docs/marker-review-guide.md` first.
+2. Read `docs/implementation-workflows.md` for the full product workflow.
+3. Read `docs/implementation-functions.md` for the key service/function map.
+4. Run the safe demo path in text mode.
+5. Use `docs/testing-and-evaluation.md` to select a test command set.
+6. Use `docs/code-document-alignment.md` to check which claims are implemented, partial, or future work.
