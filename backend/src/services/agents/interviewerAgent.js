@@ -15,6 +15,7 @@ import { guardGeneratedTextForInterviewMode, guardQuestionForInterviewMode } fro
 import { buildQuestionDecisionTrace } from '../aiControl/questionRanker.js';
 import { buildInterviewTurnPlan } from '../questions/interviewTurnOrchestratorService.js';
 import { runBoundedQuestionMicroPlanning } from '../questions/interviewMicroPlanningService.js';
+import { polishQuestionWording } from '../questions/questionWordingPolishService.js';
 import {
   buildAbductiveProbeQuestion,
   buildClosingQuestion,
@@ -309,6 +310,7 @@ export const runInterviewerAgent = async ({
     fallbackText: selectedQuestion.fallbackText || selectedQuestion.text,
     selectedQuestion,
   });
+  generatedText = polishQuestionWording(generatedText);
   if (onSentence) {
     await onSentence(generatedText, 0);
   }
