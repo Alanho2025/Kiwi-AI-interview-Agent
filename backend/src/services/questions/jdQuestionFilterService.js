@@ -108,6 +108,7 @@ export const applyJdFilterToCvSeeds = ({ cvSeeds = [], jdProfile = {}, analysisR
     boostedSeedIds: decisions.filter((item) => item.decision === 'boost').map((item) => item.seedId),
     suppressedSeedIds: decisions.filter((item) => item.decision === 'suppress').map((item) => item.seedId),
     adaptedSeedIds: decisions.filter((item) => item.decision === 'adapt').map((item) => item.seedId),
+    keptSeedIds: decisions.filter((item) => item.decision === 'keep').map((item) => item.seedId),
   };
 };
 
@@ -132,6 +133,7 @@ export const buildJdQuestionFilter = async ({
     boostedSeedIds: filter.boostedSeedIds,
     suppressedSeedIds: filter.suppressedSeedIds,
     adaptedSeedIds: filter.adaptedSeedIds,
+    keptSeedIds: filter.keptSeedIds,
     filterDecisions: filter.decisions,
     retentionUntil: questionRetentionDate(),
   };

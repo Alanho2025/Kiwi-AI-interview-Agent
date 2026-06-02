@@ -23,6 +23,26 @@ const sourcePriority = {
   fallback: 1,
 };
 
+const resolveQuestionRole = ({ sourceStage = '', category = '', stage = '', questionRole = '' } = {}) => {
+  if (['root_question', 'fallback_root', 'wrap_up'].includes(questionRole)) return questionRole;
+  const normalizedCategory = normalizeCategory(category || stage);
+  if (sourceStage === 'fallback') return 'fallback_root';
+  if (['closing'].includes(normalizedCategory) || ['closing', 'wrap_up'].includes(stage)) return 'wrap_up';
+  return 'root_question';
+};
+
+const resolveFollowUpStrategies = ({ followUpStrategies = [], followUpStrategy = '', questionIntent = '', evidenceNeed = [] } = {}) => {
+  const explicit = ensureArray(followUpStrategies).filter(Boolean);
+  if (explicit.length) return explicit;
+  if (followUpStrategy) return [followUpStrategy];
+  const needs = ensureArray(evidenceNeed);
+  if (needs.includes('personal_ownership')) return ['ownership', 'technical_depth'];
+  if (needs.includes('tradeoff')) return ['tradeoff', 'validation'];
+  if (needs.includes('result_or_impact')) return ['result', 'reflection'];
+  if (questionIntent === 'behavioural_star') return ['behavioural_action', 'result', 'reflection'];
+  return ['ownership', 'validation', 'result'];
+};
+
 const buildBaseItem = ({
   userId,
   sessionId,
@@ -35,6 +55,8 @@ const buildBaseItem = ({
   stage,
   topic,
   questionIntent,
+  questionRole = '',
+  maxFollowUps = 2,
   text,
   fallbackText = '',
   priorityWeight = 0.5,
@@ -51,6 +73,14 @@ const buildBaseItem = ({
   questionId: stableQuestionId('poolq', [sessionId, sourceStage, sourceType, category, topic, questionIntent, text]),
   schemaVersion: 'v1',
   sourceStage,
+  questionRole: resolveQuestionRole({ sourceStage, category, stage, questionRole }),
+  maxFollowUps: Math.max(0, Number.isFinite(Number(maxFollowUps)) ? Number(maxFollowUps) : 2),
+  followUpStrategies: resolveFollowUpStrategies({
+    followUpStrategies: rest.followUpStrategies,
+    followUpStrategy: rest.followUpStrategy,
+    questionIntent,
+    evidenceNeed: rest.evidenceNeed || rest.expectedSignal,
+  }),
   sourceType,
   category: normalizeCategory(category),
   stage: stage || normalizeCategory(category),
@@ -252,11 +282,22 @@ export const composeInterviewQuestionPool = async ({ userId, sessionId, cvFileId
   return InterviewQuestionPoolItem.find({ sessionId }).sort({ priorityWeight: -1, createdAt: 1 }).lean();
 };
 
-export const getPreparedQuestionPool = async ({ sessionId, category = null, status = 'active' } = {}) => {
-  if (!sessionId) return [];
+export const buildPreparedRootQuestionPoolQuery = ({ sessionId, category = null, status = 'active' } = {}) => {
   const query = { sessionId };
   if (status) query.status = status;
   if (category) query.category = normalizeCategory(category);
+  query.$or = [
+    { questionRole: 'root_question' },
+    { questionRole: { $exists: false } },
+    { questionRole: null },
+    { questionRole: '' },
+  ];
+  return query;
+};
+
+export const getPreparedQuestionPool = async ({ sessionId, category = null, status = 'active' } = {}) => {
+  if (!sessionId) return [];
+  const query = buildPreparedRootQuestionPoolQuery({ sessionId, category, status });
   return InterviewQuestionPoolItem.find(query).sort({ priorityWeight: -1, createdAt: 1 }).lean();
 };
 

@@ -11,10 +11,10 @@
 
 import { AGENT_ACTION_TYPES } from '../../constants/agentActionTypes.js';
 import { getNextPoolQuestion, hasReachedQuestionLimit, hasReachedTimeLimit } from '../interviewStateService.js';
-import { callDeepSeek, callDeepSeekStream } from '../deepseekService.js';
 import { guardGeneratedTextForInterviewMode, guardQuestionForInterviewMode } from '../aiControl/interviewModeGuard.js';
 import { buildQuestionDecisionTrace } from '../aiControl/questionRanker.js';
-import { getPreparedQuestionPool } from '../questions/questionPoolComposerService.js';
+import { buildInterviewTurnPlan } from '../questions/interviewTurnOrchestratorService.js';
+import { runBoundedQuestionMicroPlanning } from '../questions/interviewMicroPlanningService.js';
 import {
   buildAbductiveProbeQuestion,
   buildClosingQuestion,
@@ -38,283 +38,34 @@ import {
   pickRetrievedQuestion,
 } from './interviewerAgentQuestionBuilder.js';
 
-const selectPreparedPoolQuestion = async ({
-  session = {},
-  actionType = '',
-  targetTopic = '',
-  probeType = '',
-  freshOnly = false,
-  category = null,
-  focusArea = 'combined',
-} = {}) => {
-  if (!session?.id) return null;
-
-  const normalizeValue = (value = '') => String(value || '').trim().toLowerCase();
-  const normalizeMode = (value = 'combined') => {
-    const normalized = normalizeValue(value);
-    if (normalized === 'technical') return 'technical';
-    if (['behavioral', 'behavioural'].includes(normalized)) return 'behavioural';
-    return 'combined';
+const mapRootCandidateToQuestion = ({ candidate = null, targetTopic = '', category = null } = {}) => {
+  if (!candidate?.text) return null;
+  return {
+    type: candidate.questionIntent || candidate.sourceStage || 'prepared_pool_question',
+    stage: candidate.sourceStage || candidate.category || 'prepared_pool',
+    topic: candidate.topic || targetTopic || 'role_fit',
+    category: candidate.category || category || 'experience',
+    followUpDepth: 0,
+    text: candidate.text,
+    fallbackText: candidate.text,
+    reason: `Selected from prepared root question pool (${candidate.sourceStage || candidate.sourceType || 'prepared'}).`,
+    sourceType: candidate.sourceType || candidate.sourceStage || 'prepared_question_pool',
+    sourceId: candidate.questionId || null,
+    preparedQuestionId: candidate.questionId || null,
+    evidenceNeed: candidate.evidenceNeed,
+    constraints: candidate.constraints,
+    maxFollowUps: candidate.maxFollowUps,
+    followUpStrategies: candidate.followUpStrategies,
+    rankTrace: candidate.rankTrace || {
+      questionId: candidate.questionId || null,
+      selectionSource: 'prepared_question_pool',
+      sourceStage: candidate.sourceStage || null,
+      sourceType: candidate.sourceType || null,
+      topic: candidate.topic || null,
+      category: candidate.category || null,
+      score: candidate.score ?? null,
+    },
   };
-
-  const mode = normalizeMode(focusArea);
-
-  try {
-    let pool = await getPreparedQuestionPool({ sessionId: session.id, category });
-    if ((!Array.isArray(pool) || pool.length === 0) && category) {
-      pool = await getPreparedQuestionPool({ sessionId: session.id });
-    }
-
-    const items = Array.isArray(pool) ? pool : [];
-    if (!items.length) return null;
-
-    const askedIds = new Set(
-      (session.askedPreparedQuestionIds || session.preparedQuestionHistory || [])
-        .map((id) => String(id || '').trim())
-        .filter(Boolean)
-    );
-
-    const target = normalizeValue(targetTopic || probeType || '');
-    const selected = items
-      .filter((item) => item && item.status !== 'inactive')
-      .filter((item) => !freshOnly || !item.questionId || !askedIds.has(String(item.questionId)))
-      .filter((item) => {
-        const compatibility = item.modeCompatibility || {};
-        if (mode === 'technical') return compatibility.technical !== false;
-        if (mode === 'behavioural') return compatibility.behavioural !== false && compatibility.behavioral !== false;
-        return compatibility.combined !== false;
-      })
-      .sort((a, b) => {
-        const score = (item) => {
-          const topic = normalizeValue(item.topic);
-          const stage = normalizeValue(item.stage);
-          const sourceStage = normalizeValue(item.sourceStage);
-          const questionIntent = normalizeValue(item.questionIntent);
-          let value = 0;
-          value += Number(item.priorityWeight || 0) * 100;
-          value += Number(item.coverageWeight || 0) * 30;
-          value += Number(item.riskWeight || 0) * 20;
-          if (target && (topic.includes(target) || target.includes(topic))) value += 50;
-          if (normalizeValue(category) && normalizeValue(item.category) === normalizeValue(category)) value += 25;
-          if (actionType === AGENT_ACTION_TYPES.ASK_VALIDATION_QUESTION && /validation|gap|requirement|risk/.test(`${stage} ${sourceStage} ${questionIntent}`)) value += 25;
-          return value;
-        };
-        return score(b) - score(a);
-      })[0];
-
-    if (!selected) return null;
-
-    const text = selected.spokenDraft || selected.fallbackText || selected.text || selected.draftQuestion || '';
-    if (!text) return null;
-
-    return {
-      type: selected.questionIntent || selected.type || selected.stage || 'prepared_pool_question',
-      stage: selected.stage || selected.category || 'prepared_pool',
-      topic: selected.topic || selected.competency || targetTopic || 'role_fit',
-      category: selected.category || category || 'experience',
-      followUpDepth: Number(selected.followUpDepth || 0),
-      text,
-      fallbackText: selected.fallbackText || text,
-      reason: selected.reason || `Selected from prepared interview question pool (${selected.sourceStage || selected.sourceType || 'prepared'}).`,
-      sourceType: selected.sourceType || selected.sourceStage || 'prepared_question_pool',
-      sourceId: selected.questionId || selected.sourceSeedId || null,
-      preparedQuestionId: selected.questionId || null,
-      evidenceNeed: Array.isArray(selected.evidenceNeed) ? selected.evidenceNeed : undefined,
-      constraints: Array.isArray(selected.constraints) ? selected.constraints : undefined,
-      rankTrace: {
-        questionId: selected.questionId || null,
-        selectionSource: 'prepared_question_pool',
-        sourceStage: selected.sourceStage || null,
-        sourceType: selected.sourceType || null,
-        topic: selected.topic || null,
-        category: selected.category || null,
-        priorityWeight: selected.priorityWeight ?? null,
-        coverageWeight: selected.coverageWeight ?? null,
-        riskWeight: selected.riskWeight ?? null,
-        actionType,
-        targetTopic,
-        focusArea: mode,
-      },
-    };
-  } catch {
-    return null;
-  }
-};
-
-const generateConversationalTurn = async ({ baseQuestion, actionType, lastUserAnswer, decisionContext, retrievalBundle, focusArea = 'combined', onSentence }) => {
-  const environment = decisionContext?.environment || {};
-  const nzCoachingDirective = environment.nzCultureContext?.enabled ? `\n\n${environment.nzCultureContext.coachingDirective}` : '';
-  const systemInstruction = `ROLE:
-You are a professional, adaptive interviewer conducting a live voice interview.
-When the selected mode is technical, behave like a sharp Tech Lead.
-When the selected mode is behavioral, behave like a structured but natural hiring interviewer.
-
-TASK:
-Output the exact next words you will say to the candidate.
-Ask one useful follow-up question.
-Usually ask directly.
-Base the question on the candidate's latest answer and the missing evidence.
-Probe the strongest unfinished point: ownership, decision, trade-off, validation, result, or reflection.
-
-CONTEXT:
-This is a real-time voice interview.
-The response will be spoken by TTS immediately.
-Latency and natural speech matter.
-The candidate's transcript may contain ASR errors.
-Use technical projects as technical evidence only in technical mode.
-Use technical projects as behavioural context only in behavioral mode.
-
-EXAMPLES:
-Good:
-- "What part did you personally own?"
-- "How did you test the agent's recommendations?"
-- "What was the hardest decision you made there?"
-- "What changed after your action?"
-
-Bad:
-- "That's a great example."
-- "Shifting gears, let us move on."
-- "Tell me about a time when you had to show Communication."
-- "You mentioned testing with the AI agent and user behavior. Can you walk me through..."
-
-OUTPUT_FORMAT:
-Output only the spoken interviewer text.
-Do not output JSON, XML, markdown, bullet points, labels, headings, or internal reasoning.
-Ask exactly one main question.
-
-CONSTRAINTS:
-- Current selected mode: ${focusArea}.
-- Prefer 8 to 18 words for normal follow-ups.
-- Add a short bridge only when the candidate needs context.
-- Avoid multi-part questions.
-- Avoid repeating the candidate's answer unless clarification is needed.
-- Do not over-praise or judge the candidate's expertise.
-- Never expose internal variables such as targetTopic, decision_tradeoff, role_fit, questionGoal, evidenceNeed, or constraints.
-- Never say rubric labels directly, such as Communication, Leadership, Teamwork, role_fit, or decision_tradeoff.
-- If the answer is unclear or ASR may be noisy, ask a short clarification question.
-- If the mode is technical, ask about concrete technical evidence: implementation, design choice, debugging, trade-off, validation, performance, data, architecture, or tooling.
-- If the mode is behavioral, ask about real workplace behaviour: situation, personal action, communication, conflict, pressure, collaboration, result, or reflection.
-- In behavioral mode, do not ask for libraries, code, algorithms, database schema, SQL queries, model metrics, training pipelines, scalability, latency, or implementation details.
-- In technical mode, do not turn the question into a pure STAR behavioural story unless technical ownership is unclear.${nzCoachingDirective}`;
-
-  const retrievedTexts = (retrievalBundle?.items || [])
-    .map(i => i.text || i.metadata?.question || i.metadata?.skillTags?.join(', '))
-    .filter(Boolean)
-    .slice(0, 3)
-    .join('\n- ');
-  
-  const reflections = decisionContext?.sessionReflectionMemory || [];
-  const reflectionText = reflections.length > 0 
-    ? `\nPerformance Reflections to obey:\n${reflections.slice(-2).map(r => r.lesson || r.summary).join('\n')}` 
-    : '';
-  const answerUnderstanding = environment?.latestAnswerUnderstanding || decisionContext?.latestAnswerUnderstanding || decisionContext?.evaluatorState?.fastAnswerUnderstanding || null;
-  const answerUnderstandingText = answerUnderstanding
-    ? `\nFast Answer Understanding:
-- Intent: ${answerUnderstanding.intent || 'unknown'}
-- Key facts to preserve: ${(answerUnderstanding.keyFacts || []).slice(0, 5).join('; ') || 'none'}
-- Technologies/entities mentioned: ${(answerUnderstanding.technologies || answerUnderstanding.mentionedEntities || []).slice(0, 6).join(', ') || 'none'}
-- Missing evidence to probe: ${(answerUnderstanding.missingEvidence || []).slice(0, 4).join(', ') || 'none'}
-- Suggested follow-up goal: ${answerUnderstanding.suggestedFollowUp?.questionGoal || 'stay grounded in the latest answer'}
-Use these facts to avoid a generic next question. Do not mention this analysis to the candidate.`
-    : '';
-
-  const prompt = `Here is the interview context:
-Candidate's last answer:
-"${lastUserAnswer || '(Interview is just starting)'}"
-
-Strategic Intent of your next turn: [${actionType}]
-Target Topic: "${baseQuestion.topic}"
-Question Goal: "${baseQuestion.questionGoal || 'collect_specific_example_with_action_and_result'}"
-Evidence Needs: ${(baseQuestion.evidenceNeed || []).join(', ') || 'specific_example, personal_action, result_or_impact'}
-Constraints: ${(baseQuestion.constraints || []).join(', ') || 'ask_one_question_only'}
-Question Seed: "${baseQuestion.fallbackText || baseQuestion.text}"
-${reflectionText}
-${answerUnderstandingText}
-${retrievedTexts ? `\nReference Context from Knowledge Base:\n- ${retrievedTexts}` : ''}
-
-INSTRUCTIONS FOR [${actionType}]:
-${actionType === 'FORCE_SHIFT_PROJECT' ? "- ACKNOWLEDGE their previous project/experience in at most 6 words if needed.\n- Ask for a DIFFERENT example from their CV.\n- Be professional and firm about the shift." : ""}
-${actionType === 'PROBE_STRESS' ? "- Apply one clear constraint, such as scale, time, budget, or resource failure.\n- Ask how their strategy would adapt." : ""}
-${actionType === 'PROBE_FRICTION' ? "- Ask about one hidden difficulty, trade-off, disagreement, or failed moment.\n- Focus on their decision-making under pressure or conflict." : ""}
-${actionType === 'REPHRASE_QUESTION' ? "- Admit the previous question may have been unclear.\n- Ask for one real example with role, action, and outcome." : ""}
-- For all other types: Ask one useful interviewer follow-up from the Question Goal, Evidence Needs, and Constraints.
-
-GENERAL GUIDELINES:
-
-Role:
-- You are a professional Tech Lead interviewer speaking directly to the candidate in a live voice interview.
-- You are empathetic, restrained, and focused on collecting useful interview evidence.
-
-Task:
-- Generate the exact next spoken interviewer turn.
-- Usually ask the question directly.
-- Add a short bridge only when the candidate needs context.
-- Use the Question Goal, Evidence Needs, Constraints, Question Seed, Fast Answer Understanding, and Reference Context to guide the question.
-- Do not copy the Question Seed unless it is already the best short spoken question.
-
-Context:
-- This is a real-time voice interview, so latency and natural speech matter.
-- The response will be spoken by TTS immediately.
-- The goal is to keep the interview moving while collecting stronger evidence about skills, decisions, ownership, trade-offs, and results.
-- You are not rewriting a fixed template. Generate a natural interviewer question from the provided interview context.
-
-Examples:
-- Prefer: "How did you decide the database split?"
-- Prefer: "What part did you personally own?"
-- Prefer: "How did you test the agent's recommendations?"
-- Avoid: "You mentioned testing with the AI agent and user behavior. Can you walk me through..."
-- Avoid: "Tell me about a time when you had to show Communication."
-
-Output format:
-- Output only the spoken interviewer text.
-- Do not output JSON, markdown, bullet points, labels, headings, or internal reasoning.
-- Ask exactly one main follow-up question.
-
-Constraints:
-- Prefer 8 to 18 words for normal follow-ups.
-- Rephrase, opening, and closing questions may be slightly longer when needed.
-- Do not explain the user's answer before asking.
-- Do not include long praise.
-- Use short spoken English.
-- Keep the tone conversational and professional.
-- Avoid sounding like a robot reading a template.
-- If the answer is unclear, ask a clarification question.
-- NEVER leak internal engineering variables such as targetTopic, decision_tradeoff, role_fit, questionGoal, evidenceNeed, or constraints.
-- NEVER say rubric labels directly, such as Communication, Leadership, Teamwork, role_fit, or decision_tradeoff.
-- Phrase internal context naturally for the candidate.
-
-Generate your verbal response now:`;
-
-  if (!onSentence) {
-    const result = await callDeepSeek(prompt, systemInstruction, {
-      usageMetadata: { stage: 'interview', operation: 'llm_chat', feature: 'interviewer_response' },
-    });
-    return result.content;
-  }
-
-
-  const stream = callDeepSeekStream(prompt, systemInstruction, {
-    usageMetadata: { stage: 'interview', operation: 'llm_chat', feature: 'interviewer_stream_response' },
-  });
-  let fullText = '';
-  let currentSentence = '';
-  let sentenceIndex = 0;
-
-  for await (const chunk of stream) {
-    fullText += chunk;
-    currentSentence += chunk;
-    
-    if (/[.!?。！？]\s+$/.test(currentSentence) || (currentSentence.length > 50 && /[,，]\s+$/.test(currentSentence))) {
-      await onSentence(currentSentence.trim(), sentenceIndex++);
-      currentSentence = '';
-    }
-  }
-
-  if (currentSentence.trim()) {
-    await onSentence(currentSentence.trim(), sentenceIndex);
-  }
-
-  return fullText;
 };
 
 export const runInterviewerAgent = async ({
@@ -380,19 +131,20 @@ export const runInterviewerAgent = async ({
   }
 
   const lockedCategory = focusArea === 'technical' ? 'technical' : focusArea === 'behavioral' ? 'behavioural' : category;
-  let selectedQuestion = await selectPreparedPoolQuestion({
+  const turnPlan = await buildInterviewTurnPlan({
     session,
-    decisionContext,
-    evaluatorState,
     actionType,
-    targetTopic,
-    probeType,
-    freshOnly,
-    category: lockedCategory,
-    focusArea,
+    decisionContext,
+    actionInput: { targetTopic, probeType, freshOnly, category: lockedCategory },
   });
+  let selectedQuestion = turnPlan.turnKind === 'root_question'
+    ? mapRootCandidateToQuestion({ candidate: turnPlan.selectedRootCandidate, targetTopic, category: lockedCategory })
+    : null;
+
   if (!selectedQuestion) {
-    selectedQuestion = getNextPoolQuestion(session, { freshOnly, category: lockedCategory });
+    selectedQuestion = turnPlan.turnKind === 'root_question'
+      ? getNextPoolQuestion(session, { freshOnly, category: lockedCategory })
+      : null;
   }
 
   if (actionType === AGENT_ACTION_TYPES.ASK_PROBING_QUESTION) {
@@ -453,6 +205,27 @@ export const runInterviewerAgent = async ({
     }
   }
 
+  if (turnPlan.turnKind === 'follow_up' && !selectedQuestion) {
+    selectedQuestion = focusArea === 'behavioral'
+      ? buildProbingQuestion({ targetTopic: turnPlan.followUpContext?.parentTopic || targetTopic || decisionContext?.currentTopic || 'behavioural_example' })
+      : buildDeepDiveQuestion({ targetTopic: turnPlan.followUpContext?.parentTopic || targetTopic || decisionContext?.currentTopic || 'project' });
+  }
+
+  if (turnPlan.turnKind === 'follow_up' && selectedQuestion) {
+    selectedQuestion = {
+      ...selectedQuestion,
+      preparedQuestionId: null,
+      sourceId: selectedQuestion.sourceId && selectedQuestion.sourceId === selectedQuestion.preparedQuestionId ? null : selectedQuestion.sourceId,
+      followUpDepth: turnPlan.followUpContext?.followUpDepth || Math.max(1, Number(selectedQuestion.followUpDepth || 1)),
+      parentQuestionId: turnPlan.followUpContext?.parentQuestionId || null,
+      rootQuestionId: turnPlan.followUpContext?.rootQuestionId || null,
+      parentPreparedQuestionId: turnPlan.followUpContext?.parentPreparedQuestionId || null,
+      rootTopic: turnPlan.followUpContext?.rootTopic || selectedQuestion.topic || null,
+      followUpIntent: turnPlan.followUpIntent || null,
+      evidenceTarget: turnPlan.evidenceTarget || null,
+    };
+  }
+
   if (isDuplicateRootQuestion(selectedQuestion, decisionContext)) {
     selectedQuestion = null;
   }
@@ -510,16 +283,22 @@ export const runInterviewerAgent = async ({
   const reactTrace = buildReactTrace({ selectedAction: actionType, decisionContext, selectedQuestion, environment, evaluatorState });
   
   let generatedText = selectedQuestion.fallbackText || selectedQuestion.text;
+  let microPlan = null;
+  const llmTiming = {
+    llmFirstTokenMs: null,
+    llmCompleteMs: null,
+    ttsFirstAudioMs: null,
+    totalEndOfSpeechToFirstAudioMs: null,
+  };
   try {
-    generatedText = await generateConversationalTurn({ 
-      baseQuestion: selectedQuestion, 
-      actionType, 
-      lastUserAnswer: environment?.latestAnswer?.text || lastUserAnswer, 
-      decisionContext, 
-      retrievalBundle,
+    const llmStartedAt = Date.now();
+    microPlan = await runBoundedQuestionMicroPlanning({
+      planningFrame: turnPlan.planningFrame,
+      fallbackQuestion: selectedQuestion.fallbackText || selectedQuestion.text,
       focusArea,
-      onSentence,
     });
+    llmTiming.llmCompleteMs = Date.now() - llmStartedAt;
+    generatedText = microPlan.finalSpokenQuestion;
   } catch (error) {
     console.warn('Failed to generate conversational turn via LLM, falling back to base template', error);
   }
@@ -530,6 +309,9 @@ export const runInterviewerAgent = async ({
     fallbackText: selectedQuestion.fallbackText || selectedQuestion.text,
     selectedQuestion,
   });
+  if (onSentence) {
+    await onSentence(generatedText, 0);
+  }
 
   const displayTurn = {
     feedbackMode: 'conversational_llm',
@@ -548,6 +330,28 @@ export const runInterviewerAgent = async ({
     confidence: decisionContext?.latestDecision?.confidence || null,
     selectionSource: decisionContext?.latestDecision?.selectionSource || 'rule_fallback',
   });
+  questionDecision.turnKind = turnPlan.turnKind;
+  questionDecision.scenario = turnPlan.scenario;
+  questionDecision.sourcePolicy = turnPlan.sourcePolicy;
+  questionDecision.evidencePackage = turnPlan.evidencePackage;
+  questionDecision.topRootCandidates = turnPlan.topRootCandidates;
+  questionDecision.poolDegraded = turnPlan.poolDegraded;
+  questionDecision.poolDegradedReason = turnPlan.poolDegradedReason;
+  questionDecision.parentQuestionId = selectedQuestion.parentQuestionId || turnPlan.followUpContext?.parentQuestionId || null;
+  questionDecision.rootQuestionId = selectedQuestion.rootQuestionId || turnPlan.followUpContext?.rootQuestionId || null;
+  questionDecision.parentPreparedQuestionId = selectedQuestion.parentPreparedQuestionId || turnPlan.followUpContext?.parentPreparedQuestionId || null;
+  questionDecision.followUpIntent = selectedQuestion.followUpIntent || turnPlan.followUpIntent || null;
+  questionDecision.followUpDepth = selectedQuestion.followUpDepth || turnPlan.followUpContext?.followUpDepth || 0;
+  questionDecision.rootTopic = selectedQuestion.rootTopic || turnPlan.followUpContext?.rootTopic || selectedQuestion.topic || null;
+  questionDecision.evidenceTarget = selectedQuestion.evidenceTarget || turnPlan.evidenceTarget || null;
+  questionDecision.selectedAngle = microPlan?.selectedAngle || null;
+  questionDecision.shortReason = microPlan?.shortReason || null;
+  questionDecision.microPlanEvidenceUsed = microPlan?.evidenceUsed || [];
+  questionDecision.riskFlags = microPlan?.riskFlags || [];
+  questionDecision.latency = {
+    ...(turnPlan.latency || {}),
+    ...llmTiming,
+  };
   if (selectedQuestion.preparedQuestionId) {
     questionDecision.preparedQuestionId = selectedQuestion.preparedQuestionId;
     questionDecision.rankTrace = selectedQuestion.rankTrace || null;
@@ -569,6 +373,20 @@ export const runInterviewerAgent = async ({
     evidenceTypeHint: inferEvidenceTypeHint(selectedQuestion),
     questionDecision,
     questionRanking: questionDecision.ranking,
+    turnKind: turnPlan.turnKind,
+    scenario: turnPlan.scenario,
+    sourcePolicy: turnPlan.sourcePolicy,
+    evidencePackage: turnPlan.evidencePackage,
+    topRootCandidates: turnPlan.topRootCandidates,
+    poolDegraded: turnPlan.poolDegraded,
+    poolDegradedReason: turnPlan.poolDegradedReason,
+    latency: questionDecision.latency,
+    parentQuestionId: selectedQuestion.parentQuestionId || null,
+    parentPreparedQuestionId: selectedQuestion.parentPreparedQuestionId || null,
+    rootQuestionId: selectedQuestion.rootQuestionId || null,
+    rootTopic: selectedQuestion.rootTopic || null,
+    followUpIntent: selectedQuestion.followUpIntent || null,
+    evidenceTarget: selectedQuestion.evidenceTarget || null,
     preparedQuestionId: selectedQuestion.preparedQuestionId || null,
     rankTrace: selectedQuestion.rankTrace || null,
     retrievalSnapshot: retrievalBundle,
