@@ -32,6 +32,10 @@ import {
 } from '../utils/schemaHelpers.js';
 
 const clampUnitNumber = (value, fallback = 0.5) => Math.max(0, Math.min(1, ensureNumber(value, fallback)));
+const normalizeQuestionRole = (value = '') => {
+  const role = ensureString(value, '').trim();
+  return ['root_question', 'fallback_root', 'wrap_up'].includes(role) ? role : 'root_question';
+};
 
 /**
  * Purpose: Execute the main responsibility for validateAnalyzeOutput.
@@ -112,6 +116,9 @@ export const validatePreparedQuestionPoolItem = (item = {}) => {
     fallbackText: ensureString(safeItem.fallbackText || text),
     category: ensureString(safeItem.category, 'experience'),
     topic: ensureString(safeItem.topic, 'role_fit'),
+    questionRole: normalizeQuestionRole(safeItem.questionRole),
+    maxFollowUps: Math.max(0, ensureNumber(safeItem.maxFollowUps, 2)),
+    followUpStrategies: ensureArray(safeItem.followUpStrategies),
     sourceType: ensureString(safeItem.sourceType || safeItem.sourceStage, 'prepared_question_pool'),
     sourceStage: ensureString(safeItem.sourceStage || safeItem.sourceType, 'prepared_question_pool'),
     priorityWeight: clampUnitNumber(safeItem.priorityWeight),

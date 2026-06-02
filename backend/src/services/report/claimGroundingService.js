@@ -31,6 +31,26 @@ const overlapScore = (claimText = '', sourceText = '') => {
   return Number((claimTokens.filter((token) => sourceTokens.has(token)).length / claimTokens.length).toFixed(2));
 };
 
+const extractSnippet = (claimText = '', sourceText = '') => {
+  if (!sourceText) return '';
+  const tokens = [...new Set(tokenize(claimText))].filter(t => t.length > 3);
+  let bestIdx = -1;
+  for (const t of tokens) {
+    const idx = sourceText.toLowerCase().indexOf(t);
+    if (idx !== -1) {
+      bestIdx = idx;
+      break;
+    }
+  }
+  if (bestIdx === -1) bestIdx = 0;
+  const start = Math.max(0, bestIdx - 30);
+  const end = Math.min(sourceText.length, bestIdx + 90);
+  let snippet = sourceText.substring(start, end).replace(/\n/g, ' ').trim();
+  if (start > 0) snippet = '...' + snippet;
+  if (end < sourceText.length) snippet = snippet + '...';
+  return snippet;
+};
+
 const claimTextForItem = (item = {}) => normalizeText(
   item.title
   || item.label
@@ -103,12 +123,20 @@ const groundItem = ({ item = {}, claimKind = 'feedback', index = 0, corpus = {},
   const evidenceReason = status.supported
     ? `Grounding overlap: CV ${scores.cv}, JD ${scores.jd}, transcript ${scores.transcript}, NZ guide ${scores.nz_guide}.${asrQualityRisk ? ' Voice transcript quality may limit confidence.' : ''}`
     : `This claim is relevant but not strongly supported by CV, JD, interview answer, or NZ guide evidence.${asrQualityRisk ? ' Voice transcript quality may also limit confidence.' : ''}`;
+  const evidenceSnippets = [
+    scores.cv >= 0.18 ? { sourceType: 'cv', text: extractSnippet(claimText, corpus.cv), similarity: scores.cv } : null,
+    scores.jd >= 0.18 ? { sourceType: 'jd', text: extractSnippet(claimText, corpus.jd), similarity: scores.jd } : null,
+    scores.transcript >= 0.18 ? { sourceType: 'interview_answer', text: extractSnippet(claimText, corpus.transcript), similarity: scores.transcript } : null,
+    scores.nz_guide >= 0.18 ? { sourceType: 'nz_guide', text: extractSnippet(claimText, corpus.nz_guide), similarity: scores.nz_guide } : null,
+  ].filter(Boolean);
+
   const grounded = {
     ...item,
     evidenceLabel: status.evidenceLabel,
     confidenceLevel,
     evidenceSources: evidenceSourcesForStatus({ sources, status, item }),
     evidenceReason,
+    evidenceSnippets,
     needsUserConfirmation: status.needsUserConfirmation,
     feedbackStatus: status.feedbackStatus,
   };
@@ -128,6 +156,7 @@ const groundItem = ({ item = {}, claimKind = 'feedback', index = 0, corpus = {},
     evidenceLabel: grounded.evidenceLabel,
     confidenceLevel: grounded.confidenceLevel,
     evidenceSources: grounded.evidenceSources,
+    evidenceSnippets: grounded.evidenceSnippets,
     claimKind,
   };
   return { grounded, claimReference };

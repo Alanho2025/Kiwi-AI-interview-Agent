@@ -16,6 +16,7 @@
     "test:jd": "NODE_ENV=test AI_TEST_MODE=mock node tests/helpers/runVitestGroups.js tests/robustness/jd",
     "test:llm": "NODE_ENV=test AI_TEST_MODE=mock node tests/helpers/runVitestGroups.js tests/robustness/llm",
     "test:match": "NODE_ENV=test AI_TEST_MODE=mock node tests/helpers/runVitestGroups.js tests/robustness/match",
+    "test:questions": "NODE_ENV=test AI_TEST_MODE=mock node tests/helpers/runVitestGroups.js tests/robustness/questions",
     "test:recording": "NODE_ENV=test AI_TEST_MODE=mock node tests/helpers/runVitestGroups.js tests/robustness/recording",
     "test:report": "NODE_ENV=test AI_TEST_MODE=mock node tests/helpers/runVitestGroups.js tests/robustness/report",
     "test:retrieval": "NODE_ENV=test AI_TEST_MODE=mock node tests/helpers/runVitestGroups.js tests/robustness/retrieval",

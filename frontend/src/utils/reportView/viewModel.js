@@ -61,5 +61,8 @@ export const buildReportViewModel = (reportData) => {
     communicationProfile: candidateFeedback.communicationProfile || null,
     quoteAnalyses: candidateFeedback.quoteAnalyses || [],
     turnBreakdowns: candidateFeedback.turnBreakdowns || [],
+    scoreExplanations: report.scoreExplanations || null,
+    scoreLimitations: report.scoreLimitations || [],
+    authenticityMetrics: report.authenticityMetrics || null,
   };
 };

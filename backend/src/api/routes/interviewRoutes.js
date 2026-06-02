@@ -13,6 +13,7 @@ import express from 'express';
 import { startInterview, warmAdaptiveInterview, pauseInterview, resumeInterview, endInterview } from '../../controllers/interviewLifecycleController.js';
 import { replyInterview, repeatQuestion } from '../../controllers/interviewTurnController.js';
 import { replyInterviewWithRealtimeVoice, replyInterviewWithRealtimeVoiceStream, synthesizeInterviewText } from '../../controllers/interviewVoiceController.js';
+import { getQuestionDiagnostics } from '../../controllers/interviewDiagnosticsController.js';
 
 const router = express.Router();
 
@@ -26,5 +27,6 @@ router.post('/pause', pauseInterview);
 router.post('/resume', resumeInterview);
 router.post('/end', endInterview);
 router.post('/synthesize', synthesizeInterviewText);
+router.get('/:sessionId/question-diagnostics', getQuestionDiagnostics);
 
 export default router;
