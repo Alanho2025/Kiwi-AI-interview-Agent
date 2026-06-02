@@ -6,6 +6,9 @@ const DEFAULT_TOP_K = 3;
 const DEFAULT_MIN_SCORE = 0.24;
 
 export const SEMANTIC_ALIAS_MAP = {
+  sql: ['structured query language', 'postgresql', 'postgres', 'mysql', 'database query', 'query writing'],
+  postgresql: ['sql', 'postgres', 'structured query language', 'relational database'],
+  postgres: ['sql', 'postgresql', 'structured query language', 'relational database'],
   'api development': ['rest endpoints', 'rest api', 'api endpoints', 'backend endpoints', 'endpoint development'],
   'rest endpoints': ['api development', 'rest api', 'api endpoints'],
   'data modelling': ['data modeling', 'dimensional modelling', 'dimensional modeling', 'data model'],

@@ -68,4 +68,24 @@ describe('jdQuestionFilterService', () => {
     expect(decision.decision).toBe('adapt');
     expect(decision.adaptedQuestionText).toContain('React');
   });
+
+  it('keeps useful backup seeds instead of hard-deleting them by default', () => {
+    const result = applyJdFilterToCvSeeds({
+      jdProfile,
+      cvSeeds: [{
+        seedId: 'seed-backup',
+        topic: 'deployment',
+        category: 'technical',
+        skillTags: ['deployment'],
+        confidence: 0.75,
+      }],
+    });
+
+    expect(result.keptSeedIds).toContain('seed-backup');
+    expect(result.suppressedSeedIds).not.toContain('seed-backup');
+    expect(result.decisions.find((item) => item.seedId === 'seed-backup')).toEqual(expect.objectContaining({
+      decision: 'keep',
+      reason: expect.stringMatching(/generally relevant/i),
+    }));
+  });
 });

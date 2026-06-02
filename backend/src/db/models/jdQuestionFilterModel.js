@@ -18,6 +18,7 @@ const JdQuestionFilterSchema = new mongoose.Schema(
     boostedSeedIds: { type: [String], default: [] },
     suppressedSeedIds: { type: [String], default: [] },
     adaptedSeedIds: { type: [String], default: [] },
+    keptSeedIds: { type: [String], default: [] },
     filterDecisions: { type: [mongoose.Schema.Types.Mixed], default: [] },
     retentionUntil: { type: Date, index: true },
   },

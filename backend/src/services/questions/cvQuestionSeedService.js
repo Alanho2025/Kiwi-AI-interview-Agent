@@ -68,6 +68,9 @@ const extractProjectSeeds = ({ userId, cvFileId, evidenceProfile = {}, cvProfile
     const title = normalizeText(project.title || project.projectTitle || project.name || `project ${index + 1}`);
     const skills = normalizeSkillTags(project.skills || project.skillTags || project.technologies || project.techStack || cvProfile.skills);
     const topic = skills[0] || title;
+    const draftQuestion = skills[0]
+      ? `Your CV says you used ${topic} in ${title}. How did you apply it in the actual implementation, and what did you personally own?`
+      : `Your CV lists ${title}. What did you personally build or decide there, and what result came from it?`;
     return buildSeed({
       userId,
       cvFileId,
@@ -75,7 +78,7 @@ const extractProjectSeeds = ({ userId, cvFileId, evidenceProfile = {}, cvProfile
       topic,
       category: 'technical',
       questionIntent: 'validate_ownership',
-      draftQuestion: `Tell me about one project where you used ${topic}. What did you personally own, and what result came from it?`,
+      draftQuestion,
       evidenceSummary: normalizeText(project.summary || project.description || title),
       evidenceRefs: [project],
       expectedSignal: ['personal_ownership', 'technical_depth', 'result_or_impact'],

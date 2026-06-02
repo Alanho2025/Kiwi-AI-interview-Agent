@@ -174,6 +174,14 @@ const buildDefaultRetrievalQuery = ({ session = {}, payload = {}, mode = 'interv
   return `${session.targetRole || ''} ${roleCanonical} ${interviewFocus} ${answerSlice}`.trim();
 };
 
+export const shouldUseSingleBlockingLlmVoicePath = ({ inputMode = '' } = {}) => ['duplex_voice', 'realtime_voice'].includes(inputMode);
+
+export const shouldMarkPreparedRootQuestionAsked = ({ interviewerOutput = {} } = {}) => {
+  const preparedQuestionId = interviewerOutput?.questionDecision?.preparedQuestionId || interviewerOutput?.preparedQuestionId || null;
+  const turnKind = interviewerOutput?.turnKind || interviewerOutput?.questionDecision?.turnKind || null;
+  return Boolean(preparedQuestionId && turnKind === 'root_question');
+};
+
 const runInterviewController = async ({ session, payload = {}, onSentence = null, trace = null }) => {
   enqueueBackgroundJob('trace-answer-evaluated-start', () => recordAgentTraceEvent({
     sessionId: session.id,
@@ -204,6 +212,7 @@ const runInterviewController = async ({ session, payload = {}, onSentence = null
   }
 
   const isVoiceMode = ['duplex_voice', 'realtime_voice'].includes(payload.inputMode);
+  const singleBlockingLlmVoicePath = shouldUseSingleBlockingLlmVoicePath({ inputMode: payload.inputMode });
   const clientTurnId = payload.clientTurnId || null;
   
   // Check if optimizations are enabled for this session
@@ -257,7 +266,19 @@ const runInterviewController = async ({ session, payload = {}, onSentence = null
     && typeof voiceOptimizationConfig.isAgentDecisionFastPathEnabled === 'function'
     && voiceOptimizationConfig.isAgentDecisionFastPathEnabled();
 
-  if (useVoiceAgentDecisionFastPath) {
+  if (singleBlockingLlmVoicePath) {
+    const { extractFastAnswerUnderstanding } = await import('./aiControl/fastAnswerUnderstandingService.js');
+    localVoiceAnswerUnderstanding = extractFastAnswerUnderstanding({
+      session,
+      environment: baseEnvironment,
+      answerText: payload.answer || baseEnvironment.latestAnswer?.text || '',
+    });
+    latestAnswerUnderstanding = localVoiceAnswerUnderstanding;
+    trace?.mark?.('adaptive.voice_single_llm_local_understanding', {
+      source: 'local_js',
+      technologiesCount: latestAnswerUnderstanding.technologies?.length || 0,
+    });
+  } else if (useVoiceAgentDecisionFastPath) {
     const { extractFastAnswerUnderstanding } = await import('./aiControl/fastAnswerUnderstandingService.js');
     localVoiceAnswerUnderstanding = extractFastAnswerUnderstanding({
       session,
@@ -345,7 +366,19 @@ decisionType: AGENT_DECISION_TYPES.BUILD_CONTEXT,
   const fallbackPlan = await measureAdaptiveStep(trace, 'adaptive.action_selection', () => selectNextAction(decisionContext));
   
   let plan;
-  if (useVoiceAgentDecisionFastPath) {
+  if (singleBlockingLlmVoicePath) {
+    plan = {
+      ...fallbackPlan,
+      selectionSource: 'voice_single_blocking_llm_rule_lane',
+      modelSelectedAction: null,
+      modelSelectionError: null,
+    };
+    trace?.mark?.('adaptive.voice_single_blocking_llm_policy', {
+      selectedAction: plan.selectedAction,
+      skippedBlockingModelActionSelection: true,
+      liveBlockingLlmBudget: 1,
+    });
+  } else if (useVoiceAgentDecisionFastPath) {
     const voiceDecision = await measureAdaptiveStep(trace, 'adaptive.voice_agent_decision', () => resolveVoiceAgentDecisionOnce({
       decisionContext,
       evaluatorOutput,
@@ -482,6 +515,13 @@ decisionType: AGENT_DECISION_TYPES.SELECT_ACTION,
     session,
     onSentence,
   }));
+  if (trace?.mark && interviewerOutput?.latency) {
+    Object.entries(interviewerOutput.latency).forEach(([key, value]) => {
+      if (value !== null && value !== undefined) {
+        trace.mark(`adaptive.question_${key}`, { value });
+      }
+    });
+  }
   enqueueBackgroundJob('trace-followup-decision', () => recordAgentTraceEvent({
     sessionId: session.id,
     eventType: 'followup_decision',
@@ -576,7 +616,7 @@ decisionType: AGENT_DECISION_TYPES.EXECUTE_ACTION,
     basedOnJd: ['jd_requirement', 'match_gap', 'jd_filter', 'universal_requirement_competency', 'match_validation'].includes(resolvedQuestionSource),
   });
   const preparedQuestionId = interviewerOutput?.questionDecision?.preparedQuestionId || interviewerOutput?.preparedQuestionId || null;
-  if (preparedQuestionId) {
+  if (shouldMarkPreparedRootQuestionAsked({ interviewerOutput })) {
     try {
       await markQuestionPoolItemAsked({
         sessionId: session.id,
@@ -612,6 +652,22 @@ decisionType: AGENT_DECISION_TYPES.EXECUTE_ACTION,
       questionType: interviewerOutput.questionType || 'follow_up',
       questionDecision: interviewerOutput.questionDecision || null,
       questionRanking: interviewerOutput.questionRanking || interviewerOutput.questionDecision?.ranking || null,
+      turnKind: interviewerOutput.turnKind || interviewerOutput.questionDecision?.turnKind || null,
+      scenario: interviewerOutput.scenario || interviewerOutput.questionDecision?.scenario || null,
+      sourcePolicy: interviewerOutput.sourcePolicy || interviewerOutput.questionDecision?.sourcePolicy || null,
+      preparedQuestionId,
+      parentQuestionId: interviewerOutput.parentQuestionId || interviewerOutput.questionDecision?.parentQuestionId || null,
+      parentPreparedQuestionId: interviewerOutput.parentPreparedQuestionId || interviewerOutput.questionDecision?.parentPreparedQuestionId || null,
+      rootQuestionId: interviewerOutput.rootQuestionId || interviewerOutput.questionDecision?.rootQuestionId || null,
+      rootTopic: interviewerOutput.rootTopic || interviewerOutput.questionDecision?.rootTopic || null,
+      followUpIntent: interviewerOutput.followUpIntent || interviewerOutput.questionDecision?.followUpIntent || null,
+      evidenceTarget: interviewerOutput.evidenceTarget || interviewerOutput.questionDecision?.evidenceTarget || null,
+      rankTrace: interviewerOutput.rankTrace || interviewerOutput.questionDecision?.rankTrace || null,
+      poolDegraded: Boolean(interviewerOutput.poolDegraded || interviewerOutput.questionDecision?.poolDegraded),
+      poolDegradedReason: interviewerOutput.poolDegradedReason || interviewerOutput.questionDecision?.poolDegradedReason || null,
+      selectedAngle: interviewerOutput.questionDecision?.selectedAngle || null,
+      shortReason: interviewerOutput.questionDecision?.shortReason || null,
+      latency: interviewerOutput.latency || interviewerOutput.questionDecision?.latency || null,
       whyThisQuestion: interviewerOutput.questionDecision?.whyThisQuestion || interviewerOutput.rationaleSummary || interviewerOutput.rationale || null,
       evidenceUsed: interviewerOutput.questionDecision?.evidenceUsed || [],
       baseQuestionText: interviewerOutput.questionDecision?.baseQuestionText || interviewerOutput.nextQuestion || null,
