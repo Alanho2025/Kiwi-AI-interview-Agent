@@ -68,6 +68,7 @@ export const runReportQaAgent = async ({ report = {}, analysisResult = {}, retri
   if (selfIntroStarApplied > 0) qualityFlags.push('self_intro_star_misapplied');
   if ((diagnostics.repetitionComplaintCount || 0) > 0 && !String(report.sections?.find((section) => section.id === 'interaction_feedback')?.content || '').toLowerCase().includes('repeated questioning')) qualityFlags.push('missing_repetition_flow_warning');
   if (highConfidenceUnsupported > 0) qualityFlags.push('unsupported_high_confidence_feedback');
+  if (!report.authenticityMetrics) qualityFlags.push('authenticity_metrics_missing');
 
   const normalizedSummary = normalizeComparableText(report.summary || '');
   const normalizedDecisionLabel = normalizeComparableText(analysisResult.decision?.label || '');
