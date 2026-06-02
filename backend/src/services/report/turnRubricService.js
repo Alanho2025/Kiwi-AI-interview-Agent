@@ -4,18 +4,42 @@ import { normalizeText } from '../../utils/commonHelpers.js';
 const lower = (value = '') => normalizeText(value).toLowerCase();
 const wordCount = (value = '') => normalizeText(value).split(/\s+/).filter(Boolean).length;
 
+const buildStarrRubric = ({ topic = '' } = {}) => {
+  const isReaction = topic.includes('teamwork') || topic.includes('communication') || topic.includes('conflict');
+  return {
+    rubricType: 'starr',
+    starApplicable: true,
+    structureLabel: 'STARR evidence',
+    resultOrReactionLabel: isReaction ? 'Reaction' : 'Result',
+    dimensions: ['situation', 'task', 'action', 'resultOrReaction', 'reflection'],
+  };
+};
+
+const isSelfIntroductionQuestion = (questionText = '') =>
+  /quick introduction|tell me a bit about yourself|introduce yourself|about yourself/.test(questionText);
+
+const asksForPastExampleEvidence = (questionText = '') =>
+  /specific project|specific example|tell me about a time|can you describe.*project|project where|built .*engine|what did you personally do|what did you build|how did you know|what was the result|outcome|validated|validation|performance/.test(questionText);
+
 export const inferTurnRubric = ({ question = '', metadata = {} } = {}) => {
   const questionText = lower(question);
   const topic = lower(metadata.topic || metadata.questionTopic || '');
   const stage = lower(metadata.stage || metadata.questionStage || metadata.type || metadata.questionType || '');
   const type = lower(metadata.questionType || metadata.type || '');
 
+  // Prefer the actual spoken question when it clearly asks for project, technical,
+  // behavioural, result, or validation evidence. Some generated turns can carry
+  // stale opening/self_intro metadata after adaptive follow-up selection.
+  if (asksForPastExampleEvidence(questionText) && !isSelfIntroductionQuestion(questionText)) {
+    return buildStarrRubric({ topic });
+  }
+
   if (
-    stage.includes('opening')
+    isSelfIntroductionQuestion(questionText)
     || stage.includes('self_intro')
     || topic.includes('self_intro')
     || type.includes('self_intro')
-    || /quick introduction|tell me a bit about yourself|introduce yourself|about yourself/.test(questionText)
+    || (stage.includes('opening') && !asksForPastExampleEvidence(questionText))
   ) {
     return {
       rubricType: 'self_intro',
@@ -47,14 +71,7 @@ export const inferTurnRubric = ({ question = '', metadata = {} } = {}) => {
     };
   }
 
-  const isReaction = topic.includes('teamwork') || topic.includes('communication') || topic.includes('conflict');
-  return {
-    rubricType: 'starr',
-    starApplicable: true,
-    structureLabel: 'STARR evidence',
-    resultOrReactionLabel: isReaction ? 'Reaction' : 'Result',
-    dimensions: ['situation', 'task', 'action', 'resultOrReaction', 'reflection'],
-  };
+  return buildStarrRubric({ topic });
 };
 
 const toLabel = (score = 0) => (score >= 2 ? 'clear' : score >= 1 ? 'partial' : 'missing');
