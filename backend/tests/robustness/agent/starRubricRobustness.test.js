@@ -19,4 +19,23 @@ describe('STARR rubric robustness', () => {
     expect(star.resultOrReaction).not.toBe('missing');
     expect(star.totalScore).toBeGreaterThanOrEqual(5);
   });
+
+  it('includes reflection as the fifth STARR evidence element', () => {
+    const star = analyzeStarrBreakdown('During the Kiwi Coach project, my task was to improve report feedback. I implemented a clearer STARR evidence display and tested the result. I learned that reflection should be shown separately.');
+
+    expect(star).toHaveProperty('situation');
+    expect(star).toHaveProperty('task');
+    expect(star).toHaveProperty('action');
+    expect(star).toHaveProperty('resultOrReaction');
+    expect(star).toHaveProperty('reflection');
+    expect(star.maxScore).toBe(10);
+  });
+
+  it('prioritises missing core STARR evidence before reflection', () => {
+    const star = analyzeStarrBreakdown('I learned that interview practice can improve confidence and I would do better next time.');
+
+    expect(star.reflection).not.toBe('missing');
+    expect(['situation', 'task', 'action', 'resultOrReaction']).toContain(star.mainMissingElement);
+    expect(star.scoreReason).toContain('situation, task, action, and result');
+  });
 });
