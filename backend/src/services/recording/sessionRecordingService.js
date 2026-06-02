@@ -57,6 +57,11 @@ export const getSessionRecordingPath = (sessionId) => {
   return path.join(mp3Root, `${safeSessionId}.mp3`);
 };
 
+const getReadyRecordingMetadata = async (mp3Path) => {
+  const stats = await fs.stat(mp3Path);
+  return stats.isFile() && stats.size > 0 ? stats : null;
+};
+
 export const saveSessionRecording = async ({ sessionId, userId, file }) => {
   requireSessionId(sessionId);
   if (!file?.path) {
@@ -88,12 +93,16 @@ export const getSessionRecordingStatus = async ({ sessionId, userId }) => {
 
   const mp3Path = getSessionRecordingPath(sessionId);
   try {
-    await fs.access(mp3Path);
+    const metadata = await getReadyRecordingMetadata(mp3Path);
+    if (!metadata) {
+      throw new Error('Recording file is empty.');
+    }
     return {
       sessionId,
       status: 'ready',
       available: true,
       filename: `interview-session-${sanitizeSessionId(sessionId)}.mp3`,
+      fileSizeBytes: metadata.size,
     };
   } catch {
     return {
@@ -112,7 +121,10 @@ export const loadSessionRecordingForDownload = async ({ sessionId, userId }) => 
 
   const mp3Path = getSessionRecordingPath(sessionId);
   try {
-    await fs.access(mp3Path);
+    const metadata = await getReadyRecordingMetadata(mp3Path);
+    if (!metadata) {
+      throw new Error('Recording file is empty.');
+    }
   } catch {
     throw notFound('Recording not found', 'No MP3 recording is available for this session yet.');
   }

@@ -1,0 +1,65 @@
+{
+  "label": "Stability Eval",
+  "generatedAt": "2026-06-02T20:48:47.244Z",
+  "casesRun": 3,
+  "average": 1,
+  "results": [
+    {
+      "id": "vague_star_answer",
+      "score": 1,
+      "average": 0.78,
+      "worstScore": 0.74,
+      "bestScore": 0.82,
+      "stabilityGap": 0.08,
+      "passAt3": true,
+      "passPower3": true,
+      "failedChecks": [],
+      "diagnostics": {
+        "scores": [
+          0.82,
+          0.78,
+          0.74
+        ],
+        "trialReasons": []
+      }
+    },
+    {
+      "id": "company_info_missing",
+      "score": 1,
+      "average": 0.8,
+      "worstScore": 0.77,
+      "bestScore": 0.84,
+      "stabilityGap": 0.07,
+      "passAt3": true,
+      "passPower3": true,
+      "failedChecks": [],
+      "diagnostics": {
+        "scores": [
+          0.84,
+          0.79,
+          0.77
+        ],
+        "trialReasons": []
+      }
+    },
+    {
+      "id": "report_hallucination_negative_probe",
+      "score": 1,
+      "average": 0.9,
+      "worstScore": 0.88,
+      "bestScore": 0.92,
+      "stabilityGap": 0.04,
+      "passAt3": true,
+      "passPower3": true,
+      "failedChecks": [],
+      "diagnostics": {
+        "scores": [
+          0.9,
+          0.88,
+          0.92
+        ],
+        "trialReasons": []
+      }
+    }
+  ]
+}

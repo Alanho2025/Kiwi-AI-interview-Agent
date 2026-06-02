@@ -1,6 +1,6 @@
 {
   "casesRun": 4,
-  "average": 0.99,
+  "average": 0.97,
   "weakestCases": [],
   "thresholds": {
     "minAverage": 0.9,
@@ -12,7 +12,7 @@
       "cvFixture": "graduate-software-engineer.txt",
       "jdFixture": "graduate-software-developer.txt",
       "decision": "moderate_match",
-      "overallScore": 66.44,
+      "overallScore": 61.56,
       "score": 1,
       "earned": 32,
       "possible": 32,
@@ -34,7 +34,7 @@
         "Foundations in C#, .NET, SQL, and Git.",
         "Ability to communicate clearly and learn quickly.",
         "sql",
-        "api"
+        "git"
       ],
       "jdRelevantEvidenceCount": 8,
       "interviewFocus": [
@@ -52,14 +52,14 @@
       "cvFixture": "data-analyst-transition.txt",
       "jdFixture": "data-engineer-clean.txt",
       "decision": "not_qualified",
-      "overallScore": 44.38,
+      "overallScore": 49.08,
       "score": 0.96,
       "earned": 27,
       "possible": 28,
       "priorityTopics": [
         "Strong SQL skills and hands-on experience with Snowflake.",
-        "Ability to work through ambiguity and deliver outcomes under deadlines.",
-        "Proven experience delivering data engineering solutions in production environments.",
+        "Experience with dbt, including testing, documentation, and deployment.",
+        "Exposure to data modelling, including dimensional modelling or DV2.",
         "SQL",
         "Snowflake",
         "Reporting",
@@ -71,16 +71,16 @@
         "Quantified evidence",
         "Project: Data Warehouse Transition Project",
         "Strong SQL skills and hands-on experience with Snowflake.",
-        "Ability to work through ambiguity and deliver outcomes under deadlines.",
-        "Proven experience delivering data engineering solutions in production environments.",
+        "Experience with dbt, including testing, documentation, and deployment.",
+        "Exposure to data modelling, including dimensional modelling or DV2.",
         "sql",
         "python"
       ],
       "jdRelevantEvidenceCount": 10,
       "interviewFocus": [
         "Strong SQL skills and hands-on experience with Snowflake.",
-        "Ability to work through ambiguity and deliver outcomes under deadlines.",
-        "Proven experience delivering data engineering solutions in production environments.",
+        "Experience with dbt, including testing, documentation, and deployment.",
+        "Exposure to data modelling, including dimensional modelling or DV2.",
         "SQL",
         "Snowflake",
         "Reporting"
@@ -93,10 +93,10 @@
       "id": "cloud_cv_to_cloud_jd",
       "cvFixture": "cloud-platform-engineer.txt",
       "jdFixture": "cloud-platform-engineer.txt",
-      "decision": "moderate_match",
-      "overallScore": 67.62,
-      "score": 1,
-      "earned": 32,
+      "decision": "borderline",
+      "overallScore": 58.99,
+      "score": 0.91,
+      "earned": 29,
       "possible": 32,
       "priorityTopics": [
         "Strong experience with Azure, Cloud Infrastructure, Docker, and Kubernetes.",
@@ -115,8 +115,7 @@
         "Strong experience with Azure, Cloud Infrastructure, Docker, and Kubernetes.",
         "Experience with Linux, networking, and troubleshooting.",
         "Good communication and ownership.",
-        "docker",
-        "c"
+        "docker"
       ],
       "jdRelevantEvidenceCount": 6,
       "interviewFocus": [
@@ -127,7 +126,9 @@
         "Networking",
         "Azure"
       ],
-      "failedChecks": []
+      "failedChecks": [
+        "decision"
+      ]
     },
     {
       "id": "frontend_student_to_senior_backend_jd",
@@ -154,8 +155,7 @@
         "Competency signal",
         "Proven experience building production backend systems.",
         "Strong skills in Node.js, SQL, AWS, Docker, and CI/CD.",
-        "react",
-        "c"
+        "react"
       ],
       "jdRelevantEvidenceCount": 0,
       "interviewFocus": [

@@ -163,6 +163,15 @@ function formatReportAsText(report) {
   const r = report.report || {};
   const qa = report.qaResult || {};
   const commercialStressTest = report.commercialStressTest || r.commercialStressTest || null;
+  const formatScore = (value, suffix = '') => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? `${parsed.toFixed(2)}${suffix}` : 'Not available';
+  };
+  const formatListItem = (item) => {
+    if (typeof item === 'string') return item;
+    if (!item || typeof item !== 'object') return String(item ?? '');
+    return item.title || item.label || item.description || item.content || item.summary || JSON.stringify(item);
+  };
   
   lines.push('KIWI AI INTERVIEW AGENT - INTERVIEW REPORT');
   lines.push('==========================================');
@@ -193,11 +202,11 @@ function formatReportAsText(report) {
   if (r.scores) {
     lines.push('SCORES');
     lines.push('======');
-    if (r.scores.overall !== undefined) lines.push(`Overall Score: ${r.scores.overall.toFixed(2)}/100`);
-    if (r.scores.macro !== undefined) lines.push(`Macro Score: ${r.scores.macro.toFixed(2)}/100`);
-    if (r.scores.micro !== undefined) lines.push(`Micro Score: ${r.scores.micro.toFixed(2)}/100`);
-    if (r.scores.requirements !== undefined) lines.push(`Requirements Score: ${r.scores.requirements.toFixed(2)}/100`);
-    if (r.scores.evidenceStrength !== undefined) lines.push(`Evidence Strength: ${r.scores.evidenceStrength}/4`);
+    if (r.scores.overall !== undefined) lines.push(`Overall Score: ${formatScore(r.scores.overall, '/100')}`);
+    if (r.scores.macro !== undefined) lines.push(`Macro Score: ${formatScore(r.scores.macro, '/100')}`);
+    if (r.scores.micro !== undefined) lines.push(`Micro Score: ${formatScore(r.scores.micro, '/100')}`);
+    if (r.scores.requirements !== undefined) lines.push(`Requirements Score: ${formatScore(r.scores.requirements, '/100')}`);
+    if (r.scores.evidenceStrength !== undefined) lines.push(`Evidence Strength: ${formatScore(r.scores.evidenceStrength, '/4')}`);
     if (r.scores.directEvidenceTurns !== undefined) lines.push(`Direct Evidence Turns: ${r.scores.directEvidenceTurns}`);
     if (r.scores.hypotheticalTurns !== undefined) lines.push(`Hypothetical Turns: ${r.scores.hypotheticalTurns}`);
     lines.push('');
@@ -237,7 +246,7 @@ function formatReportAsText(report) {
     lines.push('RECOMMENDATIONS');
     lines.push('===============');
     r.recommendations.forEach((rec, i) => {
-      lines.push(`${i + 1}. ${rec}`);
+      lines.push(`${i + 1}. ${formatListItem(rec)}`);
     });
     lines.push('');
   }
@@ -275,19 +284,23 @@ function formatReportAsText(report) {
   if (qa && Object.keys(qa).length > 0) {
     lines.push('QUALITY ASSURANCE');
     lines.push('=================');
+    if (report.latestStatus) lines.push(`Report Status: ${report.latestStatus}`);
     if (qa.coverage !== undefined) lines.push(`Coverage: ${qa.coverage}%`);
+    if (qa.coverageScore !== undefined) lines.push(`Coverage Score: ${qa.coverageScore}/100`);
     if (qa.quality !== undefined) lines.push(`Quality: ${qa.quality}%`);
     if (qa.completeness !== undefined) lines.push(`Completeness: ${qa.completeness}%`);
+    if (qa.hallucinationRisk) lines.push(`Hallucination Risk: ${qa.hallucinationRisk}`);
     if (qa.notes && qa.notes.length > 0) {
       lines.push('QA Notes:');
       qa.notes.forEach((note, i) => {
-        lines.push(`  ${i + 1}. ${note}`);
+        lines.push(`  ${i + 1}. ${formatListItem(note)}`);
       });
     }
-    if (qa.flags && qa.flags.length > 0) {
+    const qaFlags = qa.flags || qa.qualityFlags || [];
+    if (qaFlags.length > 0) {
       lines.push('QA Flags:');
-      qa.flags.forEach((flag, i) => {
-        lines.push(`  ${i + 1}. ${flag}`);
+      qaFlags.forEach((flag, i) => {
+        lines.push(`  ${i + 1}. ${formatListItem(flag)}`);
       });
     }
     lines.push('');
