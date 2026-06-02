@@ -103,3 +103,13 @@
 
 - If a nested `AGENTS.md` exists under `frontend`, `backend`, or another subdirectory, follow the closest file for that area.
 - Root rules still apply unless the nested file explicitly narrows them.
+
+## User Plan Priority
+
+When the user provides a concrete plan, checklist, or step-by-step implementation request, follow that plan as the main source of truth.
+
+Do not default to the smallest safe change if the user clearly asks for a broader implementation.
+
+Before editing, convert the user's plan into an implementation checklist. Complete every item unless there is a concrete technical blocker. If any item is skipped or changed, explain why in the final response.
+
+Preserve existing behaviour unless the user explicitly asks to change it.
