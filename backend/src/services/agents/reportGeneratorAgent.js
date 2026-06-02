@@ -71,6 +71,32 @@ const buildQuestionAnswerPairs = (transcript = []) => {
   return pairs;
 };
 
+const formatStarrElementName = (element = '') => String(element || 'resultOrReaction')
+  .replace(/^resultOrReaction$/i, 'result')
+  .replace(/([A-Z])/g, ' $1')
+  .trim()
+  .toLowerCase();
+
+const hasMissingCoreStarrEvidence = (breakdown = {}) => [
+  'situation',
+  'task',
+  'action',
+  'resultOrReaction',
+].some((key) => breakdown[key] === 'missing');
+
+const buildStarrFeedback = ({ mainMissing = 'resultOrReaction', breakdown = {} } = {}) => {
+  if (hasMissingCoreStarrEvidence(breakdown)) {
+    return 'Add a clear situation, task, action, and result first. Then add a short reflection about what you learned or would improve.';
+  }
+  if (breakdown.reflection === 'missing') {
+    return 'The core STAR structure is present. Add one short reflection about what you learned or what you would do better next time.';
+  }
+  if (mainMissing === 'resultOrReaction' || mainMissing === 'result') {
+    return 'Add a clearer result, impact, or stakeholder reaction so the answer proves what changed.';
+  }
+  return `Strengthen the ${formatStarrElementName(mainMissing)} part of this STARR answer.`;
+};
+
 const buildDeterministicTurnBreakdowns = (transcript = [], analysedAnswers = []) => {
   const questionAnswerPairs = buildQuestionAnswerPairs(transcript);
   return questionAnswerPairs.map(({ questionTurn = {}, answerTurn = {} }, index) => {
@@ -80,7 +106,8 @@ const buildDeterministicTurnBreakdowns = (transcript = [], analysedAnswers = [])
       answer: answerTurn.text,
       metadata: questionTurn.metadata || {},
     });
-    const mainMissing = turnStructure.structureBreakdown?.mainMissingElement || 'specificity';
+    const breakdown = turnStructure.starBreakdown || turnStructure.structureBreakdown || {};
+    const mainMissing = breakdown.mainMissingElement || 'specificity';
     const nonStarFeedback = turnStructure.rubricType === 'self_intro'
       ? 'Strengthen this introduction by linking your background, role interest, and one relevant project or product example in a cleaner sequence.'
       : turnStructure.rubricType === 'company_motivation'
@@ -98,11 +125,9 @@ const buildDeterministicTurnBreakdowns = (transcript = [], analysedAnswers = [])
       structureBreakdown: turnStructure.structureBreakdown,
       starBreakdown: turnStructure.starBreakdown,
       resultOrReactionLabel: turnStructure.resultOrReactionLabel,
-      feedback: turnStructure.starApplicable && mainMissing === 'result'
-        ? 'Add a clearer result, impact, or lesson so the answer proves what changed.'
-        : turnStructure.starApplicable
-          ? `Strengthen the ${mainMissing} part of this STARR answer.`
-          : nonStarFeedback,
+      feedback: turnStructure.starApplicable
+        ? buildStarrFeedback({ mainMissing, breakdown })
+        : nonStarFeedback,
       scores: {
         business: Math.min(10, 4 + Number(analysis.evidenceStrength || 0)),
         logic: Math.min(10, 4 + Math.round(Number((turnStructure.starBreakdown || turnStructure.structureBreakdown)?.totalScore || Object.values(turnStructure.structureBreakdown?.scores || {}).reduce((sum, value) => sum + Number(value || 0), 0)) / 2)),
@@ -258,15 +283,18 @@ export const runReportGeneratorAgent = async ({ session = {}, analysisResult = {
     candidateFeedback: groundedFeedback.candidateFeedback,
     claimEvidenceReferences: groundedFeedback.claimEvidenceReferences,
     claimEvidenceDiagnostics: groundedFeedback.claimEvidenceDiagnostics,
-    evaluatorRecords: analysisRecord?.evaluatorRecords || [],
-    trajectoryRecords: analysisRecord?.trajectoryRecords || [],
-    reflectionRecords: analysisRecord?.reflectionRecords || [],
-    agentTraceEvents: analysisRecord?.agentTraceEvents || [],
     userCoachingMemory,
     nzWorkplaceFit,
-    voiceDeliverySummary,
     companyMotivationFit,
   });
 
-  return validateReportOutput(draft);
+  const validated = validateReportOutput({
+    ...draft,
+    metadata: {
+      ...(draft.metadata || {}),
+      claimEvidenceReferences: groundedFeedback.claimEvidenceReferences,
+      claimEvidenceDiagnostics: groundedFeedback.claimEvidenceDiagnostics,
+    },
+  });
+  return validated;
 };
