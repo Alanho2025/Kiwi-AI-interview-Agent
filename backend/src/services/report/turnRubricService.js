@@ -1,4 +1,4 @@
-import { analyzeStarBreakdown } from '../aiControl/starRubricService.js';
+import { analyzeStarrBreakdown } from '../aiControl/starRubricService.js';
 import { normalizeText } from '../../utils/commonHelpers.js';
 
 const lower = (value = '') => normalizeText(value).toLowerCase();
@@ -47,11 +47,13 @@ export const inferTurnRubric = ({ question = '', metadata = {} } = {}) => {
     };
   }
 
+  const isReaction = topic.includes('teamwork') || topic.includes('communication') || topic.includes('conflict');
   return {
-    rubricType: 'star',
+    rubricType: 'starr',
     starApplicable: true,
-    structureLabel: 'STAR evidence',
-    dimensions: ['situation', 'task', 'action', 'result'],
+    structureLabel: 'STARR evidence',
+    resultOrReactionLabel: isReaction ? 'Reaction' : 'Result',
+    dimensions: ['situation', 'task', 'action', 'resultOrReaction', 'reflection'],
   };
 };
 
@@ -143,11 +145,19 @@ export const analyzeTurnStructure = ({ question = '', answer = '', metadata = {}
         completion: answer ? 'partial' : 'missing',
         scores: {},
         mainMissingElement: answer ? 'specificity' : 'answer',
-        scoreReason: answer ? 'The answer was captured, but this turn is not scored with STAR.' : 'No substantive answer was captured.',
+        scoreReason: answer ? 'The answer was captured, but this turn is not scored with STARR.' : 'No substantive answer was captured.',
       },
-      starBreakdown: null,
+      starrBreakdown: null,
+      starrQualityScore: null,
+      missingElementExplanation: null,
     };
   }
-  const starBreakdown = analyzeStarBreakdown(answer);
-  return { ...rubric, structureBreakdown: starBreakdown, starBreakdown };
+  const starrBreakdown = analyzeStarrBreakdown(answer);
+  return { 
+    ...rubric, 
+    structureBreakdown: starrBreakdown, 
+    starrBreakdown,
+    starrQualityScore: starrBreakdown.totalScore,
+    missingElementExplanation: starrBreakdown.scoreReason,
+  };
 };

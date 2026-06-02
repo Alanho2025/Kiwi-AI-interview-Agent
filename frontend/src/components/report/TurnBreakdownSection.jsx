@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../common/Card.jsx';
+import { EvidenceBadge } from './EvidenceBadge.jsx';
 
 const clampMicroScore = (score = 0) => Math.max(0, Math.min(10, Number(score || 0)));
 
@@ -57,21 +58,10 @@ function ScoreBar({ label, score, colorClass, reason }) {
   );
 }
 
-function TrustMeta({ turn }) {
-  if (!turn?.evidenceLabel && !turn?.confidenceLevel && !turn?.feedbackStatus) return null;
-  return (
-    <div className="flex flex-wrap gap-2 text-xs">
-      {turn.evidenceLabel ? <span className="rounded-full bg-white px-2.5 py-1 font-medium text-indigo-800">{turn.evidenceLabel}</span> : null}
-      {turn.confidenceLevel ? <span className="rounded-full bg-white px-2.5 py-1 font-medium text-slate-700">{turn.confidenceLevel} confidence</span> : null}
-      {turn.feedbackStatus ? <span className="rounded-full bg-white px-2.5 py-1 font-medium text-slate-700">{turn.feedbackStatus}</span> : null}
-      {turn.needsUserConfirmation ? <span className="rounded-full bg-amber-100 px-2.5 py-1 font-medium text-amber-900">needs confirmation</span> : null}
-      {turn.evidenceReason ? <p className="basis-full pt-1 leading-5 text-slate-600">{turn.evidenceReason}</p> : null}
-    </div>
-  );
-}
+
 
 function StructureBreakdown({ turn }) {
-  const breakdown = turn.structureBreakdown || turn.starBreakdown;
+  const breakdown = turn.structureBreakdown || turn.starrBreakdown || turn.starBreakdown;
   if (!breakdown) return null;
   if (turn.starApplicable === false) {
     const entries = Object.entries(breakdown)
@@ -94,21 +84,27 @@ function StructureBreakdown({ turn }) {
       </div>
     );
   }
-  const starBreakdown = turn.starBreakdown;
+  const starBreakdown = turn.starrBreakdown || turn.starBreakdown;
   if (!starBreakdown) return null;
   const parts = [
     ['Situation', starBreakdown.situation],
     ['Task', starBreakdown.task],
     ['Action', starBreakdown.action],
-    ['Result', starBreakdown.result],
+    [turn.resultOrReactionLabel || 'Result', starBreakdown.resultOrReaction || starBreakdown.result],
   ];
+  if (starBreakdown.reflection) {
+    parts.push(['Reflection', starBreakdown.reflection]);
+  }
+  
+  const gridCols = parts.length === 5 ? 'sm:grid-cols-5' : 'sm:grid-cols-4';
+
   return (
     <div className="rounded-xl border border-slate-100 bg-white/70 p-4">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-        <h5 className="text-xs font-semibold uppercase tracking-wider text-slate-500">STAR Evidence</h5>
+        <h5 className="text-xs font-semibold uppercase tracking-wider text-slate-500">STARR Evidence</h5>
         {starBreakdown.mainMissingElement ? <p className="text-xs text-slate-500">Main gap: {starBreakdown.mainMissingElement}</p> : null}
       </div>
-      <div className="mt-3 grid gap-2 sm:grid-cols-4">
+      <div className={`mt-3 grid gap-2 ${gridCols}`}>
         {parts.map(([label, value]) => (
           <div key={label} className="rounded-lg bg-slate-50 px-3 py-2">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{label}</p>
@@ -204,7 +200,9 @@ export function TurnBreakdownSection({ turnBreakdowns }) {
                     )}
 
                     <StructureBreakdown turn={turn} />
-                    <TrustMeta turn={turn} />
+                    <div className="mt-2">
+                      <EvidenceBadge {...turn} />
+                    </div>
 
                     <div>
                       <h5 className="text-xs font-semibold uppercase tracking-wider text-faint mb-2">Your Answer Summary</h5>
