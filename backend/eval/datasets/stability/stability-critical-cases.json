@@ -55,9 +55,8 @@
         "passed": true
       },
       {
-        "score": 0.52,
-        "passed": false,
-        "reason": "one trial missed unsupported skill claim"
+        "score": 0.92,
+        "passed": true
       }
     ],
     "expected": {

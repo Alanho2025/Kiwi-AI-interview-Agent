@@ -111,6 +111,18 @@ const labelValue = (pdf, lbl, val, y) => {
 
 const fmtScore = (v) => (typeof v === 'number' ? v.toFixed(2) : String(v ?? ''));
 
+const formatEvidenceTotals = (totals = {}) => Object.entries(totals)
+  .map(([key, value]) => `${key.replace(/_/g, ' ')}: ${value}`)
+  .join(', ');
+
+const hasEvidenceDiagnosticsContent = (diagnostics = {}) => Boolean(
+  diagnostics
+  && (
+    diagnostics.averageStrength !== undefined
+    || (diagnostics.totals && Object.keys(diagnostics.totals).length > 0)
+  )
+);
+
 /**
  * Generate PDF from report data using pure jsPDF text layout.
  * Maps the same viewModel used by the React report page.
@@ -136,6 +148,12 @@ export const generateReportPDF = async (reportData) => {
     y += 4;
     pdf.text(`Session: ${reportData?.sessionId || 'N/A'}`, M, y);
     y += 8;
+
+    // ══════ Candidate & Role ══════
+    y = sectionHeading(pdf, 'Candidate & Role', y);
+    y = labelValue(pdf, 'Candidate', r.candidateName || reportData?.candidateName || 'Candidate', y);
+    y = labelValue(pdf, 'Target Role', r.jobTitle || reportData?.targetRole || 'Target role not specified', y);
+    y = labelValue(pdf, 'QA Status', reportData?.latestStatus || r.latestStatus || 'unknown', y);
 
     // ══════ Your Interview Feedback ══════
     if (vm.takeaway) {
@@ -248,7 +266,9 @@ export const generateReportPDF = async (reportData) => {
     }
 
     // ══════ Evidence & Diagnostics ══════
-    if (vm.evidenceDiagnostics) {
+    const hasDiagnosticsContent = hasEvidenceDiagnosticsContent(vm.evidenceDiagnostics);
+
+    if (hasDiagnosticsContent) {
       y = sectionHeading(pdf, 'Evidence Diagnostics', y);
       const ed = vm.evidenceDiagnostics;
       if (ed.averageStrength !== undefined) { y = labelValue(pdf, 'Average Evidence Strength', ed.averageStrength, y); }
@@ -260,9 +280,27 @@ export const generateReportPDF = async (reportData) => {
       }
     }
 
+    const evidenceReferences = r.evidenceReferences || r.evidenceSummary || [];
+    if (!hasDiagnosticsContent && !evidenceReferences.length) {
+      y = sectionHeading(pdf, 'Evidence Summary', y);
+      y = wrapText(pdf, 'No evidence available', M, y);
+    } else if (evidenceReferences.length) {
+      y = sectionHeading(pdf, 'Evidence Summary', y);
+      for (const item of evidenceReferences.slice(0, 8)) {
+        const text = typeof item === 'string'
+          ? item
+          : item.label || item.title || item.sourceType || item.summary || JSON.stringify(item);
+        y = wrapText(pdf, `- ${text}`, M + 2, y, CW - 4);
+      }
+    } else if (hasDiagnosticsContent && vm.evidenceDiagnostics?.totals) {
+      y = sectionHeading(pdf, 'Evidence Summary', y);
+      y = wrapText(pdf, formatEvidenceTotals(vm.evidenceDiagnostics.totals) || 'No evidence available', M, y);
+    }
+
     // ══════ QA ══════
     if (vm.qa) {
       y = sectionHeading(pdf, 'Quality Assurance', y);
+      if (reportData?.latestStatus) { y = labelValue(pdf, 'Report Status', reportData.latestStatus, y); }
       if (vm.qa.coverageScore !== undefined) { y = labelValue(pdf, 'Coverage Score', `${vm.qa.coverageScore}/100`, y); }
       if (vm.qa.hallucinationRisk) { y = labelValue(pdf, 'Hallucination Risk', vm.qa.hallucinationRisk, y); }
       if (vm.qa.qualityFlags?.length) {
