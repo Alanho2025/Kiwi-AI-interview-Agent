@@ -40,13 +40,14 @@ export const analyzeStarrBreakdown = (answerText = '') => {
     reflection: reflectionScore 
   };
 
-  // Tie-breaker priority (lowest score wins, priority: Reflection > Result > Action > Task > Situation)
-  const priorityMap = { reflection: 5, resultOrReaction: 4, action: 3, task: 2, situation: 1 };
+  // Pick the most important missing core evidence first. Reflection is useful,
+  // but it should not hide missing situation, task, action, or result evidence.
+  const priorityMap = { resultOrReaction: 5, action: 4, task: 3, situation: 2, reflection: 1 };
   const mainMissingElement = Object.entries(scoreMap)
     .sort((a, b) => {
       if (a[1] !== b[1]) return a[1] - b[1];
-      return priorityMap[b[0]] - priorityMap[a[0]]; // higher priority is chosen if scores tie
-    })[0]?.[0] || 'reflection';
+      return priorityMap[b[0]] - priorityMap[a[0]];
+    })[0]?.[0] || 'resultOrReaction';
 
   const totalScore = situationScore + taskScore + actionScore + resultOrReactionScore + reflectionScore;
 
@@ -60,15 +61,13 @@ export const analyzeStarrBreakdown = (answerText = '') => {
     totalScore,
     maxScore: 10,
     mainMissingElement,
-    scoreReason: reflectionScore === 0 && totalScore >= 6
-      ? 'The answer contains good context and action but lacks a clear lesson or reflection.'
-      : resultOrReactionScore === 0
-        ? 'The answer does not include a clear outcome, impact, or stakeholder reaction.'
-        : actionScore === 0
-          ? 'The answer does not clearly show what the candidate personally did.'
-          : totalScore >= 8
-            ? 'The answer contains strong STARR evidence with minor room to sharpen detail.'
-            : 'The answer has partial STARR evidence and needs clearer context, responsibility, action, result, or reflection.',
+    scoreReason: situationScore === 0 || taskScore === 0 || actionScore === 0 || resultOrReactionScore === 0
+      ? 'The answer needs a clearer situation, task, action, and result before the reflection can be useful.'
+      : reflectionScore === 0
+        ? 'The answer contains the core STAR evidence but lacks a clear lesson or reflection.'
+        : totalScore >= 8
+          ? 'The answer contains strong STARR evidence with minor room to sharpen detail.'
+          : 'The answer has partial STARR evidence and needs clearer context, responsibility, action, result, or reflection.',
   };
 };
 
