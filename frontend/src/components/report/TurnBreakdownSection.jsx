@@ -4,6 +4,11 @@ import { EvidenceBadge } from './EvidenceBadge.jsx';
 
 const clampMicroScore = (score = 0) => Math.max(0, Math.min(10, Number(score || 0)));
 
+const formatStructureLabel = (label = '') => String(label || '')
+  .replace(/^resultOrReaction$/i, 'result')
+  .replace(/([A-Z])/g, ' $1')
+  .trim();
+
 const buildDimensionReason = ({ label, score, turn = {} }) => {
   const normalizedLabel = label.toLowerCase();
   const explicitReasons = turn.scoreReasons || turn.dimensionReasons || turn.scores?.reasons || {};
@@ -70,12 +75,12 @@ function StructureBreakdown({ turn }) {
       <div className="rounded-xl border border-slate-100 bg-white/70 p-4">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
           <h5 className="text-xs font-semibold uppercase tracking-wider text-slate-500">{turn.structureLabel || 'Answer Structure'}</h5>
-          {breakdown.mainMissingElement ? <p className="text-xs text-slate-500">Main gap: {breakdown.mainMissingElement}</p> : null}
+          {breakdown.mainMissingElement ? <p className="text-xs text-slate-500">Main gap: {formatStructureLabel(breakdown.mainMissingElement)}</p> : null}
         </div>
         <div className="mt-3 grid gap-2 sm:grid-cols-4">
           {entries.map(([label, value]) => (
             <div key={label} className="rounded-lg bg-slate-50 px-3 py-2">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{label.replace(/([A-Z])/g, ' $1')}</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{formatStructureLabel(label)}</p>
               <p className="mt-1 text-sm font-medium text-slate-800">{value || 'missing'}</p>
             </div>
           ))}
@@ -91,20 +96,16 @@ function StructureBreakdown({ turn }) {
     ['Task', starBreakdown.task],
     ['Action', starBreakdown.action],
     [turn.resultOrReactionLabel || 'Result', starBreakdown.resultOrReaction || starBreakdown.result],
+    ['Reflection', starBreakdown.reflection],
   ];
-  if (starBreakdown.reflection) {
-    parts.push(['Reflection', starBreakdown.reflection]);
-  }
-  
-  const gridCols = parts.length === 5 ? 'sm:grid-cols-5' : 'sm:grid-cols-4';
 
   return (
     <div className="rounded-xl border border-slate-100 bg-white/70 p-4">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
         <h5 className="text-xs font-semibold uppercase tracking-wider text-slate-500">STARR Evidence</h5>
-        {starBreakdown.mainMissingElement ? <p className="text-xs text-slate-500">Main gap: {starBreakdown.mainMissingElement}</p> : null}
+        {starBreakdown.mainMissingElement ? <p className="text-xs text-slate-500">Main gap: {formatStructureLabel(starBreakdown.mainMissingElement)}</p> : null}
       </div>
-      <div className={`mt-3 grid gap-2 ${gridCols}`}>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
         {parts.map(([label, value]) => (
           <div key={label} className="rounded-lg bg-slate-50 px-3 py-2">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{label}</p>
