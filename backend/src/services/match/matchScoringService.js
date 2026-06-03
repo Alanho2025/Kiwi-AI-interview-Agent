@@ -415,11 +415,15 @@ export const buildRequirementChecks = (requirements = [], _cvText, evidenceProfi
     const judgementEvidence = semanticEvidence.map((item) => `Matched evidence (${item.evidenceStrength || 'weak'}, ${Number(item.score || 0).toFixed(2)}): ${item.text}`);
     const rawEvidence = [...(requirement.evidence || []), ...match.evidence, ...judgementEvidence];
     const cleanedEvidence = sanitizeRequirementEvidence({ requirement, status: finalStatus, evidence: rawEvidence });
+    const evidenceStrength = evidenceStrengthMax([match.evidenceStrength, judgement?.evidenceStrength]);
+    const evidenceNotes = [match.detailNote, judgement?.reason]
+      .filter(Boolean)
+      .filter((item, index, rows) => rows.indexOf(item) === index);
     const notes = [
       `section=${match.matchedSection}`,
       `capabilities=${finalStatus === 'not_met' && isHardTechnicalRequirement(requirement, requirement.label) ? 'none' : match.matchedCapabilities.join(', ') || 'none'}`,
-      `evidenceStrength=${judgement?.evidenceStrength || match.evidenceStrength}`,
-      judgement?.reason || match.detailNote,
+      `evidenceStrength=${evidenceStrength}`,
+      ...evidenceNotes,
       judgement?.missingEvidence ? `missingEvidence=${judgement.missingEvidence}` : '',
       judgement?.interviewProbe ? `interviewProbe=${judgement.interviewProbe}` : '',
     ].filter(Boolean).join('; ');

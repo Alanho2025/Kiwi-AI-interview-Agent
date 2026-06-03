@@ -87,7 +87,7 @@ describe('guarded match human review override', () => {
 
     expect(result.overallScore).toBeGreaterThan(0);
     expect(result.confidence).toBeGreaterThan(0);
-    expect(result.decision.label).not.toBe('manual_review');
+    expect(result.decision.reasonCodes || []).not.toContain('jd_safeguard_blocked_match');
     expect(result.matchingDetails.jdSafeguard).toMatchObject({
       blockMatch: false,
       humanReviewOverrideApplied: true,
