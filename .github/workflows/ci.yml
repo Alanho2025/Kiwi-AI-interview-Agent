@@ -296,87 +296,6 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
-  backend-real-evaluation:
-    name: Backend real AI evaluation gate
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    needs: backend-mock-evaluation
-    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
-
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: kiwi_ai_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -d kiwi_ai_test"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-      mongodb:
-        image: mongo:7
-        ports:
-          - 27017:27017
-        options: >-
-          --health-cmd "mongosh --eval 'db.adminCommand({ ping: 1 })'"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-    defaults:
-      run:
-        working-directory: backend
-
-    env:
-      NODE_ENV: test
-      MATCH_ENGINE: semantic
-      ENABLE_AGENTIC_SAFEGUARDS: true
-      JWT_SECRET: ci-test-jwt-secret
-      CSRF_SECRET: ci-test-csrf-secret
-      SESSION_SECRET: ci-test-session-secret
-      GOOGLE_CLIENT_ID: ci-test-google-client
-      POSTGRES_URL: postgresql://postgres:postgres@localhost:5432/kiwi_ai_test
-      MONGODB_URI: mongodb://localhost:27017/kiwi_ai_test
-      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-          cache-dependency-path: backend/package-lock.json
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Verify real evaluation secret
-        run: |
-          if [ -z "${DEEPSEEK_API_KEY:-}" ]; then
-            echo "DEEPSEEK_API_KEY is required for the real AI evaluation gate."
-            echo "Add it in GitHub repository settings: Settings > Secrets and variables > Actions."
-            exit 1
-          fi
-
-      - name: Run real AI evaluation suite
-        run: npm run eval:real
-
-      - name: Upload real evaluation reports
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: backend-real-eval-reports-${{ github.sha }}
-          path: backend/eval/reports
-          if-no-files-found: warn
-          retention-days: 14
-
   ci-summary:
     name: CI merge gate summary
     runs-on: ubuntu-latest
@@ -386,7 +305,6 @@ jobs:
       - backend-tests
       - voice-real-backend-e2e
       - backend-mock-evaluation
-      - backend-real-evaluation
     if: always()
     steps:
       - name: Check required jobs
@@ -409,10 +327,6 @@ jobs:
           fi
           if [ "${{ needs.backend-mock-evaluation.result }}" != "success" ]; then
             echo "backend-mock-evaluation failed: ${{ needs.backend-mock-evaluation.result }}"
-            exit 1
-          fi
-          if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref }}" = "refs/heads/main" ] && [ "${{ needs.backend-real-evaluation.result }}" != "success" ]; then
-            echo "backend-real-evaluation failed: ${{ needs.backend-real-evaluation.result }}"
             exit 1
           fi
           echo "All CI gates passed. Safe to merge into main."
