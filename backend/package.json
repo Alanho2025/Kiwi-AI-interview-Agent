@@ -22,6 +22,7 @@
     "test:retrieval": "NODE_ENV=test AI_TEST_MODE=mock node tests/helpers/runVitestGroups.js tests/robustness/retrieval",
     "test:server": "NODE_ENV=test AI_TEST_MODE=mock node tests/helpers/runVitestGroups.js tests/robustness/server",
     "test:voice": "NODE_ENV=test AI_TEST_MODE=mock node tests/helpers/runVitestGroups.js tests/robustness/voice",
+    "test:prep-stability": "NODE_ENV=test AI_TEST_MODE=mock node tests/helpers/runVitestGroups.js tests/robustness/cv tests/robustness/jd tests/robustness/match tests/robustness/questions tests/robustness/retrieval tests/robustness/report tests/robustness/contracts",
     "eval:jd": "NODE_ENV=test AI_TEST_MODE=real node eval/runners/runJdParseEval.js",
     "eval:cv": "NODE_ENV=test AI_TEST_MODE=real node eval/runners/runCvParseEval.js",
     "eval:match": "NODE_ENV=test AI_TEST_MODE=real node eval/runners/runCvJdMatchEval.js",
@@ -50,6 +51,7 @@
     "eval:company-research": "NODE_ENV=test AI_TEST_MODE=mock node eval/runners/runCompanyResearchEval.js",
     "eval:voice-quality": "NODE_ENV=test AI_TEST_MODE=mock node eval/runners/runVoiceQualityEval.js",
     "eval:stability": "NODE_ENV=test AI_TEST_MODE=mock node eval/runners/runStabilityEval.js",
+    "eval:prep-stability": "NODE_ENV=test AI_TEST_MODE=mock node eval/runners/runPreparationStabilityEval.js",
     "eval:agent-framework": "npm run eval:retrieval && npm run eval:agent-trajectory && npm run eval:company-research && npm run eval:voice-quality && npm run eval:stability"
   },
   "dependencies": {
