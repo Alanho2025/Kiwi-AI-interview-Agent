@@ -52,7 +52,7 @@
       "cvFixture": "data-analyst-transition.txt",
       "jdFixture": "data-engineer-clean.txt",
       "decision": "not_qualified",
-      "overallScore": 49.08,
+      "overallScore": 44.4,
       "score": 0.96,
       "earned": 27,
       "possible": 28,
