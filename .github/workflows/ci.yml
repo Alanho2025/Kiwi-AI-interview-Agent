@@ -86,6 +86,7 @@ jobs:
       JWT_SECRET: ci-test-jwt-secret
       CSRF_SECRET: ci-test-csrf-secret
       SESSION_SECRET: ci-test-session-secret
+      GOOGLE_CLIENT_ID: ci-test-google-client
       POSTGRES_URL: postgresql://postgres:postgres@localhost:5432/kiwi_ai_test
       MONGODB_URI: mongodb://localhost:27017/kiwi_ai_test
 
@@ -265,6 +266,7 @@ jobs:
       JWT_SECRET: ci-test-jwt-secret
       CSRF_SECRET: ci-test-csrf-secret
       SESSION_SECRET: ci-test-session-secret
+      GOOGLE_CLIENT_ID: ci-test-google-client
       POSTGRES_URL: postgresql://postgres:postgres@localhost:5432/kiwi_ai_test
       MONGODB_URI: mongodb://localhost:27017/kiwi_ai_test
 
@@ -336,6 +338,7 @@ jobs:
       JWT_SECRET: ci-test-jwt-secret
       CSRF_SECRET: ci-test-csrf-secret
       SESSION_SECRET: ci-test-session-secret
+      GOOGLE_CLIENT_ID: ci-test-google-client
       POSTGRES_URL: postgresql://postgres:postgres@localhost:5432/kiwi_ai_test
       MONGODB_URI: mongodb://localhost:27017/kiwi_ai_test
       DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
