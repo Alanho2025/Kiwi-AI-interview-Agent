@@ -4,6 +4,7 @@ import { rankSemanticEvidence } from './semanticMatchService.js';
 
 const TOP_K = 3;
 const SCORE_FLOOR = 0.24;
+const EVIDENCE_STRENGTH_RANK = { strong: 3, partial: 2, weak: 1, missing: 0 };
 
 const buildRequirementCandidates = (rubric = {}) => {
   const candidates = [
@@ -55,7 +56,11 @@ const toMatchMap = (ranked = {}) => {
       .map((match) => ({
         ...match,
         score: Number(Number(match.score || 0).toFixed(4)),
-      }));
+      }))
+      .sort((a, b) => (
+        (EVIDENCE_STRENGTH_RANK[b.evidenceStrength] || 0) - (EVIDENCE_STRENGTH_RANK[a.evidenceStrength] || 0)
+        || Number(b.score || 0) - Number(a.score || 0)
+      ));
     const normalized = {
       requirementId: item.requirementId,
       label: item.label,
