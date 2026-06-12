@@ -51,7 +51,7 @@ export function EvidenceBadge({
 
       {/* Tooltip */}
       {showTooltip && (
-        <div className="absolute z-50 w-72 p-3 mt-2 text-sm bg-white border border-slate-200 rounded-lg shadow-xl top-full left-0 -translate-x-1/4">
+        <div className="absolute z-[9999] w-72 p-3 mb-2 text-sm bg-white border border-slate-200 rounded-lg shadow-xl bottom-full left-0 sm:left-1/2 sm:-translate-x-1/2">
           <div className="font-semibold text-slate-800 mb-1">Evidence Breakdown</div>
           <p className="text-slate-600 text-xs mb-2 leading-relaxed">{evidenceReason}</p>
           
