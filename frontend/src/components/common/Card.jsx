@@ -19,7 +19,7 @@ import { cn } from '../../utils/formatters.js';
  */
 export function Card({ className, children, ...props }) {
   return (
-    <div className={cn("overflow-hidden rounded-2xl border border-theme glass shadow-sm", className)} {...props}>
+    <div className={cn("rounded-2xl border border-theme glass shadow-sm", className)} {...props}>
       {children}
     </div>
   );

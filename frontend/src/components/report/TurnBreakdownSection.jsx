@@ -139,7 +139,7 @@ export function TurnBreakdownSection({ turnBreakdowns }) {
             return (
               <div 
                 key={index} 
-                className={`overflow-hidden rounded-2xl border transition-all duration-200 ${
+                className={`relative hover:z-50 rounded-2xl border transition-all duration-200 ${
                   isExpanded ? 'border-indigo-200 glass shadow-md' : 'border-gray-100 bg-transparent hover:border-theme cursor-pointer'
                 }`}
                 onClick={() => !isExpanded && setExpandedIndex(index)}
