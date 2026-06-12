@@ -30,7 +30,7 @@ export function CoachingSection({ improvementPriorities, coachingAdvice }) {
         <CardContent>
           <div className="space-y-4">
             {improvementPriorities.map((item) => (
-              <div key={item.title} className="rounded-2xl border border-sky-100 bg-sky-50 p-4">
+              <div key={item.title} className="relative hover:z-50 rounded-2xl border border-sky-100 bg-sky-50 p-4">
                 <h3 className="text-base font-semibold text-sky-950">{item.title}</h3>
                 <p className="mt-2 text-sm leading-6 text-sky-900">{item.whyItMatters || item.detail}</p>
                 <p className="mt-3 rounded-xl glass/80 p-3 text-sm leading-6 text-sky-900">
@@ -52,7 +52,7 @@ export function CoachingSection({ improvementPriorities, coachingAdvice }) {
         <CardContent>
           <div className="space-y-4">
             {coachingAdvice.map((item, index) => (
-              <div key={`${item.theme || item.weak}-${index}`} className="rounded-2xl border border-gray-100 p-4">
+              <div key={`${item.theme || item.weak}-${index}`} className="relative hover:z-50 rounded-2xl border border-gray-100 p-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-700">{item.theme || 'Coaching point'}</p>
                 <p className="mt-2 text-sm leading-6 text-primary">{item.advice}</p>
                 <p className="mt-3 rounded-xl bg-sky-50 p-3 text-sm leading-6 text-sky-900">
