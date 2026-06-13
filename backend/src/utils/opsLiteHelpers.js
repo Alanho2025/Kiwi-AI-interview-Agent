@@ -98,6 +98,17 @@ export const resolveVoiceResponseLatencyMs = (event = {}) => {
     );
 };
 
+export const resolveEffectiveQuestionGapMs = (event = {}) => {
+    const latency = getLatencyPayload(event);
+    const derived = event.derived || event.trace?.derived || latency.derived || {};
+    return firstFinite(
+        latency.effectiveQuestionGapMs,
+        event.effectiveQuestionGapMs,
+        event.voiceLatency?.effectiveQuestionGapMs,
+        derived.effectiveQuestionGapMs,
+    );
+};
+
 /**
  * Resolves total runtime from event
  * @param {Object} event - Event object with latency data

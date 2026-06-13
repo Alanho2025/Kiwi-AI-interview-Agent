@@ -712,6 +712,50 @@ describe('opsLiteService', () => {
 
                 expect(result.latency.voiceResponseLatencyMs).toBe(1000);
             });
+
+            it('should average effective question gaps when client voice traces are available', async () => {
+                SessionAnalysis.lean.mockResolvedValue([
+                    {
+                        sessionId: 'session1',
+                        agentTraceEvents: [
+                            {
+                                mode: 'voice',
+                                eventType: 'speech_to_text_completed',
+                                latencyBreakdown: {
+                                    ttsFirstAudioMs: 12000,
+                                    totalTurnMs: 15000,
+                                },
+                            },
+                            {
+                                mode: 'voice',
+                                eventType: 'voice_latency_trace',
+                                latencyBreakdown: {
+                                    effectiveQuestionGapMs: 900,
+                                    speechEndToAiSpeechStartMs: 2400,
+                                    acknowledgementToAiSpeechStartMs: 900,
+                                },
+                            },
+                            {
+                                mode: 'voice',
+                                eventType: 'voice_latency_trace',
+                                latencyBreakdown: {
+                                    effectiveQuestionGapMs: 1100,
+                                    speechEndToAiSpeechStartMs: 1800,
+                                    acknowledgementToAiSpeechStartMs: 1100,
+                                },
+                            },
+                        ],
+                        trajectoryRecords: [],
+                        reportArtifacts: [],
+                    },
+                ]);
+
+                const result = await buildRuntimeOpsSummary();
+
+                expect(result.latency.voiceLatencySampleCount).toBe(2);
+                expect(result.latency.averageQuestionGapLatencyMs).toBe(1000);
+                expect(result.latency.voiceResponseLatencyMs).toBe(1000);
+            });
         });
 
         describe('edge cases', () => {

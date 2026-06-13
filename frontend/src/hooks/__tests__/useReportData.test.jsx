@@ -23,6 +23,7 @@ describe('useReportData', () => {
     const mockSessionId = 'test-session-123';
 
     beforeEach(() => {
+        vi.useRealTimers();
         vi.clearAllMocks();
         // Mock DOM APIs for file download
         global.URL.createObjectURL = vi.fn(() => 'blob:mock-url');
@@ -333,6 +334,37 @@ describe('useReportData', () => {
     });
 
     describe('Download Recording', () => {
+        it('polls recording status until a delayed MP3 becomes available', async () => {
+            vi.useFakeTimers();
+            try {
+                vi.setSystemTime(new Date('2026-06-13T10:00:00.000Z'));
+                vi.mocked(reportApi.getReport).mockResolvedValue({ sessionId: mockSessionId });
+                vi.mocked(recordingApi.getSessionRecordingStatus)
+                    .mockResolvedValueOnce({ available: false })
+                    .mockResolvedValueOnce({ available: true });
+
+                const { result } = renderHook(() => useReportData(mockSessionId));
+
+                await act(async () => {
+                    await Promise.resolve();
+                    await Promise.resolve();
+                });
+
+                expect(result.current.recordingStatus.state).toBe('missing');
+
+                await act(async () => {
+                    vi.setSystemTime(new Date('2026-06-13T10:00:02.000Z'));
+                    await vi.advanceTimersByTimeAsync(2000);
+                });
+
+                expect(result.current.recordingStatus.state).toBe('ready');
+                expect(result.current.recordingStatus.available).toBe(true);
+                expect(recordingApi.getSessionRecordingStatus).toHaveBeenCalledTimes(2);
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+
         it('should successfully download MP3 recording', async () => {
             vi.mocked(reportApi.getReport).mockResolvedValue({ sessionId: mockSessionId });
             vi.mocked(recordingApi.getSessionRecordingStatus).mockResolvedValue({ available: true });

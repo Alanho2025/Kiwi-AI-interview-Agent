@@ -17,6 +17,7 @@ import {
   buildEmptyEvalReportSummary,
   getLatencyPayload,
   resolveVoiceResponseLatencyMs,
+  resolveEffectiveQuestionGapMs,
   resolveRuntimeTotalMs,
   resolveLatencyDurationMs,
   firstFinite,
@@ -217,7 +218,9 @@ export const buildRuntimeOpsSummary = async ({ userId = null } = {}) => {
 
   const modelAssistedTurns = trajectories.filter((item) => item.selectionSource === 'model_assisted').length;
   const latencyEvents = traceEvents.filter((event) => Object.keys(getLatencyPayload(event)).length > 0);
-  const voiceLatencyValues = latencyEvents.map(resolveVoiceResponseLatencyMs).filter((value) => value != null);
+  const effectiveQuestionGapValues = latencyEvents.map(resolveEffectiveQuestionGapMs).filter((value) => value != null);
+  const fallbackVoiceLatencyValues = latencyEvents.map(resolveVoiceResponseLatencyMs).filter((value) => value != null);
+  const voiceLatencyValues = effectiveQuestionGapValues.length ? effectiveQuestionGapValues : fallbackVoiceLatencyValues;
   const runtimeTotalValues = latencyEvents.map(resolveRuntimeTotalMs).filter((value) => value != null);
   const averageVoiceResponseLatencyMs = average(voiceLatencyValues);
   const averageRuntimeTraceTotalMs = average(runtimeTotalValues);

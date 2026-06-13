@@ -5,13 +5,14 @@
 
 export const buildOpeningQuestion = ({ roleLabel = 'the role', companyName = '', level = 'junior' } = {}) => {
     const companyClause = companyName ? ` with ${companyName}` : '';
+    const roleContext = companyName ? `the ${roleLabel} role at ${companyName}` : `the ${roleLabel} role`;
     if (String(level) === 'advanced') {
-        return `Hi, thanks for joining today${companyClause}. To get us started, could you introduce yourself and walk me through the parts of your background that best prepare you for this ${roleLabel} interview?`;
+        return `Hi, thanks for joining today${companyClause}. To get us started, could you introduce yourself and walk me through the parts of your background that best prepare you for ${roleContext}?`;
     }
     if (String(level) === 'intermediate') {
-        return `Hi, thanks for being here today${companyClause}. To start, could you briefly introduce yourself and highlight the experience most relevant to this ${roleLabel} interview?`;
+        return `Hi, thanks for being here today${companyClause}. To start, could you briefly introduce yourself and highlight the experience most relevant to ${roleContext}?`;
     }
-    return `Hi, thanks for joining today${companyClause}. Could you briefly introduce yourself and explain what interested you in this ${roleLabel} interview?`;
+    return `Hi, thanks for joining today${companyClause}. Could you briefly introduce yourself and explain what interested you in ${roleContext}?`;
 };
 
 export const buildWrapUpQuestion = () => ({

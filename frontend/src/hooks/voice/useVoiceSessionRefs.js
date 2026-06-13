@@ -15,6 +15,7 @@ export function useVoiceSessionRefs() {
     consecutiveSlowTurnsRef: useRef(0),
     latencyAcknowledgementTimerRef: useRef(null),
     lastLatencyAcknowledgementAtRef: useRef(0),
+    voiceLatencyTraceSenderRef: useRef(null),
     noSpeechPromptedRef: useRef(false),
     completedCleanupDoneRef: useRef(false),
     startListeningRef: useRef(null),

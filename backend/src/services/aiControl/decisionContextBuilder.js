@@ -340,6 +340,7 @@ export const buildDecisionContext = async ({
         mentionedEntities: ensureArray(resolvedLatestEvaluation.mentionedEntities),
         answerUnderstandingSummary: resolvedLatestEvaluation.answerUnderstandingSummary || null,
         plannerSignals: resolvedLatestEvaluation.plannerSignals || null,
+        skillDenial: resolvedLatestEvaluation.skillDenial || resolvedLatestEvaluation.plannerSignals?.skillDenial || null,
         fastAnswerUnderstanding: resolvedAnswerUnderstanding,
         gapClosure: resolvedLatestEvaluation.gapClosure || null,
         closeCurrentIntent: Boolean(resolvedLatestEvaluation.closeCurrentIntent),

@@ -12,6 +12,7 @@ import { createBargeInController } from './bargeInController.js';
 import { createDuplexTurnCoordinator } from './duplexTurnCoordinator.js';
 import { buildSessionSpeechPhraseList } from './speechPhraseHintService.js';
 import { AGENT_TOOL_NAMES } from '../../constants/agentToolNames.js';
+import { recordAgentTraceEvent } from '../aiControl/agentTraceService.js';
 
 const DEFAULT_SPEECH_STOP_TIMEOUT_MS = 2500;
 const MAX_PENDING_AUDIO_CHUNKS = 1200;
@@ -56,6 +57,32 @@ const estimatePcmDurationMs = ({ bytes = 0, sampleRate = 16000 } = {}) => {
   const rate = Number(sampleRate) || 16000;
   if (!bytes || !rate) return null;
   return Math.round((bytes / (rate * PCM_CHANNELS * PCM_BYTES_PER_SAMPLE)) * 1000);
+};
+
+const toFiniteNumberOrNull = (value) => {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+};
+
+const buildClientVoiceLatencyPayload = (payload = {}) => {
+  const trace = payload.trace || {};
+  const derived = trace.derived || {};
+  const latencyBreakdown = {
+    effectiveQuestionGapMs: toFiniteNumberOrNull(derived.effectiveQuestionGapMs),
+    speechEndToAiSpeechStartMs: toFiniteNumberOrNull(derived.speechEndToAiSpeechStartMs),
+    acknowledgementToAiSpeechStartMs: toFiniteNumberOrNull(derived.acknowledgementToAiSpeechStartMs),
+    stopToNextAudioMs: toFiniteNumberOrNull(derived.stopToNextAudioMs),
+    vadToPlaybackMs: toFiniteNumberOrNull(derived.vadToPlaybackMs),
+  };
+
+  return {
+    traceId: trace.traceId || null,
+    turnId: trace.turnId || null,
+    traceType: trace.traceType || 'voice_turn',
+    target: trace.target || 'effective_question_gap',
+    latencyBreakdown,
+    clientTimestamp: payload.clientTimestamp || null,
+  };
 };
 
 const withTimeout = (promise, timeoutMs, message) => new Promise((resolve, reject) => {
@@ -536,6 +563,19 @@ export const createDuplexVoiceAgentSession = ({
 
       if (payload.type === 'barge_in' || payload.type === 'cancel_assistant_audio') {
         bargeInController.handleBargeIn(payload.reason || payload.type);
+        return;
+      }
+
+      if (payload.type === 'voice_latency_trace') {
+        const tracePayload = buildClientVoiceLatencyPayload(payload);
+        if (tracePayload.latencyBreakdown.effectiveQuestionGapMs != null) {
+          await recordAgentTraceEvent({
+            sessionId: activeSession?.id || session?.id,
+            eventType: 'voice_latency_trace',
+            mode: 'voice',
+            payload: tracePayload,
+          });
+        }
         return;
       }
 
