@@ -33,9 +33,9 @@ const getDeepSeekTimeoutMs = () => {
   return Number.isFinite(configured) && configured > 0 ? configured : 30000;
 };
 
-const buildTimeoutSignal = () => (
+const buildTimeoutSignal = (overrideTimeoutMs) => (
   typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function'
-    ? AbortSignal.timeout(getDeepSeekTimeoutMs())
+    ? AbortSignal.timeout(overrideTimeoutMs || getDeepSeekTimeoutMs())
     : undefined
 );
 
@@ -194,6 +194,7 @@ export const callDeepSeek = async (
     temperature,
     top_p,
     generationConfig,
+    timeoutMs,
   } = {},
 ) => {
   try {
@@ -204,7 +205,7 @@ export const callDeepSeek = async (
 
     const response = await fetch('https://api.deepseek.com/chat/completions', {
       method: 'POST',
-      signal: buildTimeoutSignal(),
+      signal: buildTimeoutSignal(timeoutMs),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`
@@ -249,6 +250,7 @@ export const callDeepSeekStream = async function* (
     temperature,
     top_p,
     generationConfig,
+    timeoutMs,
   } = {},
 ) {
   const apiKey = resolveDeepSeekApiKey();
@@ -259,7 +261,7 @@ export const callDeepSeekStream = async function* (
 
   const response = await fetch('https://api.deepseek.com/chat/completions', {
     method: 'POST',
-    signal: buildTimeoutSignal(),
+    signal: buildTimeoutSignal(timeoutMs),
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${apiKey}`
