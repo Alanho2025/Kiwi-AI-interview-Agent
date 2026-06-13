@@ -150,9 +150,11 @@ export function useVoiceInterviewSession({
     sendSpeechEnd,
     sendBargeIn,
     speakText,
+    sendVoiceLatencyTrace,
     sendPing,
     stopSession,
   } = duplexSocket;
+  refs.voiceLatencyTraceSenderRef.current = sendVoiceLatencyTrace;
 
   const realtimeMic = useRealtimeMicStream({ onAudioChunk: sendAudioChunk });
   const {

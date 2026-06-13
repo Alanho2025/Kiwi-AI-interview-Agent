@@ -148,6 +148,11 @@ export function useVoiceLatencyController({
         expectedNextAction: context.expectedNextAction || null,
         currentSection: context.currentSection || null,
         questionType: context.questionType || null,
+        onStart: () => {
+          activeVoiceTurnTraceRef.current?.mark('latency_acknowledgement_play_start', {
+            source: 'deterministic_browser_bridge',
+          });
+        },
       });
 
       if (phrase) {
@@ -156,6 +161,7 @@ export function useVoiceLatencyController({
       }
     }, LATENCY_ACK_DELAY_MS);
   }, [
+    activeVoiceTurnTraceRef,
     autoLoopActiveRef,
     clearLatencyAcknowledgementTimer,
     firstAudioChunkSeenRef,

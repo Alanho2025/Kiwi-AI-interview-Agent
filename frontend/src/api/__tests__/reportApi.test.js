@@ -13,8 +13,12 @@ const pdfMocks = vi.hoisted(() => {
     setFontSize = vi.fn();
     setFont = vi.fn();
     setTextColor = vi.fn();
+    setFillColor = vi.fn();
     setDrawColor = vi.fn();
+    setLineWidth = vi.fn();
     line = vi.fn();
+    rect = vi.fn();
+    roundedRect = vi.fn();
     addPage = vi.fn(() => {
       this.pageCount += 1;
     });
@@ -73,15 +77,14 @@ describe('report PDF export', () => {
     const pdf = pdfMocks.instances.at(-1);
     const renderedText = pdf.textCalls.join('\n');
 
-    expect(renderedText).toContain('Candidate & Role');
-    expect(renderedText).toContain('Candidate: ');
+    expect(renderedText).toContain('Interview Report');
+    expect(renderedText).toContain('CANDIDATE');
     expect(renderedText).toContain('Aroha Candidate');
-    expect(renderedText).toContain('Target Role: ');
+    expect(renderedText).toContain('TARGET ROLE');
     expect(renderedText).toContain('Frontend Developer');
-    expect(renderedText).toContain('QA Status: ');
-    expect(renderedText).toContain('needs_review');
-    expect(renderedText).toContain('Evidence Summary');
-    expect(renderedText).toContain('- Transcript answer about React testing');
+    expect(renderedText).toContain('Needs review');
+    expect(renderedText).toContain('Evidence Sources');
+    expect(renderedText).toContain('Transcript answer about React testing');
     expect(renderedText).not.toContain('NaN');
     expect(pdf.savedFilename).toBe('kiwi-ai-report-session-pdf-quality.pdf');
   });
@@ -105,7 +108,7 @@ describe('report PDF export', () => {
     });
 
     const renderedText = pdfMocks.instances.at(-1).textCalls.join('\n');
-    expect(renderedText).toContain('Evidence Summary');
+    expect(renderedText).toContain('Evidence sources');
     expect(renderedText).toContain('No evidence available');
   });
 });
