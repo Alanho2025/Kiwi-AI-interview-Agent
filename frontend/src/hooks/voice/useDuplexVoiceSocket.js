@@ -444,6 +444,17 @@ export function useDuplexVoiceSocket({
 
   const sendBargeIn = useCallback((reason = 'user_started_speaking') => sendJson({ type: 'barge_in', reason, clientTimestamp: Date.now() }), [sendJson]);
   const speakText = useCallback((text) => sendJson({ type: 'speak_text', text, clientTimestamp: Date.now() }), [sendJson]);
+  const sendVoiceLatencyTrace = useCallback((trace = {}) => sendJson({
+    type: 'voice_latency_trace',
+    trace: {
+      traceId: trace.traceId || null,
+      turnId: trace.turnId || null,
+      traceType: trace.traceType || 'voice_turn',
+      target: trace.target || 'effective_question_gap',
+      derived: trace.derived || {},
+    },
+    clientTimestamp: Date.now(),
+  }), [sendJson]);
   const sendPing = useCallback(() => {
     pingSentAtRef.current = performance.now();
     return sendJson({ type: 'ping', clientTimestamp: Date.now() });
@@ -465,7 +476,8 @@ export function useDuplexVoiceSocket({
     sendSpeechEnd,
     sendBargeIn,
     speakText,
+    sendVoiceLatencyTrace,
     sendPing,
     stopSession,
-  }), [socketState, partialTranscript, finalTranscript, socketError, latency, connect, closeSocket, sendAudioChunk, sendSpeechStart, sendSpeechEnd, sendBargeIn, speakText, sendPing, stopSession]);
+  }), [socketState, partialTranscript, finalTranscript, socketError, latency, connect, closeSocket, sendAudioChunk, sendSpeechStart, sendSpeechEnd, sendBargeIn, speakText, sendVoiceLatencyTrace, sendPing, stopSession]);
 }

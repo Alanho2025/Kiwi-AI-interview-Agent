@@ -1,9 +1,46 @@
 import { AGENT_ACTION_TYPES } from '../../constants/agentActionTypes.js';
-import { ensureArray, clamp } from '../../utils/commonHelpers.js';
+import { ensureArray, clamp, normalizeKey } from '../../utils/commonHelpers.js';
 
 const includesAny = (values = [], needles = []) => needles.some((needle) => values.includes(needle));
 const normalizeFocusAreaKey = (value = 'combined') => String(value || 'combined').trim().toLowerCase().replace('behavioural', 'behavioral');
 const clampPriority = (value = 0) => clamp(value, 0, 1);
+const normalizedTopic = (value = '') => normalizeKey(value).replace(/[^a-z0-9]+/g, ' ').trim();
+
+const topicsMatch = (source = '', target = '') => {
+  const sourceKey = normalizedTopic(source);
+  const targetKey = normalizedTopic(target);
+  return Boolean(sourceKey && targetKey && (sourceKey.includes(targetKey) || targetKey.includes(sourceKey)));
+};
+
+const getSkillDenialState = (evaluatorState = {}) => evaluatorState.skillDenial || evaluatorState.plannerSignals?.skillDenial || {};
+
+const targetWasDenied = (target = '', skillDenialState = {}) => ensureArray(skillDenialState.deniedTargets)
+  .some((deniedTarget) => topicsMatch(target, deniedTarget));
+
+const filterDeniedValidationTargets = (validationTargets = [], skillDenialState = {}) => ensureArray(validationTargets)
+  .filter((target) => !targetWasDenied(target, skillDenialState));
+
+const resolveTargetTopic = ({
+  currentTopic = '',
+  dynamicSlotState = {},
+  matchState = {},
+  coverageState = {},
+  abductiveState = {},
+  skillDenialState = {},
+} = {}) => {
+  const candidateTopics = [
+    currentTopic,
+    dynamicSlotState.activeSlotTopics?.[0],
+    matchState.validationTargets?.[0],
+    abductiveState.probeTopic,
+    coverageState.missingTopics?.[0],
+    ensureArray(skillDenialState.alternativeTools)[0],
+    'role_fit',
+  ];
+  const safeTopic = candidateTopics.find((topic) => topic && !targetWasDenied(topic, skillDenialState));
+  if (safeTopic) return safeTopic;
+  return 'role_fit';
+};
 
 const MODEL_SELECTION_BLOCKED_ACTIONS = new Set([
   AGENT_ACTION_TYPES.GENERATE_REPORT_DRAFT,
@@ -139,18 +176,24 @@ export const selectNextAction = (decisionContext = {}) => {
   const agentMemory = decisionContext.agentMemory || {};
   const currentStage = String(decisionContext.currentStage || '').toLowerCase();
   const focusAreaKey = normalizeFocusAreaKey(interviewStructure.focusAreaKey || decisionContext.focusArea || 'combined');
-  const targetTopic = decisionContext.currentTopic
-    || evaluatorState.currentTopic
-    || dynamicSlotState.activeSlotTopics?.[0]
-    || matchState.validationTargets?.[0]
-    || abductiveState.probeTopic
-    || coverageState.missingTopics?.[0]
-    || 'role_fit';
+  const skillDenialState = getSkillDenialState(evaluatorState);
+  const activeMatchState = {
+    ...matchState,
+    validationTargets: filterDeniedValidationTargets(matchState.validationTargets, skillDenialState),
+  };
+  const targetTopic = resolveTargetTopic({
+    currentTopic: decisionContext.currentTopic || evaluatorState.currentTopic,
+    dynamicSlotState,
+    matchState: activeMatchState,
+    coverageState,
+    abductiveState,
+    skillDenialState,
+  });
   const shouldProbeWeakEvidence = candidateState.specificityLevel === 'low' || evaluatorState.suggestedNextMode === 'probe';
   const finalizePlan = (basePlan, candidateActions = null) => (
     candidateActions
       ? withCandidateActions(basePlan, candidateActions)
-      : withDefaultCandidates({ basePlan, targetTopic, coverageState, matchState, evaluatorState, focusAreaKey })
+      : withDefaultCandidates({ basePlan, targetTopic, coverageState, matchState: activeMatchState, evaluatorState, focusAreaKey })
   );
 
   if (decisionContext.taskType === 'generate_report') {
@@ -278,12 +321,12 @@ export const selectNextAction = (decisionContext = {}) => {
     });
   }
 
-  if (matchState.validationTargets?.length && focusAreaKey !== 'behavioral' && !shouldProbeWeakEvidence) {
+  if (activeMatchState.validationTargets?.length && focusAreaKey !== 'behavioral' && !shouldProbeWeakEvidence) {
     return finalizePlan({
       selectedAction: AGENT_ACTION_TYPES.ASK_VALIDATION_QUESTION,
       rationale: 'There are unresolved validation targets and the latest answer has enough substance for direct validation before generic friction or stress probes.',
       confidence: 0.88,
-      actionInput: { targetTopic: matchState.validationTargets[0], probeType: 'validation', forceEvidence: true },
+      actionInput: { targetTopic: activeMatchState.validationTargets[0], probeType: 'validation', forceEvidence: true },
     });
   }
 
@@ -402,20 +445,20 @@ export const selectNextAction = (decisionContext = {}) => {
     });
   }
 
-  if (matchState.validationTargets?.length) {
+  if (activeMatchState.validationTargets?.length) {
     if (focusAreaKey === 'behavioral') {
       return finalizePlan({
         selectedAction: AGENT_ACTION_TYPES.ASK_PROBING_QUESTION,
         rationale: 'There are validation targets, but behavioural mode requires evidence through behaviour, action, and result instead of technical validation.',
         confidence: 0.82,
-        actionInput: { targetTopic: matchState.validationTargets[0], probeType: 'behavioural_validation', forceEvidence: true },
+        actionInput: { targetTopic: activeMatchState.validationTargets[0], probeType: 'behavioural_validation', forceEvidence: true },
       });
     }
     return finalizePlan({
       selectedAction: AGENT_ACTION_TYPES.ASK_VALIDATION_QUESTION,
       rationale: 'There are unresolved validation targets that should be checked with direct evidence.',
       confidence: 0.82,
-      actionInput: { targetTopic: matchState.validationTargets[0], probeType: 'validation', forceEvidence: true },
+      actionInput: { targetTopic: activeMatchState.validationTargets[0], probeType: 'validation', forceEvidence: true },
     });
   }
 

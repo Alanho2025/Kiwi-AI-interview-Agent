@@ -13,6 +13,17 @@ const hasCurrentTurnFirstAudioChunk = (trace = null) => {
   ));
 };
 
+const hasCurrentTurnEvent = (trace = null, eventName = '') => {
+  const snapshot = trace?.toJSON?.();
+  const events = Array.isArray(snapshot?.events) ? snapshot.events : [];
+  const turnId = snapshot?.turnId || null;
+
+  return events.some((event) => (
+    event?.name === eventName
+    && (!turnId || event.turnId === turnId)
+  ));
+};
+
 export function useAssistantPlaybackController({
   refs,
   isPaused,
@@ -31,6 +42,7 @@ export function useAssistantPlaybackController({
     activeVoiceTurnTraceRef,
     activeBackendLatencyRef,
     firstAudioChunkSeenRef,
+    voiceLatencyTraceSenderRef,
     startListeningRef,
     isAssistantSpeakingRef,
   } = refs;
@@ -46,6 +58,10 @@ export function useAssistantPlaybackController({
       const activeTrace = activeVoiceTurnTraceRef.current;
       if (firstAudioChunkSeenRef.current && hasCurrentTurnFirstAudioChunk(activeTrace)) {
         activeTrace?.mark('assistant_audio_play_start');
+        if (!hasCurrentTurnEvent(activeTrace, 'voice_latency_trace_sent')) {
+          voiceLatencyTraceSenderRef.current?.(activeTrace?.toJSON?.());
+          activeTrace?.mark('voice_latency_trace_sent');
+        }
         logVoiceLatencySummary('assistant_playback_start', activeBackendLatencyRef.current);
       } else {
         console.warn('[voice-latency] Skipping assistant playback latency mark because the active trace does not match the current TTS audio chunk.', {

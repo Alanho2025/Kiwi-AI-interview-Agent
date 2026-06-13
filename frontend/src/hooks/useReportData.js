@@ -15,6 +15,15 @@ import { downloadSessionRecording, getSessionRecordingStatus } from '../api/reco
 import { EXPORT_AUDIT_TIMEOUT_MS } from '../constants/reportConstants.js';
 import { buildStatus, isMissingReportError, withTimeout, formatReportAsText } from '../utils/reportHelpers.js';
 
+const RECORDING_STATUS_POLL_INTERVAL_MS = 2000;
+const RECORDING_STATUS_POLL_TIMEOUT_MS = 60000;
+
+const toRecordingStatusState = (result = {}) => ({
+  state: result?.available ? 'ready' : 'missing',
+  available: Boolean(result?.available),
+  error: null,
+});
+
 export function useReportData(sessionId) {
   const [reportData, setReportData] = useState(null);
   const [status, setStatus] = useState(buildStatus('info', 'Report', 'Generate a structured report for this session.'));
@@ -50,17 +59,33 @@ export function useReportData(sessionId) {
 
   useEffect(() => {
     let cancelled = false;
+    let timer = null;
+    const startedAt = Date.now();
+
+    const clearPollTimer = () => {
+      if (!timer) return;
+      window.clearTimeout(timer);
+      timer = null;
+    };
+
+    const scheduleNextCheck = (callback) => {
+      const elapsedMs = Date.now() - startedAt;
+      const remainingMs = RECORDING_STATUS_POLL_TIMEOUT_MS - elapsedMs;
+      if (remainingMs <= 0) return;
+      timer = window.setTimeout(callback, Math.min(RECORDING_STATUS_POLL_INTERVAL_MS, remainingMs));
+    };
 
     const loadRecordingStatus = async () => {
-      setRecordingStatus({ state: 'checking', available: false, error: null });
       try {
         const result = await getSessionRecordingStatus(sessionId);
         if (cancelled) return;
-        setRecordingStatus({
-          state: result?.available ? 'ready' : 'missing',
-          available: Boolean(result?.available),
-          error: null,
-        });
+
+        const nextStatus = toRecordingStatusState(result);
+        setRecordingStatus(nextStatus);
+
+        if (!nextStatus.available) {
+          scheduleNextCheck(loadRecordingStatus);
+        }
       } catch (error) {
         if (cancelled) return;
         setRecordingStatus({
@@ -71,10 +96,12 @@ export function useReportData(sessionId) {
       }
     };
 
+    setRecordingStatus({ state: 'checking', available: false, error: null });
     loadRecordingStatus();
 
     return () => {
       cancelled = true;
+      clearPollTimer();
     };
   }, [sessionId]);
 

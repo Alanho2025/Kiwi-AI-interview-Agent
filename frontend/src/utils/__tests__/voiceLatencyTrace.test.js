@@ -19,7 +19,26 @@ describe('createVoiceLatencyTrace', () => {
     expect(json.derived.stopToSubmitMs).toBe(300);
     expect(json.derived.submitToResponseMs).toBe(1200);
     expect(json.derived.speechEndToAiSpeechStartMs).toBe(2200);
+    expect(json.derived.effectiveQuestionGapMs).toBe(2200);
     expect(json.derived.stopToNextAudioMs).toBe(2200);
+    performance.now.mockRestore();
+  });
+
+  it('uses deterministic acknowledgement to calculate the effective question gap when it is shorter', () => {
+    let now = 1000;
+    vi.spyOn(performance, 'now').mockImplementation(() => now);
+    const trace = createVoiceLatencyTrace({ sessionId: 's1', turnId: 't1' });
+
+    trace.mark('vad_speech_end', { turnId: 't1' });
+    now += 1500;
+    trace.mark('latency_acknowledgement_play_start', { turnId: 't1' });
+    now += 900;
+    trace.mark('assistant_audio_play_start', { turnId: 't1' });
+
+    const json = trace.toJSON();
+    expect(json.derived.speechEndToAiSpeechStartMs).toBe(2400);
+    expect(json.derived.acknowledgementToAiSpeechStartMs).toBe(900);
+    expect(json.derived.effectiveQuestionGapMs).toBe(900);
     performance.now.mockRestore();
   });
 

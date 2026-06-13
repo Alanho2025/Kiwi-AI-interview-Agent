@@ -1,5 +1,13 @@
 const getEventKey = (event) => event?.key || event?.name;
 
+const minFinite = (...values) => {
+  const nums = values
+    .filter((value) => value !== null && value !== undefined)
+    .map(Number)
+    .filter((value) => Number.isFinite(value));
+  return nums.length ? Math.min(...nums) : null;
+};
+
 const matchesEvent = (event, name, scope = {}) => {
   if (!event || getEventKey(event) !== name) return false;
   if (scope.turnId && event.turnId !== scope.turnId) return false;
@@ -39,15 +47,19 @@ export function createVoiceLatencyTrace(meta = {}) {
 
   const toJSON = () => {
     const turnScope = meta.turnId ? { turnId: meta.turnId } : {};
+    const speechEndToAiSpeechStartMs = duration('vad_speech_end', 'assistant_audio_play_start', turnScope);
+    const acknowledgementToAiSpeechStartMs = duration('latency_acknowledgement_play_start', 'assistant_audio_play_start', turnScope);
     return {
       ...meta,
       totalMs: Math.round(performance.now() - start),
       events: [...events],
       derived: {
         // Product-facing target: user finished speaking to AI voice playback start.
-        speechEndToAiSpeechStartMs: duration('vad_speech_end', 'assistant_audio_play_start', turnScope),
-        stopToNextAudioMs: duration('vad_speech_end', 'assistant_audio_play_start', turnScope),
-        vadToPlaybackMs: duration('vad_speech_end', 'assistant_audio_play_start', turnScope),
+        speechEndToAiSpeechStartMs,
+        acknowledgementToAiSpeechStartMs,
+        effectiveQuestionGapMs: minFinite(speechEndToAiSpeechStartMs, acknowledgementToAiSpeechStartMs),
+        stopToNextAudioMs: speechEndToAiSpeechStartMs,
+        vadToPlaybackMs: speechEndToAiSpeechStartMs,
 
         // Debug-only breakdown.
         stopToSubmitMs: duration('vad_speech_end', 'auto_submit_start', turnScope),
