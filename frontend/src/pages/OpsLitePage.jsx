@@ -32,6 +32,7 @@ const score = (value) => {
 };
 
 const numberValue = (value) => (value === null || value === undefined || value === '' ? '-' : value);
+const firstValue = (...values) => values.find((value) => value !== null && value !== undefined && value !== '');
 
 const groupLabels = {
   analysisQuality: {
@@ -185,6 +186,10 @@ function RuntimeOpsCard({ summary }) {
   const latency = summary?.latency || {};
   const rag = summary?.rag || {};
   const voice = summary?.voice || {};
+  const averageQuestionGapLatencyMs = firstValue(
+    latency.averageQuestionGapLatencyMs,
+    latency.voiceResponseLatencyMs
+  );
 
   return (
     <Card className="border-white/60 bg-white/70 shadow-sm backdrop-blur-xl">
@@ -202,8 +207,8 @@ function RuntimeOpsCard({ summary }) {
       <CardContent>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-2xl bg-white/75 p-4 ring-1 ring-white/70">
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-faint">Total turn latency</p>
-            <p className="mt-2 text-2xl font-semibold text-primary">{numberValue(latency.totalTurnMs)} ms</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-faint">Avg question gap latency</p>
+            <p className="mt-2 text-2xl font-semibold text-primary">{numberValue(averageQuestionGapLatencyMs)} ms</p>
           </div>
           <div className="rounded-2xl bg-white/75 p-4 ring-1 ring-white/70">
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-faint">RAG activation</p>

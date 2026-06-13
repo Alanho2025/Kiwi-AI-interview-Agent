@@ -16,20 +16,23 @@ export const analyzeStarrBreakdown = (answerText = '') => {
     + (hasPattern(lower, /\b(project|role|team|client|user|workflow|system|feature|deadline|incident|when|during|at)\b/) ? 1 : 0)
   ));
   const taskScore = Math.min(2, (
-    (hasPattern(lower, /\b(goal|needed|responsible|task|requirement|challenge|problem|issue|target|objective)\b/) ? 1 : 0)
-    + (hasPattern(lower, /\b(had to|needed to|my role|i was responsible|asked to|we needed)\b/) ? 1 : 0)
+    (hasPattern(lower, /\b(goal|need|needed|responsible|task|requirement|challenge|problem|issue|target|objective|learn|understand|handle|support)\b/) ? 1 : 0)
+    + (hasPattern(lower, /\b(had to|need to|needed to|my role|i was responsible|asked to|we needed|i need|i had|my task)\b/) ? 1 : 0)
   ));
   const actionScore = Math.min(2, (
-    (hasPattern(lower, /\b(i|my|me)\b/) && hasAny(tokens, ['built', 'designed', 'implemented', 'led', 'owned', 'fixed', 'improved', 'handled', 'created', 'deployed', 'checked', 'tested', 'used', 'coordinated']) ? 1 : 0)
-    + (hasPattern(lower, /\b(compared|validated|debugged|separated|refactored|automated|analysed|analyzed|worked with|coordinated)\b/) ? 1 : 0)
+    (hasPattern(lower, /\b(i|my|me)\b/) && hasAny(tokens, ['build', 'built', 'building', 'designed', 'implemented', 'led', 'owned', 'fixed', 'improved', 'handled', 'created', 'deployed', 'checked', 'tested', 'used', 'coordinated', 'learned', 'learnt', 'studied']) ? 1 : 0)
+    + (hasPattern(lower, /\b(compared|validated|debugged|separated|refactored|automated|analysed|analyzed|worked with|coordinated|implemented|deployed|tested|researched)\b/) ? 1 : 0)
   ));
+  const hasOutcomeSignal = /\d/.test(text) || hasPattern(lower, /\b(result|impact|outcome|improved|reduced|increased|saved|faster|slower|validated|tested|feedback|reaction|said|told|happy|satisfied|response|resolved|automated)\b/);
+  const hasTaskGoalImpact = hasPattern(lower, /\b(task|goal|objective)\s+(was|is)?\s*(to\s+)?(improve|reduce|increase|save|automate)\b/);
+  const hasIntendedImpact = !hasTaskGoalImpact && hasPattern(lower, /\b(to|help|helps|helped|so i could|so we could|so that)\s+(improve|reduce|increase|save|automate)\b/);
   const resultOrReactionScore = Math.min(2, (
-    (/\d/.test(text) || hasPattern(lower, /\b(result|impact|outcome|improved|reduced|increased|saved|faster|slower|validated|tested|feedback|reaction|said|told|happy|satisfied|response|resolved)\b/) ? 1 : 0)
+    (hasOutcomeSignal || hasIntendedImpact ? 1 : 0)
     + (hasPattern(lower, /\b(%|percent|minutes?|hours?|users?|requests?|latency|throughput|conversion|accuracy|uptime|agreed|disagreed)\b/) ? 1 : 0)
   ));
   const reflectionScore = Math.min(2, (
-    (hasPattern(lower, /\b(learned|realized|next time|differently|in retrospect|looking back|taught me|takeaway)\b/) ? 1 : 0)
-    + (hasPattern(lower, /\b(improve|would have|should have|mistake|failure|better)\b/) ? 1 : 0)
+    (hasPattern(lower, /\b(learn|learned|learnt|realized|realised|next time|differently|in retrospect|looking back|taught me|takeaway|new tools?|new stuff)\b/) ? 1 : 0)
+    + (hasPattern(lower, /\b(improve|would have|should have|mistake|failure|better|keep up|update)\b/) ? 1 : 0)
   ));
 
   const scoreMap = { 
