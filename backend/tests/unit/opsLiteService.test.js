@@ -496,8 +496,10 @@ describe('opsLiteService', () => {
 
                 expect(result.latency.traceSampleCount).toBe(0);
                 expect(result.latency.voiceLatencySampleCount).toBe(0);
+                expect(result.latency.averageQuestionGapLatencyMs).toBe(0);
                 expect(result.latency.voiceResponseLatencyMs).toBe(0);
                 expect(result.latency.runtimeTraceTotalMs).toBe(0);
+                expect(result.latency.totalTurnMs).toBe(0);
             });
 
             it('should return empty RAG metrics', async () => {
@@ -586,8 +588,10 @@ describe('opsLiteService', () => {
 
                 expect(result.latency.traceSampleCount).toBe(1);
                 expect(result.latency.voiceLatencySampleCount).toBe(1);
+                expect(result.latency.averageQuestionGapLatencyMs).toBe(2500);
                 expect(result.latency.voiceResponseLatencyMs).toBe(2500);
                 expect(result.latency.runtimeTraceTotalMs).toBe(5000);
+                expect(result.latency.totalTurnMs).toBe(5000);
                 expect(result.latency.sttMs).toBe(500);
                 expect(result.latency.retrievalMs).toBe(800);
                 expect(result.latency.planningMs).toBe(300);
@@ -659,6 +663,8 @@ describe('opsLiteService', () => {
                 const result = await buildRuntimeOpsSummary();
 
                 expect(result.latency.voiceResponseLatencyMs).toBe(2000);
+                expect(result.latency.averageQuestionGapLatencyMs).toBe(2000);
+                expect(result.latency.totalTurnMs).toBe(0);
             });
 
             it('should handle alternative latency field names', async () => {

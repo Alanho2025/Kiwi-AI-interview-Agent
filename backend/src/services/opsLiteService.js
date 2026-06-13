@@ -148,8 +148,10 @@ const buildEmptyRuntimeOpsSummary = ({ warning = null } = {}) => ({
     note: 'Voice response latency uses stored interview-session trace marks and prioritises first_audio_sent, then adaptive.tts_first_audio, then first_sentence_ready. Runtime trace total is shown separately as a full-turn diagnostic.',
     traceSampleCount: 0,
     voiceLatencySampleCount: 0,
+    averageQuestionGapLatencyMs: 0,
     voiceResponseLatencyMs: 0,
     runtimeTraceTotalMs: 0,
+    totalTurnMs: 0,
     sttMs: 0,
     retrievalMs: 0,
     planningMs: 0,
@@ -217,6 +219,8 @@ export const buildRuntimeOpsSummary = async ({ userId = null } = {}) => {
   const latencyEvents = traceEvents.filter((event) => Object.keys(getLatencyPayload(event)).length > 0);
   const voiceLatencyValues = latencyEvents.map(resolveVoiceResponseLatencyMs).filter((value) => value != null);
   const runtimeTotalValues = latencyEvents.map(resolveRuntimeTotalMs).filter((value) => value != null);
+  const averageVoiceResponseLatencyMs = average(voiceLatencyValues);
+  const averageRuntimeTraceTotalMs = average(runtimeTotalValues);
   const sourceUsage = traceEvents.flatMap((event) => ensureArray(event.retrievalSources)).reduce((acc, source) => {
     acc[source] = (acc[source] || 0) + 1;
     return acc;
@@ -240,8 +244,10 @@ export const buildRuntimeOpsSummary = async ({ userId = null } = {}) => {
       note: 'Voice response latency uses stored interview-session trace marks and prioritises first_audio_sent, then adaptive.tts_first_audio, then first_sentence_ready. Runtime trace total is shown separately as a full-turn diagnostic.',
       traceSampleCount: latencyEvents.length,
       voiceLatencySampleCount: voiceLatencyValues.length,
-      voiceResponseLatencyMs: average(voiceLatencyValues),
-      runtimeTraceTotalMs: average(runtimeTotalValues),
+      averageQuestionGapLatencyMs: averageVoiceResponseLatencyMs,
+      voiceResponseLatencyMs: averageVoiceResponseLatencyMs,
+      runtimeTraceTotalMs: averageRuntimeTraceTotalMs,
+      totalTurnMs: averageRuntimeTraceTotalMs,
       sttMs: average(latencyEvents.map((event) => resolveLatencyDurationMs(event, ['stt'], ['sttMs']))),
       retrievalMs: average(latencyEvents.map((event) => resolveLatencyDurationMs(event, ['adaptive.retrieval'], ['retrievalMs']))),
       planningMs: average(latencyEvents.map((event) => resolveLatencyDurationMs(event, ['adaptive.action_selection', 'adaptive.decision_context'], ['planningMs']))),

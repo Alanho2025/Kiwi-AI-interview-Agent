@@ -14,7 +14,7 @@ import { AGENT_TOOL_NAMES, getToolNameForAction } from '../constants/agentToolNa
 import { agentRegistry } from './agentRegistryService.js';
 import { getSessionById, appendTranscriptTurn, createInterviewQuestion } from './sessionService.js';
 import { getNextQuestionOrder, hasReachedQuestionLimit, hasReachedTimeLimit } from './interviewStateService.js';
-import { indexSessionArtifacts, ensureSessionArtifactsIndexed } from './ragIndexService.js';
+import { ensureSessionArtifactsIndexed } from './ragIndexService.js';
 import { SessionAnalysis } from '../db/models/sessionAnalysisModel.js';
 import { SessionReport } from '../db/models/sessionReportModel.js';
 import { buildDecisionContext } from './aiControl/decisionContextBuilder.js';
@@ -41,6 +41,7 @@ import { enqueueBackgroundJob } from '../jobs/backgroundJobQueue.js';
 import { recordLocalUsage } from './aiUsageTrackingService.js';
 import { markQuestionPoolItemAsked } from './questions/questionPoolComposerService.js';
 import { cleanupQuestionArtifactsAfterReport } from './questions/questionArtifactCleanupService.js';
+import { indexReportSessionArtifactsSafely } from './reportIndexingGuardService.js';
 
 const persistControllerSnapshot = async ({ sessionId, decisionContext = null, evidenceBundle = null } = {}) => {
   await SessionAnalysis.findOneAndUpdate(
@@ -143,7 +144,6 @@ const cleanupQuestionArtifactsForCompletedReport = async ({ session }) => {
     });
   }
 };
-
 
 const measureAdaptiveStep = async (trace, stepName, fn) => {
   if (!trace?.measure) return fn();
@@ -695,7 +695,7 @@ const runReportController = async ({ session }) => {
     mode: session.mode || 'text',
     payload: { taskType: 'generate_report' },
   });
-  await indexSessionArtifacts(session.id);
+  const indexingStatus = await indexReportSessionArtifactsSafely({ sessionId: session.id });
   const retrievalBundle = await agentRegistry.retrieval({
     query: buildDefaultRetrievalQuery({ session, mode: 'report' }),
     sessionId: session.id,
@@ -723,7 +723,13 @@ decisionType: AGENT_DECISION_TYPES.BUILD_CONTEXT,
       currentObjective: decisionContext.currentObjective,
       selectedAction: null,
       reasoningSummary: 'Built report controller context from session evidence and interview transcript.',
-      evidenceUsed: ['session.analysisResult', 'session.interviewPlan', 'retrievalBundle', 'transcript'],
+      evidenceUsed: [
+        'session.analysisResult',
+        'session.interviewPlan',
+        'retrievalBundle',
+        'transcript',
+        indexingStatus.ok ? 'rag_indexing:ready' : 'rag_indexing:degraded',
+      ],
       confidence: 0.86,
     },
   });
@@ -861,7 +867,7 @@ export const runTask = async ({ taskType, sessionId, payload = {}, onSentence = 
       throw new Error('Report not found');
     }
 
-    await indexSessionArtifacts(session.id);
+    await indexReportSessionArtifactsSafely({ sessionId: session.id });
     const retrievalBundle = await agentRegistry.retrieval({
       query: `${session.targetRole} report qa evidence`,
       sessionId: session.id,
