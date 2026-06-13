@@ -426,6 +426,7 @@ export const generateCandidateFeedback = async ({
   try {
     const { content: responseText } = await callDeepSeek(prompt, 'You output valid JSON only. Stay grounded in the provided evidence and never invent facts.', {
       usageMetadata: { stage: 'report_generated', operation: 'llm_chat', feature: 'candidate_feedback' },
+      timeoutMs: 120000,
     });
 
     const parsed = JSON.parse(extractJsonObject(responseText));

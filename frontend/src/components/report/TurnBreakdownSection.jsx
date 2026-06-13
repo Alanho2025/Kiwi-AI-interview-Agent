@@ -42,7 +42,7 @@ const buildDimensionReason = ({ label, score, turn = {} }) => {
   return 'The answer explains intent, but it needs more proof from a real project or work example.';
 };
 
-function ScoreBar({ label, score, colorClass, reason }) {
+function ScoreBar({ label, score, color, reason }) {
   const safeScore = clampMicroScore(score);
   const percentage = (safeScore / 10) * 100;
   
@@ -52,8 +52,8 @@ function ScoreBar({ label, score, colorClass, reason }) {
         <span className="w-20 shrink-0 text-faint font-medium">{label}</span>
         <div className="flex-1 h-2 bg-chip rounded-full overflow-hidden">
           <div 
-            className={`h-full ${colorClass} transition-all duration-500`} 
-            style={{ width: `${percentage}%` }}
+            className="h-full transition-all duration-500"
+            style={{ width: `${percentage}%`, backgroundColor: color }}
           />
         </div>
         <span className="w-8 shrink-0 text-right font-semibold text-muted">{safeScore}/10</span>
@@ -182,19 +182,19 @@ export function TurnBreakdownSection({ turnBreakdowns }) {
                         <ScoreBar
                           label="Business"
                           score={turn.scores.business}
-                          colorClass="bg-blue-500"
+                          color="#3b82f6"
                           reason={buildDimensionReason({ label: 'business', score: turn.scores.business, turn })}
                         />
                         <ScoreBar
                           label="Logic"
                           score={turn.scores.logic}
-                          colorClass="bg-purple-500"
+                          color="#8b5cf6"
                           reason={buildDimensionReason({ label: 'logic', score: turn.scores.logic, turn })}
                         />
                         <ScoreBar
                           label="Evidence"
                           score={turn.scores.evidence}
-                          colorClass="bg-emerald-500"
+                          color="#10b981"
                           reason={buildDimensionReason({ label: 'evidence', score: turn.scores.evidence, turn })}
                         />
                       </div>

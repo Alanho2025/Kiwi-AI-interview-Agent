@@ -6,7 +6,22 @@
  * - Keep recording endpoints separate from interview turn APIs.
  */
 
-import { apiClient, buildApiUrl } from './client.js';
+import { apiClient, buildApiUrl, getStoredAuthToken } from './client.js';
+
+const buildDownloadHeaders = () => {
+  const token = getStoredAuthToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
+const readDownloadErrorMessage = async (response) => {
+  const contentType = response.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) {
+    return response.text();
+  }
+
+  const payload = await response.json();
+  return payload.error?.details || payload.message || payload.msg || 'Could not download recording.';
+};
 
 export const uploadSessionRecording = async ({ sessionId, audioBlob }) => {
   if (!sessionId || !audioBlob) return null;
@@ -27,10 +42,11 @@ export const downloadSessionRecording = async (sessionId) => {
   const response = await fetch(buildApiUrl(`/recordings/session-audio/${sessionId}/download`), {
     method: 'GET',
     credentials: 'include',
+    headers: buildDownloadHeaders(),
   });
 
   if (!response.ok) {
-    const message = await response.text();
+    const message = await readDownloadErrorMessage(response);
     throw new Error(message || 'Could not download recording.');
   }
 
