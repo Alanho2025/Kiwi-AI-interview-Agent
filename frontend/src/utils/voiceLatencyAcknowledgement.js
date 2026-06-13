@@ -126,6 +126,7 @@ export const playLatencyAcknowledgement = ({
   questionType = null,
   volume = 0.72,
   rate = 1.02,
+  onStart = null,
 } = {}) => {
   if (import.meta.env.VITE_VOICE_LATENCY_FILLERS !== 'true') return null;
   if (!isLatencyAcknowledgementAvailable()) return null;
@@ -141,6 +142,7 @@ export const playLatencyAcknowledgement = ({
   utterance.lang = 'en-NZ';
   utterance.volume = volume;
   utterance.rate = rate;
+  utterance.onstart = () => onStart?.(phrase);
   window.speechSynthesis.cancel?.();
   window.speechSynthesis.speak(utterance);
   return phrase;

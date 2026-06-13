@@ -200,6 +200,33 @@ describe('interview controller action completeness with realistic voice-length t
     }));
 
     expect(evaluatorOutput.specificity).not.toBe('low');
-    expect(['ASK_DEEP_DIVE_QUESTION', 'ASK_VALIDATION_QUESTION', 'SHIFT_SECTION', 'ASK_POOL_QUESTION']).toContain(plan.selectedAction);
+    expect([
+      'ASK_DEEP_DIVE_QUESTION',
+      'ASK_VALIDATION_QUESTION',
+      'SHIFT_SECTION',
+      'ASK_POOL_QUESTION',
+      'PROBE_STRESS',
+      'PROBE_FRICTION',
+    ]).toContain(plan.selectedAction);
+  });
+
+  it('does not repeat a denied validation target when the candidate gives alternative tool evidence', () => {
+    const userText = 'For the analysis part, the main tools I used were Tableau and Python. I do not use Excel for this because Python helps me build scripts and dashboards, and Tableau helps me understand the data and show the result. In that project I used Python, Spark, and Tableau to find the top skills in job descriptions and present the analysis clearly.';
+    expectVoiceLikeLength(userText, 50);
+
+    const { evaluatorOutput, plan } = runController(buildSession({
+      aiTopic: 'excel',
+      aiText: 'Can you tell me about a time you used Microsoft Excel to analyze and present data clearly?',
+      userText,
+      analysisResult: baseAnalysis({
+        priorityTopics: ['excel', 'data_analysis'],
+        validationTargets: ['Microsoft Excel'],
+      }),
+    }));
+
+    expect(evaluatorOutput.skillDenial.deniedTargets).toContain('Microsoft Excel');
+    expect(evaluatorOutput.skillDenial.alternativeTools).toEqual(expect.arrayContaining(['Python', 'Tableau']));
+    expect(plan.selectedAction).not.toBe('ASK_VALIDATION_QUESTION');
+    expect(String(plan.actionInput?.targetTopic || '').toLowerCase()).not.toContain('excel');
   });
 });

@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import { SessionAnalysis } from '../../db/models/sessionAnalysisModel.js';
 import { analyzeStarrBreakdown } from './starRubricService.js';
-import { ensureArray, normalizeText, tokenize } from '../../utils/commonHelpers.js';
+import { ensureArray, normalizeKey, normalizeText, tokenize, unique } from '../../utils/commonHelpers.js';
 
 const countOverlap = (source = [], target = []) => {
   const targetSet = new Set(target);
@@ -92,6 +92,87 @@ const detectCandidateQuestion = (answerText = '') => {
   const questionWords = ['what ', 'how ', 'can you ', 'do you ', 'could you ', 'why ', 'is there ', 'are there '];
   if (questionWords.some(w => normalized.startsWith(w) || normalized.includes(` ${w}`))) return true;
   return false;
+};
+
+const TOOL_MENTION_PATTERNS = [
+  { label: 'Python', pattern: /\bpython\b/i },
+  { label: 'Tableau', pattern: /\btableau\b/i },
+  { label: 'Spark', pattern: /\bspark\b/i },
+  { label: 'Power BI', pattern: /\bpower\s*bi\b/i },
+  { label: 'Microsoft Dynamics 365', pattern: /\bdynamics(?:\s*365)?\b/i },
+  { label: 'CRM', pattern: /\bcrm\b/i },
+  { label: 'Excel', pattern: /\bexcel\b/i },
+  { label: 'SQL', pattern: /\bsql\b/i },
+  { label: 'JavaScript', pattern: /\bjavascript\b/i },
+  { label: 'TypeScript', pattern: /\btypescript\b/i },
+  { label: 'React', pattern: /\breact\b/i },
+  { label: 'Node.js', pattern: /\bnode(?:\.js)?\b/i },
+  { label: 'PostgreSQL', pattern: /\bpostgres(?:ql)?\b/i },
+  { label: 'MongoDB', pattern: /\bmongodb\b/i },
+];
+
+const TARGET_TOKEN_STOPWORDS = new Set(['microsoft', 'tool', 'tools', 'system', 'systems', 'experience', 'skill', 'skills']);
+
+const normalizeNegations = (text = '') => normalizeText(text)
+  .toLowerCase()
+  .replace(/\bdon['’]?t\b/g, 'do not')
+  .replace(/\bdoesn['’]?t\b/g, 'does not')
+  .replace(/\bdidn['’]?t\b/g, 'did not')
+  .replace(/\bhaven['’]?t\b/g, 'have not')
+  .replace(/\bhasn['’]?t\b/g, 'has not')
+  .replace(/\bhadn['’]?t\b/g, 'had not')
+  .replace(/\bcan['’]?t\b/g, 'can not');
+
+const meaningfulTargetTokens = (target = '') => tokenize(target)
+  .filter((token) => token.length > 1 && !TARGET_TOKEN_STOPWORDS.has(token));
+
+const targetMentionPattern = (target = '') => {
+  const tokens = meaningfulTargetTokens(target);
+  if (!tokens.length) return null;
+  return new RegExp(`\\b(?:${tokens.map((token) => token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})\\b`, 'i');
+};
+
+const answerDeniesTarget = ({ normalizedAnswer = '', target = '' } = {}) => {
+  const pattern = targetMentionPattern(target);
+  if (!pattern || !pattern.test(normalizedAnswer)) return false;
+  const targetSource = pattern.source;
+  const denialBeforeTarget = new RegExp(
+    `\\b(?:do|does|did|have|has|had|can)\\s+not\\b.{0,70}${targetSource}`,
+    'i',
+  );
+  const noTargetEvidence = new RegExp(`\\b(?:no|without)\\b.{0,45}${targetSource}`, 'i');
+  const targetBeforeDenial = new RegExp(
+    `${targetSource}.{0,70}\\b(?:do|does|did|have|has|had|can)\\s+not\\b.{0,30}\\b(?:use|used|work|worked|know|have|need)\\b`,
+    'i',
+  );
+  return denialBeforeTarget.test(normalizedAnswer)
+    || noTargetEvidence.test(normalizedAnswer)
+    || targetBeforeDenial.test(normalizedAnswer);
+};
+
+const targetMatchesLabel = (target = '', label = '') => {
+  const targetKey = normalizeKey(target);
+  const labelKey = normalizeKey(label);
+  return Boolean(targetKey && labelKey && (targetKey.includes(labelKey) || labelKey.includes(targetKey)));
+};
+
+const extractAlternativeTools = ({ answerText = '', deniedTargets = [] } = {}) => TOOL_MENTION_PATTERNS
+  .filter((tool) => tool.pattern.test(answerText))
+  .map((tool) => tool.label)
+  .filter((label) => !deniedTargets.some((target) => targetMatchesLabel(target, label)));
+
+const detectSkillDenial = ({ answerText = '', currentTopic = '', validationTargets = [] } = {}) => {
+  const normalizedAnswer = normalizeNegations(answerText);
+  if (!normalizedAnswer) {
+    return { deniedTargets: [], alternativeTools: [], deniedCurrentTopic: false };
+  }
+  const candidateTargets = unique([currentTopic, ...ensureArray(validationTargets)].filter(Boolean));
+  const deniedTargets = candidateTargets.filter((target) => answerDeniesTarget({ normalizedAnswer, target }));
+  return {
+    deniedTargets,
+    alternativeTools: unique(extractAlternativeTools({ answerText, deniedTargets })),
+    deniedCurrentTopic: Boolean(currentTopic && deniedTargets.some((target) => targetMatchesLabel(currentTopic, target))),
+  };
 };
 
 const detectFrictionSignals = (answerText = '') => {
@@ -203,6 +284,7 @@ const buildPlannerSignals = ({
   selfCorrectionDetected = false,
   incompleteEvidenceAdmission = false,
   vagueLongAnswer = false,
+  skillDenial = null,
 } = {}) => ({
   evidenceGainScore,
   specificity,
@@ -219,6 +301,7 @@ const buildPlannerSignals = ({
   selfCorrectionDetected,
   incompleteEvidenceAdmission,
   vagueLongAnswer,
+  skillDenial,
   starScores: starBreakdown?.scores || {},
   starMainMissingElement: starBreakdown?.mainMissingElement || '',
 });
@@ -280,6 +363,11 @@ export const evaluateInterviewTurn = ({ environment = {}, decisionContext = null
   const selfCorrectionDetected = detectSelfCorrection(answerText);
   const incompleteEvidenceAdmission = detectIncompleteEvidenceAdmission(answerText);
   const vagueLongAnswer = detectVagueLongAnswer(answerText);
+  const skillDenial = detectSkillDenial({
+    answerText,
+    currentTopic,
+    validationTargets: environment?.roleContext?.validationTargets || [],
+  });
   const misunderstandingFlag = detectMisunderstanding(answerText, currentTopic)
     || candidateDifficultySignal
     || answerUnderstanding?.suggestedFollowUp?.mode === 'rephrase';
@@ -327,6 +415,7 @@ export const evaluateInterviewTurn = ({ environment = {}, decisionContext = null
     selfCorrectionDetected,
     incompleteEvidenceAdmission,
     vagueLongAnswer,
+    skillDenial,
   });
 
   return {
@@ -342,6 +431,7 @@ export const evaluateInterviewTurn = ({ environment = {}, decisionContext = null
     selfCorrectionDetected,
     incompleteEvidenceAdmission,
     vagueLongAnswer,
+    skillDenial,
     hasCandidateQuestion,
     frictionState,
     mentionedEntities,
