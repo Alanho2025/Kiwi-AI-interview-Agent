@@ -6,16 +6,17 @@
 
 import { callDeepSeek } from '../deepseekService.js';
 import { safeJsonParse } from './jobDescriptionShared.js';
+import { getJdAiSkillEnhancementTimeoutMs } from './jdSafeguardAiBudget.js';
 
-const emptyAiSkillBundle = () => ({
+export const emptyAiSkillBundle = () => ({
   technicalSkillRequirements: [],
   softSkillRequirements: [],
   macroCriteria: [],
   requirements: [],
 });
 
-export const extractSkillsWithAI = async (rawJD) => {
-  if (process.env.DISABLE_AI_JD_ENHANCEMENT === 'true' || !process.env.DEEPSEEK_API_KEY) {
+export const extractSkillsWithAI = async (rawJD, { disabled = false } = {}) => {
+  if (disabled || process.env.DISABLE_AI_JD_ENHANCEMENT === 'true' || !process.env.DEEPSEEK_API_KEY) {
     return emptyAiSkillBundle();
   }
 
@@ -32,6 +33,7 @@ Technical skills may include software development, data, AI/ML, IT infrastructur
 Job description:\n${rawJD.slice(0, 5000)}`;
     const { content: response } = await callDeepSeek(prompt, 'Return valid JSON only. No prose.', {
       usageMetadata: { stage: 'jd_parse', operation: 'llm_chat', feature: 'jd_skill_extraction' },
+      timeoutMs: getJdAiSkillEnhancementTimeoutMs(),
     });
     const parsed = safeJsonParse(response);
 
