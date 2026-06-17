@@ -60,6 +60,7 @@ export const buildGuardedStructuredJobDescriptionRubric = async (rawJD = '') => 
         reparseMode: true,
         criticFeedback: firstReview,
         sectionOverrides,
+        skipAiSkillEnhancement: true,
       });
 
       const secondReview = await reviewJdParseWithDeepSeek({ rawJD, parsedJD: secondParsed });
