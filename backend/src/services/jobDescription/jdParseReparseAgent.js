@@ -8,6 +8,11 @@
 import { callDeepSeekJson } from '../agenticSafeguards/deepseekJsonClient.js';
 import { ensureArray, isMockAiMode } from '../agenticSafeguards/safeguardShared.js';
 import { extractSeekStyleSections } from './jdSafeguardHeuristics.js';
+import {
+  buildJdSafeguardProviderMetadata,
+  getJdSafeguardAiMaxRetries,
+  getJdSafeguardAiTimeoutMs,
+} from './jdSafeguardAiBudget.js';
 
 const normalizeOverrides = (value = {}) => ({
   jobOverview: {
@@ -20,6 +25,7 @@ const normalizeOverrides = (value = {}) => ({
     benefits: ensureArray(value?.sections?.benefits).map(String),
     qualifications: ensureArray(value?.sections?.qualifications).map(String),
   },
+  metadata: value?.metadata && typeof value.metadata === 'object' ? value.metadata : {},
 });
 
 const extractCompanyNameFromRaw = (rawJD = '') => {
@@ -88,15 +94,18 @@ export const buildJdReparseOverridesWithDeepSeek = async ({ rawJD = '', previous
   const fallback = buildHeuristicOverrides(rawJD);
   if (isMockAiMode() || !process.env.DEEPSEEK_API_KEY) return fallback;
 
+  const timeoutMs = getJdSafeguardAiTimeoutMs();
   const aiOverrides = await callDeepSeekJson({
     prompt: buildPrompt({ rawJD, previousParsedJD, criticFeedback }),
     systemInstruction: 'You are a strict JD reparse agent. Return valid JSON only. No prose.',
     fallback,
-    maxRetries: 1,
+    maxRetries: getJdSafeguardAiMaxRetries(),
+    timeoutMs,
     usageMetadata: { stage: 'jd_parse', feature: 'jd_reparse' },
   });
 
   const normalized = normalizeOverrides(aiOverrides);
+  const providerMetadata = buildJdSafeguardProviderMetadata({ result: aiOverrides, timeoutMs });
   return {
     jobOverview: {
       ...fallback.jobOverview,
@@ -108,6 +117,10 @@ export const buildJdReparseOverridesWithDeepSeek = async ({ rawJD = '', previous
       niceToHaveRequirements: normalized.sections.niceToHaveRequirements.length ? normalized.sections.niceToHaveRequirements : fallback.sections.niceToHaveRequirements,
       benefits: normalized.sections.benefits.length ? normalized.sections.benefits : fallback.sections.benefits,
       qualifications: normalized.sections.qualifications,
+    },
+    metadata: {
+      ...normalized.metadata,
+      ...providerMetadata,
     },
   };
 };

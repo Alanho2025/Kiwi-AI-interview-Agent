@@ -29,6 +29,7 @@ export const callDeepSeekJson = async ({
   maxRetries = 1,
   usageMetadata = {},
   generationConfig = LLM_CONFIGS.JSON_STRICT,
+  timeoutMs,
 } = {}) => {
   let lastError = null;
 
@@ -38,6 +39,7 @@ export const callDeepSeekJson = async ({
         skipAutoRecord: true,
         usageMetadata: { operation: 'llm_json', ...usageMetadata },
         generationConfig,
+        timeoutMs,
       });
       // Record with distinct action so we can distinguish JSON-wrapper calls
       await autoRecordUsage(usage, 'callDeepSeekJson', { operation: 'llm_json', ...usageMetadata });
