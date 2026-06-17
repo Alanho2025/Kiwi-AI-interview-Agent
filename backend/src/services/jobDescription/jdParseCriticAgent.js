@@ -8,6 +8,11 @@
 import { callDeepSeekJson } from '../agenticSafeguards/deepseekJsonClient.js';
 import { assertSafeguardProviderConfigured, isMockAiMode, normalizeSafeguardReview } from '../agenticSafeguards/safeguardShared.js';
 import { buildHeuristicJdParseReview } from './jdSafeguardHeuristics.js';
+import {
+  buildJdSafeguardProviderMetadata,
+  getJdSafeguardAiMaxRetries,
+  getJdSafeguardAiTimeoutMs,
+} from './jdSafeguardAiBudget.js';
 
 const buildPrompt = ({ rawJD = '', parsedJD = {} }) => `You are a strict JD parse output controller for an interview preparation system.
 
@@ -54,13 +59,18 @@ export const reviewJdParseWithDeepSeek = async ({ rawJD = '', parsedJD = {} } = 
   }
   assertSafeguardProviderConfigured();
 
+  const timeoutMs = getJdSafeguardAiTimeoutMs();
   const aiReview = await callDeepSeekJson({
     prompt: buildPrompt({ rawJD, parsedJD }),
     systemInstruction: 'You are a strict output controller. Return valid JSON only. No prose.',
     fallback: heuristicFallback,
-    maxRetries: 1,
+    maxRetries: getJdSafeguardAiMaxRetries(),
+    timeoutMs,
     usageMetadata: { stage: 'jd_parse', feature: 'jd_parse_critic' },
   });
 
-  return normalizeSafeguardReview(aiReview, heuristicFallback);
+  return {
+    ...normalizeSafeguardReview(aiReview, heuristicFallback),
+    ...buildJdSafeguardProviderMetadata({ result: aiReview, timeoutMs }),
+  };
 };

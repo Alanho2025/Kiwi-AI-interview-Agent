@@ -273,7 +273,9 @@ export const buildStructuredJobDescriptionRubric = async (rawJD = '', options = 
   const header = extractJobDescriptionHeader({ rawJD, fallbackTitle, normalized });
   const nlpSignals = await analyzeTextWithSpacy({ kind: 'jd', text: rawJD });
 
-  const aiSkills = await extractSkillsWithAI(rawJD);
+  const aiSkills = await extractSkillsWithAI(rawJD, {
+    disabled: Boolean(options.skipAiSkillEnhancement),
+  });
   const detectedHeadings = detectJobDescriptionHeadings(normalized.blocks);
   const sections = collectJobDescriptionSections({ blocks: normalized.blocks, detectedHeadings });
   const requirementGroups = classifyJobDescriptionRequirements(sections);
