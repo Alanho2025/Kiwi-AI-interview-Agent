@@ -1,0 +1,48 @@
+metrics_to_run:
+  - kiwi_prep_pipeline_score
+  - kiwi_prep_constructive_review
+  - multi_turn_trajectory_quality
+
+custom_metrics:
+  - name: kiwi_prep_pipeline_score
+    custom_function: |
+      def evaluate(instance):
+          evaluation = instance.get("kiwi_evaluation") or {}
+          score = float(evaluation.get("score") or 0)
+          failed_checks = evaluation.get("failedChecks") or []
+          stage_scores = evaluation.get("stageScores") or {}
+          explanation = "failed_checks={}; stage_scores={}".format(
+              ",".join(failed_checks) or "none",
+              stage_scores,
+          )
+          return {"score": score, "explanation": explanation}
+
+  - name: kiwi_prep_constructive_review
+    rubric_group_name: kiwi_prep_pipeline_rubrics
+    judge_model: gemini-flash-latest
+    judge_model_generation_config:
+      temperature: 0
+    prompt_template: |
+      You are reviewing Kiwi AI Interview Agent's preparation pipeline.
+
+      Evaluate the agent behavior shown in the trace, not hidden implementation details.
+
+      Criteria:
+      - CV parse: candidate facts, skills, evidence, and warnings should stay faithful to the CV fixture.
+      - JD parse: title, role family, requirements, technical skills, and nice-to-have separation should stay faithful to the JD fixture.
+      - Safeguards: critic/reparse/recompare behavior should be visible when risk is detected and should not invent facts.
+      - CV-JD match: decision, score, strengths, gaps, risks, and interview topics should be evidence-grounded and not overconfident.
+      - Advice quality: the final response should provide useful preparation topics without overstating candidate fit.
+
+      Full agent trace:
+      {agent_data}
+
+      Final response:
+      {response}
+
+      Return strict JSON only:
+      {
+        "score": <float from 0.0 to 1.0>,
+        "explanation": "Include concrete failure reasons, constructive engineering suggestions, likely module names, and test cases to add. If strong, say why."
+      }
+

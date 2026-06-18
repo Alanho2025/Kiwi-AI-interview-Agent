@@ -48,6 +48,8 @@
     "benchmark:voice-latency:gate": "node benchmarks/voice-asr-fallback/checkVoiceLatencyAcceptance.js",
     "eval:retrieval": "NODE_ENV=test AI_TEST_MODE=mock node eval/runners/runRetrievalEval.js",
     "eval:agent-trajectory": "NODE_ENV=test AI_TEST_MODE=mock node eval/runners/runAgentTrajectoryEval.js",
+    "eval:google-prep-trace": "node eval/runners/buildGoogleAgentsCliPrepPipelineTrace.js",
+    "eval:google-prep-advice": "node eval/runners/summarizeGoogleAgentsCliPrepPipelineAdvice.js",
     "eval:company-research": "NODE_ENV=test AI_TEST_MODE=mock node eval/runners/runCompanyResearchEval.js",
     "eval:voice-quality": "NODE_ENV=test AI_TEST_MODE=mock node eval/runners/runVoiceQualityEval.js",
     "eval:stability": "NODE_ENV=test AI_TEST_MODE=mock node eval/runners/runStabilityEval.js",
