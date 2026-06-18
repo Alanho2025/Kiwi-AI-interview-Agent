@@ -18,10 +18,10 @@ custom_metrics:
           return {"score": score, "explanation": explanation}
 
   - name: kiwi_prep_constructive_review
-    rubric_group_name: kiwi_prep_pipeline_rubrics
-    judge_model: gemini-flash-latest
+    judge_model: projects/gen-lang-client-0896010824/locations/global/publishers/google/models/gemini-2.5-flash-lite
     judge_model_generation_config:
       temperature: 0
+      response_mime_type: application/json
     prompt_template: |
       You are reviewing Kiwi AI Interview Agent's preparation pipeline.
 
@@ -40,9 +40,9 @@ custom_metrics:
       Final response:
       {response}
 
-      Return strict JSON only:
+      Return strict JSON only. Do not include markdown, prose, or code fences.
+      The first character must be "{" and the last character must be "}".
       {
         "score": <float from 0.0 to 1.0>,
         "explanation": "Include concrete failure reasons, constructive engineering suggestions, likely module names, and test cases to add. If strong, say why."
       }
-
