@@ -1,5 +1,4 @@
 import { CvQuestionSeed } from '../../db/models/cvQuestionSeedModel.js';
-import { DocumentChunk } from '../../db/models/documentChunkModel.js';
 import { InterviewQuestionPoolItem } from '../../db/models/interviewQuestionPoolItemModel.js';
 import { JdQuestionFilter } from '../../db/models/jdQuestionFilterModel.js';
 import { query } from '../../db/postgres.js';
@@ -21,9 +20,8 @@ export const cleanupQuestionArtifactsAfterReport = async ({
     };
   }
 
-  const [poolResult, mongoChunkResult, postgresChunkResult, filterResult, seedResult] = await Promise.all([
+  const [poolResult, postgresChunkResult, filterResult, seedResult] = await Promise.all([
     InterviewQuestionPoolItem.deleteMany({ userId, sessionId }),
-    DocumentChunk.deleteMany({ sessionId, sourceType: 'prepared_question_pool' }),
     query('DELETE FROM document_chunks WHERE session_id = $1 AND source_type = $2', [sessionId, 'prepared_question_pool']),
     matchAnalysisId
       ? JdQuestionFilter.deleteMany({ userId, matchAnalysisId })
@@ -35,7 +33,7 @@ export const cleanupQuestionArtifactsAfterReport = async ({
 
   return {
     deletedPreparedPoolItems: deletedCount(poolResult),
-    deletedPreparedPoolChunks: deletedCount(mongoChunkResult) + Number(postgresChunkResult?.rowCount || 0),
+    deletedPreparedPoolChunks: Number(postgresChunkResult?.rowCount || 0),
     deletedJdQuestionFilters: deletedCount(filterResult),
     deletedCvQuestionSeeds: deletedCount(seedResult),
   };

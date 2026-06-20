@@ -28,5 +28,4 @@ const AiUsageEventSchema = new mongoose.Schema(
 AiUsageEventSchema.index({ userId: 1, createdAt: -1 });
 AiUsageEventSchema.index({ userId: 1, sessionId: 1, createdAt: -1 });
 AiUsageEventSchema.index({ userId: 1, sessionId: 1, stage: 1 });
-
 export const AiUsageEvent = mongoose.models.AiUsageEvent || mongoose.model('AiUsageEvent', AiUsageEventSchema);

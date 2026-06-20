@@ -94,8 +94,8 @@ export const createSessionAggregate = async ({
       `INSERT INTO interview_sessions (
         id, user_id, status, mode, target_role, candidate_name, seniority_level, focus_area,
         enable_nz_culture_fit, current_question_index, total_questions, elapsed_seconds,
-        created_at, updated_at
-      ) VALUES ($1,$2,'ready',$3,$4,$5,$6,$7,$8,1,$9,0,now(),now())`,
+        data_retention_days, expires_at, created_at, updated_at
+      ) VALUES ($1,$2,'ready',$3,$4,$5,$6,$7,$8,1,$9,0,7,now() + interval '7 days',now(),now())`,
       [
         sessionId,
         userId,
@@ -111,8 +111,16 @@ export const createSessionAggregate = async ({
 
     if (cvFileId) {
       await client.query(
-        'UPDATE interview_sessions SET cv_file_id = $2, updated_at = now() WHERE id = $1',
+        `UPDATE interview_sessions
+         SET cv_file_id = $2, updated_at = now(), expires_at = now() + interval '7 days'
+         WHERE id = $1`,
         [sessionId, cvFileId]
+      );
+      await client.query(
+        `UPDATE uploaded_files
+         SET last_used_at = now(), updated_at = now(), expires_at = now() + interval '7 days'
+         WHERE id = $1 AND deleted_at IS NULL`,
+        [cvFileId]
       );
     }
 
@@ -207,7 +215,9 @@ export const updateSessionState = async (id, data) => {
          ended_at = $6,
          summary_text = $7,
          overall_score = $8,
-         updated_at = now()
+         updated_at = now(),
+         expires_at = now() + interval '7 days',
+         data_retention_days = 7
      WHERE id = $1`,
     [
       id,

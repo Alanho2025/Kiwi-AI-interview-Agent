@@ -1,0 +1,51 @@
+metrics_to_run:
+  - kiwi_question_contract_score
+  - kiwi_question_constructive_review
+  - MULTI_TURN_TRAJECTORY_QUALITY
+  - MULTI_TURN_TOOL_USE_QUALITY
+
+custom_metrics:
+  - name: kiwi_question_contract_score
+    custom_function: |
+      def evaluate(instance):
+          evaluation = instance.get("kiwi_evaluation") or {}
+          score = float(evaluation.get("score") or 0)
+          failed_checks = evaluation.get("failedChecks") or []
+          diagnostics = evaluation.get("diagnostics") or {}
+          explanation = "failed_checks={}; diagnostics={}".format(
+              ",".join(failed_checks) or "none",
+              diagnostics,
+          )
+          return {"score": score, "explanation": explanation}
+
+  - name: kiwi_question_constructive_review
+    judge_model: projects/gen-lang-client-0896010824/locations/global/publishers/google/models/gemini-2.5-flash-lite
+    judge_model_generation_config:
+      temperature: 0
+      response_mime_type: application/json
+    prompt_template: |
+      You are reviewing Kiwi AI Interview Agent's adaptive question behavior.
+
+      Evaluate the agent behavior shown in the trace, not hidden implementation details.
+
+      Product contract:
+      - The evaluator should classify misunderstanding, evidence gain, specificity, and suggested next mode from the latest answer.
+      - The action planner should choose the next action from the controller context, not by blindly incrementing questionIndex.
+      - Prepared root questions should be ranked by validation targets, coverage gaps, mode fit, freshness, and penalties.
+      - Follow-up turns must preserve parent/root linkage and must not consume prepared root questions.
+      - Technical and behavioural mode boundaries should be respected.
+      - The final question must expose questionDecision and questionRanking metadata: selected action, selected question id, source type, why this question, evidence used, expected signal, alternatives considered, confidence, selection source, and spoken text.
+      - The generated question should be natural, interview-like, concise, and grounded in CV/JD/match/transcript evidence.
+
+      Full agent trace:
+      {agent_data}
+
+      Final response:
+      {response}
+
+      Return strict JSON only. Do not include markdown, prose, or code fences.
+      The first character must be "{" and the last character must be "}".
+      {
+        "score": <float from 0.0 to 1.0>,
+        "explanation": "Concrete failures, likely module names, and suggested tests. If strong, say why."
+      }

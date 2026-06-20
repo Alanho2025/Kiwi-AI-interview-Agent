@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { applyRuntimeRetentionIndex } from '../runtimeRetentionIndex.js';
 
 const InterviewQuestionPoolItemSchema = new mongoose.Schema(
   {
@@ -8,7 +9,7 @@ const InterviewQuestionPoolItemSchema = new mongoose.Schema(
     cvFileId: { type: String, default: null },
     jdFingerprint: { type: String, default: '' },
     questionId: { type: String, required: true, unique: true, index: true },
-    schemaVersion: { type: String, default: 'v1' },
+    schemaVersion: { type: String, default: 'v2' },
     sourceStage: { type: String, default: '' },
     sourceSeedId: { type: String, default: '' },
     questionRole: { type: String, enum: ['root_question', 'fallback_root', 'wrap_up'], default: 'root_question', index: true },
@@ -20,6 +21,11 @@ const InterviewQuestionPoolItemSchema = new mongoose.Schema(
     topic: { type: String, default: '', index: true },
     competency: { type: String, default: '' },
     questionIntent: { type: String, default: '' },
+    questionFamily: { type: String, default: '' },
+    evidenceMode: { type: String, default: '' },
+    roleDomain: { type: String, default: 'general' },
+    requirementCategory: { type: String, default: '' },
+    capabilityGroup: { type: String, default: '' },
     text: { type: String, default: '' },
     fallbackText: { type: String, default: '' },
     spokenDraft: { type: String, default: '' },
@@ -52,6 +58,6 @@ InterviewQuestionPoolItemSchema.index({ sessionId: 1, status: 1 });
 InterviewQuestionPoolItemSchema.index({ sessionId: 1, category: 1, status: 1 });
 InterviewQuestionPoolItemSchema.index({ sessionId: 1, topic: 1 });
 InterviewQuestionPoolItemSchema.index({ matchAnalysisId: 1 });
-InterviewQuestionPoolItemSchema.index({ retentionUntil: 1 });
+applyRuntimeRetentionIndex(InterviewQuestionPoolItemSchema);
 
 export const InterviewQuestionPoolItem = mongoose.models.InterviewQuestionPoolItem || mongoose.model('InterviewQuestionPoolItem', InterviewQuestionPoolItemSchema);

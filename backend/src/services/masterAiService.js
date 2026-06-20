@@ -182,6 +182,14 @@ export const shouldMarkPreparedRootQuestionAsked = ({ interviewerOutput = {} } =
   return Boolean(preparedQuestionId && turnKind === 'root_question');
 };
 
+export const buildQuestionTranscriptMetadata = (interviewerOutput = {}) => ({
+  questionFamily: interviewerOutput.questionFamily || null,
+  evidenceMode: interviewerOutput.evidenceMode || null,
+  roleDomain: interviewerOutput.roleDomain || 'general',
+  requirementCategory: interviewerOutput.requirementCategory || null,
+  capabilityGroup: interviewerOutput.capabilityGroup || null,
+});
+
 const runInterviewController = async ({ session, payload = {}, onSentence = null, trace = null }) => {
   enqueueBackgroundJob('trace-answer-evaluated-start', () => recordAgentTraceEvent({
     sessionId: session.id,
@@ -639,6 +647,7 @@ decisionType: AGENT_DECISION_TYPES.EXECUTE_ACTION,
     timestamp: new Date().toISOString(),
     questionId,
     metadata: {
+      ...buildQuestionTranscriptMetadata(interviewerOutput),
       stage: interviewerOutput.stage,
       topic: interviewerOutput.topic,
       evidenceTypeHint: interviewerOutput.evidenceTypeHint || null,

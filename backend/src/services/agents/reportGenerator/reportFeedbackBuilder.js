@@ -20,11 +20,11 @@ const firstLabel = (items = [], fallback = '') => items.find((item) => item?.tit
   || items.find((item) => item?.title || item?.label || item?.action || item?.explanation)?.explanation
   || fallback;
 
-const buildScoreExplanations = ({ analysisResult = {}, evidenceSummary = {}, interviewMetrics = {}, explanation = {} }) => {
+const buildScoreExplanations = ({ analysisResult = {}, evidenceSummary = {}, interviewMetrics = {}, explanation = {}, turnBreakdowns = [] }) => {
   const cvScore = Number(analysisResult.overallScore || 0);
   const averageEvidence = Number(evidenceSummary.averageStrength || 0);
   const strengths = buildStrengthHighlights({ explanation });
-  const priorities = buildImprovementPriorities({ analysisResult, evidenceSummary, interviewMetrics });
+  const priorities = buildImprovementPriorities({ analysisResult, evidenceSummary, interviewMetrics, turnBreakdowns });
   const helped = firstLabel(strengths, 'Some role requirements match your CV and interview evidence.');
   const lowered = firstLabel(priorities, 'Some answers need clearer evidence and measurable outcomes.');
 
@@ -42,10 +42,10 @@ const buildScoreExplanations = ({ analysisResult = {}, evidenceSummary = {}, int
       next: 'Rewrite CV bullets around must-have requirements.',
     },
     interview: {
-      summary: averageEvidence >= 2.5 ? 'Your interview answers include usable evidence.' : 'Your interview answers need more direct project evidence.',
+      summary: averageEvidence >= 2.5 ? 'Your interview answers include usable evidence.' : 'Your interview answers need clearer role-specific reasoning and evidence.',
       helped: 'Clear intent and relevant interview direction.',
       lowered,
-      next: 'Use STAR with one measurable result per answer.',
+      next: 'Use the framework shown for each question and make the validation and outcome explicit.',
     },
   };
 };
@@ -56,16 +56,16 @@ const buildScoreExplanations = ({ analysisResult = {}, evidenceSummary = {}, int
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-export const buildDeterministicCandidateFeedback = ({ analysisResult, explanation, evidenceSummary, interviewMetrics, interviewPlan }) => ({
+export const buildDeterministicCandidateFeedback = ({ analysisResult, explanation, evidenceSummary, interviewMetrics, interviewPlan, turnBreakdowns = [] }) => ({
   overallTakeaway: buildCandidateTakeaway({ analysisResult, evidenceSummary, interviewMetrics }),
   scoreBand: getScoreBand(analysisResult.overallScore || 0),
-  scoreExplanations: buildScoreExplanations({ analysisResult, evidenceSummary, interviewMetrics, explanation }),
+  scoreExplanations: buildScoreExplanations({ analysisResult, evidenceSummary, interviewMetrics, explanation, turnBreakdowns }),
   plainEnglishMetrics: buildPlainEnglishMetrics({ analysisResult, evidenceSummary, interviewMetrics }),
   strengthHighlights: buildStrengthHighlights({ explanation }),
-  improvementPriorities: buildImprovementPriorities({ analysisResult, evidenceSummary, interviewMetrics }),
-  coachingAdvice: buildCoachingAdvice({ evidenceSummary, interviewPlan }),
-  answerRewriteExamples: buildAnswerRewriteExamples({ evidenceSummary }),
+  improvementPriorities: buildImprovementPriorities({ analysisResult, evidenceSummary, interviewMetrics, turnBreakdowns }),
+  coachingAdvice: buildCoachingAdvice({ evidenceSummary, interviewPlan, turnBreakdowns }),
+  answerRewriteExamples: buildAnswerRewriteExamples({ turnBreakdowns }),
   communicationProfile: { summary: '', keyTraits: [], fillerWords: '' },
   quoteAnalyses: [],
-  turnBreakdowns: [],
+  turnBreakdowns,
 });

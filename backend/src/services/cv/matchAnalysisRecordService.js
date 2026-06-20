@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import { MatchAnalysisRecord } from '../../db/models/matchAnalysisRecordModel.js';
+import { buildRetentionExpiry } from '../retention/retentionPolicy.js';
 
 const buildEvidenceRefs = (cvDocument, matchData) => {
   const profileEvidence = (cvDocument.cvProfile?.evidenceMap || []).slice(0, 12).map((item) => ({
@@ -33,7 +34,7 @@ export const createMatchAnalysisRecord = async ({ userId, cvFileId, jdStructured
     matchAnalysis: matchData,
     evidenceRefs,
     warnings: [...(cvDocument.parseWarnings || []), ...(matchData.warnings || [])],
-    retentionUntil: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+    retentionUntil: buildRetentionExpiry(),
   });
   return { matchAnalysisId, evidenceRefs };
 };

@@ -23,6 +23,14 @@ export const buildRepairInstructionFromQa = (qaResult = {}) => {
     instructions.push('Add STAR breakdowns only for STAR-applicable behavioural answers. Do not apply STAR to self-introduction or company motivation answers.');
   }
 
+  if (flags.includes('missing_framework_breakdown')) {
+    instructions.push('Restore the deterministic role-specific framework breakdown. Preserve its dimensions, statuses, scores, applicability, and main gap.');
+  }
+
+  if (flags.includes('role_specific_star_misapplied')) {
+    instructions.push('Remove STAR from role-specific answers and preserve their role-specific framework classification and dimensions.');
+  }
+
   if (flags.includes('self_intro_star_misapplied')) {
     instructions.push('Rewrite self-introduction feedback using an introduction-specific rubric instead of STAR scoring.');
   }

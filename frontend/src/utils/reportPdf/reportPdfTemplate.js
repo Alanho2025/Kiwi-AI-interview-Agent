@@ -495,14 +495,28 @@ const drawQuoteAnalyses = (layout, quoteAnalyses = []) => {
   });
 };
 
+export const buildTurnFrameworkMeta = (turn = {}) => {
+  const dimensions = turn.frameworkBreakdown?.dimensions;
+  if (Array.isArray(dimensions) && dimensions.length) {
+    const score = Number(turn.frameworkBreakdown.normalizedScore);
+    const frameworkSummary = `${turn.frameworkLabel || 'Role-specific framework'}${Number.isFinite(score) ? ` ${score}/10` : ''}`;
+    const dimensionSummaries = dimensions.map((dimension) => (
+      dimension.status === 'not_applicable'
+        ? `${dimension.label} not applicable`
+        : `${dimension.label} ${Number(dimension.score || 0)}/10`
+    ));
+    return [frameworkSummary, ...dimensionSummaries].join(' | ');
+  }
+  if (!turn.scores) return '';
+  return `Business ${turn.scores.business ?? '-'} / Logic ${turn.scores.logic ?? '-'} / Evidence ${turn.scores.evidence ?? '-'}`;
+};
+
 const drawTurnBreakdowns = (layout, turns = []) => {
   if (!turns.length) return;
   layout.ensureSpace(74);
   layout.sectionTitle('Turn-by-Turn Feedback', 'Detailed feedback for the scored answers.');
   turns.slice(0, 8).forEach((turn, index) => {
-    const scores = turn.scores
-      ? `Business ${turn.scores.business ?? '-'} / Logic ${turn.scores.logic ?? '-'} / Evidence ${turn.scores.evidence ?? '-'}`
-      : '';
+    const scores = buildTurnFrameworkMeta(turn);
     const title = `Q${index + 1}: ${asText(turn.question, 'Interview question')}`;
     drawItemCard(layout, title, turn.answer || turn.answerSummary || '', {
       action: turn.feedback || '',

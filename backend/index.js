@@ -65,6 +65,11 @@ async function startServer() {
       if (!startup.mongo?.ok) {
         logger.warn('Running in degraded mode because Mongo is unavailable', { port: PORT });
       }
+      if (startup.mongo?.ok && startup.postgres?.ok && getBooleanEnv('RETENTION_WORKER_ENABLED', false)) {
+        import('./src/services/retention/retentionWorker.js')
+          .then(({ startRetentionWorker }) => startRetentionWorker())
+          .catch((error) => logger.error('Retention worker failed to start', { error }));
+      }
     });
   } catch (error) {
     logger.error('Failed to start server', { error });

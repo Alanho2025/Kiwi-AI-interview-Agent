@@ -141,8 +141,7 @@ export const query = async (text, params = []) => {
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-export const withTransaction = async (callback) => {
-  const client = await createPool().connect();
+export const runTransactionWithClient = async (client, callback) => {
   try {
     await client.query('BEGIN');
     const result = await callback(client);
@@ -153,8 +152,22 @@ export const withTransaction = async (callback) => {
       await client.query('ROLLBACK');
     } catch (rollbackError) {
       console.error('[Postgres] Rollback failed:', rollbackError.message);
+      const fatalError = new AggregateError(
+        [error, rollbackError],
+        'PostgreSQL transaction failed and rollback did not complete',
+        { cause: rollbackError },
+      );
+      fatalError.code = 'ROLLBACK_FAILURE';
+      throw fatalError;
     }
     throw error;
+  }
+};
+
+export const withTransaction = async (callback) => {
+  const client = await createPool().connect();
+  try {
+    return await runTransactionWithClient(client, callback);
   } finally {
     client.release();
   }
