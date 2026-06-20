@@ -93,6 +93,7 @@ export const buildCriteriaItemsFromWeights = (weightMap = {}, type = 'macro') =>
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
 export const buildRequirementItem = ({
+  id = '',
   label,
   type = 'soft',
   importance = 'medium',
@@ -101,8 +102,12 @@ export const buildRequirementItem = ({
   sourceChunks = [],
   score,
   notes = '',
+  category = '',
+  capabilityGroup = '',
+  roleDomain = '',
 } = {}) => ({
   id: normalizeTaxonomyLabel(label),
+  requirementId: id || normalizeTaxonomyLabel(label),
   label: label?.trim() || '',
   type,
   importance,
@@ -111,6 +116,9 @@ export const buildRequirementItem = ({
   evidence: Array.isArray(evidence) ? evidence.filter(Boolean) : [],
   sourceChunks: Array.isArray(sourceChunks) ? sourceChunks.filter(Boolean) : [],
   notes,
+  category,
+  capabilityGroup,
+  roleDomain,
 });
 
 /**

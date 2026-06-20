@@ -17,13 +17,14 @@ import { encryptCandidateManifest } from './retentionManifestService.js';
 
 const ATLAS_LIMIT_BYTES = 512 * 1024 * 1024;
 const RUNTIME_COLLECTIONS = new Set([
-  'ailogs', 'aiusageevents', 'companyvaluesprofiles', 'cvartifactcaches',
+  'ailogs', 'companyvaluesprofiles', 'cvartifactcaches',
   'cvquestionseeds', 'documentcontents', 'interviewplans',
   'interviewquestionpoolitems', 'jdartifactcaches', 'jdquestionfilters',
   'matchanalysisrecords', 'matchartifactcaches', 'sessionanalyses',
   'sessionfeedbackdetails', 'sessionreports', 'sessiontranscripts',
-  'tokenusages', 'usercoachingmemories',
+  'usercoachingmemories',
 ]);
+const USAGE_DETAIL_COLLECTIONS = new Set(['aiusageevents', 'tokenusages']);
 const BENCHMARK_COLLECTIONS = new Set([
   'evaluationgroundtruths', 'normalizedcvprofiles', 'normalizedjdrubrics', 'ragbenchmarkcases',
 ]);
@@ -99,7 +100,20 @@ const loadSmokeCaseIds = async (mongoDb) => {
   return new Set(selected.map((item) => item.caseId));
 };
 
-export const classifyMongoDocument = ({ collectionName, document, cutoff, smokeCaseIds, expiredSessionIds }) => {
+export const classifyMongoDocument = ({
+  collectionName,
+  document,
+  cutoff,
+  smokeCaseIds,
+  expiredSessionIds,
+  rollupCoveredUsageIds = new Map(),
+}) => {
+  if (USAGE_DETAIL_COLLECTIONS.has(collectionName)) {
+    const isCovered = rollupCoveredUsageIds.get(collectionName)?.has(String(document._id));
+    return isCovered && isExpiredAtCutoff(document.updatedAt, cutoff)
+      ? 'expired_verified_usage_detail'
+      : null;
+  }
   if (RUNTIME_COLLECTIONS.has(collectionName)) {
     return isExpiredAtCutoff(document.updatedAt, cutoff)
       ? 'expired_runtime_document'
@@ -119,7 +133,13 @@ export const classifyMongoDocument = ({ collectionName, document, cutoff, smokeC
   return null;
 };
 
-const inventoryMongo = async ({ mongoDb, cutoff, smokeCaseIds, expiredSessionIds }) => {
+const inventoryMongo = async ({
+  mongoDb,
+  cutoff,
+  smokeCaseIds,
+  expiredSessionIds,
+  rollupCoveredUsageIds,
+}) => {
   const names = (await mongoDb.listCollections({}, { nameOnly: true }).toArray())
     .map((item) => item.name)
     .filter((name) => !name.startsWith('system.'))
@@ -155,6 +175,7 @@ const inventoryMongo = async ({ mongoDb, cutoff, smokeCaseIds, expiredSessionIds
         cutoff,
         smokeCaseIds,
         expiredSessionIds,
+        rollupCoveredUsageIds,
       });
       if (reason && document.updatedAt && !Number.isNaN(new Date(document.updatedAt).getTime())) {
         candidates.push({
@@ -191,6 +212,25 @@ const inventoryMongo = async ({ mongoDb, cutoff, smokeCaseIds, expiredSessionIds
     });
   }
   return { candidates, protectedByCollection, collections, globalKnowledge };
+};
+
+const loadRollupCoveredUsageIds = async (mongoDb) => {
+  const covered = new Map([
+    ['aiusageevents', new Set()],
+    ['tokenusages', new Set()],
+  ]);
+  const rollups = await mongoDb.collection('usagedailyrollups').find(
+    { verifiedAt: { $type: 'date' } },
+    { projection: { _id: 0, source: 1, sourceEventIds: 1 } },
+  ).toArray();
+  for (const rollup of rollups) {
+    const collectionName = rollup.source === 'ai_usage_event' ? 'aiusageevents'
+      : rollup.source === 'token_usage' ? 'tokenusages'
+        : null;
+    if (!collectionName) continue;
+    for (const id of rollup.sourceEventIds || []) covered.get(collectionName).add(String(id));
+  }
+  return covered;
 };
 
 const inventoryPostgres = async ({ postgresQuery, cutoff, uploadsRoot }) => {
@@ -409,17 +449,19 @@ export const generateRetentionAudit = async ({
     fs.mkdir(outputDirectory, { recursive: true }),
     fs.mkdir(keyRoot, { recursive: true }),
   ]);
-  const [dbStats, smokeCaseIds, postgres, files] = await Promise.all([
+  const [dbStats, smokeCaseIds, postgres, files, rollupCoveredUsageIds] = await Promise.all([
     mongoDb.command({ dbStats: 1, scale: 1 }),
     loadSmokeCaseIds(mongoDb),
     inventoryPostgres({ postgresQuery, cutoff, uploadsRoot }),
     inventoryFiles(uploadsRoot, cutoff),
+    loadRollupCoveredUsageIds(mongoDb),
   ]);
   const mongo = await inventoryMongo({
     mongoDb,
     cutoff,
     smokeCaseIds,
     expiredSessionIds: postgres.expiredSessionIds,
+    rollupCoveredUsageIds,
   });
   const expiredCvFiles = await loadExpiredCvFileCandidates({
     postgresQuery,

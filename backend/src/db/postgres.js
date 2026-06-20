@@ -152,6 +152,13 @@ export const runTransactionWithClient = async (client, callback) => {
       await client.query('ROLLBACK');
     } catch (rollbackError) {
       console.error('[Postgres] Rollback failed:', rollbackError.message);
+      const fatalError = new AggregateError(
+        [error, rollbackError],
+        'PostgreSQL transaction failed and rollback did not complete',
+        { cause: rollbackError },
+      );
+      fatalError.code = 'ROLLBACK_FAILURE';
+      throw fatalError;
     }
     throw error;
   }

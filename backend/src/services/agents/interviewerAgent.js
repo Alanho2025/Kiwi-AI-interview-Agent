@@ -57,6 +57,11 @@ const mapRootCandidateToQuestion = ({ candidate = null, targetTopic = '', catego
     constraints: candidate.constraints,
     maxFollowUps: candidate.maxFollowUps,
     followUpStrategies: candidate.followUpStrategies,
+    questionFamily: candidate.questionFamily || null,
+    evidenceMode: candidate.evidenceMode || null,
+    roleDomain: candidate.roleDomain || 'general',
+    requirementCategory: candidate.requirementCategory || null,
+    capabilityGroup: candidate.capabilityGroup || null,
     rankTrace: candidate.rankTrace || {
       questionId: candidate.questionId || null,
       selectionSource: 'prepared_question_pool',
@@ -224,6 +229,11 @@ export const runInterviewerAgent = async ({
       rootTopic: turnPlan.followUpContext?.rootTopic || selectedQuestion.topic || null,
       followUpIntent: turnPlan.followUpIntent || null,
       evidenceTarget: turnPlan.evidenceTarget || null,
+      questionFamily: turnPlan.followUpContext?.questionFamily || selectedQuestion.questionFamily || null,
+      evidenceMode: turnPlan.followUpContext?.evidenceMode || selectedQuestion.evidenceMode || null,
+      roleDomain: turnPlan.followUpContext?.roleDomain || selectedQuestion.roleDomain || 'general',
+      requirementCategory: turnPlan.followUpContext?.requirementCategory || selectedQuestion.requirementCategory || null,
+      capabilityGroup: turnPlan.followUpContext?.capabilityGroup || selectedQuestion.capabilityGroup || null,
     };
   }
 
@@ -389,6 +399,11 @@ export const runInterviewerAgent = async ({
     rootTopic: selectedQuestion.rootTopic || null,
     followUpIntent: selectedQuestion.followUpIntent || null,
     evidenceTarget: selectedQuestion.evidenceTarget || null,
+    questionFamily: selectedQuestion.questionFamily || null,
+    evidenceMode: selectedQuestion.evidenceMode || null,
+    roleDomain: selectedQuestion.roleDomain || 'general',
+    requirementCategory: selectedQuestion.requirementCategory || null,
+    capabilityGroup: selectedQuestion.capabilityGroup || null,
     preparedQuestionId: selectedQuestion.preparedQuestionId || null,
     rankTrace: selectedQuestion.rankTrace || null,
     retrievalSnapshot: retrievalBundle,

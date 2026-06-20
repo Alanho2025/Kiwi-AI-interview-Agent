@@ -1,6 +1,6 @@
 const normalizeFocus = (value = '') => {
   const raw = String(value || '').trim().toLowerCase();
-  if (raw === 'technical') return 'Technical';
+  if (raw === 'technical') return 'Role-specific / Technical';
   if (raw === 'behavioral' || raw === 'behavioural') return 'Behavioral';
   return 'Combined';
 };
@@ -20,7 +20,7 @@ export const buildInterviewDisplayModel = (session = {}, currentPlanItem = null)
   const focusLabel = normalizeFocus(session?.settings?.focusArea);
   const seniorityLabel = normalizeSeniority(session?.settings?.seniorityLevel);
   const exactRoleTitle = session?.displayTitle || rubric.title || session?.targetRole || 'Interview Session';
-  const roleFamilyLabel = session?.roleFamily || session?.compactRoleLabel || rubric.roleFamily || session?.analysisResult?.matchingDetails?.questionPlanHints?.roleCanonical || 'Software Engineer';
+  const roleFamilyLabel = session?.roleFamily || session?.compactRoleLabel || rubric.roleFamily || session?.analysisResult?.matchingDetails?.questionPlanHints?.roleCanonical || 'Target Role';
   const companyName = session?.analysisResult?.parsedJdProfile?.companyName || session?.companyName || '';
   const matchedAreas = session?.analysisResult?.planPreview?.topMatchedAreas || session?.analysisResult?.matchingDetails?.topMatchedSkills || [];
   const title = companyName ? `${companyName} - ${exactRoleTitle}` : exactRoleTitle;
@@ -29,11 +29,11 @@ export const buildInterviewDisplayModel = (session = {}, currentPlanItem = null)
   const timeLimitSeconds = Number(session?.timeLimitSeconds || session?.settings?.timeLimitSeconds || 0);
   const modeLabel = controlMode === 'time_limited' ? `${timeLimitSeconds ? Math.round(timeLimitSeconds / 60) : 15}-minute ${focusLabel}` : focusLabel;
   const stageLabel = toTitleCase(currentPlanItem?.stage || 'opening');
-  const promiseLabel = focusLabel === 'Technical'
-    ? 'This session will stay technical, so explain tools, implementation choices, trade-offs, and results clearly.'
+  const promiseLabel = focusLabel === 'Role-specific / Technical'
+    ? 'This session will test role-specific competency, so explain your method, professional judgement, risk or quality controls, validation, and outcome clearly.'
     : focusLabel === 'Behavioral'
       ? 'This session will stay behavioural, so keep each example concrete and structured.'
-      : 'This session will test both behavioural and technical evidence, so keep examples concrete and role-specific.';
+      : 'This session will test both behavioural and role-specific evidence, so use the framework that matches each question.';
 
   const currentFocusLabel = currentPlanItem?.topic
     ? `Current focus: ${toTitleCase(currentPlanItem.topic)}`

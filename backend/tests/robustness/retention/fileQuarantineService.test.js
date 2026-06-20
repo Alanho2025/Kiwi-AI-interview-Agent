@@ -68,4 +68,17 @@ describe('fileQuarantineService', () => {
 
     expect(await fs.readFile(firstPath, 'utf8')).toBe('first');
   });
+
+  it('records a file that was already missing without treating it as a quarantine failure', async () => {
+    const root = await createTemporaryRoot();
+    const uploadsRoot = path.join(root, 'uploads');
+    const quarantineRoot = path.join(root, 'quarantine');
+    const missingPath = path.join(uploadsRoot, 'missing.wav');
+    await fs.mkdir(uploadsRoot, { recursive: true });
+    const service = createFileQuarantineService({ uploadsRoot, quarantineRoot });
+
+    const entries = await service.quarantine({ jobId: 'job-missing', filePaths: [missingPath] });
+
+    expect(entries).toEqual([expect.objectContaining({ originalPath: missingPath, missing: true })]);
+  });
 });

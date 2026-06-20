@@ -22,6 +22,29 @@ import {
   buildBreakdown,
   buildCommercialStressPayload,
 } from '../utils/aiUsageTrackingHelpers.js';
+import { PROVIDER_LABELS } from '../config/aiUsageTrackingConstants.js';
+import {
+  AI_USAGE_ROLLUP_SOURCE,
+  combineUsageRollups,
+  getUserUsageRollups,
+  refreshAiUsageDailyRollup,
+} from './usageRollupService.js';
+
+const buildRollupProviderBreakdown = (providerTotals = []) => providerTotals.map((provider) => ({
+  id: provider.provider,
+  label: PROVIDER_LABELS[provider.provider] || provider.provider,
+  estimatedCost: Number(toUsageCurrencyCost(provider.totalCostUsd).toFixed(6)),
+  estimatedCostUsd: roundDisplayCost(provider.totalCostUsd),
+  totalTokens: provider.totalTokens,
+  promptTokens: provider.promptTokens,
+  completionTokens: provider.completionTokens,
+  audioSeconds: provider.audioSeconds,
+  textCharacters: provider.textCharacters,
+  audioBytes: provider.audioBytes,
+  requestCount: provider.requestCount,
+  providers: [PROVIDER_LABELS[provider.provider] || provider.provider],
+  currency: AI_USAGE_COST_CURRENCY,
+}));
 
 export const recordAiUsageEvent = async ({
   userId,
@@ -51,7 +74,12 @@ export const recordAiUsageEvent = async ({
   };
 
   debugUsageEvent(eventPayload);
-  return AiUsageEvent.create(eventPayload);
+  const event = await AiUsageEvent.create(eventPayload);
+  await refreshAiUsageDailyRollup({
+    userId,
+    day: new Date(event.createdAt || Date.now()),
+  });
+  return event;
 };
 
 export const recordLlmUsage = async ({
@@ -152,6 +180,25 @@ export const recordLocalUsage = async ({
 
 export const getUserAiUsageSummary = async (userId) => {
   if (!userId) return emptySummary();
+
+  const rollups = await getUserUsageRollups(userId, AI_USAGE_ROLLUP_SOURCE);
+  if (rollups.length) {
+    const combined = combineUsageRollups(rollups);
+    const summary = {
+      ...emptySummary(),
+      ...combined.summary,
+      totalCost: combined.summary.totalCostUsd,
+    };
+    return {
+      ...summary,
+      totalCostUsd: roundDisplayCost(summary.totalCost),
+      totalCost: roundDisplayCost(toUsageCurrencyCost(summary.totalCost)),
+      currency: AI_USAGE_COST_CURRENCY,
+      measuredSessions: combined.measuredSessions,
+      providerBreakdown: buildRollupProviderBreakdown(combined.providerTotals),
+      pricing: emptySummary().pricing,
+    };
+  }
 
   const events = await AiUsageEvent.find({ userId }).lean();
   const summary = summarizeEvents(events);

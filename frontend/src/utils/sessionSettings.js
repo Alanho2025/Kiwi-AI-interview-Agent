@@ -15,6 +15,12 @@ export const SESSION_MODE_OPTIONS = Object.freeze({
 
 export const seniorityOptions = ['Junior/Grad', 'Intermediate', 'Advanced'];
 export const focusOptions = ['Technical', 'Behavioral', 'Combined'];
+export const focusDisplayOptions = [
+  { value: 'Technical', label: 'Role-specific / Technical' },
+  { value: 'Behavioral', label: 'Behavioral' },
+  { value: 'Combined', label: 'Combined' },
+];
+export const getFocusAreaLabel = (value = '') => focusDisplayOptions.find((option) => option.value === value)?.label || value;
 export const sessionModeOptions = [
   { value: SESSION_MODE_OPTIONS.text, label: 'Text session' },
   { value: SESSION_MODE_OPTIONS.voice, label: 'Voice session' },
@@ -91,7 +97,7 @@ export const settingsSummary = (settings = DEFAULT_SESSION_SETTINGS) => {
 
   return {
     level: safeSettings.seniorityLevel,
-    focus: safeSettings.focusArea,
+    focus: getFocusAreaLabel(safeSettings.focusArea),
     nzContext: safeSettings.enableNZCultureFit ? 'On' : 'Off',
     controlMode,
     limit,

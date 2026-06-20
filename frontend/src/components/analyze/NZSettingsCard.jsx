@@ -13,7 +13,7 @@ import { VoiceDeviceCheckPanel } from './VoiceDeviceCheckPanel.jsx';
 import { cn } from '../../utils/formatters.js';
 import {
   controlModeOptions,
-  focusOptions,
+  focusDisplayOptions,
   questionLimitOptions,
   seniorityOptions,
   sessionModeOptions,
@@ -88,19 +88,19 @@ export function NZSettingsCard({ settings, setSettings, sessionMode, setSessionM
         <div>
           <h4 className="text-sm font-medium text-primary mb-3">Question focus</h4>
           <div className="flex flex-wrap gap-3">
-            {focusOptions.map((area) => (
+            {focusDisplayOptions.map((area) => (
               <button
-                key={area}
+                key={area.value}
                 type="button"
-                onClick={() => updateSetting('focusArea', area)}
+                onClick={() => updateSetting('focusArea', area.value)}
                 className={cn(
                   'rounded-xl border px-4 py-2 text-sm font-medium transition-colors',
-                  settings.focusArea === area
+                  settings.focusArea === area.value
                     ? '[border-color:var(--accent)] text-accent [background:var(--accent-glow)]'
                     : 'border-theme text-muted hover:border-theme'
                 )}
               >
-                {area}
+                {area.label}
               </button>
             ))}
           </div>

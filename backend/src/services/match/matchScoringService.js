@@ -428,6 +428,7 @@ export const buildRequirementChecks = (requirements = [], _cvText, evidenceProfi
       judgement?.interviewProbe ? `interviewProbe=${judgement.interviewProbe}` : '',
     ].filter(Boolean).join('; ');
     return buildRequirementItem({
+      id: requirement.id,
       label: requirement.label,
       type: requirement.mustHave ? 'hard' : requirement.type || 'soft',
       importance: requirement.importance || 'medium',
@@ -435,6 +436,9 @@ export const buildRequirementChecks = (requirements = [], _cvText, evidenceProfi
       evidence: cleanedEvidence,
       sourceChunks: requirement.sourceChunks || [],
       notes,
+      category: requirement.category || '',
+      capabilityGroup: requirement.capabilityGroup || '',
+      roleDomain: requirement.roleDomain || '',
     });
   });
 

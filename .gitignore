@@ -15,5 +15,5 @@ backend/benchmarks/voice-asr-fallback/fixtures.local.json
 backend/benchmarks/voice-asr-fallback/results*.json
 backend/benchmarks/voice-asr-fallback/*.results.json
 
-# Ignore report directory
-report/
+# Ignore only the generated report directory at the repository root.
+/report/

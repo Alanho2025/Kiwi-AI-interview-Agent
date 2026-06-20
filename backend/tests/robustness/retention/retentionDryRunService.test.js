@@ -1,6 +1,10 @@
+import fs from 'fs/promises';
+import os from 'os';
+import path from 'path';
 import { describe, expect, it, vi } from 'vitest';
 import {
   buildCandidatePlanSummary,
+  verifyCandidateFiles,
   verifyPostgresCandidates,
 } from '../../../src/services/retention/retentionDryRunService.js';
 
@@ -59,5 +63,32 @@ describe('retentionDryRunService PostgreSQL verification', () => {
     expect(summary.postgresByTable.uploaded_files).toEqual({ count: 1, estimatedBytes: 1000 });
     expect(summary.estimatedReleaseBytes).toBe(1500);
     expect(summary.fileCount).toBe(1);
+  });
+
+  it('reports already-missing files but only marks out-of-root paths unsafe', async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'kiwi-retention-files-'));
+    const existing = path.join(root, 'existing.wav');
+    await fs.writeFile(existing, 'audio');
+    try {
+      const result = await verifyCandidateFiles({
+        uploadsRoot: root,
+        filePathsByResourceId: {
+          session: [existing, path.join(root, 'missing.wav'), path.join(root, '..', 'outside.wav')],
+        },
+      });
+      expect(result.valid).toBe(false);
+      expect(result.matchedCount).toBe(1);
+      expect(result.missingCount).toBe(1);
+      expect(result.outsideRootCount).toBe(1);
+
+      const withoutOutsidePath = await verifyCandidateFiles({
+        uploadsRoot: root,
+        filePathsByResourceId: { session: [existing, path.join(root, 'missing.wav')] },
+      });
+      expect(withoutOutsidePath.valid).toBe(true);
+      expect(withoutOutsidePath.missingCount).toBe(1);
+    } finally {
+      await fs.rm(root, { recursive: true, force: true });
+    }
   });
 });

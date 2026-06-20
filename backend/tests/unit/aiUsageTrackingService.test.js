@@ -8,6 +8,11 @@ import {
     getRecentAiSessionUsage,
     getSessionExecutionCost,
 } from '../../src/services/aiUsageTrackingService.js';
+import { AiUsageEvent } from '../../src/db/models/aiUsageEventModel.js';
+import {
+    getUserUsageRollups,
+    refreshAiUsageDailyRollup,
+} from '../../src/services/usageRollupService.js';
 
 // Mock the AiUsageEvent model
 vi.mock('../../src/db/models/aiUsageEventModel.js', () => ({
@@ -22,9 +27,21 @@ vi.mock('../../src/db/models/aiUsageEventModel.js', () => ({
     },
 }));
 
+vi.mock('../../src/services/usageRollupService.js', () => ({
+    AI_USAGE_ROLLUP_SOURCE: 'ai_usage_event',
+    combineUsageRollups: vi.fn((rollups) => ({
+        summary: rollups[0].summary,
+        measuredSessions: 2,
+        providerTotals: rollups[0].providerTotals,
+    })),
+    getUserUsageRollups: vi.fn(() => Promise.resolve([])),
+    refreshAiUsageDailyRollup: vi.fn(() => Promise.resolve()),
+}));
+
 describe('aiUsageTrackingService', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        getUserUsageRollups.mockResolvedValue([]);
         process.env.AI_USAGE_DEBUG = 'false';
     });
 
@@ -56,6 +73,10 @@ describe('aiUsageTrackingService', () => {
             expect(result).toBeDefined();
             expect(result.userId).toBe('user-123');
             expect(result.provider).toBe('deepseek');
+            expect(refreshAiUsageDailyRollup).toHaveBeenCalledWith({
+                userId: 'user-123',
+                day: expect.any(Date),
+            });
         });
 
         it('should sanitize metrics by removing undefined and null values', async () => {
@@ -356,6 +377,37 @@ describe('aiUsageTrackingService', () => {
             expect(result).toHaveProperty('measuredSessions');
             expect(result).toHaveProperty('providerBreakdown');
             expect(result).toHaveProperty('pricing');
+        });
+
+        it('uses verified permanent rollups for lifetime totals', async () => {
+            getUserUsageRollups.mockResolvedValue([{
+                summary: {
+                    totalCostUsd: 0.25,
+                    totalPromptTokens: 100,
+                    totalCompletionTokens: 50,
+                    totalTokens: 150,
+                    speechAudioSeconds: 20,
+                    speechTextCharacters: 30,
+                    speechAudioBytes: 40,
+                    callCount: 3,
+                },
+                providerTotals: [{
+                    provider: 'deepseek',
+                    totalCostUsd: 0.25,
+                    totalTokens: 150,
+                    promptTokens: 100,
+                    completionTokens: 50,
+                    requestCount: 3,
+                }],
+            }]);
+
+            const result = await getUserAiUsageSummary('user-123');
+
+            expect(result.totalCostUsd).toBe(0.25);
+            expect(result.totalTokens).toBe(150);
+            expect(result.measuredSessions).toBe(2);
+            expect(result.providerBreakdown[0]).toMatchObject({ id: 'deepseek', totalTokens: 150 });
+            expect(AiUsageEvent.find).not.toHaveBeenCalled();
         });
     });
 

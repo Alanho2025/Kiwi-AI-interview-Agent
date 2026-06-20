@@ -71,6 +71,11 @@ describe('interviewer prepared pool runtime selection', () => {
       riskWeight: 0.9,
       modeCompatibility: { technical: true, behavioural: false, combined: true },
       evidenceNeed: ['ownership', 'validation_method'],
+      questionFamily: 'role_specific',
+      evidenceMode: 'past_example',
+      roleDomain: 'professional_services',
+      requirementCategory: 'domain_knowledge',
+      capabilityGroup: 'domain_knowledge',
     }]);
 
     const result = await runInterviewerAgent({
@@ -86,6 +91,13 @@ describe('interviewer prepared pool runtime selection', () => {
     expect(result.questionDecision.turnKind).toBe('root_question');
     expect(result.questionDecision.scenario).toBe('root_match_gap');
     expect(result.questionDecision.topRootCandidates).toHaveLength(1);
+    expect(result).toMatchObject({
+      questionFamily: 'role_specific',
+      evidenceMode: 'past_example',
+      roleDomain: 'professional_services',
+      requirementCategory: 'domain_knowledge',
+      capabilityGroup: 'domain_knowledge',
+    });
   });
 
   it('uses the prepared pool ranker instead of a simplified priority sort', async () => {
@@ -224,6 +236,11 @@ describe('interviewer prepared pool runtime selection', () => {
             metadata: {
               topic: 'database',
               followUpDepth: 0,
+              questionFamily: 'role_specific',
+              evidenceMode: 'knowledge_explanation',
+              roleDomain: 'professional_services',
+              requirementCategory: 'domain_knowledge',
+              capabilityGroup: 'domain_knowledge',
               questionDecision: { preparedQuestionId: 'prepared-root' },
             },
           },
@@ -242,6 +259,13 @@ describe('interviewer prepared pool runtime selection', () => {
     expect(result.parentPreparedQuestionId).toBe('prepared-root');
     expect(result.followUpDepth).toBe(1);
     expect(result.followUpIntent).toEqual(expect.any(String));
+    expect(result).toMatchObject({
+      questionFamily: 'role_specific',
+      evidenceMode: 'knowledge_explanation',
+      roleDomain: 'professional_services',
+      requirementCategory: 'domain_knowledge',
+      capabilityGroup: 'domain_knowledge',
+    });
   });
 
   it('falls back to the legacy pool when the DB query throws', async () => {

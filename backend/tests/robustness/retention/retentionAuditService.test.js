@@ -40,4 +40,25 @@ describe('retentionAuditService classification', () => {
     expect(summary.count).toBe(2);
     expect(summary.checksum).toMatch(/^[a-f0-9]{64}$/);
   });
+
+  it('protects usage details unless the exact raw event is covered by a verified rollup', () => {
+    const document = { _id: 'usage-1', updatedAt: new Date('2020-01-01') };
+    const base = {
+      document,
+      cutoff: input.cutoff,
+      smokeCaseIds: new Set(),
+      expiredSessionIds: new Set(),
+    };
+
+    expect(classifyMongoDocument({
+      ...base,
+      collectionName: 'aiusageevents',
+      rollupCoveredUsageIds: new Map(),
+    })).toBeNull();
+    expect(classifyMongoDocument({
+      ...base,
+      collectionName: 'aiusageevents',
+      rollupCoveredUsageIds: new Map([['aiusageevents', new Set(['usage-1'])]]),
+    })).toBe('expired_verified_usage_detail');
+  });
 });

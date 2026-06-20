@@ -97,7 +97,14 @@ const buildStarrFeedback = ({ mainMissing = 'resultOrReaction', breakdown = {} }
   return `Strengthen the ${formatStarrElementName(mainMissing)} part of this STARR answer.`;
 };
 
-const buildDeterministicTurnBreakdowns = (transcript = [], analysedAnswers = []) => {
+const buildFrameworkFeedback = (turnStructure = {}) => {
+  const breakdown = turnStructure.frameworkBreakdown || {};
+  const mainGap = breakdown.dimensions?.find((item) => item.key === breakdown.mainGapKey);
+  if (!mainGap) return `Use the ${turnStructure.frameworkLabel || 'role-specific'} framework to make the reasoning and evidence clearer.`;
+  return `Strengthen ${mainGap.label.toLowerCase()}: ${mainGap.reason}`;
+};
+
+export const buildDeterministicTurnBreakdowns = (transcript = [], analysedAnswers = []) => {
   const questionAnswerPairs = buildQuestionAnswerPairs(transcript);
   return questionAnswerPairs.map(({ questionTurn = {}, answerTurn = {} }, index) => {
     const analysis = analysedAnswers[index] || {};
@@ -106,13 +113,16 @@ const buildDeterministicTurnBreakdowns = (transcript = [], analysedAnswers = [])
       answer: answerTurn.text,
       metadata: questionTurn.metadata || {},
     });
-    const breakdown = turnStructure.starBreakdown || turnStructure.structureBreakdown || {};
+    const breakdown = turnStructure.starBreakdown || turnStructure.starrBreakdown || turnStructure.structureBreakdown || {};
     const mainMissing = breakdown.mainMissingElement || 'specificity';
     const nonStarFeedback = turnStructure.rubricType === 'self_intro'
       ? 'Strengthen this introduction by linking your background, role interest, and one relevant project or product example in a cleaner sequence.'
       : turnStructure.rubricType === 'company_motivation'
         ? 'Keep the role interest, but add one company-specific reason and connect it to your own AI/game/product experience.'
-        : 'Answer the conversational prompt directly and keep the response concise.';
+        : turnStructure.rubricType === 'role_specific'
+          ? buildFrameworkFeedback(turnStructure)
+          : 'Answer the conversational prompt directly and keep the response concise.';
+    const frameworkScore = Number(turnStructure.frameworkBreakdown?.normalizedScore || 0);
     return {
       question: questionTurn.text || 'Interview question',
       answer: answerTurn.text || '',
@@ -120,10 +130,19 @@ const buildDeterministicTurnBreakdowns = (transcript = [], analysedAnswers = [])
       questionStage: questionTurn.metadata?.stage || '',
       questionTopic: questionTurn.metadata?.topic || '',
       rubricType: turnStructure.rubricType,
+      frameworkKey: turnStructure.frameworkKey,
+      frameworkLabel: turnStructure.frameworkLabel,
+      questionFamily: turnStructure.questionFamily,
+      evidenceMode: turnStructure.evidenceMode,
+      capabilityGroup: questionTurn.metadata?.capabilityGroup || '',
+      roleDomain: questionTurn.metadata?.roleDomain || 'general',
+      requirementCategory: questionTurn.metadata?.requirementCategory || questionTurn.metadata?.category || '',
       starApplicable: turnStructure.starApplicable,
       structureLabel: turnStructure.structureLabel,
       structureBreakdown: turnStructure.structureBreakdown,
-      starBreakdown: turnStructure.starBreakdown,
+      frameworkBreakdown: turnStructure.frameworkBreakdown || null,
+      frameworkQualityScore: Number.isFinite(frameworkScore) ? frameworkScore : null,
+      starBreakdown: turnStructure.starBreakdown || turnStructure.starrBreakdown || null,
       resultOrReactionLabel: turnStructure.resultOrReactionLabel,
       feedback: turnStructure.starApplicable
         ? buildStarrFeedback({ mainMissing, breakdown })
@@ -147,7 +166,10 @@ const buildDeterministicTurnBreakdowns = (transcript = [], analysedAnswers = [])
 const sanitizeNonStarFeedback = (turn = {}, fallback = {}) => {
   if (turn.starApplicable !== false) return turn.feedback || fallback.feedback || '';
   const feedback = String(turn.feedback || fallback.feedback || '');
-  if (!/star|situation|task|action|result/i.test(feedback)) return feedback;
+  const appliesStar = /\bstarr?\b/i.test(feedback)
+    || /situation[\s\S]*task[\s\S]*action[\s\S]*result/i.test(feedback);
+  if (!appliesStar) return feedback;
+  if (turn.rubricType === 'role_specific') return fallback.feedback || 'Use the role-specific framework shown for this answer.';
   if (turn.rubricType === 'self_intro') {
     return 'Strengthen this introduction by linking your background, role interest, and one relevant project or product example in a cleaner sequence.';
   }
@@ -157,7 +179,7 @@ const sanitizeNonStarFeedback = (turn = {}, fallback = {}) => {
   return 'Answer this prompt directly and keep the response concise.';
 };
 
-const mergeTurnBreakdownsWithRubrics = (candidateTurns = [], deterministicTurns = []) => {
+export const mergeTurnBreakdownsWithRubrics = (candidateTurns = [], deterministicTurns = []) => {
   const maxLength = Math.max(candidateTurns?.length || 0, deterministicTurns?.length || 0);
   return Array.from({ length: maxLength }).map((_, index) => {
     const turn = candidateTurns[index] || {};
@@ -171,9 +193,18 @@ const mergeTurnBreakdownsWithRubrics = (candidateTurns = [], deterministicTurns 
       questionStage: fallback.questionStage || turn.questionStage || '',
       questionTopic: fallback.questionTopic || turn.questionTopic || '',
       rubricType: fallback.rubricType || turn.rubricType || 'star',
+      frameworkKey: fallback.frameworkKey || turn.frameworkKey || '',
+      frameworkLabel: fallback.frameworkLabel || turn.frameworkLabel || '',
+      questionFamily: fallback.questionFamily || turn.questionFamily || '',
+      evidenceMode: fallback.evidenceMode || turn.evidenceMode || '',
+      capabilityGroup: fallback.capabilityGroup || turn.capabilityGroup || '',
+      roleDomain: fallback.roleDomain || turn.roleDomain || 'general',
+      requirementCategory: fallback.requirementCategory || turn.requirementCategory || '',
       starApplicable: fallback.starApplicable ?? turn.starApplicable ?? true,
       structureLabel: fallback.structureLabel || turn.structureLabel || 'STARR evidence',
       structureBreakdown: fallback.structureBreakdown || turn.structureBreakdown || turn.starBreakdown || null,
+      frameworkBreakdown: fallback.frameworkBreakdown || turn.frameworkBreakdown || null,
+      frameworkQualityScore: fallback.frameworkQualityScore ?? turn.frameworkQualityScore ?? null,
       starBreakdown: (fallback.starApplicable ?? turn.starApplicable ?? true) ? (fallback.starBreakdown || turn.starBreakdown) : null,
       resultOrReactionLabel: fallback.resultOrReactionLabel || turn.resultOrReactionLabel,
       scores: fallback.scores || turn.scores || {},
@@ -184,7 +215,7 @@ const mergeTurnBreakdownsWithRubrics = (candidateTurns = [], deterministicTurns 
     };
     return {
       ...merged,
-      feedback: fallback.feedback || sanitizeNonStarFeedback(merged, fallback),
+      feedback: sanitizeNonStarFeedback(merged, fallback),
     };
   }).filter((item) => item.question && item.answer);
 };
@@ -224,13 +255,17 @@ export const runReportGeneratorAgent = async ({ session = {}, analysisResult = {
   const analysedAnswers = analyseCandidateAnswers(userTurns);
   const evidenceSummary = buildEvidenceSummary(analysedAnswers);
   const interviewMetrics = buildInterviewMetrics(transcript, session.totalQuestions || 0);
-  const deterministicFeedback = buildDeterministicCandidateFeedback({
-    analysisResult,
-    explanation,
-    evidenceSummary,
-    interviewMetrics,
-    interviewPlan,
-  });
+  const deterministicTurnBreakdowns = buildDeterministicTurnBreakdowns(transcript, analysedAnswers);
+  const deterministicFeedback = {
+    ...buildDeterministicCandidateFeedback({
+      analysisResult,
+      explanation,
+      evidenceSummary,
+      interviewMetrics,
+      interviewPlan,
+      turnBreakdowns: deterministicTurnBreakdowns,
+    }),
+  };
 
   const analysisRecord = session.id ? await SessionAnalysis.findOne({ sessionId: session.id }).lean() : null;
   const userCoachingMemory = await getUserCoachingMemory(session.userId);
@@ -253,7 +288,6 @@ export const runReportGeneratorAgent = async ({ session = {}, analysisResult = {
     deterministicFeedback,
     nzWorkplaceFit,
   });
-  const deterministicTurnBreakdowns = buildDeterministicTurnBreakdowns(transcript, analysedAnswers);
   const feedbackWithTurnFallback = {
     ...candidateFeedback,
     turnBreakdowns: mergeTurnBreakdownsWithRubrics(candidateFeedback.turnBreakdowns, deterministicTurnBreakdowns),

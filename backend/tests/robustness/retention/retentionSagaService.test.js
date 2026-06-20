@@ -96,4 +96,16 @@ describe('retentionSagaService', () => {
     expect(harness.mongoRepository.deleteCandidatesInTransaction).not.toHaveBeenCalled();
     expect(harness.postgresRepository.deleteCandidatesInTransaction).not.toHaveBeenCalled();
   });
+
+  it('moves a job to manual review when rollback itself fails', async () => {
+    const harness = createHarness(RETENTION_JOB_STATES.MONGO_COMMITTED);
+    const error = Object.assign(new Error('rollback failed'), { code: 'ROLLBACK_FAILURE' });
+    harness.postgresRepository.deleteCandidatesInTransaction.mockRejectedValue(error);
+
+    await expect(harness.service.execute({ jobId: 'job-1' })).rejects.toThrow('rollback failed');
+
+    expect(harness.jobRepository.recordFailure).toHaveBeenCalledWith(expect.objectContaining({
+      state: RETENTION_JOB_STATES.MANUAL_REVIEW,
+    }));
+  });
 });
