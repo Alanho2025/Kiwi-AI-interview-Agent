@@ -205,6 +205,8 @@ const updateInterviewSessionRow = async ({ id, userId = null, data = {} }) => {
   }
 
   assignments.push('updated_at = NOW()');
+  assignments.push("expires_at = NOW() + interval '7 days'");
+  assignments.push('data_retention_days = 7');
   values.push(String(id));
   const idIndex = index;
   index += 1;
@@ -255,4 +257,3 @@ export const softDeleteSessionById = async (idOrPayload, userId) => {
 export const updateSession = updateSessionById;
 
 export const softDeleteOwnedSession = softDeleteSessionById;
-

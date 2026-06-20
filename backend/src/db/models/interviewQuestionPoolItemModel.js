@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { applyRuntimeRetentionIndex } from '../runtimeRetentionIndex.js';
 
 const InterviewQuestionPoolItemSchema = new mongoose.Schema(
   {
@@ -52,6 +53,6 @@ InterviewQuestionPoolItemSchema.index({ sessionId: 1, status: 1 });
 InterviewQuestionPoolItemSchema.index({ sessionId: 1, category: 1, status: 1 });
 InterviewQuestionPoolItemSchema.index({ sessionId: 1, topic: 1 });
 InterviewQuestionPoolItemSchema.index({ matchAnalysisId: 1 });
-InterviewQuestionPoolItemSchema.index({ retentionUntil: 1 });
+applyRuntimeRetentionIndex(InterviewQuestionPoolItemSchema);
 
 export const InterviewQuestionPoolItem = mongoose.models.InterviewQuestionPoolItem || mongoose.model('InterviewQuestionPoolItem', InterviewQuestionPoolItemSchema);

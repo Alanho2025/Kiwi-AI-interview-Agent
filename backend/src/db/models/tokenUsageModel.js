@@ -5,6 +5,7 @@
  */
 
 import mongoose from 'mongoose';
+import { applyRuntimeRetentionIndex } from '../runtimeRetentionIndex.js';
 
 const TokenUsageSchema = new mongoose.Schema(
   {
@@ -20,5 +21,6 @@ const TokenUsageSchema = new mongoose.Schema(
 
 TokenUsageSchema.index({ userId: 1, createdAt: -1 });
 TokenUsageSchema.index({ sessionId: 1, createdAt: -1 });
+applyRuntimeRetentionIndex(TokenUsageSchema);
 
 export const TokenUsage = mongoose.models.TokenUsage || mongoose.model('TokenUsage', TokenUsageSchema);

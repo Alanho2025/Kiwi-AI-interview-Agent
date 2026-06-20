@@ -19,7 +19,7 @@ import { rebuildOwnedCvProfile, softDeleteOwnedCv, exportOwnedCvData } from '../
 import { saveReviewedCvProfile } from '../services/cv/cvReviewedProfileService.js';
 import * as authService from '../services/authService.js';
 import { createAuditLog } from '../services/auditService.js';
-import { attachDocumentContent, createUploadedFileRecord, getCvRecordById, getRecentCvRecords } from '../services/fileRepositoryService.js';
+import { attachDocumentContent, createUploadedFileRecord, getCvRecordById, getRecentCvRecords, touchCvRetention } from '../services/fileRepositoryService.js';
 import { saveBufferToLocalStorage } from '../services/storageService.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { badRequest, notFound } from '../utils/appError.js';
@@ -165,6 +165,8 @@ export const selectCV = asyncHandler(async (req, res) => {
     throw notFound('CV not found', 'The selected CV does not exist');
   }
 
+  await touchCvRetention(cvId, user.id);
+
   logger.info('CV selected', getRequestLogMeta(req, { userId: user.id, cvId }));
   res.json(formatSuccess('CV selected successfully', selectedCV));
 });
@@ -173,6 +175,7 @@ export const selectCV = asyncHandler(async (req, res) => {
 export const rebuildCvProfile = asyncHandler(async (req, res) => {
   const user = await authService.resolveUserFromRequest(req);
   const updatedCv = await rebuildOwnedCvProfile({ cvId: req.params.cvId, userId: user.id });
+  await touchCvRetention(req.params.cvId, user.id);
   res.json(formatSuccess('CV profile rebuilt successfully', updatedCv));
 });
 
@@ -183,6 +186,7 @@ export const reviewCvProfile = asyncHandler(async (req, res) => {
     userId: user.id,
     reviewProfile: req.body?.reviewProfile || req.body || {},
   });
+  await touchCvRetention(req.params.cvId, user.id);
   await refreshCvQuestionSeeds({
     req,
     userId: user.id,

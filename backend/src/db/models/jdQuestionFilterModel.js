@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { applyRuntimeRetentionIndex } from '../runtimeRetentionIndex.js';
 
 const JdQuestionFilterSchema = new mongoose.Schema(
   {
@@ -20,12 +21,13 @@ const JdQuestionFilterSchema = new mongoose.Schema(
     adaptedSeedIds: { type: [String], default: [] },
     keptSeedIds: { type: [String], default: [] },
     filterDecisions: { type: [mongoose.Schema.Types.Mixed], default: [] },
-    retentionUntil: { type: Date, index: true },
+    retentionUntil: { type: Date },
   },
   { timestamps: true }
 );
 
 JdQuestionFilterSchema.index({ userId: 1, jdFingerprint: 1 });
 JdQuestionFilterSchema.index({ matchAnalysisId: 1 });
+applyRuntimeRetentionIndex(JdQuestionFilterSchema);
 
 export const JdQuestionFilter = mongoose.models.JdQuestionFilter || mongoose.model('JdQuestionFilter', JdQuestionFilterSchema);
