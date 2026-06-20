@@ -12,6 +12,7 @@
 import crypto from 'crypto';
 import { query } from '../db/postgres.js';
 import { DocumentContent } from '../db/models/documentContentModel.js';
+import { buildRetentionExpiry } from './retention/retentionPolicy.js';
 
 const formatFileSize = (fileSizeBytes) => {
   const sizeKB = fileSizeBytes / 1024;
@@ -63,8 +64,8 @@ export const createUploadedFileRecord = async ({
     `INSERT INTO uploaded_files (
       id, user_id, session_id, file_role, original_filename, mime_type,
       storage_provider, storage_key, file_size_bytes, checksum,
-      is_encrypted, virus_scan_status, virus_scanned_at, uploaded_at
-    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,now())`,
+      is_encrypted, virus_scan_status, virus_scanned_at, uploaded_at, updated_at, last_used_at, expires_at
+    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,now(),now(),now(),now() + interval '7 days')`,
     [
       id,
       userId,
@@ -82,6 +83,23 @@ export const createUploadedFileRecord = async ({
     ]
   );
   return id;
+};
+
+export const touchCvRetention = async (fileId, userId) => {
+  const now = new Date();
+  const expiresAt = buildRetentionExpiry(now);
+  return Promise.all([
+    query(
+      `UPDATE uploaded_files
+       SET last_used_at = $3, updated_at = $3, expires_at = $4
+       WHERE id = $1 AND user_id = $2 AND file_role = 'cv' AND deleted_at IS NULL`,
+      [fileId, userId, now, expiresAt],
+    ),
+    DocumentContent.updateOne(
+      { fileId, userId },
+      { $set: { updatedAt: now, retentionUntil: expiresAt } },
+    ),
+  ]);
 };
 
 export const attachDocumentContent = async ({
@@ -116,7 +134,7 @@ export const attachDocumentContent = async ({
       cvProfile,
       displayProfile,
       containsSensitiveData: true,
-      retentionUntil: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+      retentionUntil: buildRetentionExpiry(),
     },
     { returnDocument: 'after', upsert: true, setDefaultsOnInsert: true }
   );

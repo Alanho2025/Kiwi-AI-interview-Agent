@@ -10,6 +10,7 @@
  */
 
 import mongoose from 'mongoose';
+import { applyRuntimeRetentionIndex } from '../runtimeRetentionIndex.js';
 
 const AiLogSchema = new mongoose.Schema(
   {
@@ -30,5 +31,6 @@ const AiLogSchema = new mongoose.Schema(
 );
 
 AiLogSchema.index({ sessionId: 1, stage: 1, createdAt: -1 });
+applyRuntimeRetentionIndex(AiLogSchema);
 
 export const AiLog = mongoose.models.AiLog || mongoose.model('AiLog', AiLogSchema);

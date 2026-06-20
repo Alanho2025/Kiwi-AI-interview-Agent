@@ -46,6 +46,8 @@
     "eval:e2e": "NODE_ENV=test AI_TEST_MODE=mock node eval/runners/runEndToEndInterviewEval.js",
     "eval:green": "NODE_ENV=test AI_TEST_MODE=mock node eval/runners/runGreenAgentEval.js",
     "benchmark:voice-latency:gate": "node benchmarks/voice-asr-fallback/checkVoiceLatencyAcceptance.js",
+    "retention:audit": "node src/scripts/runRetentionAudit.js",
+    "retention:cleanup": "node src/scripts/runRetentionCleanup.js",
     "eval:retrieval": "NODE_ENV=test AI_TEST_MODE=mock node eval/runners/runRetrievalEval.js",
     "eval:agent-trajectory": "NODE_ENV=test AI_TEST_MODE=mock node eval/runners/runAgentTrajectoryEval.js",
     "eval:google-prep-trace": "node eval/runners/buildGoogleAgentsCliPrepPipelineTrace.js",

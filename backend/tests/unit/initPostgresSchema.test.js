@@ -126,6 +126,13 @@ describe('initPostgresSchema', () => {
             const calls = mockQuery.mock.calls.map(call => call[0]);
             expect(calls.some(sql => sql.includes('CREATE TABLE IF NOT EXISTS data_access_grants'))).toBe(true);
         });
+
+        it('should create retention cleanup jobs table', async () => {
+            await initPostgresSchema();
+
+            const calls = mockQuery.mock.calls.map(call => call[0]);
+            expect(calls.some(sql => sql.includes('CREATE TABLE IF NOT EXISTS retention_cleanup_jobs'))).toBe(true);
+        });
     });
 
     describe('indexes', () => {
@@ -173,6 +180,15 @@ describe('initPostgresSchema', () => {
             expect(calls.some(sql => sql.includes('idx_document_chunks_session_source'))).toBe(true);
             expect(calls.some(sql => sql.includes('idx_document_chunks_metadata_source_id'))).toBe(true);
             expect(calls.some(sql => sql.includes('idx_document_chunks_unique_source_chunk'))).toBe(true);
+        });
+
+        it('should create retention cleanup indexes', async () => {
+            await initPostgresSchema();
+
+            const calls = mockQuery.mock.calls.map(call => call[0]);
+            expect(calls.some(sql => sql.includes('idx_retention_cleanup_jobs_state_retry'))).toBe(true);
+            expect(calls.some(sql => sql.includes('idx_interview_sessions_expires_at'))).toBe(true);
+            expect(calls.some(sql => sql.includes('idx_uploaded_files_expires_at'))).toBe(true);
         });
 
         it('should create vector index with fallback', async () => {
@@ -316,6 +332,15 @@ describe('initPostgresSchema', () => {
                 sql.includes('ALTER TABLE uploaded_files') &&
                 sql.includes('virus_scan_status SET DEFAULT')
             )).toBe(true);
+        });
+
+        it('should add uploaded file retention columns', async () => {
+            await initPostgresSchema();
+
+            const calls = mockQuery.mock.calls.map(call => call[0]);
+            expect(calls.some(sql => sql.includes('ADD COLUMN IF NOT EXISTS last_used_at'))).toBe(true);
+            expect(calls.some(sql => sql.includes('ADD COLUMN IF NOT EXISTS expires_at'))).toBe(true);
+            expect(calls.some(sql => sql.includes('ADD COLUMN IF NOT EXISTS updated_at'))).toBe(true);
         });
     });
 

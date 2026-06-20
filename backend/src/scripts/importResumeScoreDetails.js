@@ -13,12 +13,12 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { connectMongo } from '../db/mongo.js';
-import { DocumentChunk } from '../db/models/documentChunkModel.js';
 import { RagBenchmarkCase } from '../db/models/ragBenchmarkCaseModel.js';
 import { NormalizedCvProfile } from '../db/models/normalizedCvProfileModel.js';
 import { NormalizedJdRubric } from '../db/models/normalizedJdRubricModel.js';
 import { EvaluationGroundTruth } from '../db/models/evaluationGroundTruthModel.js';
 import { EMBEDDING_DIMENSION, EMBEDDING_MODEL, embedBatch } from '../services/embeddingService.js';
+import { selectFixedSmokeBenchmarkCases } from '../services/retention/retentionPolicy.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -74,40 +74,41 @@ const upsertMany = async (Model, items, keyField, label = 'Progress') => {
 
   for (let i = 0; i < total; i += 1) {
     const item = items[i];
-    
-    // 1. Insert to Mongo legacy collection.
     await Model.findOneAndUpdate(
       { [keyField]: item[keyField] },
       item,
       { upsert: true, setDefaultsOnInsert: true }
     );
-    
-    // 2. Insert DocumentChunk rows into PostgreSQL pgvector, which is the runtime retrieval store.
-    if (Model === DocumentChunk) {
-      const vectorString = `[${(item.embedding || []).join(',')}]`;
-      await postgresQuery(
-        `INSERT INTO document_chunks (session_id, source_type, chunk_index, text_content, metadata, embedding)
-         VALUES ($1, $2, $3, $4, $5, $6)
-         ON CONFLICT DO NOTHING`,
-        [
-          item.sessionId || null,
-          item.sourceType || 'knowledge',
-          item.metadata?.chunkIndex || 0,
-          item.text || item.normalizedText || '',
-          JSON.stringify({
-            ...(item.metadata || {}),
-            embeddingModel: EMBEDDING_MODEL,
-            embeddingDimension: EMBEDDING_DIMENSION,
-          }),
-          vectorString
-        ]
-      );
-    }
-    
     renderProgressBar(i + 1, total, label);
   }
 
   console.log(`${label} completed`);
+};
+
+const upsertDocumentChunks = async (items) => {
+  for (const item of items) {
+    const vectorString = `[${(item.embedding || []).join(',')}]`;
+    await postgresQuery(
+      `INSERT INTO document_chunks (session_id, source_type, chunk_index, text_content, metadata, embedding)
+       VALUES (NULL, $1, $2, $3, $4, $5)
+       ON CONFLICT DO NOTHING`,
+      [
+        item.sourceType || 'knowledge',
+        item.metadata?.chunkIndex || 0,
+        item.text || item.normalizedText || '',
+        JSON.stringify({
+          ...(item.metadata || {}),
+          chunkId: item.chunkId,
+          caseId: item.caseId || null,
+          sourceId: item.sourceId || null,
+          documentType: item.documentType || null,
+          embeddingModel: EMBEDDING_MODEL,
+          embeddingDimension: EMBEDDING_DIMENSION,
+        }),
+        vectorString,
+      ],
+    );
+  }
 };
 
 /**
@@ -129,12 +130,22 @@ const run = async ({ inputDir = defaultInputDir } = {}) => {
   const benchmarkCases = readJson(path.join(inputDir, 'normalized_rag_benchmark_cases.json'));
   console.log('Input files loaded');
 
+  const smokeOnly = process.env.IMPORT_FULL_BENCHMARK !== 'true';
+  const selectedCases = smokeOnly
+    ? selectFixedSmokeBenchmarkCases(benchmarkCases)
+    : benchmarkCases;
+  const selectedCaseIds = new Set(selectedCases.map((item) => item.caseId));
+  const selectedCvProfiles = cvProfiles.filter((item) => selectedCaseIds.has(item.caseId));
+  const selectedEvaluationRows = evaluationRows.filter((item) => selectedCaseIds.has(item.caseId));
+  const selectedChunks = chunks.filter((item) => selectedCaseIds.has(item.caseId));
+  const selectedJdRubrics = jdRubrics.filter((_, index) => selectedCaseIds.has(cvProfiles[index]?.caseId));
+
   console.log('\nGenerating embeddings...');
-  const chunkTexts = chunks.map((item) => item.normalizedText || item.text || '');
+  const chunkTexts = selectedChunks.map((item) => item.normalizedText || item.text || '');
   const chunkEmbeddings = await embedBatch(chunkTexts);
   console.log(`Embeddings completed: ${chunkEmbeddings.length}/${chunks.length}`);
 
-  const hydratedChunks = chunks.map((item, index) => ({
+  const hydratedChunks = selectedChunks.map((item, index) => ({
     ...item,
     embedding: chunkEmbeddings[index] || [],
     metadata: {
@@ -146,7 +157,7 @@ const run = async ({ inputDir = defaultInputDir } = {}) => {
 
   await upsertMany(
     NormalizedCvProfile,
-    cvProfiles.map((item) => ({
+    selectedCvProfiles.map((item) => ({
       caseId: item.caseId,
       candidateName: item.candidateName,
       profile: item,
@@ -158,8 +169,8 @@ const run = async ({ inputDir = defaultInputDir } = {}) => {
 
   await upsertMany(
     NormalizedJdRubric,
-    jdRubrics.map((item, index) => ({
-      caseId: cvProfiles[index]?.caseId || String(index + 1),
+    selectedJdRubrics.map((item, index) => ({
+      caseId: selectedCvProfiles[index]?.caseId || String(index + 1),
       rubric: item,
       schemaVersion: item.schemaVersion || 'v3',
     })),
@@ -169,7 +180,7 @@ const run = async ({ inputDir = defaultInputDir } = {}) => {
 
   await upsertMany(
     EvaluationGroundTruth,
-    evaluationRows.map((item) => ({
+    selectedEvaluationRows.map((item) => ({
       caseId: item.caseId,
       evaluation: item,
       schemaVersion: item.schemaVersion || 'v3',
@@ -178,22 +189,17 @@ const run = async ({ inputDir = defaultInputDir } = {}) => {
     'Importing Evaluation Ground Truth'
   );
 
-  await upsertMany(
-    DocumentChunk,
-    hydratedChunks,
-    'chunkId',
-    'Importing Document Chunks'
-  );
+  await upsertDocumentChunks(hydratedChunks);
 
   await upsertMany(
     RagBenchmarkCase,
-    benchmarkCases,
+    selectedCases,
     'caseId',
     'Importing RAG Benchmark Cases'
   );
 
   console.log(
-    `\nImported ${cvProfiles.length} CV profiles, ${jdRubrics.length} JD rubrics, ${evaluationRows.length} evaluation rows, ${hydratedChunks.length} chunks, and ${benchmarkCases.length} benchmark cases from ${inputDir}`
+    `\nImported ${selectedCvProfiles.length} CV profiles, ${selectedJdRubrics.length} JD rubrics, ${selectedEvaluationRows.length} evaluation rows, ${hydratedChunks.length} chunks, and ${selectedCases.length} benchmark cases from ${inputDir}`
   );
 };
 

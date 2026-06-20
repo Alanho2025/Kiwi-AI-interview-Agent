@@ -10,6 +10,7 @@
  */
 
 import { DocumentContent } from '../db/models/documentContentModel.js';
+import { buildRetentionExpiry } from '../services/retention/retentionPolicy.js';
 
 /**
  * Purpose: Execute the main responsibility for upsertDocumentContent.
@@ -38,7 +39,7 @@ export const upsertDocumentContent = async ({
       redactedText,
       parseStatus: 'completed',
       containsSensitiveData: true,
-      retentionUntil: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+      retentionUntil: buildRetentionExpiry(),
     },
     { returnDocument: 'after', upsert: true, setDefaultsOnInsert: true }
   );

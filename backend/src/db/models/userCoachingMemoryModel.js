@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { applyRuntimeRetentionIndex } from '../runtimeRetentionIndex.js';
 
 const UserCoachingMemorySchema = new mongoose.Schema(
   {
@@ -9,5 +10,7 @@ const UserCoachingMemorySchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+applyRuntimeRetentionIndex(UserCoachingMemorySchema);
 
 export const UserCoachingMemory = mongoose.models.UserCoachingMemory || mongoose.model('UserCoachingMemory', UserCoachingMemorySchema);

@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   saveReviewedCvProfile: vi.fn(),
   generateCvQuestionSeeds: vi.fn(),
   createAuditLog: vi.fn(),
+  touchCvRetention: vi.fn(),
   loggerWarn: vi.fn(),
 }));
 
@@ -22,6 +23,14 @@ vi.mock('../../../src/services/questions/cvQuestionSeedService.js', () => ({
 
 vi.mock('../../../src/services/auditService.js', () => ({
   createAuditLog: mocks.createAuditLog,
+}));
+
+vi.mock('../../../src/services/fileRepositoryService.js', () => ({
+  attachDocumentContent: vi.fn(),
+  createUploadedFileRecord: vi.fn(),
+  getCvRecordById: vi.fn(),
+  getRecentCvRecords: vi.fn(),
+  touchCvRetention: mocks.touchCvRetention,
 }));
 
 vi.mock('../../../src/utils/logger.js', () => ({
@@ -60,6 +69,7 @@ describe('CV review seed refresh controller flow', () => {
     });
     mocks.generateCvQuestionSeeds.mockResolvedValue([]);
     mocks.createAuditLog.mockResolvedValue({});
+    mocks.touchCvRetention.mockResolvedValue([]);
   });
 
   it('regenerates CV question seeds from the saved reviewed profile', async () => {
