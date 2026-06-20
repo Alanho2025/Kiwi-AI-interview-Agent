@@ -113,3 +113,13 @@ Do not default to the smallest safe change if the user clearly asks for a broade
 Before editing, convert the user's plan into an implementation checklist. Complete every item unless there is a concrete technical blocker. If any item is skipped or changed, explain why in the final response.
 
 Preserve existing behaviour unless the user explicitly asks to change it.
+
+## Skills Library
+
+The following specialized capabilities (Procedural Memories) are available as Agent Skills in the `.agents/skills/` directory. They should only be loaded on demand according to their respective triggers to prevent context bloat:
+
+- **`parse-cv`**: Extract structured profile data from uploaded candidate CVs.
+- **`parse-jd`**: Extract role requirements from Job Descriptions and separate marketing noise.
+- **`match-cv-jd`**: Generate interview prep plans and gap analysis from parsed profiles.
+- **`manage-voice-interview`**: State machine controller for conducting real-time voice interviews.
+- **`generate-interview-report`**: Final aggregator for interview transcripts, producing grounded scores and coaching.
