@@ -3,6 +3,7 @@ import {
   buildInterviewQuestionPoolItems,
   buildPreparedRootQuestionPoolQuery,
 } from '../../../src/services/questions/questionPoolComposerService.js';
+import * as questionPoolComposerService from '../../../src/services/questions/questionPoolComposerService.js';
 
 const baseArgs = {
   userId: 'user-1',
@@ -14,6 +15,22 @@ const baseArgs = {
 };
 
 describe('questionPoolComposerService', () => {
+  it('uses a cross-role fallback while keeping the internal technical category', () => {
+    const pool = questionPoolComposerService.ensureMinimumFallbacks?.([], {
+      userId: 'user-cross-role',
+      sessionId: 'session-cross-role',
+      roleDomain: 'healthcare',
+    }) || [];
+    const fallback = pool.find((item) => item.sourceType === 'fallback' && item.category === 'technical');
+
+    expect(fallback?.text || '').toContain('role-specific task');
+    expect(fallback?.text || '').not.toMatch(/what did you build|technical task/i);
+    expect(fallback).toMatchObject({
+      questionFamily: 'role_specific',
+      roleDomain: 'healthcare',
+    });
+  });
+
   it('creates opening, motivation, role requirement, gap, behavioural, and wrap-up questions', () => {
     const pool = buildInterviewQuestionPoolItems({
       ...baseArgs,
@@ -88,6 +105,39 @@ describe('questionPoolComposerService', () => {
     expect(reactDepthItems).toHaveLength(1);
     expect(pool.some((item) => ['technical', 'role_competency'].includes(item.category))).toBe(true);
     expect(pool.some((item) => item.category === 'behavioural')).toBe(true);
+  });
+
+  it('carries cross-role assessment metadata into JD requirement questions', () => {
+    const pool = buildInterviewQuestionPoolItems({
+      ...baseArgs,
+      analysisResult: {
+        parsedJdProfile: {
+          universalRoleProfile: { roleDomain: 'healthcare' },
+        },
+        requirementChecks: [{
+          label: 'Maintain clinical safety and professional standards',
+          status: 'partial',
+          category: 'compliance_or_safety',
+          capabilityGroup: 'compliance_ethics_safety',
+        }],
+        matchingDetails: {
+          questionPlanHints: {
+            mustProbeSkills: [],
+            mustProbeBehavioural: [],
+          },
+        },
+      },
+    });
+
+    const requirementQuestion = pool.find((item) => item.sourceType === 'jd_requirement');
+    expect(requirementQuestion).toMatchObject({
+      schemaVersion: 'v2',
+      questionFamily: 'role_specific',
+      evidenceMode: 'past_example',
+      roleDomain: 'healthcare',
+      requirementCategory: 'compliance_or_safety',
+      capabilityGroup: 'compliance_ethics_safety',
+    });
   });
 
   it('queries prepared root questions with backward compatibility for legacy records', () => {

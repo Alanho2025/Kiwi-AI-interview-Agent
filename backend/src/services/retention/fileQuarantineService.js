@@ -30,14 +30,19 @@ export const createFileQuarantineService = ({ uploadsRoot, quarantineRoot }) => 
           resolvedQuarantineRoot,
           'quarantine root',
         );
-        await moveFile(originalPath, quarantinePath);
-        entries.push({ originalPath, quarantinePath, missing: false });
+        try {
+          await moveFile(originalPath, quarantinePath);
+          entries.push({ originalPath, quarantinePath, missing: false });
+        } catch (error) {
+          if (error.code !== 'ENOENT') throw error;
+          entries.push({ originalPath, quarantinePath, missing: true });
+        }
       }
       return entries;
     } catch (error) {
       try {
         for (const entry of [...entries].reverse()) {
-          await moveFile(entry.quarantinePath, entry.originalPath);
+          if (!entry.missing) await moveFile(entry.quarantinePath, entry.originalPath);
         }
       } catch (restoreError) {
         throw new AggregateError(

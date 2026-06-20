@@ -204,12 +204,12 @@ export default function LandingPage() {
               <SectionLabel>Specialized coaching</SectionLabel>
               <h2 className="mb-6 text-3xl font-bold sm:text-4xl">Tailored to your role, level, and region</h2>
               <p className="mb-8 text-lg leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-                Whether you're a junior grad entering the NZ job market or an experienced developer switching roles, Kiwi Coach adapts its question difficulty, coaching tone, and cultural tips to match your situation.
+                Whether you're a junior grad entering the NZ job market or an experienced professional switching roles, Kiwi Coach adapts its question difficulty, coaching tone, and cultural tips to match your situation.
               </p>
               <ul className="space-y-4">
                 {[
                   'Junior / Graduate combined interviews',
-                  'Mid-level technical deep-dives',
+                  'Role-specific deep-dives',
                   'Behavioural & situational questions',
                   'NZ workplace communication guidance',
                   'Speech clarity and answer structure feedback',
@@ -329,7 +329,7 @@ export default function LandingPage() {
             <h4 className="mb-4 text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--text-faint)' }}>Interview Types</h4>
             <ul className="space-y-2 text-sm" style={{ color: 'var(--text-muted)' }}>
               <li>Behavioural Interviews</li>
-              <li>Technical Deep-dives</li>
+              <li>Role-specific Deep-dives</li>
               <li>Graduate Combined</li>
               <li>Voice-only Practice</li>
             </ul>

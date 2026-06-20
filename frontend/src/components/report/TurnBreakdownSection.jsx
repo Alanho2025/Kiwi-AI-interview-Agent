@@ -66,6 +66,7 @@ function ScoreBar({ label, score, color, reason }) {
 
 
 function StructureBreakdown({ turn }) {
+  if (turn.starApplicable === false && turn.frameworkBreakdown?.dimensions?.length) return null;
   const breakdown = turn.structureBreakdown || turn.starrBreakdown || turn.starBreakdown;
   if (!breakdown) return null;
   if (turn.starApplicable === false) {
@@ -114,6 +115,40 @@ function StructureBreakdown({ turn }) {
         ))}
       </div>
       {starBreakdown.scoreReason ? <p className="mt-3 text-xs leading-5 text-slate-600">{starBreakdown.scoreReason}</p> : null}
+    </div>
+  );
+}
+
+function FrameworkBreakdown({ turn }) {
+  if (turn.starApplicable !== false || !turn.frameworkBreakdown?.dimensions?.length) return null;
+  const breakdown = turn.frameworkBreakdown;
+  const formatStatus = (status = '') => String(status).replace(/_/g, ' ');
+
+  return (
+    <div className="rounded-xl border border-slate-100 bg-white/70 p-4">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <h5 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+          {turn.frameworkLabel || turn.structureLabel || 'Role-specific framework'}
+        </h5>
+        {Number.isFinite(Number(breakdown.normalizedScore)) ? (
+          <p className="text-xs text-slate-500">Framework score: {Number(breakdown.normalizedScore)}/10</p>
+        ) : null}
+      </div>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+        {breakdown.dimensions.map((dimension) => (
+          <div key={dimension.key || dimension.label} className="rounded-lg bg-slate-50 px-3 py-3">
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{dimension.label}</p>
+              <span className="text-xs font-medium text-slate-700">
+                {dimension.status === 'not_applicable' ? 'not applicable' : `${Number(dimension.score || 0)}/10`}
+              </span>
+            </div>
+            <p className="mt-1 text-sm font-medium capitalize text-slate-800">{formatStatus(dimension.status || 'missing')}</p>
+            {dimension.reason ? <p className="mt-2 text-xs leading-5 text-slate-600">{dimension.reason}</p> : null}
+          </div>
+        ))}
+      </div>
+      {breakdown.summary ? <p className="mt-3 text-xs leading-5 text-slate-600">{breakdown.summary}</p> : null}
     </div>
   );
 }
@@ -173,7 +208,7 @@ export function TurnBreakdownSection({ turnBreakdowns }) {
 
                 {isExpanded && (
                   <div className="px-4 pb-5 pt-2 border-t border-indigo-50 space-y-5 animate-in fade-in slide-in-from-top-2 duration-200">
-                    {turn.scores && (
+                    {turn.scores && !turn.frameworkBreakdown?.dimensions?.length && (
                       <div className="bg-slate-50 rounded-xl p-4 space-y-3 border border-slate-100">
                         <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
                           <h5 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Micro-Scores</h5>
@@ -200,6 +235,7 @@ export function TurnBreakdownSection({ turnBreakdowns }) {
                       </div>
                     )}
 
+                    <FrameworkBreakdown turn={turn} />
                     <StructureBreakdown turn={turn} />
                     <div className="mt-2">
                       <EvidenceBadge {...turn} />

@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import fs from 'fs/promises';
 import path from 'path';
 import { ObjectId } from 'mongodb';
-import { RETENTION_AUDIT_ROOT } from '../../config/retentionConfig.js';
+import { RETENTION_AUDIT_ROOT, UPLOADS_ROOT } from '../../config/retentionConfig.js';
 import { buildHashedIdentity, snapshotMatchesCandidate } from './retentionPolicy.js';
 import { buildMongoGlobalKnowledgeSummary } from './retentionAuditService.js';
 import { decryptCandidateManifest } from './retentionManifestService.js';
@@ -10,7 +10,7 @@ import { decryptCandidateManifest } from './retentionManifestService.js';
 const checksumHashes = (hashes) => crypto.createHash('sha256').update([...hashes].sort().join('\n')).digest('hex');
 const toMongoId = (value) => ObjectId.isValid(value) ? new ObjectId(value) : value;
 
-const loadAuditFiles = async ({ runId, auditRoot, keyPath }) => {
+export const loadRetentionAuditFiles = async ({ runId, auditRoot = RETENTION_AUDIT_ROOT, keyPath }) => {
   const directory = path.join(auditRoot, runId);
   const [encryptedText, protectedText, keyText] = await Promise.all([
     fs.readFile(path.join(directory, 'candidate-manifest.json.enc'), 'utf8'),
@@ -21,6 +21,39 @@ const loadAuditFiles = async ({ runId, auditRoot, keyPath }) => {
     directory,
     candidateManifest: decryptCandidateManifest(JSON.parse(encryptedText), Buffer.from(keyText.trim(), 'hex')),
     protectedManifest: JSON.parse(protectedText),
+  };
+};
+
+export const verifyCandidateFiles = async ({
+  filePathsByResourceId = {},
+  uploadsRoot = UPLOADS_ROOT,
+}) => {
+  const resolvedRoot = path.resolve(uploadsRoot);
+  const filePaths = [...new Set(Object.values(filePathsByResourceId).flat())];
+  let matchedCount = 0;
+  let missingCount = 0;
+  let outsideRootCount = 0;
+  for (const filePath of filePaths) {
+    const resolvedPath = path.resolve(filePath);
+    if (resolvedPath !== resolvedRoot && !resolvedPath.startsWith(`${resolvedRoot}${path.sep}`)) {
+      outsideRootCount += 1;
+      continue;
+    }
+    try {
+      const stat = await fs.stat(resolvedPath);
+      if (stat.isFile()) matchedCount += 1;
+      else missingCount += 1;
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+      missingCount += 1;
+    }
+  }
+  return {
+    valid: outsideRootCount === 0,
+    expectedCount: filePaths.length,
+    matchedCount,
+    missingCount,
+    outsideRootCount,
   };
 };
 
@@ -198,6 +231,7 @@ const renderDryRunReport = ({
   mongoGlobalKnowledge,
   postgresProtection,
   smokeCases,
+  files,
 }) => {
   const safeToExecute = mongoCandidates.missing.length === 0
     && mongoCandidates.changed.length === 0
@@ -206,7 +240,8 @@ const renderDryRunReport = ({
     && mongoProtection.valid
     && mongoGlobalKnowledge.valid
     && postgresProtection.valid
-    && smokeCases.valid;
+    && smokeCases.valid
+    && files.valid;
   return {
     runId,
     generatedAt: new Date().toISOString(),
@@ -220,6 +255,7 @@ const renderDryRunReport = ({
       mongoGlobalKnowledge,
       postgres: postgresProtection,
       smokeCases,
+      files,
     },
   };
 };
@@ -230,8 +266,13 @@ export const runRetentionDryRun = async ({
   postgresQuery,
   auditRoot = RETENTION_AUDIT_ROOT,
   keyPath = path.join('/private/tmp', 'kiwi-retention-audit-keys', `${runId}.key`),
+  uploadsRoot = UPLOADS_ROOT,
 } = {}) => {
-  const { directory, candidateManifest, protectedManifest } = await loadAuditFiles({ runId, auditRoot, keyPath });
+  const { directory, candidateManifest, protectedManifest } = await loadRetentionAuditFiles({
+    runId,
+    auditRoot,
+    keyPath,
+  });
   const [
     mongoCandidates,
     postgresCandidates,
@@ -239,6 +280,7 @@ export const runRetentionDryRun = async ({
     mongoGlobalKnowledge,
     postgresProtection,
     smokeCases,
+    files,
   ] = await Promise.all([
     verifyMongoCandidates(mongoDb, candidateManifest.mongo),
     verifyPostgresCandidates(postgresQuery, candidateManifest.postgres),
@@ -252,6 +294,10 @@ export const runRetentionDryRun = async ({
         .map((item) => item.id),
     }),
     verifySmokeCases(mongoDb, candidateManifest.fixedSmokeCaseIds),
+    verifyCandidateFiles({
+      filePathsByResourceId: candidateManifest.filePathsByResourceId,
+      uploadsRoot,
+    }),
   ]);
   const report = renderDryRunReport({
     runId,
@@ -262,6 +308,7 @@ export const runRetentionDryRun = async ({
     mongoGlobalKnowledge,
     postgresProtection,
     smokeCases,
+    files,
   });
   const reportPath = path.join(directory, 'dry-run-report.json');
   await fs.writeFile(reportPath, JSON.stringify(report, null, 2));

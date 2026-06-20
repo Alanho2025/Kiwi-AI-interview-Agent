@@ -40,7 +40,7 @@ import { useTour } from '../contexts/TourContext.jsx';
 const HOME_TOUR_STEPS = [
   {
     target: 'body',
-    content: 'Welcome to Kiwi Voice Coach! Let\'s take a quick tour to show you how to crush your next Tech Interview.',
+    content: 'Welcome to Kiwi Voice Coach! Let\'s take a quick tour to prepare for your next interview.',
     placement: 'center',
     disableBeacon: true,
   },

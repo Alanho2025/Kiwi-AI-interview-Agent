@@ -73,4 +73,17 @@ describe('retention transaction adapters', () => {
     expect(filter.$or[0]._id).toBeInstanceOf(ObjectId);
     expect(filter.$or[0]._id.toHexString()).toBe(id.toHexString());
   });
+
+  it('surfaces a PostgreSQL rollback failure as a distinct fatal error', async () => {
+    const client = {
+      query: vi.fn()
+        .mockResolvedValueOnce({})
+        .mockRejectedValueOnce(new Error('delete failed'))
+        .mockRejectedValueOnce(new Error('rollback failed')),
+    };
+
+    await expect(runTransactionWithClient(client, async (transactionClient) => {
+      await transactionClient.query('DELETE FROM interview_sessions');
+    })).rejects.toMatchObject({ code: 'ROLLBACK_FAILURE' });
+  });
 });

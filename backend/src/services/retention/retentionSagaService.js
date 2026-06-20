@@ -81,7 +81,10 @@ export const createRetentionSagaService = ({
       }
       return job;
     } catch (error) {
-      await jobRepository.recordFailure({ jobId: job.id, state: job.state, error });
+      const failureState = error.code === 'ROLLBACK_FAILURE'
+        ? RETENTION_JOB_STATES.MANUAL_REVIEW
+        : job.state;
+      await jobRepository.recordFailure({ jobId: job.id, state: failureState, error });
       throw error;
     }
   };

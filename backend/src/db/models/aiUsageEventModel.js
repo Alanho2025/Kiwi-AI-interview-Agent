@@ -3,7 +3,6 @@
  */
 
 import mongoose from 'mongoose';
-import { applyRuntimeRetentionIndex } from '../runtimeRetentionIndex.js';
 
 export const AI_USAGE_PROVIDERS = ['deepseek', 'azure_speech', 'elevenlabs', 'local'];
 export const AI_USAGE_MODALITIES = ['llm', 'speech', 'local'];
@@ -29,6 +28,4 @@ const AiUsageEventSchema = new mongoose.Schema(
 AiUsageEventSchema.index({ userId: 1, createdAt: -1 });
 AiUsageEventSchema.index({ userId: 1, sessionId: 1, createdAt: -1 });
 AiUsageEventSchema.index({ userId: 1, sessionId: 1, stage: 1 });
-applyRuntimeRetentionIndex(AiUsageEventSchema);
-
 export const AiUsageEvent = mongoose.models.AiUsageEvent || mongoose.model('AiUsageEvent', AiUsageEventSchema);

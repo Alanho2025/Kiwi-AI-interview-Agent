@@ -142,7 +142,7 @@ export const buildPlainEnglishMetrics = ({ analysisResult, evidenceSummary, inte
       unit: 'turns',
       interpretation:
         genericTurns >= 4
-          ? 'Several answers likely felt broad or surface-level. This is a strong signal to prepare sharper STAR-style examples.'
+          ? 'Several answers likely felt broad or surface-level. This is a strong signal to prepare sharper framework-based answers.'
           : genericTurns > 0
             ? 'A few answers may have felt too broad. Tightening them with specifics would improve clarity and impact.'
             : 'Most answers had enough substance to avoid sounding generic.',

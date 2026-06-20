@@ -9,11 +9,9 @@ import { UserCoachingMemory } from '../../../src/db/models/userCoachingMemoryMod
 
 const models = [
   AiLog,
-  AiUsageEvent,
   CvQuestionSeed,
   InterviewQuestionPoolItem,
   JdQuestionFilter,
-  TokenUsage,
   UserCoachingMemory,
 ];
 
@@ -28,4 +26,14 @@ describe('runtime retention TTL indexes', () => {
       ]);
     },
   );
+});
+
+describe('permanent usage detail protection', () => {
+  it.each([
+    ['AiUsageEvent', AiUsageEvent],
+    ['TokenUsage', TokenUsage],
+  ])('%s has no TTL index until verified permanent rollups exist', (_name, model) => {
+    const ttlIndexes = model.schema.indexes().filter(([, options]) => options.expireAfterSeconds != null);
+    expect(ttlIndexes).toEqual([]);
+  });
 });

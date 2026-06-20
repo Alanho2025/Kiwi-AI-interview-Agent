@@ -13,6 +13,7 @@ export const RETENTION_WARNING_PERCENT = 70;
 export const RETENTION_CRITICAL_PERCENT = 85;
 export const RETENTION_SMOKE_CASES_PER_LABEL = 10;
 export const RETENTION_AUDIT_ROOT = path.join(backendRoot, 'tmp', 'retention-audit');
+export const RETENTION_BACKUP_ROOT = path.join(backendRoot, 'tmp', 'retention-backups');
 export const RETENTION_QUARANTINE_ROOT = path.join(backendRoot, 'tmp', 'retention-quarantine');
 export const UPLOADS_ROOT = path.join(backendRoot, 'uploads');
 

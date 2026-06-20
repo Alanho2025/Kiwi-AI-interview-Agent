@@ -12,6 +12,12 @@ import {
   calculateDeepSeekCost,
   convertUsdCostToUsageCurrency,
 } from '../config/aiUsagePricing.js';
+import {
+  TOKEN_USAGE_ROLLUP_SOURCE,
+  combineUsageRollups,
+  getUserUsageRollups,
+  refreshTokenUsageDailyRollup,
+} from './usageRollupService.js';
 
 const PRICING = {
   currency: AI_USAGE_COST_CURRENCY,
@@ -30,7 +36,8 @@ const toUsageCurrencyCost = (value) => convertUsdCostToUsageCurrency(value);
 export const recordTokenUsage = async ({ userId, sessionId = null, action, promptTokens, completionTokens }) => {
   if (!userId) return;
   const estimatedCost = calcCost(promptTokens, completionTokens);
-  await TokenUsage.create({ userId, sessionId, action, promptTokens, completionTokens, estimatedCost });
+  const event = await TokenUsage.create({ userId, sessionId, action, promptTokens, completionTokens, estimatedCost });
+  await refreshTokenUsageDailyRollup({ userId, day: event.createdAt || new Date() });
 };
 
 /**
@@ -39,20 +46,31 @@ export const recordTokenUsage = async ({ userId, sessionId = null, action, promp
 export const getUsageSummary = async (userId) => {
   if (!userId) return null;
 
-  const stats = await TokenUsage.aggregate([
-    { $match: { userId } },
-    {
-      $group: {
-        _id: null,
-        totalPromptTokens:     { $sum: '$promptTokens' },
-        totalCompletionTokens: { $sum: '$completionTokens' },
-        totalCost:             { $sum: '$estimatedCost' },
-        callCount:             { $sum: 1 },
+  const rollups = await getUserUsageRollups(userId, TOKEN_USAGE_ROLLUP_SOURCE);
+  let s;
+  if (rollups.length) {
+    const { summary } = combineUsageRollups(rollups);
+    s = {
+      totalPromptTokens: summary.totalPromptTokens,
+      totalCompletionTokens: summary.totalCompletionTokens,
+      totalCost: summary.totalCostUsd,
+      callCount: summary.callCount,
+    };
+  } else {
+    const stats = await TokenUsage.aggregate([
+      { $match: { userId } },
+      {
+        $group: {
+          _id: null,
+          totalPromptTokens:     { $sum: '$promptTokens' },
+          totalCompletionTokens: { $sum: '$completionTokens' },
+          totalCost:             { $sum: '$estimatedCost' },
+          callCount:             { $sum: 1 },
+        },
       },
-    },
-  ]);
-
-  const s = stats?.[0] || { totalPromptTokens: 0, totalCompletionTokens: 0, totalCost: 0, callCount: 0 };
+    ]);
+    s = stats?.[0] || { totalPromptTokens: 0, totalCompletionTokens: 0, totalCost: 0, callCount: 0 };
+  }
 
   return {
     currency:              AI_USAGE_COST_CURRENCY,
