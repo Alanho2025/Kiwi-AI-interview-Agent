@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { applyRuntimeRetentionIndex } from '../runtimeRetentionIndex.js';
 
 const CvQuestionSeedSchema = new mongoose.Schema(
   {
@@ -32,6 +33,6 @@ const CvQuestionSeedSchema = new mongoose.Schema(
 
 CvQuestionSeedSchema.index({ userId: 1, cvFileId: 1 });
 CvQuestionSeedSchema.index({ userId: 1, cvFileId: 1, status: 1 });
-CvQuestionSeedSchema.index({ retentionUntil: 1 });
+applyRuntimeRetentionIndex(CvQuestionSeedSchema);
 
 export const CvQuestionSeed = mongoose.models.CvQuestionSeed || mongoose.model('CvQuestionSeed', CvQuestionSeedSchema);

@@ -101,10 +101,10 @@ export default function Login() {
 
         <div className="z-10 w-full max-w-lg rounded-2xl border border-theme glass p-6 shadow-sm sm:p-8">
           <h1 className="mb-4 text-3xl font-extrabold leading-tight text-primary">
-            Practice for your next NZ Tech Interview.
+            Practice for your next NZ job interview.
           </h1>
           <p className="mb-6 text-sm leading-6 text-muted">
-            Sharpen pronunciation, timing and clarity with AI-guided feedback tailored for New Zealand tech roles.
+            Sharpen judgement, evidence, timing, and clarity with AI-guided feedback tailored for roles across New Zealand.
           </p>
 
           {error && <p className="text-red-500 text-sm mb-4 font-medium">{error}</p>}

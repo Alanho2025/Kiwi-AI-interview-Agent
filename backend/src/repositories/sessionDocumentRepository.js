@@ -13,6 +13,7 @@ import { SessionAnalysis } from '../db/models/sessionAnalysisModel.js';
 import { InterviewPlan } from '../db/models/interviewPlanModel.js';
 import { SessionTranscript } from '../db/models/sessionTranscriptModel.js';
 import { redactSensitiveText } from '../services/privacyRedactionService.js';
+import { buildRetentionExpiry } from '../services/retention/retentionPolicy.js';
 
 /**
  * Purpose: Execute the main responsibility for retentionDate.
@@ -20,7 +21,7 @@ import { redactSensitiveText } from '../services/privacyRedactionService.js';
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-const retentionDate = () => new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
+const retentionDate = () => buildRetentionExpiry();
 
 export const upsertSessionAnalysis = async ({
   sessionId,

@@ -111,12 +111,18 @@ const groundItem = ({ item = {}, claimKind = 'feedback', index = 0, corpus = {},
     nz_guide: overlapScore(claimText, corpus.nz_guide),
   };
   const status = statusFromScores({ scores, claimKind });
+  const isTurnBreakdown = claimKind === 'turn_breakdown';
+  const usesRoleFramework = isTurnBreakdown && item.rubricType === 'role_specific';
+  const usesStarFramework = isTurnBreakdown
+    && item.starApplicable !== false
+    && (item.frameworkKey === 'behavioural_starr' || ['star', 'starr'].includes(item.rubricType));
   const sources = [
     scores.cv >= 0.18 ? 'cv' : null,
     scores.jd >= 0.18 ? 'jd' : null,
     scores.transcript >= 0.18 ? 'interview_answer' : null,
     scores.nz_guide >= 0.18 ? 'nz_guide' : null,
-    claimKind === 'turn_breakdown' && item.starApplicable !== false ? 'star_rubric' : null,
+    usesStarFramework ? 'star_rubric' : null,
+    usesRoleFramework ? 'role_framework' : null,
   ].filter(Boolean);
   const retrieval = retrievalItems[index % Math.max(1, retrievalItems.length)] || {};
   const confidenceLevel = asrQualityRisk && status.confidenceLevel === 'high' ? 'medium' : status.confidenceLevel;
@@ -158,6 +164,7 @@ const groundItem = ({ item = {}, claimKind = 'feedback', index = 0, corpus = {},
     evidenceSources: grounded.evidenceSources,
     evidenceSnippets: grounded.evidenceSnippets,
     claimKind,
+    rubricSource: usesRoleFramework ? 'role_framework' : usesStarFramework ? 'star_rubric' : '',
   };
   return { grounded, claimReference };
 };

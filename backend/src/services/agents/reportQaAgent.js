@@ -44,7 +44,34 @@ export const runReportQaAgent = async ({ report = {}, analysisResult = {}, retri
     ...(candidateFeedback.turnBreakdowns || []),
   ];
   const missingTrustFields = feedbackItems.filter((item) => !item.evidenceLabel || !item.confidenceLevel || !item.feedbackStatus).length;
-  const missingStarBreakdowns = (candidateFeedback.turnBreakdowns || []).filter((item) => item.starApplicable !== false && !item.starBreakdown?.result).length;
+  const turnBreakdowns = candidateFeedback.turnBreakdowns || [];
+  const isBehaviouralTurn = (item = {}) => item.frameworkKey === 'behavioural_starr'
+    || ['star', 'starr'].includes(item.rubricType);
+  const isRoleSpecificTurn = (item = {}) => item.rubricType === 'role_specific';
+  const hasCompleteStarrBreakdown = (item = {}) => {
+    const breakdown = item.starBreakdown;
+    if (!breakdown) return false;
+    return [
+      breakdown.situation,
+      breakdown.task,
+      breakdown.action,
+      breakdown.resultOrReaction || breakdown.result,
+      breakdown.reflection,
+    ].every((status) => ['clear', 'partial', 'missing'].includes(status));
+  };
+  const missingStarBreakdowns = turnBreakdowns.filter((item) => (
+    isBehaviouralTurn(item)
+    && item.starApplicable !== false
+    && !hasCompleteStarrBreakdown(item)
+  )).length;
+  const missingFrameworkBreakdowns = turnBreakdowns.filter((item) => (
+    isRoleSpecificTurn(item)
+    && !(item.frameworkBreakdown?.dimensions || []).length
+  )).length;
+  const roleSpecificStarMisapplied = turnBreakdowns.filter((item) => (
+    isRoleSpecificTurn(item)
+    && (item.starApplicable !== false || Boolean(item.starBreakdown))
+  )).length;
   const selfIntroStarApplied = (candidateFeedback.turnBreakdowns || []).filter((item) => item.rubricType === 'self_intro' && item.starApplicable !== false).length;
   const highConfidenceUnsupported = feedbackItems.filter((item) => (
     item.confidenceLevel === 'high'
@@ -65,6 +92,8 @@ export const runReportQaAgent = async ({ report = {}, analysisResult = {}, retri
   if (typeof report.scores?.averageInteractionScore !== 'number') qualityFlags.push('missing_interaction_metrics');
   if (missingTrustFields > 0) qualityFlags.push('missing_feedback_trust_fields');
   if (missingStarBreakdowns > 0) qualityFlags.push('missing_star_breakdown');
+  if (missingFrameworkBreakdowns > 0) qualityFlags.push('missing_framework_breakdown');
+  if (roleSpecificStarMisapplied > 0) qualityFlags.push('role_specific_star_misapplied');
   if (selfIntroStarApplied > 0) qualityFlags.push('self_intro_star_misapplied');
   if ((diagnostics.repetitionComplaintCount || 0) > 0 && !String(report.sections?.find((section) => section.id === 'interaction_feedback')?.content || '').toLowerCase().includes('repeated questioning')) qualityFlags.push('missing_repetition_flow_warning');
   if (highConfidenceUnsupported > 0) qualityFlags.push('unsupported_high_confidence_feedback');
@@ -84,6 +113,8 @@ export const runReportQaAgent = async ({ report = {}, analysisResult = {}, retri
   consistencyChecks.push({ rule: 'interaction_feedback_present', passed: Boolean(report.sections?.find((section) => section.id === 'interaction_feedback')?.content) });
   consistencyChecks.push({ rule: 'feedback_trust_fields_present', passed: missingTrustFields === 0 });
   consistencyChecks.push({ rule: 'turn_star_breakdowns_present', passed: missingStarBreakdowns === 0 });
+  consistencyChecks.push({ rule: 'turn_framework_breakdowns_present', passed: missingFrameworkBreakdowns === 0 });
+  consistencyChecks.push({ rule: 'role_specific_not_star_scored', passed: roleSpecificStarMisapplied === 0 });
   consistencyChecks.push({ rule: 'self_intro_not_star_scored', passed: selfIntroStarApplied === 0 });
   consistencyChecks.push({ rule: 'unsupported_claims_downgraded', passed: highConfidenceUnsupported === 0 });
 
@@ -108,6 +139,8 @@ export const runReportQaAgent = async ({ report = {}, analysisResult = {}, retri
         feedbackItems: feedbackItems.length,
         missingTrustFields,
         missingStarBreakdowns,
+        missingFrameworkBreakdowns,
+        roleSpecificStarMisapplied,
         selfIntroStarApplied,
         highConfidenceUnsupported,
         claimEvidence: diagnostics.claimEvidence || {},

@@ -165,6 +165,11 @@ const toRootCandidate = (item = {}) => ({
   constraints: item.constraints || [],
   maxFollowUps: item.maxFollowUps ?? 2,
   followUpStrategies: item.followUpStrategies || [],
+  questionFamily: item.questionFamily || null,
+  evidenceMode: item.evidenceMode || null,
+  roleDomain: item.roleDomain || 'general',
+  requirementCategory: item.requirementCategory || null,
+  capabilityGroup: item.capabilityGroup || null,
 });
 
 const buildEvidencePackage = ({ selectedCandidate = null, decisionContext = {}, answerSignals = {} } = {}) => ({
@@ -196,6 +201,11 @@ const buildFollowUpContext = ({ session = {}, selectedCandidate = null, answerSi
     parentTopic: parentMetadata.topic || decisionContext.currentTopic || null,
     missingEvidence: answerSignals.missingEvidence,
     evidenceTarget: answerSignals.missingEvidence[0] || decisionContext.currentTopic || selectedCandidate?.topic || null,
+    questionFamily: parentMetadata.questionFamily || null,
+    evidenceMode: parentMetadata.evidenceMode || null,
+    roleDomain: parentMetadata.roleDomain || 'general',
+    requirementCategory: parentMetadata.requirementCategory || null,
+    capabilityGroup: parentMetadata.capabilityGroup || null,
   };
 };
 

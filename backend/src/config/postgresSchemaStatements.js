@@ -1,3 +1,8 @@
+import {
+  RETENTION_POSTGRES_INDEX_STATEMENTS,
+  RETENTION_POSTGRES_TABLE_STATEMENTS,
+} from './retentionPostgresSchemaStatements.js';
+
 /**
  * PostgreSQL schema DDL statements
  * Contains all CREATE TABLE, ALTER TABLE, CREATE INDEX, and data cleanup statements
@@ -128,6 +133,7 @@ export const POSTGRES_SCHEMA_STATEMENTS = [
     virus_scanned_at timestamptz,
     access_scope varchar(50) NOT NULL DEFAULT 'private',
     uploaded_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz,
     deleted_at timestamptz
   )`,
 
@@ -232,6 +238,7 @@ export const POSTGRES_SCHEMA_STATEMENTS = [
     // Schema migrations: uploaded_files
     `ALTER TABLE uploaded_files ALTER COLUMN is_encrypted SET DEFAULT false`,
     `ALTER TABLE uploaded_files ALTER COLUMN virus_scan_status SET DEFAULT 'not_configured'`,
+    ...RETENTION_POSTGRES_TABLE_STATEMENTS,
 
     // Report summaries table
     `CREATE TABLE IF NOT EXISTS report_summaries (
@@ -302,6 +309,7 @@ export const POSTGRES_SCHEMA_STATEMENTS = [
   )`,
 
     // Indexes
+    ...RETENTION_POSTGRES_INDEX_STATEMENTS,
     `CREATE INDEX IF NOT EXISTS idx_interview_sessions_user_created_at
     ON interview_sessions(user_id, created_at DESC)`,
     `CREATE INDEX IF NOT EXISTS idx_interview_sessions_status_created_at

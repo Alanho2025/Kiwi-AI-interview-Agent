@@ -36,9 +36,16 @@ const resolveCandidateFacingDecision = ({ analysisResult = {}, evidenceSummary =
   return rawDecision === 'not_qualified' ? 'needs_stronger_evidence' : rawDecision;
 };
 
-export const buildGapText = ({ analysisResult, evidenceSummary, interviewMetrics }) => {
+export const buildGapText = ({ analysisResult, evidenceSummary, interviewMetrics, candidateFeedback = {} }) => {
   const gaps = [];
-  if ((evidenceSummary.totals.hypothetical_understanding || 0) > 0) gaps.push('Some answers relied on hypothetical or system-level understanding rather than direct past examples.');
+  const hasPastExampleQuestion = ensureArray(candidateFeedback.turnBreakdowns).some((turn) => (
+    turn.frameworkKey === 'behavioural_starr'
+    || turn.rubricType === 'starr'
+    || turn.evidenceMode === 'past_example'
+  ));
+  if ((evidenceSummary.totals.hypothetical_understanding || 0) > 0 && hasPastExampleQuestion) {
+    gaps.push('Some past-example answers relied on hypothetical understanding rather than evidence from work the candidate actually completed.');
+  }
   if ((evidenceSummary.totals.indirect_adjacent_experience || 0) > 0) gaps.push('Several answers were adjacent to the asked technology rather than direct role-specific evidence.');
   if (!interviewMetrics.interviewCompletedByLimit) gaps.push('The interview did not cleanly finish the planned question set.');
   if (!gaps.length && (analysisResult.explanation?.gaps || []).length) return joinLabels(analysisResult.explanation.gaps, 4);
@@ -107,7 +114,17 @@ const filterVoiceDeliveryFeedback = (feedback = []) => ensureArray(feedback)
  *   3. AI turn breakdown average (0-10 scale → 0-100)        — 30% weight (if available)
  * When AI turn breakdowns are not available, weights redistribute to 55% / 45%.
  */
-const computeInterviewPerformanceScore = (evidenceSummary = {}, candidateFeedback = {}) => {
+export const computeInterviewPerformanceScore = (evidenceSummary = {}, candidateFeedback = {}) => {
+  const frameworkScores = ensureArray(candidateFeedback.turnBreakdowns)
+    .filter((turn) => turn.rubricType !== 'conversation' && turn.questionFamily !== 'conversation')
+    .map((turn) => Number(turn.frameworkBreakdown?.normalizedScore))
+    .filter(Number.isFinite);
+
+  if (frameworkScores.length) {
+    const average = frameworkScores.reduce((sum, score) => sum + score, 0) / frameworkScores.length;
+    return Math.round(Math.min(100, Math.max(0, average * 10)));
+  }
+
   const strength = Number(evidenceSummary.averageStrength || 0);
   const strengthScore = Math.min(100, (strength / 4) * 100);
 
@@ -205,7 +222,7 @@ export const buildReportDraft = ({
   };
 
   return {
-    schemaVersion: 'v4',
+    schemaVersion: 'v5',
     sessionId: session.id,
     candidateName: analysisResult.candidateName || session.candidateName || 'Candidate',
     jobTitle: analysisResult.jobTitle || session.targetRole || 'Target Role',
@@ -229,7 +246,7 @@ export const buildReportDraft = ({
       {
         id: 'gaps',
         title: 'Gaps',
-        content: buildGapText({ analysisResult, evidenceSummary, interviewMetrics }) || 'No major gaps were captured.',
+        content: buildGapText({ analysisResult, evidenceSummary, interviewMetrics, candidateFeedback }) || 'No major gaps were captured.',
       },
       {
         id: 'interview_observations',
@@ -274,11 +291,11 @@ export const buildReportDraft = ({
     scoreLimitations: getScoreLimitations(),
     recommendations: [
       (evidenceSummary.totals.hypothetical_understanding || 0) > 0
-        ? 'Replace hypothetical wording with one real project example for each major technology question.'
-        : 'Keep using concrete project examples with measurable outcomes.',
+        ? 'Make the applicable framework explicit: requirements or context, approach, judgement, risk or quality, validation, and outcome.'
+        : 'Keep using concrete role-specific evidence with clear validation and outcomes.',
       interviewMetrics.interviewerQuestionCount !== (session.totalQuestions || interviewMetrics.interviewerQuestionCount)
         ? 'Align the interview flow so the number of asked questions matches the planned question count.'
-        : 'Continue using STARR-style examples to tighten impact and outcome statements.',
+        : 'Use the framework shown for each question type to tighten reasoning, evidence, and outcomes.',
     ],
     evidenceReferences: [
       ...(analysisResult.evidenceMap || []).slice(0, 5),

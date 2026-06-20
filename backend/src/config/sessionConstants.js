@@ -18,7 +18,7 @@ export const DISPLAY_TITLE_MARKETING_PREFIX_PATTERNS = [
     /^position\s*[:：]?\s*/i,
 ];
 
-export const RETENTION_DAYS = 90;
+export { RETENTION_DAYS } from './retentionConfig.js';
 export const DEFAULT_VARCHAR_MAX_LENGTH = 255;
 
 // Made with Bob

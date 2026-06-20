@@ -1,0 +1,1716 @@
+{
+  "eval_cases": [
+    {
+      "eval_case_id": "voice_empty_transcript_repair",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Evaluate Kiwi voice interview case: voice_empty_transcript_repair.\nThe candidate stops speaking but the realtime STT final transcript is empty.\nAssess transcript confidence handling, turn counting, answer processing, next-question traceability, and first-audio latency."
+          }
+        ]
+      },
+      "responses": [
+        {
+          "response": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "Voice case voice_empty_transcript_repair: passed.\nTranscript decision: reject (EMPTY_TRANSCRIPT).\nNo interview answer was processed for this turn.\nDeterministic checks did not flag failures."
+              }
+            ]
+          }
+        }
+      ],
+      "agent_data": {
+        "agents": {
+          "kiwi_voice_interview_agent": {
+            "agent_id": "kiwi_voice_interview_agent",
+            "agent_type": "DuplexVoiceInterviewAgent",
+            "instruction": "Coordinate realtime voice interview turns while preserving transcript confidence, repair, confirmation, turn counting, and latency guarantees."
+          },
+          "voice_confidence_gate": {
+            "agent_id": "voice_confidence_gate",
+            "agent_type": "SpeechConfidenceGate",
+            "instruction": "Classify final realtime transcripts as accepted, rejected, or requiring understanding confirmation before scoring."
+          },
+          "transcript_confirmation_agent": {
+            "agent_id": "transcript_confirmation_agent",
+            "agent_type": "TranscriptConfirmationAgent",
+            "instruction": "Ask deterministic confirmation prompts for contentful low-confidence transcripts and classify the user confirmation reply."
+          },
+          "adaptive_interview_controller": {
+            "agent_id": "adaptive_interview_controller",
+            "agent_type": "AdaptiveInterviewController",
+            "instruction": "Save accepted answers, evaluate the latest answer, choose the next action, rank the concrete question, and preserve traceable question metadata."
+          },
+          "voice_tts_agent": {
+            "agent_id": "voice_tts_agent",
+            "agent_type": "SpeechSynthesisAgent",
+            "instruction": "Synthesize repair, confirmation, acknowledgement, and next-question speech without counting non-question turns as interview questions."
+          }
+        },
+        "turns": [
+          {
+            "turn_index": 0,
+            "events": [
+              {
+                "author": "user",
+                "content": {
+                  "role": "user",
+                  "parts": [
+                    {
+                      "text": "Evaluate Kiwi voice interview case: voice_empty_transcript_repair.\nThe candidate stops speaking but the realtime STT final transcript is empty.\nAssess transcript confidence handling, turn counting, answer processing, next-question traceability, and first-audio latency."
+                    }
+                  ]
+                }
+              },
+              {
+                "author": "kiwi_voice_interview_agent",
+                "content": {
+                  "role": "model",
+                  "parts": [
+                    {
+                      "function_call": {
+                        "name": "orchestrate_duplex_voice",
+                        "args": {
+                          "caseId": "voice_empty_transcript_repair",
+                          "inputMode": "duplex_voice"
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "author": "tool",
+                "content": {
+                  "role": "function",
+                  "parts": [
+                    {
+                      "function_response": {
+                        "name": "orchestrate_duplex_voice",
+                        "response": {
+                          "state": "stt_finalizing",
+                          "transcriptPreview": "",
+                          "asrConfidence": 0.92,
+                          "vad": {
+                            "speechDurationMs": 0,
+                            "sttSegmentCount": 0,
+                            "isFinal": true
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "author": "voice_confidence_gate",
+                "content": {
+                  "role": "model",
+                  "parts": [
+                    {
+                      "function_call": {
+                        "name": "validate_speech_confidence",
+                        "args": {
+                          "transcriptText": "",
+                          "asrConfidence": 0.92,
+                          "vad": {
+                            "speechDurationMs": 0,
+                            "sttSegmentCount": 0,
+                            "isFinal": true
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "author": "tool",
+                "content": {
+                  "role": "function",
+                  "parts": [
+                    {
+                      "function_response": {
+                        "name": "validate_speech_confidence",
+                        "response": {
+                          "ok": false,
+                          "decision": "reject",
+                          "reason": "EMPTY_TRANSCRIPT",
+                          "requiresUnderstandingConfirmation": false,
+                          "shouldProcessAnswer": false,
+                          "countsAsQuestion": false,
+                          "message": "I did not catch your answer. Please try again.",
+                          "confidenceGate": {
+                            "status": "high",
+                            "shouldConfirm": false,
+                            "shouldRecordAgain": false
+                          },
+                          "metrics": {
+                            "words": 0,
+                            "characters": 0,
+                            "speechDurationMs": 0,
+                            "sttSegmentCount": 0
+                          },
+                          "transcriptQuality": null
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "author": "voice_tts_agent",
+                "content": {
+                  "role": "model",
+                  "parts": [
+                    {
+                      "function_call": {
+                        "name": "synthesize_assistant_speech",
+                        "args": {
+                          "source": "duplex_repair_prompt",
+                          "text": "I did not catch your answer. Please try again."
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "author": "tool",
+                "content": {
+                  "role": "function",
+                  "parts": [
+                    {
+                      "function_response": {
+                        "name": "synthesize_assistant_speech",
+                        "response": {
+                          "turnType": "repair_prompt",
+                          "countsAsQuestion": false,
+                          "text": "I did not catch your answer. Please try again."
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "author": "kiwi_voice_interview_agent",
+                "content": {
+                  "role": "model",
+                  "parts": [
+                    {
+                      "text": "I did not catch your answer. Please try again."
+                    }
+                  ]
+                }
+              },
+              {
+                "author": "kiwi_voice_interview_agent",
+                "content": {
+                  "role": "model",
+                  "parts": [
+                    {
+                      "text": "Voice case voice_empty_transcript_repair: passed.\nTranscript decision: reject (EMPTY_TRANSCRIPT).\nNo interview answer was processed for this turn.\nDeterministic checks did not flag failures."
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "rubric_groups": {
+        "kiwi_voice_interview_rubrics": {
+          "rubrics": [
+            {
+              "rubric_id": "voice_confidence_policy",
+              "content": {
+                "property": {
+                  "description": "Transcript confidence must control reject, confirmation, and accepted-answer paths without treating ASR uncertainty as answer quality."
+                }
+              }
+            },
+            {
+              "rubric_id": "voice_turn_counting",
+              "content": {
+                "property": {
+                  "description": "Repair prompts, transcript confirmations, and bridge acknowledgements must not count as interview questions."
+                }
+              }
+            },
+            {
+              "rubric_id": "voice_latency",
+              "content": {
+                "property": {
+                  "description": "Accepted voice answers should reach first next-question audio within 3 seconds and expose the latency milestones."
+                }
+              }
+            },
+            {
+              "rubric_id": "voice_question_traceability",
+              "content": {
+                "property": {
+                  "description": "Accepted answers should include selected action, question decision, ranking, evidence, alternatives, and spoken question text."
+                }
+              }
+            }
+          ]
+        }
+      },
+      "kiwi_evaluation": {
+        "domain": "voice_interview",
+        "score": 1,
+        "passed": true,
+        "minimumPassingScore": 1,
+        "failedChecks": [],
+        "checks": [
+          {
+            "label": "decision_matches_contract",
+            "passed": true
+          },
+          {
+            "label": "reason_matches_contract",
+            "passed": true
+          },
+          {
+            "label": "answer_processing_matches_contract",
+            "passed": true
+          },
+          {
+            "label": "turn_counting_matches_contract",
+            "passed": true
+          }
+        ],
+        "diagnostics": {
+          "assessment": {
+            "ok": false,
+            "decision": "reject",
+            "reason": "EMPTY_TRANSCRIPT",
+            "requiresUnderstandingConfirmation": false,
+            "shouldProcessAnswer": false,
+            "countsAsQuestion": false,
+            "message": "I did not catch your answer. Please try again.",
+            "confidenceGate": {
+              "status": "high",
+              "shouldConfirm": false,
+              "shouldRecordAgain": false
+            },
+            "metrics": {
+              "words": 0,
+              "characters": 0,
+              "speechDurationMs": 0,
+              "sttSegmentCount": 0
+            },
+            "transcriptQuality": null
+          },
+          "confirmationDecision": null,
+          "answerProcessed": false,
+          "latency": null
+        }
+      }
+    },
+    {
+      "eval_case_id": "voice_low_confidence_contentful_confirmation",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Evaluate Kiwi voice interview case: voice_low_confidence_contentful_confirmation.\nThe candidate gives a long database answer but ASR confidence is low.\nAssess transcript confidence handling, turn counting, answer processing, next-question traceability, and first-audio latency."
+          }
+        ]
+      },
+      "responses": [
+        {
+          "response": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "Voice case voice_low_confidence_contentful_confirmation: passed.\nTranscript decision: confirm_understanding (LOW_CONFIDENCE_CONTENTFUL_TRANSCRIPT).\nNo interview answer was processed for this turn.\nDeterministic checks did not flag failures."
+              }
+            ]
+          }
+        }
+      ],
+      "agent_data": {
+        "agents": {
+          "kiwi_voice_interview_agent": {
+            "agent_id": "kiwi_voice_interview_agent",
+            "agent_type": "DuplexVoiceInterviewAgent",
+            "instruction": "Coordinate realtime voice interview turns while preserving transcript confidence, repair, confirmation, turn counting, and latency guarantees."
+          },
+          "voice_confidence_gate": {
+            "agent_id": "voice_confidence_gate",
+            "agent_type": "SpeechConfidenceGate",
+            "instruction": "Classify final realtime transcripts as accepted, rejected, or requiring understanding confirmation before scoring."
+          },
+          "transcript_confirmation_agent": {
+            "agent_id": "transcript_confirmation_agent",
+            "agent_type": "TranscriptConfirmationAgent",
+            "instruction": "Ask deterministic confirmation prompts for contentful low-confidence transcripts and classify the user confirmation reply."
+          },
+          "adaptive_interview_controller": {
+            "agent_id": "adaptive_interview_controller",
+            "agent_type": "AdaptiveInterviewController",
+            "instruction": "Save accepted answers, evaluate the latest answer, choose the next action, rank the concrete question, and preserve traceable question metadata."
+          },
+          "voice_tts_agent": {
+            "agent_id": "voice_tts_agent",
+            "agent_type": "SpeechSynthesisAgent",
+            "instruction": "Synthesize repair, confirmation, acknowledgement, and next-question speech without counting non-question turns as interview questions."
+          }
+        },
+        "turns": [
+          {
+            "turn_index": 0,
+            "events": [
+              {
+                "author": "user",
+                "content": {
+                  "role": "user",
+                  "parts": [
+                    {
+                      "text": "Evaluate Kiwi voice interview case: voice_low_confidence_contentful_confirmation.\nThe candidate gives a long database answer but ASR confidence is low.\nAssess transcript confidence handling, turn counting, answer processing, next-question traceability, and first-audio latency."
+                    }
+                  ]
+                }
+              },
+              {
+                "author": "kiwi_voice_interview_agent",
+                "content": {
+                  "role": "model",
+                  "parts": [
+                    {
+                      "function_call": {
+                        "name": "orchestrate_duplex_voice",
+                        "args": {
+                          "caseId": "voice_low_confidence_contentful_confirmation",
+                          "inputMode": "duplex_voice"
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "author": "tool",
+                "content": {
+                  "role": "function",
+                  "parts": [
+                    {
+                      "function_response": {
+                        "name": "orchestrate_duplex_voice",
+                        "response": {
+                          "state": "stt_finalizing",
+                          "transcriptPreview": "I compared MongoDB and PostgreSQL because the interview agent stores flexible CV text, job descriptions, transcript records, match analysis, and structured user account data. I chose the database based on query needs, sc",
+                          "asrConfidence": 0.24,
+                          "vad": {
+                            "speechDurationMs": 42000,
+                            "sttSegmentCount": 3,
+                            "isFinal": true
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "author": "voice_confidence_gate",
+                "content": {
+                  "role": "model",
+                  "parts": [
+                    {
+                      "function_call": {
+                        "name": "validate_speech_confidence",
+                        "args": {
+                          "transcriptText": "I compared MongoDB and PostgreSQL because the interview agent stores flexible CV text, job descriptions, transcript records, match analysis, and structured user account data. I chose the database based on query needs, schema flexibility, and validation require",
+                          "asrConfidence": 0.24,
+                          "vad": {
+                            "speechDurationMs": 42000,
+                            "sttSegmentCount": 3,
+                            "isFinal": true
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "author": "tool",
+                "content": {
+                  "role": "function",
+                  "parts": [
+                    {
+                      "function_response": {
+                        "name": "validate_speech_confidence",
+                        "response": {
+                          "ok": false,
+                          "decision": "confirm_understanding",
+                          "reason": "LOW_CONFIDENCE_CONTENTFUL_TRANSCRIPT",
+                          "requiresUnderstandingConfirmation": true,
+                          "shouldProcessAnswer": false,
+                          "countsAsQuestion": false,
+                          "message": null,
+                          "confidenceGate": {
+                            "status": "low",
+                            "shouldConfirm": true,
+                            "shouldRecordAgain": false
+                          },
+                          "metrics": {
+                            "words": 37,
+                            "characters": 266,
+                            "speechDurationMs": 42000,
+                            "sttSegmentCount": 3
+                          },
+                          "transcriptQuality": "low_confidence_but_contentful"
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "author": "transcript_confirmation_agent",
+                "content": {
+                  "role": "model",
+                  "parts": [
+                    {
+                      "function_call": {
+                        "name": "build_transcript_confirmation_prompt",
+                        "args": {
+                          "transcriptText": "I compared MongoDB and PostgreSQL because the interview agent stores flexible CV text, job descriptions, transcript records, match analysis, and structured user account data. I chose the database based on query needs, schema flexibility, and validation require"
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "author": "tool",
+                "content": {
+                  "role": "function",
+                  "parts": [
+                    {
+                      "function_response": {
+                        "name": "build_transcript_confirmation_prompt",
+                        "response": {
+                          "turnType": "transcript_confirmation",
+                          "countsAsQuestion": false,
+                          "confirmationPrompt": "I may not have heard every word perfectly. I heard: \"I compared MongoDB and PostgreSQL because the interview agent stores flexible CV text, job descriptions, transcript records, match analysis, and structured user account data. I cho...\". Did I understand that correctly?",
+                          "pendingTranscriptStored": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "author": "kiwi_voice_interview_agent",
+                "content": {
+                  "role": "model",
+                  "parts": [
+                    {
+                      "text": "I may not have heard every word perfectly. I heard: \"I compared MongoDB and PostgreSQL because the interview agent stores flexible CV text, job descriptions, transcript records, match analysis, and structured user account data. I cho...\". Did I understand that correctly?"
+                    }
+                  ]
+                }
+              },
+              {
+                "author": "kiwi_voice_interview_agent",
+                "content": {
+                  "role": "model",
+                  "parts": [
+                    {
+                      "text": "Voice case voice_low_confidence_contentful_confirmation: passed.\nTranscript decision: confirm_understanding (LOW_CONFIDENCE_CONTENTFUL_TRANSCRIPT).\nNo interview answer was processed for this turn.\nDeterministic checks did not flag failures."
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "rubric_groups": {
+        "kiwi_voice_interview_rubrics": {
+          "rubrics": [
+            {
+              "rubric_id": "voice_confidence_policy",
+              "content": {
+                "property": {
+                  "description": "Transcript confidence must control reject, confirmation, and accepted-answer paths without treating ASR uncertainty as answer quality."
+                }
+              }
+            },
+            {
+              "rubric_id": "voice_turn_counting",
+              "content": {
+                "property": {
+                  "description": "Repair prompts, transcript confirmations, and bridge acknowledgements must not count as interview questions."
+                }
+              }
+            },
+            {
+              "rubric_id": "voice_latency",
+              "content": {
+                "property": {
+                  "description": "Accepted voice answers should reach first next-question audio within 3 seconds and expose the latency milestones."
+                }
+              }
+            },
+            {
+              "rubric_id": "voice_question_traceability",
+              "content": {
+                "property": {
+                  "description": "Accepted answers should include selected action, question decision, ranking, evidence, alternatives, and spoken question text."
+                }
+              }
+            }
+          ]
+        }
+      },
+      "kiwi_evaluation": {
+        "domain": "voice_interview",
+        "score": 1,
+        "passed": true,
+        "minimumPassingScore": 1,
+        "failedChecks": [],
+        "checks": [
+          {
+            "label": "decision_matches_contract",
+            "passed": true
+          },
+          {
+            "label": "reason_matches_contract",
+            "passed": true
+          },
+          {
+            "label": "answer_processing_matches_contract",
+            "passed": true
+          },
+          {
+            "label": "turn_counting_matches_contract",
+            "passed": true
+          },
+          {
+            "label": "confirmation_prompt_requested",
+            "passed": true
+          }
+        ],
+        "diagnostics": {
+          "assessment": {
+            "ok": false,
+            "decision": "confirm_understanding",
+            "reason": "LOW_CONFIDENCE_CONTENTFUL_TRANSCRIPT",
+            "requiresUnderstandingConfirmation": true,
+            "shouldProcessAnswer": false,
+            "countsAsQuestion": false,
+            "message": null,
+            "confidenceGate": {
+              "status": "low",
+              "shouldConfirm": true,
+              "shouldRecordAgain": false
+            },
+            "metrics": {
+              "words": 37,
+              "characters": 266,
+              "speechDurationMs": 42000,
+              "sttSegmentCount": 3
+            },
+            "transcriptQuality": "low_confidence_but_contentful"
+          },
+          "confirmationDecision": null,
+          "answerProcessed": false,
+          "latency": null
+        }
+      }
+    },
+    {
+      "eval_case_id": "voice_confirmed_low_confidence_answer_processed",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Evaluate Kiwi voice interview case: voice_confirmed_low_confidence_answer_processed.\nThe candidate confirms a contentful low-confidence transcript and adds a short clarification.\nAssess transcript confidence handling, turn counting, answer processing, next-question traceability, and first-audio latency."
+          }
+        ]
+      },
+      "responses": [
+        {
+          "response": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "Voice case voice_confirmed_low_confidence_answer_processed: passed.\nTranscript decision: confirm_understanding (LOW_CONFIDENCE_CONTENTFUL_TRANSCRIPT).\nNext action: ASK_VALIDATION_QUESTION; first audio 2520ms.\nDeterministic checks did not flag failures."
+              }
+            ]
+          }
+        }
+      ],
+      "agent_data": {
+        "agents": {
+          "kiwi_voice_interview_agent": {
+            "agent_id": "kiwi_voice_interview_agent",
+            "agent_type": "DuplexVoiceInterviewAgent",
+            "instruction": "Coordinate realtime voice interview turns while preserving transcript confidence, repair, confirmation, turn counting, and latency guarantees."
+          },
+          "voice_confidence_gate": {
+            "agent_id": "voice_confidence_gate",
+            "agent_type": "SpeechConfidenceGate",
+            "instruction": "Classify final realtime transcripts as accepted, rejected, or requiring understanding confirmation before scoring."
+          },
+          "transcript_confirmation_agent": {
+            "agent_id": "transcript_confirmation_agent",
+            "agent_type": "TranscriptConfirmationAgent",
+            "instruction": "Ask deterministic confirmation prompts for contentful low-confidence transcripts and classify the user confirmation reply."
+          },
+          "adaptive_interview_controller": {
+            "agent_id": "adaptive_interview_controller",
+            "agent_type": "AdaptiveInterviewController",
+            "instruction": "Save accepted answers, evaluate the latest answer, choose the next action, rank the concrete question, and preserve traceable question metadata."
+          },
+          "voice_tts_agent": {
+            "agent_id": "voice_tts_agent",
+            "agent_type": "SpeechSynthesisAgent",
+            "instruction": "Synthesize repair, confirmation, acknowledgement, and next-question speech without counting non-question turns as interview questions."
+          }
+        },
+        "turns": [
+          {
+            "turn_index": 0,
+            "events": [
+              {
+                "author": "user",
+                "content": {
+                  "role": "user",
+                  "parts": [
+                    {
+                      "text": "Evaluate Kiwi voice interview case: voice_confirmed_low_confidence_answer_processed.\nThe candidate confirms a contentful low-confidence transcript and adds a short clarification.\nAssess transcript confidence handling, turn counting, answer processing, next-question traceability, and first-audio latency."
+                    }
+                  ]
+                }
+              },
+              {
+                "author": "kiwi_voice_interview_agent",
+                "content": {
+                  "role": "model",
+                  "parts": [
+                    {
+                      "function_call": {
+                        "name": "orchestrate_duplex_voice",
+                        "args": {
+                          "caseId": "voice_confirmed_low_confidence_answer_processed",
+                          "inputMode": "duplex_voice"
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "author": "tool",
+                "content": {
+                  "role": "function",
+                  "parts": [
+                    {
+                      "function_response": {
+                        "name": "orchestrate_duplex_voice",
+                        "response": {
+                          "state": "stt_finalizing",
+                          "transcriptPreview": "I compared MongoDB and PostgreSQL because the interview agent stores flexible CV text, job descriptions, transcript records, match analysis, and structured user account data. I chose the database based on query needs, sc",
+                          "asrConfidence": 0.28,
+                          "vad": {
+                            "speechDurationMs": 46000,
+                            "sttSegmentCount": 4,
+                            "isFinal": true
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "author": "voice_confidence_gate",
+                "content": {
+                  "role": "model",
+                  "parts": [
+                    {
+                      "function_call": {
+                        "name": "validate_speech_confidence",
+                        "args": {
+                          "transcriptText": "I compared MongoDB and PostgreSQL because the interview agent stores flexible CV text, job descriptions, transcript records, match analysis, and structured user account data. I chose the database based on query needs, schema flexibility, and validation require",
+                          "asrConfidence": 0.28,
+                          "vad": {
+                            "speechDurationMs": 46000,
+                            "sttSegmentCount": 4,
+                            "isFinal": true
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "author": "tool",
+                "content": {
+                  "role": "function",
+                  "parts": [
+                    {
+                      "function_response": {
+                        "name": "validate_speech_confidence",
+                        "response": {
+                          "ok": false,
+                          "decision": "confirm_understanding",
+                          "reason": "LOW_CONFIDENCE_CONTENTFUL_TRANSCRIPT",
+                          "requiresUnderstandingConfirmation": true,
+                          "shouldProcessAnswer": false,
+                          "countsAsQuestion": false,
+                          "message": null,
+                          "confidenceGate": {
+                            "status": "low",
+                            "shouldConfirm": true,
+                            "shouldRecordAgain": false
+                          },
+                          "metrics": {
+                            "words": 37,
+                            "characters": 266,
+                            "speechDurationMs": 46000,
+                            "sttSegmentCount": 4
+                          },
+                          "transcriptQuality": "low_confidence_but_contentful"
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "author": "transcript_confirmation_agent",
+                "content": {
+                  "role": "model",
+                  "parts": [
+                    {
+                      "function_call": {
+                        "name": "build_transcript_confirmation_prompt",
+                        "args": {
+                          "transcriptText": "I compared MongoDB and PostgreSQL because the interview agent stores flexible CV text, job descriptions, transcript records, match analysis, and structured user account data. I chose the database based on query needs, schema flexibility, and validation require"
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "author": "tool",
+                "content": {
+                  "role": "function",
+                  "parts": [
+                    {
+                      "function_response": {
+                        "name": "build_transcript_confirmation_prompt",
+                        "response": {
+                          "turnType": "transcript_confirmation",
+                          "countsAsQuestion": false,
+                          "confirmationPrompt": "I may not have heard every word perfectly. I heard: \"I compared MongoDB and PostgreSQL because the interview agent stores flexible CV text, job descriptions, transcript records, match analysis, and structured user account data. I cho...\". Did I understand that correctly?",
+                          "pendingTranscriptStored": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "author": "kiwi_voice_interview_agent",
+                "content": {
+                  "role": "model",
+                  "parts": [
+                    {
+                      "text": "I may not have heard every word perfectly. I heard: \"I compared MongoDB and PostgreSQL because the interview agent stores flexible CV text, job descriptions, transcript records, match analysis, and structured user account data. I cho...\". Did I understand that correctly?"
+                    }
+                  ]
+                }
+              },
+              {
+                "author": "user",
+                "content": {
+                  "role": "user",
+                  "parts": [
+                    {
+                      "text": "Yes, that is right. I also chose PostgreSQL when relational reporting and strict validation mattered."
+                    }
+                  ]
+                }
+              },
+              {
+                "author": "transcript_confirmation_agent",
+                "content": {
+                  "role": "model",
+                  "parts": [
+                    {
+                      "function_call": {
+                        "name": "classify_transcript_confirmation_reply",
+                        "args": {
+                          "replyText": "Yes, that is right. I also chose PostgreSQL when relational reporting and strict validation mattered."
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "author": "tool",
+                "content": {
+                  "role": "function",
+                  "parts": [
+                    {
+                      "function_response": {
+                        "name": "classify_transcript_confirmation_reply",
+                        "response": {
+                          "decision": "confirm_with_clarification",
+                          "usedClarification": true,
+                          "turnType": "transcript_confirmation",
+                          "countsAsQuestion": false
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "author": "adaptive_interview_controller",
+                "content": {
+                  "role": "model",
+                  "parts": [
+                    {
+                      "function_call": {
+                        "name": "process_accepted_voice_answer",
+                        "args": {
+                          "transcriptText": "I compared MongoDB and PostgreSQL because the interview agent stores flexible CV text, job descriptions, transcript records, match analysis, and structured user account data. I chose the database based on query needs, schema flexibility, and validation requirements.\n\nUser clarification after confirm",
+                          "confidenceReason": "LOW_CONFIDENCE_CONTENTFUL_TRANSCRIPT",
+                          "skipTranscriptGate": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "author": "tool",
+                "content": {
+                  "role": "function",
+                  "parts": [
+                    {
+                      "function_response": {
+                        "name": "process_accepted_voice_answer",
+                        "response": {
+                          "answerSaved": true,
+                          "turnType": "user_answer",
+                          "countsAsQuestion": true,
+                          "evaluator": {
+                            "suggestedNextMode": "deepen",
+                            "evidenceGainScore": 0.72,
+                            "currentTopic": "database",
+                            "rationale": "The answer is contentful and should be followed by a validation question."
+                          },
+                          "selectedAction": "ASK_VALIDATION_QUESTION",
+                          "questionDecision": {
+                            "selectedAction": "ASK_VALIDATION_QUESTION",
+                            "selectedQuestionId": "voice_database_validation_001",
+                            "sourceType": "match_gap",
+                            "whyThisQuestion": "Selected because the accepted answer discussed database trade-offs and the role evidence still needs validation.",
+                            "evidenceUsed": [
+                              {
+                                "type": "voice_transcript",
+                                "value": "I compared MongoDB and PostgreSQL because the interview agent stores flexible CV text, job descriptions, transcript records, match analysis, and structured user account data. I chose the database based on query needs, schema flexibility, and validation require"
+                              },
+                              {
+                                "type": "selected_action",
+                                "value": "ASK_VALIDATION_QUESTION"
+                              },
+                              {
+                                "type": "latency_target",
+                                "value": "speech_end_to_tts_first_audio_under_3000_ms"
+                              }
+                            ],
+                            "expectedSignal": [
+                              "database_tradeoff",
+                              "personal_ownership",
+                              "validation_method"
+                            ],
+                            "alternativesConsidered": [
+                              {
+                                "questionId": "voice_api_followup_001",
+                                "sourceType": "cv_template",
+                                "score": 0.78,
+                                "reasons": [
+                                  "answer_mentions_backend"
+                                ]
+                              },
+                              {
+                                "questionId": "voice_teamwork_followup_001",
+                                "sourceType": "culture_fit",
+                                "score": 0.62,
+                                "reasons": [
+                                  "answer_mentions_team_project"
+                                ]
+                              }
+                            ],
+                            "confidence": 0.28,
+                            "selectionSource": "voice_contract_eval",
+                            "baseQuestionText": "How did you validate that database decision yourself?",
+                            "spokenQuestionText": "How did you validate that database decision yourself, and what trade-off did you make?",
+                            "ranking": {
+                              "selectedQuestionId": "voice_database_validation_001",
+                              "selectedScore": 1.28,
+                              "rankingReason": "Database evidence was present but still needed personal validation and trade-off detail.",
+                              "topCandidates": [
+                                {
+                                  "questionId": "voice_database_validation_001",
+                                  "sourceType": "match_gap",
+                                  "score": 1.28,
+                                  "reasons": [
+                                    "match_validation_target",
+                                    "linked_to_latest_answer",
+                                    "needs_validation_evidence"
+                                  ]
+                                },
+                                {
+                                  "questionId": "voice_api_followup_001",
+                                  "sourceType": "cv_template",
+                                  "score": 0.78,
+                                  "reasons": [
+                                    "answer_mentions_backend"
+                                  ]
+                                }
+                              ]
+                            }
+                          },
+                          "questionRanking": {
+                            "selectedQuestionId": "voice_database_validation_001",
+                            "selectedScore": 1.28,
+                            "rankingReason": "Database evidence was present but still needed personal validation and trade-off detail.",
+                            "topCandidates": [
+                              {
+                                "questionId": "voice_database_validation_001",
+                                "sourceType": "match_gap",
+                                "score": 1.28,
+                                "reasons": [
+                                  "match_validation_target",
+                                  "linked_to_latest_answer",
+                                  "needs_validation_evidence"
+                                ]
+                              },
+                              {
+                                "questionId": "voice_api_followup_001",
+                                "sourceType": "cv_template",
+                                "score": 0.78,
+                                "reasons": [
+                                  "answer_mentions_backend"
+                                ]
+                              }
+                            ]
+                          },
+                          "nextQuestionText": "How did you validate that database decision yourself, and what trade-off did you make?",
+                          "latency": {
+                            "milestones": {
+                              "speechEndReceived": 0,
+                              "sttFinalReady": 180,
+                              "confidenceGateDone": 235,
+                              "confirmationNeededOrNot": 260,
+                              "answerSaved": 720,
+                              "evaluatorDone": 1280,
+                              "actionSelected": 1510,
+                              "questionRanked": 1670,
+                              "firstSentenceReady": 2080,
+                              "ttsFirstAudio": 2520,
+                              "frontendPlaybackStarted": 2760
+                            },
+                            "speechEndToFirstAudioMs": 2520,
+                            "withinTarget": true,
+                            "targetMs": 3000
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "author": "voice_tts_agent",
+                "content": {
+                  "role": "model",
+                  "parts": [
+                    {
+                      "function_call": {
+                        "name": "synthesize_assistant_speech",
+                        "args": {
+                          "source": "duplex_interview_sentence",
+                          "text": "How did you validate that database decision yourself, and what trade-off did you make?"
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "author": "tool",
+                "content": {
+                  "role": "function",
+                  "parts": [
+                    {
+                      "function_response": {
+                        "name": "synthesize_assistant_speech",
+                        "response": {
+                          "turnType": "interview_question",
+                          "countsAsQuestion": true,
+                          "ttsFirstAudioMs": 2520,
+                          "frontendPlaybackStartedMs": 2760,
+                          "text": "How did you validate that database decision yourself, and what trade-off did you make?"
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "author": "kiwi_voice_interview_agent",
+                "content": {
+                  "role": "model",
+                  "parts": [
+                    {
+                      "text": "How did you validate that database decision yourself, and what trade-off did you make?"
+                    }
+                  ]
+                }
+              },
+              {
+                "author": "kiwi_voice_interview_agent",
+                "content": {
+                  "role": "model",
+                  "parts": [
+                    {
+                      "text": "Voice case voice_confirmed_low_confidence_answer_processed: passed.\nTranscript decision: confirm_understanding (LOW_CONFIDENCE_CONTENTFUL_TRANSCRIPT).\nNext action: ASK_VALIDATION_QUESTION; first audio 2520ms.\nDeterministic checks did not flag failures."
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "rubric_groups": {
+        "kiwi_voice_interview_rubrics": {
+          "rubrics": [
+            {
+              "rubric_id": "voice_confidence_policy",
+              "content": {
+                "property": {
+                  "description": "Transcript confidence must control reject, confirmation, and accepted-answer paths without treating ASR uncertainty as answer quality."
+                }
+              }
+            },
+            {
+              "rubric_id": "voice_turn_counting",
+              "content": {
+                "property": {
+                  "description": "Repair prompts, transcript confirmations, and bridge acknowledgements must not count as interview questions."
+                }
+              }
+            },
+            {
+              "rubric_id": "voice_latency",
+              "content": {
+                "property": {
+                  "description": "Accepted voice answers should reach first next-question audio within 3 seconds and expose the latency milestones."
+                }
+              }
+            },
+            {
+              "rubric_id": "voice_question_traceability",
+              "content": {
+                "property": {
+                  "description": "Accepted answers should include selected action, question decision, ranking, evidence, alternatives, and spoken question text."
+                }
+              }
+            }
+          ]
+        }
+      },
+      "kiwi_evaluation": {
+        "domain": "voice_interview",
+        "score": 1,
+        "passed": true,
+        "minimumPassingScore": 1,
+        "failedChecks": [],
+        "checks": [
+          {
+            "label": "decision_matches_contract",
+            "passed": true
+          },
+          {
+            "label": "reason_matches_contract",
+            "passed": true
+          },
+          {
+            "label": "answer_processing_matches_contract",
+            "passed": true
+          },
+          {
+            "label": "turn_counting_matches_contract",
+            "passed": true
+          },
+          {
+            "label": "confirmation_decision_matches_contract",
+            "passed": true
+          },
+          {
+            "label": "speech_end_to_first_audio_within_target",
+            "passed": true
+          }
+        ],
+        "diagnostics": {
+          "assessment": {
+            "ok": false,
+            "decision": "confirm_understanding",
+            "reason": "LOW_CONFIDENCE_CONTENTFUL_TRANSCRIPT",
+            "requiresUnderstandingConfirmation": true,
+            "shouldProcessAnswer": false,
+            "countsAsQuestion": false,
+            "message": null,
+            "confidenceGate": {
+              "status": "low",
+              "shouldConfirm": true,
+              "shouldRecordAgain": false
+            },
+            "metrics": {
+              "words": 37,
+              "characters": 266,
+              "speechDurationMs": 46000,
+              "sttSegmentCount": 4
+            },
+            "transcriptQuality": "low_confidence_but_contentful"
+          },
+          "confirmationDecision": "confirm_with_clarification",
+          "answerProcessed": true,
+          "latency": {
+            "milestones": {
+              "speechEndReceived": 0,
+              "sttFinalReady": 180,
+              "confidenceGateDone": 235,
+              "confirmationNeededOrNot": 260,
+              "answerSaved": 720,
+              "evaluatorDone": 1280,
+              "actionSelected": 1510,
+              "questionRanked": 1670,
+              "firstSentenceReady": 2080,
+              "ttsFirstAudio": 2520,
+              "frontendPlaybackStarted": 2760
+            },
+            "speechEndToFirstAudioMs": 2520,
+            "withinTarget": true,
+            "targetMs": 3000
+          }
+        }
+      }
+    },
+    {
+      "eval_case_id": "voice_valid_answer_next_question_fast",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Evaluate Kiwi voice interview case: voice_valid_answer_next_question_fast.\nThe candidate gives a clear accepted voice answer and should receive the next question within the latency target.\nAssess transcript confidence handling, turn counting, answer processing, next-question traceability, and first-audio latency."
+          }
+        ]
+      },
+      "responses": [
+        {
+          "response": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "Voice case voice_valid_answer_next_question_fast: passed.\nTranscript decision: accept (VALID_TRANSCRIPT).\nNext action: ASK_VALIDATION_QUESTION; first audio 2360ms.\nDeterministic checks did not flag failures."
+              }
+            ]
+          }
+        }
+      ],
+      "agent_data": {
+        "agents": {
+          "kiwi_voice_interview_agent": {
+            "agent_id": "kiwi_voice_interview_agent",
+            "agent_type": "DuplexVoiceInterviewAgent",
+            "instruction": "Coordinate realtime voice interview turns while preserving transcript confidence, repair, confirmation, turn counting, and latency guarantees."
+          },
+          "voice_confidence_gate": {
+            "agent_id": "voice_confidence_gate",
+            "agent_type": "SpeechConfidenceGate",
+            "instruction": "Classify final realtime transcripts as accepted, rejected, or requiring understanding confirmation before scoring."
+          },
+          "transcript_confirmation_agent": {
+            "agent_id": "transcript_confirmation_agent",
+            "agent_type": "TranscriptConfirmationAgent",
+            "instruction": "Ask deterministic confirmation prompts for contentful low-confidence transcripts and classify the user confirmation reply."
+          },
+          "adaptive_interview_controller": {
+            "agent_id": "adaptive_interview_controller",
+            "agent_type": "AdaptiveInterviewController",
+            "instruction": "Save accepted answers, evaluate the latest answer, choose the next action, rank the concrete question, and preserve traceable question metadata."
+          },
+          "voice_tts_agent": {
+            "agent_id": "voice_tts_agent",
+            "agent_type": "SpeechSynthesisAgent",
+            "instruction": "Synthesize repair, confirmation, acknowledgement, and next-question speech without counting non-question turns as interview questions."
+          }
+        },
+        "turns": [
+          {
+            "turn_index": 0,
+            "events": [
+              {
+                "author": "user",
+                "content": {
+                  "role": "user",
+                  "parts": [
+                    {
+                      "text": "Evaluate Kiwi voice interview case: voice_valid_answer_next_question_fast.\nThe candidate gives a clear accepted voice answer and should receive the next question within the latency target.\nAssess transcript confidence handling, turn counting, answer processing, next-question traceability, and first-audio latency."
+                    }
+                  ]
+                }
+              },
+              {
+                "author": "kiwi_voice_interview_agent",
+                "content": {
+                  "role": "model",
+                  "parts": [
+                    {
+                      "function_call": {
+                        "name": "orchestrate_duplex_voice",
+                        "args": {
+                          "caseId": "voice_valid_answer_next_question_fast",
+                          "inputMode": "duplex_voice"
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "author": "tool",
+                "content": {
+                  "role": "function",
+                  "parts": [
+                    {
+                      "function_response": {
+                        "name": "orchestrate_duplex_voice",
+                        "response": {
+                          "state": "stt_finalizing",
+                          "transcriptPreview": "In my university team project I coordinated the backend voice agent, clarified blockers, implemented the WebSocket turn flow, and measured latency from speech end to first audio.",
+                          "asrConfidence": 0.86,
+                          "vad": {
+                            "speechDurationMs": 12500,
+                            "sttSegmentCount": 3,
+                            "isFinal": true
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "author": "voice_confidence_gate",
+                "content": {
+                  "role": "model",
+                  "parts": [
+                    {
+                      "function_call": {
+                        "name": "validate_speech_confidence",
+                        "args": {
+                          "transcriptText": "In my university team project I coordinated the backend voice agent, clarified blockers, implemented the WebSocket turn flow, and measured latency from speech end to first audio.",
+                          "asrConfidence": 0.86,
+                          "vad": {
+                            "speechDurationMs": 12500,
+                            "sttSegmentCount": 3,
+                            "isFinal": true
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "author": "tool",
+                "content": {
+                  "role": "function",
+                  "parts": [
+                    {
+                      "function_response": {
+                        "name": "validate_speech_confidence",
+                        "response": {
+                          "ok": true,
+                          "decision": "accept",
+                          "reason": "VALID_TRANSCRIPT",
+                          "requiresUnderstandingConfirmation": false,
+                          "shouldProcessAnswer": true,
+                          "countsAsQuestion": true,
+                          "message": null,
+                          "confidenceGate": {
+                            "status": "high",
+                            "shouldConfirm": false,
+                            "shouldRecordAgain": false
+                          },
+                          "metrics": {
+                            "words": 27,
+                            "characters": 178,
+                            "speechDurationMs": 12500,
+                            "sttSegmentCount": 3
+                          },
+                          "transcriptQuality": null
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "author": "adaptive_interview_controller",
+                "content": {
+                  "role": "model",
+                  "parts": [
+                    {
+                      "function_call": {
+                        "name": "process_accepted_voice_answer",
+                        "args": {
+                          "transcriptText": "In my university team project I coordinated the backend voice agent, clarified blockers, implemented the WebSocket turn flow, and measured latency from speech end to first audio.",
+                          "confidenceReason": "VALID_TRANSCRIPT",
+                          "skipTranscriptGate": false
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "author": "tool",
+                "content": {
+                  "role": "function",
+                  "parts": [
+                    {
+                      "function_response": {
+                        "name": "process_accepted_voice_answer",
+                        "response": {
+                          "answerSaved": true,
+                          "turnType": "user_answer",
+                          "countsAsQuestion": true,
+                          "evaluator": {
+                            "suggestedNextMode": "deepen",
+                            "evidenceGainScore": 0.72,
+                            "currentTopic": "database",
+                            "rationale": "The answer is contentful and should be followed by a validation question."
+                          },
+                          "selectedAction": "ASK_VALIDATION_QUESTION",
+                          "questionDecision": {
+                            "selectedAction": "ASK_VALIDATION_QUESTION",
+                            "selectedQuestionId": "voice_database_validation_001",
+                            "sourceType": "match_gap",
+                            "whyThisQuestion": "Selected because the accepted answer discussed database trade-offs and the role evidence still needs validation.",
+                            "evidenceUsed": [
+                              {
+                                "type": "voice_transcript",
+                                "value": "In my university team project I coordinated the backend voice agent, clarified blockers, implemented the WebSocket turn flow, and measured latency from speech end to first audio."
+                              },
+                              {
+                                "type": "selected_action",
+                                "value": "ASK_VALIDATION_QUESTION"
+                              },
+                              {
+                                "type": "latency_target",
+                                "value": "speech_end_to_tts_first_audio_under_3000_ms"
+                              }
+                            ],
+                            "expectedSignal": [
+                              "database_tradeoff",
+                              "personal_ownership",
+                              "validation_method"
+                            ],
+                            "alternativesConsidered": [
+                              {
+                                "questionId": "voice_api_followup_001",
+                                "sourceType": "cv_template",
+                                "score": 0.78,
+                                "reasons": [
+                                  "answer_mentions_backend"
+                                ]
+                              },
+                              {
+                                "questionId": "voice_teamwork_followup_001",
+                                "sourceType": "culture_fit",
+                                "score": 0.62,
+                                "reasons": [
+                                  "answer_mentions_team_project"
+                                ]
+                              }
+                            ],
+                            "confidence": 0.86,
+                            "selectionSource": "voice_contract_eval",
+                            "baseQuestionText": "How did you validate that database decision yourself?",
+                            "spokenQuestionText": "How did you validate that database decision yourself, and what trade-off did you make?",
+                            "ranking": {
+                              "selectedQuestionId": "voice_database_validation_001",
+                              "selectedScore": 1.28,
+                              "rankingReason": "Database evidence was present but still needed personal validation and trade-off detail.",
+                              "topCandidates": [
+                                {
+                                  "questionId": "voice_database_validation_001",
+                                  "sourceType": "match_gap",
+                                  "score": 1.28,
+                                  "reasons": [
+                                    "match_validation_target",
+                                    "linked_to_latest_answer",
+                                    "needs_validation_evidence"
+                                  ]
+                                },
+                                {
+                                  "questionId": "voice_api_followup_001",
+                                  "sourceType": "cv_template",
+                                  "score": 0.78,
+                                  "reasons": [
+                                    "answer_mentions_backend"
+                                  ]
+                                }
+                              ]
+                            }
+                          },
+                          "questionRanking": {
+                            "selectedQuestionId": "voice_database_validation_001",
+                            "selectedScore": 1.28,
+                            "rankingReason": "Database evidence was present but still needed personal validation and trade-off detail.",
+                            "topCandidates": [
+                              {
+                                "questionId": "voice_database_validation_001",
+                                "sourceType": "match_gap",
+                                "score": 1.28,
+                                "reasons": [
+                                  "match_validation_target",
+                                  "linked_to_latest_answer",
+                                  "needs_validation_evidence"
+                                ]
+                              },
+                              {
+                                "questionId": "voice_api_followup_001",
+                                "sourceType": "cv_template",
+                                "score": 0.78,
+                                "reasons": [
+                                  "answer_mentions_backend"
+                                ]
+                              }
+                            ]
+                          },
+                          "nextQuestionText": "How did you validate that database decision yourself, and what trade-off did you make?",
+                          "latency": {
+                            "milestones": {
+                              "speechEndReceived": 0,
+                              "sttFinalReady": 140,
+                              "confidenceGateDone": 185,
+                              "confirmationNeededOrNot": 205,
+                              "answerSaved": 520,
+                              "evaluatorDone": 980,
+                              "actionSelected": 1210,
+                              "questionRanked": 1380,
+                              "firstSentenceReady": 1880,
+                              "ttsFirstAudio": 2360,
+                              "frontendPlaybackStarted": 2550
+                            },
+                            "speechEndToFirstAudioMs": 2360,
+                            "withinTarget": true,
+                            "targetMs": 3000
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "author": "voice_tts_agent",
+                "content": {
+                  "role": "model",
+                  "parts": [
+                    {
+                      "function_call": {
+                        "name": "synthesize_assistant_speech",
+                        "args": {
+                          "source": "duplex_interview_sentence",
+                          "text": "How did you validate that database decision yourself, and what trade-off did you make?"
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "author": "tool",
+                "content": {
+                  "role": "function",
+                  "parts": [
+                    {
+                      "function_response": {
+                        "name": "synthesize_assistant_speech",
+                        "response": {
+                          "turnType": "interview_question",
+                          "countsAsQuestion": true,
+                          "ttsFirstAudioMs": 2360,
+                          "frontendPlaybackStartedMs": 2550,
+                          "text": "How did you validate that database decision yourself, and what trade-off did you make?"
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "author": "kiwi_voice_interview_agent",
+                "content": {
+                  "role": "model",
+                  "parts": [
+                    {
+                      "text": "How did you validate that database decision yourself, and what trade-off did you make?"
+                    }
+                  ]
+                }
+              },
+              {
+                "author": "kiwi_voice_interview_agent",
+                "content": {
+                  "role": "model",
+                  "parts": [
+                    {
+                      "text": "Voice case voice_valid_answer_next_question_fast: passed.\nTranscript decision: accept (VALID_TRANSCRIPT).\nNext action: ASK_VALIDATION_QUESTION; first audio 2360ms.\nDeterministic checks did not flag failures."
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "rubric_groups": {
+        "kiwi_voice_interview_rubrics": {
+          "rubrics": [
+            {
+              "rubric_id": "voice_confidence_policy",
+              "content": {
+                "property": {
+                  "description": "Transcript confidence must control reject, confirmation, and accepted-answer paths without treating ASR uncertainty as answer quality."
+                }
+              }
+            },
+            {
+              "rubric_id": "voice_turn_counting",
+              "content": {
+                "property": {
+                  "description": "Repair prompts, transcript confirmations, and bridge acknowledgements must not count as interview questions."
+                }
+              }
+            },
+            {
+              "rubric_id": "voice_latency",
+              "content": {
+                "property": {
+                  "description": "Accepted voice answers should reach first next-question audio within 3 seconds and expose the latency milestones."
+                }
+              }
+            },
+            {
+              "rubric_id": "voice_question_traceability",
+              "content": {
+                "property": {
+                  "description": "Accepted answers should include selected action, question decision, ranking, evidence, alternatives, and spoken question text."
+                }
+              }
+            }
+          ]
+        }
+      },
+      "kiwi_evaluation": {
+        "domain": "voice_interview",
+        "score": 1,
+        "passed": true,
+        "minimumPassingScore": 1,
+        "failedChecks": [],
+        "checks": [
+          {
+            "label": "decision_matches_contract",
+            "passed": true
+          },
+          {
+            "label": "reason_matches_contract",
+            "passed": true
+          },
+          {
+            "label": "answer_processing_matches_contract",
+            "passed": true
+          },
+          {
+            "label": "turn_counting_matches_contract",
+            "passed": true
+          },
+          {
+            "label": "speech_end_to_first_audio_within_target",
+            "passed": true
+          }
+        ],
+        "diagnostics": {
+          "assessment": {
+            "ok": true,
+            "decision": "accept",
+            "reason": "VALID_TRANSCRIPT",
+            "requiresUnderstandingConfirmation": false,
+            "shouldProcessAnswer": true,
+            "countsAsQuestion": true,
+            "message": null,
+            "confidenceGate": {
+              "status": "high",
+              "shouldConfirm": false,
+              "shouldRecordAgain": false
+            },
+            "metrics": {
+              "words": 27,
+              "characters": 178,
+              "speechDurationMs": 12500,
+              "sttSegmentCount": 3
+            },
+            "transcriptQuality": null
+          },
+          "confirmationDecision": null,
+          "answerProcessed": true,
+          "latency": {
+            "milestones": {
+              "speechEndReceived": 0,
+              "sttFinalReady": 140,
+              "confidenceGateDone": 185,
+              "confirmationNeededOrNot": 205,
+              "answerSaved": 520,
+              "evaluatorDone": 980,
+              "actionSelected": 1210,
+              "questionRanked": 1380,
+              "firstSentenceReady": 1880,
+              "ttsFirstAudio": 2360,
+              "frontendPlaybackStarted": 2550
+            },
+            "speechEndToFirstAudioMs": 2360,
+            "withinTarget": true,
+            "targetMs": 3000
+          }
+        }
+      }
+    }
+  ]
+}

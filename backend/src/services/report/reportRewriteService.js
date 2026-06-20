@@ -20,6 +20,10 @@ const summarizeRetrieval = (retrievalBundle = null) => ensureArray(retrievalBund
   text: String(item.text || item.content || item.summary || '').slice(0, 500),
 }));
 
+const preserveOriginalValue = (original = {}, revised = {}, key = '') => (
+  Object.prototype.hasOwnProperty.call(original, key) ? original[key] : revised[key]
+);
+
 const preserveTrustFields = (originalItems = [], revisedItems = []) => {
   const revised = ensureArray(revisedItems);
   return ensureArray(originalItems).map((original, index) => ({
@@ -31,14 +35,25 @@ const preserveTrustFields = (originalItems = [], revisedItems = []) => {
     evidenceSources: original.evidenceSources || revised[index]?.evidenceSources || [],
     evidenceReason: original.evidenceReason || revised[index]?.evidenceReason || '',
     needsUserConfirmation: original.needsUserConfirmation ?? revised[index]?.needsUserConfirmation ?? false,
-    starApplicable: original.starApplicable ?? revised[index]?.starApplicable,
-    starBreakdown: original.starBreakdown || revised[index]?.starBreakdown,
-    rubricType: original.rubricType || revised[index]?.rubricType,
-    structureBreakdown: original.structureBreakdown || revised[index]?.structureBreakdown,
+    rubricType: preserveOriginalValue(original, revised[index] || {}, 'rubricType'),
+    frameworkKey: preserveOriginalValue(original, revised[index] || {}, 'frameworkKey'),
+    frameworkLabel: preserveOriginalValue(original, revised[index] || {}, 'frameworkLabel'),
+    questionFamily: preserveOriginalValue(original, revised[index] || {}, 'questionFamily'),
+    evidenceMode: preserveOriginalValue(original, revised[index] || {}, 'evidenceMode'),
+    capabilityGroup: preserveOriginalValue(original, revised[index] || {}, 'capabilityGroup'),
+    roleDomain: preserveOriginalValue(original, revised[index] || {}, 'roleDomain'),
+    requirementCategory: preserveOriginalValue(original, revised[index] || {}, 'requirementCategory'),
+    frameworkBreakdown: preserveOriginalValue(original, revised[index] || {}, 'frameworkBreakdown'),
+    frameworkQualityScore: preserveOriginalValue(original, revised[index] || {}, 'frameworkQualityScore'),
+    starApplicable: preserveOriginalValue(original, revised[index] || {}, 'starApplicable'),
+    starBreakdown: preserveOriginalValue(original, revised[index] || {}, 'starBreakdown'),
+    structureBreakdown: preserveOriginalValue(original, revised[index] || {}, 'structureBreakdown'),
+    scores: preserveOriginalValue(original, revised[index] || {}, 'scores'),
+    dimensionReasons: preserveOriginalValue(original, revised[index] || {}, 'dimensionReasons'),
   }));
 };
 
-const preserveCandidateFeedbackSafety = (originalFeedback = {}, revisedFeedback = {}) => ({
+export const preserveCandidateFeedbackSafety = (originalFeedback = {}, revisedFeedback = {}) => ({
   ...originalFeedback,
   ...revisedFeedback,
   strengthHighlights: preserveTrustFields(originalFeedback.strengthHighlights, revisedFeedback.strengthHighlights),
@@ -76,7 +91,8 @@ Safety rules:
 - You may make the report more student-facing.
 - You must not invent new evidence, skills, job requirements, interview answers, or reviewer ratings.
 - You must not change scores unless the original report already contains those scores.
-- You must preserve evidence labels, confidence levels, feedback statuses, evidence sources, STAR breakdowns, and needs_user_confirmation flags.
+- You must preserve evidence labels, confidence levels, feedback statuses, evidence sources, needs_user_confirmation flags, and every deterministic framework field.
+- You must not change rubricType, frameworkKey, frameworkLabel, questionFamily, evidenceMode, capabilityGroup, roleDomain, frameworkBreakdown, STAR applicability, or scores.
 - You must not turn needs_user_confirmation into confirmed_feedback.
 - You must not remove QA warnings by hiding them.
 - If discussing voice delivery, describe it as transcript, VAD, and ASR metadata-based. Do not claim acoustic or prosody model analysis.

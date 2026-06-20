@@ -37,8 +37,8 @@ export const createUploadedFile = async ({
     `INSERT INTO uploaded_files (
       id, user_id, session_id, file_role, original_filename, mime_type,
       storage_provider, storage_key, file_size_bytes, checksum,
-      is_encrypted, virus_scan_status, virus_scanned_at, uploaded_at
-    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,now())`,
+      is_encrypted, virus_scan_status, virus_scanned_at, uploaded_at, updated_at, last_used_at, expires_at
+    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,now(),now(),now(),now() + interval '7 days')`,
     [
       id,
       userId,
