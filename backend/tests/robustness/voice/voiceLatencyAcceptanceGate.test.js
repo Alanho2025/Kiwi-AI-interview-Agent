@@ -13,7 +13,7 @@ describe('voice latency acceptance gate', () => {
           noAsrErrors: true,
           aiPipelineProducedOutput: true,
           speechEndToAsrFinalMs: 640,
-          speechEndToFirstAudioReadyMs: 4100,
+          speechEndToFirstAudioReadyMs: 2900,
         },
       }],
     };
@@ -23,7 +23,7 @@ describe('voice latency acceptance gate', () => {
     expect(summary.passed).toBe(true);
     expect(summary.thresholds).toEqual({
       speechEndToAsrFinalMs: 1000,
-      speechEndToFirstAudioReadyMs: 5000,
+      speechEndToFirstAudioReadyMs: 3000,
     });
   });
 
@@ -38,7 +38,7 @@ describe('voice latency acceptance gate', () => {
             noAsrErrors: true,
             aiPipelineProducedOutput: true,
             speechEndToAsrFinalMs: 1200,
-            speechEndToFirstAudioReadyMs: 4200,
+            speechEndToFirstAudioReadyMs: 3001,
           },
         },
         {
@@ -67,7 +67,8 @@ describe('voice latency acceptance gate', () => {
     expect(summary.passed).toBe(false);
     expect(summary.failedCases).toHaveLength(3);
     expect(summary.failedCases[0].failures).toEqual(expect.arrayContaining(['final_transcript_over_1s']));
-    expect(summary.failedCases[1].failures).toEqual(expect.arrayContaining(['first_audio_over_5s', 'ai_pipeline_output_missing']));
+    expect(summary.failedCases[0].failures).toEqual(expect.arrayContaining(['first_audio_over_3s']));
+    expect(summary.failedCases[1].failures).toEqual(expect.arrayContaining(['first_audio_over_3s', 'ai_pipeline_output_missing']));
     expect(summary.failedCases[2].failures).toEqual(expect.arrayContaining(['benchmark_case_skipped', 'benchmark_case_error']));
   });
 });
