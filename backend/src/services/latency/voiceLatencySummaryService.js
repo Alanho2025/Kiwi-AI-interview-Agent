@@ -3,7 +3,7 @@ export const LATENCY_TARGETS_MS = {
   asrFinaliseMs: 1200,
   adaptiveMs: 3000,
   ttsMs: 1500,
-  stopToNextAudioMs: 5500,
+  stopToNextAudioMs: 3000,
 };
 
 const percentile = (values, p) => {

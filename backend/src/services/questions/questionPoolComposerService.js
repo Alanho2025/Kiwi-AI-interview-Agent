@@ -4,11 +4,11 @@ import { buildQuestionPoolFromAnalysis } from '../session/sessionShared.js';
 import { validatePreparedQuestionPool } from '../schemaValidationService.js';
 import { getCvQuestionSeeds } from './cvQuestionSeedService.js';
 import { getJdQuestionFilter } from './jdQuestionFilterService.js';
+import { buildAssessmentKey, buildQuestionFingerprint } from './questionDeduplicationService.js';
 import {
   buildModeCompatibility,
   clampWeight,
   normalizeCategory,
-  normalizeTopicKey,
   questionRetentionDate,
   stableQuestionId,
 } from './questionArtifactHelpers.js';
@@ -100,7 +100,7 @@ const buildBaseItem = ({
     text,
     evidenceMode: rest.evidenceMode,
   });
-  return {
+  const item = {
     userId,
     sessionId,
     matchAnalysisId,
@@ -144,6 +144,11 @@ const buildBaseItem = ({
     capabilityGroup: rest.capabilityGroup || '',
     retentionUntil: questionRetentionDate(),
     ...rest,
+  };
+  return {
+    ...item,
+    assessmentKey: buildAssessmentKey({ ...item, turnKind: 'root_question' }),
+    questionFingerprint: buildQuestionFingerprint(item.text || item.fallbackText),
   };
 };
 
@@ -245,17 +250,47 @@ const buildGapItems = (analysisResult, context) => ensureArray(analysisResult?.g
     });
   });
 
+const mergeUniqueValues = (...values) => {
+  const byValue = new Map();
+  ensureArray(values.flat()).forEach((value) => {
+    const key = typeof value === 'string' ? value : JSON.stringify(value);
+    if (key && !byValue.has(key)) byValue.set(key, value);
+  });
+  return [...byValue.values()];
+};
+
+const mergeQuestionEvidence = (primary, secondary) => ({
+  ...primary,
+  linkedCvEvidence: mergeUniqueValues(primary.linkedCvEvidence, secondary.linkedCvEvidence),
+  linkedJdRequirement: mergeUniqueValues(primary.linkedJdRequirement, secondary.linkedJdRequirement),
+  expectedSignal: mergeUniqueValues(primary.expectedSignal, secondary.expectedSignal),
+  evidenceNeed: mergeUniqueValues(primary.evidenceNeed, secondary.evidenceNeed),
+});
+
 const dedupePool = (items = []) => {
-  const byKey = new Map();
-  for (const item of items) {
-    if (!normalizeText(item.text || item.fallbackText)) continue;
-    const key = [normalizeTopicKey(item.topic), normalizeCategory(item.category), normalizeKey(item.questionIntent)].join(':');
-    const existing = byKey.get(key);
-    if (!existing || (sourcePriority[item.sourceStage] || 0) > (sourcePriority[existing.sourceStage] || 0)) {
-      byKey.set(key, item);
+  const deduped = [];
+  for (const rawItem of items) {
+    if (!normalizeText(rawItem.text || rawItem.fallbackText)) continue;
+    const item = {
+      ...rawItem,
+      assessmentKey: rawItem.assessmentKey || buildAssessmentKey({ ...rawItem, turnKind: 'root_question' }),
+      questionFingerprint: rawItem.questionFingerprint || buildQuestionFingerprint(rawItem.text || rawItem.fallbackText),
+    };
+    const existingIndex = deduped.findIndex((candidate) => (
+      candidate.assessmentKey === item.assessmentKey
+      || candidate.questionFingerprint === item.questionFingerprint
+    ));
+    if (existingIndex < 0) {
+      deduped.push(item);
+      continue;
     }
+    const existing = deduped[existingIndex];
+    const itemWins = (sourcePriority[item.sourceStage] || 0) > (sourcePriority[existing.sourceStage] || 0);
+    deduped[existingIndex] = itemWins
+      ? mergeQuestionEvidence(item, existing)
+      : mergeQuestionEvidence(existing, item);
   }
-  return [...byKey.values()];
+  return deduped;
 };
 
 export const ensureMinimumFallbacks = (items, context) => {
@@ -369,4 +404,57 @@ export const markQuestionPoolItemAsked = async ({ sessionId, questionId, askedTu
     },
     { new: true }
   ).lean();
+};
+
+export const buildQuestionPoolReconciliationPlan = ({ transcript = [], poolItems = [] } = {}) => {
+  const poolById = new Map(ensureArray(poolItems).map((item) => [item.questionId, item]));
+  const poolByFingerprint = new Map();
+  ensureArray(poolItems).forEach((item) => {
+    const fingerprint = item.questionFingerprint || buildQuestionFingerprint(item.text || item.fallbackText);
+    if (fingerprint && !poolByFingerprint.has(fingerprint)) poolByFingerprint.set(fingerprint, item);
+  });
+  const matchedIds = new Set();
+  let preparedIdMatches = 0;
+  let exactFingerprintMatches = 0;
+
+  ensureArray(transcript).filter((turn) => turn?.role === 'ai').forEach((turn) => {
+    const preparedQuestionId = turn.metadata?.preparedQuestionId
+      || turn.metadata?.questionDecision?.preparedQuestionId
+      || null;
+    if (preparedQuestionId && poolById.has(preparedQuestionId)) {
+      if (!matchedIds.has(preparedQuestionId)) preparedIdMatches += 1;
+      matchedIds.add(preparedQuestionId);
+      return;
+    }
+    const fingerprint = turn.metadata?.questionFingerprint || buildQuestionFingerprint(turn.text);
+    const exactMatch = poolByFingerprint.get(fingerprint);
+    if (exactMatch?.questionId) {
+      if (!matchedIds.has(exactMatch.questionId)) exactFingerprintMatches += 1;
+      matchedIds.add(exactMatch.questionId);
+    }
+  });
+
+  return {
+    questionIdsToMarkAsked: [...matchedIds],
+    preparedIdMatches,
+    exactFingerprintMatches,
+  };
+};
+
+export const reconcileQuestionPoolFromTranscript = async ({ sessionId, transcript = [] } = {}) => {
+  if (!sessionId) return { status: 'skipped', reason: 'missing_session_id' };
+  const poolItems = await InterviewQuestionPoolItem.find({ sessionId }).lean();
+  const plan = buildQuestionPoolReconciliationPlan({ transcript, poolItems });
+  if (plan.questionIdsToMarkAsked.length > 0) {
+    await InterviewQuestionPoolItem.updateMany(
+      { sessionId, questionId: { $in: plan.questionIdsToMarkAsked } },
+      { $set: { status: 'asked' } },
+    );
+  }
+  return {
+    status: 'complete',
+    historySource: 'transcript',
+    reconciledCount: plan.questionIdsToMarkAsked.length,
+    ...plan,
+  };
 };

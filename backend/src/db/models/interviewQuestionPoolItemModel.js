@@ -21,6 +21,8 @@ const InterviewQuestionPoolItemSchema = new mongoose.Schema(
     topic: { type: String, default: '', index: true },
     competency: { type: String, default: '' },
     questionIntent: { type: String, default: '' },
+    assessmentKey: { type: String, default: '', index: true },
+    questionFingerprint: { type: String, default: '' },
     questionFamily: { type: String, default: '' },
     evidenceMode: { type: String, default: '' },
     roleDomain: { type: String, default: 'general' },

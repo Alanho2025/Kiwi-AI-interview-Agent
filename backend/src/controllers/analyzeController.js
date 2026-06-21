@@ -31,7 +31,7 @@ import {
 import { startCompanyValuesEnrichment } from '../services/company/companyValuesEnrichmentService.js';
 import { buildJdQuestionFilter } from '../services/questions/jdQuestionFilterService.js';
 import { generateCvQuestionSeeds, getCvQuestionSeeds } from '../services/questions/cvQuestionSeedService.js';
-import { composeInterviewQuestionPool } from '../services/questions/questionPoolComposerService.js';
+import { prepareInterviewQuestionPool } from '../services/questions/questionPoolPreparationService.js';
 
 export const matchCV = asyncHandler(async (req, res) => {
   const { cvId, rawJD, jdRubric, settings } = req.body;
@@ -155,8 +155,9 @@ export const generateInterviewPlan = asyncHandler(async (req, res) => {
     requestMeta: getRequestLogMeta(req, {}),
   });
   let preparedQuestionPool = [];
+  let questionPoolReadiness = null;
   try {
-    preparedQuestionPool = await composeInterviewQuestionPool({
+    const preparation = await prepareInterviewQuestionPool({
       userId: user.id,
       sessionId: session.id,
       cvFileId: cvId || null,
@@ -166,6 +167,8 @@ export const generateInterviewPlan = asyncHandler(async (req, res) => {
       jdRubric: jdRubric || resolvedAnalysis?.parsedJdProfile || null,
       settings,
     });
+    preparedQuestionPool = preparation.items;
+    questionPoolReadiness = preparation.readiness;
   } catch (error) {
     logger.warn('Prepared interview question pool composition failed', getRequestLogMeta(req, {
       userId: user.id,
@@ -284,6 +287,8 @@ export const generateInterviewPlan = asyncHandler(async (req, res) => {
       prepared: preparedQuestionPool.length > 0,
       count: preparedQuestionPool.length,
       sources: sourceCounts,
+      readiness: questionPoolReadiness?.readiness || questionPoolReadiness?.status || 'degraded',
+      degradedReason: questionPoolReadiness?.degradedReason || (preparedQuestionPool.length ? null : 'question_pool_preparation_failed'),
     },
   }));
 });

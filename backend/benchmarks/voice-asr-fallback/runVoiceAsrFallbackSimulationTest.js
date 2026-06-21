@@ -24,7 +24,7 @@ const BYTES_PER_SAMPLE = 2;
 const CHANNELS = 1;
 const CHUNK_MS = 20;
 const HARD_FINAL_DELAY_MS = 1000;
-const HARD_AI_AUDIO_WINDOW_MS = 5000;
+const HARD_AI_AUDIO_WINDOW_MS = 3000;
 const OUTPUT_PATH = path.join(__dirname, 'simulation.results.json');
 
 const nowMs = () => Number(process.hrtime.bigint() / 1000000n);

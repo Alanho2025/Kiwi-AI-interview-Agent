@@ -299,6 +299,22 @@ export const selectNextAction = (decisionContext = {}) => {
     });
   }
 
+  if (evaluatorState.suggestedNextMode === 'switch' || evaluatorState.repetitionRisk) {
+    return finalizePlan({
+      selectedAction: AGENT_ACTION_TYPES.SWITCH_TOPIC,
+      rationale: 'The evaluator detected repeated topic coverage, so the controller must select a fresh topic before further probing.',
+      confidence: 0.9,
+      actionInput: {
+        targetTopic: coverageState.missingTopics?.[0] || sectionState.nextSectionKey || 'next_topic',
+        probeType: 'repetition_risk_switch',
+        forceEvidence: false,
+        freshOnly: true,
+        category: interviewStructure.forceCategory || null,
+      },
+      allowModelSelection: false,
+    });
+  }
+
   const repairCount = Number(evaluatorState.repairCount || interviewStructure.currentTopicState?.repairCount || 0);
   const repeatedRepairRequested = Boolean(evaluatorState.repeatedRepairRequested || evaluatorState.questionSimilarityFlag) || repairCount >= 2;
   if ((evaluatorState.suggestedNextMode === 'rephrase' || evaluatorState.misunderstandingFlag) && repeatedRepairRequested) {
