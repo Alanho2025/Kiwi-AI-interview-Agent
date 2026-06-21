@@ -193,6 +193,151 @@ describe('interviewer prepared pool runtime selection', () => {
     }));
   });
 
+  it('blocks a model-naturalized duplicate before streaming and uses the novel base question', async () => {
+    const repeatedQuestion = 'Tell me about a time you showed ownership. What was the situation, what did you do, and what changed afterwards?';
+    const novelBaseQuestion = 'Tell me about documentation you improved and the result it produced?';
+    const onSentence = vi.fn();
+    mocks.callDeepSeek.mockResolvedValueOnce({
+      content: JSON.stringify({
+        selectedAngle: 'ownership',
+        shortReason: 'Model drifted to a previous question.',
+        finalSpokenQuestion: repeatedQuestion,
+        evidenceUsed: [],
+        riskFlags: [],
+      }),
+    });
+    mocks.getPreparedQuestionPool.mockResolvedValue([{
+      questionId: 'prepared-documentation',
+      status: 'active',
+      topic: 'documentation',
+      category: 'behavioural',
+      questionFamily: 'behavioural',
+      sourceType: 'cv_behavioural',
+      sourceStage: 'cv_seed',
+      text: novelBaseQuestion,
+      fallbackText: novelBaseQuestion,
+      priorityWeight: 0.9,
+      coverageWeight: 0.8,
+      riskWeight: 0.4,
+      modeCompatibility: { behavioural: true, combined: true },
+    }]);
+
+    const result = await runInterviewerAgent({
+      session: {
+        ...buildSession(),
+        settings: { focusArea: 'Combined' },
+        transcript: [
+          {
+            role: 'ai',
+            questionId: 'ownership-root',
+            text: repeatedQuestion,
+            metadata: {
+              topic: 'ownership',
+              questionFamily: 'behavioural',
+              turnKind: 'root_question',
+              turnType: 'interview_question',
+              countsAsQuestion: true,
+            },
+          },
+          { role: 'user', text: 'I owned the UI work and improved the result.' },
+        ],
+      },
+      actionType: 'ASK_POOL_QUESTION',
+      decisionContext: {
+        ...decisionContext,
+        currentTopic: 'documentation',
+        interviewStructure: { focusAreaKey: 'combined', askedRootQuestionKeys: [] },
+        matchState: { validationTargets: [] },
+        coverageState: { missingTopics: ['documentation'] },
+        environment: { latestAnswer: { text: 'I owned the UI work and improved the result.', tokenCount: 10 } },
+      },
+      targetTopic: 'documentation',
+      onSentence,
+    });
+
+    expect(result.displayText).toBe(novelBaseQuestion);
+    expect(onSentence).toHaveBeenCalledWith(novelBaseQuestion, 0);
+    expect(result.questionDecision.deduplication).toEqual(expect.objectContaining({
+      modelOutputRejected: true,
+      reason: expect.stringMatching(/duplicate/),
+      rejectedCandidates: [],
+    }));
+  });
+
+  it('uses the next ranked base question when both final and base wording conflict', async () => {
+    const onSentence = vi.fn();
+    mocks.callDeepSeek.mockResolvedValueOnce({
+      content: JSON.stringify({
+        selectedAngle: 'ownership',
+        shortReason: 'This wording conflicts with history.',
+        finalSpokenQuestion: 'Tell me about a time you showed ownership?',
+        evidenceUsed: [],
+        riskFlags: [],
+      }),
+    });
+    mocks.getPreparedQuestionPool.mockResolvedValue([
+      {
+        questionId: 'mislabelled-ownership',
+        assessmentKey: 'root:unique-controller-goal:role_specific',
+        status: 'active',
+        topic: 'ownership',
+        category: 'technical',
+        questionFamily: 'role_specific',
+        sourceStage: 'match_gap',
+        text: 'What did you personally own in that delivery?',
+        fallbackText: 'What did you personally own in that delivery?',
+        priorityWeight: 1,
+        coverageWeight: 1,
+        riskWeight: 1,
+        modeCompatibility: { technical: true, combined: true },
+      },
+      {
+        questionId: 'prepared-documentation',
+        status: 'active',
+        topic: 'documentation',
+        category: 'technical',
+        questionFamily: 'role_specific',
+        sourceStage: 'cv_seed',
+        text: 'How did you improve documentation for the team?',
+        fallbackText: 'How did you improve documentation for the team?',
+        priorityWeight: 0.1,
+        coverageWeight: 0.1,
+        riskWeight: 0.1,
+        modeCompatibility: { technical: true, combined: true },
+      },
+    ]);
+
+    const result = await runInterviewerAgent({
+      session: {
+        ...buildSession(),
+        transcript: [{
+          role: 'ai',
+          questionId: 'ownership-root',
+          text: 'Tell me about a time you showed ownership?',
+          metadata: {
+            topic: 'ownership',
+            questionFamily: 'role_specific',
+            turnKind: 'root_question',
+            countsAsQuestion: true,
+          },
+        }, { role: 'user', text: 'I owned the delivery.' }],
+      },
+      actionType: 'ASK_POOL_QUESTION',
+      targetTopic: 'ownership',
+      decisionContext: {
+        ...decisionContext,
+        currentTopic: 'ownership',
+        coverageState: { missingTopics: ['ownership', 'documentation'] },
+      },
+      onSentence,
+    });
+
+    expect(result.preparedQuestionId).toBe('prepared-documentation');
+    expect(result.displayText).toBe('How did you improve documentation for the team?');
+    expect(onSentence).toHaveBeenCalledTimes(1);
+    expect(mocks.callDeepSeek).toHaveBeenCalledTimes(1);
+  });
+
   it('falls back to the legacy pool when the DB pool is empty', async () => {
     mocks.getPreparedQuestionPool.mockResolvedValue([]);
 

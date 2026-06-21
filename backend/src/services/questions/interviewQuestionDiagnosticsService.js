@@ -135,6 +135,34 @@ const buildArtifactDiagnostics = ({ session = {} } = {}) => {
   };
 };
 
+const buildDeduplicationDiagnostics = ({ session = {}, roots = [], preparedRootQuestionCount = 0 } = {}) => {
+  const seenKeys = new Set();
+  let duplicatePreparedQuestionCount = 0;
+  roots.forEach((item) => {
+    const key = item.assessmentKey || item.questionFingerprint || item.questionId;
+    if (!key) return;
+    if (seenKeys.has(key)) duplicatePreparedQuestionCount += 1;
+    else seenKeys.add(key);
+  });
+  const rejectedCandidates = ensureArray(session.transcript).flatMap((turn) => (
+    ensureArray(turn?.metadata?.questionDecision?.rejectedCandidates)
+  ));
+  const latestRejection = rejectedCandidates.at(-1) || null;
+  const explicitReadiness = session.questionPoolReadiness || session.interviewPlan?.questionPoolReadiness || null;
+  const readiness = explicitReadiness?.readiness || explicitReadiness?.status || (preparedRootQuestionCount > 0 ? 'ready' : 'degraded');
+
+  return {
+    uniquePreparedRootCount: seenKeys.size,
+    duplicatePreparedQuestionCount,
+    duplicateCandidatesRejected: rejectedCandidates.length,
+    lastDuplicateReason: latestRejection?.reason || null,
+    historySource: 'transcript',
+    reconciliationStatus: session.questionPoolReconciliation?.status || 'not_run',
+    readiness,
+    degradedReason: explicitReadiness?.degradedReason || (readiness === 'degraded' ? 'no_active_prepared_root_questions' : null),
+  };
+};
+
 export const buildInterviewQuestionDiagnostics = ({
   session = {},
   cvSeeds = [],
@@ -163,6 +191,7 @@ export const buildInterviewQuestionDiagnostics = ({
     ...buildLatestTurnFields(latestAiTurn),
     poolDegraded: preparedRootQuestionCount === 0,
     poolDegradedReason: preparedRootQuestionCount === 0 ? 'no_active_prepared_root_questions' : null,
+    ...buildDeduplicationDiagnostics({ session, roots, preparedRootQuestionCount }),
     ...buildMemoryDiagnostics({ sessionAnalysis }),
     ...buildRetrievalDiagnostics({ sessionAnalysis }),
     ...buildArtifactDiagnostics({ session }),

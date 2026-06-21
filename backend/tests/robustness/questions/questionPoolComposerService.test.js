@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildQuestionPoolReconciliationPlan,
   buildInterviewQuestionPoolItems,
   buildPreparedRootQuestionPoolQuery,
 } from '../../../src/services/questions/questionPoolComposerService.js';
@@ -107,6 +108,76 @@ describe('questionPoolComposerService', () => {
     expect(pool.some((item) => item.category === 'behavioural')).toBe(true);
   });
 
+  it('deduplicates identical wording across different topics and merges evidence', () => {
+    const repeatedText = 'Tell me about a time you showed ownership. What was the situation, what did you do, and what changed afterwards?';
+    const pool = buildInterviewQuestionPoolItems({
+      ...baseArgs,
+      analysisResult: {
+        matchingDetails: { questionPlanHints: { mustProbeSkills: [], mustProbeBehavioural: [] } },
+      },
+      cvSeeds: [
+        {
+          seedId: 'ownership-seed',
+          sourceType: 'cv_behavioural',
+          topic: 'ownership',
+          category: 'behavioural',
+          questionIntent: 'behavioural_star',
+          draftQuestion: repeatedText,
+          evidenceRefs: [{ text: 'Owned the delivery plan.' }],
+        },
+        {
+          seedId: 'accountability-seed',
+          sourceType: 'cv_behavioural',
+          topic: 'accountability',
+          category: 'behavioural',
+          questionIntent: 'behavioural_star',
+          draftQuestion: repeatedText,
+          evidenceRefs: [{ text: 'Took accountability for the outcome.' }],
+        },
+      ],
+    });
+
+    const repeatedItems = pool.filter((item) => item.text === repeatedText);
+    expect(repeatedItems).toHaveLength(1);
+    expect(repeatedItems[0].linkedCvEvidence).toEqual(expect.arrayContaining([
+      expect.objectContaining({ text: 'Owned the delivery plan.' }),
+      expect.objectContaining({ text: 'Took accountability for the outcome.' }),
+    ]));
+    expect(repeatedItems[0]).toEqual(expect.objectContaining({
+      assessmentKey: 'root:ownership:behavioural',
+      questionFingerprint: expect.any(String),
+    }));
+  });
+
+  it('deduplicates reworded behavioural roots that share a canonical assessment key', () => {
+    const pool = buildInterviewQuestionPoolItems({
+      ...baseArgs,
+      analysisResult: {
+        matchingDetails: { questionPlanHints: { mustProbeSkills: [], mustProbeBehavioural: [] } },
+      },
+      cvSeeds: [
+        {
+          seedId: 'teamwork-seed',
+          sourceType: 'cv_behavioural',
+          topic: 'teamwork',
+          category: 'behavioural',
+          questionIntent: 'behavioural_star',
+          draftQuestion: 'Tell me about a teamwork challenge.',
+        },
+        {
+          seedId: 'collaboration-seed',
+          sourceType: 'cv_behavioural',
+          topic: 'collaboration',
+          category: 'behavioural',
+          questionIntent: 'behavioural_star',
+          draftQuestion: 'Describe a time when collaboration mattered.',
+        },
+      ],
+    });
+
+    expect(pool.filter((item) => item.assessmentKey === 'root:teamwork:behavioural')).toHaveLength(1);
+  });
+
   it('carries cross-role assessment metadata into JD requirement questions', () => {
     const pool = buildInterviewQuestionPoolItems({
       ...baseArgs,
@@ -158,5 +229,25 @@ describe('questionPoolComposerService', () => {
         { questionRole: '' },
       ],
     });
+  });
+
+  it('reconciles legacy transcripts by prepared ID or exact fingerprint only', () => {
+    const plan = buildQuestionPoolReconciliationPlan({
+      transcript: [
+        { role: 'ai', text: 'Tell me about ownership?', metadata: { turnKind: 'root_question' } },
+        { role: 'ai', text: 'A different stored wording?', metadata: { preparedQuestionId: 'pool-2' } },
+        { role: 'ai', text: 'Tell me about a teamwork challenge in detail?', metadata: { turnKind: 'root_question' } },
+      ],
+      poolItems: [
+        { questionId: 'pool-1', status: 'active', text: 'Tell me about ownership?' },
+        { questionId: 'pool-2', status: 'active', text: 'Tell me about database validation?' },
+        { questionId: 'pool-3', status: 'active', text: 'Tell me about a teamwork challenge?' },
+      ],
+    });
+
+    expect(plan.questionIdsToMarkAsked).toEqual(['pool-1', 'pool-2']);
+    expect(plan.exactFingerprintMatches).toBe(1);
+    expect(plan.preparedIdMatches).toBe(1);
+    expect(plan.questionIdsToMarkAsked).not.toContain('pool-3');
   });
 });

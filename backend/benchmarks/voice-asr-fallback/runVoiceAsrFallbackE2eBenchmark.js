@@ -32,7 +32,7 @@ const DEFAULT_CHUNK_MS = 20;
 const DEFAULT_FIXTURE_MANIFEST = path.join(__dirname, 'fixtures.example.json');
 const DEFAULT_PROVIDERS = 'elevenlabs-realtime';
 const HARD_FINAL_DELAY_MS = 1000;
-const HARD_FIRST_AUDIO_MS = 5000;
+const HARD_FIRST_AUDIO_MS = 3000;
 const MIN_KEYWORD_RECALL = 0.8;
 const MAX_WER = 0.3;
 
