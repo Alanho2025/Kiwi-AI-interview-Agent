@@ -285,6 +285,9 @@ export const buildInterviewTurnPlan = async ({
   const rootCandidateRankMs = Date.now() - rankStartedAt;
   const selectedRootCandidate = turnKind === 'root_question' ? selectBestPreparedQuestion(rankedRootCandidates) : null;
   const topRootCandidates = rankedRootCandidates.slice(0, 3).map(toRootCandidate);
+  const alternativeRootCandidates = turnKind === 'root_question'
+    ? rankedRootCandidates.filter((candidate) => candidate.questionId !== selectedRootCandidate?.questionId).map(toRootCandidate)
+    : [];
   const followUpContextStartedAt = Date.now();
   const followUpContext = turnKind === 'follow_up'
     ? buildFollowUpContext({ session, selectedCandidate: rankedRootCandidates[0], answerSignals, decisionContext })
@@ -310,15 +313,18 @@ export const buildInterviewTurnPlan = async ({
     answerSignals,
     selectedRootCandidate: selectedCandidate,
     topRootCandidates,
+    alternativeRootCandidates,
     followUpContext: followUpContext ? { ...followUpContext, followUpIntent } : null,
     followUpIntent,
     evidenceTarget: followUpContext?.evidenceTarget || null,
     evidencePackage,
     rankTrace: selectedRootCandidate?.rankTrace || null,
+    rejectedCandidates: rankedRootCandidates.rejectedCandidates || [],
     latency: {
       answerSignalBuildMs,
       rootCandidateRankMs,
       followUpContextBuildMs,
+      ...(rankedRootCandidates.deduplication || {}),
       orchestratorDecisionMs: Date.now() - orchestratorStartedAt,
     },
     poolDegraded: turnKind === 'root_question' && !selectedRootCandidate,

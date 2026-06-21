@@ -24,6 +24,7 @@ import {
   loadOwnedSessionOrThrow,
   normalizeInterviewAnswer,
   pauseInterviewSession,
+  reconcileInterviewQuestionPool,
   requireSessionId,
   resumeInterviewSession,
   saveInterviewAnswer,
@@ -60,6 +61,7 @@ export const startInterview = asyncHandler(async (req, res) => {
   const user = await resolveUserFromRequest(req);
 
   const session = await loadOwnedSessionOrThrow({ sessionId, userId: user.id });
+  await reconcileInterviewQuestionPool(session);
   const openingQuestion = getOpeningQuestionText(session);
   const nextState = {
     status: 'in_progress',
@@ -87,6 +89,9 @@ export const startInterview = asyncHandler(async (req, res) => {
         followUpDepth: 0,
         questionCategory: 'opening',
         questionType: 'self_intro',
+        turnKind: 'root_question',
+        turnType: 'interview_question',
+        countsAsQuestion: true,
       },
     });
   }

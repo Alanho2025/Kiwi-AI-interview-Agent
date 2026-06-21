@@ -1,5 +1,6 @@
 import { ensureArray, normalizeKey } from '../../utils/commonHelpers.js';
 import { normalizeCategory } from './questionArtifactHelpers.js';
+import { buildQuestionHistory, filterNovelQuestionCandidates } from './questionDeduplicationService.js';
 
 const weight = (value, fallback = 0.5) => {
   const parsed = Number(value);
@@ -105,10 +106,19 @@ const scorePoolItem = ({ item, session, decisionContext, evaluatorState, actionI
 
 export const rankPreparedQuestionPool = ({ poolItems = [], session = {}, decisionContext = {}, evaluatorState = {}, actionInput = {} } = {}) => {
   const askedTopicKeys = getAskedTopicKeys(session);
-  return ensureArray(poolItems)
+  const historyStartedAt = Date.now();
+  const history = buildQuestionHistory(session.transcript);
+  const dedupeIndexBuildMs = Date.now() - historyStartedAt;
+  const filterStartedAt = Date.now();
+  const novelty = filterNovelQuestionCandidates({ candidates: poolItems, history });
+  const candidateNoveltyFilterMs = Date.now() - filterStartedAt;
+  const ranked = ensureArray(novelty.accepted)
     .filter((item) => item && item.status !== 'suppressed' && item.status !== 'expired')
     .map((item) => scorePoolItem({ item, session, decisionContext, evaluatorState, actionInput, askedTopicKeys }))
     .sort((a, b) => b.score - a.score);
+  ranked.rejectedCandidates = novelty.rejected;
+  ranked.deduplication = { dedupeIndexBuildMs, candidateNoveltyFilterMs };
+  return ranked;
 };
 
 export const selectBestPreparedQuestion = (rankedItems = [], options = {}) => {

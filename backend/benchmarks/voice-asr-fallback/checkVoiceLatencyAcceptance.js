@@ -12,7 +12,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const DEFAULT_INPUT = path.join(__dirname, 'results.e2e-cloud-voice.json');
 const DEFAULT_FINAL_TRANSCRIPT_MS = 1000;
-const DEFAULT_FIRST_AUDIO_MS = 5000;
+const DEFAULT_FIRST_AUDIO_MS = 3000;
 
 const parseArgs = (argv = process.argv.slice(2)) => {
   const options = {
@@ -50,7 +50,7 @@ const checkResult = (item, options) => {
   if (item.error) failures.push('benchmark_case_error');
   if (item.acceptance.pass !== true) failures.push('acceptance_pass_false');
   if (!Number.isFinite(finalMs) || finalMs > options.maxFinalTranscriptMs) failures.push('final_transcript_over_1s');
-  if (!Number.isFinite(firstAudioMs) || firstAudioMs > options.maxFirstAudioMs) failures.push('first_audio_over_5s');
+  if (!Number.isFinite(firstAudioMs) || firstAudioMs > options.maxFirstAudioMs) failures.push('first_audio_over_3s');
   if (item.acceptance.noAsrErrors !== true) failures.push('asr_errors_present');
   if (item.acceptance.aiPipelineProducedOutput !== true) failures.push('ai_pipeline_output_missing');
 

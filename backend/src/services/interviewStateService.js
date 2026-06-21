@@ -1,6 +1,7 @@
-import { buildInterviewStructure, getQuestionCategory } from './interview/interviewTurnPolicy.js';
+import { getQuestionCategory } from './interview/interviewTurnPolicy.js';
 import { resolveInterviewSessionConfig } from './interview/interviewSessionConfigResolver.js';
-import { normalizeText, normalizeKey } from '../utils/commonHelpers.js';
+import { normalizeText } from '../utils/commonHelpers.js';
+import { buildQuestionHistory, evaluateQuestionNovelty } from './questions/questionDeduplicationService.js';
 
 /**
  * File responsibility: Service module.
@@ -19,13 +20,6 @@ import { normalizeText, normalizeKey } from '../utils/commonHelpers.js';
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-
-const buildQuestionRootKey = (question = {}) => {
-  const topic = normalizeKey(question.topic || question.metadata?.topic || '');
-  const category = normalizeKey(getQuestionCategory(question));
-  const type = normalizeKey(question.type || question.metadata?.questionType || '');
-  return [topic || 'topic', category || 'category', type || 'type'].join(':');
-};
 
 const isCompanyMotivationQuestion = (question = {}) =>
   question?.type === 'company_motivation' ||
@@ -119,9 +113,9 @@ export const getResolvedTotalQuestions = (session = {}) => {
  */
 export const hasReachedQuestionLimit = (session = {}) => {
   const totalQuestions = getResolvedTotalQuestions(session);
-  const currentQuestionIndex = getResolvedCurrentQuestionIndex(session);
-  const answeredQuestionCount = getAnsweredQuestionCount(session);
-  return Math.max(currentQuestionIndex, answeredQuestionCount) >= totalQuestions;
+  const countableQuestionCount = buildQuestionHistory(session.transcript).countableQuestions.length;
+  if (countableQuestionCount > 0) return countableQuestionCount >= totalQuestions;
+  return getResolvedCurrentQuestionIndex(session) >= totalQuestions;
 };
 
 export const getEffectiveElapsedSeconds = (session = {}) => {
@@ -175,26 +169,20 @@ export const getNextPoolQuestion = (session = {}, options = {}) => {
     return null;
   }
   const questionPool = getQuestionPool(session);
-  const structure = buildInterviewStructure(session);
   if (!hasAskedCompanyMotivationQuestion(session)) {
     const motivationQuestion = questionPool.find(isCompanyMotivationQuestion);
     if (motivationQuestion) return motivationQuestion;
   }
-  const recentTexts = structure.askedQuestionTexts.slice(-3).map((item) => normalizeKey(item));
-  const askedRootQuestionKeys = new Set((structure.askedRootQuestionKeys || []).map((item) => normalizeKey(item)));
+  const questionHistory = buildQuestionHistory(session.transcript);
   const startIndex = isRecoverySearch ? 1 : Math.max(1, getResolvedCurrentQuestionIndex(session));
-  const avoidRootRepeat = options.avoidRootRepeat !== false;
   for (let index = startIndex; index < questionPool.length; index += 1) {
     const candidate = questionPool[index];
     if (!candidate) continue;
     const candidateCategory = getQuestionCategory(candidate);
-    const candidateText = normalizeKey(candidate.text);
     const candidateFollowUpDepth = Number(candidate.followUpDepth || 0);
-    const candidateRootKey = buildQuestionRootKey(candidate);
-    if (recentTexts.includes(candidateText)) continue;
     if (desiredCategory && candidateCategory !== desiredCategory) continue;
     if (requireFresh && candidateFollowUpDepth > 0) continue;
-    if (avoidRootRepeat && candidateFollowUpDepth <= 0 && askedRootQuestionKeys.has(candidateRootKey)) continue;
+    if (!evaluateQuestionNovelty({ candidate, history: questionHistory }).allowed) continue;
     return candidate;
   }
   if (requireFresh) return null;
@@ -207,11 +195,12 @@ export const getNextPoolQuestion = (session = {}, options = {}) => {
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-export const getNextQuestionOrder = (session = {}) => {
-  if (hasReachedQuestionLimit(session)) {
-    return getResolvedCurrentQuestionIndex(session);
-  }
-  return getResolvedCurrentQuestionIndex(session) + 1;
+export const getNextQuestionOrder = (session = {}, { countsAsQuestion = true } = {}) => {
+  const countableQuestionCount = buildQuestionHistory(session.transcript).countableQuestions.length;
+  const currentQuestionIndex = getResolvedCurrentQuestionIndex(session);
+  if (!countsAsQuestion) return countableQuestionCount || currentQuestionIndex;
+  if (hasReachedQuestionLimit(session)) return countableQuestionCount || currentQuestionIndex;
+  return countableQuestionCount > 0 ? countableQuestionCount + 1 : currentQuestionIndex + 1;
 };
 
 /**
