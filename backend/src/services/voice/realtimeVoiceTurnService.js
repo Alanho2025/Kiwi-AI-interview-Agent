@@ -315,6 +315,13 @@ export const processRealtimeVoiceTurn = async ({
   const generatedReport = agentResult.isComplete && tryGenerateReportForCompletedSession
     ? await trace.measure('generate_completion_report', () => tryGenerateReportForCompletedSession(req, session.id))
     : null;
+  const completedSession = agentResult.isComplete
+    ? {
+        ...updatedSession,
+        hasReport: Boolean(generatedReport?.stored?.report),
+        reportStatus: generatedReport?.stored?.latestStatus || null,
+      }
+    : updatedSession;
 
   const latency = trace.toJSON();
   const latencyBreakdown = buildLatencyBreakdown(latency);
@@ -346,7 +353,7 @@ export const processRealtimeVoiceTurn = async ({
   });
 
   return {
-    updatedSession,
+    updatedSession: completedSession,
     agentResult,
     assistantAudio,
     transcription: {

@@ -133,6 +133,16 @@ describe('initPostgresSchema', () => {
             const calls = mockQuery.mock.calls.map(call => call[0]);
             expect(calls.some(sql => sql.includes('CREATE TABLE IF NOT EXISTS retention_cleanup_jobs'))).toBe(true);
         });
+
+        it('should create resumable recording upload tables', async () => {
+            await initPostgresSchema();
+
+            const calls = mockQuery.mock.calls.map(call => call[0]);
+            expect(calls.some(sql => sql.includes('CREATE TABLE IF NOT EXISTS recording_uploads'))).toBe(true);
+            expect(calls.some(sql => sql.includes('CREATE TABLE IF NOT EXISTS recording_upload_chunks'))).toBe(true);
+            expect(calls.some(sql => sql.includes('lease_expires_at'))).toBe(true);
+            expect(calls.some(sql => sql.includes('UNIQUE(upload_id, sequence)'))).toBe(true);
+        });
     });
 
     describe('indexes', () => {
@@ -149,6 +159,14 @@ describe('initPostgresSchema', () => {
 
             const calls = mockQuery.mock.calls.map(call => call[0]);
             expect(calls.some(sql => sql.includes('idx_uploaded_files_user_role_uploaded_at'))).toBe(true);
+        });
+
+        it('should create recording upload recovery indexes', async () => {
+            await initPostgresSchema();
+
+            const calls = mockQuery.mock.calls.map(call => call[0]);
+            expect(calls.some(sql => sql.includes('idx_recording_uploads_session'))).toBe(true);
+            expect(calls.some(sql => sql.includes('idx_recording_uploads_worker_state'))).toBe(true);
         });
 
         it('should create parsed_skills indexes', async () => {

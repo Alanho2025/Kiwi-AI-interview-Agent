@@ -22,6 +22,7 @@ import { CompanyMotivationFitSection } from '../components/report/CompanyMotivat
 import { TurnBreakdownSection } from '../components/report/TurnBreakdownSection.jsx';
 import { InsightsSection } from '../components/report/InsightsSection.jsx';
 import { ReportActionBar } from '../components/report/ReportActionBar.jsx';
+import { RecordingStatusCard } from '../components/report/RecordingStatusCard.jsx';
 import { ReportDetailSections } from '../components/report/ReportDetailSections.jsx';
 import { ReportHeroCard } from '../components/report/ReportHeroCard.jsx';
 import { ScoreBreakdownCard } from '../components/report/ScoreBreakdownCard.jsx';
@@ -64,7 +65,17 @@ const REPORT_TOUR_STEPS = [
  */
 export function ReportPage() {
   const { sessionId } = useParams();
-  const { reportData, status, loading, handleGenerate, handleQa, handleExport, handleDownloadRecording, recordingStatus } = useReportData(sessionId);
+  const {
+    reportData,
+    status,
+    loading,
+    handleGenerate,
+    handleQa,
+    handleExport,
+    handleDownloadRecording,
+    handleRetryRecording,
+    recordingStatus,
+  } = useReportData(sessionId);
   const viewModel = buildReportViewModel(reportData);
   const { startTour, globalTourStep, advanceGlobalTour } = useTour();
 
@@ -90,6 +101,7 @@ export function ReportPage() {
           onDownloadRecording={handleDownloadRecording}
           recordingStatus={recordingStatus}
         />
+        <RecordingStatusCard recordingStatus={recordingStatus} onRetry={handleRetryRecording} />
 
         {loading && !reportData ? (
           <div className="rounded-2xl border border-theme glass p-4 shadow-sm sm:p-6">
