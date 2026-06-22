@@ -70,6 +70,11 @@ async function startServer() {
           .then(({ startRetentionWorker }) => startRetentionWorker())
           .catch((error) => logger.error('Retention worker failed to start', { error }));
       }
+      if (startup.postgres?.ok && getBooleanEnv('RECORDING_WORKER_ENABLED', true)) {
+        import('./src/services/recording/recordingConversionWorker.js')
+          .then(({ startRecordingConversionWorker }) => startRecordingConversionWorker())
+          .catch((error) => logger.error('Recording conversion worker failed to start', { error }));
+      }
     });
   } catch (error) {
     logger.error('Failed to start server', { error });

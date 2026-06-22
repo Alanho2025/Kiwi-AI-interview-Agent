@@ -1,12 +1,7 @@
-/**
- * File responsibility: Browser-side session audio recorder.
- * Main responsibilities:
- * - Record candidate microphone segments during voice answers.
- * - Keep raw browser recording details hidden from UI components.
- * - Return one combined Blob that the backend can convert to MP3.
- */
-
-import { useCallback, useRef, useState } from 'react';
+/** Browser-side chunked session recording with IndexedDB durability. */
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { recordingUploadRegistry } from '../../runtime/recording/recordingUploadRegistry.js';
+import { RECORDING_CHUNK_INTERVAL_MS } from '../../runtime/recording/recordingConstants.js';
 
 const resolveRecorderMimeType = () => {
   if (typeof MediaRecorder === 'undefined') return '';
@@ -16,82 +11,95 @@ const resolveRecorderMimeType = () => {
   return '';
 };
 
-export function useSessionAudioRecorder() {
+export function useSessionAudioRecorder({ sessionId, uploadRegistry = recordingUploadRegistry } = {}) {
   const recorderRef = useRef(null);
-  const chunksRef = useRef([]);
-  const segmentsRef = useRef([]);
-  const mimeTypeRef = useRef('audio/webm');
+  const sequenceRef = useRef(0);
+  const totalBytesRef = useRef(0);
+  const pendingWritesRef = useRef(Promise.resolve());
+  const stopPromiseRef = useRef(null);
+  const finalizationPromiseRef = useRef(null);
   const [isRecordingSessionAudio, setIsRecordingSessionAudio] = useState(false);
+  const [recordingStatus, setRecordingStatus] = useState({ state: 'idle', error: null });
+  const manager = useMemo(
+    () => (sessionId ? uploadRegistry.getOrCreate(sessionId) : null),
+    [sessionId, uploadRegistry],
+  );
+
+  useEffect(() => manager?.subscribe((status) => setRecordingStatus({ ...status, error: status.error || null })), [manager]);
+
+  const enqueueBlob = useCallback((blob, mimeType) => {
+    if (!manager || !blob?.size) return;
+    const sequence = sequenceRef.current;
+    sequenceRef.current += 1;
+    totalBytesRef.current += blob.size;
+    pendingWritesRef.current = pendingWritesRef.current.then(() => manager.enqueueChunk({ sequence, blob, mimeType }));
+  }, [manager]);
 
   const startRecording = useCallback((stream) => {
-    if (!stream || recorderRef.current || typeof MediaRecorder === 'undefined') return false;
-
+    if (!stream || recorderRef.current || typeof MediaRecorder === 'undefined' || !manager) return false;
     const mimeType = resolveRecorderMimeType();
-    chunksRef.current = [];
-    mimeTypeRef.current = mimeType || 'audio/webm';
-
-    const recorder = mimeType
-      ? new MediaRecorder(stream, { mimeType })
-      : new MediaRecorder(stream);
-
-    recorder.ondataavailable = (event) => {
-      if (event.data?.size > 0) chunksRef.current.push(event.data);
-    };
-
-    recorder.start(1000);
+    const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+    recorder.ondataavailable = (event) => enqueueBlob(event.data, recorder.mimeType || mimeType || 'audio/webm');
+    recorder.start(RECORDING_CHUNK_INTERVAL_MS);
     recorderRef.current = recorder;
     setIsRecordingSessionAudio(true);
+    void manager.start();
     return true;
+  }, [enqueueBlob, manager]);
+
+  const stopCurrentSegment = useCallback(() => {
+    if (stopPromiseRef.current) return stopPromiseRef.current;
+    const recorder = recorderRef.current;
+    if (!recorder) return pendingWritesRef.current;
+    stopPromiseRef.current = new Promise((resolve) => {
+      recorder.onstop = () => {
+        recorderRef.current = null;
+        setIsRecordingSessionAudio(false);
+        pendingWritesRef.current.finally(resolve);
+      };
+      try {
+        if (recorder.state !== 'inactive') recorder.stop();
+        else recorder.onstop();
+      } catch {
+        recorderRef.current = null;
+        setIsRecordingSessionAudio(false);
+        pendingWritesRef.current.finally(resolve);
+      }
+    }).finally(() => { stopPromiseRef.current = null; });
+    return stopPromiseRef.current;
   }, []);
 
-  const stopCurrentSegment = useCallback(() => new Promise((resolve) => {
-    const recorder = recorderRef.current;
-
-    if (!recorder) {
-      resolve(null);
-      return;
-    }
-
-    recorder.onstop = () => {
-      const blob = chunksRef.current.length
-        ? new Blob(chunksRef.current, { type: recorder.mimeType || mimeTypeRef.current })
-        : null;
-      if (blob) segmentsRef.current.push(blob);
-      recorderRef.current = null;
-      chunksRef.current = [];
-      setIsRecordingSessionAudio(false);
-      resolve(blob);
-    };
-
-    try {
-      recorder.stop();
-    } catch {
-      recorderRef.current = null;
-      chunksRef.current = [];
-      setIsRecordingSessionAudio(false);
-      resolve(null);
-    }
-  }), []);
-
-  const getCombinedRecording = useCallback(async () => {
-    await stopCurrentSegment();
-    if (!segmentsRef.current.length) return null;
-
-    const combinedBlob = new Blob(segmentsRef.current, { type: mimeTypeRef.current || 'audio/webm' });
-    segmentsRef.current = [];
-    return combinedBlob;
-  }, [stopCurrentSegment]);
+  const finalizeLocalRecording = useCallback(() => {
+    if (finalizationPromiseRef.current) return finalizationPromiseRef.current;
+    finalizationPromiseRef.current = stopCurrentSegment().then(async () => {
+      await pendingWritesRef.current;
+      if (!manager || sequenceRef.current === 0) return { state: 'missing' };
+      return manager.finalizeLocalCapture({
+        totalChunks: sequenceRef.current,
+        totalBytes: totalBytesRef.current,
+      });
+    });
+    return finalizationPromiseRef.current;
+  }, [manager, stopCurrentSegment]);
 
   const resetRecording = useCallback(async () => {
     await stopCurrentSegment();
-    segmentsRef.current = [];
   }, [stopCurrentSegment]);
+
+  const setVoicePriorityState = useCallback((state) => {
+    if (sessionId) uploadRegistry.setVoicePriorityState(sessionId, state);
+  }, [sessionId, uploadRegistry]);
+
+  const resumeUpload = useCallback(() => manager?.start(), [manager]);
 
   return {
     isRecordingSessionAudio,
+    recordingStatus,
     startRecording,
     stopCurrentSegment,
-    getCombinedRecording,
+    finalizeLocalRecording,
     resetRecording,
+    resumeUpload,
+    setVoicePriorityState,
   };
 }

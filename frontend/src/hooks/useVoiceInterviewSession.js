@@ -69,8 +69,19 @@ export function useVoiceInterviewSession({
     speechStartSentRef,
   } = refs;
 
-  const sessionAudioRecorder = useSessionAudioRecorder();
   const activeSessionId = resolveSessionId(session, sessionId);
+  const sessionAudioRecorder = useSessionAudioRecorder({ sessionId: enabled ? activeSessionId : null });
+  const resumeRecordingUpload = sessionAudioRecorder.resumeUpload;
+  const setRecordingVoicePriorityState = sessionAudioRecorder.setVoicePriorityState;
+
+  useEffect(() => {
+    setRecordingStatus(sessionAudioRecorder.recordingStatus);
+  }, [sessionAudioRecorder.recordingStatus]);
+
+  useEffect(() => {
+    setRecordingVoicePriorityState(voiceState);
+    void resumeRecordingUpload();
+  }, [resumeRecordingUpload, setRecordingVoicePriorityState, voiceState]);
 
   const currentQuestion = useMemo(
     () => getLatestTurnByRole(session?.transcript || [], 'ai'),
@@ -220,7 +231,6 @@ export function useVoiceInterviewSession({
     setLastAsrConfidence,
     setLastTranscriptRejection,
     setPendingTranscript,
-    setRecordingStatus,
     setReadyState,
     setSendAudio,
     setTranscriptionPreview,
@@ -236,12 +246,14 @@ export function useVoiceInterviewSession({
     if (!isAutoLoopActive && !isMicStreaming && !sessionAudioRecorder.isRecordingSessionAudio) return;
 
     completedCleanupDoneRef.current = true;
-    lifecycle.stopVoiceSession('session_completed').catch((error) => {
-      setRecordingStatus({
-        state: 'failed',
-        error: error.message || 'Could not finalise the MP3 recording.',
+    lifecycle.finalizeLocalRecording('session_completed')
+      .then(() => lifecycle.stopVoiceSession('session_completed'))
+      .catch((error) => {
+        setRecordingStatus({
+          state: 'failed',
+          error: error.message || 'Could not finalise the MP3 recording.',
+        });
       });
-    });
   }, [
     completedCleanupDoneRef,
     enabled,
@@ -410,6 +422,7 @@ export function useVoiceInterviewSession({
     handleReplayAssistantAudio: lifecycle.handleReplayAssistantAudio,
     handleResetShell: lifecycle.handleResetShell,
     handleRetryVoice: lifecycle.handleRetryVoice,
+    finalizeLocalRecording: lifecycle.finalizeLocalRecording,
     stopVoiceSession: lifecycle.stopVoiceSession,
     handleAudioFileSelect: () => { },
     handleSubmitSelectedAudio: () => { },

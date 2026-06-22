@@ -206,4 +206,35 @@ describe('mocked realtime voice turn', () => {
     expect(mocks.saveInterviewAnswerWithDetails).not.toHaveBeenCalled();
     expect(mocks.runTask).not.toHaveBeenCalled();
   });
+
+  it('returns completed session report readiness generated in the same realtime turn', async () => {
+    const tryGenerateReportForCompletedSession = vi.fn().mockResolvedValue({
+      stored: { latestStatus: 'ready', report: { summary: 'Ready' } },
+    });
+    mocks.runTask.mockResolvedValue({
+      displayText: '',
+      nextQuestion: null,
+      isComplete: true,
+      completedBecause: 'question_limit_reached',
+    });
+    mocks.updateSession.mockResolvedValue({
+      ...baseSession(),
+      status: 'completed',
+      hasReport: false,
+      reportStatus: null,
+    });
+
+    const result = await processRealtimeVoiceTurn({
+      session: baseSession(),
+      userId: 'user-1',
+      transcriptText: 'I validated the final result with integration tests and compared it against the project acceptance criteria.',
+      asrConfidence: 0.9,
+      vad: validVad,
+      tryGenerateReportForCompletedSession,
+    });
+
+    expect(tryGenerateReportForCompletedSession).toHaveBeenCalledWith(null, 'voice-session-1');
+    expect(result.updatedSession.hasReport).toBe(true);
+    expect(result.updatedSession.reportStatus).toBe('ready');
+  });
 });
