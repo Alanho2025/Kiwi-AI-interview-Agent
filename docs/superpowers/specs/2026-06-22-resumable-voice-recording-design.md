@@ -1,6 +1,6 @@
 # Resumable Voice Recording and Non-Blocking Report Navigation
 
-Status: Proposed for user review  
+Status: Proposed for user review
 Date: 2026-06-22
 
 ## Problem
