@@ -87,11 +87,15 @@ export const buildSessionSpeechPhraseList = (session = {}) => {
   const hints = analysis.matchingDetails?.questionPlanHints || {};
 
   addMany(phrases, [
+    session.candidateName,
     session.targetRole,
     session.displayTitle,
     analysis.jobTitle,
     analysis.companyName,
     hints.roleCanonical,
+    'prompt engineering',
+    'test-driven development',
+    'Codex',
   ]);
   addMany(phrases, analysis.interviewFocus);
   addMany(phrases, analysis.matchingDetails?.topMatchedSkills);

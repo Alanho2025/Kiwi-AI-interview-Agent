@@ -2,6 +2,7 @@ import { AGENT_ACTION_TYPES } from '../../constants/agentActionTypes.js';
 import { ensureArray, normalizeKey, normalizeText, tokenize, unique } from '../../utils/commonHelpers.js';
 import { getPreparedQuestionPool } from './questionPoolComposerService.js';
 import { rankPreparedQuestionPool, selectBestPreparedQuestion } from './questionPoolRankerService.js';
+import { resolveFollowUpAssessmentContract } from './questionAssessmentContractService.js';
 
 export const ROOT_SCENARIOS = new Set([
   'root_cv_evidence',
@@ -201,8 +202,8 @@ const buildFollowUpContext = ({ session = {}, selectedCandidate = null, answerSi
     parentTopic: parentMetadata.topic || decisionContext.currentTopic || null,
     missingEvidence: answerSignals.missingEvidence,
     evidenceTarget: answerSignals.missingEvidence[0] || decisionContext.currentTopic || selectedCandidate?.topic || null,
-    questionFamily: parentMetadata.questionFamily || null,
-    evidenceMode: parentMetadata.evidenceMode || null,
+    parentQuestionFamily: parentMetadata.questionFamily || null,
+    parentEvidenceMode: parentMetadata.evidenceMode || null,
     roleDomain: parentMetadata.roleDomain || 'general',
     requirementCategory: parentMetadata.requirementCategory || null,
     capabilityGroup: parentMetadata.capabilityGroup || null,
@@ -299,6 +300,13 @@ export const buildInterviewTurnPlan = async ({
       ? scenarioForFollowUp({ actionType, answerSignals, actionInput, decisionContext })
       : scenarioForRoot({ actionType, selectedCandidate: selectedRootCandidate, actionInput, decisionContext });
   const followUpIntent = turnKind === 'follow_up' ? followUpIntentForScenario(scenario) : null;
+  const assessmentContract = turnKind === 'follow_up'
+    ? resolveFollowUpAssessmentContract({
+        intent: followUpIntent,
+        parentQuestionFamily: followUpContext?.parentQuestionFamily,
+        parentEvidenceMode: followUpContext?.parentEvidenceMode,
+      })
+    : null;
   const selectedCandidate = selectedRootCandidate ? toRootCandidate(selectedRootCandidate) : null;
   const evidencePackage = buildEvidencePackage({ selectedCandidate: selectedRootCandidate, decisionContext, answerSignals });
 
@@ -314,7 +322,11 @@ export const buildInterviewTurnPlan = async ({
     selectedRootCandidate: selectedCandidate,
     topRootCandidates,
     alternativeRootCandidates,
-    followUpContext: followUpContext ? { ...followUpContext, followUpIntent } : null,
+    followUpContext: followUpContext ? {
+      ...followUpContext,
+      ...assessmentContract,
+      followUpIntent,
+    } : null,
     followUpIntent,
     evidenceTarget: followUpContext?.evidenceTarget || null,
     evidencePackage,

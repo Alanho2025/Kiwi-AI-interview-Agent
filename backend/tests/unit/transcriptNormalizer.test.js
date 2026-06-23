@@ -1,7 +1,23 @@
 import { describe, expect, it } from 'vitest';
 import { normalizeTranscript } from '../../src/services/voice/transcriptNormalizer.js';
+import { buildSessionSpeechPhraseList } from '../../src/services/voice/speechPhraseHintService.js';
 
 describe('transcriptNormalizer', () => {
+    it('adds candidate and project terminology to session phrase hints', () => {
+        const phrases = buildSessionSpeechPhraseList({
+            candidateName: 'A Candidate',
+            analysisResult: { parsedCvProfile: { projects: [{ title: 'Kiwi Voice Coach' }] } },
+        });
+
+        expect(phrases).toEqual(expect.arrayContaining([
+            'A Candidate',
+            'Kiwi Voice Coach',
+            'prompt engineering',
+            'test-driven development',
+            'Codex',
+        ]));
+    });
+
     describe('normalizeTranscript', () => {
         it('should handle empty, null, and undefined input', () => {
             expect(normalizeTranscript('')).toEqual({
@@ -91,6 +107,15 @@ describe('transcriptNormalizer', () => {
             expect(result.normalizedText).toContain('Node.js');
             expect(result.changed).toBe(true);
             expect(result.corrections.length).toBeGreaterThanOrEqual(3);
+        });
+
+        it('preserves raw and normalized terminology correction metadata', () => {
+            const result = normalizeTranscript('I used by coding and text driven development');
+
+            expect(result.rawText).toBe('I used by coding and text driven development');
+            expect(result.normalizedText).toContain('vibe coding');
+            expect(result.normalizedText).toContain('test-driven development');
+            expect(result.corrections).toHaveLength(2);
         });
 
         it('should normalize MongoDB case-insensitively', () => {

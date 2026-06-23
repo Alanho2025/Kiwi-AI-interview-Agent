@@ -2,13 +2,14 @@ import { analyzeStarrBreakdown } from '../aiControl/starRubricService.js';
 import { normalizeText } from '../../utils/commonHelpers.js';
 import { buildRoleSpecificRubric } from './answerFrameworkService.js';
 import { analyzeRoleSpecificAnswer, calculateFrameworkScore } from './roleAnswerAnalysisService.js';
+import { resolveFollowUpAssessmentContract } from '../questions/questionAssessmentContractService.js';
 
 export { calculateFrameworkScore } from './roleAnswerAnalysisService.js';
 
 const lower = (value = '') => normalizeText(value).toLowerCase();
 const wordCount = (value = '') => normalizeText(value).split(/\s+/).filter(Boolean).length;
 
-const buildStarrRubric = ({ topic = '' } = {}) => {
+const buildStarrRubric = ({ topic = '', targetedDimensions = [] } = {}) => {
   const isReaction = topic.includes('teamwork') || topic.includes('communication') || topic.includes('conflict');
   return {
     rubricType: 'starr',
@@ -20,6 +21,7 @@ const buildStarrRubric = ({ topic = '' } = {}) => {
     structureLabel: 'STARR evidence',
     resultOrReactionLabel: isReaction ? 'Reaction' : 'Result',
     dimensions: ['situation', 'task', 'action', 'resultOrReaction', 'reflection'],
+    targetedDimensions,
   };
 };
 
@@ -38,6 +40,58 @@ export const inferTurnRubric = ({ question = '', metadata = {} } = {}) => {
   const evidenceMode = lower(metadata.evidenceMode || '') || 'past_example';
   const capabilityGroup = lower(metadata.capabilityGroup || '');
   const roleDomain = lower(metadata.roleDomain || '') || 'general';
+  const followUpIntent = lower(metadata.followUpIntent || metadata.questionDecision?.followUpIntent || '');
+
+  if (followUpIntent) {
+    const contract = resolveFollowUpAssessmentContract({
+      intent: followUpIntent,
+      parentQuestionFamily: metadata.parentQuestionFamily || questionFamily,
+      parentEvidenceMode: metadata.parentEvidenceMode || evidenceMode,
+    });
+    if (contract.targetedDimensions.length > 0) {
+      if (contract.questionFamily === 'behavioural') {
+        return buildStarrRubric({ topic, targetedDimensions: contract.targetedDimensions });
+      }
+      return {
+        ...buildRoleSpecificRubric({
+          evidenceMode: contract.evidenceMode,
+          capabilityGroup,
+          roleDomain,
+        }),
+        targetedDimensions: contract.targetedDimensions,
+      };
+    }
+  }
+
+  if (isSelfIntroductionQuestion(questionText)) {
+    return {
+      rubricType: 'self_intro',
+      frameworkKey: 'self_intro',
+      frameworkLabel: 'Introduction',
+      questionFamily: 'self_intro',
+      evidenceMode: 'knowledge_explanation',
+      starApplicable: false,
+      structureLabel: 'Introduction structure',
+      dimensions: ['background', 'roleRelevance', 'evidence', 'clarity'],
+    };
+  }
+
+  if (/what attracted you|why.*(?:company|role)|interested in.*role/.test(questionText)) {
+    return {
+      rubricType: 'company_motivation',
+      frameworkKey: 'company_motivation',
+      frameworkLabel: 'Motivation',
+      questionFamily: 'motivation',
+      evidenceMode: 'knowledge_explanation',
+      starApplicable: false,
+      structureLabel: 'Motivation structure',
+      dimensions: ['companyReason', 'roleReason', 'candidateEvidence', 'specificity'],
+    };
+  }
+
+  if (/\b(validat|verif|before-and-after|trade-?off|constraints?|technical depth|implementation|credential|registration|licen[cs]e)\w*/.test(questionText)) {
+    return buildRoleSpecificRubric({ evidenceMode, capabilityGroup, roleDomain });
+  }
 
   if (questionFamily.includes('behaviour') || questionFamily.includes('behavior')) {
     return buildStarrRubric({ topic });
@@ -273,6 +327,24 @@ export const analyzeTurnStructure = ({ question = '', answer = '', metadata = {}
     };
   }
   const starrBreakdown = analyzeStarrBreakdown(answer);
+  const targetedDimensions = new Set(rubric.targetedDimensions || []);
+  const scoredStarrBreakdown = targetedDimensions.size === 0
+    ? starrBreakdown
+    : {
+        ...starrBreakdown,
+        ...Object.fromEntries(rubric.dimensions.map((key) => [
+          key,
+          targetedDimensions.has(key) ? starrBreakdown[key] : 'not_applicable',
+        ])),
+        scores: Object.fromEntries(rubric.dimensions.map((key) => [
+          key,
+          targetedDimensions.has(key) ? Number(starrBreakdown.scores?.[key] || 0) : 0,
+        ])),
+        totalScore: [...targetedDimensions].reduce((sum, key) => sum + Number(starrBreakdown.scores?.[key] || 0), 0),
+        maxScore: targetedDimensions.size * 2,
+        mainMissingElement: [...targetedDimensions]
+          .sort((left, right) => Number(starrBreakdown.scores?.[left] || 0) - Number(starrBreakdown.scores?.[right] || 0))[0],
+      };
   const frameworkDimensions = [
     ['situation', 'Situation'],
     ['task', 'Task'],
@@ -282,26 +354,43 @@ export const analyzeTurnStructure = ({ question = '', answer = '', metadata = {}
   ].map(([key, label]) => ({
     key,
     label,
-    status: starrBreakdown[key],
-    score: Number(starrBreakdown.scores?.[key] || 0) * 5,
-    reason: `${label} evidence is ${starrBreakdown[key] || 'missing'}.`,
+    status: scoredStarrBreakdown[key],
+    score: Number(scoredStarrBreakdown.scores?.[key] || 0) * 5,
+    reason: targetedDimensions.size > 0 && !targetedDimensions.has(key)
+      ? `${label} was not requested by this follow-up.`
+      : `${label} evidence is ${scoredStarrBreakdown[key] || 'missing'}.`,
   }));
   const frameworkScore = calculateFrameworkScore(frameworkDimensions);
   const frameworkBreakdown = {
     dimensions: frameworkDimensions,
-    mainGapKey: starrBreakdown.mainMissingElement,
-    mainMissingElement: starrBreakdown.mainMissingElement,
+    mainGapKey: scoredStarrBreakdown.mainMissingElement,
+    mainMissingElement: scoredStarrBreakdown.mainMissingElement,
     summary: 'This evaluates behavioural evidence using STARR.',
-    scoreReason: starrBreakdown.scoreReason,
+    scoreReason: scoredStarrBreakdown.scoreReason,
     ...frameworkScore,
   };
   return { 
     ...rubric, 
-    structureBreakdown: starrBreakdown, 
+    structureBreakdown: scoredStarrBreakdown,
     frameworkBreakdown,
-    starBreakdown: starrBreakdown,
-    starrBreakdown,
-    starrQualityScore: starrBreakdown.totalScore,
-    missingElementExplanation: starrBreakdown.scoreReason,
+    starBreakdown: scoredStarrBreakdown,
+    starrBreakdown: scoredStarrBreakdown,
+    starrQualityScore: scoredStarrBreakdown.totalScore,
+    missingElementExplanation: scoredStarrBreakdown.scoreReason,
   };
+};
+
+export const validateRubricQuestionAlignment = ({ question = '', rubric = {}, metadata = {} } = {}) => {
+  const questionText = lower(question);
+  const intent = lower(metadata.followUpIntent || '');
+  const dimensionKeys = (rubric.frameworkBreakdown?.dimensions || rubric.dimensions || [])
+    .map((item) => typeof item === 'string' ? item : item.key);
+  const asksForValidation = intent === 'validation' || /\b(validat|verif|before-and-after|measur|check)\w*/.test(questionText);
+  if (asksForValidation && !dimensionKeys.some((key) => /validat|verif/.test(key))) {
+    return { passed: false, reason: 'validation_question_missing_validation_dimension' };
+  }
+  if (rubric.rubricType === 'company_motivation' && !/what attracted you|why.*(?:company|role)|interested in.*role/.test(questionText)) {
+    return { passed: false, reason: 'motivation_rubric_without_motivation_question' };
+  }
+  return { passed: true, reason: 'rubric_matches_question' };
 };

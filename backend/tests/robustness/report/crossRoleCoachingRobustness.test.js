@@ -9,7 +9,7 @@ import { buildReportDraft } from '../../../src/services/agents/reportGenerator/r
 const bannedItFallbacks = /React Native|mobile feature|debugging story|API integration|regression testing/i;
 
 describe('cross-role report coaching', () => {
-  it('rewrites a nurse scenario from the original answer and role topic without inventing IT work', () => {
+  it('fails closed for a nurse scenario when no grounded rewrite exists', () => {
     const examples = buildAnswerRewriteExamples({
       evidenceSummary: { totals: { hypothetical_understanding: 1 } },
       turnBreakdowns: [{
@@ -21,13 +21,12 @@ describe('cross-role report coaching', () => {
     });
 
     expect(examples[0].weak).toBe('I would follow the process and check the patient record.');
-    expect(examples[0].better).toContain('medication safety');
-    expect(examples[0].better).toContain('[說明驗證方式]');
-    expect(examples[0].better).toContain('[補充實際結果]');
+    expect(examples[0]).toMatchObject({ status: 'unavailable', better: '' });
+    expect(examples[0].failureReason).toMatch(/could not be generated reliably/i);
     expect(JSON.stringify(examples)).not.toMatch(bannedItFallbacks);
   });
 
-  it('uses a STARR scaffold only for behavioural rewrites', () => {
+  it('does not emit a structural placeholder for behavioural rewrites', () => {
     const [example] = buildAnswerRewriteExamples({
       evidenceSummary: { totals: {} },
       turnBreakdowns: [{
@@ -38,11 +37,11 @@ describe('cross-role report coaching', () => {
       }],
     });
 
-    expect(example.better).toContain('Situation:');
-    expect(example.better).toContain('Reflection:');
+    expect(example).toMatchObject({ status: 'unavailable', better: '' });
+    expect(JSON.stringify(example)).not.toMatch(/Situation:|Reflection:|\[[^\]]+\]/);
   });
 
-  it('uses evidence, validity, scope, conditions, and verification for credential rewrites', () => {
+  it('does not emit credential placeholders as candidate-facing rewrites', () => {
     const [example] = buildAnswerRewriteExamples({
       evidenceSummary: { totals: {} },
       turnBreakdowns: [{
@@ -53,10 +52,8 @@ describe('cross-role report coaching', () => {
       }],
     });
 
-    expect(example.better).toContain('[補充資格證明]');
-    expect(example.better).toContain('[說明有效期限]');
-    expect(example.better).toContain('[說明驗證方式]');
-    expect(example.better).not.toMatch(/business outcome/i);
+    expect(example).toMatchObject({ status: 'unavailable', better: '' });
+    expect(JSON.stringify(example)).not.toMatch(/補充資格證明|說明有效期限|說明驗證方式|business outcome/i);
   });
 
   it('does not push past-project evidence for scenario and knowledge questions', () => {

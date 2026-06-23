@@ -406,7 +406,9 @@ describe('interviewer prepared pool runtime selection', () => {
     expect(result.followUpIntent).toEqual(expect.any(String));
     expect(result).toMatchObject({
       questionFamily: 'role_specific',
-      evidenceMode: 'knowledge_explanation',
+      evidenceMode: 'past_example',
+      parentQuestionFamily: 'role_specific',
+      parentEvidenceMode: 'knowledge_explanation',
       roleDomain: 'professional_services',
       requirementCategory: 'domain_knowledge',
       capabilityGroup: 'domain_knowledge',

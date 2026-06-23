@@ -10,6 +10,19 @@
  */
 
 import { validateReportQaOutput } from '../schemaValidationService.js';
+import { validateAnswerRewrite } from '../report/reportContentQualityService.js';
+import { extractAnswerEvidenceSignals } from '../report/answerEvidenceSignalService.js';
+import { validateRubricQuestionAlignment } from '../report/turnRubricService.js';
+
+export const BLOCKING_REPORT_FLAGS = new Set([
+  'rubric_question_mismatch',
+  'evidence_total_mismatch',
+  'score_metric_mismatch',
+  'invalid_answer_rewrite',
+  'uninformative_evidence_references',
+  'turn_export_count_mismatch',
+  'unacknowledged_transcript_conflict',
+]);
 
 const normalizeComparableText = (value = '') => String(value)
   .toLowerCase()
@@ -19,7 +32,7 @@ const normalizeComparableText = (value = '') => String(value)
 
 const scoreCoverage = (report = {}) => {
   const sections = Array.isArray(report.sections) ? report.sections.length : 0;
-  const evidenceRefs = Array.isArray(report.evidenceReferences) ? report.evidenceReferences.length : 0;
+  const evidenceRefs = meaningfulEvidenceReferences(report.evidenceReferences).length;
   const metrics = report.interviewMetrics || {};
   const diagnostics = report.evidenceDiagnostics || {};
   let score = 0;
@@ -28,6 +41,18 @@ const scoreCoverage = (report = {}) => {
   score += metrics.interviewerQuestionCount ? Math.min(20, (metrics.interviewerQuestionCount / Math.max(metrics.plannedQuestionCount || 1, 1)) * 20) : 0;
   score += diagnostics.averageStrength ? Math.min(25, (Number(diagnostics.averageStrength) / 4) * 25) : 0;
   return Math.round(Math.min(100, score));
+};
+
+const meaningfulEvidenceReferences = (references = []) => {
+  const seen = new Set();
+  return (Array.isArray(references) ? references : []).filter((item) => {
+    const claim = String(item?.claim || item?.claimText || '').trim();
+    const snippet = String(item?.evidenceSnippet || item?.evidenceSnippets?.[0]?.text || '').trim();
+    const key = `${claim}|${item?.sourceType || ''}|${snippet}`.toLowerCase();
+    if (!claim || !snippet || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 };
 
 export const runReportQaAgent = async ({ report = {}, analysisResult = {}, retrievalBundle = null } = {}) => {
@@ -57,7 +82,7 @@ export const runReportQaAgent = async ({ report = {}, analysisResult = {}, retri
       breakdown.action,
       breakdown.resultOrReaction || breakdown.result,
       breakdown.reflection,
-    ].every((status) => ['clear', 'partial', 'missing'].includes(status));
+    ].every((status) => ['clear', 'partial', 'missing', 'not_applicable'].includes(status));
   };
   const missingStarBreakdowns = turnBreakdowns.filter((item) => (
     isBehaviouralTurn(item)
@@ -77,6 +102,38 @@ export const runReportQaAgent = async ({ report = {}, analysisResult = {}, retri
     item.confidenceLevel === 'high'
     && (item.evidenceLabel === 'needs_user_confirmation' || item.feedbackStatus === 'needs_confirmation' || item.feedbackStatus === 'refused_claim')
   )).length;
+  const rewriteResults = (candidateFeedback.answerRewriteExamples || []).map((item) => ({
+    item,
+    quality: validateAnswerRewrite(item),
+  }));
+  const invalidReadyRewrites = rewriteResults.filter(({ item, quality }) => item.status !== 'unavailable' && !quality.valid);
+  const placeholderRewrites = rewriteResults.filter(({ quality }) => quality.reasons.includes('contains_bracket_prompt') || quality.reasons.includes('contains_non_english_scaffold'));
+  const unreadableRewrites = rewriteResults.filter(({ quality }) => quality.reasons.includes('contains_mojibake'));
+  const knownQuestions = new Set(turnBreakdowns.map((item) => normalizeComparableText(item.question)).filter(Boolean));
+  const mismatchedRewrites = rewriteResults.filter(({ item }) => item.question && knownQuestions.size > 0 && !knownQuestions.has(normalizeComparableText(item.question)));
+  const meaningfulReferences = meaningfulEvidenceReferences(report.evidenceReferences);
+  const rubricQuestionMismatches = turnBreakdowns.filter((item) => !validateRubricQuestionAlignment({
+    question: item.question,
+    rubric: item,
+    metadata: item,
+  }).passed);
+  const evidenceTotal = [
+    'direct_past_experience',
+    'indirect_adjacent_experience',
+    'hypothetical_understanding',
+    'generic_filler',
+  ].reduce((sum, key) => sum + Number(diagnostics.totals?.[key] || 0), 0);
+  const scoredAnswerCount = Number(metrics.scoredCandidateAnswerCount || 0);
+  const evidenceTotalMismatch = scoredAnswerCount > 0 && evidenceTotal !== scoredAnswerCount;
+  const overallMetric = (candidateFeedback.plainEnglishMetrics || []).find((item) => item?.id === 'overall_fit');
+  const scoreMetricMismatch = overallMetric
+    && Number.isFinite(Number(report.scores?.overall))
+    && Math.abs(Number(overallMetric.value) - Number(report.scores.overall)) > 0.01;
+  const turnExportCountMismatch = scoredAnswerCount > 0 && turnBreakdowns.length !== scoredAnswerCount;
+  const directExampleCount = Number(diagnostics.totals?.direct_past_experience || 0);
+  const hasDirectExampleSignals = turnBreakdowns.some((item) => extractAnswerEvidenceSignals(item.answer).isDirectPastExperience);
+  const conflictingTranscriptRisk = (report.transcriptRisks || []).some((risk) => risk.code === 'conflicting_metric_values');
+  const transcriptRiskVisible = Boolean(report.sections?.find((section) => section.id === 'transcript_risks')?.content);
 
   if (!report.summary) qualityFlags.push('missing_summary');
   if (!report.sections?.length) qualityFlags.push('missing_sections');
@@ -89,6 +146,17 @@ export const runReportQaAgent = async ({ report = {}, analysisResult = {}, retri
   if (!(candidateFeedback.plainEnglishMetrics || []).length) qualityFlags.push('missing_metric_translation');
   if (!coachingAdvice.length) qualityFlags.push('missing_actionable_coaching');
   if (!(candidateFeedback.answerRewriteExamples || []).length) qualityFlags.push('missing_rewrite_examples');
+  if (invalidReadyRewrites.length > 0) qualityFlags.push('invalid_answer_rewrite');
+  if (placeholderRewrites.length > 0) qualityFlags.push('placeholder_answer_rewrite');
+  if (unreadableRewrites.length > 0) qualityFlags.push('unreadable_answer_rewrite');
+  if (mismatchedRewrites.length > 0) qualityFlags.push('rewrite_question_mismatch');
+  if ((report.evidenceReferences || []).length > 0 && meaningfulReferences.length === 0) qualityFlags.push('uninformative_evidence_references');
+  if (rubricQuestionMismatches.length > 0) qualityFlags.push('rubric_question_mismatch');
+  if (evidenceTotalMismatch) qualityFlags.push('evidence_total_mismatch');
+  if (scoreMetricMismatch) qualityFlags.push('score_metric_mismatch');
+  if (turnExportCountMismatch) qualityFlags.push('turn_export_count_mismatch');
+  if (directExampleCount === 0 && hasDirectExampleSignals) qualityFlags.push('real_example_count_mismatch');
+  if (conflictingTranscriptRisk && !transcriptRiskVisible) qualityFlags.push('unacknowledged_transcript_conflict');
   if (typeof report.scores?.averageInteractionScore !== 'number') qualityFlags.push('missing_interaction_metrics');
   if (missingTrustFields > 0) qualityFlags.push('missing_feedback_trust_fields');
   if (missingStarBreakdowns > 0) qualityFlags.push('missing_star_breakdown');
@@ -98,6 +166,7 @@ export const runReportQaAgent = async ({ report = {}, analysisResult = {}, retri
   if ((diagnostics.repetitionComplaintCount || 0) > 0 && !String(report.sections?.find((section) => section.id === 'interaction_feedback')?.content || '').toLowerCase().includes('repeated questioning')) qualityFlags.push('missing_repetition_flow_warning');
   if (highConfidenceUnsupported > 0) qualityFlags.push('unsupported_high_confidence_feedback');
   if (!report.authenticityMetrics) qualityFlags.push('authenticity_metrics_missing');
+  if ((report.transcriptRisks || []).length > 0 && !report.sections?.find((section) => section.id === 'transcript_risks')) qualityFlags.push('transcript_risk_not_visible');
 
   const normalizedSummary = normalizeComparableText(report.summary || '');
   const normalizedDecisionLabel = normalizeComparableText(analysisResult.decision?.label || '');
@@ -106,7 +175,12 @@ export const runReportQaAgent = async ({ report = {}, analysisResult = {}, retri
     rule: 'decision_alignment',
     passed: !normalizedDecisionLabel || normalizedSummary.includes(normalizedDecisionLabel),
   });
+  consistencyChecks.push({ rule: 'rubric_question_alignment', passed: rubricQuestionMismatches.length === 0 });
+  consistencyChecks.push({ rule: 'evidence_totals_match_scored_answers', passed: !evidenceTotalMismatch });
+  consistencyChecks.push({ rule: 'overall_score_metric_alignment', passed: !scoreMetricMismatch });
+  consistencyChecks.push({ rule: 'all_scored_turns_exported', passed: !turnExportCountMismatch });
   consistencyChecks.push({ rule: 'evidence_presence', passed: (report.evidenceReferences || []).length > 0 || (retrievalBundle?.items || []).length > 0 });
+  consistencyChecks.push({ rule: 'meaningful_evidence_presence', passed: meaningfulReferences.length > 0 });
   consistencyChecks.push({ rule: 'metrics_present', passed: Boolean(metrics.interviewerQuestionCount || metrics.candidateTurnCount) });
   consistencyChecks.push({ rule: 'candidate_feedback_present', passed: Boolean(candidateFeedback.overallTakeaway && coachingAdvice.length) });
   consistencyChecks.push({ rule: 'metric_translation_present', passed: (candidateFeedback.plainEnglishMetrics || []).length > 0 });
@@ -117,6 +191,10 @@ export const runReportQaAgent = async ({ report = {}, analysisResult = {}, retri
   consistencyChecks.push({ rule: 'role_specific_not_star_scored', passed: roleSpecificStarMisapplied === 0 });
   consistencyChecks.push({ rule: 'self_intro_not_star_scored', passed: selfIntroStarApplied === 0 });
   consistencyChecks.push({ rule: 'unsupported_claims_downgraded', passed: highConfidenceUnsupported === 0 });
+  consistencyChecks.push({
+    rule: 'transcript_risks_visible',
+    passed: !(report.transcriptRisks || []).length || Boolean(report.sections?.find((section) => section.id === 'transcript_risks')?.content),
+  });
 
   const coverageScore = scoreCoverage(report);
   const hallucinationRisk = qualityFlags.some((flag) => ['question_count_mismatch', 'missing_hypothetical_gap_note'].includes(flag)) ? 'medium' : qualityFlags.length ? 'low_to_medium' : 'low';
@@ -128,7 +206,9 @@ export const runReportQaAgent = async ({ report = {}, analysisResult = {}, retri
     hallucinationRisk,
     qualityFlags,
     consistencyChecks,
-    passed: qualityFlags.length === 0 && consistencyChecks.every((item) => item.passed),
+    passed: !qualityFlags.some((flag) => BLOCKING_REPORT_FLAGS.has(flag))
+      && qualityFlags.length === 0
+      && consistencyChecks.every((item) => item.passed),
     diagnostics: {
       interviewerQuestionCount: metrics.interviewerQuestionCount || 0,
       plannedQuestionCount: metrics.plannedQuestionCount || 0,

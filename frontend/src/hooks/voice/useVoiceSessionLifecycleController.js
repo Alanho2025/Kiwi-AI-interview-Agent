@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo } from 'react';
-import { uploadSessionRecording } from '../../api/recordingApi.js';
 import { createVoiceLatencyTrace } from '../../utils/voiceLatencyTrace.js';
 import { DEFAULT_VAD_CONFIG } from '../../utils/voiceActivityDetectionCore.js';
 import {
@@ -41,7 +40,6 @@ export function useVoiceSessionLifecycleController({
   setLastAsrConfidence,
   setLastTranscriptRejection,
   setPendingTranscript,
-  setRecordingStatus,
   setReadyState,
   setSendAudio,
   setTranscriptionPreview,
@@ -389,20 +387,10 @@ export function useVoiceSessionLifecycleController({
     }
   }, [handleResetShell, handleToggleRecording, isCompleted, isPaused]);
 
-  const uploadRecordingIfAvailable = useCallback(async () => {
-    const recordingBlob = await sessionAudioRecorder.getCombinedRecording();
-    if (!recordingBlob || !activeSessionId) return null;
-
-    setRecordingStatus({ state: 'uploading', error: null });
-    try {
-      const result = await uploadSessionRecording({ sessionId: activeSessionId, audioBlob: recordingBlob });
-      setRecordingStatus({ state: 'ready', error: null });
-      return result;
-    } catch (error) {
-      setRecordingStatus({ state: 'failed', error: error.message || 'Could not save MP3 recording.' });
-      return null;
-    }
-  }, [activeSessionId, sessionAudioRecorder, setRecordingStatus]);
+  const finalizeLocalRecording = useCallback(
+    () => sessionAudioRecorder.finalizeLocalRecording(),
+    [sessionAudioRecorder],
+  );
 
   const stopVoiceSession = useCallback(async (reason = 'manual_end') => {
     autoLoopActiveRef.current = false;
@@ -418,7 +406,6 @@ export function useVoiceSessionLifecycleController({
     setSendAudio?.(false);
     vad.stopVad?.();
     stopSession();
-    await uploadRecordingIfAvailable();
     await stopStream();
     closeDuplexSocket();
     voiceSessionTraceRef.current?.mark('voice_session_stopped', { reason });
@@ -436,12 +423,12 @@ export function useVoiceSessionLifecycleController({
     speechStartSentRef,
     stopSession,
     stopStream,
-    uploadRecordingIfAvailable,
     vad,
     voiceSessionTraceRef,
   ]);
 
   return useMemo(() => ({
+    finalizeLocalRecording,
     handleRequestPermission,
     handleReplayAssistantAudio,
     handleResetShell,
@@ -450,6 +437,7 @@ export function useVoiceSessionLifecycleController({
     speakQuestionText,
     stopVoiceSession,
   }), [
+    finalizeLocalRecording,
     handleReplayAssistantAudio,
     handleRequestPermission,
     handleResetShell,

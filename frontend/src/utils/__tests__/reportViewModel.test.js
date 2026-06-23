@@ -25,4 +25,21 @@ describe('report view model', () => {
 
     expect(viewModel.nzWorkplaceFit).toBe(nzWorkplaceFit);
   });
+
+  it('hides unsafe legacy rewrites and asks the user to regenerate', () => {
+    const viewModel = buildReportViewModel({
+      report: {
+        schemaVersion: 'v5',
+        scores: { overall: 58.6, cvJdMatch: 64.3 },
+        candidateFeedback: {
+          answerRewriteExamples: [{ weak: 'Raw answer', better: 'Action: [補充情境]' }],
+        },
+      },
+      qaResult: {},
+    });
+
+    expect(viewModel.report.scores).toEqual({ overall: 58.6, cvJdMatch: 64.3 });
+    expect(viewModel.answerRewriteTips[0]).toMatchObject({ status: 'unavailable', better: '' });
+    expect(viewModel.legacyReportNotice).toMatch(/Regenerate this report for corrected scoring/i);
+  });
 });

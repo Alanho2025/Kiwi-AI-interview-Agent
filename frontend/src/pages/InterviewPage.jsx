@@ -88,18 +88,36 @@ export function InterviewPage() {
   });
 
   const handleSafeEnd = async () => {
-    if (isVoiceMode) {
-      await voiceShell.stopVoiceSession?.('manual_end');
+    try {
+      if (isVoiceMode) {
+        await voiceShell.finalizeLocalRecording?.('manual_end');
+        await voiceShell.stopVoiceSession?.('manual_end');
+      }
+      handleEnd({ mode: isVoiceMode ? 'voice' : 'text' });
+    } catch (error) {
+      setPageStatus({
+        type: 'error',
+        title: 'Recording not saved yet',
+        message: error.message || 'Keep this page open and try ending the interview again.',
+      });
     }
-    handleEnd({ mode: isVoiceMode ? 'voice' : 'text' });
   };
 
   const handleViewReport = useCallback(async () => {
-    if (isVoiceMode) {
-      await voiceShell.stopVoiceSession?.('view_report');
+    try {
+      if (isVoiceMode) {
+        await voiceShell.finalizeLocalRecording?.('view_report');
+        void voiceShell.stopVoiceSession?.('view_report');
+      }
+      navigate(`/report/${sessionId}`);
+    } catch (error) {
+      setPageStatus({
+        type: 'error',
+        title: 'Recording not saved yet',
+        message: error.message || 'Keep this page open and try again so your recording is not lost.',
+      });
     }
-    navigate(`/report/${sessionId}`);
-  }, [isVoiceMode, navigate, sessionId, voiceShell]);
+  }, [isVoiceMode, navigate, sessionId, setPageStatus, voiceShell]);
 
   const handleDownloadRecording = async () => {
     try {

@@ -6,7 +6,7 @@
  * - Keep recording endpoints separate from interview turn APIs.
  */
 
-import { apiClient, buildApiUrl, getStoredAuthToken } from './client.js';
+import { apiClient, apiPost, buildApiUrl, getStoredAuthToken } from './client.js';
 
 const buildDownloadHeaders = () => {
   const token = getStoredAuthToken();
@@ -63,7 +63,46 @@ export const downloadSessionRecording = async (sessionId) => {
 export const getSessionRecordingStatus = async (sessionId) => {
   if (!sessionId) return { available: false, status: 'missing' };
 
-  return apiClient(`/recordings/session-audio/${sessionId}/status`, {
+  const result = await apiClient(`/recordings/session-audio/${sessionId}/status`, {
     method: 'GET',
   });
+  const state = result?.state || result?.status || (result?.available ? 'ready' : 'missing');
+  const totalBytes = Number(result?.totalBytes || 0);
+  const receivedBytes = Number(result?.receivedBytes || 0);
+  return {
+    ...result,
+    state,
+    available: Boolean(result?.available),
+    progressPercent: totalBytes > 0 ? Math.min(100, Math.round((receivedBytes / totalBytes) * 100)) : null,
+  };
 };
+
+export const initializeRecordingUpload = ({ sessionId, mimeType }) => apiPost(
+  '/recordings/session-audio/uploads',
+  { sessionId, mimeType },
+);
+
+export const uploadRecordingChunk = ({ uploadId, sequence, checksum, blob }) => {
+  const formData = new FormData();
+  formData.append('checksum', checksum);
+  formData.append('audio', blob, `recording-${sequence}.webm`);
+  return apiClient(`/recordings/session-audio/uploads/${encodeURIComponent(uploadId)}/chunks/${sequence}`, {
+    method: 'PUT',
+    body: formData,
+  });
+};
+
+export const finalizeRecordingUpload = ({ uploadId, totalChunks, totalBytes }) => apiPost(
+  `/recordings/session-audio/uploads/${encodeURIComponent(uploadId)}/finalize`,
+  { totalChunks, totalBytes },
+);
+
+export const retryRecordingUpload = (uploadId) => apiPost(
+  `/recordings/session-audio/uploads/${encodeURIComponent(uploadId)}/retry`,
+  {},
+);
+
+export const getRecordingUploadStatus = (uploadId) => apiClient(
+  `/recordings/session-audio/uploads/${encodeURIComponent(uploadId)}/status`,
+  { method: 'GET' },
+);

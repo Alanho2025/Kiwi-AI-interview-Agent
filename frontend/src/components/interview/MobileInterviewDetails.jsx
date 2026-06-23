@@ -3,14 +3,7 @@ import { Button } from '../common/Button.jsx';
 import { SessionInfoCard } from './SessionInfoCard.jsx';
 import { TextBackupCard } from './TextBackupCard.jsx';
 import { TranscriptPanel } from './TranscriptPanel.jsx';
-
-const resolveRecordingLabel = ({ isCompleted, recordingStatus }) => {
-  if (!isCompleted) return 'Available after the session ends';
-  if (recordingStatus?.state === 'uploading') return 'Preparing recording...';
-  if (recordingStatus?.state === 'failed') return 'Recording could not be prepared';
-  if (recordingStatus?.state === 'ready') return 'Recording ready';
-  return 'Recording is still being processed';
-};
+import { getRecordingStatusLabel } from '../../utils/recordingStatusDisplay.js';
 
 export function MobileInterviewDetails({
   transcript,
@@ -62,7 +55,7 @@ export function MobileInterviewDetails({
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-sm font-semibold text-primary">Voice recording</p>
-                <p className="mt-1 text-xs text-faint">{resolveRecordingLabel({ isCompleted, recordingStatus })}</p>
+                <p className="mt-1 text-xs text-faint">{getRecordingStatusLabel(recordingStatus, isCompleted)}</p>
               </div>
               <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700">Audio</span>
             </div>

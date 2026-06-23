@@ -61,6 +61,27 @@ describe('useReportData', () => {
             expect(result.current.status.variant).toBe('success');
         });
 
+        it('loads v5 reports without changing historical scores and recommends regeneration', async () => {
+            const mockReport = {
+                sessionId: mockSessionId,
+                latestStatus: 'ready',
+                report: {
+                    schemaVersion: 'v5',
+                    scores: { overall: 58.6, cvJdMatch: 64.3 },
+                    candidateFeedback: { answerRewriteExamples: [{ better: '[補充情境]' }] },
+                },
+            };
+            vi.mocked(reportApi.getReport).mockResolvedValue(mockReport);
+            vi.mocked(recordingApi.getSessionRecordingStatus).mockResolvedValue({ available: true });
+
+            const { result } = renderHook(() => useReportData(mockSessionId));
+
+            await waitFor(() => expect(result.current.loading).toBe(false));
+
+            expect(result.current.reportData.report.scores).toEqual({ overall: 58.6, cvJdMatch: 64.3 });
+            expect(result.current.status.message).toMatch(/regenerate/i);
+        });
+
         it('should auto-generate report if missing on first load', async () => {
             const missingError = new Error('Report not found');
             const generatedReport = {
@@ -363,6 +384,69 @@ describe('useReportData', () => {
             } finally {
                 vi.useRealTimers();
             }
+        });
+
+        it('keeps polling while a long recording conversion remains pending', async () => {
+            vi.useFakeTimers();
+            try {
+                vi.mocked(reportApi.getReport).mockResolvedValue({ sessionId: mockSessionId });
+                vi.mocked(recordingApi.getSessionRecordingStatus).mockResolvedValue({
+                    state: 'processing',
+                    available: false,
+                });
+
+                renderHook(() => useReportData(mockSessionId));
+
+                await act(async () => {
+                    await Promise.resolve();
+                    await vi.advanceTimersByTimeAsync(60000);
+                });
+                const callsAtOneMinute = recordingApi.getSessionRecordingStatus.mock.calls.length;
+
+                await act(async () => {
+                    await vi.advanceTimersByTimeAsync(2000);
+                });
+
+                expect(recordingApi.getSessionRecordingStatus.mock.calls.length).toBeGreaterThan(callsAtOneMinute);
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+
+        it('preserves resumable upload progress while the report remains available', async () => {
+            vi.mocked(reportApi.getReport).mockResolvedValue({ sessionId: mockSessionId, report: { summary: 'Ready' } });
+            vi.mocked(recordingApi.getSessionRecordingStatus).mockResolvedValue({
+                state: 'uploading',
+                available: false,
+                progressPercent: 65,
+                retryable: true,
+            });
+
+            const { result } = renderHook(() => useReportData(mockSessionId));
+
+            await waitFor(() => expect(result.current.reportData).not.toBeNull());
+            expect(result.current.recordingStatus).toMatchObject({
+                state: 'uploading',
+                progressPercent: 65,
+                available: false,
+            });
+        });
+
+        it('retries a recoverable recording conversion', async () => {
+            vi.mocked(reportApi.getReport).mockResolvedValue({ sessionId: mockSessionId });
+            vi.mocked(recordingApi.getSessionRecordingStatus).mockResolvedValue({
+                uploadId: 'upload-1', state: 'recoverable_failed', available: false, retryable: true,
+            });
+            vi.mocked(recordingApi.retryRecordingUpload).mockResolvedValue({
+                uploadId: 'upload-1', state: 'queued', available: false,
+            });
+            const { result } = renderHook(() => useReportData(mockSessionId));
+            await waitFor(() => expect(result.current.recordingStatus.state).toBe('recoverable_failed'));
+
+            await act(async () => result.current.handleRetryRecording());
+
+            expect(recordingApi.retryRecordingUpload).toHaveBeenCalledWith('upload-1');
+            expect(result.current.recordingStatus.state).toBe('queued');
         });
 
         it('should successfully download MP3 recording', async () => {

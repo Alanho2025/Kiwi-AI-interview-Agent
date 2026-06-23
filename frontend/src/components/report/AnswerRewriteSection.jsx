@@ -18,7 +18,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '../common/Card.jsx';
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-export function AnswerRewriteSection({ answerRewriteTips }) {
+export function AnswerRewriteSection({ answerRewriteTips = [] }) {
+  if (!answerRewriteTips.length) return null;
   return (
     <Card>
       <CardHeader>
@@ -32,10 +33,19 @@ export function AnswerRewriteSection({ answerRewriteTips }) {
                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-rose-700">Weaker version</p>
                 <p className="mt-2 text-sm leading-6 text-rose-900">{item.weak}</p>
               </div>
-              <div className="mt-3 rounded-xl bg-emerald-50 p-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">Stronger version</p>
-                <p className="mt-2 text-sm leading-6 text-emerald-900">{item.better}</p>
-              </div>
+              {item.status === 'unavailable' || !item.better ? (
+                <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-800">Rewrite unavailable</p>
+                  <p className="mt-2 text-sm leading-6 text-amber-950">
+                    {item.failureReason || 'A grounded stronger answer could not be generated reliably.'}
+                  </p>
+                </div>
+              ) : (
+                <div className="mt-3 rounded-xl bg-emerald-50 p-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">Stronger version</p>
+                  <p className="mt-2 text-sm leading-6 text-emerald-900">{item.better}</p>
+                </div>
+              )}
             </div>
           ))}
         </div>
