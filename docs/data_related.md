@@ -1,3 +1,7 @@
+# 資料分層建議與目前實作對照
+
+> 狀態：概念設計文件。每節的 `Current code alignment` 說明目前實作；其餘 entity 欄位與關係是建議模型，不代表所有欄位已存在於 schema。
+
 ## 1) PostgreSQL 適合放什麼
 
 Current code alignment: PostgreSQL schema setup is implemented in `backend/src/db/initPostgresSchema.js`. The current tables include the stable business entities listed below plus privacy/security support tables and pgvector `document_chunks`.
@@ -55,7 +59,7 @@ Current code alignment: local file storage is implemented through `backend/src/s
 適合放：
 
 - 原始 CV PDF / DOCX
-- 原始 JD PDF / DOCX
+- 未來若實作 JD file upload，可存原始 JD PDF / DOCX；目前產品只接受 pasted JD text
 - 產出的 feedback report PDF
 - optional transcript export PDF
 
@@ -514,7 +518,7 @@ interview_sessions.session_id
 
 # 四、你這個專案最推薦的拆法
 
-Current status: this split is now the implemented direction, not only a recommendation. Remaining work is retention cleanup, account-wide deletion, encryption-at-rest guarantees, and full ownership/security test coverage.
+Current status: this split is now the implemented direction, not only a recommendation. Retention audit, approval-gated cleanup, backup/quarantine, and a disabled-by-default queued-job worker are implemented. Remaining work includes deployment-verified scheduled operation, account-wide deletion, encryption-at-rest guarantees, and full ownership/security test coverage.
 
 如果你要我直接幫你做可開發版本，我會推薦：
 

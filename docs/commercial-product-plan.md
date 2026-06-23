@@ -1,5 +1,7 @@
 # Kiwi AI Interview Agent - Commercial Product Readiness Plan
 
+> Status: roadmap snapshot, not a current implementation inventory. Current feature readiness and known gaps are maintained in `docs/code-document-alignment.md`; recommendations below remain proposals unless that map and code show otherwise.
+
 ## 1. Purpose
 
 This plan rebuilds the previous code review into a **commercial product readiness roadmap**.
@@ -36,7 +38,7 @@ If users do not trust file upload, session privacy, report privacy, or login saf
 A user should be able to:
 - sign in
 - upload CV
-- paste or upload JD
+- paste a JD (JD file upload remains a roadmap item)
 - understand what the system is doing
 - complete an interview
 - receive a report

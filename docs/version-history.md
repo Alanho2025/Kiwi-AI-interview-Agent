@@ -1,5 +1,16 @@
 # Version History
 
+## 2026-06-23 - Report Integrity, Resumable Recording, Question Deduplication, and Documentation Reconciliation
+
+- Added transcript-based and preparation-time question deduplication with safe `no_unique_question_remaining` completion.
+- Added a canonical report-turn dataset that scores only countable questions paired with accepted answers.
+- Added question-specific assessment contracts, deterministic score ownership, content-quality checks, evidence-source rows, and transcript-risk warnings.
+- Added bounded report QA repair with at most two attempts, post-rewrite grounding, report versions, repair history, QA attempt count, and explicit final statuses.
+- Added browser IndexedDB recording durability, idempotent resumable chunks, retry/recovery, asynchronous conversion worker, recording status UI, and non-blocking report navigation.
+- Documented Azure-first speech routing with independently configurable ElevenLabs STT/TTS fallback.
+- Reclassified retention from missing to implemented-but-operationally-gated: audit, approval-gated cleanup, backup/quarantine, manifests, and a disabled-by-default queued-job worker exist.
+- Reconciled README, architecture, workflow, function, API, test/eval, data lifecycle, benchmark, and historical plan documentation with the current code.
+
 ## Documentation Alignment - Notion Architecture and Current Code
 
 ### Code-document alignment

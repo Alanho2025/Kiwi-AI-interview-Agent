@@ -102,4 +102,4 @@ Use these values to identify whether the bottleneck is retrieval, decision conte
 
 Status: implemented as observability; live E2E validation still required.
 
-The code can trace latency across backend and frontend voice flows, but a final report should still say that full voice latency validation depends on real Azure Speech credentials, authenticated WebSocket access, browser microphone permission, network conditions, and a live interview session.
+The code can trace latency across backend and frontend voice flows, but a final report should still say that full voice latency validation depends on credentials for the configured Azure/ElevenLabs STT and TTS order, authenticated WebSocket access, browser microphone permission, network conditions, and a live interview session.

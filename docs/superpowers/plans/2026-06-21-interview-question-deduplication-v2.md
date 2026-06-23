@@ -1,5 +1,7 @@
 # Interview Question Deduplication V2 Implementation Plan
 
+> Status: implemented by commit `363b224` on 2026-06-22. The unchecked checklist below is the original plan, not the current implementation state. Current behavior is documented in `docs/implementation-workflows.md`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: use `superpowers:test-driven-development` for every behavior change and `superpowers:verification-before-completion` before handoff.
 
 **Goal:** Prevent text, realtime voice, and duplex voice from automatically asking exact or assessment-equivalent duplicate questions while preserving valid follow-ups, user-requested repeat, repair/confirmation counting, transparent ranking, and the three-second voice latency target.

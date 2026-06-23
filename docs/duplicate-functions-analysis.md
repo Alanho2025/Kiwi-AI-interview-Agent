@@ -1,5 +1,7 @@
 # 重複函數分析報告
 
+> 狀態：歷史快照。檔案與次數未在 2026-06-23 重新統計；其中 reportGeneratorShared.js 已不存在。此文件不可作為目前重複率或檔案 inventory 的證明。
+
 ## 執行摘要
 
 在中高風險文件中發現 **59 處重複的輔助函數**，主要集中在以下幾個函數：
@@ -92,7 +94,7 @@
 - `backend/src/services/aiControl/compactInterviewContextService.js`
 - `backend/src/services/aiControl/fastAnswerUnderstandingService.js`
 - `backend/src/services/aiControl/questionRanker.js`
-- `backend/src/services/agents/reportGeneratorShared.js` (exported)
+- Historical `reportGeneratorShared.js` (removed)
 - `backend/src/services/agents/interviewerAgentQuestionBuilder.js` (exported)
 - `backend/src/services/match/matchShared.js` (exported)
 - `backend/src/services/agents/interviewerAgent.js`
