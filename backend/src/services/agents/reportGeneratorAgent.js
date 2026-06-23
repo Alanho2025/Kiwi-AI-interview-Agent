@@ -27,49 +27,9 @@ import { buildCompanyMotivationFit } from '../company/companyMotivationFitServic
 import { analyzeTurnStructure } from '../report/turnRubricService.js';
 import { buildVoiceDeliverySummaryFromTranscript } from '../voice/voiceDeliveryAnalyzerService.js';
 import { groundCandidateFeedbackClaims } from '../report/claimGroundingService.js';
-
-const isCandidateTurn = (turn = {}) => turn.role === 'user' && String(turn.text || '').trim();
-
-const isBridgeOrAcknowledgementTurn = (turn = {}) => {
-  const metadata = turn.metadata || {};
-  const text = String(turn.text || '').trim().toLowerCase();
-  return metadata.countsAsQuestion === false
-    || metadata.turnType === 'bridge_acknowledgement'
-    || metadata.turnKind === 'bridge_acknowledgement'
-    || metadata.sourceType === 'bridge_acknowledgement'
-    || metadata.isAcknowledgement === true
-    || /^(that helps|thanks|got it|i see|understood|that gives me)/i.test(text);
-};
-
-const isReportQuestionTurn = (turn = {}) => {
-  if (!['ai', 'assistant', 'interviewer'].includes(turn.role)) return false;
-  const text = String(turn.text || '').trim();
-  if (!text || isBridgeOrAcknowledgementTurn(turn)) return false;
-
-  const metadata = turn.metadata || {};
-  if (metadata.countsAsQuestion === true) return true;
-  if (metadata.questionType || metadata.type || metadata.stage || metadata.topic || metadata.preparedQuestionId) return true;
-  return /[?？]\s*$/.test(text);
-};
-
-const buildQuestionAnswerPairs = (transcript = []) => {
-  const pairs = [];
-  let pendingQuestion = null;
-
-  for (const turn of transcript) {
-    if (isReportQuestionTurn(turn)) {
-      pendingQuestion = turn;
-      continue;
-    }
-
-    if (isCandidateTurn(turn)) {
-      pairs.push({ questionTurn: pendingQuestion || {}, answerTurn: turn });
-      pendingQuestion = null;
-    }
-  }
-
-  return pairs;
-};
+import { buildReportTurnDataset } from '../report/reportTurnDatasetService.js';
+import { buildReportScores, computeInterviewPerformanceScore } from '../report/reportScoreService.js';
+import { detectReportTranscriptRisks } from '../report/reportTranscriptRiskService.js';
 
 const formatStarrElementName = (element = '') => String(element || 'resultOrReaction')
   .replace(/^resultOrReaction$/i, 'result')
@@ -104,8 +64,10 @@ const buildFrameworkFeedback = (turnStructure = {}) => {
   return `Strengthen ${mainGap.label.toLowerCase()}: ${mainGap.reason}`;
 };
 
-export const buildDeterministicTurnBreakdowns = (transcript = [], analysedAnswers = []) => {
-  const questionAnswerPairs = buildQuestionAnswerPairs(transcript);
+export const buildDeterministicTurnBreakdowns = (transcriptOrPairs = [], analysedAnswers = []) => {
+  const questionAnswerPairs = transcriptOrPairs[0]?.questionTurn
+    ? transcriptOrPairs
+    : buildReportTurnDataset(transcriptOrPairs).questionAnswerPairs;
   return questionAnswerPairs.map(({ questionTurn = {}, answerTurn = {} }, index) => {
     const analysis = analysedAnswers[index] || {};
     const turnStructure = analyzeTurnStructure({
@@ -250,15 +212,25 @@ const resolveCompanyValuesProfile = async ({ session = {}, analysisRecord = null
 
 export const runReportGeneratorAgent = async ({ session = {}, analysisResult = {}, interviewPlan = {}, retrievalBundle = null } = {}) => {
   const transcript = session.transcript || [];
-  const userTurns = transcript.filter((turn) => turn.role === 'user');
+  const turnDataset = buildReportTurnDataset(transcript);
   const explanation = analysisResult.explanation || { strengths: [], gaps: [], risks: [], summary: '' };
-  const analysedAnswers = analyseCandidateAnswers(userTurns);
+  const analysedAnswers = analyseCandidateAnswers(turnDataset.acceptedAnswers);
   const evidenceSummary = buildEvidenceSummary(analysedAnswers);
-  const interviewMetrics = buildInterviewMetrics(transcript, session.totalQuestions || 0);
-  const deterministicTurnBreakdowns = buildDeterministicTurnBreakdowns(transcript, analysedAnswers);
+  const interviewMetrics = buildInterviewMetrics(turnDataset, session.totalQuestions || 0);
+  const deterministicTurnBreakdowns = buildDeterministicTurnBreakdowns(turnDataset.questionAnswerPairs, analysedAnswers);
+  const reportScores = buildReportScores({
+    cvJdScore: analysisResult.overallScore || 0,
+    interviewScore: computeInterviewPerformanceScore(evidenceSummary, {
+      turnBreakdowns: deterministicTurnBreakdowns,
+    }),
+    analysisResult,
+    evidenceSummary,
+  });
+  const transcriptRisks = detectReportTranscriptRisks({ transcript, session });
   const deterministicFeedback = {
     ...buildDeterministicCandidateFeedback({
       analysisResult,
+      scores: reportScores,
       explanation,
       evidenceSummary,
       interviewMetrics,
@@ -320,6 +292,8 @@ export const runReportGeneratorAgent = async ({ session = {}, analysisResult = {
     userCoachingMemory,
     nzWorkplaceFit,
     companyMotivationFit,
+    scores: reportScores,
+    transcriptRisks,
   });
 
   const validated = validateReportOutput({

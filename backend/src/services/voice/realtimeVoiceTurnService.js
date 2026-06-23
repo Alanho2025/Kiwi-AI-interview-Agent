@@ -88,6 +88,7 @@ export const processRealtimeVoiceTurn = async ({
   session,
   userId,
   transcriptText,
+  transcriptProvenance = null,
   language = 'en-NZ',
   asrConfidence = null,
   asrSource = 'azure_realtime',
@@ -147,6 +148,11 @@ export const processRealtimeVoiceTurn = async ({
         countsAsQuestion: true,
         transcriptConfirmation,
         voiceDelivery,
+        rawTranscriptText: transcriptProvenance?.rawText || normalizedAnswer,
+        normalizedTranscriptText: transcriptProvenance?.normalizedText || normalizedAnswer,
+        transcriptCorrections: transcriptProvenance?.corrections || [],
+        transcriptSegments: transcriptProvenance?.segments || [],
+        answeredQuestionId: latestQuestion?.id || null,
         transcriptionPreview: normalizedAnswer,
       },
     });
@@ -173,6 +179,8 @@ export const processRealtimeVoiceTurn = async ({
           metrics: transcriptGate.metrics,
         },
         transcriptConfirmation,
+        transcriptProvenance,
+        answeredQuestionId: latestQuestion?.id || null,
       },
     });
   });

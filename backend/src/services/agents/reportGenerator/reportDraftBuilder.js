@@ -14,6 +14,10 @@ import { buildCompactTraceSummary } from '../../aiControl/agentTraceService.js';
 import { ensureArray } from '../../../utils/commonHelpers.js';
 import { buildScoreExplanations, getScoreLimitations } from '../../report/reportScoringExplanationService.js';
 import { evaluateAuthenticity } from '../../report/conversationalAuthenticityService.js';
+import { buildReportScores, computeInterviewPerformanceScore } from '../../report/reportScoreService.js';
+import { buildCandidateEvidenceReferences } from '../../report/reportEvidenceReferenceService.js';
+
+export { computeInterviewPerformanceScore } from '../../report/reportScoreService.js';
 
 
 export const buildSummary = ({ analysisResult, evidenceSummary, interviewMetrics, reflectionRecords = [] }) => {
@@ -114,53 +118,6 @@ const filterVoiceDeliveryFeedback = (feedback = []) => ensureArray(feedback)
  *   3. AI turn breakdown average (0-10 scale → 0-100)        — 30% weight (if available)
  * When AI turn breakdowns are not available, weights redistribute to 55% / 45%.
  */
-export const computeInterviewPerformanceScore = (evidenceSummary = {}, candidateFeedback = {}) => {
-  const frameworkScores = ensureArray(candidateFeedback.turnBreakdowns)
-    .filter((turn) => turn.rubricType !== 'conversation' && turn.questionFamily !== 'conversation')
-    .map((turn) => Number(turn.frameworkBreakdown?.normalizedScore))
-    .filter(Number.isFinite);
-
-  if (frameworkScores.length) {
-    const average = frameworkScores.reduce((sum, score) => sum + score, 0) / frameworkScores.length;
-    return Math.round(Math.min(100, Math.max(0, average * 10)));
-  }
-
-  const strength = Number(evidenceSummary.averageStrength || 0);
-  const strengthScore = Math.min(100, (strength / 4) * 100);
-
-  const totals = evidenceSummary.totals || {};
-  const directTurns = (totals.direct_past_experience || 0) + (totals.indirect_adjacent_experience || 0);
-  const hypotheticalTurns = totals.hypothetical_understanding || 0;
-  const genericTurns = totals.generic_filler || 0;
-  const totalTurns = directTurns + hypotheticalTurns + genericTurns;
-  const directRatioScore = totalTurns > 0
-    ? Math.min(100, (directTurns / totalTurns) * 100)
-    : 0;
-
-  const turnBreakdowns = ensureArray(candidateFeedback.turnBreakdowns);
-  const turnScores = turnBreakdowns
-    .map((turn) => {
-      const s = turn.scores || {};
-      const avg = ((Number(s.business) || 0) + (Number(s.logic) || 0) + (Number(s.evidence) || 0)) / 3;
-      return avg;
-    })
-    .filter((v) => v > 0);
-
-  if (turnScores.length > 0) {
-    const avgTurnScore = turnScores.reduce((sum, v) => sum + v, 0) / turnScores.length;
-    const turnScoreNormalized = Math.min(100, (avgTurnScore / 10) * 100);
-    return Math.round(strengthScore * 0.4 + directRatioScore * 0.3 + turnScoreNormalized * 0.3);
-  }
-
-  return Math.round(strengthScore * 0.55 + directRatioScore * 0.45);
-};
-
-const computeBlendedOverallScore = (cvJdScore = 0, interviewScore = 0) => {
-  const cvWeight = 0.5;
-  const interviewWeight = 0.5;
-  return Number(((cvJdScore * cvWeight) + (interviewScore * interviewWeight)).toFixed(1));
-};
-
 export const buildReportDraft = ({
   session = {},
   analysisResult = {},
@@ -180,6 +137,8 @@ export const buildReportDraft = ({
   nzWorkplaceFit = {},
   voiceDeliverySummary = null,
   companyMotivationFit = {},
+  scores = {},
+  transcriptRisks = [],
 }) => {
   const strongEvidenceText = buildStrongEvidenceText(evidenceSummary);
   const candidateFacingDecision = resolveCandidateFacingDecision({ analysisResult, evidenceSummary, interviewMetrics });
@@ -200,19 +159,16 @@ export const buildReportDraft = ({
     report: { candidateFeedback },
   });
 
+  const baseScores = Object.keys(scores).length > 0
+    ? scores
+    : buildReportScores({
+        cvJdScore: analysisResult.overallScore || 0,
+        interviewScore: computeInterviewPerformanceScore(evidenceSummary, candidateFeedback),
+        analysisResult,
+        evidenceSummary,
+      });
   const computedScores = {
-    overall: computeBlendedOverallScore(
-      analysisResult.overallScore || 0,
-      computeInterviewPerformanceScore(evidenceSummary, candidateFeedback),
-    ),
-    cvJdMatch: analysisResult.overallScore || 0,
-    interviewPerformance: computeInterviewPerformanceScore(evidenceSummary, candidateFeedback),
-    macro: analysisResult.scoreBreakdown?.macro || 0,
-    micro: analysisResult.scoreBreakdown?.micro || 0,
-    requirements: analysisResult.scoreBreakdown?.requirements || 0,
-    evidenceStrength: evidenceSummary.averageStrength,
-    directEvidenceTurns: evidenceSummary.totals?.direct_past_experience || 0,
-    hypotheticalTurns: evidenceSummary.totals?.hypothetical_understanding || 0,
+    ...baseScores,
     averageInteractionScore,
     nzWorkplaceFit: Number.isFinite(Number(nzWorkplaceFit.score)) ? Number(nzWorkplaceFit.score) : null,
     trajectoryCount: ensureArray(trajectoryRecords).length,
@@ -222,7 +178,7 @@ export const buildReportDraft = ({
   };
 
   return {
-    schemaVersion: 'v5',
+    schemaVersion: 'v6',
     sessionId: session.id,
     candidateName: analysisResult.candidateName || session.candidateName || 'Candidate',
     jobTitle: analysisResult.jobTitle || session.targetRole || 'Target Role',
@@ -232,7 +188,7 @@ export const buildReportDraft = ({
       {
         id: 'match_overview',
         title: 'Match overview',
-        content: `Overall score ${analysisResult.overallScore || 0}, confidence ${analysisResult.confidence || 0}. Candidate-facing decision: ${candidateFacingDecision}. Average evidence strength: ${evidenceSummary.averageStrength} out of 4.`,
+        content: `Overall score ${computedScores.overall || 0}, CV-JD match ${computedScores.cvJdMatch || 0}, confidence ${analysisResult.confidence || 0}. Candidate-facing decision: ${candidateFacingDecision}. Average evidence strength: ${evidenceSummary.averageStrength} out of 4.`,
       },
       {
         id: 'strengths',
@@ -268,6 +224,11 @@ export const buildReportDraft = ({
         title: 'Interaction feedback',
         content: `${buildInteractionFeedback(evaluatorRecords)}${evidenceSummary.repetitionComplaintCount ? ` Candidate also flagged repeated questioning ${evidenceSummary.repetitionComplaintCount} time(s), so the interview flow should be treated as less reliable.` : ''}`,
       },
+      ...(ensureArray(transcriptRisks).length ? [{
+        id: 'transcript_risks',
+        title: 'Transcript checks needed',
+        content: ensureArray(transcriptRisks).map((risk) => risk.message).join(' '),
+      }] : []),
       {
         id: 'voice_delivery',
         title: 'Voice delivery feedback',
@@ -287,6 +248,12 @@ export const buildReportDraft = ({
       },
     ],
     scores: computedScores,
+    reportTurnSummary: {
+      countableQuestionCount: Number(interviewMetrics.interviewerQuestionCount || 0),
+      scoredAnswerCount: Number(interviewMetrics.scoredCandidateAnswerCount || 0),
+      exportedTurnCount: ensureArray(candidateFeedback.turnBreakdowns).length,
+      repairTurnCount: Number(interviewMetrics.repairTurnCount || 0),
+    },
     scoreExplanations: buildScoreExplanations({ scores: computedScores, evidenceSummary, candidateFeedback }),
     scoreLimitations: getScoreLimitations(),
     recommendations: [
@@ -297,11 +264,7 @@ export const buildReportDraft = ({
         ? 'Align the interview flow so the number of asked questions matches the planned question count.'
         : 'Use the framework shown for each question type to tighten reasoning, evidence, and outcomes.',
     ],
-    evidenceReferences: [
-      ...(analysisResult.evidenceMap || []).slice(0, 5),
-      ...((retrievalBundle?.items || []).slice(0, 3).map((item) => ({ chunkId: item.chunkId, label: item.metadata?.label || item.sourceType, sourceType: item.sourceType }))),
-      ...resolvedClaimEvidenceReferences,
-    ],
+    evidenceReferences: buildCandidateEvidenceReferences(resolvedClaimEvidenceReferences),
     interviewMetrics,
     evidenceDiagnostics: {
       totals: evidenceSummary.totals,
@@ -310,12 +273,27 @@ export const buildReportDraft = ({
       repetitionComplaintCount: evidenceSummary.repetitionComplaintCount || 0,
       internalReflectionSummary: buildReflectionMemoryText(reflectionRecords),
       internalCoachingSummary: buildCoachingMemoryText(userCoachingMemory),
+      internalSourceReferences: [
+        ...(analysisResult.evidenceMap || []).slice(0, 5),
+        ...((retrievalBundle?.items || []).slice(0, 3).map((item) => ({
+          chunkId: item.chunkId,
+          label: item.metadata?.label || item.sourceType,
+          sourceType: item.sourceType,
+        }))),
+      ],
     },
     traceSummary,
     nzWorkplaceFit,
     voiceDeliverySummary,
+    transcriptRisks: ensureArray(transcriptRisks),
     companyMotivationFit,
     authenticityMetrics: evaluateAuthenticity({ transcript: session.transcript || [], candidateFeedback }),
-    candidateFeedback,
+    candidateFeedback: {
+      ...candidateFeedback,
+      answerRewriteStatus: {
+        readyCount: ensureArray(candidateFeedback.answerRewriteExamples).filter((item) => item.status === 'ready' && item.better).length,
+        unavailableCount: ensureArray(candidateFeedback.answerRewriteExamples).filter((item) => item.status === 'unavailable' || !item.better).length,
+      },
+    },
   };
 };

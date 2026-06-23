@@ -1,5 +1,5 @@
 {
-  "casesRun": 9,
+  "casesRun": 11,
   "average": 1,
   "weakestCases": [],
   "thresholds": {
@@ -73,6 +73,22 @@
     },
     {
       "id": "report_extra_ai_turns_flagged",
+      "passed": false,
+      "score": 1,
+      "earned": 2,
+      "possible": 2,
+      "failedChecks": []
+    },
+    {
+      "id": "report_deterministic_integrity_mismatches",
+      "passed": false,
+      "score": 1,
+      "earned": 4,
+      "possible": 4,
+      "failedChecks": []
+    },
+    {
+      "id": "report_unacknowledged_transcript_conflict",
       "passed": false,
       "score": 1,
       "earned": 2,

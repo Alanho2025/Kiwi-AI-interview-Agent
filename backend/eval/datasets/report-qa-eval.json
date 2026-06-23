@@ -681,5 +681,44 @@
         "extra_ai_turns_detected"
       ]
     }
+  },
+  {
+    "id": "report_deterministic_integrity_mismatches",
+    "report": {
+      "sessionId": "integrity-session",
+      "summary": "Decision: manual_review.",
+      "sections": [{ "id": "interaction_feedback", "title": "Interaction feedback", "content": "Captured." }],
+      "evidenceReferences": [{ "claim": "Latency reduced", "sourceType": "interview_answer", "evidenceSnippet": "latency fell from 12 seconds to 3 seconds" }],
+      "interviewMetrics": { "interviewerQuestionCount": 2, "plannedQuestionCount": 2, "candidateTurnCount": 2, "scoredCandidateAnswerCount": 2 },
+      "evidenceDiagnostics": { "averageStrength": 2, "totals": { "direct_past_experience": 1 } },
+      "scores": { "overall": 58.6, "averageInteractionScore": 0 },
+      "authenticityMetrics": {},
+      "candidateFeedback": {
+        "overallTakeaway": "Directional.",
+        "plainEnglishMetrics": [{ "id": "overall_fit", "value": 64.3, "label": "Overall", "interpretation": "Mismatch." }],
+        "coachingAdvice": [{ "theme": "Evidence", "advice": "Add proof.", "example": "Use a metric.", "evidenceLabel": "supported_by_answer", "confidenceLevel": "medium", "feedbackStatus": "confirmed_feedback" }],
+        "answerRewriteExamples": [{ "status": "unavailable", "question": "Question", "weak": "Answer", "better": "", "failureReason": "Unavailable" }],
+        "turnBreakdowns": [{ "question": "Question", "answer": "Answer", "feedback": "Feedback", "rubricType": "role_specific", "frameworkKey": "role_specific_reasoning", "starApplicable": false, "frameworkBreakdown": { "dimensions": [{ "key": "approach", "status": "partial", "score": 5 }] }, "evidenceLabel": "supported_by_answer", "confidenceLevel": "medium", "feedbackStatus": "confirmed_feedback" }]
+      }
+    },
+    "analysisResult": { "decision": { "label": "manual_review" }, "explanation": {} },
+    "expected": { "passed": false, "qualityFlags": ["evidence_total_mismatch", "score_metric_mismatch", "turn_export_count_mismatch"] }
+  },
+  {
+    "id": "report_unacknowledged_transcript_conflict",
+    "report": {
+      "sessionId": "conflict-session",
+      "summary": "Decision: manual_review.",
+      "sections": [{ "id": "interaction_feedback", "title": "Interaction feedback", "content": "Captured." }],
+      "evidenceReferences": [],
+      "interviewMetrics": { "interviewerQuestionCount": 1, "plannedQuestionCount": 1, "candidateTurnCount": 1 },
+      "evidenceDiagnostics": { "averageStrength": 1, "totals": {} },
+      "scores": { "averageInteractionScore": 0 },
+      "authenticityMetrics": {},
+      "transcriptRisks": [{ "code": "conflicting_metric_values", "message": "15% conflicts with 50%" }],
+      "candidateFeedback": { "overallTakeaway": "Directional.", "plainEnglishMetrics": [], "coachingAdvice": [], "answerRewriteExamples": [] }
+    },
+    "analysisResult": { "decision": { "label": "manual_review" }, "explanation": {} },
+    "expected": { "passed": false, "qualityFlags": ["unacknowledged_transcript_conflict"] }
   }
 ]

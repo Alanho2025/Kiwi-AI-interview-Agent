@@ -98,7 +98,7 @@ function StructureBreakdown({ turn }) {
     ['Action', starBreakdown.action],
     [turn.resultOrReactionLabel || 'Result', starBreakdown.resultOrReaction || starBreakdown.result],
     ['Reflection', starBreakdown.reflection],
-  ];
+  ].filter(([, value]) => value !== 'not_applicable');
 
   return (
     <div className="rounded-xl border border-slate-100 bg-white/70 p-4">
@@ -135,12 +135,12 @@ function FrameworkBreakdown({ turn }) {
         ) : null}
       </div>
       <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-        {breakdown.dimensions.map((dimension) => (
+        {breakdown.dimensions.filter((dimension) => dimension.status !== 'not_applicable').map((dimension) => (
           <div key={dimension.key || dimension.label} className="rounded-lg bg-slate-50 px-3 py-3">
             <div className="flex items-start justify-between gap-2">
               <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{dimension.label}</p>
               <span className="text-xs font-medium text-slate-700">
-                {dimension.status === 'not_applicable' ? 'not applicable' : `${Number(dimension.score || 0)}/10`}
+                {Number(dimension.score || 0)}/10
               </span>
             </div>
             <p className="mt-1 text-sm font-medium capitalize text-slate-800">{formatStatus(dimension.status || 'missing')}</p>

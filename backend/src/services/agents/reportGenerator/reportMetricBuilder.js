@@ -17,8 +17,8 @@ import { getDecisionLabel } from './reportGeneratorShared.js';
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-export const buildCandidateTakeaway = ({ analysisResult, evidenceSummary, interviewMetrics }) => {
-  const overallScore = Number(analysisResult.overallScore || 0);
+export const buildCandidateTakeaway = ({ analysisResult = {}, scores = {}, evidenceSummary, interviewMetrics }) => {
+  const overallScore = Number(scores.overall ?? analysisResult.overallScore ?? 0);
   const evidenceStrength = Number(evidenceSummary.averageStrength || 0);
   const directTurns = Number(evidenceSummary.totals.direct_past_experience || 0);
   const hypotheticalTurns = Number(evidenceSummary.totals.hypothetical_understanding || 0);
@@ -56,8 +56,9 @@ export const buildCandidateTakeaway = ({ analysisResult, evidenceSummary, interv
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-export const buildPlainEnglishMetrics = ({ analysisResult, evidenceSummary, interviewMetrics }) => {
-  const overallScore = Number(analysisResult.overallScore || 0);
+export const buildPlainEnglishMetrics = ({ analysisResult = {}, scores = {}, evidenceSummary, interviewMetrics }) => {
+  const overallScore = Number(scores.overall ?? analysisResult.overallScore ?? 0);
+  const cvJdScore = Number(scores.cvJdMatch ?? analysisResult.overallScore ?? 0);
   const evidenceStrength = Number(evidenceSummary.averageStrength || 0);
   const directTurns = Number(evidenceSummary.totals.direct_past_experience || 0);
   const hypotheticalTurns = Number(evidenceSummary.totals.hypothetical_understanding || 0);
@@ -96,6 +97,14 @@ export const buildPlainEnglishMetrics = ({ analysisResult, evidenceSummary, inte
           : evidenceStrength >= 2
             ? 'Some answers had useful detail, but several still needed clearer actions or outcomes.'
             : 'Most answers were too general. You would benefit from using concrete project stories with measurable results.',
+    },
+    {
+      id: 'cv_jd_match',
+      label: 'CV-JD match',
+      value: cvJdScore,
+      displayValue: `${cvJdScore.toFixed(2)}/100`,
+      unit: 'score',
+      interpretation: 'This score reflects CV alignment with the job description and is separate from interview performance.',
     },
     {
       id: 'direct_examples',

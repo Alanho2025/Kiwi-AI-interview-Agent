@@ -32,7 +32,7 @@ describe('cross-role report view fallbacks', () => {
     expect(text).not.toMatch(/React Native|mobile feature|debugging story|API integration|regression testing|real project/i);
     expect(text).toMatch(/requirements|judgement|risk|validation|outcome/i);
     expect(rewrites[0].weak).toBe('I would review the information and decide what to do.');
-    expect(rewrites[0].better).toContain('patient assessment');
+    expect(rewrites[0]).toMatchObject({ status: 'unavailable', better: '' });
   });
 
   it('keeps scenario insights framework-based instead of past-experience based', () => {

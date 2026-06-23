@@ -21,7 +21,17 @@ export const calculateFrameworkScore = (dimensions = []) => {
 };
 
 export const analyzeRoleSpecificAnswer = ({ answer = '', rubric = {} } = {}) => {
+  const targetedDimensions = new Set(rubric.targetedDimensions || []);
   const dimensions = (rubric.dimensions || []).map((definition) => {
+    if (targetedDimensions.size > 0 && !targetedDimensions.has(definition.key)) {
+      return {
+        key: definition.key,
+        label: definition.label,
+        status: 'not_applicable',
+        score: 0,
+        reason: `${definition.label} was not requested by this follow-up.`,
+      };
+    }
     const result = signalStatus({ answer, patterns: definition.patterns || [] });
     return {
       key: definition.key,

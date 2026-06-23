@@ -8,6 +8,16 @@
 import { rewriteReportWithQaPrompt } from './reportRewriteService.js';
 import { groundCandidateFeedbackClaims } from './claimGroundingService.js';
 import { logger } from '../../utils/logger.js';
+import { buildCandidateEvidenceReferences } from './reportEvidenceReferenceService.js';
+
+const DETERMINISTIC_RECOMPUTE_FLAGS = new Set([
+  'rubric_question_mismatch',
+  'evidence_total_mismatch',
+  'score_metric_mismatch',
+  'uninformative_evidence_references',
+  'turn_export_count_mismatch',
+  'unacknowledged_transcript_conflict',
+]);
 
 export const buildRepairInstructionFromQa = (qaResult = {}) => {
   const flags = qaResult.qualityFlags || [];
@@ -51,6 +61,10 @@ export const buildRepairInstructionFromQa = (qaResult = {}) => {
     instructions.push('Add answer rewrite examples without inventing new achievements, skills, or interview content.');
   }
 
+  if (flags.some((flag) => ['invalid_answer_rewrite', 'placeholder_answer_rewrite', 'unreadable_answer_rewrite', 'rewrite_question_mismatch'].includes(flag))) {
+    instructions.push('Regenerate only the stronger-answer wording as complete readable English. Preserve the exact question, candidate answer, scores, rubric, and evidence fields. Do not use placeholders or invent facts.');
+  }
+
   if (failedChecks.length) {
     instructions.push(`Fix failed consistency checks: ${failedChecks.map((item) => item.rule).join(', ')}.`);
   }
@@ -72,6 +86,14 @@ export const runReportQaRepairLoop = async ({
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     if (currentQaResult.passed) {
+      break;
+    }
+
+    if ((currentQaResult.qualityFlags || []).some((flag) => DETERMINISTIC_RECOMPUTE_FLAGS.has(flag))) {
+      logger.warn('Report QA requires deterministic regeneration; wording repair was skipped', {
+        sessionId: session.id,
+        flags: currentQaResult.qualityFlags,
+      });
       break;
     }
 
@@ -102,7 +124,7 @@ export const runReportQaRepairLoop = async ({
     const groundedReport = {
       ...rewriteResult.report,
       candidateFeedback: groundedResult.candidateFeedback,
-      evidenceReferences: groundedResult.claimEvidenceReferences,
+      evidenceReferences: buildCandidateEvidenceReferences(groundedResult.claimEvidenceReferences),
       evidenceDiagnostics: {
         ...(rewriteResult.report.evidenceDiagnostics || {}),
         claimEvidence: groundedResult.claimEvidenceDiagnostics,

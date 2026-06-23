@@ -61,6 +61,27 @@ describe('useReportData', () => {
             expect(result.current.status.variant).toBe('success');
         });
 
+        it('loads v5 reports without changing historical scores and recommends regeneration', async () => {
+            const mockReport = {
+                sessionId: mockSessionId,
+                latestStatus: 'ready',
+                report: {
+                    schemaVersion: 'v5',
+                    scores: { overall: 58.6, cvJdMatch: 64.3 },
+                    candidateFeedback: { answerRewriteExamples: [{ better: '[補充情境]' }] },
+                },
+            };
+            vi.mocked(reportApi.getReport).mockResolvedValue(mockReport);
+            vi.mocked(recordingApi.getSessionRecordingStatus).mockResolvedValue({ available: true });
+
+            const { result } = renderHook(() => useReportData(mockSessionId));
+
+            await waitFor(() => expect(result.current.loading).toBe(false));
+
+            expect(result.current.reportData.report.scores).toEqual({ overall: 58.6, cvJdMatch: 64.3 });
+            expect(result.current.status.message).toMatch(/regenerate/i);
+        });
+
         it('should auto-generate report if missing on first load', async () => {
             const missingError = new Error('Report not found');
             const generatedReport = {

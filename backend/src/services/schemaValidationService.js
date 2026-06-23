@@ -148,6 +148,9 @@ export const validateReportOutput = (report = {}) => ({
   summary: ensureString(report.summary),
   sections: ensureArray(report.sections).map(normalizeSection),
   scores: isObject(report.scores) ? report.scores : {},
+  scoreExplanations: isObject(report.scoreExplanations) ? report.scoreExplanations : {},
+  scoreLimitations: ensureArray(report.scoreLimitations),
+  reportTurnSummary: isObject(report.reportTurnSummary) ? report.reportTurnSummary : {},
   recommendations: ensureArray(report.recommendations).filter(Boolean),
   evidenceReferences: ensureArray(report.evidenceReferences),
   interviewMetrics: isObject(report.interviewMetrics) ? report.interviewMetrics : {},
@@ -156,11 +159,15 @@ export const validateReportOutput = (report = {}) => ({
   nzWorkplaceFit: normalizeNzWorkplaceFit(report.nzWorkplaceFit || {}),
   voiceDeliverySummary: normalizeVoiceDeliverySummary(report.voiceDeliverySummary || {}),
   companyMotivationFit: normalizeCompanyMotivationFit(report.companyMotivationFit || {}),
+  transcriptRisks: ensureArray(report.transcriptRisks),
+  authenticityMetrics: isObject(report.authenticityMetrics) ? report.authenticityMetrics : {},
+  metadata: isObject(report.metadata) ? report.metadata : {},
   candidateFeedback: isObject(report.candidateFeedback)
     ? {
       overallTakeaway: ensureString(report.candidateFeedback.overallTakeaway),
       scoreBand: ensureString(report.candidateFeedback.scoreBand),
       generationSource: ensureString(report.candidateFeedback.generationSource),
+      answerRewriteStatus: isObject(report.candidateFeedback.answerRewriteStatus) ? report.candidateFeedback.answerRewriteStatus : {},
       scoreExplanations: normalizeScoreExplanations(report.candidateFeedback.scoreExplanations || {}),
       communicationProfile: isObject(report.candidateFeedback.communicationProfile)
         ? {
@@ -181,6 +188,7 @@ export const validateReportOutput = (report = {}) => ({
       overallTakeaway: '',
       scoreBand: '',
       generationSource: '',
+      answerRewriteStatus: {},
       scoreExplanations: normalizeScoreExplanations({}),
       communicationProfile: { summary: '', keyTraits: [], fillerWords: '' },
       plainEnglishMetrics: [],
