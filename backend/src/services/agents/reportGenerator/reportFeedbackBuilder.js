@@ -56,11 +56,11 @@ const buildScoreExplanations = ({ analysisResult = {}, evidenceSummary = {}, int
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-export const buildDeterministicCandidateFeedback = ({ analysisResult, explanation, evidenceSummary, interviewMetrics, interviewPlan, turnBreakdowns = [] }) => ({
-  overallTakeaway: buildCandidateTakeaway({ analysisResult, evidenceSummary, interviewMetrics }),
-  scoreBand: getScoreBand(analysisResult.overallScore || 0),
+export const buildDeterministicCandidateFeedback = ({ analysisResult, scores = {}, explanation, evidenceSummary, interviewMetrics, interviewPlan, turnBreakdowns = [] }) => ({
+  overallTakeaway: buildCandidateTakeaway({ analysisResult, scores, evidenceSummary, interviewMetrics }),
+  scoreBand: getScoreBand(scores.overall ?? analysisResult.overallScore ?? 0),
   scoreExplanations: buildScoreExplanations({ analysisResult, evidenceSummary, interviewMetrics, explanation, turnBreakdowns }),
-  plainEnglishMetrics: buildPlainEnglishMetrics({ analysisResult, evidenceSummary, interviewMetrics }),
+  plainEnglishMetrics: buildPlainEnglishMetrics({ analysisResult, scores, evidenceSummary, interviewMetrics }),
   strengthHighlights: buildStrengthHighlights({ explanation }),
   improvementPriorities: buildImprovementPriorities({ analysisResult, evidenceSummary, interviewMetrics, turnBreakdowns }),
   coachingAdvice: buildCoachingAdvice({ evidenceSummary, interviewPlan, turnBreakdowns }),

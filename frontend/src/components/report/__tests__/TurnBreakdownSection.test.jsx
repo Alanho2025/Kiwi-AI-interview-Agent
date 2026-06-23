@@ -34,7 +34,8 @@ describe('TurnBreakdownSection', () => {
     expect(screen.getByText('Safety, Quality and Ethics')).toBeInTheDocument();
     expect(screen.getByText('Professional judgement')).toBeInTheDocument();
     expect(screen.getByText('Documentation / Review')).toBeInTheDocument();
-    expect(screen.getAllByText('not applicable').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Patient outcome')).not.toBeInTheDocument();
+    expect(screen.queryByText('not applicable')).not.toBeInTheDocument();
     expect(screen.queryByText('STARR Evidence')).not.toBeInTheDocument();
     expect(screen.queryByText('Business')).not.toBeInTheDocument();
   });

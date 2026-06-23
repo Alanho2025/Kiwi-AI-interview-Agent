@@ -11,6 +11,7 @@
 
 import { callDeepSeek } from './deepseekService.js';
 import { ensureString, ensureArray } from '../utils/commonHelpers.js';
+import { validateAnswerRewrite } from './report/reportContentQualityService.js';
 
 /**
  * Purpose: Execute the main responsibility for ensureString.
@@ -42,11 +43,11 @@ const extractJsonObject = (text = '') => {
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
 const normalizeMetric = (item = {}, fallback = {}) => ({
-  id: ensureString(item.id, fallback.id || ''),
+  id: ensureString(fallback.id, item.id || ''),
   label: ensureString(item.label, fallback.label || ''),
-  value: Number.isFinite(Number(item.value)) ? Number(item.value) : Number(fallback.value || 0),
-  displayValue: ensureString(item.displayValue, fallback.displayValue || ''),
-  unit: ensureString(item.unit, fallback.unit || ''),
+  value: Number(fallback.value || 0),
+  displayValue: ensureString(fallback.displayValue, ''),
+  unit: ensureString(fallback.unit, ''),
   interpretation: ensureString(item.interpretation, fallback.interpretation || ''),
 });
 
@@ -91,10 +92,30 @@ const normalizeAdvice = (item = {}, fallback = {}) => ({
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-const normalizeRewrite = (item = {}, fallback = {}) => ({
-  weak: ensureString(item.weak, fallback.weak || ''),
-  better: ensureString(item.better, fallback.better || ''),
-});
+const normalizeRewrite = (item = {}, fallback = {}) => {
+  const question = ensureString(fallback.question, item.question || '');
+  const weak = ensureString(fallback.weak, item.weak || '');
+  const better = ensureString(item.better, '');
+  const quality = validateAnswerRewrite({ question, weak, better });
+  if (quality.valid) {
+    return {
+      status: 'ready',
+      failureReason: '',
+      question,
+      weak,
+      better,
+      evidenceUsed: ensureArray(item.evidenceUsed),
+    };
+  }
+  return {
+    status: 'unavailable',
+    failureReason: ensureString(fallback.failureReason, 'A grounded stronger answer could not be generated reliably.'),
+    question,
+    weak,
+    better: '',
+    evidenceUsed: ensureArray(fallback.evidenceUsed),
+  };
+};
 
 const normalizeQuoteAnalysis = (item = {}, fallback = {}) => ({
   quote: ensureString(item.quote, fallback.quote || ''),
@@ -274,8 +295,14 @@ const normalizeCandidateFeedback = (candidateFeedback = {}, fallback = {}, conte
   generationSource: ensureString(candidateFeedback.generationSource, fallback.generationSource || 'fallback'),
   scoreExplanations: normalizeScoreExplanations(candidateFeedback.scoreExplanations, fallback.scoreExplanations || {}),
   communicationProfile: normalizeCommunicationProfile(candidateFeedback.communicationProfile, fallback.communicationProfile || {}),
-  plainEnglishMetrics: ensureArray(candidateFeedback.plainEnglishMetrics)
-    .map((item, index) => applyTrust(normalizeMetric(item, ensureArray(fallback.plainEnglishMetrics)[index] || {}), ensureArray(fallback.plainEnglishMetrics)[index] || {}, { ...context, type: 'metric' }))
+  plainEnglishMetrics: ensureArray(fallback.plainEnglishMetrics)
+    .map((fallbackMetric, index) => {
+      const item = ensureArray(candidateFeedback.plainEnglishMetrics)
+        .find((candidateMetric) => candidateMetric?.id === fallbackMetric.id)
+        || ensureArray(candidateFeedback.plainEnglishMetrics)[index]
+        || {};
+      return applyTrust(normalizeMetric(item, fallbackMetric), fallbackMetric, { ...context, type: 'metric' });
+    })
     .filter((item) => item.label && item.interpretation),
   strengthHighlights: ensureArray(candidateFeedback.strengthHighlights)
     .map((item, index) => applyTrust(normalizeStrength(item, ensureArray(fallback.strengthHighlights)[index] || {}), ensureArray(fallback.strengthHighlights)[index] || {}, { ...context, type: 'strength' }))
@@ -288,7 +315,7 @@ const normalizeCandidateFeedback = (candidateFeedback = {}, fallback = {}, conte
     .filter((item) => item.theme && item.advice && item.example),
   answerRewriteExamples: ensureArray(candidateFeedback.answerRewriteExamples)
     .map((item, index) => normalizeRewrite(item, ensureArray(fallback.answerRewriteExamples)[index] || {}))
-    .filter((item) => item.weak && item.better),
+    .filter((item) => item.weak && (item.better || item.status === 'unavailable')),
   quoteAnalyses: ensureArray(candidateFeedback.quoteAnalyses)
     .map((item, index) => normalizeQuoteAnalysis(item, ensureArray(fallback.quoteAnalyses)[index] || {}))
     .filter((item) => item.quote && item.critique),
@@ -357,7 +384,7 @@ Required JSON shape:
     { "theme": "string", "advice": "string", "example": "string", "evidenceLabel": "supported_by_answer", "confidenceLevel": "medium", "evidenceSources": ["interview_answer", "star_rubric"], "evidenceReason": "string", "needsUserConfirmation": false, "feedbackStatus": "confirmed_feedback | downgraded_feedback | needs_confirmation | refused_claim" }
   ],
   "answerRewriteExamples": [
-    { "weak": "string", "better": "string" }
+    { "status": "ready", "question": "the exact interview question", "weak": "the exact candidate answer", "better": "a complete readable English answer grounded only in the supplied evidence", "evidenceUsed": ["short grounded evidence phrase"] }
   ],
   "quoteAnalyses": [
     { "quote": "string", "context": "string", "critique": "string", "rewrite": "string" }
@@ -402,7 +429,7 @@ Rules:
 - If evidence is weak, say so directly but constructively.
 - If hypothetical answers appeared, coaching should explicitly push the candidate toward real past examples.
 - If evidence strength is low, explain that answers need context, action, and outcome.
-- Rewrite examples must sound realistic and tied to the role focus.
+- Rewrite examples must be complete candidate-ready English answers, not templates, bracketed prompts, structural labels, or placeholders. Preserve the exact question and weak answer from the deterministic fallback, and do not invent facts.
 - quoteAnalyses MUST extract exact, verbatim quotes from the candidate's transcript to show them exactly what they said, explain why it was weak/strong, and how to improve it. Include at least 2-3 quote analyses.
 - communicationProfile MUST analyze their communication style, tone, conciseness, and use of filler words (if any) based on the transcript.
 - If nzWorkplaceFit.enabled is true, coachingAdvice and communicationProfile should include NZ workplace communication guidance grounded in nzWorkplaceFit. Focus on observable behaviours such as teamwork, humility with confidence, initiative, open communication, respect, relationship-building, and sustainable delivery. Do not claim the candidate culturally "fits" New Zealand; discuss interview communication behaviours only.

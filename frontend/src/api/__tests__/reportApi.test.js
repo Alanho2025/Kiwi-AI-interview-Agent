@@ -111,4 +111,66 @@ describe('report PDF export', () => {
     expect(renderedText).toContain('Evidence sources');
     expect(renderedText).toContain('No evidence available');
   });
+
+  it('exports all scored turns rather than only the first eight', async () => {
+    const { generateReportPDF } = await import('../reportApi.js');
+    const turns = Array.from({ length: 15 }, (_, index) => ({
+      question: `Question ${index + 1}?`,
+      answer: `Answer ${index + 1}`,
+      feedback: `Feedback ${index + 1}`,
+      scores: { business: 5, logic: 5, evidence: 5 },
+    }));
+
+    await generateReportPDF({
+      sessionId: 'all-turns',
+      report: { candidateFeedback: { turnBreakdowns: turns }, evidenceReferences: [] },
+      qaResult: {},
+    });
+
+    expect(pdfMocks.instances.at(-1).textCalls.join('\n')).toContain('Q15: Question 15?');
+  });
+
+  it('does not send an unavailable rewrite payload to jsPDF', async () => {
+    const { generateReportPDF } = await import('../reportApi.js');
+
+    await generateReportPDF({
+      sessionId: 'invalid-rewrite',
+      report: {
+        candidateFeedback: {
+          answerRewriteExamples: [{
+            status: 'unavailable',
+            weak: 'Raw',
+            better: '[補充情境]',
+            failureReason: 'A grounded stronger answer could not be generated reliably.',
+          }],
+        },
+      },
+      qaResult: {},
+    });
+
+    const renderedText = pdfMocks.instances.at(-1).textCalls.join('\n');
+    expect(renderedText).not.toContain('補充情境');
+    expect(renderedText).toContain('could not be generated reliably');
+  });
+
+  it('prints evidence claims and snippets', async () => {
+    const { generateReportPDF } = await import('../reportApi.js');
+
+    await generateReportPDF({
+      sessionId: 'evidence-rows',
+      report: {
+        evidenceReferences: [{
+          claim: 'Latency reduction',
+          sourceLabel: 'Answer Q3',
+          evidenceSnippet: 'latency from 12 seconds to 3 seconds',
+          confidenceLevel: 'medium',
+        }],
+      },
+      qaResult: {},
+    });
+
+    const renderedText = pdfMocks.instances.at(-1).textCalls.join('\n');
+    expect(renderedText).toContain('Latency reduction');
+    expect(renderedText).toContain('latency from 12 seconds to 3 seconds');
+  });
 });

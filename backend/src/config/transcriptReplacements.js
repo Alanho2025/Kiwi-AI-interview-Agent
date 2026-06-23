@@ -31,6 +31,9 @@ export const SAFE_REPLACEMENTS = [
     [/\bte\s*treaty\b/gi, 'Te Tiriti'],
     [/\btall\s*poppy\s*syndrome\b/gi, 'Tall Poppy Syndrome'],
     [/\bstar\s*method\b/gi, 'STAR method'],
+    [/\bby coding\b/gi, 'vibe coding'],
+    [/\bproper engineering\b/gi, 'prompt engineering'],
+    [/\btext driven(?: development)?\b/gi, 'test-driven development'],
 ];
 
 // Made with Bob

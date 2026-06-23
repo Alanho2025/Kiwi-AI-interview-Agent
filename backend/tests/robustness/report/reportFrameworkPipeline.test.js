@@ -4,8 +4,73 @@ import * as reportGeneratorAgent from '../../../src/services/agents/reportGenera
 import * as reportDraftBuilder from '../../../src/services/agents/reportGenerator/reportDraftBuilder.js';
 import * as reportRewriteService from '../../../src/services/report/reportRewriteService.js';
 import { groundCandidateFeedbackClaims } from '../../../src/services/report/claimGroundingService.js';
+import {
+  analyzeTurnStructure,
+  validateRubricQuestionAlignment,
+} from '../../../src/services/report/turnRubricService.js';
+import { buildReportScores } from '../../../src/services/report/reportScoreService.js';
+import { buildPlainEnglishMetrics } from '../../../src/services/agents/reportGenerator/reportMetricBuilder.js';
 
 describe('report framework pipeline', () => {
+  it('uses the blended overall score in the candidate-facing overall metric', () => {
+    const scores = buildReportScores({ cvJdScore: 64.3, interviewScore: 53 });
+    const metrics = buildPlainEnglishMetrics({
+      scores,
+      evidenceSummary: { averageStrength: 1.2, totals: { direct_past_experience: 3 } },
+      interviewMetrics: { plannedQuestionCount: 15, scoredCandidateAnswerCount: 15 },
+    });
+
+    expect(scores.overall).toBe(58.6);
+    expect(metrics.find((item) => item.id === 'overall_fit')?.displayValue).toBe('58.60/100');
+    expect(metrics.find((item) => item.id === 'cv_jd_match')?.displayValue).toBe('64.30/100');
+  });
+
+  it('does not score a validation follow-up with stale motivation metadata', () => {
+    const turn = analyzeTurnStructure({
+      question: 'Can you walk me through a specific example of how you validated that the feedback helped a candidate improve?',
+      answer: 'I separated feedback types but did not run before-and-after user validation.',
+      metadata: {
+        topic: 'company_and_role_motivation',
+        questionFamily: 'motivation',
+        followUpIntent: 'validation',
+      },
+    });
+
+    expect(turn.rubricType).toBe('role_specific');
+    expect(turn.frameworkKey).toBe('role_specific_reasoning');
+    expect(turn.frameworkBreakdown.dimensions.find((item) => item.key === 'validationVerification')?.status).not.toBe('not_applicable');
+    expect(turn.frameworkBreakdown.dimensions.find((item) => item.key === 'approach')?.status).toBe('not_applicable');
+    expect(validateRubricQuestionAlignment({
+      question: 'How did you validate the result?',
+      rubric: turn,
+      metadata: { followUpIntent: 'validation' },
+    })).toMatchObject({ passed: true });
+  });
+
+  it('uses trade-off reasoning rather than STARR for a constraint follow-up', () => {
+    const turn = analyzeTurnStructure({
+      question: 'What trade-offs or constraints did you consider when designing the experiments?',
+      answer: 'I had to balance sample size, operator time, fixture changes, and reproducibility.',
+      metadata: { followUpIntent: 'tradeoff', questionFamily: 'behavioural' },
+    });
+
+    expect(turn.rubricType).toBe('role_specific');
+    expect(turn.starApplicable).toBe(false);
+    expect(turn.frameworkBreakdown.dimensions.find((item) => item.key === 'judgementTradeoffs')?.status).not.toBe('not_applicable');
+  });
+
+  it('scores only the requested result dimension on a behavioural result follow-up', () => {
+    const turn = analyzeTurnStructure({
+      question: 'What was the result?',
+      answer: 'The retest rate dropped from 15% to 5%.',
+      metadata: { followUpIntent: 'result', questionFamily: 'behavioural' },
+    });
+
+    expect(turn.rubricType).toBe('starr');
+    expect(turn.frameworkBreakdown.dimensions.find((item) => item.key === 'resultOrReaction')?.status).toBe('clear');
+    expect(turn.frameworkBreakdown.dimensions.find((item) => item.key === 'task')?.status).toBe('not_applicable');
+  });
+
   it('builds deterministic framework analysis before coaching enrichment', () => {
     const turns = reportGeneratorAgent.buildDeterministicTurnBreakdowns?.([
       {

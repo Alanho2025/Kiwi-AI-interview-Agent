@@ -17,24 +17,7 @@ const hasPastExampleQuestion = (turnBreakdowns = []) => turnBreakdowns.some((tur
   || turn.evidenceMode === 'past_example'
 ));
 
-const topicForTurn = (turn = {}) => String(turn.questionTopic || turn.question || 'the role requirement').trim();
-
-const buildRewriteScaffold = (turn = {}) => {
-  const topic = topicForTurn(turn);
-  if (turn.frameworkKey === 'behavioural_starr' || turn.rubricType === 'starr') {
-    return `Topic: ${topic}. Situation: [補充情境] Task: [說明你的責任] Action: [說明個人行動] Result/Reaction: [補充實際結果] Reflection: [補充反思]`;
-  }
-  if (turn.evidenceMode === 'credential_verification') {
-    return `Topic: ${topic}. Evidence: [補充資格證明] Validity: [說明有效期限] Scope: [說明適用範圍] Conditions: [補充限制或條件] Verification: [說明驗證方式]`;
-  }
-  if (turn.evidenceMode === 'knowledge_explanation') {
-    return `Topic: ${topic}. Principle: [說明核心原則] Application: [說明如何應用] Assumptions/Limits: [補充假設或限制] Risk: [說明風險、品質或倫理考量] Verification: [說明驗證方式]`;
-  }
-  if (turn.evidenceMode === 'scenario_reasoning') {
-    return `Topic: ${topic}. Requirements: [釐清需求] Options: [列出可行選項] Reasoning: [說明專業判斷與取捨] Risk: [說明風險、品質或倫理考量] Validation: [說明驗證方式] Expected outcome: [補充實際結果]`;
-  }
-  return `Topic: ${topic}. Context/Goal: [補充情境與目標] Approach: [說明採取的方法] Judgement/Trade-offs: [說明專業判斷與取捨] Risk/Quality/Ethics: [說明風險、品質或倫理考量] Validation/Verification: [說明驗證方式] Outcome/Value: [補充實際結果]`;
-};
+const REWRITE_UNAVAILABLE_REASON = 'A grounded stronger answer could not be generated reliably. Regenerate the report to try again.';
 
 /**
  * Purpose: Execute the main responsibility for buildImprovementPriorities.
@@ -185,13 +168,21 @@ export const buildAnswerRewriteExamples = ({ turnBreakdowns = [] } = {}) => {
     .filter((turn) => String(turn.answer || '').trim())
     .slice(0, 3)
     .map((turn) => ({
+      status: 'unavailable',
+      failureReason: REWRITE_UNAVAILABLE_REASON,
+      question: String(turn.question || '').trim(),
       weak: String(turn.answer).trim(),
-      better: buildRewriteScaffold(turn),
+      better: '',
+      evidenceUsed: [],
     }));
 
   if (examples.length) return examples;
   return [{
+    status: 'unavailable',
+    failureReason: REWRITE_UNAVAILABLE_REASON,
+    question: '',
     weak: 'The answer stayed broad and did not include enough role-specific evidence.',
-    better: buildRewriteScaffold({ questionTopic: 'the role requirement', evidenceMode: 'past_example' }),
+    better: '',
+    evidenceUsed: [],
   }];
 };

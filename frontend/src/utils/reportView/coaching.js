@@ -10,7 +10,6 @@
  */
 
 import {
-  buildTurnRewriteScaffold,
   extractFocusAreas,
   getReportTurnBreakdowns,
   hasReasoningOnlyTurns,
@@ -109,36 +108,27 @@ export const buildFallbackCoachingAdvice = ({ report, interviewMetrics, evidence
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-export const buildFallbackAnswerRewriteTips = ({ report, evidenceDiagnostics }) => {
+export const buildFallbackAnswerRewriteTips = ({ report }) => {
   const turns = getReportTurnBreakdowns(report);
+  const failureReason = 'A grounded stronger answer could not be generated reliably. Regenerate the report to try again.';
   const suggestions = turns
     .filter((turn) => String(turn.answer || '').trim())
     .slice(0, 3)
     .map((turn) => ({
+      status: 'unavailable',
+      failureReason,
+      question: String(turn.question || ''),
       weak: String(turn.answer).trim(),
-      better: buildTurnRewriteScaffold(turn),
+      better: '',
     }));
-  const strongestExample = String(report.sections?.find((section) => section.id === 'evidence_examples')?.content || '');
-  const hasGenericAnswers = Number(evidenceDiagnostics.totals?.generic_filler || 0) > 0;
 
   if (!suggestions.length) {
     suggestions.push({
+      status: 'unavailable',
+      failureReason,
+      question: '',
       weak: 'The answer stayed broad and did not include enough role-specific evidence.',
-      better: buildTurnRewriteScaffold({ questionTopic: 'the role requirement', evidenceMode: 'past_example' }),
-    });
-  }
-
-  if (hasGenericAnswers) {
-    suggestions.push({
-      weak: 'I am a good problem solver and I work well in teams.',
-      better: 'Context: [補充實際情境]. Approach: [說明你的行動]. Judgement: [說明取捨]. Validation: [說明驗證方式]. Outcome: [補充實際結果].',
-    });
-  }
-
-  if (strongestExample && strongestExample !== 'No high-strength interview examples were captured.') {
-    suggestions.push({
-      weak: 'A broad answer without enough context or outcome.',
-      better: 'Use your strongest example as a model: give the context, explain your exact contribution, and end with the result or lesson learned.',
+      better: '',
     });
   }
 

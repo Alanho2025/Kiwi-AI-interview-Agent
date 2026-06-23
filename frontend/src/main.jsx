@@ -15,6 +15,7 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 import App from './App.jsx';
 import './index.css';
 import { getGoogleClientConfig } from './api/authApi.js';
+import { registerRecordingUploadServiceWorker } from './runtime/recording/recordingBackgroundSync.js';
 
 const rootElement = document.getElementById('root');
 
@@ -41,6 +42,9 @@ const renderApp = (clientId = '') => {
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
 const bootstrap = async () => {
+  registerRecordingUploadServiceWorker().catch((error) => {
+    console.warn('Recording background sync is unavailable', error);
+  });
   try {
     const data = await getGoogleClientConfig();
     renderApp(data.clientId);

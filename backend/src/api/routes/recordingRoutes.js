@@ -9,7 +9,17 @@ import express from 'express';
 import multer from 'multer';
 import path from 'path';
 import { prepareRecordingUploadDirectory, recordingUploadDirectory } from '../../services/recording/sessionRecordingService.js';
-import { uploadSessionAudio, downloadSessionAudio, getSessionAudioStatus } from '../../controllers/recordingController.js';
+import {
+  uploadSessionAudio,
+  downloadSessionAudio,
+  finalizeSessionAudioUpload,
+  getSessionAudioStatus,
+  getSessionAudioUploadStatus,
+  initializeSessionAudioUpload,
+  retrySessionAudioUpload,
+  uploadSessionAudioChunk,
+} from '../../controllers/recordingController.js';
+import { getRecordingConfig } from '../../config/recordingConfig.js';
 
 const router = express.Router();
 
@@ -28,7 +38,7 @@ const allowedAudioExtensions = new Set(['.webm', '.mp4', '.m4a', '.mp3', '.wav',
 
 export const isAllowedAudioUpload = (file = {}) => {
   const extension = path.extname(file.originalname || '').toLowerCase();
-  const mimeType = String(file.mimetype || '').toLowerCase();
+  const mimeType = String(file.mimetype || '').toLowerCase().split(';')[0].trim();
   return allowedAudioExtensions.has(extension) && allowedAudioMimeTypes.has(mimeType);
 };
 
@@ -54,7 +64,18 @@ const upload = multer({
   },
 });
 
+const chunkUpload = multer({
+  storage,
+  limits: { fileSize: getRecordingConfig().maxChunkBytes },
+  fileFilter: (_req, file, callback) => callback(null, isAllowedAudioUpload(file)),
+});
+
 router.post('/session-audio', upload.single('audio'), uploadSessionAudio);
+router.post('/session-audio/uploads', initializeSessionAudioUpload);
+router.put('/session-audio/uploads/:uploadId/chunks/:sequence', chunkUpload.single('audio'), uploadSessionAudioChunk);
+router.post('/session-audio/uploads/:uploadId/finalize', finalizeSessionAudioUpload);
+router.post('/session-audio/uploads/:uploadId/retry', retrySessionAudioUpload);
+router.get('/session-audio/uploads/:uploadId/status', getSessionAudioUploadStatus);
 router.get('/session-audio/:sessionId/status', getSessionAudioStatus);
 router.get('/session-audio/:sessionId/download', downloadSessionAudio);
 
