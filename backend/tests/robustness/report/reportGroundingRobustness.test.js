@@ -4,9 +4,30 @@ import { runReportQaAgent } from '../../../src/services/agents/reportQaAgent.js'
 import { buildHumanCalibrationPilot } from '../../../src/services/humanCalibrationService.js';
 import { groundCandidateFeedbackClaims } from '../../../src/services/report/claimGroundingService.js';
 import { analyzeTurnStructure } from '../../../src/services/report/turnRubricService.js';
+import { buildCandidateEvidenceReferences } from '../../../src/services/report/reportEvidenceReferenceService.js';
 import { validateReportOutput } from '../../../src/services/schemaValidationService.js';
 
 describe('report grounding robustness', () => {
+  it('builds deduplicated candidate evidence rows from claim snippets', () => {
+    const rows = buildCandidateEvidenceReferences([
+      {
+        claimId: 'claim-1',
+        claimText: 'Reduced retest rate',
+        confidenceLevel: 'medium',
+        evidenceSnippets: [
+          { sourceType: 'interview_answer', text: 'I reduced the retest rate from 15% to 5%.', similarity: 0.8 },
+          { sourceType: 'interview_answer', text: 'I reduced the retest rate from 15% to 5%.', similarity: 0.8 },
+        ],
+      },
+    ]);
+
+    expect(rows).toEqual([expect.objectContaining({
+      claim: 'Reduced retest rate',
+      sourceLabel: 'Interview answer',
+      evidenceSnippet: 'I reduced the retest rate from 15% to 5%.',
+      confidenceLevel: 'medium',
+    })]);
+  });
   it('flags sparse or unsupported reports instead of passing them as useful feedback', async () => {
     const qa = await runReportQaAgent({
       report: {

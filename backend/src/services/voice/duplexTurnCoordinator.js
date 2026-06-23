@@ -180,6 +180,7 @@ export const createDuplexTurnCoordinator = ({
 
   const processRealtimeTurnWithDelayedBridge = async ({
     transcriptText,
+    transcriptProvenance = null,
     asrConfidence,
     vad,
     speechToken,
@@ -231,6 +232,7 @@ export const createDuplexTurnCoordinator = ({
         session,
         userId,
         transcriptText,
+        transcriptProvenance,
         language,
         asrConfidence,
         asrSource,
@@ -377,7 +379,7 @@ export const createDuplexTurnCoordinator = ({
     };
   };
 
-  const processFinalTranscript = async ({ transcriptText, asrConfidence = null, vad = null } = {}) => {
+  const processFinalTranscript = async ({ transcriptText, transcriptProvenance = null, asrConfidence = null, vad = null } = {}) => {
     const processConfirmedPendingTranscript = async ({
       pending,
       confirmationReply,
@@ -397,6 +399,7 @@ export const createDuplexTurnCoordinator = ({
 
       const result = await processRealtimeTurnWithDelayedBridge({
         transcriptText: transcriptForPlanning,
+        transcriptProvenance: pending.transcriptProvenance || transcriptProvenance,
         asrConfidence: pending.asrConfidence,
         vad: pending.vad,
         speechToken,
@@ -440,6 +443,7 @@ export const createDuplexTurnCoordinator = ({
       const nextPendingTranscriptConfirmation = {
         id: `pending-${Date.now()}`,
         originalTranscript: transcriptText,
+        transcriptProvenance,
         asrConfidence,
         vad: confirmationVad,
         assessment,
@@ -650,6 +654,7 @@ export const createDuplexTurnCoordinator = ({
 
     const result = await processRealtimeTurnWithDelayedBridge({
       transcriptText: cleanTranscript,
+      transcriptProvenance,
       asrConfidence,
       vad,
       speechToken,

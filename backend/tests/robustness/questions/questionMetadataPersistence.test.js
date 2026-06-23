@@ -2,10 +2,39 @@ import { describe, expect, it } from 'vitest';
 
 import * as masterAiService from '../../../src/services/masterAiService.js';
 import { getNextQuestionOrder } from '../../../src/services/interviewStateService.js';
+import { resolveFollowUpAssessmentContract } from '../../../src/services/questions/questionAssessmentContractService.js';
 
 const { shouldMarkPreparedRootQuestionAsked } = masterAiService;
 
 describe('question metadata persistence guards', () => {
+  it.each([
+    ['validation', ['validationVerification', 'outcomeValue']],
+    ['technical_depth', ['approach', 'validationVerification']],
+    ['tradeoff', ['judgementTradeoffs', 'validationVerification']],
+    ['constraint', ['judgementTradeoffs', 'riskQualityEthics']],
+    ['failure', ['approach', 'outcomeValue']],
+  ])('maps %s follow-ups to role-specific assessment', (intent, targetedDimensions) => {
+    expect(resolveFollowUpAssessmentContract({
+      intent,
+      parentQuestionFamily: 'motivation',
+    })).toMatchObject({
+      questionFamily: 'role_specific',
+      evidenceMode: 'past_example',
+      targetedDimensions,
+    });
+  });
+
+  it('keeps a behavioural result follow-up targeted to the result dimension', () => {
+    expect(resolveFollowUpAssessmentContract({
+      intent: 'result',
+      parentQuestionFamily: 'behavioural',
+    })).toMatchObject({
+      questionFamily: 'behavioural',
+      evidenceMode: 'past_example',
+      targetedDimensions: ['resultOrReaction'],
+    });
+  });
+
   it('marks prepared pool items asked only for root questions', () => {
     expect(shouldMarkPreparedRootQuestionAsked({
       interviewerOutput: {
@@ -52,6 +81,23 @@ describe('question metadata persistence guards', () => {
       capabilityGroup: 'compliance_ethics_safety',
       turnType: 'interview_question',
       countsAsQuestion: true,
+    });
+  });
+
+  it('preserves parent lineage separately from the current assessment contract', () => {
+    const metadata = masterAiService.buildQuestionTranscriptMetadata?.({
+      questionFamily: 'role_specific',
+      evidenceMode: 'past_example',
+      parentQuestionFamily: 'motivation',
+      parentEvidenceMode: 'knowledge_explanation',
+      targetedDimensions: ['validationVerification', 'outcomeValue'],
+    });
+
+    expect(metadata).toMatchObject({
+      questionFamily: 'role_specific',
+      parentQuestionFamily: 'motivation',
+      parentEvidenceMode: 'knowledge_explanation',
+      targetedDimensions: ['validationVerification', 'outcomeValue'],
     });
   });
 

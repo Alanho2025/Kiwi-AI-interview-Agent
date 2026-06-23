@@ -206,6 +206,9 @@ export const buildQuestionTranscriptMetadata = (interviewerOutput = {}) => {
   return {
     questionFamily: questionFields.questionFamily,
     evidenceMode: interviewerOutput.evidenceMode || null,
+    targetedDimensions: interviewerOutput.targetedDimensions || [],
+    parentQuestionFamily: interviewerOutput.parentQuestionFamily || null,
+    parentEvidenceMode: interviewerOutput.parentEvidenceMode || null,
     roleDomain: interviewerOutput.roleDomain || 'general',
     requirementCategory: interviewerOutput.requirementCategory || null,
     capabilityGroup: interviewerOutput.capabilityGroup || null,

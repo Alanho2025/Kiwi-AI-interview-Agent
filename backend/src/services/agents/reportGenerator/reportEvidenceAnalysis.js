@@ -9,7 +9,9 @@
  * - Prefer composition and small helpers over repeated inline logic.
  */
 
-import { lower, normalizeText, toWords, isQuestionTurn } from './reportGeneratorShared.js';
+import { buildReportTurnDataset } from '../../report/reportTurnDatasetService.js';
+import { extractAnswerEvidenceSignals } from '../../report/answerEvidenceSignalService.js';
+import { lower, normalizeText, toWords } from './reportGeneratorShared.js';
 
 /**
  * Purpose: Execute the main responsibility for classifyEvidenceType.
@@ -20,9 +22,10 @@ import { lower, normalizeText, toWords, isQuestionTurn } from './reportGenerator
 export const classifyEvidenceType = (text = '') => {
   const value = lower(text);
   if (!value) return 'generic_filler';
-  if (/(^|\b)(i would|i could|i can|would fit|would use|i see|i understand)\b/.test(value)) return 'hypothetical_understanding';
+  const signals = extractAnswerEvidenceSignals(text);
+  if (signals.isDirectPastExperience) return 'direct_past_experience';
   if (/(^|\b)(i have not|i haven't|i did not|i didn't|mainly|rather than|not as the core)\b/.test(value)) return 'indirect_adjacent_experience';
-  if (/(^|\b)(in my role|at foxconn|i used|i built|i worked on|my role was|the result was|i analysed|i automated|i supported|i proposed)\b/.test(value)) return 'direct_past_experience';
+  if (signals.isHypotheticalOnly || /(^|\b)(would fit|would use|i see|i understand)\b/.test(value)) return 'hypothetical_understanding';
   return 'generic_filler';
 };
 
@@ -33,31 +36,31 @@ export const classifyEvidenceType = (text = '') => {
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
 export const scoreEvidenceStrength = (text = '') => {
-  const value = lower(text);
+  const signals = extractAnswerEvidenceSignals(text);
   let score = 0;
   const reasons = [];
 
-  if (/(at |during |when |in my role|project|workflow|process|station|session|system)/.test(value)) {
+  if (signals.hasPastContext) {
     score += 1;
     reasons.push('real_context');
   }
 
-  if (/(i built|i used|i created|i analysed|i cleaned|i applied|i translated|i proposed|i designed|i handled|i implemented)/.test(value)) {
+  if (signals.hasPersonalAction) {
     score += 1;
     reasons.push('specific_action');
   }
 
-  if (/(compared|checked|validated|make sure|knew it worked|consisten|benchmark|reviewed manually)/.test(value)) {
+  if (signals.hasValidation) {
     score += 1;
     reasons.push('validation_method');
   }
 
-  if (/(\d+\s*(minute|hour|%|percent|score|times?))/i.test(text) || /(reduced|improved|dropped|increase|decrease)/.test(value)) {
+  if (signals.hasOutcome || signals.metricMatches.length > 0) {
     score += 1;
     reasons.push('measurable_result');
   }
 
-  return { score, reasons };
+  return { score, reasons, signals };
 };
 
 /**
@@ -76,6 +79,8 @@ export const analyseCandidateAnswers = (turns = []) => turns.map((turn, index) =
     evidenceType,
     evidenceStrength: strength.score,
     evidenceSignals: strength.reasons,
+    signals: strength.signals,
+    evidenceSnippets: strength.signals.metricMatches,
     wordCount: toWords(turn.text).length,
   };
 });
@@ -111,6 +116,10 @@ export const buildEvidenceSummary = (analysedAnswers = []) => {
     totals,
     averageStrength,
     strongestExamples,
+    hypotheticalOnlyTurns: analysedAnswers.filter((item) => item.evidenceType === 'hypothetical_understanding').length,
+    mixedFutureIntentTurns: analysedAnswers.filter((item) => (
+      item.evidenceType === 'direct_past_experience' && item.signals?.hasFutureIntent
+    )).length,
     repetitionComplaintCount: analysedAnswers.filter((item) => detectCandidateRepetitionComplaint(item.text)).length,
   };
 };
@@ -121,17 +130,24 @@ export const buildEvidenceSummary = (analysedAnswers = []) => {
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-export const buildInterviewMetrics = (transcript = [], totalQuestions = 0) => {
-  const candidateTurns = transcript.filter((turn) => turn.role === 'user');
-  const questionTurns = transcript.filter((turn) => isQuestionTurn(turn));
-  const extraAiTurns = transcript.filter((turn) => turn.role === 'ai' && !isQuestionTurn(turn));
+export const buildInterviewMetrics = (transcriptOrDataset = [], totalQuestions = 0) => {
+  const dataset = Array.isArray(transcriptOrDataset)
+    ? buildReportTurnDataset(transcriptOrDataset)
+    : transcriptOrDataset;
+  const turns = dataset.turns || [];
+  const extraAiTurns = turns.filter((turn) => (
+    ['ai', 'assistant', 'interviewer'].includes(turn.role)
+    && !dataset.countableQuestions?.includes(turn)
+  ));
 
   return {
-    candidateTurnCount: candidateTurns.length,
-    interviewerQuestionCount: questionTurns.length,
-    scoredCandidateAnswerCount: Math.min(candidateTurns.length, questionTurns.length),
+    candidateTurnCount: dataset.scoredAnswerCount || 0,
+    rawCandidateTurnCount: dataset.rawCandidateTurnCount || 0,
+    interviewerQuestionCount: dataset.countableQuestionCount || 0,
+    scoredCandidateAnswerCount: dataset.scoredAnswerCount || 0,
     extraAiTurnCount: extraAiTurns.length,
+    repairTurnCount: dataset.repairTurnCount || 0,
     plannedQuestionCount: totalQuestions,
-    interviewCompletedByLimit: candidateTurns.length >= totalQuestions && totalQuestions > 0,
+    interviewCompletedByLimit: (dataset.scoredAnswerCount || 0) >= totalQuestions && totalQuestions > 0,
   };
 };

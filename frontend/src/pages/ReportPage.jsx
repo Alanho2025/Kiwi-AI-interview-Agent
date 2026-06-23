@@ -28,6 +28,8 @@ import { ReportHeroCard } from '../components/report/ReportHeroCard.jsx';
 import { ScoreBreakdownCard } from '../components/report/ScoreBreakdownCard.jsx';
 import { CommercialStressTestSection } from '../components/report/CommercialStressTestSection.jsx';
 import { CommunicationAuthenticitySection } from '../components/report/CommunicationAuthenticitySection.jsx';
+import { EvidenceSourcesSection } from '../components/report/EvidenceSourcesSection.jsx';
+import { TranscriptRiskSection } from '../components/report/TranscriptRiskSection.jsx';
 import { LoadingInsightPanel } from '../components/common/LoadingInsightPanel.jsx';
 import { useReportData } from '../hooks/useReportData.js';
 import { buildReportViewModel } from '../utils/reportView/index.js';
@@ -114,6 +116,11 @@ export function ReportPage() {
           </div>
         ) : (
           <div id="report-printable-area" className="space-y-6">
+            {viewModel.legacyReportNotice ? (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+                {viewModel.legacyReportNotice}
+              </div>
+            ) : null}
             <div id="tour-report-hero">
               <ReportHeroCard
                 report={viewModel.report}
@@ -137,6 +144,8 @@ export function ReportPage() {
             <NZWorkplaceFitSection fit={viewModel.nzWorkplaceFit} />
             <CompanyMotivationFitSection fit={viewModel.companyMotivationFit} />
             <CommunicationProfileSection profile={viewModel.communicationProfile} />
+            <TranscriptRiskSection risks={viewModel.transcriptRisks} />
+            <EvidenceSourcesSection items={viewModel.evidenceSources} />
             <CoachingSection improvementPriorities={viewModel.improvementPriorities} coachingAdvice={viewModel.coachingAdvice} />
             <QuoteAnalysisSection quoteAnalyses={viewModel.quoteAnalyses} />
             <div id="tour-report-turns">
