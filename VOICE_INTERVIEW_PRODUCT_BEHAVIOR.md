@@ -10,7 +10,7 @@ Kiwi AI Voice Interview should behave like a live interviewer, not like a raw sp
 
 The intended loop is:
 
-1. The assistant asks a question using Azure Speech TTS.
+1. The assistant asks a question using the configured TTS provider. Azure is the default; ElevenLabs can be configured independently as the fallback.
 2. The user answers naturally for about 1 to 2 minutes.
 3. The system listens, transcribes, and interprets the answer.
 4. The system handles speech uncertainty through repair or confirmation.
@@ -24,7 +24,7 @@ The voice flow must be treated as a state machine. Avoid patching isolated flags
 
 Required states:
 
-- `assistant_speaking`: Azure TTS is playing the interviewer question.
+- `assistant_speaking`: the selected TTS provider is playing the interviewer question.
 - `waiting_for_user`: TTS has ended and VAD is waiting for the user.
 - `user_speaking`: VAD has detected the user and audio is being streamed.
 - `stt_finalizing`: frontend has sent speech end and backend is waiting for final STT output.
@@ -32,7 +32,7 @@ Required states:
 - `transcript_needs_confirmation`: transcript is contentful but ASR confidence is low.
 - `transcript_confirmed`: the user confirmed the system's understanding.
 - `answer_processing`: answer is saved, evaluated, and used to select the next question.
-- `next_question_speaking`: next question is generated and sent to Azure TTS.
+- `next_question_speaking`: the next question is generated and sent to the selected TTS provider.
 
 Every voice change must define whether the state should:
 
@@ -179,6 +179,29 @@ Do not claim full speaker isolation in browser voice mode unless speaker verific
 The current realistic product claim is:
 
 > The system reduces background noise and ignores short accidental speech where possible, but full speaker isolation is not guaranteed in browser-based voice mode.
+
+## Speech provider routing
+
+STT and TTS routing are independent product concerns.
+
+- Azure is the default STT and TTS provider.
+- ElevenLabs can be configured as the fallback for either path without forcing the other path to use ElevenLabs.
+- STT fallback is allowed while a speech session is starting. Do not switch the provider in the middle of an active recording turn.
+- A frontend microphone/speaker readiness check does not prove that either external speech provider is healthy.
+- Provider selection and fallback must preserve transcript-confidence handling, question counting, barge-in behavior, and latency traces.
+
+The relevant runtime configuration is `VOICE_STT_PROVIDER`, `VOICE_STT_FALLBACK_PROVIDER`, `VOICE_STT_PROVIDER_ORDER`, `VOICE_TTS_PROVIDER`, `VOICE_TTS_FALLBACK_PROVIDER`, and `VOICE_TTS_PROVIDER_ORDER`.
+
+## Session recording behavior
+
+Voice recording is a separate, non-latency-critical path from live STT and next-question generation.
+
+- Audio chunks are persisted in browser IndexedDB before upload acknowledgement.
+- Chunk upload is resumable and idempotent.
+- Report navigation waits only for local recording durability, not for full upload or MP3 conversion.
+- Backend assembly and MP3 conversion run asynchronously through the recording worker.
+- The report page must show recording progress, retryable failure, ready, or unavailable state separately from report readiness.
+- Closing the browser before all chunks are uploaded can delay completion; recovery resumes when the same browser profile opens the application again.
 
 ## Interview question sources
 

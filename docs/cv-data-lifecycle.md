@@ -32,7 +32,8 @@ Used for recent CV lists, preview cards, and safe UI rendering.
 - export one CV safe data package
 
 ## Current known limits
-- no automated retention cleanup worker yet
+- retention worker is implemented but disabled by default and only processes queued ready jobs
+- production operation still requires an audited manifest, approved execution, database availability, persistent storage, and deployment policy
 - no account-wide delete workflow yet
 - no encrypted-at-rest local storage yet
 
@@ -46,6 +47,8 @@ Used for recent CV lists, preview cards, and safe UI rendering.
 - CV lifecycle controls: `backend/src/services/cv/cvLifecycleService.js`
 - Human-reviewed CV profile save path: `backend/src/services/cv/cvReviewedProfileService.js`
 - File metadata and document content persistence: `backend/src/services/fileRepositoryService.js`
+- Retention audit and approved cleanup: `backend/src/scripts/runRetentionAudit.js`, `backend/src/scripts/runRetentionCleanup.js`
+- Retention worker and quarantine/backup path: `backend/src/services/retention/retentionWorker.js`, `backend/src/services/retention/`
 - Frontend CV review view model: `frontend/src/utils/cvReviewViewModel.js`
 
 ## Current implementation status
@@ -63,10 +66,11 @@ Implemented:
 - rebuild one CV profile
 - safe export package for one CV
 - audit logs for upload, review, delete, and export actions
+- retention dry-run manifests, explicit approval-gated cleanup, backup/quarantine services, and a disabled-by-default queued-job worker
 
 Partial or missing:
 
-- automated retention cleanup worker
+- enabled and deployment-verified scheduled retention operation
 - account-wide delete workflow
 - encrypted-at-rest local storage guarantee
 - full route-level ownership test coverage across every CV-adjacent path

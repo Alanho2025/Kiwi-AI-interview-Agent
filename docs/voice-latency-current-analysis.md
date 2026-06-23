@@ -1,5 +1,7 @@
 # Voice Interview Latency Analysis - Current State
 
+> Status: historical 2026-05-28 latency snapshot. Current instrumentation and thresholds are documented in `docs/voice-latency-trace-markers.md`; current provider routing supports Azure and ElevenLabs. Do not use the timings below as present measurements without a new live trace.
+
 **Date**: 2026-05-28  
 **Measured Latency**: 7148ms (user speech end → AI speech start)  
 **Target Latency**: 3000ms (per VOICE_INTERVIEW_PRODUCT_BEHAVIOR.md)  
@@ -42,7 +44,7 @@
 ## Root Causes
 
 ### 1. Decision Context Building (1734ms)
-**Location**: [`backend/src/services/aiControl/decisionContextBuilder.js`](backend/src/services/aiControl/decisionContextBuilder.js)
+**Location**: [`backend/src/services/aiControl/decisionContextBuilder.js`](../backend/src/services/aiControl/decisionContextBuilder.js)
 
 **Issue**: Building comprehensive context for AI decision-making
 - Gathering interview history
@@ -53,7 +55,7 @@
 **Impact**: 23% of total latency
 
 ### 2. LLM Generation (1722ms)
-**Location**: [`backend/src/services/aiControl/interviewActionExecutor.js`](backend/src/services/aiControl/interviewActionExecutor.js)
+**Location**: [`backend/src/services/aiControl/interviewActionExecutor.js`](../backend/src/services/aiControl/interviewActionExecutor.js)
 
 **Issue**: Waiting for LLM to generate first sentence
 - Streaming mode enabled but still slow
@@ -63,7 +65,7 @@
 **Impact**: 23% of total latency
 
 ### 3. TTS Synthesis (1625ms)
-**Location**: [`backend/src/services/voice/azureSpeechService.js`](backend/src/services/voice/azureSpeechService.js)
+**Location**: [`backend/src/services/voice/azureSpeechService.js`](../backend/src/services/voice/azureSpeechService.js)
 
 **Issue**: Azure Speech TTS synthesis time
 - Waiting for first audio chunk
@@ -73,7 +75,7 @@
 **Impact**: 21% of total latency
 
 ### 4. Session State Update (1059ms)
-**Location**: [`backend/src/services/aiControl/sessionStateService.js`](backend/src/services/aiControl/sessionStateService.js)
+**Current related location**: [`backend/src/services/interviewStateService.js`](../backend/src/services/interviewStateService.js) (the historical `aiControl/sessionStateService.js` path no longer exists)
 
 **Issue**: Persisting state after decision
 - Database writes
@@ -130,7 +132,7 @@
 
 ## Product Behavior Compliance
 
-Per [`VOICE_INTERVIEW_PRODUCT_BEHAVIOR.md`](VOICE_INTERVIEW_PRODUCT_BEHAVIOR.md:18):
+Per [`VOICE_INTERVIEW_PRODUCT_BEHAVIOR.md`](../VOICE_INTERVIEW_PRODUCT_BEHAVIOR.md#latency-target):
 
 > The next question starts speaking within 3 seconds after the user stops speaking.
 
@@ -151,6 +153,6 @@ Per [`VOICE_INTERVIEW_PRODUCT_BEHAVIOR.md`](VOICE_INTERVIEW_PRODUCT_BEHAVIOR.md:
 
 ## References
 
-- Product behavior spec: [`VOICE_INTERVIEW_PRODUCT_BEHAVIOR.md`](VOICE_INTERVIEW_PRODUCT_BEHAVIOR.md)
-- Latency trace markers: [`docs/voice-latency-trace-markers.md`](docs/voice-latency-trace-markers.md)
-- Optimization plan: [`docs/voice-latency-optimization-plan.md`](docs/voice-latency-optimization-plan.md)
+- Product behavior spec: [`VOICE_INTERVIEW_PRODUCT_BEHAVIOR.md`](../VOICE_INTERVIEW_PRODUCT_BEHAVIOR.md)
+- Latency trace markers: [`docs/voice-latency-trace-markers.md`](voice-latency-trace-markers.md)
+- Optimization plan: [`docs/voice-latency-optimization-plan.md`](voice-latency-optimization-plan.md)

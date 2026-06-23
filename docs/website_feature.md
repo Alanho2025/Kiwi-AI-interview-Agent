@@ -12,7 +12,7 @@ An AI-powered mock interview web app that helps users practise job interviews ba
 
 The system allows users to sign in, upload their CV, paste a job description, and complete a short AI-led interview session using text mode or the product-wired voice mode. The AI generates interview questions based on the match between the user's background and the job requirements, then produces a feedback report after the session.
 
-This MVP is focused on delivering a simple, working end-to-end interview experience. The current safest product flow is CV upload, pasted JD parsing, human review gates, CV-JD match, interview planning, text interview, and report output. Voice is product-wired but still depends on live Azure Speech credentials, authenticated WebSocket access, microphone permission, and E2E verification.
+This MVP is focused on delivering a working end-to-end interview experience. The current safest product flow is CV upload, pasted JD parsing, human review gates, CV-JD match, interview planning, text interview, and report output. Voice is product-wired but still depends on credentials for the configured Azure/ElevenLabs provider order, authenticated WebSocket access, microphone permission, and E2E verification.
 
 ---
 
@@ -44,8 +44,10 @@ This MVP is focused on delivering a simple, working end-to-end interview experie
 - Asks a small number of role-related or technical questions
 - Supports question-limited and time-limited session setup
 - Ends the interview by configured completion rules
-- Generates a grounded feedback report after the interview
-- Supports report QA and a commercial stress-test cost summary
+- Prevents prepared and live assessment-equivalent duplicate questions while preserving distinct follow-ups
+- Generates a grounded feedback report from countable questions and accepted answers after the interview
+- Supports question-specific rubrics, transcript-risk warnings, evidence-source rows, report QA, at most two grounded wording-repair attempts, and a commercial stress-test cost summary
+- Supports resumable voice-recording upload and asynchronous MP3 conversion without blocking report navigation
 - Displays the report in the web interface
 
 ### What it does NOT do (yet)
@@ -56,13 +58,13 @@ This MVP is focused on delivering a simple, working end-to-end interview experie
 - Does not support video interview input
 - Does not support real-time facial expression analysis
 - Does not include advanced user profile settings
-- Does not store long-term interview history unless added later
+- Does not guarantee indefinite interview-history retention; session history exists but retention policy and cleanup apply
 - Does not support collaborative reviewer feedback
 - Does not provide deeply customised company-specific question banks
 - Does not support multilingual interview mode unless added later
 - Does not currently implement JD file upload; current JD flow is pasted text
-- Does not guarantee live voice readiness without Azure Speech credentials and browser/device setup
-- Does not provide production-grade retention cleanup or account-wide deletion yet
+- Does not guarantee live voice readiness without configured speech-provider credentials and browser/device setup
+- Does not provide account-wide deletion or encryption-at-rest guarantees; retention cleanup exists but is operationally gated and disabled by default
 
 ---
 
@@ -81,7 +83,8 @@ This MVP is focused on delivering a simple, working end-to-end interview experie
 11. AI asks follow-up and role-related questions
 12. Session ends by configured question or time rules
 13. System generates and displays a feedback report
-14. User can run report QA and view commercial stress-test cost summary where usage events were recorded
+14. System runs report QA, may perform bounded grounded repair, and stores an explicit report status
+15. User can inspect turn rubrics, evidence sources, transcript risks, recording status, and commercial stress-test cost summary where usage events were recorded
 
 ---
 
@@ -145,7 +148,7 @@ This MVP is focused on delivering a simple, working end-to-end interview experie
     - gaps or weak areas
     - job-fit observations
     - suggested improvements
-- The report may include report QA and commercial cost summary data when available
+- Report generation includes QA. It may include repair history, evidence/transcript-risk diagnostics, and commercial cost summary data when available.
 - The system must display the report in a readable format on the web page
 
 ---
