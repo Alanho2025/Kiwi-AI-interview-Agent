@@ -1,5 +1,7 @@
 # Modified Plan: Preparation Stability Evaluation Suite
 
+> Status: implementation/evaluation plan snapshot. The repository now includes `eval:prep-stability`, preparation stability fixtures/tests, and generated latest reports, but this document's case checklist is not a live source of pass/fail truth. Use `backend/eval/reports/preparation-stability.latest.md` and the current runner output for results.
+
 Branch: `Alan-workplace`
 
 ## Goal

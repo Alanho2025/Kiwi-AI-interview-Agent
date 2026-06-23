@@ -1,12 +1,16 @@
 # ElevenLabs realtime STT benchmark
 
-This is a benchmark-only cloud STT fallback spike. It does not change the production live voice flow.
+Status: benchmark origin, promoted to a production session-start fallback.
+
+The benchmark remains useful for provider comparison, but the adapter is now also used by production through `backend/src/services/voice/elevenLabsRealtimeSpeechSessionService.js` and `backend/src/services/voice/realtimeSpeechProviderRouter.js`.
 
 ## Why this exists
 
 The previous local ASR result showed that Vosk/Sherpa can be fast, but the technical keyword recall was too low for interview coaching. Since this project can rely on internet access, ElevenLabs realtime STT is a stronger next candidate than adding a low-quality local model to live interviews.
 
-Use this benchmark to decide whether ElevenLabs realtime STT can act as an Azure Speech cloud fallback.
+Use this benchmark to revalidate whether ElevenLabs realtime STT remains suitable as the Azure Speech cloud fallback.
+
+Production defaults are Azure primary and ElevenLabs fallback. Fallback is attempted when the STT session starts; an active turn does not switch providers mid-recording. Configure this with `VOICE_STT_PROVIDER`, `VOICE_STT_FALLBACK_PROVIDER`, or `VOICE_STT_PROVIDER_ORDER`.
 
 ## Provider name
 
@@ -29,7 +33,7 @@ Optional:
 ```bash
 ELEVENLABS_STT_MODEL_ID=scribe_v2_realtime
 ELEVENLABS_STT_AUDIO_FORMAT=pcm_16000
-ELEVENLABS_STT_COMMIT_STRATEGY=manual
+ELEVENLABS_STT_COMMIT_STRATEGY=vad
 ELEVENLABS_STT_INCLUDE_TIMESTAMPS=false
 ELEVENLABS_STT_FINAL_TIMEOUT_MS=5000
 ELEVENLABS_STT_KEYTERMS="React,Node,PostgreSQL,WebSocket,Azure,STAR,RAG,MongoDB,Redis,Kafka"
@@ -90,7 +94,7 @@ node benchmarks/voice-asr-fallback/runVoiceAsrFallbackE2eBenchmark.js \
 
 ## Decision rule
 
-Do not wire ElevenLabs realtime STT into production unless it passes all gates:
+The original promotion gates were:
 
 1. Partial transcript appears before speech end.
 2. Final committed transcript is ready within 1 second after speech end.
@@ -109,10 +113,10 @@ Rows for `elevenlabs-realtime` include `benchmarkMetadata` with:
 {
   "modelId": "scribe_v2_realtime",
   "audioFormat": "pcm_16000",
-  "commitStrategy": "manual",
+  "commitStrategy": "vad",
   "keyterms": ["React", "Node"],
   "keytermCount": 2
 }
 ```
 
-Do not include API keys, tokens, audio recordings, or generated result files in commits.
+Do not include API keys, tokens, audio recordings, or generated result files in commits. A current deployment still needs live provider verification; the existence of the production router is not proof that latency or quality gates pass in every environment.

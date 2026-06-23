@@ -1,5 +1,7 @@
 # Constructive Report Integrity Implementation Plan
 
+> Status: implemented by commit `4348641` on 2026-06-23. Checkboxes below are preserved as the original execution plan and are not a live task tracker. Current behavior is documented in `docs/implementation-workflows.md` and `docs/implementation-functions.md`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Make constructive reports count only real interview answers, select the correct rubric for each actual question, score evidence consistently, generate readable grounded rewrites, expose useful evidence sources, and export a complete trustworthy PDF.

@@ -1,5 +1,7 @@
 # Frontend 測試計劃
 
+> 狀態：歷史測試 backlog，保留作規劃參考。下方的階段、預估數量與目標檔案不是目前 coverage 證明；現況與執行命令以 `docs/testing-and-evaluation.md`、`docs/test-evaluation-coverage-matrix.md` 及 `frontend/package.json` 為準。
+
 ## 概述
 
 本文檔定義 Kiwi AI Interview Agent 前端的完整測試策略，涵蓋 hooks、components、pages、utils 的測試範圍和優先級。
@@ -12,27 +14,20 @@
 - **DOM 環境**: jsdom
 - **Mock 工具**: Vitest (`vi.mock`, `vi.fn`)
 
-## 當前測試覆蓋率
+## 當前測試覆蓋率快照（2026-06-23）
 
-### Hooks (4/18 已測試, 22%)
-- ✅ `useMicrophonePermission` - 3 tests
-- ✅ `useReportData` - 2 tests (不完整)
-- ✅ `useVoiceInterviewSession` - 5 tests
-- ✅ `useRealtimeSpeechSocket` - 3 tests
-- ❌ 其他 14 個 hooks 無測試
+`frontend/src` 目前有 44 個 Vitest 測試檔：
 
-### Components (3 已測試)
-- ✅ `TokenUsageSummary` - 基礎測試
-- ✅ `VoiceInterviewPanel` - 基礎測試
-- ✅ `CommercialStressTestSection` - 基礎測試
-- ✅ `NZWorkplaceFitSection` - 基礎測試
+- API：2
+- Components：9
+- Hooks（含 voice hooks）：12
+- Pages：1
+- Recording runtime：3
+- Utils：17
 
-### Pages (1 已測試)
-- ✅ `InterviewPage.voiceMode` - 基礎測試
+另有 Playwright／browser flows，涵蓋完整 mocked human flow、question pipeline、voice latency、real-backend test-provider voice flow，以及 resumable recording recovery。
 
-### Utils (9 已測試)
-- ✅ Voice 相關 utils 有較好覆蓋
-- ✅ ViewModel utils 有部分覆蓋
+此數量只代表測試檔 inventory，不等同 line/branch coverage。下方未存在的 `useAssistantPlaybackController.test.jsx`、`useDuplexSocketController.test.jsx` 等路徑是歷史規劃目標，不應被描述為已建立的測試。
 
 ---
 
@@ -140,7 +135,7 @@
 **預估測試數量**: 10-12 tests
 
 #### 2.3 `useVoiceActivityDetection`
-**檔案**: `frontend/src/hooks/voice/__tests__/useVoiceActivityDetection.test.jsx`
+**規劃檔案（尚未建立）**: `useVoiceActivityDetection.test.jsx`
 
 **測試範圍**:
 - ✅ VAD 初始化
@@ -155,7 +150,7 @@
 **預估測試數量**: 12-15 tests
 
 #### 2.4 `useDuplexVoiceSocket`
-**檔案**: `frontend/src/hooks/voice/__tests__/useDuplexVoiceSocket.test.jsx`
+**規劃檔案（尚未建立）**: `useDuplexVoiceSocket.test.jsx`
 
 **測試範圍**:
 - ✅ WebSocket 連接
@@ -169,7 +164,7 @@
 **預估測試數量**: 15-18 tests
 
 #### 2.5 `useAssistantPlaybackController`
-**檔案**: `frontend/src/hooks/voice/__tests__/useAssistantPlaybackController.test.jsx`
+**規劃檔案（尚未建立）**: `useAssistantPlaybackController.test.jsx`
 
 **測試範圍**:
 - ✅ Playback 控制
@@ -180,7 +175,7 @@
 **預估測試數量**: 8-10 tests
 
 #### 2.6 `useDuplexSocketController`
-**檔案**: `frontend/src/hooks/voice/__tests__/useDuplexSocketController.test.jsx`
+**規劃檔案（尚未建立）**: `useDuplexSocketController.test.jsx`
 
 **測試範圍**:
 - ✅ Socket 生命週期管理
@@ -202,7 +197,7 @@
 **預估測試數量**: 8-10 tests
 
 #### 2.8 `useVoiceLatencyController`
-**檔案**: `frontend/src/hooks/voice/__tests__/useVoiceLatencyController.test.jsx`
+**規劃檔案（尚未建立）**: `useVoiceLatencyController.test.jsx`
 
 **測試範圍**:
 - ✅ Latency 追蹤
@@ -213,7 +208,7 @@
 **預估測試數量**: 8-10 tests
 
 #### 2.9 `useVoiceSessionLifecycleController`
-**檔案**: `frontend/src/hooks/voice/__tests__/useVoiceSessionLifecycleController.test.jsx`
+**規劃檔案（尚未建立）**: `useVoiceSessionLifecycleController.test.jsx`
 
 **測試範圍**:
 - ✅ Session 生命週期管理
@@ -224,7 +219,7 @@
 **預估測試數量**: 10-12 tests
 
 #### 2.10 `useVoiceSessionRefs`
-**檔案**: `frontend/src/hooks/voice/__tests__/useVoiceSessionRefs.test.jsx`
+**規劃檔案（尚未建立）**: `useVoiceSessionRefs.test.jsx`
 
 **測試範圍**:
 - ✅ Ref 初始化
@@ -234,7 +229,7 @@
 **預估測試數量**: 4-6 tests
 
 #### 2.11 `useVoiceVadTurnController`
-**檔案**: `frontend/src/hooks/voice/__tests__/useVoiceVadTurnController.test.jsx`
+**規劃檔案（尚未建立）**: `useVoiceVadTurnController.test.jsx`
 
 **測試範圍**:
 - ✅ Turn 控制邏輯

@@ -1,5 +1,7 @@
 # Resumable Voice Recording Implementation Plan
 
+> Status: implemented by commit `b62e833` on 2026-06-23. Checkboxes and RED/GREEN expectations below are retained as planning history. The current API and runtime flow are documented in `README.md` and `docs/implementation-workflows.md`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Make completed voice interviews open reports without waiting for audio conversion while preserving resumable, downloadable recordings across reload, network interruption, and backend restarts.

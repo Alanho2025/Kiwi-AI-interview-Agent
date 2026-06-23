@@ -1,5 +1,19 @@
 # Constructive Report Audit — Session 62269744-d831-417b-8061-a31c8573f077
 
+> Historical audit baseline. Commit `4348641` (2026-06-23) implemented the planned accepted-turn dataset, evidence-signal fixes, follow-up assessment contracts, deterministic score ownership, rewrite validation, claim-level evidence references, transcript-risk warnings, report UI, PDF, QA checks, and regression fixtures. The original session PDF was not regenerated and re-audited in this document, so the finding table below intentionally records the pre-fix artifact rather than claiming retrospective proof.
+
+## Post-audit implementation status
+
+- Implemented: canonical countable-question/accepted-answer dataset.
+- Implemented: mixed real/future evidence classification and percentage/action/reflection signal fixes.
+- Implemented: question-first assessment contracts and targeted follow-up dimensions.
+- Implemented: deterministic report scores and metric consistency QA.
+- Implemented: readable rewrite validation and explicit unavailable fallback.
+- Implemented: deduplicated claim/source/snippet/confidence evidence rows.
+- Implemented: visible transcript entity/number conflict warnings.
+- Implemented: all scored turns in web/PDF output and blocking integrity QA.
+- Remaining verification: regenerate a representative report, inspect the rendered PDF, and run live-provider/report evals only with approved credentials and cost.
+
 ## Scope
 
 Reviewed inputs:

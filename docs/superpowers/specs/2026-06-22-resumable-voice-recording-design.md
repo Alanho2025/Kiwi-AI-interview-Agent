@@ -1,6 +1,6 @@
 # Resumable Voice Recording and Non-Blocking Report Navigation
 
-Status: Proposed for user review
+Status: Implemented on 2026-06-23 by commit `b62e833`; retained as the approved design record
 Date: 2026-06-22
 
 ## Problem

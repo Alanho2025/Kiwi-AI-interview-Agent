@@ -1,6 +1,6 @@
 # Testing and Evaluation Guide
 
-This document explains how testing and evaluation are organised in the current `Alan-workplace` branch.
+This document explains how testing and evaluation are organised in the current `Alan-workplace` branch, aligned with package scripts on 2026-06-23.
 
 ## Testing strategy
 
@@ -14,6 +14,7 @@ Run from `backend/`.
 npm run lint
 npm run test:all
 npm run test:questions
+npm run test:recording
 npm run test:report
 npm run test:voice
 npm run eval:local
@@ -26,15 +27,18 @@ npm run quality:all
 | Command | Purpose |
 | --- | --- |
 | `npm run lint` | Runs backend ESLint |
-| `npm run test:all` | Runs all mock-mode robustness groups |
+| `npm run test:all` | Runs the package-script integration and robustness groups listed in `backend/package.json` (98 test files at the alignment date) |
 | `npm run test:questions` | Runs question pipeline robustness tests |
+| `npm run test:recording` | Runs recording robustness tests |
 | `npm run test:report` | Runs report robustness tests |
 | `npm run test:voice` | Runs voice robustness tests |
 | `npm run eval:local` | Runs local deterministic evals without real provider calls |
 | `npm run eval:real` | Runs real provider-backed evals where configured |
-| `npm run eval:all` | Runs the plan eval suite |
+| `npm run eval:all` | Runs the 15-suite plan eval, including real-provider CV/JD/SEEK/match/interview/report/baseline evals; requires credentials and cost approval |
 | `npm run quality:local` | Runs lint, robustness tests, and local evals |
 | `npm run quality:all` | Runs local checks and real eval checks |
+
+`test:all` does not currently include `backend/tests/unit`, `backend/tests/robustness/retention`, or `backend/tests/robustness/interview`. Run those paths explicitly when changing those areas; do not describe `test:all` as every test file in the repository.
 
 ## Frontend commands
 
@@ -46,6 +50,7 @@ npm run test:all
 npm run test:voice
 npm run test:e2e:question-pipeline
 npm run test:e2e:voice-latency
+npm run test:e2e:recording-recovery
 npm run build
 npm run quality:all
 ```
@@ -57,6 +62,7 @@ npm run quality:all
 | `npm run test:voice` | Runs voice-related component, hook, and utility tests |
 | `npm run test:e2e:question-pipeline` | Runs the browser-level question pipeline flow |
 | `npm run test:e2e:voice-latency` | Runs the voice latency smoke E2E path |
+| `npm run test:e2e:recording-recovery` | Runs resumable recording recovery in Playwright |
 | `npm run build` | Builds the frontend |
 | `npm run quality:all` | Runs lint, tests, and build |
 
@@ -100,12 +106,14 @@ Current backend robustness groups cover areas such as:
 - Question seed generation
 - JD question filtering
 - Prepared question pool creation
+- Question-pool preparation and transcript-based question deduplication
 - Interview micro-planning
 - Interview turn orchestration
 - Follow-up question behavior
 - Question metadata persistence
 - Report generation and grounding
-- Report QA behavior
+- Canonical report-turn pairing, question-specific rubric selection, evidence classification, content quality, transcript risks, score consistency, and bounded QA repair
+- Resumable recording chunk storage, upload contracts, worker conversion, and retry behavior
 - Voice policy and duplex voice behavior
 - Retrieval and RAG behavior
 - Server and contract stability
@@ -123,6 +131,8 @@ Current frontend coverage includes:
 - JD human review metadata stamping
 - interview page voice-mode behavior
 - report UI view model behavior
+- evidence-source, transcript-risk, turn-breakdown, answer-rewrite, recording-status, and score-breakdown report components
+- IndexedDB recording queue, upload manager/registry, Background Sync registration, and recording recovery E2E
 - question pipeline E2E flow
 
 ## Evaluation coverage
@@ -141,6 +151,8 @@ The backend `eval/` folder contains curated eval runners for:
 - company research quality
 - voice quality
 - stability
+- preparation stability
+- voice robustness
 - deterministic end-to-end interview behavior
 
 Eval reports are written to:
@@ -162,7 +174,8 @@ backend/eval/reports/*.latest.md
 
 ## Known validation gaps
 
-- Live voice E2E depends on Azure Speech credentials, browser microphone access, authenticated WebSocket state, and network health.
+- Live speech-provider E2E depends on Azure and/or ElevenLabs credentials according to the configured provider order, browser microphone access, authenticated WebSocket state, and network health.
+- Recording recovery is browser-profile dependent; closing the originating browser before upload acknowledgement delays recovery until that profile opens the app again.
 - CV-JD match calibration should be expanded with more weak, partial, transition, overqualified, and noisy cases before broad claims are made.
 - Route-level ownership tests should be expanded across CV, session, report, transcript, recording, and RAG resources.
 - Cost-benefit analysis must be completed in the final report using measured usage data and clearly stated assumptions.

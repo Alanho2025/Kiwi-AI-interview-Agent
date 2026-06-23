@@ -1,5 +1,7 @@
 # Voice Latency Optimization Architecture
 
+> Status: historical target architecture. Parts are implemented, but this file is not a current component inventory. Use `docs/implementation-workflows.md`, `docs/voice-latency-trace-markers.md`, and runtime code for present behavior.
+
 ## Current Architecture (Synchronous Pipeline)
 
 ```mermaid

@@ -1,5 +1,7 @@
 # Voice Interview Next Question Pause Bug Analysis
 
+> Status update (2026-06-23): this is a historical incident analysis, not a current latency measurement. Current code includes bounded/fallback question micro-planning, early bridge acknowledgements, transcript-based novelty guards, and end-to-end latency traces. The original 34.2-second incident has not been reproduced and closed by a new live-provider trace in this document, so the remaining verification status is "mitigated in code; live revalidation required."
+
 ## Issue Summary
 
 **Symptom**: Next interview question only appears after user clicks pause button, not automatically after answering.
@@ -250,7 +252,7 @@ Add metrics for:
 
 ## Status
 
-**Status**: Documented, awaiting decision on implementation approach  
+**Status**: Mitigated in current code; live provider revalidation required
 **Priority**: High (11x latency violation)  
 **Assigned**: TBD  
 **Target**: TBD
