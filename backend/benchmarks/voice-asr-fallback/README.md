@@ -1,6 +1,6 @@
 # Voice ASR fallback benchmark spike
 
-This is a benchmark-only spike. It must not be imported by production code.
+This folder began as a benchmark-only spike. The Vosk, Sherpa-ONNX, Piper, fixture, and runner code remains benchmark-only. One exception now exists: production `backend/src/services/voice/elevenLabsRealtimeSpeechSessionService.js` reuses `adapters/elevenLabsRealtimeSttProvider.js` through the production STT provider router. Do not describe the entire folder as isolated from production.
 
 ## Real decision being tested
 

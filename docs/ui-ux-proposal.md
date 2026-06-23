@@ -1,5 +1,7 @@
 # UI/UX Professionalization Proposal
 
+> Status: historical proposal. The report and recording UI have changed since this was written; use the current components under `frontend/src/components/report/` and `docs/code-document-alignment.md` before treating any problem statement below as current.
+
 This file describes proposed UI/UX improvements only. It is not an approval to implement them.
 
 ## Goals

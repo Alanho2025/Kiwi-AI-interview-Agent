@@ -155,19 +155,19 @@ Each entry describes:
 
 **Failure behavior:** Pool composition failure can degrade the interview into fallback question generation. It should be tracked through diagnostics.
 
-### `buildInterviewMicroPlan`
+### `runBoundedQuestionMicroPlanning`
 
 **Location:** `backend/src/services/questions/interviewMicroPlanningService.js`
 
-**Purpose:** Builds a local turn-level plan for the next interview move.
+**Purpose:** Naturalizes an already bounded question plan into one TTS-ready question and falls back to the selected base question when model output fails validation.
 
-**Input role:** Candidate answer, session context, available question material, and coverage state.
+**Input role:** Bounded planning frame, fallback question, and interview focus area.
 
-**Output role:** Guidance for whether to follow up, switch topic, validate a gap, or use a prepared question.
+**Output role:** One validated spoken question plus compact planning metadata.
 
 **Used by:** Interview turn orchestration and adaptive question selection.
 
-### `orchestrateInterviewTurn`
+### `buildInterviewTurnPlan`
 
 **Location:** `backend/src/services/questions/interviewTurnOrchestratorService.js`
 
@@ -180,6 +180,20 @@ Each entry describes:
 **Used by:** Interviewer agent and adaptive next-turn path.
 
 **Failure behavior:** Should fall back to safe generated follow-up or topic movement rather than crashing the interview turn.
+
+### `buildQuestionFingerprint` / `buildAssessmentKey` / `evaluateQuestionNovelty`
+
+**Location:** `backend/src/services/questions/questionDeduplicationService.js`
+
+**Purpose:** Prevents exact and assessment-equivalent root-question repetition while preserving distinct follow-up intents.
+
+**Input role:** Candidate question metadata, normalized spoken text, and transcript-derived history.
+
+**Output role:** Fingerprint, assessment key, similarity result, matched prior question, and allow/reject decision.
+
+**Used by:** Prepared-pool composition, ranking, reconciliation, and the final interviewer-agent spoken-question guard.
+
+**Failure behavior:** If the selected base question and all alternatives are duplicates, the interview closes with `no_unique_question_remaining`.
 
 ### `buildInterviewQuestionDiagnostics`
 
@@ -231,19 +245,35 @@ Each entry describes:
 
 **Failure behavior:** If evaluation is too strict, the interview may over-follow-up. If too loose, it may skip useful depth.
 
-### `starRubricService`
+### `analyzeStarrBreakdown`
 
 **Location:** `backend/src/services/aiControl/starRubricService.js`
 
-**Purpose:** Supports STAR-style behavioural answer evaluation.
+**Purpose:** Supports deterministic STARR-style behavioural answer evaluation.
 
 **Input role:** Candidate answer and behavioural question context.
 
-**Output role:** STAR coverage and feedback signals.
+**Output role:** Situation, task, action, result/reaction, reflection, score, and main-missing-element signals.
 
 **Used by:** Behavioural and combined interview modes.
 
 ## Voice functions
+
+### `createRoutedRealtimeSpeechSession`
+
+**Location:** `backend/src/services/voice/realtimeSpeechProviderRouter.js`
+
+**Purpose:** Starts realtime STT using the configured provider order.
+
+**Output role:** Azure or ElevenLabs realtime session plus provider-selection metadata.
+
+**Failure behavior:** Can fall back while the speech session starts; it does not switch an active turn mid-recording.
+
+### `synthesizeSpeech` provider router
+
+**Location:** `backend/src/services/voice/ttsProviderRouter.js`
+
+**Purpose:** Selects TTS independently from STT and tries the configured Azure/ElevenLabs provider order.
 
 ### Duplex voice socket server
 
@@ -273,6 +303,28 @@ Each entry describes:
 
 **Used by:** Voice debugging and performance analysis.
 
+## Recording functions
+
+### `createRecordingUploadService`
+
+**Location:** `backend/src/services/recording/recordingUploadService.js`
+
+**Purpose:** Owns resumable recording initialization, idempotent chunk validation/storage, finalization, retry, status, and session ownership checks.
+
+**Used by:** The resumable recording routes under `/api/recordings/session-audio/uploads`.
+
+### Recording conversion worker
+
+**Location:** `backend/src/services/recording/recordingConversionWorker.js`
+
+**Purpose:** Claims finalized recording jobs, assembles ordered chunks, converts audio to MP3, and records retry or ready state without blocking report navigation.
+
+### Recording upload manager
+
+**Location:** `frontend/src/runtime/recording/recordingUploadManager.js`
+
+**Purpose:** Persists browser chunks through the IndexedDB store, uploads one chunk at a time, resumes interrupted work, finalizes the manifest, and exposes status to interview/report UI.
+
 ## Report functions
 
 ### `executeReportAction`
@@ -287,19 +339,39 @@ Each entry describes:
 
 **Used by:** `runTask({ taskType: 'generate_report' })`.
 
-### `reportGeneratorAgent`
+### `runReportGeneratorAgent`
 
 **Location:** `backend/src/services/agents/reportGeneratorAgent.js`
 
 **Purpose:** Generates structured feedback report sections from CV, JD, interview plan, prepared question pool, and transcript evidence.
 
-**Output role:** Report sections, scoring, coaching feedback, and evidence-based content.
+**Output role:** Report sections, deterministic score set, question-specific turn breakdowns, coaching feedback, evidence references, transcript risks, and evidence-based content.
 
-### `reportQaAgent`
+### `buildReportTurnDataset`
+
+**Location:** `backend/src/services/report/reportTurnDatasetService.js`
+
+**Purpose:** Creates the canonical report input by pairing countable interview questions with accepted user answers.
+
+**Failure behavior:** Repair, transcript-confirmation, clarification, repeat, acknowledgement, system, and orphan answer turns are excluded from report scoring.
+
+### `resolveFollowUpAssessmentContract`
+
+**Location:** `backend/src/services/questions/questionAssessmentContractService.js`
+
+**Purpose:** Selects the assessment family, evidence mode, and targeted dimensions from the actual question intent so targeted follow-ups do not inherit an inappropriate parent rubric.
+
+### `buildReportScores`
+
+**Location:** `backend/src/services/report/reportScoreService.js`
+
+**Purpose:** Owns deterministic report score construction before candidate-facing wording is generated.
+
+### `runReportQaAgent`
 
 **Location:** `backend/src/services/agents/reportQaAgent.js`
 
-**Purpose:** Checks whether the generated report is grounded, consistent, and useful.
+**Purpose:** Checks whether the generated report is grounded, internally consistent, correctly rubric-routed, readable, and useful. It also checks evidence-row quality and transcript-risk visibility.
 
 **Output role:** QA result that can mark the report as ready or needing review.
 
@@ -307,29 +379,41 @@ Each entry describes:
 
 **Location:** `backend/src/services/report/reportQaRepairOrchestratorService.js`
 
-**Purpose:** Supports repair orchestration when report QA identifies problems.
+**Purpose:** Runs at most two targeted wording-repair attempts when report QA identifies eligible problems, then re-grounds claims and reruns QA.
 
 **Input role:** Generated report, QA findings, and available evidence.
 
-**Output role:** Repair direction or improved report support depending on the execution path.
+**Output role:** Final report, final QA result, and repair history. Deterministic recompute flags skip wording repair.
 
-### `claimGroundingService`
+### `groundCandidateFeedbackClaims`
 
 **Location:** `backend/src/services/report/claimGroundingService.js`
 
 **Purpose:** Strengthens report trustworthiness by connecting report claims to available evidence.
 
-### `conversationalAuthenticityService`
+### `evaluateAuthenticity`
 
 **Location:** `backend/src/services/report/conversationalAuthenticityService.js`
 
 **Purpose:** Checks the naturalness and authenticity of interview communication for report feedback.
 
-### `reportScoringExplanationService`
+### `buildScoreExplanations`
 
 **Location:** `backend/src/services/report/reportScoringExplanationService.js`
 
 **Purpose:** Makes report scoring easier to interpret by explaining score breakdowns.
+
+### `detectReportTranscriptRisks`
+
+**Location:** `backend/src/services/report/reportTranscriptRiskService.js`
+
+**Purpose:** Detects transcript entity and conflicting-number risks without rewriting the raw transcript, so uncertainty can be shown near report evidence and scores.
+
+### `buildCandidateEvidenceReferences`
+
+**Location:** `backend/src/services/report/reportEvidenceReferenceService.js`
+
+**Purpose:** Builds deduplicated candidate-facing claim, source, snippet, and confidence rows.
 
 ## Frontend report components
 
@@ -350,6 +434,24 @@ Each entry describes:
 **Location:** `frontend/src/components/report/CommunicationAuthenticitySection.jsx`
 
 **Purpose:** Displays feedback about communication quality and authenticity.
+
+### `EvidenceSourcesSection`
+
+**Location:** `frontend/src/components/report/EvidenceSourcesSection.jsx`
+
+**Purpose:** Displays claim-level source, evidence snippet, and confidence information.
+
+### `TranscriptRiskSection`
+
+**Location:** `frontend/src/components/report/TranscriptRiskSection.jsx`
+
+**Purpose:** Displays report-relevant ASR or transcript conflicts without silently changing raw transcript meaning.
+
+### `RecordingStatusCard`
+
+**Location:** `frontend/src/components/report/RecordingStatusCard.jsx`
+
+**Purpose:** Keeps upload/conversion progress, retry, ready, and download state separate from report readiness.
 
 ## Testing functions and files
 

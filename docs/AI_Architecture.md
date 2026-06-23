@@ -5,12 +5,12 @@
 This document describes the **Compound AI System** architecture of the Kiwi AI Interview Agent as it exists in the current codebase. The system goes beyond simple "prompt-in / prompt-out" wrappers by orchestrating parsing, retrieval, interview planning, voice transport, report generation, report QA, and usage-cost tracking across multiple services.
 
 The implementation integrates four major AI/Data components:
-1. **Large Language Model (LLM)**: DeepSeek handles structured JSON generation, interview turn planning, report drafting, report QA, and safeguard critic/reparse paths.
+1. **Large Language Model (LLM)**: DeepSeek handles structured JSON generation, bounded question naturalization and optional decision support, report drafting/rewriting, and safeguard critic/reparse paths. Deterministic services own the core action, scoring, and integrity rules.
 2. **Vector/Retrieval Store**: PostgreSQL with `pgvector` stores runtime `document_chunks` and supports session/global retrieval.
 3. **Flexible AI Artifact Store**: MongoDB stores AI logs, reports, transcripts, plans, match records, normalized CV/JD artifacts, and usage events.
-4. **External Speech API**: Azure Speech Services provide realtime STT and TTS for the product-wired voice flow.
+4. **External Speech APIs**: Azure is the default realtime STT/TTS provider, with independently configurable ElevenLabs STT and TTS fallback.
 
-By combining an LLM planner, deterministic service-layer guards, pgvector retrieval, MongoDB AI artifacts, and Azure voice transport, the system creates a stateful interview workflow rather than a generic chatbot.
+By combining an LLM planner, deterministic service-layer guards, pgvector retrieval, MongoDB AI artifacts, and routed speech transport, the system creates a stateful interview workflow rather than a generic chatbot.
 
 ---
 
@@ -41,81 +41,92 @@ Our Custom Agentic Framework features:
 - **JD safeguard loop**: `backend/src/services/jobDescription/` implements critic/gate/reparse safeguards for structured JD parsing.
 - **Match safeguard loop**: `backend/src/services/match/` contains guarded matching, scoring, explanation, validation target building, and critic support.
 
-### C. External API (Azure Speech Services)
-To simulate a real interview, the product-wired voice mode lets the system listen and speak through Azure Speech.
+### C. External speech APIs (Azure and ElevenLabs)
+To simulate a real interview, the product-wired voice mode routes listening and speaking through configurable speech providers.
 - **Live STT WebSocket**: `backend/src/api/realtimeVoiceSocket.js` exposes `/api/interview/:sessionId/voice/live`.
 - **Duplex Voice WebSocket**: `backend/src/api/duplexVoiceSocket.js` exposes `/api/interview/:sessionId/voice/duplex` and delegates STT, adaptive turn processing, TTS, and barge-in behavior to `backend/src/services/voice/`.
+- **STT provider router**: `backend/src/services/voice/realtimeSpeechProviderRouter.js` uses Azure by default and can fall back to ElevenLabs while the session starts. It does not switch an active turn mid-recording.
+- **TTS provider router**: `backend/src/services/voice/ttsProviderRouter.js` resolves TTS independently from STT and supports Azure and ElevenLabs.
 - **Frontend voice shell**: `frontend/src/hooks/useVoiceInterviewSession.js` combines microphone permission, realtime PCM streaming, VAD, duplex socket control, TTS playback queue, network-quality checks, latency trace summaries, and session recording upload.
-- **Current status**: voice is product-wired, but full proof still depends on live Azure Speech credentials, authenticated WebSocket access, browser microphone permission, and an in-progress interview session.
+- **Current status**: voice is product-wired, but full proof still depends on live configured-provider credentials, authenticated WebSocket access, browser microphone permission, and an in-progress interview session.
 
-### D. Usage Cost and Commercial Stress Test
+### D. Resumable recording pipeline
+
+Live interview processing and recording delivery are deliberately separated.
+
+- `frontend/src/runtime/recording/` persists MediaRecorder chunks and upload metadata in IndexedDB, performs single-flight resumable upload, and supports best-effort Background Sync.
+- `backend/src/services/recording/recordingUploadService.js` validates ownership, manifests, sequence, checksum, limits, retry, and finalize operations.
+- `backend/src/services/recording/recordingConversionWorker.js` claims finalized jobs and performs asynchronous MP3 conversion.
+- The report page can open after local recording durability; it polls recording status without coupling report readiness to conversion readiness.
+
+### E. Report integrity and QA repair
+
+The report pipeline now uses one accepted-answer dataset rather than treating every raw user turn as scoreable evidence.
+
+- `reportTurnDatasetService.js` pairs countable interview questions with accepted user answers and excludes repair, confirmation, clarification, repeat, and system turns.
+- `questionAssessmentContractService.js`, `turnRubricService.js`, and `reportScoreService.js` keep question assessment and numeric scoring deterministic.
+- `reportEvidenceReferenceService.js` and `reportTranscriptRiskService.js` expose claim-level evidence and transcript conflicts to the report UI and PDF.
+- `reportQaAgent.js` checks grounding, metric consistency, rubric alignment, rewrite quality, evidence rows, and transcript-risk visibility.
+- `reportQaRepairOrchestratorService.js` may run at most two wording repairs and re-grounds claims after each rewrite. Deterministic integrity failures skip wording repair.
+- `SessionReport` persists versions, repair history, QA attempt count, and `ready`, `ready_after_repair`, `needs_review`, or `repair_failed` status.
+
+### F. Usage Cost and Commercial Stress Test
 
 The current codebase also tracks measured AI/service usage for report-ready commercial analysis.
 
-- `backend/src/db/models/aiUsageEventModel.js` stores usage events for DeepSeek, Azure Speech, and local stages.
+- `backend/src/db/models/aiUsageEventModel.js` stores usage events for DeepSeek, speech providers, and local stages.
 - `backend/src/services/aiUsageTrackingService.js` aggregates session/user cost, provider breakdown, stage breakdown, and commercial stress payloads.
-- `backend/src/config/aiUsagePricing.js` centralizes DeepSeek and Azure Speech pricing assumptions.
+- `backend/src/config/aiUsagePricing.js` centralizes DeepSeek and Azure Speech pricing assumptions. ElevenLabs usage events are recorded, but the current estimator assigns non-Azure speech providers zero cost until provider-specific pricing is added.
 - `frontend/src/components/report/CommercialStressTestSection.jsx` displays the execution cost and human-time comparison in the report page.
 
 This is implemented as an estimation layer based on recorded events. It should not be described as a full finance-grade billing system.
 
 ---
 
-## 3. Core Prompts
+## 3. Prompt contracts
 
-The following prompts drive the primary Agentic loops in the system:
+Prompt strings live beside the services that validate their output. The summaries below describe the current contracts; consult the referenced code for the exact text.
 
-### 1. The Interviewer Agent (Conversation Planner)
-This prompt orchestrates the state machine of the interview, determining when to ask a new question, when to probe deeper, and when to conclude.
+### 1. Bounded interview question micro-planner
 
-```text
-You are KiwiCoach, a senior HR interviewer conducting a structured technical interview.
-Your goal is to evaluate the candidate against the Job Description while maintaining a highly professional, encouraging, yet probing tone.
+`backend/src/services/questions/interviewMicroPlanningService.js` receives a controller-selected planning frame and fallback question. The model does not freely choose the next action. It returns strict JSON with:
 
-Current Interview State:
-- Focus Area: {{focusArea}}
-- Completed Questions: {{questionCount}}
-- Candidate Last Input: {{userTranscript}}
-
-Relevant Knowledge Retrieved (RAG):
-{{ragContext}}
-
-Instructions:
-1. Analyze the candidate's answer against the RAG knowledge.
-2. Decide your next action: 'acknowledge_and_probe', 'move_to_next_topic', or 'conclude_interview'.
-3. Formulate your response in a natural conversational tone, suitable for Text-to-Speech playback.
-4. Output your decision and response strictly as a JSON object.
+```json
+{
+  "selectedAngle": "short grounded angle",
+  "shortReason": "one short sentence",
+  "finalSpokenQuestion": "one TTS-ready question",
+  "evidenceUsed": ["source label"],
+  "riskFlags": []
+}
 ```
 
-### 2. The Critic Agent (Self-Correction Safeguard)
-This prompt powers the autonomous error-correction loop, ensuring that the system does not silently accept hallucinated parsing results.
+Deterministic validation enforces one question, mode safety, parent context for follow-ups, wording quality, and a usable fallback. The final interviewer-agent novelty guard can still reject the naturalized wording if it repeats transcript history.
 
-```text
-You are an objective QA Assessor evaluating an AI's attempt to extract structured skills from a Job Description.
-Review the extracted output against the original raw text.
+### 2. JD parse critic and reparse safeguard
 
-Raw Job Description:
-{{rawJdText}}
+`backend/src/services/jobDescription/jdParseCriticAgent.js` compares raw JD text with parsed JSON and returns strict JSON shaped around:
 
-AI Extracted Output:
-{{extractedJson}}
-
-Instructions:
-Identify if any of the following failures occurred:
-1. Hallucination: Are there skills listed that DO NOT exist in the raw text?
-2. Omission: Did the AI miss critical "must-have" requirements?
-
-Provide a JSON response with:
-- "passed": boolean (true if flawless, false if errors found)
-- "failure_reasons": array of strings explaining exactly what went wrong.
+```json
+{
+  "verdict": "pass | revise | reject",
+  "confidence": 0.0,
+  "blockOutput": true,
+  "blockMatch": true,
+  "issues": [],
+  "reparseInstructions": [],
+  "reasoning": ""
+}
 ```
+
+The critic checks field fidelity, section classification, technical-term preservation, and core-versus-bonus requirements. `jdParseReparseAgent.js` consumes targeted instructions. Heuristic fallbacks and bounded timeout/retry configuration remain part of the safeguard path.
 
 ## 4. Current Implementation Boundaries
 
 - Text interview mode is the safest demo path.
-- Voice mode is wired through frontend and backend, but still needs live E2E verification in the target deployment environment.
+- Voice mode is wired through frontend and backend, but still needs live E2E verification in the target deployment environment and with the selected speech-provider order.
 - The retrieval embedding is deterministic and local; production-grade semantic retrieval would require a real embedding model migration plan.
-- Privacy and compliance claims must stay conservative because retention workers, account-wide deletion, and encryption-at-rest guarantees are not fully implemented.
+- A retention audit/cleanup pipeline, backup/quarantine services, and queued-job worker exist, but the worker is disabled by default. Account-wide deletion, encryption-at-rest guarantees, and deployment policy remain incomplete.
 
 ## 5. Conclusion
 

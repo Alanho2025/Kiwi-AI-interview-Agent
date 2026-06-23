@@ -1,6 +1,6 @@
 # Implementation Workflows
 
-This document explains the current implemented workflow in the `Alan-workplace` branch.
+This document explains the current implemented workflow in the `Alan-workplace` branch, aligned with code on 2026-06-23.
 
 ## End-to-end product workflow
 
@@ -17,11 +17,12 @@ User login
   -> JD question filter creation
   -> interview plan generation
   -> prepared question pool composition
+  -> preparation-time question deduplication and readiness checks
   -> text or voice interview
-  -> adaptive next-turn control
+  -> adaptive next-turn control and final transcript novelty guard
   -> interview completion
-  -> report generation
-  -> report QA and persistence
+  -> canonical accepted-answer report dataset
+  -> report generation, QA, optional bounded repair, and versioned persistence
 ```
 
 The workflow is gated at the user-facing level. The user must review the parsed CV fields and structured JD rubric before generating the match and interview plan.
@@ -114,12 +115,15 @@ JD rubric + match analysis
   -> JD question filter
 CV seeds + JD filter + match gaps + settings
   -> prepared question pool
+  -> deduplicate equivalent assessment goals and fingerprints
 User answer + transcript + retrieved evidence
   -> answer understanding
   -> evaluator
   -> decision context
   -> action planning
-  -> next question or follow-up
+  -> selected question or follow-up
+  -> final spoken-question novelty guard against transcript history
+  -> next unique question or safe wrap-up
 ```
 
 ### Key behavior
@@ -127,6 +131,8 @@ User answer + transcript + retrieved evidence
 - CV seeds are not final questions by themselves.
 - The prepared question pool is a candidate pool, not a fixed script.
 - The adaptive controller can ask prepared questions, generated follow-ups, gap validation questions, or move to a new topic.
+- Prepared-pool deduplication and the final spoken-question guard use assessment keys and normalized fingerprints while preserving distinct follow-up intents.
+- If neither the selected question nor an alternative is unique, the interview closes with `no_unique_question_remaining` instead of repeating an assessment-equivalent question.
 - Question metadata should record why a question was asked, what evidence was used, and whether it came from a prepared source or generated follow-up.
 
 ## Text interview workflow
@@ -166,13 +172,13 @@ Voice mode provides a product-level interview experience with speech input and s
 Frontend opens duplex WebSocket
   -> backend validates session and authentication
   -> client sends session_start
-  -> backend sends session_ready
+  -> backend starts the configured STT provider order and sends session_ready
   -> user speaks
   -> speech_start and audio chunks are sent
   -> speech_end finalizes STT
   -> transcript confidence gate runs
   -> accepted transcript enters adaptive turn processing
-  -> assistant response is streamed as text and TTS audio
+  -> assistant response is streamed as text through the independently configured TTS provider order
   -> turn_done is sent
 ```
 
@@ -190,7 +196,35 @@ Frontend opens duplex WebSocket
 - Transcript repair and confirmation can add extra turns.
 - Audio sent before `speech_start` may be ignored.
 - Bridge acknowledgements may be used when the next question is slow, but this is not the same as an instant guaranteed response.
-- Live quality depends on Azure Speech credentials, browser permissions, and WebSocket connection health.
+- Azure is the default STT/TTS provider. ElevenLabs can be configured as the session-start fallback for either path independently.
+- STT does not switch providers in the middle of an active recording turn.
+- Live quality depends on configured-provider credentials, browser permissions, and WebSocket connection health.
+
+## Voice recording workflow
+
+### Purpose
+
+The recording workflow preserves the interview audio without blocking live turn latency or report navigation.
+
+### Flow
+
+```text
+MediaRecorder chunk
+  -> persist chunk in browser IndexedDB
+  -> low-priority single-flight upload
+  -> backend manifest and idempotent chunk storage
+  -> finalize after all sequences are present
+  -> durable conversion worker assembles and converts MP3
+  -> report page polls status and offers retry or download
+```
+
+### Key behavior
+
+- Report navigation waits for the final chunk to be locally durable, not for remote upload or conversion.
+- Reload or temporary network failure can resume unacknowledged chunks from the same browser profile.
+- Backend initialization, chunk upload, finalization, and retry are ownership-checked and idempotent.
+- The legacy single-request recording upload remains supported, but the product path uses resumable upload.
+- Report readiness and recording readiness are separate states.
 
 ## Report generation and QA workflow
 
@@ -204,18 +238,23 @@ The report workflow turns the completed interview into an evidence-grounded feed
 Interview completed
   -> session artifacts are indexed
   -> CV, JD, interview plan, prepared pool, and transcript evidence are retrieved
+  -> countable interview questions are paired with accepted user answers
   -> report decision context is built
-  -> report is generated
-  -> claim grounding and scoring explanation are added where available
-  -> report QA checks quality and evidence support
-  -> report status is stored as ready or needs review
+  -> deterministic rubric selection and scores are computed
+  -> report is generated with claim evidence and transcript-risk warnings
+  -> report QA checks grounding, consistency, rubric use, rewrites, and visible risk handling
+  -> eligible wording failures may be repaired and re-grounded at most twice
+  -> report version, repair history, QA attempts, and final status are persisted
 ```
 
 ### Key behavior
 
 - The report is not only a transcript summary.
-- It should use CV, JD, interview plan, question pool, and transcript evidence.
-- QA can mark report quality and support repair orchestration.
+- It uses CV, JD, interview plan, question pool, and accepted transcript evidence.
+- Repair, confirmation, clarification, repeat, acknowledgement, and system turns do not enter the scored report dataset.
+- Root behavioural questions, targeted follow-ups, self-introduction, company motivation, and role-specific questions can use different assessment contracts.
+- QA repair is bounded to two wording attempts and always re-grounds changed claims. Deterministic integrity flags are not hidden by a rewrite.
+- Final statuses are `ready`, `ready_after_repair`, `needs_review`, or `repair_failed`.
 - If report generation fails during interview completion, the interview flow may still finish. This is a resilience behavior.
 
 ## Diagnostics workflow

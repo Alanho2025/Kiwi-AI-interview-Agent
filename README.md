@@ -2,7 +2,7 @@
 
 Kiwi AI Interview Agent is a CV and job-description grounded interview coaching platform. It helps a candidate upload a CV, review parsed CV evidence, paste and review a structured job description, generate a CV-JD match analysis, run a text or voice mock interview, and receive an evidence-grounded feedback report with QA checks.
 
-This repository is prepared for academic marking. The project is not a simple chatbot. It is a compound AI system that combines a React frontend, an Express backend, PostgreSQL, MongoDB, RAG retrieval, LLM-backed reasoning, Azure Speech, WebSocket voice interaction, report QA, diagnostics, and robustness tests.
+This repository is prepared for academic marking. The project is not a simple chatbot. It is a compound AI system that combines a React frontend, an Express backend, PostgreSQL, MongoDB, RAG retrieval, LLM-backed reasoning, routed Azure/ElevenLabs speech providers, WebSocket voice interaction, report QA and bounded repair, diagnostics, and robustness tests.
 
 ## Marker quick links
 
@@ -44,9 +44,11 @@ Google login
   -> adaptive controller selects follow-up or next question
   -> transcript and question metadata are stored
   -> interview ends by question limit, time limit, or manual end
+  -> accepted question/answer pairs form the canonical report-turn dataset
   -> report is generated from CV, JD, plan, pool, and transcript evidence
-  -> report QA checks grounding and quality
-  -> report is stored as ready or needs review
+  -> report QA checks grounding, score consistency, rubric use, rewrites, and transcript risks
+  -> failed QA may run at most two grounded wording-repair attempts
+  -> versioned report is stored as ready, ready after repair, needs review, or repair failed
 ```
 
 ## Why this is a compound AI system
@@ -75,10 +77,14 @@ The system uses LLMs, but it does not rely on one large prompt alone. It builds 
 - Technical, behavioural, or combined interview focus
 - Text interview flow with pause, resume, repeat, reply, end, and transcript export
 - Product-wired voice interview through WebSocket, STT, transcript gating, adaptive turn handling, and TTS streaming
+- Independent STT/TTS provider routing with Azure as the default and ElevenLabs as the configurable fallback; STT provider selection occurs when the speech session starts
 - Prepared question pool based on CV seeds, JD filters, match gaps, and interview settings
 - Adaptive follow-up based on candidate answers and coverage state
+- Prepared-pool and live transcript-based question deduplication, including a safe wrap-up when no unique question remains
 - Evidence-grounded report generation
-- Report QA, QA repair orchestration, evidence badges, score breakdowns, and communication authenticity feedback
+- Canonical accepted-answer report dataset, question-specific rubrics, evidence sources, transcript-risk warnings, score breakdowns, and communication authenticity feedback
+- Bounded report QA repair with post-rewrite grounding, report versions, repair history, and explicit report statuses
+- Resumable voice recording through IndexedDB, idempotent chunk upload, background recovery, asynchronous MP3 conversion, status polling, and download
 - Backend robustness tests, frontend tests, Playwright E2E, and AI eval runners
 
 ## Current technology stack
@@ -104,7 +110,7 @@ The system uses LLMs, but it does not rely on one large prompt alone. It builds 
 - JWT authentication
 - CSRF and rate limiting middleware
 - LLM provider integration
-- Azure Speech SDK
+- Azure Speech SDK and ElevenLabs STT/TTS HTTP/WebSocket integrations
 - WebSocket server through `ws`
 - Vitest robustness tests and real AI eval runners
 
@@ -159,6 +165,7 @@ The system uses LLMs, but it does not rely on one large prompt alone. It builds 
 | Question pipeline | `backend/src/services/questions/` |
 | Interview AI control | `backend/src/services/masterAiService.js`, `backend/src/services/aiControl/`, `backend/src/services/agents/interviewerAgent.js` |
 | Voice pipeline | `backend/src/api/duplexVoiceSocket.js`, `backend/src/services/voice/` |
+| Recording pipeline | `backend/src/services/recording/`, `backend/src/repositories/recordingUploadRepository.js`, `frontend/src/runtime/recording/` |
 | Report generation and QA | `backend/src/services/agents/reportGeneratorAgent.js`, `backend/src/services/agents/reportQaAgent.js`, `backend/src/services/report/` |
 | Retrieval and RAG | `backend/src/services/retrieval/`, `backend/src/scripts/importInterviewKnowledge.js` |
 | Tests and eval | `backend/tests/`, `backend/eval/` |
@@ -167,8 +174,13 @@ The system uses LLMs, but it does not rely on one large prompt alone. It builds 
 
 Base path: `/api`
 
+### Health
+
+- `GET /api/health`
+
 ### Auth
 
+- `GET /api/auth/csrf`
 - `GET /api/auth/google/config`
 - `POST /api/auth/google`
 - `GET /api/auth/me`
@@ -187,6 +199,7 @@ Base path: `/api`
 ### JD, analysis, and plan generation
 
 - `POST /api/job-description/paraphrase`
+- `POST /api/job-description/company-values/enrichment`
 - `POST /api/analyze/match`
 - `POST /api/analyze/interview-plan`
 
@@ -202,35 +215,68 @@ Base path: `/api`
 - `POST /api/interview/resume`
 - `POST /api/interview/end`
 - `POST /api/interview/synthesize`
-- `GET /api/interview/:sessionId/diagnostics/questions`
+- `GET /api/interview/:sessionId/question-diagnostics` — disabled when `NODE_ENV=production`
 
-### Report, export, recording, and RAG
+### Sessions
+
+- `POST /api/session/save`
+- `GET /api/session/history`
+- `GET /api/session/:sessionId`
+- `POST /api/session/resume`
+- `DELETE /api/session/:sessionId`
+
+### Report and export
 
 - `POST /api/report/generate`
-- `POST /api/report/qa`
+- `POST /api/report/qa` — QA, or prompt-guided rewrite when `userPrompt` is supplied
+- `POST /api/report/qa-check` — QA without prompt rewrite
 - `GET /api/report/:sessionId`
 - `POST /api/report/:sessionId/export`
 - `POST /api/export/transcript`
+
+### Recording
+
 - `POST /api/recordings/session-audio`
+- `POST /api/recordings/session-audio/uploads`
+- `PUT /api/recordings/session-audio/uploads/:uploadId/chunks/:sequence`
+- `POST /api/recordings/session-audio/uploads/:uploadId/finalize`
+- `POST /api/recordings/session-audio/uploads/:uploadId/retry`
+- `GET /api/recordings/session-audio/uploads/:uploadId/status`
 - `GET /api/recordings/session-audio/:sessionId/status`
 - `GET /api/recordings/session-audio/:sessionId/download`
+
+### RAG, usage, and operations
+
 - `POST /api/rag/import-benchmark`
 - `POST /api/rag/import-interview-knowledge`
 - `POST /api/rag/rebuild-session`
 - `POST /api/rag/retrieve`
+- `GET /api/usage/summary`
+- `GET /api/usage/recent-sessions`
+- `GET /api/usage/execution/:sessionId`
+- `GET /api/ops-lite/summary`
 
 ### WebSocket routes
 
 - `/api/interview/:sessionId/voice/live`
 - `/api/interview/:sessionId/voice/duplex`
 
+The backend also mounts the same Express router without `/api` for legacy frontend builds. New clients and documentation should use the canonical `/api` routes.
+
+### Frontend routes
+
+- Public: `/`, `/pricing`, `/contact-sales`, `/login`
+- Protected: `/dashboard`, `/analysis`, `/interview/:sessionId`, `/report/:sessionId`, `/ops-lite`
+- `/home` redirects to `/dashboard`
+
 ## Data layer
 
 | Store | Role |
 | --- | --- |
 | PostgreSQL | Structured operational data, users, uploaded file metadata, sessions, AI usage events, and pgvector-backed runtime RAG chunks |
-| MongoDB | Flexible AI-oriented records, document content, match analysis, CV/JD normalized artifacts, transcripts, session reports, and coaching memory |
-| Local filesystem | Development upload and recording artifacts |
+| MongoDB | Flexible AI-oriented records, document content, match analysis, CV/JD normalized artifacts, transcripts, versioned session reports, and coaching memory |
+| Browser IndexedDB | Durable unacknowledged voice-recording chunks and resumable-upload metadata |
+| Local filesystem | Development uploads, exports, resumable recording chunks, quarantined retention files, and converted MP3 recordings |
 
 ## Environment setup
 
@@ -242,7 +288,7 @@ Base path: `/api`
 - MongoDB
 - Google OAuth client configuration
 - LLM provider configuration for real AI generation and eval
-- Azure Speech configuration for live voice features
+- Azure Speech configuration for the default live voice path; ElevenLabs credentials are needed when its STT or TTS fallback is enabled
 
 ### Backend
 
@@ -263,6 +309,13 @@ npm run dev
 
 By default, the frontend calls `/api`. Vite proxies `/api` to the local backend and supports WebSocket proxying.
 
+Relevant runtime configuration notes (most values are demonstrated in `backend/.env.example`):
+
+- Azure is the primary STT provider and ElevenLabs is the fallback; TTS order is configured independently.
+- `RECORDING_WORKER_ENABLED=true`; the worker starts only when PostgreSQL bootstrap succeeds.
+- `RETENTION_WORKER_ENABLED=false`; enable it only after the retention audit/cleanup and deployment storage policy are understood.
+- PostgreSQL and MongoDB can start in degraded mode unless `POSTGRES_REQUIRED` or `MONGO_REQUIRED` is enabled, but the complete product flow needs its persistence services.
+
 ## Development and test commands
 
 ### Backend
@@ -272,6 +325,7 @@ cd backend
 npm run lint
 npm run test:all
 npm run test:questions
+npm run test:recording
 npm run test:report
 npm run test:voice
 npm run eval:local
@@ -289,9 +343,12 @@ npm run lint
 npm run test:all
 npm run test:e2e:question-pipeline
 npm run test:e2e:voice-latency
+npm run test:e2e:recording-recovery
 npm run build
 npm run quality:all
 ```
+
+`eval:real`, `eval:all`, and backend `quality:all` include real-provider work and must only be run with configured credentials, cost/quota awareness, and explicit approval. Backend `test:all` runs the groups listed in `backend/package.json`; it does not currently include every unit, retention, or interview test file.
 
 ## Safe demo path
 
@@ -310,18 +367,22 @@ For the most stable marker demo:
 11. Start text interview mode.
 12. Complete the interview.
 13. Open the report page.
-14. Show evidence badges, score breakdown, coaching, QA status, and commercial stress-test information where available.
+14. Show evidence badges, source snippets, turn rubrics, transcript-risk warnings, score breakdown, coaching, QA status, and commercial stress-test information where available.
 
-Voice mode is product-wired, but it should only be demonstrated when Azure Speech credentials, browser microphone permission, authenticated WebSocket access, and a live in-progress interview session are all working in the same environment.
+Voice mode is product-wired, but it should only be demonstrated when credentials for the configured Azure/ElevenLabs speech-provider order, browser microphone permission, authenticated WebSocket access, and a live in-progress interview session are all working in the same environment.
 
 ## Honest limitations
 
-- Voice mode is wired, but live quality depends on Azure Speech credentials, browser audio permissions, WebSocket connection health, and microphone conditions.
+- Voice mode is wired, but live quality depends on the configured speech-provider credentials, browser audio permissions, WebSocket connection health, and microphone conditions. Provider fallback occurs when a speech session starts; an active STT turn is not switched mid-recording.
+- Recording upload is resumable and MP3 conversion is asynchronous. Report viewing does not prove that recording conversion has finished; the report page exposes recording state separately.
 - Some preparation steps are resilient by design. If CV seeds, JD filters, or prepared question pool creation fail, the system may fall back instead of blocking the interview.
 - The deterministic local embedding is acceptable for MVP retrieval experiments, but a production semantic retrieval plan would need a stronger embedding model.
+- A retention audit/cleanup pipeline and disabled-by-default worker exist, but account-wide deletion, encryption-at-rest guarantees, and deployment-specific retention operations remain incomplete.
+- Privacy UI wording about account cancellation or automatic 12-month deletion is ahead of the implemented self-service backend flow and must not be treated as an enforced guarantee.
 - Some ownership checks and route-level tests still need hardening before production use.
 - Commercial value evidence must be supported by the final report's market analysis and cost-benefit analysis. The repository provides implementation and measurement hooks, not market proof by itself.
-- Report QA can mark outputs as ready or needs review and includes repair orchestration support, but any final paper claim should describe the exact verified behavior.
+- Cost estimates currently price DeepSeek and Azure Speech. ElevenLabs usage events are recorded but carry zero estimated cost until a provider-specific pricing model is added.
+- Report generation performs QA and may run at most two grounded wording-repair attempts. Deterministic integrity failures skip wording repair, and unresolved output remains `needs_review` or `repair_failed`; this is not an unbounded self-healing loop.
 
 ## How to read this repository for marking
 

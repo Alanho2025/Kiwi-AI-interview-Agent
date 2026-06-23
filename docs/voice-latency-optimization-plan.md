@@ -1,5 +1,7 @@
 # Voice Interview Latency Optimization Plan
 
+> Status: historical phased plan. The inline `Pending` and `In Progress` labels were not maintained as an implementation tracker. Warm context, fast answer understanding, bridge acknowledgements, first-sentence/TTS tracing, and provider routing exist in current code, but the 3-second product target still requires live E2E validation.
+
 ## Executive Summary
 
 **Goal**: Reduce voice interview latency from ~12.3s to 4-6s while maintaining interview quality, RAG grounding, adaptive follow-up, and report evidence integrity.

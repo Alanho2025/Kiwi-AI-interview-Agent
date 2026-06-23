@@ -19,7 +19,17 @@ The evaluation design follows an agent benchmark style:
 - `npm run eval:report` → report QA evaluation
 - `npm run eval:e2e` → end-to-end interview scenario benchmark
 - `npm run eval:green` → Kiwi Green Agent benchmark runner
-- `npm run eval:all` → runs all evaluation scripts with quality gates, including real AI evals
+- `npm run eval:voice-robustness` → deterministic voice robustness evaluation
+- `npm run eval:retrieval` → deterministic retrieval evaluation
+- `npm run eval:agent-trajectory` → deterministic agent trajectory evaluation
+- `npm run eval:company-research` → deterministic company research evaluation
+- `npm run eval:voice-quality` → deterministic voice quality evaluation
+- `npm run eval:stability` → deterministic stability evaluation
+- `npm run eval:prep-stability` → deterministic preparation stability evaluation
+- `npm run eval:agent-framework` → retrieval, trajectory, company research, voice quality, and stability evals
+- `npm run eval:local` → E2E, Green Agent, voice robustness, and agent-framework evals without real-provider requirements
+- `npm run eval:real` → CV, JD, SEEK, match, interview, report, and baseline real-provider evals
+- `npm run eval:all` / `npm run eval:plan` → runs 15 suites sequentially through `runPlanEvalSuite.js`, including the real-provider CV, JD, SEEK, match, interview, report, and baseline evals plus local E2E/Green/voice/retrieval/trajectory/company/stability suites; requires explicit cost/credential approval
 - `npm run quality:local` → runs lint, robustness tests, and mock/static evals
 - `npm run quality:real` → runs real AI evals that require configured credentials and cost/rate-limit awareness
 - `npm run quality:all` → runs local quality first, then real AI evals
@@ -44,6 +54,8 @@ The reports answer three questions quickly:
 1. Which cases are strong now
 2. Which cases are weak now
 3. Which checks failed, so fixes are evidence-based instead of guess-based
+
+Google Agents CLI trace builders and advice summarizers are documented separately in `eval/googleAgentsCli/README.md` and are not part of every default eval command.
 
 ## Benchmark design
 

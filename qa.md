@@ -1,5 +1,7 @@
 # Report + QA Full Implementation Plan
 
+> Status: partially implemented; this is a historical plan, not the current report contract. The current code has grounded report generation, initial QA, up to two post-grounded wording-repair attempts, deterministic scoring, question-specific rubrics, trust fields, transcript risks, report versions, repair history, and explicit final statuses. Human-adviser calibration, inter-rater agreement, and B2B cohort analytics described later in this file are not implemented. Use `docs/implementation-workflows.md` and `docs/code-document-alignment.md` for present behavior.
+
 # 1. Purpose
 
 The goal of the Report + QA module is not only to generate an interview feedback report. The goal is to produce a transparent, evidence-grounded, QA-checked coaching artifact that users can trust.
