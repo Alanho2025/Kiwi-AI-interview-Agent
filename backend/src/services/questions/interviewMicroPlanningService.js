@@ -16,6 +16,84 @@ const countQuestionMarks = (text = '') => (String(text || '').match(/\?/g) || []
 
 const hasTechnicalImplementationProbe = (text = '') => /\b(code|algorithm|database schema|sql query|implementation detail|latency|scalability|architecture|api endpoint|library|framework)\b/i.test(text);
 
+const RUBRIC_STYLE_PATTERNS = [
+  /\bevidence\s+for\s+studying\b/i,
+  /\bshows?\s+your\s+evidence\s+for\b/i,
+  /\bevidence\s+for\s+can\b/i,
+  /\blimited\s+direct\s+evidence\s+for\b/i,
+  /\bwhat\s+evidence\s+do\s+you\s+have\s+for\b/i,
+  /\bmeeting\s+the\s+.+\s+requirement\b/i,
+  /\brelated[-\s]?field\s+requirement\b/i,
+  /\bcredential\s+evidence\b/i,
+  /\brequirement\s+alignment\b/i,
+];
+
+const hasRubricStyleQuestion = (text = '') =>
+  RUBRIC_STYLE_PATTERNS.some((pattern) => pattern.test(String(text || '')));
+
+const naturalizeRubricStyleQuestion = ({
+  question = '',
+  fallbackQuestion = '',
+  planningFrame = {},
+} = {}) => {
+  const polishedQuestion = polishQuestionWording(question || fallbackQuestion);
+  const frameText = normalizeText(
+    `${question} ${fallbackQuestion} ${JSON.stringify(planningFrame || {})}`,
+  ).toLowerCase();
+
+  const shouldRewrite =
+    hasRubricStyleQuestion(question) ||
+    hasRubricStyleQuestion(fallbackQuestion) ||
+    hasRubricStyleQuestion(polishedQuestion);
+
+  if (!shouldRewrite) {
+    return {
+      question: polishedQuestion,
+      riskFlags: [],
+    };
+  }
+
+  if (
+    /\b(studying|study|education|credential|degree|master|information systems|computer science|software|data|related field)\b/i.test(frameText)
+  ) {
+    return {
+      question:
+        'Which coursework or project from your IT study has prepared you most for this automation role?',
+      riskFlags: ['rubric_style_question_rewritten', 'credential_requirement_reworded'],
+    };
+  }
+
+  if (/\b(non[-\s]?technical|stakeholder|staff|communication|explain|explained)\b/i.test(frameText)) {
+    return {
+      question:
+        'Can you describe a time when you explained a technical issue to a non-technical stakeholder?',
+      riskFlags: ['rubric_style_question_rewritten', 'stakeholder_question_reworded'],
+    };
+  }
+
+  if (/\b(ask good questions|jumping into|technical solution|root cause|real pain point|investigate)\b/i.test(frameText)) {
+    return {
+      question:
+        'Can you describe a time when you asked questions to understand a problem before choosing a technical solution?',
+      riskFlags: ['rubric_style_question_rewritten', 'investigation_question_reworded'],
+    };
+  }
+
+  if (/\b(documentation|documented|handover|reporting)\b/i.test(frameText)) {
+    return {
+      question:
+        'Can you describe a time when you created or improved documentation to help other people use a process?',
+      riskFlags: ['rubric_style_question_rewritten', 'documentation_question_reworded'],
+    };
+  }
+
+  return {
+    question:
+      'Can you give me one practical example that shows your experience with this requirement?',
+    riskFlags: ['rubric_style_question_rewritten', 'generic_requirement_reworded'],
+  };
+};
+
 const buildPrompt = ({ planningFrame = {} } = {}) => `Return strict JSON only:
 {
   "selectedAngle": "short angle grounded in the frame",
@@ -31,6 +109,11 @@ Rules:
 - Use natural spoken English for a real interview.
 - Keep the original assessment goal, but polish awkward wording.
 - Avoid unnatural verb-object pairs such as "showed documentation".
+- Convert rubric-style requirements into natural interview questions.
+- For credential, education, eligibility, or related-field requirements, do not ask unnatural questions such as "evidence for studying..." or "shows your evidence for...".
+- If the CV already shows the credential, ask for one relevant coursework, project, or practical example that prepared the candidate for this role.
+- If credential evidence is missing or ambiguous, ask a simple verification question instead of a behavioural evidence question.
+- Never expose internal rubric labels, requirement names, or assessment wording in finalSpokenQuestion.
 - Prefer common verbs: created, wrote, improved, explained, documented, clarified, validated.
 - For documentation-related questions, ask about creating, improving, or using documentation to help others.
 - Do not invent CV, JD, match, or transcript facts.
@@ -39,18 +122,38 @@ Rules:
 - Do not ask generic interview-bank questions when CV/JD/match evidence is available.
 - For follow-ups, stay on the parent topic unless the scenario is switch_topic, shift_section, or wrap_up.
 
+Examples:
+Bad: "Tell me about one example that shows your evidence for studying information systems, computer science, data, software, or a related field."
+Good: "Which coursework or project from your IT study has prepared you most for this automation role?"
+
+Bad: "What evidence do you have for meeting the related field requirement?"
+Good: "Can you briefly explain how your study background connects to this role?"
+
 Planning frame:
 ${JSON.stringify(planningFrame, null, 2)}`;
 
 export const parseMicroPlanningResponse = (content = '') => JSON.parse(extractJsonObject(content));
 
-export const buildFallbackMicroPlan = ({ fallbackQuestion = '', reason = 'fallback_micro_plan', evidenceUsed = [] } = {}) => ({
-  selectedAngle: 'fallback',
-  shortReason: reason,
-  finalSpokenQuestion: polishQuestionWording(fallbackQuestion),
-  evidenceUsed,
-  riskFlags: ['fallback_used'],
-});
+export const buildFallbackMicroPlan = ({
+  fallbackQuestion = '',
+  reason = 'fallback_micro_plan',
+  evidenceUsed = [],
+  planningFrame = {},
+} = {}) => {
+  const naturalized = naturalizeRubricStyleQuestion({
+    question: fallbackQuestion,
+    fallbackQuestion,
+    planningFrame,
+  });
+
+  return {
+    selectedAngle: 'fallback',
+    shortReason: reason,
+    finalSpokenQuestion: naturalized.question,
+    evidenceUsed,
+    riskFlags: ['fallback_used', ...naturalized.riskFlags],
+  };
+};
 
 export const validateMicroPlan = ({
   microPlan = {},
@@ -58,8 +161,14 @@ export const validateMicroPlan = ({
   fallbackQuestion = '',
   focusArea = 'combined',
 } = {}) => {
-  const finalSpokenQuestion = normalizeText(microPlan.finalSpokenQuestion);
-  const riskFlags = ensureArray(microPlan.riskFlags);
+  const naturalizedInitialQuestion = naturalizeRubricStyleQuestion({
+    question: microPlan.finalSpokenQuestion,
+    fallbackQuestion,
+    planningFrame,
+  });
+
+  const finalSpokenQuestion = normalizeText(naturalizedInitialQuestion.question);
+  const riskFlags = ensureArray(microPlan.riskFlags).concat(naturalizedInitialQuestion.riskFlags);
   const normalizedFocus = normalizeKey(focusArea).replace('behavioral', 'behavioural');
   const validationErrors = [];
 
@@ -74,23 +183,43 @@ export const validateMicroPlan = ({
     validationErrors.push('follow_up_missing_parent');
   }
 
-  const safeQuestion = validationErrors.length
-    ? polishQuestionWording(fallbackQuestion)
-    : polishQuestionWording(guardGeneratedTextForInterviewMode({
+  const fallbackNaturalized = naturalizeRubricStyleQuestion({
+    question: fallbackQuestion,
+    fallbackQuestion,
+    planningFrame,
+  });
+
+  const guardedQuestion = validationErrors.length
+    ? fallbackNaturalized.question
+    : guardGeneratedTextForInterviewMode({
         focusArea,
         generatedText: finalSpokenQuestion,
-        fallbackText: fallbackQuestion,
-        selectedQuestion: { text: fallbackQuestion, fallbackText: fallbackQuestion },
-      }));
+        fallbackText: fallbackNaturalized.question,
+        selectedQuestion: {
+          text: fallbackNaturalized.question,
+          fallbackText: fallbackNaturalized.question,
+        },
+      });
+
+  const finalNaturalized = naturalizeRubricStyleQuestion({
+    question: guardedQuestion,
+    fallbackQuestion: fallbackNaturalized.question,
+    planningFrame,
+  });
+
+  const safeQuestion = polishQuestionWording(finalNaturalized.question);
 
   return {
     ok: validationErrors.length === 0 && Boolean(safeQuestion),
     microPlan: {
       selectedAngle: normalizeText(microPlan.selectedAngle) || 'bounded_question',
       shortReason: normalizeText(microPlan.shortReason) || 'Generated inside the selected scenario.',
-      finalSpokenQuestion: safeQuestion || polishQuestionWording(fallbackQuestion),
+      finalSpokenQuestion: safeQuestion || fallbackNaturalized.question,
       evidenceUsed: ensureArray(microPlan.evidenceUsed).slice(0, 6),
-      riskFlags: riskFlags.concat(validationErrors.map((item) => `validation:${item}`)),
+      riskFlags: riskFlags
+        .concat(fallbackNaturalized.riskFlags)
+        .concat(finalNaturalized.riskFlags)
+        .concat(validationErrors.map((item) => `validation:${item}`)),
     },
     validationErrors,
   };
@@ -121,11 +250,13 @@ export const runBoundedQuestionMicroPlanning = async ({
       fallbackQuestion,
       reason: `micro_plan_validation_failed:${validation.validationErrors.join(',')}`,
       evidenceUsed: validation.microPlan.evidenceUsed,
+      planningFrame,
     });
   } catch (error) {
     return buildFallbackMicroPlan({
       fallbackQuestion,
       reason: `micro_plan_failed:${error?.message || String(error)}`,
+      planningFrame,
     });
   }
 };
