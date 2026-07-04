@@ -1,0 +1,51 @@
+metrics_to_run:
+  - kiwi_voice_contract_score
+  - kiwi_voice_constructive_review
+  - MULTI_TURN_TRAJECTORY_QUALITY
+  - MULTI_TURN_TOOL_USE_QUALITY
+
+custom_metrics:
+  - name: kiwi_voice_contract_score
+    custom_function: |
+      def evaluate(instance):
+          evaluation = instance.get("kiwi_evaluation") or {}
+          score = float(evaluation.get("score") or 0)
+          failed_checks = evaluation.get("failedChecks") or []
+          diagnostics = evaluation.get("diagnostics") or {}
+          explanation = "failed_checks={}; diagnostics={}".format(
+              ",".join(failed_checks) or "none",
+              diagnostics,
+          )
+          return {"score": score, "explanation": explanation}
+
+  - name: kiwi_voice_constructive_review
+    judge_model: projects/gen-lang-client-0896010824/locations/global/publishers/google/models/gemini-2.5-flash-lite
+    judge_model_generation_config:
+      temperature: 0
+      response_mime_type: application/json
+    prompt_template: |
+      You are reviewing Kiwi AI Interview Agent's voice interview behavior.
+
+      Evaluate the agent behavior shown in the trace, not hidden implementation details.
+
+      Product contract:
+      - Empty, too-short, filler, non-final, or unusable transcripts must be rejected before scoring.
+      - Contentful low-confidence transcripts must request understanding confirmation instead of being discarded or scored directly.
+      - Transcript confirmation, clarification, repair prompts, repeat requests, system messages, and bridge acknowledgements must not count as interview questions.
+      - Confirmed low-confidence answers may be processed as interview answers after confirmation resolution.
+      - Accepted answers should expose answer saving, evaluator output, action selection, question ranking, first sentence, TTS first audio, and frontend playback milestones.
+      - Speech end to next-question first audio should be within 3000 ms when the answer is accepted.
+      - Question selection should expose why the question was asked, evidence used, expected signal, ranking, alternatives, confidence, and spoken text.
+
+      Full agent trace:
+      {agent_data}
+
+      Final response:
+      {response}
+
+      Return strict JSON only. Do not include markdown, prose, or code fences.
+      The first character must be "{" and the last character must be "}".
+      {
+        "score": <float from 0.0 to 1.0>,
+        "explanation": "Concrete failures, likely module names, and suggested tests. If strong, say why."
+      }

@@ -2,6 +2,7 @@ import { AGENT_ACTION_TYPES } from '../../constants/agentActionTypes.js';
 import { ensureArray, normalizeKey, normalizeText, tokenize, unique } from '../../utils/commonHelpers.js';
 import { getPreparedQuestionPool } from './questionPoolComposerService.js';
 import { rankPreparedQuestionPool, selectBestPreparedQuestion } from './questionPoolRankerService.js';
+import { resolveFollowUpAssessmentContract } from './questionAssessmentContractService.js';
 
 export const ROOT_SCENARIOS = new Set([
   'root_cv_evidence',
@@ -165,6 +166,11 @@ const toRootCandidate = (item = {}) => ({
   constraints: item.constraints || [],
   maxFollowUps: item.maxFollowUps ?? 2,
   followUpStrategies: item.followUpStrategies || [],
+  questionFamily: item.questionFamily || null,
+  evidenceMode: item.evidenceMode || null,
+  roleDomain: item.roleDomain || 'general',
+  requirementCategory: item.requirementCategory || null,
+  capabilityGroup: item.capabilityGroup || null,
 });
 
 const buildEvidencePackage = ({ selectedCandidate = null, decisionContext = {}, answerSignals = {} } = {}) => ({
@@ -196,6 +202,11 @@ const buildFollowUpContext = ({ session = {}, selectedCandidate = null, answerSi
     parentTopic: parentMetadata.topic || decisionContext.currentTopic || null,
     missingEvidence: answerSignals.missingEvidence,
     evidenceTarget: answerSignals.missingEvidence[0] || decisionContext.currentTopic || selectedCandidate?.topic || null,
+    parentQuestionFamily: parentMetadata.questionFamily || null,
+    parentEvidenceMode: parentMetadata.evidenceMode || null,
+    roleDomain: parentMetadata.roleDomain || 'general',
+    requirementCategory: parentMetadata.requirementCategory || null,
+    capabilityGroup: parentMetadata.capabilityGroup || null,
   };
 };
 
@@ -275,6 +286,9 @@ export const buildInterviewTurnPlan = async ({
   const rootCandidateRankMs = Date.now() - rankStartedAt;
   const selectedRootCandidate = turnKind === 'root_question' ? selectBestPreparedQuestion(rankedRootCandidates) : null;
   const topRootCandidates = rankedRootCandidates.slice(0, 3).map(toRootCandidate);
+  const alternativeRootCandidates = turnKind === 'root_question'
+    ? rankedRootCandidates.filter((candidate) => candidate.questionId !== selectedRootCandidate?.questionId).map(toRootCandidate)
+    : [];
   const followUpContextStartedAt = Date.now();
   const followUpContext = turnKind === 'follow_up'
     ? buildFollowUpContext({ session, selectedCandidate: rankedRootCandidates[0], answerSignals, decisionContext })
@@ -286,6 +300,13 @@ export const buildInterviewTurnPlan = async ({
       ? scenarioForFollowUp({ actionType, answerSignals, actionInput, decisionContext })
       : scenarioForRoot({ actionType, selectedCandidate: selectedRootCandidate, actionInput, decisionContext });
   const followUpIntent = turnKind === 'follow_up' ? followUpIntentForScenario(scenario) : null;
+  const assessmentContract = turnKind === 'follow_up'
+    ? resolveFollowUpAssessmentContract({
+        intent: followUpIntent,
+        parentQuestionFamily: followUpContext?.parentQuestionFamily,
+        parentEvidenceMode: followUpContext?.parentEvidenceMode,
+      })
+    : null;
   const selectedCandidate = selectedRootCandidate ? toRootCandidate(selectedRootCandidate) : null;
   const evidencePackage = buildEvidencePackage({ selectedCandidate: selectedRootCandidate, decisionContext, answerSignals });
 
@@ -300,15 +321,22 @@ export const buildInterviewTurnPlan = async ({
     answerSignals,
     selectedRootCandidate: selectedCandidate,
     topRootCandidates,
-    followUpContext: followUpContext ? { ...followUpContext, followUpIntent } : null,
+    alternativeRootCandidates,
+    followUpContext: followUpContext ? {
+      ...followUpContext,
+      ...assessmentContract,
+      followUpIntent,
+    } : null,
     followUpIntent,
     evidenceTarget: followUpContext?.evidenceTarget || null,
     evidencePackage,
     rankTrace: selectedRootCandidate?.rankTrace || null,
+    rejectedCandidates: rankedRootCandidates.rejectedCandidates || [],
     latency: {
       answerSignalBuildMs,
       rootCandidateRankMs,
       followUpContextBuildMs,
+      ...(rankedRootCandidates.deduplication || {}),
       orchestratorDecisionMs: Date.now() - orchestratorStartedAt,
     },
     poolDegraded: turnKind === 'root_question' && !selectedRootCandidate,

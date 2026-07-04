@@ -1,6 +1,6 @@
 import { normalizeText, tokenize } from '../../utils/commonHelpers.js';
+import { extractAnswerEvidenceSignals } from '../report/answerEvidenceSignalService.js';
 
-const hasAny = (tokens = [], values = []) => values.some((value) => tokens.includes(value));
 const hasPattern = (text = '', pattern) => pattern.test(String(text || '').toLowerCase());
 
 const toLabel = (score = 0) => (score >= 2 ? 'clear' : score >= 1 ? 'partial' : 'missing');
@@ -10,29 +10,27 @@ export const analyzeStarrBreakdown = (answerText = '') => {
   const lower = text.toLowerCase();
   const tokens = tokenize(text);
   const wordCount = tokens.length;
+  const signals = extractAnswerEvidenceSignals(text);
 
   const situationScore = Math.min(2, (
     (wordCount >= 18 ? 1 : 0)
-    + (hasPattern(lower, /\b(project|role|team|client|user|workflow|system|feature|deadline|incident|when|during|at)\b/) ? 1 : 0)
+    + (hasPattern(lower, /\b(project|role|team|client|workflow|system|feature|deadline|incident|when|during|at)\b/) ? 1 : 0)
   ));
   const taskScore = Math.min(2, (
-    (hasPattern(lower, /\b(goal|need|needed|responsible|task|requirement|challenge|problem|issue|target|objective|learn|understand|handle|support)\b/) ? 1 : 0)
+    (hasPattern(lower, /\b(goal|need|needed|responsible|task|requirement|challenge|problem|issue|target|objective|understand|handle|support)\b/) ? 1 : 0)
     + (hasPattern(lower, /\b(had to|need to|needed to|my role|i was responsible|asked to|we needed|i need|i had|my task)\b/) ? 1 : 0)
   ));
   const actionScore = Math.min(2, (
-    (hasPattern(lower, /\b(i|my|me)\b/) && hasAny(tokens, ['build', 'built', 'building', 'designed', 'implemented', 'led', 'owned', 'fixed', 'improved', 'handled', 'created', 'deployed', 'checked', 'tested', 'used', 'coordinated', 'learned', 'learnt', 'studied']) ? 1 : 0)
-    + (hasPattern(lower, /\b(compared|validated|debugged|separated|refactored|automated|analysed|analyzed|worked with|coordinated|implemented|deployed|tested|researched)\b/) ? 1 : 0)
+    (signals.hasPersonalAction ? 1 : 0)
+    + (signals.hasValidation || hasPattern(lower, /\b(?:debugged|separated|refactored|automated|researched)\b/) ? 1 : 0)
   ));
-  const hasOutcomeSignal = /\d/.test(text) || hasPattern(lower, /\b(result|impact|outcome|improved|reduced|increased|saved|faster|slower|validated|tested|feedback|reaction|said|told|happy|satisfied|response|resolved|automated)\b/);
-  const hasTaskGoalImpact = hasPattern(lower, /\b(task|goal|objective)\s+(was|is)?\s*(to\s+)?(improve|reduce|increase|save|automate)\b/);
-  const hasIntendedImpact = !hasTaskGoalImpact && hasPattern(lower, /\b(to|help|helps|helped|so i could|so we could|so that)\s+(improve|reduce|increase|save|automate)\b/);
   const resultOrReactionScore = Math.min(2, (
-    (hasOutcomeSignal || hasIntendedImpact ? 1 : 0)
-    + (hasPattern(lower, /\b(%|percent|minutes?|hours?|users?|requests?|latency|throughput|conversion|accuracy|uptime|agreed|disagreed)\b/) ? 1 : 0)
+    (signals.hasOutcome ? 1 : 0)
+    + (signals.metricMatches.length > 0 || hasPattern(lower, /\b(?:agreed|disagreed|satisfied)\b/) ? 1 : 0)
   ));
   const reflectionScore = Math.min(2, (
-    (hasPattern(lower, /\b(learn|learned|learnt|realized|realised|next time|differently|in retrospect|looking back|taught me|takeaway|new tools?|new stuff)\b/) ? 1 : 0)
-    + (hasPattern(lower, /\b(improve|would have|should have|mistake|failure|better|keep up|update)\b/) ? 1 : 0)
+    (signals.hasFirstPersonReflection ? 1 : 0)
+    + (hasPattern(lower, /\b(?:i would have|i should have|my mistake|my failure|in retrospect i|looking back i)\b/) ? 1 : 0)
   ));
 
   const scoreMap = { 

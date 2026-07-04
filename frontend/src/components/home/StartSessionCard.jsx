@@ -11,7 +11,7 @@
 
 import React from 'react';
 import { Settings } from 'lucide-react';
-import { controlModeOptions, focusOptions, questionLimitOptions, seniorityOptions, timeLimitOptions } from '../../utils/sessionSettings.js';
+import { controlModeOptions, focusDisplayOptions, questionLimitOptions, seniorityOptions, timeLimitOptions } from '../../utils/sessionSettings.js';
 
 /**
  * Purpose: Execute the main responsibility for StartSessionCard.
@@ -113,8 +113,8 @@ export function StartSessionCard({ summary, showSessionSettings, sessionDefaults
                 value={sessionDefaults.focusArea}
                 onChange={(event) => onChangeDefaults('focusArea', event.target.value)}
               >
-                {focusOptions.map((option) => (
-                  <option key={option} value={option} className="[background:var(--text-primary)]">{option}</option>
+                {focusDisplayOptions.map((option) => (
+                  <option key={option.value} value={option.value} className="[background:var(--text-primary)]">{option.label}</option>
                 ))}
               </select>
             </label>

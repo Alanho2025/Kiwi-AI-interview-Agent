@@ -69,6 +69,10 @@ export const normalizeCandidateFeedbackItem = (item = {}) => ({
     example: ensureString(item.example),
     weak: ensureString(item.weak),
     better: ensureString(item.better),
+    status: ensureString(item.status, item.better ? 'ready' : 'unavailable'),
+    failureReason: ensureString(item.failureReason),
+    question: ensureString(item.question),
+    evidenceUsed: ensureArray(item.evidenceUsed).filter(Boolean),
     quote: ensureString(item.quote),
     context: ensureString(item.context),
     critique: ensureString(item.critique),
@@ -118,13 +122,18 @@ export const normalizeDimensionReasons = (value = {}) => ({
 export const normalizeStarBreakdown = (value = {}) => {
     if (value == null) return null;
     const normalizePart = (part) => STAR_PART_VALUES.includes(part) ? part : 'missing';
+    const resultOrReaction = normalizePart(value.resultOrReaction ?? value.result);
     return {
         situation: normalizePart(value.situation),
         task: normalizePart(value.task),
         action: normalizePart(value.action),
-        result: normalizePart(value.result),
+        result: resultOrReaction,
+        resultOrReaction,
+        reflection: normalizePart(value.reflection),
         mainMissingElement: ensureString(value.mainMissingElement, 'result'),
         scoreReason: ensureString(value.scoreReason),
+        scores: isObject(value.scores) ? value.scores : {},
+        totalScore: ensureNumber(value.totalScore, 0),
     };
 };
 
@@ -140,6 +149,28 @@ export const normalizeStructureBreakdown = (value = {}) => {
     };
 };
 
+const FRAMEWORK_DIMENSION_STATUSES = new Set(['clear', 'partial', 'missing', 'not_applicable']);
+
+export const normalizeFrameworkBreakdown = (value = null) => {
+    if (!isObject(value)) return null;
+    return {
+        dimensions: ensureArray(value.dimensions).map((dimension) => ({
+            key: ensureString(dimension.key),
+            label: ensureString(dimension.label),
+            status: FRAMEWORK_DIMENSION_STATUSES.has(dimension.status) ? dimension.status : 'missing',
+            score: ensureNumber(dimension.score, 0),
+            reason: ensureString(dimension.reason),
+        })),
+        mainGapKey: ensureString(value.mainGapKey || value.mainMissingElement),
+        mainMissingElement: ensureString(value.mainMissingElement || value.mainGapKey),
+        summary: ensureString(value.summary),
+        scoreReason: ensureString(value.scoreReason),
+        totalScore: ensureNumber(value.totalScore, 0),
+        maxScore: ensureNumber(value.maxScore, 0),
+        normalizedScore: ensureNumber(value.normalizedScore, 0),
+    };
+};
+
 /**
  * Normalize turn breakdown with question, answer, feedback, scores, etc.
  */
@@ -151,6 +182,13 @@ export const normalizeTurnBreakdown = (item = {}) => ({
     questionStage: ensureString(item.questionStage),
     questionTopic: ensureString(item.questionTopic),
     rubricType: ensureString(item.rubricType, 'star'),
+    frameworkKey: ensureString(item.frameworkKey),
+    frameworkLabel: ensureString(item.frameworkLabel),
+    questionFamily: ensureString(item.questionFamily),
+    evidenceMode: ensureString(item.evidenceMode),
+    capabilityGroup: ensureString(item.capabilityGroup),
+    roleDomain: ensureString(item.roleDomain, 'general'),
+    requirementCategory: ensureString(item.requirementCategory),
     starApplicable: item.starApplicable !== false,
     structureLabel: ensureString(item.structureLabel, item.starApplicable === false ? 'Answer structure' : 'STAR evidence'),
     structureBreakdown: normalizeStructureBreakdown(item.structureBreakdown || item.starBreakdown),
@@ -162,6 +200,10 @@ export const normalizeTurnBreakdown = (item = {}) => ({
         }
         : { business: 0, logic: 0, evidence: 0 },
     dimensionReasons: normalizeDimensionReasons(item.dimensionReasons || item.scoreReasons),
+    frameworkBreakdown: normalizeFrameworkBreakdown(item.frameworkBreakdown),
+    frameworkQualityScore: Number.isFinite(Number(item.frameworkQualityScore))
+        ? Number(item.frameworkQualityScore)
+        : null,
     starBreakdown: item.starApplicable === false ? null : normalizeStarBreakdown(item.starBreakdown || {}),
     evidenceLabel: TRUST_LABELS.has(item.evidenceLabel) ? item.evidenceLabel : 'supported_by_answer',
     confidenceLevel: CONFIDENCE_LEVELS.has(item.confidenceLevel) ? item.confidenceLevel : 'medium',

@@ -102,4 +102,25 @@ describe('interview control robustness', () => {
       freshOnly: true,
     });
   });
+
+  it('honours evaluator switch mode before falling back to probing or deepening', () => {
+    const plan = selectNextAction({
+      taskType: 'interview_next_turn',
+      currentStage: 'behavioural',
+      currentTopic: 'ownership',
+      candidateState: { specificityLevel: 'medium' },
+      evaluatorState: {
+        misunderstandingFlag: false,
+        suggestedNextMode: 'switch',
+        repetitionRisk: true,
+        evidenceGainScore: 0.5,
+      },
+      coverageState: { missingTopics: [], coveredTopics: ['ownership'], weakAreas: [] },
+      matchState: { validationTargets: [] },
+      interviewStructure: { focusAreaKey: 'combined' },
+    });
+
+    expect(plan.selectedAction).toBe(AGENT_ACTION_TYPES.SWITCH_TOPIC);
+    expect(plan.actionInput).toMatchObject({ targetTopic: 'next_topic', freshOnly: true });
+  });
 });

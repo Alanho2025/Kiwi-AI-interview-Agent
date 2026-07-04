@@ -11,6 +11,7 @@
 
 import { callDeepSeek } from './deepseekService.js';
 import { ensureString, ensureArray } from '../utils/commonHelpers.js';
+import { validateAnswerRewrite } from './report/reportContentQualityService.js';
 
 /**
  * Purpose: Execute the main responsibility for ensureString.
@@ -42,11 +43,11 @@ const extractJsonObject = (text = '') => {
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
 const normalizeMetric = (item = {}, fallback = {}) => ({
-  id: ensureString(item.id, fallback.id || ''),
+  id: ensureString(fallback.id, item.id || ''),
   label: ensureString(item.label, fallback.label || ''),
-  value: Number.isFinite(Number(item.value)) ? Number(item.value) : Number(fallback.value || 0),
-  displayValue: ensureString(item.displayValue, fallback.displayValue || ''),
-  unit: ensureString(item.unit, fallback.unit || ''),
+  value: Number(fallback.value || 0),
+  displayValue: ensureString(fallback.displayValue, ''),
+  unit: ensureString(fallback.unit, ''),
   interpretation: ensureString(item.interpretation, fallback.interpretation || ''),
 });
 
@@ -91,10 +92,30 @@ const normalizeAdvice = (item = {}, fallback = {}) => ({
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-const normalizeRewrite = (item = {}, fallback = {}) => ({
-  weak: ensureString(item.weak, fallback.weak || ''),
-  better: ensureString(item.better, fallback.better || ''),
-});
+const normalizeRewrite = (item = {}, fallback = {}) => {
+  const question = ensureString(fallback.question, item.question || '');
+  const weak = ensureString(fallback.weak, item.weak || '');
+  const better = ensureString(item.better, '');
+  const quality = validateAnswerRewrite({ question, weak, better });
+  if (quality.valid) {
+    return {
+      status: 'ready',
+      failureReason: '',
+      question,
+      weak,
+      better,
+      evidenceUsed: ensureArray(item.evidenceUsed),
+    };
+  }
+  return {
+    status: 'unavailable',
+    failureReason: ensureString(fallback.failureReason, 'A grounded stronger answer could not be generated reliably.'),
+    question,
+    weak,
+    better: '',
+    evidenceUsed: ensureArray(fallback.evidenceUsed),
+  };
+};
 
 const normalizeQuoteAnalysis = (item = {}, fallback = {}) => ({
   quote: ensureString(item.quote, fallback.quote || ''),
@@ -176,11 +197,14 @@ const normalizeDimensionReasons = (item = {}, fallback = {}) => ({
 const normalizeStarBreakdown = (item = {}, fallback = {}) => {
   if (item === null || fallback === null) return null;
   const normalizePart = (value, fallbackValue = 'missing') => (['clear', 'partial', 'missing'].includes(value) ? value : fallbackValue);
+  const resultOrReaction = normalizePart(item.resultOrReaction ?? item.result, fallback.resultOrReaction || fallback.result || 'missing');
   return {
     situation: normalizePart(item.situation, fallback.situation || 'partial'),
     task: normalizePart(item.task, fallback.task || 'partial'),
     action: normalizePart(item.action, fallback.action || 'partial'),
-    result: normalizePart(item.result, fallback.result || 'missing'),
+    result: resultOrReaction,
+    resultOrReaction,
+    reflection: normalizePart(item.reflection, fallback.reflection || 'missing'),
     mainMissingElement: ensureString(item.mainMissingElement, fallback.mainMissingElement || 'result'),
     scoreReason: ensureString(item.scoreReason, fallback.scoreReason || 'The answer needs clearer situation, task, action, and result evidence.'),
   };
@@ -222,19 +246,28 @@ const normalizeTurnBreakdown = (item = {}, fallback = {}, context = {}) => apply
   questionType: ensureString(item.questionType, fallback.questionType || ''),
   questionStage: ensureString(item.questionStage, fallback.questionStage || ''),
   questionTopic: ensureString(item.questionTopic, fallback.questionTopic || ''),
-  rubricType: ensureString(item.rubricType, fallback.rubricType || 'star'),
-  starApplicable: item.starApplicable ?? fallback.starApplicable ?? true,
-  structureLabel: ensureString(item.structureLabel, fallback.structureLabel || ((item.starApplicable ?? fallback.starApplicable) === false ? 'Answer structure' : 'STAR evidence')),
-  structureBreakdown: normalizeStructureBreakdown(item.structureBreakdown || item.starBreakdown, fallback.structureBreakdown || fallback.starBreakdown),
+  rubricType: ensureString(fallback.rubricType, item.rubricType || 'star'),
+  frameworkKey: ensureString(fallback.frameworkKey, item.frameworkKey || ''),
+  frameworkLabel: ensureString(fallback.frameworkLabel, item.frameworkLabel || ''),
+  questionFamily: ensureString(fallback.questionFamily, item.questionFamily || ''),
+  evidenceMode: ensureString(fallback.evidenceMode, item.evidenceMode || ''),
+  capabilityGroup: ensureString(fallback.capabilityGroup, item.capabilityGroup || ''),
+  roleDomain: ensureString(fallback.roleDomain, item.roleDomain || 'general'),
+  requirementCategory: ensureString(fallback.requirementCategory, item.requirementCategory || ''),
+  starApplicable: fallback.starApplicable ?? item.starApplicable ?? true,
+  structureLabel: ensureString(fallback.structureLabel, item.structureLabel || ((fallback.starApplicable ?? item.starApplicable) === false ? 'Answer structure' : 'STARR evidence')),
+  structureBreakdown: normalizeStructureBreakdown(fallback.structureBreakdown || fallback.starBreakdown, item.structureBreakdown || item.starBreakdown),
+  frameworkBreakdown: fallback.frameworkBreakdown || item.frameworkBreakdown || null,
+  frameworkQualityScore: fallback.frameworkQualityScore ?? item.frameworkQualityScore ?? null,
   scores: {
-    business: Number.isFinite(Number(item.scores?.business)) ? Number(item.scores.business) : Number(fallback.scores?.business || 0),
-    logic: Number.isFinite(Number(item.scores?.logic)) ? Number(item.scores.logic) : Number(fallback.scores?.logic || 0),
-    evidence: Number.isFinite(Number(item.scores?.evidence)) ? Number(item.scores.evidence) : Number(fallback.scores?.evidence || 0),
+    business: Number.isFinite(Number(fallback.scores?.business)) ? Number(fallback.scores.business) : Number(item.scores?.business || 0),
+    logic: Number.isFinite(Number(fallback.scores?.logic)) ? Number(fallback.scores.logic) : Number(item.scores?.logic || 0),
+    evidence: Number.isFinite(Number(fallback.scores?.evidence)) ? Number(fallback.scores.evidence) : Number(item.scores?.evidence || 0),
   },
-  dimensionReasons: normalizeDimensionReasons(item.dimensionReasons || item.scoreReasons, fallback.dimensionReasons || fallback.scoreReasons || {}),
-  starBreakdown: (item.starApplicable ?? fallback.starApplicable) === false
+  dimensionReasons: normalizeDimensionReasons(fallback.dimensionReasons || fallback.scoreReasons, item.dimensionReasons || item.scoreReasons || {}),
+  starBreakdown: (fallback.starApplicable ?? item.starApplicable) === false
     ? null
-    : normalizeStarBreakdown(item.starBreakdown || {}, fallback.starBreakdown || buildFallbackStarBreakdown(item)),
+    : normalizeStarBreakdown(fallback.starBreakdown || {}, item.starBreakdown || buildFallbackStarBreakdown(item)),
 }, fallback, { ...context, type: 'turn' });
 
 const normalizeCommunicationTrait = (item = {}, fallback = {}) => ({
@@ -262,8 +295,14 @@ const normalizeCandidateFeedback = (candidateFeedback = {}, fallback = {}, conte
   generationSource: ensureString(candidateFeedback.generationSource, fallback.generationSource || 'fallback'),
   scoreExplanations: normalizeScoreExplanations(candidateFeedback.scoreExplanations, fallback.scoreExplanations || {}),
   communicationProfile: normalizeCommunicationProfile(candidateFeedback.communicationProfile, fallback.communicationProfile || {}),
-  plainEnglishMetrics: ensureArray(candidateFeedback.plainEnglishMetrics)
-    .map((item, index) => applyTrust(normalizeMetric(item, ensureArray(fallback.plainEnglishMetrics)[index] || {}), ensureArray(fallback.plainEnglishMetrics)[index] || {}, { ...context, type: 'metric' }))
+  plainEnglishMetrics: ensureArray(fallback.plainEnglishMetrics)
+    .map((fallbackMetric, index) => {
+      const item = ensureArray(candidateFeedback.plainEnglishMetrics)
+        .find((candidateMetric) => candidateMetric?.id === fallbackMetric.id)
+        || ensureArray(candidateFeedback.plainEnglishMetrics)[index]
+        || {};
+      return applyTrust(normalizeMetric(item, fallbackMetric), fallbackMetric, { ...context, type: 'metric' });
+    })
     .filter((item) => item.label && item.interpretation),
   strengthHighlights: ensureArray(candidateFeedback.strengthHighlights)
     .map((item, index) => applyTrust(normalizeStrength(item, ensureArray(fallback.strengthHighlights)[index] || {}), ensureArray(fallback.strengthHighlights)[index] || {}, { ...context, type: 'strength' }))
@@ -276,7 +315,7 @@ const normalizeCandidateFeedback = (candidateFeedback = {}, fallback = {}, conte
     .filter((item) => item.theme && item.advice && item.example),
   answerRewriteExamples: ensureArray(candidateFeedback.answerRewriteExamples)
     .map((item, index) => normalizeRewrite(item, ensureArray(fallback.answerRewriteExamples)[index] || {}))
-    .filter((item) => item.weak && item.better),
+    .filter((item) => item.weak && (item.better || item.status === 'unavailable')),
   quoteAnalyses: ensureArray(candidateFeedback.quoteAnalyses)
     .map((item, index) => normalizeQuoteAnalysis(item, ensureArray(fallback.quoteAnalyses)[index] || {}))
     .filter((item) => item.quote && item.critique),
@@ -345,7 +384,7 @@ Required JSON shape:
     { "theme": "string", "advice": "string", "example": "string", "evidenceLabel": "supported_by_answer", "confidenceLevel": "medium", "evidenceSources": ["interview_answer", "star_rubric"], "evidenceReason": "string", "needsUserConfirmation": false, "feedbackStatus": "confirmed_feedback | downgraded_feedback | needs_confirmation | refused_claim" }
   ],
   "answerRewriteExamples": [
-    { "weak": "string", "better": "string" }
+    { "status": "ready", "question": "the exact interview question", "weak": "the exact candidate answer", "better": "a complete readable English answer grounded only in the supplied evidence", "evidenceUsed": ["short grounded evidence phrase"] }
   ],
   "quoteAnalyses": [
     { "quote": "string", "context": "string", "critique": "string", "rewrite": "string" }
@@ -355,10 +394,17 @@ Required JSON shape:
       "question": "string", 
       "answer": "string", 
       "feedback": "string", 
-      "rubricType": "self_intro | company_motivation | star | conversation",
+      "rubricType": "self_intro | company_motivation | starr | role_specific | conversation",
+      "frameworkKey": "string",
+      "frameworkLabel": "string",
+      "questionFamily": "string",
+      "evidenceMode": "past_example | scenario_reasoning | knowledge_explanation | credential_verification",
+      "capabilityGroup": "string",
+      "roleDomain": "string",
       "starApplicable": true,
       "structureLabel": "string",
       "structureBreakdown": { "mainMissingElement": "string", "scoreReason": "string" },
+      "frameworkBreakdown": { "dimensions": [{ "key": "string", "label": "string", "status": "clear | partial | missing | not_applicable", "score": 0, "reason": "string" }], "mainGapKey": "string", "summary": "string", "totalScore": 0, "maxScore": 0, "normalizedScore": 0 },
       "scores": { "business": 5, "logic": 5, "evidence": 5 },
       "dimensionReasons": { "business": "string", "logic": "string", "evidence": "string" },
       "starBreakdown": { "situation": "clear | partial | missing", "task": "clear | partial | missing", "action": "clear | partial | missing", "result": "clear | partial | missing", "mainMissingElement": "string", "scoreReason": "string" },
@@ -383,7 +429,7 @@ Rules:
 - If evidence is weak, say so directly but constructively.
 - If hypothetical answers appeared, coaching should explicitly push the candidate toward real past examples.
 - If evidence strength is low, explain that answers need context, action, and outcome.
-- Rewrite examples must sound realistic and tied to the role focus.
+- Rewrite examples must be complete candidate-ready English answers, not templates, bracketed prompts, structural labels, or placeholders. Preserve the exact question and weak answer from the deterministic fallback, and do not invent facts.
 - quoteAnalyses MUST extract exact, verbatim quotes from the candidate's transcript to show them exactly what they said, explain why it was weak/strong, and how to improve it. Include at least 2-3 quote analyses.
 - communicationProfile MUST analyze their communication style, tone, conciseness, and use of filler words (if any) based on the transcript.
 - If nzWorkplaceFit.enabled is true, coachingAdvice and communicationProfile should include NZ workplace communication guidance grounded in nzWorkplaceFit. Focus on observable behaviours such as teamwork, humility with confidence, initiative, open communication, respect, relationship-building, and sustainable delivery. Do not claim the candidate culturally "fits" New Zealand; discuss interview communication behaviours only.
@@ -391,8 +437,10 @@ Rules:
 - turnBreakdowns MUST provide a turn-by-turn analysis of each major question asked. Summarize the question and answer, provide constructive feedback, score (0-10) for business understanding, logic/structure, and evidence strength, and explain each micro-score in dimensionReasons.
 - Every strength, improvement priority, coaching advice, and turn breakdown MUST include evidenceLabel, confidenceLevel, evidenceSources, evidenceReason, needsUserConfirmation, and feedbackStatus.
 - Do not mark unsupported or weakly supported skill claims as high-confidence strengths. Use needs_user_confirmation or downgraded_feedback when evidence is thin.
-- Use STAR only for behavioural, project, technical example, decision, or past-experience answers.
-- Do NOT apply STAR to self-introduction, company motivation, candidate questions, or other conversational turns. For those turns set starApplicable=false, starBreakdown=null, and use structureBreakdown for the relevant structure instead.
+- Deterministic fallback fields are locked: do not change rubricType, frameworkKey, frameworkLabel, questionFamily, evidenceMode, capabilityGroup, roleDomain, frameworkBreakdown, scores, starApplicable, or starBreakdown.
+- Use STARR only for behavioural answers. Project and technical wording does not override questionFamily.
+- Role-specific answers use their provided role framework and must have starApplicable=false and starBreakdown=null.
+- Do not apply STARR to self-introduction, company motivation, credential, scenario, knowledge, candidate questions, or conversational turns.
 `;
 };
 

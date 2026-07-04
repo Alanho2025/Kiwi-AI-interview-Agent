@@ -16,6 +16,7 @@ import { buildQuestionDecisionTrace } from '../aiControl/questionRanker.js';
 import { buildInterviewTurnPlan } from '../questions/interviewTurnOrchestratorService.js';
 import { runBoundedQuestionMicroPlanning } from '../questions/interviewMicroPlanningService.js';
 import { polishQuestionWording } from '../questions/questionWordingPolishService.js';
+import { buildQuestionHistory, evaluateQuestionNovelty } from '../questions/questionDeduplicationService.js';
 import {
   buildAbductiveProbeQuestion,
   buildClosingQuestion,
@@ -34,7 +35,6 @@ import {
   buildValidationQuestion,
   getLastUserAnswer,
   inferEvidenceTypeHint,
-  isDuplicateRootQuestion,
   normalizeQuestionIntent,
   pickRetrievedQuestion,
 } from './interviewerAgentQuestionBuilder.js';
@@ -57,6 +57,11 @@ const mapRootCandidateToQuestion = ({ candidate = null, targetTopic = '', catego
     constraints: candidate.constraints,
     maxFollowUps: candidate.maxFollowUps,
     followUpStrategies: candidate.followUpStrategies,
+    questionFamily: candidate.questionFamily || null,
+    evidenceMode: candidate.evidenceMode || null,
+    roleDomain: candidate.roleDomain || 'general',
+    requirementCategory: candidate.requirementCategory || null,
+    capabilityGroup: candidate.capabilityGroup || null,
     rankTrace: candidate.rankTrace || {
       questionId: candidate.questionId || null,
       selectionSource: 'prepared_question_pool',
@@ -224,11 +229,15 @@ export const runInterviewerAgent = async ({
       rootTopic: turnPlan.followUpContext?.rootTopic || selectedQuestion.topic || null,
       followUpIntent: turnPlan.followUpIntent || null,
       evidenceTarget: turnPlan.evidenceTarget || null,
+      questionFamily: turnPlan.followUpContext?.questionFamily || selectedQuestion.questionFamily || null,
+      evidenceMode: turnPlan.followUpContext?.evidenceMode || selectedQuestion.evidenceMode || null,
+      targetedDimensions: turnPlan.followUpContext?.targetedDimensions || [],
+      parentQuestionFamily: turnPlan.followUpContext?.parentQuestionFamily || null,
+      parentEvidenceMode: turnPlan.followUpContext?.parentEvidenceMode || null,
+      roleDomain: turnPlan.followUpContext?.roleDomain || selectedQuestion.roleDomain || 'general',
+      requirementCategory: turnPlan.followUpContext?.requirementCategory || selectedQuestion.requirementCategory || null,
+      capabilityGroup: turnPlan.followUpContext?.capabilityGroup || selectedQuestion.capabilityGroup || null,
     };
-  }
-
-  if (isDuplicateRootQuestion(selectedQuestion, decisionContext)) {
-    selectedQuestion = null;
   }
 
   if (focusArea === 'technical' && selectedQuestion && selectedQuestion.category === 'behavioural') {
@@ -281,7 +290,7 @@ export const runInterviewerAgent = async ({
   });
   selectedQuestion = normalizeQuestionIntent({ question: selectedQuestion, actionType, focusArea });
 
-  const reactTrace = buildReactTrace({ selectedAction: actionType, decisionContext, selectedQuestion, environment, evaluatorState });
+  let reactTrace = buildReactTrace({ selectedAction: actionType, decisionContext, selectedQuestion, environment, evaluatorState });
   
   let generatedText = selectedQuestion.fallbackText || selectedQuestion.text;
   let microPlan = null;
@@ -311,6 +320,95 @@ export const runInterviewerAgent = async ({
     selectedQuestion,
   });
   generatedText = polishQuestionWording(generatedText);
+  const noveltyGuardStartedAt = Date.now();
+  const questionHistory = buildQuestionHistory(transcript);
+  const generatedNovelty = evaluateQuestionNovelty({
+    candidate: selectedQuestion,
+    spokenText: generatedText,
+    history: questionHistory,
+  });
+  let deduplication = {
+    modelOutputRejected: false,
+    usedBaseQuestion: false,
+    reason: generatedNovelty.reason,
+    assessmentKey: generatedNovelty.assessmentKey,
+    fingerprint: generatedNovelty.fingerprint,
+    matchedQuestionId: generatedNovelty.matchedQuestionId,
+    similarity: generatedNovelty.similarity,
+  };
+  if (!generatedNovelty.allowed) {
+    const baseText = polishQuestionWording(guardGeneratedTextForInterviewMode({
+      focusArea,
+      generatedText: selectedQuestion.fallbackText || selectedQuestion.text,
+      fallbackText: selectedQuestion.fallbackText || selectedQuestion.text,
+      selectedQuestion,
+    }));
+    const baseNovelty = evaluateQuestionNovelty({
+      candidate: selectedQuestion,
+      spokenText: baseText,
+      history: questionHistory,
+    });
+    deduplication = {
+      modelOutputRejected: true,
+      usedBaseQuestion: baseNovelty.allowed,
+      reason: generatedNovelty.reason,
+      assessmentKey: generatedNovelty.assessmentKey,
+      fingerprint: generatedNovelty.fingerprint,
+      matchedQuestionId: generatedNovelty.matchedQuestionId,
+      similarity: generatedNovelty.similarity,
+      baseQuestionReason: baseNovelty.reason,
+    };
+    if (!baseNovelty.allowed) {
+      let alternative = null;
+      for (const candidate of turnPlan.alternativeRootCandidates || []) {
+        const mappedQuestion = mapRootCandidateToQuestion({ candidate, targetTopic, category: lockedCategory });
+        const alternativeText = polishQuestionWording(guardGeneratedTextForInterviewMode({
+          focusArea,
+          generatedText: mappedQuestion?.fallbackText || mappedQuestion?.text,
+          fallbackText: mappedQuestion?.fallbackText || mappedQuestion?.text,
+          selectedQuestion: mappedQuestion,
+        }));
+        const alternativeNovelty = evaluateQuestionNovelty({
+          candidate: mappedQuestion,
+          spokenText: alternativeText,
+          history: questionHistory,
+        });
+        if (alternativeNovelty.allowed) {
+          alternative = { question: mappedQuestion, text: alternativeText, novelty: alternativeNovelty };
+          break;
+        }
+      }
+      if (!alternative) {
+        return {
+          questionType: 'wrap_up',
+          nextQuestion: null,
+          displayText: '',
+          rationale: 'No unique interview question remains after transcript deduplication.',
+          stage: 'wrap_up',
+          topic: 'completed',
+          followUpDepth: 0,
+          retrievalSnapshot: retrievalBundle,
+          isComplete: true,
+          completedBecause: 'no_unique_question_remaining',
+          reactTrace,
+          deduplication,
+        };
+      }
+      selectedQuestion = alternative.question;
+      generatedText = alternative.text;
+      reactTrace = buildReactTrace({ selectedAction: actionType, decisionContext, selectedQuestion, environment, evaluatorState });
+      deduplication = {
+        ...deduplication,
+        usedAlternativeBaseQuestion: true,
+        alternativeQuestionId: selectedQuestion.preparedQuestionId,
+        alternativeReason: alternative.novelty.reason,
+      };
+    } else {
+      generatedText = baseText;
+    }
+  }
+  deduplication.rejectedCandidates = turnPlan.rejectedCandidates || [];
+  llmTiming.finalNoveltyGuardMs = Date.now() - noveltyGuardStartedAt;
   if (onSentence) {
     await onSentence(generatedText, 0);
   }
@@ -339,6 +437,7 @@ export const runInterviewerAgent = async ({
   questionDecision.topRootCandidates = turnPlan.topRootCandidates;
   questionDecision.poolDegraded = turnPlan.poolDegraded;
   questionDecision.poolDegradedReason = turnPlan.poolDegradedReason;
+  questionDecision.rejectedCandidates = turnPlan.rejectedCandidates;
   questionDecision.parentQuestionId = selectedQuestion.parentQuestionId || turnPlan.followUpContext?.parentQuestionId || null;
   questionDecision.rootQuestionId = selectedQuestion.rootQuestionId || turnPlan.followUpContext?.rootQuestionId || null;
   questionDecision.parentPreparedQuestionId = selectedQuestion.parentPreparedQuestionId || turnPlan.followUpContext?.parentPreparedQuestionId || null;
@@ -350,6 +449,7 @@ export const runInterviewerAgent = async ({
   questionDecision.shortReason = microPlan?.shortReason || null;
   questionDecision.microPlanEvidenceUsed = microPlan?.evidenceUsed || [];
   questionDecision.riskFlags = microPlan?.riskFlags || [];
+  questionDecision.deduplication = deduplication;
   questionDecision.latency = {
     ...(turnPlan.latency || {}),
     ...llmTiming,
@@ -389,6 +489,14 @@ export const runInterviewerAgent = async ({
     rootTopic: selectedQuestion.rootTopic || null,
     followUpIntent: selectedQuestion.followUpIntent || null,
     evidenceTarget: selectedQuestion.evidenceTarget || null,
+    questionFamily: selectedQuestion.questionFamily || null,
+    evidenceMode: selectedQuestion.evidenceMode || null,
+    targetedDimensions: selectedQuestion.targetedDimensions || [],
+    parentQuestionFamily: selectedQuestion.parentQuestionFamily || null,
+    parentEvidenceMode: selectedQuestion.parentEvidenceMode || null,
+    roleDomain: selectedQuestion.roleDomain || 'general',
+    requirementCategory: selectedQuestion.requirementCategory || null,
+    capabilityGroup: selectedQuestion.capabilityGroup || null,
     preparedQuestionId: selectedQuestion.preparedQuestionId || null,
     rankTrace: selectedQuestion.rankTrace || null,
     retrievalSnapshot: retrievalBundle,

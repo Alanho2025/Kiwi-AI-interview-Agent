@@ -31,16 +31,16 @@ describe('STARR rubric robustness', () => {
     expect(star.maxScore).toBe(10);
   });
 
-  it('recognises noisy voice answers that mention learning, workflow action, and intended impact', () => {
+  it('does not treat hypothetical workflow language as completed action, result, or reflection', () => {
     const star = analyzeStarrBreakdown(
       'For the learning part, the situation is that artificial intelligence is popular and I need to learn about Codex engines. During my application I need to keep up with new tools, for example building automation workflow and agent skills to reduce repetitive tasks.'
     );
 
     expect(star.situation).not.toBe('missing');
     expect(star.task).not.toBe('missing');
-    expect(star.action).not.toBe('missing');
-    expect(star.resultOrReaction).toBe('partial');
-    expect(star.reflection).not.toBe('missing');
+    expect(star.action).toBe('missing');
+    expect(star.resultOrReaction).toBe('missing');
+    expect(star.reflection).toBe('missing');
   });
 
   it('prioritises missing core STARR evidence before reflection', () => {

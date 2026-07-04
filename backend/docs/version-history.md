@@ -1,5 +1,14 @@
 # Version History
 
+## 2026-06-23 - Current Backend Alignment
+
+- Added question novelty preparation/runtime guards and safe duplicate exhaustion.
+- Added accepted-answer report datasets, question assessment contracts, deterministic scores, report evidence rows, transcript-risk checks, and stricter QA.
+- Added at-most-two-attempt grounded report repair with version and repair-history persistence.
+- Added resumable recording manifests/chunks, retry/finalize/status routes, durable worker conversion, and repository/schema coverage.
+- Confirmed Azure-first STT/TTS routing with independently configured ElevenLabs fallback.
+- Clarified that `npm run test:all` selects the package-script groups rather than every unit, retention, and interview test file.
+
 ## Current Backend Gap Closure
 - Fixed backend safeguard test scripts so `npm run test:jd-safeguard` and `npm run test:match-safeguard` point to existing robustness tests.
 - Confirmed `npm run eval:seek` runs the 10-case SEEK JD benchmark from `eval/datasets/jd-parse-seek-benchmark.json`.

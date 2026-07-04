@@ -4,11 +4,11 @@ import { buildQuestionPoolFromAnalysis } from '../session/sessionShared.js';
 import { validatePreparedQuestionPool } from '../schemaValidationService.js';
 import { getCvQuestionSeeds } from './cvQuestionSeedService.js';
 import { getJdQuestionFilter } from './jdQuestionFilterService.js';
+import { buildAssessmentKey, buildQuestionFingerprint } from './questionDeduplicationService.js';
 import {
   buildModeCompatibility,
   clampWeight,
   normalizeCategory,
-  normalizeTopicKey,
   questionRetentionDate,
   stableQuestionId,
 } from './questionArtifactHelpers.js';
@@ -21,6 +21,34 @@ const sourcePriority = {
   cv_seed: 3,
   common_template: 2,
   fallback: 1,
+};
+
+const resolveRoleDomain = (analysisResult = {}) => analysisResult?.parsedJdProfile?.universalRoleProfile?.roleDomain
+  || analysisResult?.parsedJdProfile?.roleDomain
+  || analysisResult?.parsedJdProfile?.metadata?.universalRoleProfile?.roleDomain
+  || analysisResult?.matchingDetails?.rubric?.universalRoleProfile?.roleDomain
+  || analysisResult?.scoreBreakdown?.semanticDimensions?.roleDomain
+  || 'general';
+
+const resolveQuestionFamily = ({ category = '', questionIntent = '', questionFamily = '' } = {}) => {
+  if (questionFamily) return questionFamily;
+  const normalizedCategory = normalizeCategory(category);
+  const normalizedIntent = normalizeKey(questionIntent);
+  if (normalizedCategory === 'behavioural' || normalizedIntent.includes('behaviour')) return 'behavioural';
+  if (normalizedCategory === 'opening' || normalizedIntent.includes('self_intro')) return 'self_intro';
+  if (normalizedCategory === 'motivation' || normalizedIntent.includes('motivation')) return 'motivation';
+  if (normalizedCategory === 'closing') return 'conversation';
+  return 'role_specific';
+};
+
+const resolveEvidenceMode = ({ capabilityGroup = '', questionIntent = '', text = '', evidenceMode = '' } = {}) => {
+  if (evidenceMode) return evidenceMode;
+  if (capabilityGroup === 'professional_credential') return 'credential_verification';
+  const normalizedIntent = normalizeKey(questionIntent);
+  const normalizedText = normalizeKey(text);
+  if (normalizedIntent.includes('scenario') || /\b(if|would|suppose|imagine)\b/.test(normalizedText)) return 'scenario_reasoning';
+  if (normalizedIntent.includes('knowledge') || /\b(explain|principle|standard|framework)\b/.test(normalizedText)) return 'knowledge_explanation';
+  return 'past_example';
 };
 
 const resolveQuestionRole = ({ sourceStage = '', category = '', stage = '', questionRole = '' } = {}) => {
@@ -64,46 +92,65 @@ const buildBaseItem = ({
   riskWeight = 0.4,
   metadata = {},
   ...rest
-}) => ({
-  userId,
-  sessionId,
-  matchAnalysisId,
-  cvFileId,
-  jdFingerprint,
-  questionId: stableQuestionId('poolq', [sessionId, sourceStage, sourceType, category, topic, questionIntent, text]),
-  schemaVersion: 'v1',
-  sourceStage,
-  questionRole: resolveQuestionRole({ sourceStage, category, stage, questionRole }),
-  maxFollowUps: Math.max(0, Number.isFinite(Number(maxFollowUps)) ? Number(maxFollowUps) : 2),
-  followUpStrategies: resolveFollowUpStrategies({
-    followUpStrategies: rest.followUpStrategies,
-    followUpStrategy: rest.followUpStrategy,
+}) => {
+  const questionFamily = resolveQuestionFamily({ category, questionIntent, questionFamily: rest.questionFamily });
+  const evidenceMode = resolveEvidenceMode({
+    capabilityGroup: rest.capabilityGroup,
     questionIntent,
-    evidenceNeed: rest.evidenceNeed || rest.expectedSignal,
-  }),
-  sourceType,
-  category: normalizeCategory(category),
-  stage: stage || normalizeCategory(category),
-  topic: normalizeText(topic) || 'role_fit',
-  competency: normalizeText(rest.competency || topic),
-  questionIntent: questionIntent || 'collect_specific_example',
-  text,
-  fallbackText: fallbackText || text,
-  spokenDraft: fallbackText || text,
-  expectedSignal: ensureArray(rest.expectedSignal),
-  evidenceNeed: ensureArray(rest.evidenceNeed || rest.expectedSignal),
-  constraints: ensureArray(rest.constraints),
-  followUpStrategy: rest.followUpStrategy || '',
-  priorityWeight: clampWeight(priorityWeight),
-  coverageWeight: clampWeight(coverageWeight),
-  riskWeight: clampWeight(riskWeight),
-  modeCompatibility: rest.modeCompatibility || buildModeCompatibility(category),
-  status: 'active',
-  generationMethod: rest.generationMethod || 'deterministic',
-  metadata,
-  retentionUntil: questionRetentionDate(),
-  ...rest,
-});
+    text,
+    evidenceMode: rest.evidenceMode,
+  });
+  const item = {
+    userId,
+    sessionId,
+    matchAnalysisId,
+    cvFileId,
+    jdFingerprint,
+    questionId: stableQuestionId('poolq', [sessionId, sourceStage, sourceType, category, topic, questionIntent, text]),
+    schemaVersion: 'v2',
+    sourceStage,
+    questionRole: resolveQuestionRole({ sourceStage, category, stage, questionRole }),
+    maxFollowUps: Math.max(0, Number.isFinite(Number(maxFollowUps)) ? Number(maxFollowUps) : 2),
+    followUpStrategies: resolveFollowUpStrategies({
+      followUpStrategies: rest.followUpStrategies,
+      followUpStrategy: rest.followUpStrategy,
+      questionIntent,
+      evidenceNeed: rest.evidenceNeed || rest.expectedSignal,
+    }),
+    sourceType,
+    category: normalizeCategory(category),
+    stage: stage || normalizeCategory(category),
+    topic: normalizeText(topic) || 'role_fit',
+    competency: normalizeText(rest.competency || topic),
+    questionIntent: questionIntent || 'collect_specific_example',
+    text,
+    fallbackText: fallbackText || text,
+    spokenDraft: fallbackText || text,
+    expectedSignal: ensureArray(rest.expectedSignal),
+    evidenceNeed: ensureArray(rest.evidenceNeed || rest.expectedSignal),
+    constraints: ensureArray(rest.constraints),
+    followUpStrategy: rest.followUpStrategy || '',
+    priorityWeight: clampWeight(priorityWeight),
+    coverageWeight: clampWeight(coverageWeight),
+    riskWeight: clampWeight(riskWeight),
+    modeCompatibility: rest.modeCompatibility || buildModeCompatibility(category),
+    status: 'active',
+    generationMethod: rest.generationMethod || 'deterministic',
+    metadata,
+    questionFamily,
+    evidenceMode,
+    roleDomain: rest.roleDomain || 'general',
+    requirementCategory: rest.requirementCategory || '',
+    capabilityGroup: rest.capabilityGroup || '',
+    retentionUntil: questionRetentionDate(),
+    ...rest,
+  };
+  return {
+    ...item,
+    assessmentKey: buildAssessmentKey({ ...item, turnKind: 'root_question' }),
+    questionFingerprint: buildQuestionFingerprint(item.text || item.fallbackText),
+  };
+};
 
 const mapLegacyQuestion = (question, context, index) => buildBaseItem({
   ...context,
@@ -166,7 +213,10 @@ const buildRequirementItems = (analysisResult, context) => ensureArray(analysisR
       questionIntent: 'validate_requirement',
       text: `Tell me about one example that shows your evidence for ${topic}. What did you personally do, and what was the result?`,
       linkedJdRequirement: [requirement],
-      requirementId: requirement.id || requirement.requirementId || normalizeKey(topic),
+      requirementId: requirement.requirementId || requirement.id || normalizeKey(topic),
+      roleDomain: requirement.roleDomain || resolveRoleDomain(analysisResult),
+      requirementCategory: requirement.category || '',
+      capabilityGroup: requirement.capabilityGroup || '',
       expectedSignal: ['direct_evidence', 'personal_action', 'result_or_impact'],
       priorityWeight: requirement.met === false ? 0.82 : 0.64,
       coverageWeight: 0.78,
@@ -189,6 +239,9 @@ const buildGapItems = (analysisResult, context) => ensureArray(analysisResult?.g
       questionIntent: 'risk_probe',
       text: `I want to validate one possible gap around ${topic}. What related experience do you have, and what did you personally own?`,
       matchGapId: typeof gap === 'string' ? normalizeKey(gap) : gap.id || normalizeKey(topic),
+      roleDomain: resolveRoleDomain(analysisResult),
+      requirementCategory: typeof gap === 'string' ? '' : gap.category || '',
+      capabilityGroup: typeof gap === 'string' ? '' : gap.capabilityGroup || '',
       expectedSignal: ['gap_validation', 'adjacent_experience', 'ownership'],
       priorityWeight: 0.8,
       coverageWeight: 0.82,
@@ -197,20 +250,50 @@ const buildGapItems = (analysisResult, context) => ensureArray(analysisResult?.g
     });
   });
 
-const dedupePool = (items = []) => {
-  const byKey = new Map();
-  for (const item of items) {
-    if (!normalizeText(item.text || item.fallbackText)) continue;
-    const key = [normalizeTopicKey(item.topic), normalizeCategory(item.category), normalizeKey(item.questionIntent)].join(':');
-    const existing = byKey.get(key);
-    if (!existing || (sourcePriority[item.sourceStage] || 0) > (sourcePriority[existing.sourceStage] || 0)) {
-      byKey.set(key, item);
-    }
-  }
-  return [...byKey.values()];
+const mergeUniqueValues = (...values) => {
+  const byValue = new Map();
+  ensureArray(values.flat()).forEach((value) => {
+    const key = typeof value === 'string' ? value : JSON.stringify(value);
+    if (key && !byValue.has(key)) byValue.set(key, value);
+  });
+  return [...byValue.values()];
 };
 
-const ensureMinimumFallbacks = (items, context) => {
+const mergeQuestionEvidence = (primary, secondary) => ({
+  ...primary,
+  linkedCvEvidence: mergeUniqueValues(primary.linkedCvEvidence, secondary.linkedCvEvidence),
+  linkedJdRequirement: mergeUniqueValues(primary.linkedJdRequirement, secondary.linkedJdRequirement),
+  expectedSignal: mergeUniqueValues(primary.expectedSignal, secondary.expectedSignal),
+  evidenceNeed: mergeUniqueValues(primary.evidenceNeed, secondary.evidenceNeed),
+});
+
+const dedupePool = (items = []) => {
+  const deduped = [];
+  for (const rawItem of items) {
+    if (!normalizeText(rawItem.text || rawItem.fallbackText)) continue;
+    const item = {
+      ...rawItem,
+      assessmentKey: rawItem.assessmentKey || buildAssessmentKey({ ...rawItem, turnKind: 'root_question' }),
+      questionFingerprint: rawItem.questionFingerprint || buildQuestionFingerprint(rawItem.text || rawItem.fallbackText),
+    };
+    const existingIndex = deduped.findIndex((candidate) => (
+      candidate.assessmentKey === item.assessmentKey
+      || candidate.questionFingerprint === item.questionFingerprint
+    ));
+    if (existingIndex < 0) {
+      deduped.push(item);
+      continue;
+    }
+    const existing = deduped[existingIndex];
+    const itemWins = (sourcePriority[item.sourceStage] || 0) > (sourcePriority[existing.sourceStage] || 0);
+    deduped[existingIndex] = itemWins
+      ? mergeQuestionEvidence(item, existing)
+      : mergeQuestionEvidence(existing, item);
+  }
+  return deduped;
+};
+
+export const ensureMinimumFallbacks = (items, context) => {
   const hasTechnical = items.some((item) => ['technical', 'role_competency'].includes(item.category));
   const hasBehavioural = items.some((item) => item.category === 'behavioural');
   const additions = [];
@@ -221,10 +304,10 @@ const ensureMinimumFallbacks = (items, context) => {
       sourceType: 'fallback',
       category: 'technical',
       stage: 'technical',
-      topic: 'implementation',
+      topic: 'role_specific_competency',
       questionIntent: 'validate_depth',
-      text: 'Tell me about one technical task you handled yourself. What did you build, and how did you know it worked?',
-      expectedSignal: ['implementation', 'ownership', 'validation_method'],
+      text: 'Tell me about one role-specific task you handled yourself. What approach and professional judgement did you use, what risks or quality requirements mattered, and how did you validate the outcome?',
+      expectedSignal: ['approach', 'judgement', 'risk_or_quality', 'validation', 'outcome'],
       priorityWeight: 0.45,
     }));
   }
@@ -246,7 +329,14 @@ const ensureMinimumFallbacks = (items, context) => {
 };
 
 export const buildInterviewQuestionPoolItems = ({ userId, sessionId, cvFileId = null, matchAnalysisId = null, jdFingerprint = '', analysisResult = {}, settings = {}, cvSeeds = [], jdFilter = null } = {}) => {
-  const context = { userId, sessionId, cvFileId, matchAnalysisId, jdFingerprint };
+  const context = {
+    userId,
+    sessionId,
+    cvFileId,
+    matchAnalysisId,
+    jdFingerprint,
+    roleDomain: resolveRoleDomain(analysisResult),
+  };
   const legacyItems = buildQuestionPoolFromAnalysis(analysisResult, settings)
     .map((question, index) => mapLegacyQuestion(question, context, index));
   const decisionsBySeedId = new Map(ensureArray(jdFilter?.filterDecisions).map((decision) => [decision.seedId, decision]));
@@ -314,4 +404,57 @@ export const markQuestionPoolItemAsked = async ({ sessionId, questionId, askedTu
     },
     { new: true }
   ).lean();
+};
+
+export const buildQuestionPoolReconciliationPlan = ({ transcript = [], poolItems = [] } = {}) => {
+  const poolById = new Map(ensureArray(poolItems).map((item) => [item.questionId, item]));
+  const poolByFingerprint = new Map();
+  ensureArray(poolItems).forEach((item) => {
+    const fingerprint = item.questionFingerprint || buildQuestionFingerprint(item.text || item.fallbackText);
+    if (fingerprint && !poolByFingerprint.has(fingerprint)) poolByFingerprint.set(fingerprint, item);
+  });
+  const matchedIds = new Set();
+  let preparedIdMatches = 0;
+  let exactFingerprintMatches = 0;
+
+  ensureArray(transcript).filter((turn) => turn?.role === 'ai').forEach((turn) => {
+    const preparedQuestionId = turn.metadata?.preparedQuestionId
+      || turn.metadata?.questionDecision?.preparedQuestionId
+      || null;
+    if (preparedQuestionId && poolById.has(preparedQuestionId)) {
+      if (!matchedIds.has(preparedQuestionId)) preparedIdMatches += 1;
+      matchedIds.add(preparedQuestionId);
+      return;
+    }
+    const fingerprint = turn.metadata?.questionFingerprint || buildQuestionFingerprint(turn.text);
+    const exactMatch = poolByFingerprint.get(fingerprint);
+    if (exactMatch?.questionId) {
+      if (!matchedIds.has(exactMatch.questionId)) exactFingerprintMatches += 1;
+      matchedIds.add(exactMatch.questionId);
+    }
+  });
+
+  return {
+    questionIdsToMarkAsked: [...matchedIds],
+    preparedIdMatches,
+    exactFingerprintMatches,
+  };
+};
+
+export const reconcileQuestionPoolFromTranscript = async ({ sessionId, transcript = [] } = {}) => {
+  if (!sessionId) return { status: 'skipped', reason: 'missing_session_id' };
+  const poolItems = await InterviewQuestionPoolItem.find({ sessionId }).lean();
+  const plan = buildQuestionPoolReconciliationPlan({ transcript, poolItems });
+  if (plan.questionIdsToMarkAsked.length > 0) {
+    await InterviewQuestionPoolItem.updateMany(
+      { sessionId, questionId: { $in: plan.questionIdsToMarkAsked } },
+      { $set: { status: 'asked' } },
+    );
+  }
+  return {
+    status: 'complete',
+    historySource: 'transcript',
+    reconciledCount: plan.questionIdsToMarkAsked.length,
+    ...plan,
+  };
 };

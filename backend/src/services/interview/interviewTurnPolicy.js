@@ -1,5 +1,6 @@
 import { resolveInterviewSessionConfig } from './interviewSessionConfigResolver.js';
 import { ensureArray, normalizeText } from '../../utils/commonHelpers.js';
+import { buildQuestionHistory } from '../questions/questionDeduplicationService.js';
 
 const buildRootQuestionKey = (question = {}) => {
   const topic = normalizeText(question.topic || question.metadata?.topic || '');
@@ -22,15 +23,15 @@ export const getQuestionCategory = (question = {}) => {
 export const buildInterviewStructure = (session = {}) => {
   const blueprint = resolveInterviewSessionConfig(session);
   const transcript = ensureArray(session.transcript);
-  const aiTurns = transcript.filter((turn) => turn.role === 'ai');
-  const askedQuestions = aiTurns.map((turn, index) => ({
+  const questionHistory = buildQuestionHistory(transcript);
+  const askedQuestions = questionHistory.countableQuestions.map((turn, index) => ({
     turnIndex: index + 1,
     text: String(turn.text || '').trim(),
-    topic: turn.metadata?.topic || '',
-    followUpDepth: Number(turn.metadata?.followUpDepth || 0),
-    questionCategory: getQuestionCategory({ category: turn.metadata?.questionCategory, stage: turn.metadata?.stage, type: turn.metadata?.questionType }),
-    questionType: turn.metadata?.questionType || '',
-    stage: turn.metadata?.stage || '',
+    topic: turn.topic || '',
+    followUpDepth: Number(turn.followUpDepth || 0),
+    questionCategory: getQuestionCategory({ category: turn.questionCategory, stage: turn.stage, type: turn.questionType }),
+    questionType: turn.questionType || '',
+    stage: turn.stage || '',
   }));
   const categoryCounts = askedQuestions.reduce((acc, item) => {
     const key = item.questionCategory || 'other';
@@ -63,6 +64,8 @@ export const buildInterviewStructure = (session = {}) => {
     categoryCounts,
     topicProgress,
     askedRootQuestionKeys,
+    spokenQuestionHistory: questionHistory.spokenQuestions,
+    repairHistory: questionHistory.repairQuestions,
   };
 };
 

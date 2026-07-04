@@ -495,14 +495,26 @@ const drawQuoteAnalyses = (layout, quoteAnalyses = []) => {
   });
 };
 
+export const buildTurnFrameworkMeta = (turn = {}) => {
+  const dimensions = turn.frameworkBreakdown?.dimensions;
+  if (Array.isArray(dimensions) && dimensions.length) {
+    const score = Number(turn.frameworkBreakdown.normalizedScore);
+    const frameworkSummary = `${turn.frameworkLabel || 'Role-specific framework'}${Number.isFinite(score) ? ` ${score}/10` : ''}`;
+    const dimensionSummaries = dimensions
+      .filter((dimension) => dimension.status !== 'not_applicable')
+      .map((dimension) => `${dimension.label} ${Number(dimension.score || 0)}/10`);
+    return [frameworkSummary, ...dimensionSummaries].join(' | ');
+  }
+  if (!turn.scores) return '';
+  return `Business ${turn.scores.business ?? '-'} / Logic ${turn.scores.logic ?? '-'} / Evidence ${turn.scores.evidence ?? '-'}`;
+};
+
 const drawTurnBreakdowns = (layout, turns = []) => {
   if (!turns.length) return;
   layout.ensureSpace(74);
   layout.sectionTitle('Turn-by-Turn Feedback', 'Detailed feedback for the scored answers.');
-  turns.slice(0, 8).forEach((turn, index) => {
-    const scores = turn.scores
-      ? `Business ${turn.scores.business ?? '-'} / Logic ${turn.scores.logic ?? '-'} / Evidence ${turn.scores.evidence ?? '-'}`
-      : '';
+  turns.forEach((turn, index) => {
+    const scores = buildTurnFrameworkMeta(turn);
     const title = `Q${index + 1}: ${asText(turn.question, 'Interview question')}`;
     drawItemCard(layout, title, turn.answer || turn.answerSummary || '', {
       action: turn.feedback || '',
@@ -518,7 +530,11 @@ const drawAnswerRewrites = (layout, rewrites = []) => {
   layout.sectionTitle('How To Answer Better');
   rewrites.slice(0, 5).forEach((item) => {
     drawItemCard(layout, 'Weaker version', item.weak || item.before || '', { color: COLOR.rose });
-    drawItemCard(layout, 'Stronger version', item.better || item.after || item.rewrite || '', { color: COLOR.brand });
+    if (item.status === 'unavailable' || !item.better) {
+      drawItemCard(layout, 'Rewrite unavailable', item.failureReason || 'A grounded stronger answer could not be generated reliably.', { color: COLOR.amber });
+    } else {
+      drawItemCard(layout, 'Stronger version', item.better || item.after || item.rewrite || '', { color: COLOR.brand });
+    }
   });
 };
 
@@ -546,11 +562,14 @@ const drawAppendix = (layout, reportData, vm) => {
 
   if (evidenceReferences.length) {
     layout.sectionTitle('Evidence Sources');
-    evidenceReferences.slice(0, 8).forEach((item) => {
+    evidenceReferences.forEach((item) => {
       const label = typeof item === 'string'
         ? friendlyEvidenceLabel(item)
-        : item.label || item.title || friendlyEvidenceLabel(item.sourceType) || item.summary;
-      drawItemCard(layout, label || 'Evidence source', item.summary || item.description || friendlyEvidenceLabel(item.sourceType) || '', {
+        : item.claim || item.label || item.title || friendlyEvidenceLabel(item.sourceType) || item.summary;
+      const body = item.evidenceSnippet || item.summary || item.description || friendlyEvidenceLabel(item.sourceType) || '';
+      const meta = [item.sourceLabel || friendlyEvidenceLabel(item.sourceType), item.confidenceLevel ? `${item.confidenceLevel} confidence` : ''].filter(Boolean).join(' - ');
+      drawItemCard(layout, label || 'Evidence source', body, {
+        meta,
         color: COLOR.brand,
       });
     });

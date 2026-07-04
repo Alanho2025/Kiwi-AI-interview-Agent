@@ -36,6 +36,14 @@ export const extractFocusAreas = (sections = []) => {
   return match[1].split(',').map((item) => item.trim()).filter(Boolean);
 };
 
+export const getReportTurnBreakdowns = (report = {}) => report.candidateFeedback?.turnBreakdowns || [];
+
+export const hasReasoningOnlyTurns = (report = {}) => {
+  const turns = getReportTurnBreakdowns(report);
+  const reasoningModes = new Set(['scenario_reasoning', 'knowledge_explanation', 'credential_verification']);
+  return turns.length > 0 && turns.every((turn) => reasoningModes.has(turn.evidenceMode));
+};
+
 /**
  * Purpose: Execute the main responsibility for getScoreBand.
  * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.

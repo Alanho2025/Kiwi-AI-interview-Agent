@@ -6,6 +6,7 @@ import {
   updateSession,
 } from '../sessionService.js';
 import { badRequest, invalidState, notFound } from '../../utils/appError.js';
+import { reconcileQuestionPoolFromTranscript } from '../questions/questionPoolComposerService.js';
 
 const toSafeElapsedSeconds = (value) => {
   const parsed = Number(value);
@@ -116,11 +117,17 @@ export const pauseInterviewSession = async (session) => {
 };
 
 export const resumeInterviewSession = async (session) => {
+  await reconcileQuestionPoolFromTranscript({ sessionId: session.id, transcript: session.transcript });
   return updateSession(session.id, session.userId, {
     status: 'in_progress',
     lastResumedAt: new Date().toISOString(),
   });
 };
+
+export const reconcileInterviewQuestionPool = async (session) => reconcileQuestionPoolFromTranscript({
+  sessionId: session?.id,
+  transcript: session?.transcript,
+});
 
 export const completeInterviewSession = async (session, options = {}) => {
   const completedSession = applyElapsedSeconds(session);

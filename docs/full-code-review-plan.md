@@ -1,5 +1,7 @@
 # Full Code Review Plan - Kiwi AI Interview Agent
 
+> Status: historical review snapshot. Several findings were subsequently changed, including ownership guards on main session/report paths, CSRF middleware, pgvector retrieval, retention tooling, question diagnostics, report QA/repair, and resumable recording. Do not use the "Current Main Issues" wording below as current truth without rechecking code; use `docs/code-document-alignment.md` for the reconciled status.
+
 ## Overall Assessment
 
 This project is no longer at the stage of "can it run". The main risks now are:
@@ -83,7 +85,7 @@ The current auth flow mixes multiple patterns:
 - `frontend/src/pages/Login.jsx`
 - `frontend/src/components/auth/ProtectedRoute.jsx`
 - `frontend/src/api/client.js`
-- `frontend/src/utils/authSession.js`
+- Historical reference: the removed authSession.js utility; current auth/session requests live in `frontend/src/api/client.js`, `frontend/src/api/authApi.js`, and `frontend/src/components/auth/ProtectedRoute.jsx`
 
 ### Risk
 - There is no single source of truth for auth.

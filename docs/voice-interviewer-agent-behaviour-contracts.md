@@ -1,7 +1,7 @@
 # Voice Interviewer Agent Behaviour Contracts
 
 Branch: voice-interviewer-clean-refactor
-Status: Phase 0 contract draft
+Status: historical Phase 0 contract draft; current product behavior is governed by `VOICE_INTERVIEW_PRODUCT_BEHAVIOR.md`
 Runtime code changed: no
 
 ## Purpose

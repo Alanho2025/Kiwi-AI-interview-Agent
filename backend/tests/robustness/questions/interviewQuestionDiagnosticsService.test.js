@@ -33,6 +33,7 @@ describe('interview question diagnostics visibility', () => {
             questionDecision: {
               preparedQuestionId: 'pool-1',
               parentQuestionId: null,
+              rejectedCandidates: [{ questionId: 'duplicate-1', reason: 'duplicate_fingerprint' }],
             },
           },
         }],
@@ -60,10 +61,10 @@ describe('interview question diagnostics visibility', () => {
         ],
       },
       poolItems: [
-        { questionId: 'pool-1', questionRole: 'root_question', status: 'active', sourceStage: 'match_gap', sourceType: 'match_gap' },
-        { questionId: 'pool-2', questionRole: 'fallback_root', status: 'active', sourceStage: 'fallback' },
+        { questionId: 'pool-1', assessmentKey: 'root:react:role_specific', questionFingerprint: 'react evidence', questionRole: 'root_question', status: 'active', sourceStage: 'match_gap', sourceType: 'match_gap' },
+        { questionId: 'pool-2', assessmentKey: 'root:teamwork:behavioural', questionFingerprint: 'teamwork example', questionRole: 'fallback_root', status: 'active', sourceStage: 'fallback' },
         { questionId: 'pool-3', questionRole: 'wrap_up', status: 'active', stage: 'wrap_up' },
-        { questionId: 'pool-4', status: 'asked', sourceStage: 'cv_seed' },
+        { questionId: 'pool-4', assessmentKey: 'root:react:role_specific', questionFingerprint: 'different react wording', status: 'asked', sourceStage: 'cv_seed' },
       ],
       sessionAnalysis: {
         agentMemory: { topics: ['React'] },
@@ -117,6 +118,14 @@ describe('interview question diagnostics visibility', () => {
       warmContextHit: false,
       artifactCacheCandidateFound: false,
       accountLevelCacheSupported: false,
+      uniquePreparedRootCount: 1,
+      duplicatePreparedQuestionCount: 1,
+      duplicateCandidatesRejected: 1,
+      lastDuplicateReason: 'duplicate_fingerprint',
+      historySource: 'transcript',
+      reconciliationStatus: 'not_run',
+      readiness: 'ready',
+      degradedReason: null,
     }));
     expect(diagnostics.jdFilterDecisionCounts).toEqual({ boost: 1, adapt: 1, keep: 1 });
     expect(diagnostics.jdPrioritySummary.priorityTechnicalSkills).toEqual(['React', 'testing']);

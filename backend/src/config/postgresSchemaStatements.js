@@ -1,3 +1,8 @@
+import {
+  RETENTION_POSTGRES_INDEX_STATEMENTS,
+  RETENTION_POSTGRES_TABLE_STATEMENTS,
+} from './retentionPostgresSchemaStatements.js';
+
 /**
  * PostgreSQL schema DDL statements
  * Contains all CREATE TABLE, ALTER TABLE, CREATE INDEX, and data cleanup statements
@@ -128,6 +133,7 @@ export const POSTGRES_SCHEMA_STATEMENTS = [
     virus_scanned_at timestamptz,
     access_scope varchar(50) NOT NULL DEFAULT 'private',
     uploaded_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz,
     deleted_at timestamptz
   )`,
 
@@ -213,6 +219,38 @@ export const POSTGRES_SCHEMA_STATEMENTS = [
     created_at timestamptz NOT NULL DEFAULT now()
   )`,
 
+    `CREATE TABLE IF NOT EXISTS recording_uploads (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_id uuid NOT NULL UNIQUE REFERENCES interview_sessions(id),
+    user_id uuid NOT NULL REFERENCES users(id),
+    status varchar(50) NOT NULL DEFAULT 'created',
+    mime_type varchar(255) NOT NULL,
+    total_chunks integer,
+    received_chunks integer NOT NULL DEFAULT 0,
+    total_bytes bigint,
+    received_bytes bigint NOT NULL DEFAULT 0,
+    mp3_storage_key text,
+    finalized_at timestamptz,
+    processing_attempts integer NOT NULL DEFAULT 0,
+    lease_owner varchar(255),
+    lease_expires_at timestamptz,
+    last_error_code varchar(100),
+    last_error_message text,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now()
+  )`,
+
+    `CREATE TABLE IF NOT EXISTS recording_upload_chunks (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    upload_id uuid NOT NULL REFERENCES recording_uploads(id) ON DELETE CASCADE,
+    sequence integer NOT NULL,
+    storage_key text NOT NULL,
+    byte_length bigint NOT NULL,
+    checksum varchar(255) NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    UNIQUE(upload_id, sequence)
+  )`,
+
     // Schema migrations: interview_sessions
     `ALTER TABLE interview_sessions ALTER COLUMN mode SET DEFAULT 'text'`,
     `ALTER TABLE interview_sessions ADD COLUMN IF NOT EXISTS control_mode varchar(50) NOT NULL DEFAULT 'question_limited'`,
@@ -232,6 +270,7 @@ export const POSTGRES_SCHEMA_STATEMENTS = [
     // Schema migrations: uploaded_files
     `ALTER TABLE uploaded_files ALTER COLUMN is_encrypted SET DEFAULT false`,
     `ALTER TABLE uploaded_files ALTER COLUMN virus_scan_status SET DEFAULT 'not_configured'`,
+    ...RETENTION_POSTGRES_TABLE_STATEMENTS,
 
     // Report summaries table
     `CREATE TABLE IF NOT EXISTS report_summaries (
@@ -302,6 +341,7 @@ export const POSTGRES_SCHEMA_STATEMENTS = [
   )`,
 
     // Indexes
+    ...RETENTION_POSTGRES_INDEX_STATEMENTS,
     `CREATE INDEX IF NOT EXISTS idx_interview_sessions_user_created_at
     ON interview_sessions(user_id, created_at DESC)`,
     `CREATE INDEX IF NOT EXISTS idx_interview_sessions_status_created_at
@@ -314,6 +354,10 @@ export const POSTGRES_SCHEMA_STATEMENTS = [
     ON parsed_skills(skill_name)`,
     `CREATE INDEX IF NOT EXISTS idx_interview_responses_session_question
     ON interview_responses(session_id, question_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_recording_uploads_session
+    ON recording_uploads(session_id, user_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_recording_uploads_worker_state
+    ON recording_uploads(status, lease_expires_at, updated_at)`,
     `CREATE INDEX IF NOT EXISTS idx_audit_logs_session_created_at
     ON audit_logs(session_id, created_at DESC)`,
     `CREATE INDEX IF NOT EXISTS idx_document_chunks_session_source

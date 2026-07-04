@@ -39,9 +39,10 @@ import { persistUserCoachingMemory } from './aiControl/userCoachingMemoryService
 import { rebuildBoundedMemory } from './aiControl/experienceMemoryService.js';
 import { enqueueBackgroundJob } from '../jobs/backgroundJobQueue.js';
 import { recordLocalUsage } from './aiUsageTrackingService.js';
-import { markQuestionPoolItemAsked } from './questions/questionPoolComposerService.js';
+import { markQuestionPoolItemAsked, reconcileQuestionPoolFromTranscript } from './questions/questionPoolComposerService.js';
 import { cleanupQuestionArtifactsAfterReport } from './questions/questionArtifactCleanupService.js';
 import { indexReportSessionArtifactsSafely } from './reportIndexingGuardService.js';
+import { buildAssessmentKey, buildQuestionFingerprint } from './questions/questionDeduplicationService.js';
 
 const persistControllerSnapshot = async ({ sessionId, decisionContext = null, evidenceBundle = null } = {}) => {
   await SessionAnalysis.findOneAndUpdate(
@@ -181,6 +182,59 @@ export const shouldMarkPreparedRootQuestionAsked = ({ interviewerOutput = {} } =
   const turnKind = interviewerOutput?.turnKind || interviewerOutput?.questionDecision?.turnKind || null;
   return Boolean(preparedQuestionId && turnKind === 'root_question');
 };
+
+const resolveQuestionTurnType = (interviewerOutput = {}) => {
+  const turnKind = interviewerOutput.turnKind || interviewerOutput.questionDecision?.turnKind || '';
+  const scenario = interviewerOutput.scenario || interviewerOutput.questionDecision?.scenario || '';
+  const questionType = interviewerOutput.questionType || '';
+  if (questionType === 'transcript_confirmation' || scenario === 'clarify_audio_or_transcript') return 'transcript_confirmation';
+  if (questionType === 'clarification') return 'clarification';
+  if (turnKind === 'repair' || ['rephrase', 'scaffold'].includes(scenario)) return 'repair_prompt';
+  if (turnKind === 'system' || questionType === 'system') return 'system';
+  return 'interview_question';
+};
+
+export const buildQuestionTranscriptMetadata = (interviewerOutput = {}) => {
+  const turnType = resolveQuestionTurnType(interviewerOutput);
+  const countsAsQuestion = turnType === 'interview_question';
+  const questionFields = {
+    ...interviewerOutput,
+    turnKind: interviewerOutput.turnKind || interviewerOutput.questionDecision?.turnKind || 'root_question',
+    questionFamily: interviewerOutput.questionFamily || null,
+    text: interviewerOutput.displayText || interviewerOutput.nextQuestion || interviewerOutput.text || '',
+  };
+  return {
+    questionFamily: questionFields.questionFamily,
+    evidenceMode: interviewerOutput.evidenceMode || null,
+    targetedDimensions: interviewerOutput.targetedDimensions || [],
+    parentQuestionFamily: interviewerOutput.parentQuestionFamily || null,
+    parentEvidenceMode: interviewerOutput.parentEvidenceMode || null,
+    roleDomain: interviewerOutput.roleDomain || 'general',
+    requirementCategory: interviewerOutput.requirementCategory || null,
+    capabilityGroup: interviewerOutput.capabilityGroup || null,
+    turnType,
+    countsAsQuestion,
+    parentQuestionId: interviewerOutput.parentQuestionId || interviewerOutput.questionDecision?.parentQuestionId || null,
+    assessmentKey: buildAssessmentKey(questionFields),
+    questionFingerprint: buildQuestionFingerprint(questionFields.text),
+    dedupeTrace: interviewerOutput.questionDecision?.deduplication || null,
+  };
+};
+
+export const shouldPersistInterviewQuestion = ({ interviewerOutput = {} } = {}) => (
+  buildQuestionTranscriptMetadata(interviewerOutput).countsAsQuestion
+);
+
+export const buildPreparedQuestionStateDiagnostic = ({ markResult, sessionId, preparedQuestionId } = {}) => (
+  markResult
+    ? null
+    : {
+        level: 'warning',
+        code: 'prepared_question_asked_state_update_missed',
+        sessionId,
+        preparedQuestionId,
+      }
+);
 
 const runInterviewController = async ({ session, payload = {}, onSentence = null, trace = null }) => {
   enqueueBackgroundJob('trace-answer-evaluated-start', () => recordAgentTraceEvent({
@@ -604,26 +658,38 @@ decisionType: AGENT_DECISION_TYPES.EXECUTE_ACTION,
     };
   }
 
-  const nextQuestionOrder = getNextQuestionOrder(session);
+  const transcriptMetadata = buildQuestionTranscriptMetadata(interviewerOutput);
+  const nextQuestionOrder = getNextQuestionOrder(session, { countsAsQuestion: transcriptMetadata.countsAsQuestion });
   const resolvedQuestionSource = interviewerOutput.sourceType || interviewerOutput.questionDecision?.sourceType || 'agent_generated';
-  const questionId = await createInterviewQuestion({
-    sessionId: session.id,
-    questionOrder: nextQuestionOrder,
-    questionType: interviewerOutput.questionType || 'follow_up',
-    sourceType: resolvedQuestionSource,
-    questionText: interviewerOutput.displayText || interviewerOutput.nextQuestion,
-    basedOnCv: ['cv_template', 'match_gap', 'cv_seed', 'prepared_question_pool', 'cv_project', 'cv_skill', 'cv_behavioural', 'cv_achievement', 'cv_transition', 'cv_experience'].includes(resolvedQuestionSource),
-    basedOnJd: ['jd_requirement', 'match_gap', 'jd_filter', 'universal_requirement_competency', 'match_validation'].includes(resolvedQuestionSource),
-  });
+  const parentQuestionId = transcriptMetadata.parentQuestionId
+    || [...(session.transcript || [])].reverse().find((turn) => turn.role === 'ai' && turn.metadata?.countsAsQuestion !== false)?.questionId
+    || null;
+  const questionId = transcriptMetadata.countsAsQuestion
+    ? await createInterviewQuestion({
+        sessionId: session.id,
+        questionOrder: nextQuestionOrder,
+        questionType: interviewerOutput.questionType || 'follow_up',
+        sourceType: resolvedQuestionSource,
+        questionText: interviewerOutput.displayText || interviewerOutput.nextQuestion,
+        basedOnCv: ['cv_template', 'match_gap', 'cv_seed', 'prepared_question_pool', 'cv_project', 'cv_skill', 'cv_behavioural', 'cv_achievement', 'cv_transition', 'cv_experience'].includes(resolvedQuestionSource),
+        basedOnJd: ['jd_requirement', 'match_gap', 'jd_filter', 'universal_requirement_competency', 'match_validation'].includes(resolvedQuestionSource),
+      })
+    : parentQuestionId;
   const preparedQuestionId = interviewerOutput?.questionDecision?.preparedQuestionId || interviewerOutput?.preparedQuestionId || null;
   if (shouldMarkPreparedRootQuestionAsked({ interviewerOutput })) {
     try {
-      await markQuestionPoolItemAsked({
+      const markResult = await markQuestionPoolItemAsked({
         sessionId: session.id,
         questionId: preparedQuestionId,
         askedTurnIndex: nextQuestionOrder,
         rankTrace: interviewerOutput.questionDecision?.rankTrace || interviewerOutput.rankTrace || {},
       });
+      const diagnostic = buildPreparedQuestionStateDiagnostic({
+        markResult,
+        sessionId: session.id,
+        preparedQuestionId,
+      });
+      if (diagnostic) logger.warn('Prepared question pool asked-state update missed its row', diagnostic);
     } catch (error) {
       logger.warn('Prepared question pool asked-state update failed', {
         sessionId: session.id,
@@ -639,6 +705,7 @@ decisionType: AGENT_DECISION_TYPES.EXECUTE_ACTION,
     timestamp: new Date().toISOString(),
     questionId,
     metadata: {
+      ...transcriptMetadata,
       stage: interviewerOutput.stage,
       topic: interviewerOutput.topic,
       evidenceTypeHint: interviewerOutput.evidenceTypeHint || null,
@@ -820,6 +887,10 @@ export const warmAdaptiveSession = async ({ sessionId, trace = null } = {}) => {
     throw new Error('Session not found');
   }
 
+  await measureAdaptiveStep(trace, 'warm_adaptive.question_reconciliation', () => reconcileQuestionPoolFromTranscript({
+    sessionId: session.id,
+    transcript: session.transcript,
+  }));
   await measureAdaptiveStep(trace, 'warm_adaptive.indexing_check', () => ensureSessionArtifactsIndexed(session.id));
   const retrievalBundle = await measureAdaptiveStep(trace, 'warm_adaptive.retrieval', () => agentRegistry.retrieval(
     buildInterviewRetrievalInput({ session, payload: {}, objective: 'warm_adaptive_session' })

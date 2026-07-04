@@ -31,6 +31,7 @@ afterEach(async () => {
 describe('recording upload guard', () => {
   it('accepts browser audio recordings and rejects arbitrary files', () => {
     expect(isAllowedAudioUpload({ originalname: 'session.webm', mimetype: 'audio/webm' })).toBe(true);
+    expect(isAllowedAudioUpload({ originalname: 'session.webm', mimetype: 'audio/webm;codecs=opus' })).toBe(true);
     expect(isAllowedAudioUpload({ originalname: 'session.m4a', mimetype: 'audio/mp4' })).toBe(true);
     expect(isAllowedAudioUpload({ originalname: 'payload.js', mimetype: 'application/javascript' })).toBe(false);
     expect(isAllowedAudioUpload({ originalname: 'session.webm', mimetype: 'application/octet-stream' })).toBe(false);

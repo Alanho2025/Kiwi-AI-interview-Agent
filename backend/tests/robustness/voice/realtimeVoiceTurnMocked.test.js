@@ -128,6 +128,12 @@ describe('mocked realtime voice turn', () => {
       session: baseSession(),
       userId: 'user-1',
       transcriptText: 'I compared 70 30, 60 40, and 80 20, then selected 70 30 because the result was more stable.',
+      transcriptProvenance: {
+        rawText: 'I compared seventy thirty and selected seventy thirty.',
+        normalizedText: 'I compared 70 30 and selected 70 30.',
+        corrections: [{ pattern: 'seventy thirty', replacement: '70 30' }],
+        segments: [{ rawText: 'I compared seventy thirty.', normalizedText: 'I compared 70 30.', confidence: 0.9 }],
+      },
       asrConfidence: 0.9,
       vad: validVad,
       inputMode: 'realtime_voice',
@@ -137,7 +143,14 @@ describe('mocked realtime voice turn', () => {
     expect(mocks.appendTranscriptTurn).toHaveBeenCalledWith('voice-session-1', expect.objectContaining({
       role: 'user',
       text: expect.stringContaining('70 30'),
-      metadata: expect.objectContaining({ inputMode: 'realtime_voice', turnType: 'user_answer' }),
+      metadata: expect.objectContaining({
+        inputMode: 'realtime_voice',
+        turnType: 'user_answer',
+        rawTranscriptText: 'I compared seventy thirty and selected seventy thirty.',
+        normalizedTranscriptText: 'I compared 70 30 and selected 70 30.',
+        answeredQuestionId: 'question-1',
+        transcriptCorrections: [expect.objectContaining({ replacement: '70 30' })],
+      }),
     }));
     expect(mocks.saveInterviewAnswerWithDetails).toHaveBeenCalledWith(expect.objectContaining({
       sessionId: 'voice-session-1',
@@ -205,5 +218,36 @@ describe('mocked realtime voice turn', () => {
     expect(mocks.appendTranscriptTurn).not.toHaveBeenCalled();
     expect(mocks.saveInterviewAnswerWithDetails).not.toHaveBeenCalled();
     expect(mocks.runTask).not.toHaveBeenCalled();
+  });
+
+  it('returns completed session report readiness generated in the same realtime turn', async () => {
+    const tryGenerateReportForCompletedSession = vi.fn().mockResolvedValue({
+      stored: { latestStatus: 'ready', report: { summary: 'Ready' } },
+    });
+    mocks.runTask.mockResolvedValue({
+      displayText: '',
+      nextQuestion: null,
+      isComplete: true,
+      completedBecause: 'question_limit_reached',
+    });
+    mocks.updateSession.mockResolvedValue({
+      ...baseSession(),
+      status: 'completed',
+      hasReport: false,
+      reportStatus: null,
+    });
+
+    const result = await processRealtimeVoiceTurn({
+      session: baseSession(),
+      userId: 'user-1',
+      transcriptText: 'I validated the final result with integration tests and compared it against the project acceptance criteria.',
+      asrConfidence: 0.9,
+      vad: validVad,
+      tryGenerateReportForCompletedSession,
+    });
+
+    expect(tryGenerateReportForCompletedSession).toHaveBeenCalledWith(null, 'voice-session-1');
+    expect(result.updatedSession.hasReport).toBe(true);
+    expect(result.updatedSession.reportStatus).toBe('ready');
   });
 });

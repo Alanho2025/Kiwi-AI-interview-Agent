@@ -2,7 +2,7 @@
 
 Branch: voice-interviewer-clean-refactor
 Target branch: main
-Status: Phase 0 planning
+Status: historical Phase 0 plan; do not treat checklist state as current implementation status
 Runtime code changed: no
 
 ## Goal

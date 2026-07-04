@@ -1,7 +1,9 @@
 import crypto from 'crypto';
 import { ensureArray, normalizeKey, normalizeText, tokenize, unique } from '../../utils/commonHelpers.js';
 
-export const questionRetentionDate = () => new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
+import { buildRetentionExpiry } from '../retention/retentionPolicy.js';
+
+export const questionRetentionDate = () => buildRetentionExpiry();
 
 export const clampWeight = (value, fallback = 0.5) => {
   const parsed = Number(value);

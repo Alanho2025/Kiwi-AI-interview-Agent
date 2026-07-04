@@ -11,20 +11,36 @@
 
 import { joinLabels } from './reportGeneratorShared.js';
 
+const hasPastExampleQuestion = (turnBreakdowns = []) => turnBreakdowns.some((turn) => (
+  turn.frameworkKey === 'behavioural_starr'
+  || turn.rubricType === 'starr'
+  || turn.evidenceMode === 'past_example'
+));
+
+const REWRITE_UNAVAILABLE_REASON = 'A grounded stronger answer could not be generated reliably. Regenerate the report to try again.';
+
 /**
  * Purpose: Execute the main responsibility for buildImprovementPriorities.
  * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-export const buildImprovementPriorities = ({ analysisResult, evidenceSummary, interviewMetrics }) => {
+export const buildImprovementPriorities = ({ analysisResult, evidenceSummary, interviewMetrics, turnBreakdowns = [] }) => {
   const priorities = [];
 
-  if ((evidenceSummary.totals.hypothetical_understanding || 0) > 0) {
+  if ((evidenceSummary.totals.hypothetical_understanding || 0) > 0 && hasPastExampleQuestion(turnBreakdowns)) {
     priorities.push({
-      title: 'Use more real project examples',
+      title: 'Use more evidence from real examples',
       whyItMatters: 'Interviewers trust demonstrated experience more than theoretical explanations.',
-      action: 'Prepare 2-3 project stories that clearly explain the situation, your actions, and the result.',
+      action: 'Prepare 2-3 relevant examples that clearly explain the context, your judgement, your actions, and the outcome.',
+    });
+  }
+
+  if ((evidenceSummary.totals.hypothetical_understanding || 0) > 0 && !hasPastExampleQuestion(turnBreakdowns)) {
+    priorities.push({
+      title: 'Make professional reasoning explicit',
+      whyItMatters: 'Scenario and knowledge answers are judged on clear requirements, judgement, risk, and verification rather than past-experience wording.',
+      action: 'State the requirements, options, reasoning, risk or quality controls, validation method, and expected outcome.',
     });
   }
 
@@ -64,7 +80,7 @@ export const buildImprovementPriorities = ({ analysisResult, evidenceSummary, in
     priorities.push({
       title: 'Keep strengthening specificity',
       whyItMatters: 'You already have a workable base, and sharper examples will make your answers more memorable.',
-      action: 'For each key project, prepare one sentence on the challenge, one on your contribution, and one on the outcome.',
+      action: 'For each key role requirement, prepare one sentence on the context, one on your approach, and one on the outcome.',
     });
   }
 
@@ -77,15 +93,24 @@ export const buildImprovementPriorities = ({ analysisResult, evidenceSummary, in
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-export const buildCoachingAdvice = ({ evidenceSummary, interviewPlan = {} }) => {
+export const buildCoachingAdvice = ({ evidenceSummary, interviewPlan = {}, turnBreakdowns = [] }) => {
   const focusAreas = (interviewPlan.interviewFocus || []).filter(Boolean);
   const advice = [];
+  const pastExampleQuestionAsked = hasPastExampleQuestion(turnBreakdowns);
 
-  if ((evidenceSummary.totals.hypothetical_understanding || 0) > 0) {
+  if ((evidenceSummary.totals.hypothetical_understanding || 0) > 0 && pastExampleQuestionAsked) {
     advice.push({
       theme: 'Replace theory with proof',
-      advice: 'When a question asks about a skill, lead with a real project you have already worked on.',
-      example: 'Instead of saying "I would use React Native to build this", say "In my last project, I used React Native to build X, solved Y, and improved Z."',
+      advice: 'When a question asks for a past example, lead with relevant work you actually completed.',
+      example: 'Use this pattern: "In [actual context], I chose [actual approach] because [judgement], verified it through [actual check], and achieved [actual outcome]."',
+    });
+  }
+
+  if ((evidenceSummary.totals.hypothetical_understanding || 0) > 0 && !pastExampleQuestionAsked) {
+    advice.push({
+      theme: 'Show structured professional reasoning',
+      advice: 'Scenario and knowledge answers should make requirements, options, judgement, risk, validation, and outcome explicit.',
+      example: 'Use this sequence: requirements, options, judgement, risk or quality controls, validation, and expected outcome.',
     });
   }
 
@@ -97,19 +122,19 @@ export const buildCoachingAdvice = ({ evidenceSummary, interviewPlan = {} }) => 
     });
   }
 
-  if ((evidenceSummary.totals.direct_past_experience || 0) < 3) {
+  if ((evidenceSummary.totals.direct_past_experience || 0) < 3 && pastExampleQuestionAsked) {
     advice.push({
       theme: 'Prepare reusable stories',
-      advice: 'Build a small bank of stories that show technical problem-solving, collaboration, and ownership.',
-      example: 'Prepare one mobile feature story, one debugging story, and one teamwork story, each in under 90 seconds.',
+      advice: 'Build a small bank of genuine examples that show role-specific judgement, collaboration, and ownership.',
+      example: 'Prepare one role-specific delivery example, one problem-solving example, and one teamwork example, each in under 90 seconds.',
     });
   }
 
   if ((evidenceSummary.totals.generic_filler || 0) >= 3) {
     advice.push({
       theme: 'Avoid generic wording',
-      advice: 'Move past tools and concepts, and explain your judgment, trade-offs, and execution.',
-      example: 'Swap "I know testing is important" for "I added tests for X, caught Y issue early, and avoided regression in Z flow."',
+      advice: 'Move past broad claims and explain your judgement, trade-offs, safeguards, and verification.',
+      example: 'Swap "quality is important" for "I checked [actual criterion] using [actual verification method] and responded by [actual action]."',
     });
   }
 
@@ -125,7 +150,7 @@ export const buildCoachingAdvice = ({ evidenceSummary, interviewPlan = {} }) => 
     advice.push({
       theme: 'Keep building clarity',
       advice: 'Your next gain will come from sharper examples and clearer impact statements.',
-      example: 'For each project, prepare one sentence on the challenge, one on your actions, and one on the result.',
+      example: 'For each role requirement, prepare one sentence on the context, one on your approach, and one on the outcome.',
     });
   }
 
@@ -138,27 +163,26 @@ export const buildCoachingAdvice = ({ evidenceSummary, interviewPlan = {} }) => 
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-export const buildAnswerRewriteExamples = ({ evidenceSummary }) => {
-  const examples = [
-    {
-      weak: 'I think I would use React Native to do that.',
-      better: 'In a previous project, I used React Native to build a mobile flow, handled API integration, and improved the user experience by fixing performance and stability issues.',
-    },
-  ];
+export const buildAnswerRewriteExamples = ({ turnBreakdowns = [] } = {}) => {
+  const examples = turnBreakdowns
+    .filter((turn) => String(turn.answer || '').trim())
+    .slice(0, 3)
+    .map((turn) => ({
+      status: 'unavailable',
+      failureReason: REWRITE_UNAVAILABLE_REASON,
+      question: String(turn.question || '').trim(),
+      weak: String(turn.answer).trim(),
+      better: '',
+      evidenceUsed: [],
+    }));
 
-  if ((evidenceSummary.totals.generic_filler || 0) > 0) {
-    examples.push({
-      weak: 'I am a good problem solver and I work well in teams.',
-      better: 'When our team hit a blocker, I broke the issue into smaller parts, coordinated the handoff with teammates, and helped the team ship the feature on time.',
-    });
-  }
-
-  if ((evidenceSummary.totals.hypothetical_understanding || 0) > 0) {
-    examples.push({
-      weak: 'If I was given that problem, I would probably approach it by using the framework carefully.',
-      better: 'In my last project, I faced a similar problem, chose a practical approach, implemented it step by step, and checked the result through testing and review.',
-    });
-  }
-
-  return examples.slice(0, 3);
+  if (examples.length) return examples;
+  return [{
+    status: 'unavailable',
+    failureReason: REWRITE_UNAVAILABLE_REASON,
+    question: '',
+    weak: 'The answer stayed broad and did not include enough role-specific evidence.',
+    better: '',
+    evidenceUsed: [],
+  }];
 };

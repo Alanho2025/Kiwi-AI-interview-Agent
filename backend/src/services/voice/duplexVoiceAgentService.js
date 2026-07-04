@@ -29,15 +29,26 @@ const normalizeTranscriptText = (payload = {}) => String(
   payload.displayText || payload.normalizedText || payload.text || payload.rawText || ''
 ).trim();
 
-const mergeTranscriptSegments = (segments = []) => {
-  const pieces = segments
-    .map((segment) => normalizeTranscriptText(segment))
-    .filter(Boolean);
-  return pieces
-    .filter((piece, index) => piece !== pieces[index - 1])
+export const mergeTranscriptSegments = (segments = []) => {
+  const normalizedSegments = segments.map((segment = {}) => ({
+    rawText: String(segment.rawText || segment.text || segment.displayText || '').trim(),
+    normalizedText: normalizeTranscriptText(segment),
+    corrections: Array.isArray(segment.corrections) ? segment.corrections : [],
+    confidence: Number.isFinite(Number(segment.confidence)) ? Number(segment.confidence) : null,
+  })).filter((segment) => segment.rawText || segment.normalizedText);
+  const joinUnique = (key) => normalizedSegments
+    .map((segment) => segment[key])
+    .filter((piece, index, pieces) => piece && piece !== pieces[index - 1])
     .join(' ')
     .replace(/\s+/g, ' ')
     .trim();
+
+  return {
+    rawText: joinUnique('rawText'),
+    normalizedText: joinUnique('normalizedText'),
+    corrections: normalizedSegments.flatMap((segment) => segment.corrections),
+    segments: normalizedSegments,
+  };
 };
 
 const averageConfidence = (segments = []) => {
@@ -149,7 +160,7 @@ export const createDuplexVoiceAgentSession = ({
   let speechCaptureSequence = 0;
   let activeSpeechCaptureId = 0;
 
-  const processFinalTranscript = async ({ transcriptText, asrConfidence, asrSource, vad, clientTurnId }) => {
+  const processFinalTranscript = async ({ transcriptText, transcriptProvenance = null, asrConfidence, asrSource, vad, clientTurnId }) => {
     const turnCoordinator = createDuplexTurnCoordinator({
       session: activeSession,
       userId,
@@ -165,6 +176,7 @@ export const createDuplexVoiceAgentSession = ({
     });
     const result = await turnCoordinator.processFinalTranscript({
       transcriptText,
+      transcriptProvenance,
       asrConfidence,
       vad,
     });
@@ -387,13 +399,15 @@ export const createDuplexVoiceAgentSession = ({
     const segmentsToProcess = partialFallback ? [partialFallback] : finalTranscriptSegments;
     finalTranscriptSegments = [];
     latestPartialTranscript = null;
-    const transcriptText = mergeTranscriptSegments(segmentsToProcess);
+    const transcriptProvenance = mergeTranscriptSegments(segmentsToProcess);
+    const transcriptText = transcriptProvenance.normalizedText;
     const asrSource = resolveAsrSource({ segments: segmentsToProcess, providerName: activeSttProviderName });
     if (isProcessingBufferedTurn) return true;
     isProcessingBufferedTurn = true;
     try {
       await processFinalTranscript({
         transcriptText,
+        transcriptProvenance,
         asrConfidence: averageConfidence(segmentsToProcess),
         asrSource,
         clientTurnId: processingClientTurnId,

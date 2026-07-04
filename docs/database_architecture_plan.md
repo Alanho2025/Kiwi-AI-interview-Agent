@@ -1,5 +1,7 @@
 # Database Architecture Plan
 
+> Status: hybrid implementation snapshot and historical design plan. The "Current Code Alignment Snapshot" is reconciled to 2026-06-23; later recommended schemas and phases are proposals unless the current snapshot and code confirm implementation.
+
 ## Goal
 
 This document defines the recommended database architecture for the current MVP of the Kiwi AI Interview Agent.
@@ -23,7 +25,7 @@ Status as of the current codebase:
 - Runtime RAG uses PostgreSQL `document_chunks.embedding vector(256)` with pgvector indexes.
 - MongoDB/Mongoose models exist under `backend/src/db/models/` for AI artifacts such as document content, normalized CV/JD records, match analysis records, session transcripts, reports, feedback details, AI logs, token usage, user coaching memory, and AI usage events.
 - Local file storage is implemented through `backend/src/services/storageService.js` and file metadata is persisted through `backend/src/services/fileRepositoryService.js`.
-- The original architecture recommendation is now partly implemented. Remaining gaps are less about initial persistence and more about retention workers, account-wide deletion, encryption-at-rest guarantees, complete ownership test coverage, and final deployment policy.
+- The original architecture recommendation is now partly implemented. Retention audit, approval-gated cleanup, backup/quarantine, manifests, and a disabled-by-default queued-job worker now exist. Remaining gaps are less about initial persistence and more about deployment-verified scheduling, account-wide deletion, encryption-at-rest guarantees, complete ownership test coverage, and final deployment policy.
 
 ---
 
@@ -59,7 +61,7 @@ MongoDB should store:
 File storage should store:
 
 - original CV files
-- original JD files
+- future original JD files if JD file upload is implemented; the current product accepts pasted JD text
 - generated report files
 - exported transcript files
 
@@ -255,7 +257,7 @@ Fields:
 Use cases:
 
 - uploaded CV
-- uploaded JD file
+- future uploaded JD file (the current JD path is pasted text)
 - generated transcript file
 - generated report file
 
@@ -799,7 +801,7 @@ Current implementation note: the code now follows this hybrid direction. Postgre
 
 ## Recommended Implementation Phases
 
-Status note: these phases are retained for historical planning context. Phase 1 and Phase 2 are substantially implemented. Several later-phase capabilities are also implemented, but product-grade retention, deletion, encryption, and complete authorization test coverage remain open.
+Status note: these phases are retained for historical planning context. Phase 1 and Phase 2 are substantially implemented. Several later-phase capabilities are also implemented, including an operationally gated retention pipeline; account-wide deletion, encryption guarantees, deployment scheduling, and complete authorization test coverage remain open.
 
 ## Phase 1. Database Connection Layer
 

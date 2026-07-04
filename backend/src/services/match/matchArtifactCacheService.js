@@ -11,7 +11,7 @@ import {
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MATCH_CACHE_TTL_DAYS = 7;
 const CV_CACHE_TTL_DAYS = 7;
-const JD_CACHE_TTL_DAYS = 30;
+const JD_CACHE_TTL_DAYS = 7;
 
 const nowPlusDays = (days) => new Date(Date.now() + days * DAY_MS);
 

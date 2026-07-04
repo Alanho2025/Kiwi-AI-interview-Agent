@@ -11,7 +11,6 @@
 
 import crypto from 'crypto';
 import { query } from '../db/postgres.js';
-import { DocumentChunk } from '../db/models/documentChunkModel.js';
 import { EMBEDDING_DIMENSION, EMBEDDING_MODEL, embedBatch, normalizeForRetrieval } from './embeddingService.js';
 import { SessionAnalysis } from '../db/models/sessionAnalysisModel.js';
 import { InterviewPlan } from '../db/models/interviewPlanModel.js';
@@ -123,11 +122,6 @@ export const buildPreparedQuestionPoolIndexPayload = (items = []) => ({
   })),
 });
 
-const upsertLegacyMongoChunkMirror = async (record) => {
-  // Runtime retrieval reads PostgreSQL pgvector. Mongo remains a legacy mirror for migration/debug compatibility.
-  await DocumentChunk.findOneAndUpdate({ chunkId: record.chunkId }, record, { upsert: true, setDefaultsOnInsert: true });
-};
-
 /**
  * Purpose: Execute the main responsibility for splitTextIntoChunks.
  * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
@@ -219,7 +213,6 @@ export const indexTextSource = async ({ sourceType, sourceId, documentType, text
       ]
     );
 
-    await upsertLegacyMongoChunkMirror(record);
   }
 
   return records;
