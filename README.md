@@ -13,6 +13,7 @@ This repository is prepared for academic marking. The project is not a simple ch
 | Key services and functions | `docs/implementation-functions.md` |
 | Testing and evaluation plan | `docs/testing-and-evaluation.md` |
 | Code-to-document alignment | `docs/code-document-alignment.md` |
+| Living repo-docs guide, sync check, and change-log source for repo questions | `repo-docs/README.md` |
 | Collaboration and AI-agent rules | `AGENTS.md` |
 
 ## Product problem
