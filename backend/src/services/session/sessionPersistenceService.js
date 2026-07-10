@@ -279,7 +279,7 @@ const buildSessionAnalysisDocument = ({ id, userId, cvFileId, jdText, rubric, no
   decision: normalizedAnalysis.decision || {},
   confidence: normalizedAnalysis.confidence || 0,
   explanation: normalizedAnalysis.explanation || {},
-  evidenceMap: normalizedAnalysis.evidenceMap || [],
+  evidenceMap: [],
   roleEvidenceMap: normalizedAnalysis.roleEvidenceMap || {},
   sourceSnapshots: normalizedAnalysis.sourceSnapshots || [],
   retrievalSnapshots: [{ matchAnalysisId, evidenceRefs: evidenceRefs || [] }],

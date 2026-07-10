@@ -16,7 +16,6 @@ const ANSWER_LABELS = {
 };
 
 export function RoleFitReportSection({ roleFit = {} }) {
-  if (roleFit.status === 'legacy') return null;
   if (!roleFit.available) {
     return (
       <section className="border-y border-amber-200 bg-amber-50/70 px-1 py-5" aria-labelledby="role-fit-unavailable-title">

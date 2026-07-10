@@ -14,8 +14,8 @@ import { buildDataInsights, buildTakeaway } from './insights.js';
 import { getScoreBand } from './shared.js';
 
 const buildRoleFitView = (roleFit = {}) => {
-  if (!roleFit?.schemaVersion && !roleFit?.status) return { available: false, status: 'legacy' };
-  const status = ['ready', 'limited', 'unavailable', 'legacy'].includes(roleFit.status)
+  if (!roleFit?.schemaVersion && !roleFit?.status) return { available: false, status: 'unavailable' };
+  const status = ['ready', 'limited', 'unavailable'].includes(roleFit.status)
     ? roleFit.status
     : 'unavailable';
   return {

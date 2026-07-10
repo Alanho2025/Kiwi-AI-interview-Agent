@@ -44,8 +44,6 @@ const pickScoreItems = (items = []) => (Array.isArray(items) ? items : []).map((
 export const buildMatchAnalysisIndexPayload = (analysis = {}) => {
   const explanation = analysis.explanation || {};
   const matchSummary = analysis.matchSummary || {};
-  const hasRoleEvidenceMap = Array.isArray(analysis.roleEvidenceMap?.items)
-    && analysis.roleEvidenceMap.items.length > 0;
 
   return {
     schemaVersion: analysis.schemaVersion || 'v3',
@@ -65,9 +63,7 @@ export const buildMatchAnalysisIndexPayload = (analysis = {}) => {
     requirementChecks: pickScoreItems(analysis.requirementChecks),
     macroScores: pickScoreItems(analysis.macroScores),
     microScores: pickScoreItems(analysis.microScores),
-    ...(hasRoleEvidenceMap
-      ? { roleEvidenceMap: analysis.roleEvidenceMap }
-      : { evidenceMap: analysis.evidenceMap || [] }),
+    roleEvidenceMap: analysis.roleEvidenceMap || {},
     sourceSnapshots: analysis.sourceSnapshots || [],
     retrievalSnapshots: analysis.retrievalSnapshots || [],
   };

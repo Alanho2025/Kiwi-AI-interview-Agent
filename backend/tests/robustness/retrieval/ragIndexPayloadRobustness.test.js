@@ -45,7 +45,7 @@ describe('RAG index payload builders', () => {
       status: 'met',
       evidence: ['SQL project'],
     });
-    expect(payload.evidenceMap).toEqual([{ type: 'strength', label: 'SQL' }]);
+    expect(payload).not.toHaveProperty('evidenceMap');
   });
 
   it('builds a controller_decision payload from controller memory records', () => {

@@ -1,0 +1,22 @@
+Software Engineer
+Talent Army (on behalf of dynamic workflow platform client)
+Auckland, New Zealand
+Full time, WFH Remote
+
+What they are looking for:
+- 2–5 years' strong commercial experience with React and TypeScript
+- Comfortable reasoning through a complex web application, not just following framework conventions
+- Prior SaaS or software product experience (startup or smaller company background preferred over agency/website work)
+- Self-sufficient and confident working remotely with minimal oversight
+- Strong written and verbal communication for remote collaboration and customer-facing work
+- Genuine curiosity toward backend development (TypeScript) rather than resistance to it
+- Nice to have: exposure to Kubernetes, PHP/Laravel, automated testing, CI/CD, or AI-assisted development tools
+
+What they offer:
+- Work From Home, fully remote role, based anywhere in New Zealand
+- High-trust, flexible working hours with genuine autonomy
+- Direct influence over product direction as one of only a handful of engineers
+- Exposure to a complex, technically interesting product architecture
+- Access to a wider global engineering team (~40 developers) for support and growth
+- Real career runway as the business scales into new markets
+- Modern tooling, including current-generation AI coding assistants

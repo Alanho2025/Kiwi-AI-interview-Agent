@@ -64,7 +64,7 @@ const meaningfulEvidenceReferences = (references = []) => {
 
 const getRoleFitIntegrity = (report = {}) => {
   const roleFit = report.roleFit || {};
-  if ((!roleFit.schemaVersion && !roleFit.status) || roleFit.status === 'legacy') return { flags: [], checks: [] };
+  if ((!roleFit.schemaVersion && !roleFit.status) || roleFit.status === 'unavailable') return { flags: [], checks: [] };
   const alignments = Array.isArray(roleFit.answerAlignments) ? roleFit.answerAlignments : [];
   const knownRoleIntentIds = new Set(roleFit.knownRoleIntentIds || []);
   const knownEvidenceIds = new Set(roleFit.knownEvidenceIds || []);

@@ -16,16 +16,15 @@
 
 ## 暫時相容 adapter
 
-| Adapter | 位置 | 觸發條件 | 可觀測標記 | Owner | Status / 保留原因 |
-| --- | --- | --- | --- | --- | --- |
-| Legacy match evidence summary reader | `schemaValidationService.js`、`sessionPersistenceService.js`、`ragIndexService.js`、`reportDraftBuilder.js` | pre-cutover analysis 沒有 `roleEvidenceMap.items` | 新資料有 Role Evidence Map 時不索引/報告 legacy summary；舊資料才 fallback | Backend match/report | `active`；等待舊 analysis snapshot 過 retention/resume window |
-| Legacy question/session snapshot reader | `questionPoolPreparationService.js`、question pool/plan validators | 既有 item 是 `v2` 或沒有 Role-Fit fields | 缺少 v3 fields 時使用 optional defaults，readiness 可顯式 `degraded` | Backend interview | `active`；讓 pre-cutover session resume；新 item/model default 均不寫 v2 |
-| Legacy report view reader | `frontend/src/utils/reportView/viewModel.js`、`RoleFitReportSection.jsx`、report TXT/PDF formatters | report 是 v6/更舊或沒有 `report.roleFit` | view model 回 `status: legacy`；既有 sections 保持可讀，不顯示空 Role-Fit區塊 | Frontend/report | `active`；讓 pre-cutover report 查看/匯出；新 report 寫 v7 |
+無。所有相容層已於 2026-07-10 清理完成。
 
 ## 已移除 adapter
 
 | Adapter | 原位置 | Removed at | 驗證 |
 | --- | --- | --- | --- |
+| Legacy match evidence summary reader | `schemaValidationService.js`、`sessionPersistenceService.js`、`ragIndexService.js`、`reportDraftBuilder.js` | 2026-07-10 | 移除了對舊 `evidenceMap` 的 fallback；在 `ragIndexService` 和 `reportDraftBuilder` 中直接索引/載入 `roleEvidenceMap` |
+| Legacy question/session snapshot reader | `questionPoolPreparationService.js`、question pool/plan validators | 2026-07-10 | 移除了 plan 載入時的 v2 fallback defaults |
+| Legacy report view reader | `frontend/src/utils/reportView/viewModel.js`、`RoleFitReportSection.jsx`、report TXT/PDF formatters | 2026-07-10 | 移除 `status: 'legacy'` 行為，舊報告不含 roleFit 時回傳 `status: 'unavailable'` 且 UI 展示 Calm Card |
 | Legacy reviewed JD new-match adapter | `backend/src/services/match/guardedMatchService.js` | 2026-07-10 | `runCvJdMatchAnalysis` 缺少 Role-Fit 一律 400；guarded matcher 缺少 verified Role-Fit 回 `role_fit_review_required`；`legacy_reviewed_jd` production import search 為 0；match/JD/contracts tests 通過 |
 
 新 frontend 不會產生 legacy marker。所有新 match request 必須帶 `roleFit`，並通過 owner、`jdFingerprint`、profile ID、persisted review version 與 `verified` status 檢查；client-only `humanReviewStatus` 不再足以開始 match。

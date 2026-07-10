@@ -284,9 +284,7 @@ export const buildReportDraft = ({
       internalReflectionSummary: buildReflectionMemoryText(reflectionRecords),
       internalCoachingSummary: buildCoachingMemoryText(userCoachingMemory),
       internalSourceReferences: [
-        ...(roleEvidenceReferences.length
-          ? roleEvidenceReferences
-          : (analysisResult.evidenceMap || []).slice(0, 5)),
+        ...roleEvidenceReferences,
         ...((retrievalBundle?.items || []).slice(0, 3).map((item) => ({
           chunkId: item.chunkId,
           label: item.metadata?.label || item.sourceType,

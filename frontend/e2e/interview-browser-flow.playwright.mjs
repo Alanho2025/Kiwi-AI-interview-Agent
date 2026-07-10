@@ -221,6 +221,21 @@ const installApiMocks = async (page) => {
       return;
     }
 
+    if (method === 'POST' && url.pathname === '/api/recordings/session-audio/uploads') {
+      await route.fulfill(jsonResponse(success({ uploadId: 'upload-1', sessionId: SESSION_ID })));
+      return;
+    }
+
+    if (method === 'PUT' && url.pathname.includes('/api/recordings/session-audio/uploads/')) {
+      await route.fulfill(jsonResponse(success({ received: true })));
+      return;
+    }
+
+    if (method === 'POST' && url.pathname.includes('/api/recordings/session-audio/uploads/') && url.pathname.endsWith('/finalize')) {
+      await route.fulfill(jsonResponse(success({ available: true, status: 'completed' })));
+      return;
+    }
+
     await route.fulfill(jsonResponse({ success: false, message: `Unhandled mock route: ${method} ${url.pathname}` }, 404));
   });
 
@@ -260,7 +275,7 @@ const run = async () => {
 
     await page.goto(`${BASE_URL}/interview/${SESSION_ID}`);
     try {
-      await page.getByText('Voice-only question mode').waitFor({ timeout: 10000 });
+      await page.getByText('Voice practice mode').waitFor({ timeout: 10000 });
     } catch (error) {
       console.error('[browser-flow] current URL', page.url());
       console.error('[browser-flow] body', (await page.locator('body').innerText()).slice(0, 2000));

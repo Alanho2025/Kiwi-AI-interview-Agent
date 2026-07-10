@@ -44,17 +44,13 @@ describe('RoleFitReportSection', () => {
     expect(screen.queryByText(/proofPointId|coverageId|schemaVersion|evidence-delivery/i)).not.toBeInTheDocument();
   });
 
-  it('shows a calm unavailable message and leaves legacy reports unobstructed', () => {
-    const { rerender } = render(<RoleFitReportSection roleFit={{
+  it('shows a calm unavailable message when role fit is unavailable', () => {
+    render(<RoleFitReportSection roleFit={{
       available: false,
       status: 'unavailable',
     }} />);
 
     expect(screen.getByText('Role-specific coaching is unavailable')).toBeInTheDocument();
     expect(screen.getByText(/Your existing interview feedback is still available/i)).toBeInTheDocument();
-
-    rerender(<RoleFitReportSection roleFit={{ available: false, status: 'legacy' }} />);
-    expect(screen.queryByText('How your answers matched this role')).not.toBeInTheDocument();
-    expect(screen.queryByText('Role-specific coaching is unavailable')).not.toBeInTheDocument();
   });
 });

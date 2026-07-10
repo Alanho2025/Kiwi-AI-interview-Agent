@@ -1,0 +1,42 @@
+Junior-Intermediate Frontend Developer
+Humankind (on behalf of aviation SaaS client)
+Auckland CBD, Auckland
+Full time
+
+- Build aviation SaaS used globally 
+- Grow your front-end and UX skills fast 
+- Use your eye for detail every day  
+- Improve product screens and user flows. 
+- Build front-end features using HTML, CSS and JavaScript. 
+- Support UI, branding and white-labelling updates. 
+- Work with product and engineering on improvements. 
+- Fix layout, spacing, responsiveness and interaction issues. 
+- Spot small details that make the product easier to use. 
+- Learn APIs, Python/Django and the wider platform.  
+
+What we are looking for:
+- 1–3 years’ front-end or web app experience; strong graduates considered. 
+- Strong HTML, CSS and JavaScript fundamentals. 
+- Genuine interest in front-end, UI/UX and product quality. 
+- Strong attention to detail and pride in clean, consistent work. 
+- Curiosity, coachability, strong problem-solving and clear written and verbal communication. 
+- Full NZ work rights, Auckland-based and able to onboard onsite. 
+- Portfolio, GitHub, app, game, bootcamp, uni or personal projects. 
+
+Preferred but not required:
+- React, Angular, Vue or another modern front-end framework. 
+- Experience improving UI, user flows, layout or responsiveness. 
+- Evidence you notice the details that make products easier to use. 
+- Exposure to SaaS, web applications or product environments.  
+- Python or Django exposure. 
+- API integration or backend concepts. 
+- UX/UI design, prototyping, wireframing or product thinking. 
+- Accessibility or responsive design exposure. 
+- Aviation or regulated systems experience.    
+
+What they offer:
+- Build real product features in a global aviation SaaS platform. 
+- Learn quickly in a supportive, hands-on engineering team. 
+- Work across front-end, UX, product and backend concepts. 
+- See your work improve how customers use the platform every day. 
+- Join a growing international start-up where you can have a real voice early on.

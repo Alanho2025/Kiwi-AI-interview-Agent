@@ -1,0 +1,71 @@
+Alan Ho
+alan.ho0828@gmail.com | +64 020 4184 4951 | Auckland CBD | linkedin.com/in/alan-ho-profile
+
+PERSONAL STATEMENT
+I am interested in using data quality, CRM processes, and workflow automation to support an AI-driven EdTech company. My previous engineering experience trained me to work accurately, handle confidential information, and communicate clearly with different teams. I hold a student visa and possess legal right to work in New Zealand.
+
+
+TECHNICAL SKILLS
+Software development: JavaScript, Python, SQL, React, Express, Node.js, REST APIs
+Database and backend: PostgreSQL, MongoDB, backend workflow design, API design
+Data operations: data cleaning, validation, reporting, database maintenance, spreadsheet-based analysis
+Testing and reliability: testing, debugging, quality checks, error handling
+
+KEY COMPETENCIES
+• Prepared, cleaned, and structured datasets for database-backed applications, including 50 restaurants and 1,900 menu items imported into MongoDB.
+• Led a small team of 6 people to build a food AI recommendation application that helps users make faster food decisions under time pressure.
+• Cooperated with product design teams, operator teams, and business clients to implement design of experiments and reduce a test station retest rate from 15% to 5%.
+• Used Agile project practices and Git version control to run group projects smoothly and deliver a working application within two months.
+• Publicly shared my Interview AI Agent project at two New Zealand meetup events and received positive feedback and questions from the audience.
+
+PROJECTS
+March 2026 – current
+KIWI Mock Interview AI Agent, University of Auckland | Web: https://kiwi-ai-interview-agent.vercel.app/
+• Built a full-stack AI interview system that connects CV-JD matching, adaptive questioning, voice interaction, and structured feedback for realistic interview practice.
+• Managed structured interview data, CV-JD matching outputs, and feedback records to support evidence-based report generation.
+• Improved feedback reliability by using structured rubrics, RAG-based evidence checks, interview quality review, and report QA to reduce generic or unsupported responses.
+
+March 2026 – May 2026
+Full-Stack Food AI agent, University of Auckland | Web: https://forkcast.win/
+• Led a 6-person team to deliver a full-stack food recommendation app within three months, using Agile planning, Git version control, and task coordination.
+• Prepared and structured data for 50 restaurants and 1,900 menu items, then imported the dataset into MongoDB to support recommendation retrieval.
+• Designed recommendation logic based on distance, opening hours, category, budget, flavour preference, and ranking factors to help students make faster food decisions.
+
+WORK EXPERIENCE
+Oct 2021 - Jul 2024
+Senior Electrical Engineer, Foxconn
+Supported Apple Watch and MacBook Pro New Product Introduction projects in high-volume manufacturing environments, focusing on test data analysis, failure investigation, engineering reporting, and process improvement.
+• Analysed manufacturing test data for Apple Watch and MacBook Pro NPI builds to support root-cause investigation, corrective action planning, and product phase reviews across 6 test stations.
+• Coordinated with Apple client engineers, product development teams, and manufacturing engineers across 4 NPI builds to clarify issues and support delivery decisions.
+• Prepared weekly engineering reports, test summaries, and issue documentation to improve tracking, knowledge transfer, and team consistency.
+• Applied design of experiments and structured failure analysis to investigate test station issues, supporting process improvement and production readiness decisions.
+
+Oct 2018 – Sep 2021
+Junior Electrical Engineer, Foxconn
+Supported Apple Watch NPI and pilot production activities, including dry-run validation, test issue investigation, failure analysis, and production readiness support.
+• Participated in Apple Watch dry-run validation activities at Apple CPTO in the United States, supporting early production readiness and issue verification during 15 validation cycles.
+• Improved test process outcomes by using design of experiments and failure analysis to help reduce retest rates from 15% to 5% at a key Apple Watch test station.
+• Prepared 45 issue summaries, test reports, and review documents to support engineering reviews, production decisions, and knowledge sharing.
+
+EDUCATION
+Feb 2025 - Present
+Master of Information Technology, University of Auckland
+GPA: 7.75/9 | Expected graduation: Nov 2026
+Relevant areas: Artificial intelligence, data mining, databases, full-stack development, cloud deployment, and software project delivery.
+
+Sep 2014 - Jun 2016
+Master of Electrical Engineering, Chung Yuan Christian University
+GPA: 8.6/9
+Relevant areas: MATLAB, electrical measurement, experimental design, signal analysis
+
+VOLUNTEER EXPERIENCE
+Jul 2025 - Present
+Buddy Program, Auckland Universities’ Student Association
+• Supported more than ten new international students by providing practical guidance and adapting communication to different needs.
+
+Sep 2025
+Community Volunteer, University of Auckland
+• Worked at a three-day Mid-Autumn Festival event and gained experience coordinating in a fast-paced, high-traffic environment.
+
+Hobbies and Interests
+I enjoy baking and learning to make different cakes, especially sharing homemade brownies with friends. I am also interested in photography, as it helps me capture everyday moments and notice small changes in perspective.

@@ -1,0 +1,35 @@
+AI Product Engineer (Typescript/Angular/Java)
+HI Technology & Innovation
+New Zealand (remote) • Full-time • Construction technology client
+Compensation: NZD 8,000–12,000 per month
+
+About the role:
+We’re looking for an AI Product Engineer in New Zealand to work on a focused, high-energy build for one of our long-standing construction technology clients. This is a hands-on engineering role with a strong product streak running through it. You won’t just be handed a ticket and told to code it. You’ll be working with stakeholders helping to work out what’s worth building in the first place, then going away and shipping it.
+
+What you’ll be doing:
+- Sitting with product and client stakeholders to understand the real problem, then helping shape it into something concrete that can actually be built.
+- Owning features end to end, from early scoping and design through to building, testing and getting them live.
+- Using AI coding agents to move fast, while staying firmly in control of the quality, structure and long-term health of the code.
+- Building and integrating AI into features, refining the prompts, evaluations and guardrails that make AI-assisted features behave reliably in production.
+- Working against a defined data model and a clear contract, and flagging early when something doesn’t add up rather than building the wrong thing quickly.
+- Feeding what you learn back to the product and client teams, so each iteration is sharper than the last.
+
+What good looks like:
+- Strong product instinct. You ask why we’re building something before you ask how, and you can spot when shipping the wrong thing quickly is worse than shipping the right thing a little slower.
+- Genuinely stakeholder-facing. You can walk into a client’s world, understand their workflow, and quickly find the real blocker rather than the one that was first described to you.
+- End-to-end ownership. You’re happy across the front end, back end and the data, and you can carry a feature all the way to production without waiting to be told each next step.
+- Fluent with AI as a tool. You understand what today’s models and coding agents are good and bad at, and you make smart calls about where to lean on them and where not to.
+- Builds for the long run. You write code other people can understand and maintain, because you’ve been the one holding the pager when a quick hack falls over in production.
+- Clear communicator. You can explain a technical trade-off to a product lead, a client, or another engineer, and can get all three on the same page.
+
+The stack you’ll work in:
+You’ll be building in a TypeScript and Angular front end, with a back end written mainly in Java and a little Python. Some of the work we have in mind sits around API integrations, and that part is built in Java, so genuine Java strength matters for this role.
+- Front end. TypeScript with Angular.
+- Back end. Primarily Java, with some Python alongside it.
+- Real-time data. Google Firebase as the database of record, a hierarchical JSON document store with a publish and subscribe model.
+- Working databases. Ephemeral PostgreSQL databases spun up per active project and torn down when they’re no longer needed.
+- Storage and infrastructure. Google Cloud Storage for files, objects and backups, handled through scripted per-project runs.
+
+Requirements:
+- Right to work in New Zealand, remote from anywhere in the country.
+- Comfortable with hours that overlap the US west coast (roughly afternoons NZT).

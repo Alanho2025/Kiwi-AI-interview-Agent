@@ -59,6 +59,6 @@ describe('report view model', () => {
     const legacy = buildReportViewModel({ report: { schemaVersion: 'v6' }, qaResult: {} });
 
     expect(ready.roleFit).toMatchObject({ status: 'ready', available: true });
-    expect(legacy.roleFit).toMatchObject({ status: 'legacy', available: false });
+    expect(legacy.roleFit).toMatchObject({ status: 'unavailable', available: false });
   });
 });
