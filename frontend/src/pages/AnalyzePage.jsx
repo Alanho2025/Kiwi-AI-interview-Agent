@@ -21,7 +21,7 @@ import { AnalyzeActionsCard } from '../components/analyze/AnalyzeActionsCard.jsx
 import { AnalysisWorkflowShell } from '../components/analyze/AnalysisWorkflowShell.jsx';
 import { StatusBanner } from '../components/common/StatusBanner.jsx';
 import { uploadCV, getRecentCVs, selectCV, saveReviewedCvProfile, deleteCv } from '../api/uploadApi.js';
-import { confirmRoleFitReview, paraphraseJD, matchCV, generateInterviewPlan, startCompanyValuesEnrichment } from '../api/analyzeApi.js';
+import { confirmRoleFitReview, paraphraseJD, matchCV, generateInterviewPlan, startCompanyValuesEnrichment, getSavedJDs } from '../api/analyzeApi.js';
 import { getSession } from '../api/sessionApi.js';
 import {
   DEFAULT_ANALYZE_MODE,
@@ -79,9 +79,40 @@ export function AnalyzePage() {
   const [pageStatus, setPageStatus] = useState(null);
   const [voiceDeviceCheck, setVoiceDeviceCheck] = useState(DEFAULT_VOICE_DEVICE_CHECK);
   const [activeWorkflowStep, setActiveWorkflowStep] = useState(WORKFLOW_STEP_IDS.CV_UPLOAD);
+  const [savedJDs, setSavedJDs] = useState([]);
+  const [isLoadingSavedJDs, setIsLoadingSavedJDs] = useState(false);
   const isGeneratingPlanRef = useRef(false);
 
   const { startTour, globalTourStep, advanceGlobalTour } = useTour();
+
+  const fetchSavedJDs = useCallback(async () => {
+    setIsLoadingSavedJDs(true);
+    try {
+      const response = await getSavedJDs();
+      setSavedJDs(response.savedJDs || []);
+    } catch (error) {
+      console.error('Failed to load saved JDs:', error);
+    } finally {
+      setIsLoadingSavedJDs(false);
+    }
+  }, []);
+
+  const handleSelectSavedJD = (fingerprint) => {
+    const selected = savedJDs.find(jd => jd.jdFingerprint === fingerprint);
+    if (!selected) return;
+
+    resetAnalysisState();
+    setRawJD(selected.rawJD || '');
+    setCompanyWebsiteUrl(selected.websiteUrl || '');
+    setUserCompanyContext(selected.roleFitProfile?.companyUnderstanding?.summary || '');
+    setStructuredJD(selected.rawJD ? formatStructuredJobDescription(selected.jdRubric) : '');
+    setStructuredJDRubric(selected.jdRubric);
+    setSummarizedRawJD(selected.rawJD || '');
+    setJdHumanReviewedRawJD(selected.rawJD || '');
+    setJdReviewStatus('verified'); // Auto-verify saved JDs
+    setActiveWorkflowStep(WORKFLOW_STEP_IDS.SESSION_SETUP); // Proceed straight to session setup
+    setPageStatus(buildStatusMessage('success', 'Saved JD selected', `Loaded "${selected.title || 'Saved JD'}". You can now proceed directly to session setup.`));
+  };
 
   const isVoiceReady = voiceDeviceCheck?.browser?.status === 'ok'
     && voiceDeviceCheck?.mic?.status === 'ok'
@@ -324,12 +355,13 @@ export function AnalyzePage() {
     getRecentCVs().then((items) => {
       if (isActive) setRecentCVs(items);
     }).catch(console.error);
+    fetchSavedJDs().catch(console.error);
     loadResumeSession();
 
     return () => {
       isActive = false;
     };
-  }, [location.search, location.state, navigate, restoreReadySessionAnalysis]);
+  }, [location.search, location.state, navigate, restoreReadySessionAnalysis, fetchSavedJDs]);
 
   useEffect(() => {
     persistAnalyzeDraft({
@@ -528,6 +560,7 @@ export function AnalyzePage() {
     } catch (error) {
       setPageStatus(buildStatusMessage('warning', 'JD summary reviewed', `The JD is ready for matching, but company-specific coaching search did not start: ${error.message}`));
     }
+    fetchSavedJDs().catch(console.error);
   };
 
   const handleConfirmCVReview = async () => {
@@ -678,6 +711,9 @@ export function AnalyzePage() {
                     requiresJdHumanReview={requiresJdHumanReview}
                     isJdEdited={isJdEdited}
                     onConfirmJDSummary={handleConfirmJDSummary}
+                    savedJDs={savedJDs}
+                    isLoadingSavedJDs={isLoadingSavedJDs}
+                    onSelectSavedJD={handleSelectSavedJD}
                   />
                 </div>
               ) : null}

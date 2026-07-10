@@ -303,6 +303,9 @@ export function JobContextCard({
   requiresJdHumanReview = false,
   isJdEdited = false,
   onConfirmJDSummary,
+  savedJDs = [],
+  isLoadingSavedJDs = false,
+  onSelectSavedJD,
 }) {
   const viewModel = structuredJDRubric ? buildJobDescriptionViewModel(structuredJDRubric) : null;
 
@@ -311,16 +314,43 @@ export function JobContextCard({
       <CardHeader className="items-start">
         <div>
           <CardTitle>Job Context</CardTitle>
-          <p className="mt-1 text-sm text-faint">Paste the job description so AI can tailor interview questions and coaching tips.</p>
+          <p className="mt-1 text-sm text-faint">Paste the job description or its URL so AI can tailor interview questions and coaching tips.</p>
         </div>
         <div className="shrink-0 text-xs text-gray-400">NZ-focused analysis</div>
       </CardHeader>
       <CardContent className="space-y-4">
+        {savedJDs.length > 0 && (
+          <div className="rounded-xl border border-gray-150 glass/50 p-4 mb-2">
+            <h4 className="text-sm font-medium text-primary mb-2 flex items-center justify-between">
+              <span>Choose from Saved Job Descriptions</span>
+              {isLoadingSavedJDs && <Loader2 className="h-3.5 w-3.5 animate-spin text-accent" />}
+            </h4>
+            <select
+              className="w-full rounded-xl border border-theme glass px-3 py-2 text-sm text-primary outline-none transition focus:[border-color:var(--accent)]"
+              onChange={(e) => {
+                if (e.target.value) {
+                  onSelectSavedJD(e.target.value);
+                  e.target.value = ''; // Reset selection
+                }
+              }}
+              defaultValue=""
+            >
+              <option value="" disabled>-- Select a saved JD --</option>
+              {savedJDs.map((jd) => (
+                <option key={jd.jdFingerprint} value={jd.jdFingerprint}>
+                  {jd.companyName ? `[${jd.companyName}] ` : ''}{jd.title} ({new Date(jd.updatedAt).toLocaleDateString()})
+                </option>
+              ))}
+            </select>
+            <p className="mt-1.5 text-xs text-faint">Loading a saved JD pulls its validated analysis directly, allowing you to skip parsing and review.</p>
+          </div>
+        )}
+
         <div>
-          <h4 className="mb-3 text-sm font-medium text-primary">Paste Job Description (JD)</h4>
-          <TextArea rows={structuredJD ? 6 : 12} placeholder="Copy the job requirements from SEEK or LinkedIn here..." value={rawJD} onChange={(e) => setRawJD(e.target.value)} maxLength={6000} />
+          <h4 className="mb-3 text-sm font-medium text-primary">Paste Job Description (JD) or URL</h4>
+          <TextArea rows={structuredJD ? 6 : 12} placeholder="Paste the job listing URL (e.g. https://www.seek.co.nz/job/...) or copy-paste job requirements here..." value={rawJD} onChange={(e) => setRawJD(e.target.value)} maxLength={6000} />
           <div className="mt-2 flex items-start justify-between gap-3">
-            <p className="text-xs text-faint">Tip: include responsibilities, tech stack, and must-have skills.</p>
+            <p className="text-xs text-faint">Tip: include responsibilities, tech stack, or paste a link to fetch automatically.</p>
             <p className="shrink-0 text-xs text-gray-400">{rawJD.length}/6000</p>
           </div>
         </div>

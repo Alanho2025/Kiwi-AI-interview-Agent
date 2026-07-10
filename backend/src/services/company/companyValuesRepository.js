@@ -17,6 +17,11 @@ export const getCompanyValuesProfileByFingerprint = async ({ userId, jdFingerpri
   return CompanyValuesProfile.findOne({ userId: String(userId), jdFingerprint }).lean();
 };
 
+export const getCompanyValuesProfilesByUserId = async (userId) => {
+  if (!userId) return [];
+  return CompanyValuesProfile.find({ userId: String(userId) }).sort({ updatedAt: -1 }).lean();
+};
+
 export const markCompanyValuesStatus = async ({
   userId,
   jdFingerprint,
@@ -87,19 +92,22 @@ export const attachCompanyValuesProfileToSession = async ({ userId, jdFingerprin
   ).lean();
 };
 
-export const saveCompanyRoleFitDraft = async ({ userId, jdFingerprint, roleFitProfile } = {}) => {
+export const saveCompanyRoleFitDraft = async ({ userId, jdFingerprint, roleFitProfile, rawJD, sourceUrl, jdRubric } = {}) => {
   if (!userId || !jdFingerprint || !roleFitProfile) return null;
   const version = Math.max(1, Number(roleFitProfile.review?.version) || 1);
   return CompanyValuesProfile.findOneAndUpdate(
     { userId: String(userId), jdFingerprint },
     {
-      $set: {
+      $set: cleanSet({
         userId: String(userId),
         jdFingerprint,
         roleFitProfile,
         roleFitReviewVersion: version,
         roleFitReviewStatus: roleFitProfile.review?.status || 'unreviewed',
-      },
+        rawJD,
+        sourceUrl,
+        jdRubric,
+      }),
     },
     { upsert: true, new: true, setDefaultsOnInsert: true }
   ).lean();
@@ -110,6 +118,7 @@ export const confirmCompanyRoleFitReview = async ({
   jdFingerprint,
   baseVersion,
   roleFitProfile,
+  jdRubric,
 } = {}) => {
   const expectedVersion = Number(baseVersion);
   const nextVersion = expectedVersion + 1;
@@ -131,12 +140,13 @@ export const confirmCompanyRoleFitReview = async ({
   const updated = await CompanyValuesProfile.findOneAndUpdate(
     { userId: String(userId), jdFingerprint, roleFitReviewVersion: expectedVersion },
     {
-      $set: {
+      $set: cleanSet({
         roleFitProfile: reviewedProfile,
         roleFitReviewVersion: nextVersion,
         roleFitReviewStatus: 'verified',
         roleFitReviewedAt: reviewedAt,
-      },
+        jdRubric,
+      }),
     },
     { new: true }
   ).lean();

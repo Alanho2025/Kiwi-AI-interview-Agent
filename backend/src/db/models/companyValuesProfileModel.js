@@ -43,6 +43,8 @@ const CompanyValuesProfileSchema = new mongoose.Schema(
     location: String,
     websiteUrl: String,
     manualWebsiteUrl: String,
+    rawJD: { type: String, default: '' },
+    sourceUrl: { type: String, default: '' },
 
     status: {
       type: String,
@@ -63,6 +65,7 @@ const CompanyValuesProfileSchema = new mongoose.Schema(
     cultureNotes: [String],
 
     roleFitProfile: { type: mongoose.Schema.Types.Mixed, default: null },
+    jdRubric: { type: mongoose.Schema.Types.Mixed, default: null },
     roleFitReviewVersion: { type: Number, default: 0 },
     roleFitReviewStatus: {
       type: String,

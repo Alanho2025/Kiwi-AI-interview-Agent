@@ -26,15 +26,29 @@ import { badRequest } from '../utils/appError.js';
 import {
   confirmCompanyRoleFitReview,
   saveCompanyRoleFitDraft,
+  getCompanyValuesProfilesByUserId,
 } from '../services/company/companyValuesRepository.js';
+import { captureUrlContent } from '../services/jobDescription/urlCaptureService.js';
 
 export const paraphraseJD = asyncHandler(async (req, res) => {
   const rawJD = requireBodyField(req, 'rawJD', 'Please provide raw job description text');
   const user = await resolveUserFromRequest(req);
   const companyWebsiteUrl = String(req.body?.companyWebsiteUrl || '').trim();
   const userCompanyContext = String(req.body?.userCompanyContext || '').trim();
-  const parsedRubric = await buildGuardedStructuredJobDescriptionRubric(rawJD);
-  const roleFit = buildRoleFitProfile({ rawJD, rubric: parsedRubric, companyWebsiteUrl, userCompanyContext });
+
+  let targetRawJD = rawJD.trim();
+  let sourceUrl = '';
+
+  const isUrl = /^https?:\/\//i.test(targetRawJD);
+  if (isUrl) {
+    logger.info(`URL detected in paraphraseJD: ${targetRawJD}. Capturing content...`);
+    const captured = await captureUrlContent(targetRawJD);
+    targetRawJD = captured.visibleText;
+    sourceUrl = captured.finalUrl;
+  }
+
+  const parsedRubric = await buildGuardedStructuredJobDescriptionRubric(targetRawJD);
+  const roleFit = buildRoleFitProfile({ rawJD: targetRawJD, rubric: parsedRubric, companyWebsiteUrl, userCompanyContext });
   if (roleFit.companyContext.status !== 'ready') {
     throw badRequest(
       'Missing company context',
@@ -51,7 +65,7 @@ export const paraphraseJD = asyncHandler(async (req, res) => {
     roleFit,
   };
   const { jdFingerprint } = extractCompanyValuesContextFromJd({
-    rawJD,
+    rawJD: targetRawJD,
     jdRubric: draftRubric,
     companyWebsiteUrl: roleFit.companyContext.websiteUrl,
   });
@@ -68,6 +82,8 @@ export const paraphraseJD = asyncHandler(async (req, res) => {
     userId: user.id,
     jdFingerprint,
     roleFitProfile: roleFitWithIdentity,
+    rawJD: targetRawJD,
+    sourceUrl,
   });
   const structuredJD = formatStructuredJobDescription(structuredJDRubric);
   await recordLocalUsage({
@@ -75,7 +91,7 @@ export const paraphraseJD = asyncHandler(async (req, res) => {
     stage: 'jd_parse',
     operation: 'local_parse',
     metadata: {
-      rawTextLength: rawJD.length,
+      rawTextLength: targetRawJD.length,
       safeguardStatus: structuredJDRubric?.safeguard?.finalStatus || null,
     },
   });
@@ -89,6 +105,8 @@ export const paraphraseJD = asyncHandler(async (req, res) => {
     structuredJD,
     structuredJDRubric,
     safeguard: structuredJDRubric.safeguard,
+    rawJD: targetRawJD, // Return the extracted text to let front-end update state
+    sourceUrl,
   }));
 });
 
@@ -114,6 +132,7 @@ export const confirmRoleFitReview = asyncHandler(async (req, res) => {
     jdFingerprint,
     baseVersion,
     roleFitProfile,
+    jdRubric: req.body?.jdRubric,
   });
 
   logger.info('Role-fit JD review confirmed', getRequestLogMeta(req, {
@@ -124,6 +143,7 @@ export const confirmRoleFitReview = asyncHandler(async (req, res) => {
   res.json(formatSuccess('Role-fit review confirmed', {
     jdFingerprint,
     roleFit: saved?.roleFitProfile || roleFitProfile,
+    jdRubric: saved?.jdRubric || req.body?.jdRubric || null,
     reviewVersion: saved?.roleFitReviewVersion || baseVersion + 1,
   }));
 });
@@ -163,4 +183,31 @@ export const startCompanyValuesForReviewedJD = asyncHandler(async (req, res) => 
     searchQueued: Boolean(context.companyName || context.websiteUrl),
     fallbackReason: context.companyName || context.websiteUrl ? null : 'missing_company_name',
   }));
+});
+
+export const getSavedJobDescriptions = asyncHandler(async (req, res) => {
+  const user = await resolveUserFromRequest(req);
+  const profiles = await getCompanyValuesProfilesByUserId(user.id);
+
+  // Map each saved CompanyValuesProfile into a client-friendly JD format
+  const savedJDs = profiles.map(profile => {
+    // Reconstruct title from rubric or company name if available
+    const rubric = profile.jdRubric || {};
+    const title = rubric.jobOverview?.title || rubric.title || rubric.jobTitle || profile.roleFitProfile?.companyUnderstanding?.companyName || 'Saved Job';
+    
+    return {
+      jdFingerprint: profile.jdFingerprint,
+      title: profile.companyName ? `${title} at ${profile.companyName}` : title,
+      companyName: profile.companyName || '',
+      location: profile.location || '',
+      websiteUrl: profile.websiteUrl || '',
+      rawJD: profile.rawJD || '',
+      sourceUrl: profile.sourceUrl || '',
+      jdRubric: rubric,
+      status: profile.roleFitReviewStatus || 'unreviewed',
+      updatedAt: profile.updatedAt,
+    };
+  });
+
+  res.json(formatSuccess('Saved job descriptions retrieved successfully', { savedJDs }));
 });

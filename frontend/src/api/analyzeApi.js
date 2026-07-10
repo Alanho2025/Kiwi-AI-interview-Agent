@@ -33,3 +33,4 @@ export const confirmRoleFitReview = ({ jdFingerprint, baseVersion, jdRubric }) =
   });
 export const matchCV = (cvId, rawJD, jdRubric, settings) => apiClient('/analyze/match', { method: 'POST', body: { cvId, rawJD, jdRubric, settings } });
 export const generateInterviewPlan = (payload) => apiClient('/analyze/interview-plan', { method: 'POST', body: payload });
+export const getSavedJDs = () => apiClient('/job-description/saved', { method: 'GET' });
