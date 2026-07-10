@@ -1,0 +1,68 @@
+{
+  "schemaVersion": "human_calibration_report_v1",
+  "datasetVersion": "role-fit-calibration-v1",
+  "generatedAt": "2026-07-10T08:03:15.395Z",
+  "status": "pending_human_review",
+  "disagreementTolerance": 0.15,
+  "totalCases": 6,
+  "reviewedCases": 0,
+  "disagreements": [],
+  "slices": {
+    "domain:backend": {
+      "totalCases": 1,
+      "reviewedCases": 0,
+      "disagreementCount": 0,
+      "disagreementRate": 0
+    },
+    "risk:high": {
+      "totalCases": 5,
+      "reviewedCases": 0,
+      "disagreementCount": 0,
+      "disagreementRate": 0
+    },
+    "domain:match_gap": {
+      "totalCases": 1,
+      "reviewedCases": 0,
+      "disagreementCount": 0,
+      "disagreementRate": 0
+    },
+    "domain:role_intent": {
+      "totalCases": 1,
+      "reviewedCases": 0,
+      "disagreementCount": 0,
+      "disagreementRate": 0
+    },
+    "domain:frontend": {
+      "totalCases": 1,
+      "reviewedCases": 0,
+      "disagreementCount": 0,
+      "disagreementRate": 0
+    },
+    "risk:medium": {
+      "totalCases": 1,
+      "reviewedCases": 0,
+      "disagreementCount": 0,
+      "disagreementRate": 0
+    },
+    "domain:repair": {
+      "totalCases": 1,
+      "reviewedCases": 0,
+      "disagreementCount": 0,
+      "disagreementRate": 0
+    },
+    "domain:report": {
+      "totalCases": 1,
+      "reviewedCases": 0,
+      "disagreementCount": 0,
+      "disagreementRate": 0
+    }
+  },
+  "thresholdDecision": {
+    "status": "not_set",
+    "value": null,
+    "reviewerIds": [],
+    "decidedAt": null,
+    "rationale": null
+  },
+  "canAssertNumericalReleaseThreshold": false
+}

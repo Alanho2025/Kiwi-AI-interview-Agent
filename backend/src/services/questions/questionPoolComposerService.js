@@ -6,7 +6,7 @@ import { validatePreparedQuestionPool } from '../schemaValidationService.js';
 import { getCvQuestionSeeds } from './cvQuestionSeedService.js';
 import { getJdQuestionFilter } from './jdQuestionFilterService.js';
 import { buildAssessmentKey, buildQuestionFingerprint } from './questionDeduplicationService.js';
-import { addRoleFitMetadataToQuestionPool } from './roleSpecificPracticePlannerService.js';
+import { buildRoleFitQuestionPool } from './roleSpecificPracticePlannerService.js';
 import {
   buildModeCompatibility,
   clampWeight,
@@ -109,7 +109,7 @@ const buildBaseItem = ({
     cvFileId,
     jdFingerprint,
     questionId: stableQuestionId('poolq', [sessionId, sourceStage, sourceType, category, topic, questionIntent, text]),
-    schemaVersion: 'v2',
+    schemaVersion: 'v3',
     sourceStage,
     questionRole: resolveQuestionRole({ sourceStage, category, stage, questionRole }),
     maxFollowUps: Math.max(0, Number.isFinite(Number(maxFollowUps)) ? Number(maxFollowUps) : 2),
@@ -146,9 +146,11 @@ const buildBaseItem = ({
     capabilityGroup: rest.capabilityGroup || '',
     retentionUntil: questionRetentionDate(),
     proofPointId: rest.proofPointId || '',
+    coverageContractIds: ensureArray(rest.coverageContractIds),
     testedRoleIntentIds: ensureArray(rest.testedRoleIntentIds),
     recommendedEvidenceIds: ensureArray(rest.recommendedEvidenceIds),
     evidenceAngle: rest.evidenceAngle || '',
+    evidenceMapStrength: clampWeight(rest.evidenceMapStrength, 0),
     coveragePriority: rest.coveragePriority || '',
     roleFitReason: rest.roleFitReason || '',
     ...rest,
@@ -345,7 +347,7 @@ export const buildInterviewQuestionPoolItems = ({ userId, sessionId, cvFileId = 
     jdFingerprint,
     roleDomain: resolveRoleDomain(analysisResult),
   };
-  const legacyItems = buildQuestionPoolFromAnalysis(analysisResult, settings)
+  const baseItems = buildQuestionPoolFromAnalysis(analysisResult, settings)
     .map((question, index) => mapLegacyQuestion(question, context, index));
   const decisionsBySeedId = new Map(ensureArray(jdFilter?.filterDecisions).map((decision) => [decision.seedId, decision]));
   const seedItems = ensureArray(cvSeeds)
@@ -353,7 +355,7 @@ export const buildInterviewQuestionPoolItems = ({ userId, sessionId, cvFileId = 
     .map((seed) => mapSeedQuestion(seed, decisionsBySeedId.get(seed.seedId), context));
   const requirementItems = buildRequirementItems(analysisResult, context);
   const gapItems = buildGapItems(analysisResult, context);
-  const deduped = dedupePool([...legacyItems, ...requirementItems, ...seedItems, ...gapItems]);
+  const deduped = dedupePool([...baseItems, ...requirementItems, ...seedItems, ...gapItems]);
   return validatePreparedQuestionPool(ensureMinimumFallbacks(deduped, context));
 };
 
@@ -378,11 +380,20 @@ export const composeInterviewQuestionPool = async ({ userId, sessionId, cvFileId
 
   const roleEvidenceMap = analysisResult?.roleEvidenceMap || {};
   const roleFitProfile = companyProfile?.roleFitProfile || {};
-  const items = addRoleFitMetadataToQuestionPool({
+  const roleFitQuestionPlan = buildRoleFitQuestionPool({
     poolItems: rawItems,
     roleEvidenceMap,
     roleFitProfile,
+    context: {
+      userId,
+      sessionId,
+      cvFileId,
+      matchAnalysisId,
+      jdFingerprint,
+      roleDomain: resolveRoleDomain(analysisResult),
+    },
   });
+  const items = roleFitQuestionPlan.items;
 
   await InterviewQuestionPoolItem.deleteMany({ sessionId });
   if (!items.length) return [];

@@ -12,14 +12,19 @@ export const runCvJdMatchAnalysis = async ({ cvId, userId, rawJD, jdRubric, sett
     throw badRequest('Missing JD input', 'A raw job description or parsed JD rubric is required.');
   }
 
-  if (jdRubric?.roleFit) {
-    await assertVerifiedCompanyRoleFitReview({
-      userId,
-      jdFingerprint: jdRubric.roleFit.jdFingerprint,
-      reviewVersion: jdRubric.roleFit.review?.version,
-      roleFitProfileId: jdRubric.roleFit.id,
-    });
+  if (!jdRubric?.roleFit) {
+    throw badRequest(
+      'Role-fit review required',
+      'Summarise and confirm the job and company understanding before matching.',
+    );
   }
+
+  await assertVerifiedCompanyRoleFitReview({
+    userId,
+    jdFingerprint: jdRubric.roleFit.jdFingerprint,
+    reviewVersion: jdRubric.roleFit.review?.version,
+    roleFitProfileId: jdRubric.roleFit.id,
+  });
 
   const cvDocument = await getOwnedCvDocumentOrThrow({ cvId, userId });
 

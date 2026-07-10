@@ -1,117 +1,603 @@
 {
-  "label": "Agent Trajectory Eval",
-  "generatedAt": "2026-06-02T20:48:45.881Z",
-  "casesRun": 3,
+  "schemaVersion": "trajectory_eval_report_v1",
+  "datasetVersion": "role-fit-trajectory-v1",
+  "configFingerprint": "sha256:b06adde605043e3327be500c710a480dc27495159b28f978aafac468dde288ef",
+  "generatedAt": "2026-07-10T08:03:14.935Z",
+  "casesRun": 5,
   "average": 1,
+  "metrics": {
+    "actionSelectionAccuracy": 1,
+    "toolArgumentValidity": 1,
+    "evidenceUseAccuracy": 1,
+    "interviewStateSafety": 1,
+    "latencyBudgetCompliance": 1
+  },
+  "slices": {
+    "domain:interview": {
+      "casesRun": 1,
+      "average": 1,
+      "metrics": {
+        "actionSelectionAccuracy": 1,
+        "toolArgumentValidity": 1,
+        "evidenceUseAccuracy": 1,
+        "interviewStateSafety": 1,
+        "latencyBudgetCompliance": 1
+      }
+    },
+    "risk:high": {
+      "casesRun": 4,
+      "average": 1,
+      "metrics": {
+        "actionSelectionAccuracy": 1,
+        "toolArgumentValidity": 1,
+        "evidenceUseAccuracy": 1,
+        "interviewStateSafety": 1,
+        "latencyBudgetCompliance": 1
+      }
+    },
+    "domain:repair": {
+      "casesRun": 1,
+      "average": 1,
+      "metrics": {
+        "actionSelectionAccuracy": 1,
+        "toolArgumentValidity": 1,
+        "evidenceUseAccuracy": 1,
+        "interviewStateSafety": 1,
+        "latencyBudgetCompliance": 1
+      }
+    },
+    "domain:coverage": {
+      "casesRun": 1,
+      "average": 1,
+      "metrics": {
+        "actionSelectionAccuracy": 1,
+        "toolArgumentValidity": 1,
+        "evidenceUseAccuracy": 1,
+        "interviewStateSafety": 1,
+        "latencyBudgetCompliance": 1
+      }
+    },
+    "risk:medium": {
+      "casesRun": 1,
+      "average": 1,
+      "metrics": {
+        "actionSelectionAccuracy": 1,
+        "toolArgumentValidity": 1,
+        "evidenceUseAccuracy": 1,
+        "interviewStateSafety": 1,
+        "latencyBudgetCompliance": 1
+      }
+    },
+    "domain:state_transition": {
+      "casesRun": 1,
+      "average": 1,
+      "metrics": {
+        "actionSelectionAccuracy": 1,
+        "toolArgumentValidity": 1,
+        "evidenceUseAccuracy": 1,
+        "interviewStateSafety": 1,
+        "latencyBudgetCompliance": 1
+      }
+    },
+    "domain:report": {
+      "casesRun": 1,
+      "average": 1,
+      "metrics": {
+        "actionSelectionAccuracy": 1,
+        "toolArgumentValidity": 1,
+        "evidenceUseAccuracy": 1,
+        "interviewStateSafety": 1,
+        "latencyBudgetCompliance": 1
+      }
+    }
+  },
   "results": [
     {
-      "id": "behavioral_vague_answer_followup",
-      "score": 1,
-      "rawScore": 1,
-      "subScores": {
-        "traceCompleteness": 1,
-        "correctAction": 1,
-        "evidenceGrounding": 1,
-        "finalQuestionQuality": 1,
-        "blockedBehaviourControl": 1
+      "schemaVersion": "trajectory_case_result_v1",
+      "caseId": "vague_answer_requires_probe",
+      "labels": {
+        "domain": "interview",
+        "risk": "high"
       },
-      "failedChecks": [],
-      "diagnostics": {
-        "stages": [
-          "cv_parse",
-          "jd_parse",
-          "match_analysis",
-          "question_generation",
-          "answer_evaluation",
-          "retrieval",
-          "followup_decision",
-          "report_generation"
-        ],
-        "selectedAction": "ask_followup_question",
-        "finalQuestion": "Can you give one specific result from that teamwork example?",
-        "rag": {
-          "used": true,
-          "sources": [
-            "cv",
-            "jd",
-            "star_guide"
-          ],
-          "retrievalConfidence": 0.82,
-          "degraded": false,
-          "degradedReason": null
+      "latencyMs": 1.5455,
+      "terminalCondition": null,
+      "metrics": {
+        "actionSelectionAccuracy": 1,
+        "toolArgumentValidity": 1,
+        "evidenceUseAccuracy": 1,
+        "interviewStateSafety": 1,
+        "latencyBudgetCompliance": 1
+      },
+      "score": 1,
+      "expected": {
+        "action": "ASK_PROBING_QUESTION",
+        "tool": "generate_interview_question",
+        "args": {
+          "targetTopic": "backend_project",
+          "forceEvidence": true
         },
-        "blockedBehaviours": []
+        "observationClass": "planner_action_selected",
+        "terminalCondition": null
+      },
+      "trajectoryRecord": {
+        "trajectoryId": "8495e326-2724-4e99-a59c-422c99007042",
+        "createdAt": "2026-07-10T08:03:14.933Z",
+        "sessionId": "eval-vague_answer_requires_probe",
+        "section": "technical_core",
+        "sectionKey": null,
+        "targetTopic": "backend_project",
+        "targetSlots": [
+          "system_design"
+        ],
+        "latestQuestion": null,
+        "latestAnswer": "",
+        "thoughtSummary": null,
+        "tool": "generate_interview_question",
+        "chosenAction": "ASK_PROBING_QUESTION",
+        "selectedAction": "ASK_PROBING_QUESTION",
+        "fallbackAction": "ASK_PROBING_QUESTION",
+        "selectionSource": "rule_fallback",
+        "candidateActions": [
+          {
+            "action": "ASK_PROBING_QUESTION",
+            "priority": 0.84,
+            "reason": "The latest answer was too broad, so a probing question is needed before switching topics or validating a claim.",
+            "evidenceNeed": [
+              "supporting_evidence"
+            ],
+            "risk": "low",
+            "actionInput": {
+              "targetTopic": "backend_project",
+              "probeType": "specific_example",
+              "forceEvidence": true
+            }
+          },
+          {
+            "action": "ASK_DEEP_DIVE_QUESTION",
+            "priority": 0.66,
+            "reason": "The answer may have enough substance to deepen on trade-off, validation, or result.",
+            "evidenceNeed": [
+              "tradeoff",
+              "validation_method",
+              "result"
+            ],
+            "risk": "low",
+            "actionInput": {
+              "targetTopic": "backend_project",
+              "probeType": "deepen",
+              "forceEvidence": true
+            }
+          },
+          {
+            "action": "SWITCH_TOPIC",
+            "priority": 0.42,
+            "reason": "A required topic still has a coverage gap, but switching should wait if the current answer has follow-up value.",
+            "evidenceNeed": [
+              "coverage"
+            ],
+            "risk": "medium",
+            "actionInput": {
+              "targetTopic": "system_design",
+              "probeType": "coverage",
+              "forceEvidence": false,
+              "freshOnly": true
+            }
+          }
+        ],
+        "plannerSignals": {},
+        "starScores": {},
+        "actionInput": {
+          "targetTopic": "backend_project",
+          "probeType": "specific_example",
+          "forceEvidence": true
+        },
+        "generatedQuestion": null,
+        "observationSummary": "planner_action_selected",
+        "slotSignals": {
+          "missingTopics": [
+            "system_design"
+          ],
+          "validationTargets": []
+        },
+        "dynamicSlots": null,
+        "abductiveState": null,
+        "sectionState": null,
+        "evaluator": null,
+        "isComplete": false
       }
     },
     {
-      "id": "technical_mode_blocks_behavioural_drift",
-      "score": 1,
-      "rawScore": 1,
-      "subScores": {
-        "traceCompleteness": 1,
-        "correctAction": 1,
-        "evidenceGrounding": 1,
-        "finalQuestionQuality": 1,
-        "blockedBehaviourControl": 1
+      "schemaVersion": "trajectory_case_result_v1",
+      "caseId": "misunderstanding_requires_rephrase",
+      "labels": {
+        "domain": "repair",
+        "risk": "high"
       },
-      "failedChecks": [],
-      "diagnostics": {
-        "stages": [
-          "cv_parse",
-          "jd_parse",
-          "match_analysis",
-          "question_generation",
-          "answer_evaluation",
-          "followup_decision"
-        ],
-        "selectedAction": "ask_technical_followup",
-        "finalQuestion": "How did you structure the Node.js API to keep the recommendation logic maintainable?",
-        "rag": {
-          "used": true,
-          "sources": [
-            "cv",
-            "jd"
-          ],
-          "retrievalConfidence": 0.78,
-          "degraded": false,
-          "degradedReason": null
+      "latencyMs": 0.0522,
+      "terminalCondition": null,
+      "metrics": {
+        "actionSelectionAccuracy": 1,
+        "toolArgumentValidity": 1,
+        "evidenceUseAccuracy": 1,
+        "interviewStateSafety": 1,
+        "latencyBudgetCompliance": 1
+      },
+      "score": 1,
+      "expected": {
+        "action": "REPHRASE_QUESTION",
+        "tool": "generate_interview_question",
+        "args": {
+          "targetTopic": "system_design",
+          "probeType": "rephrase",
+          "forceEvidence": true
         },
-        "blockedBehaviours": []
+        "observationClass": "planner_action_selected",
+        "terminalCondition": null
+      },
+      "trajectoryRecord": {
+        "trajectoryId": "2de2d881-ccfb-462a-8d5a-b617579c9898",
+        "createdAt": "2026-07-10T08:03:14.934Z",
+        "sessionId": "eval-misunderstanding_requires_rephrase",
+        "section": "technical_core",
+        "sectionKey": null,
+        "targetTopic": "system_design",
+        "targetSlots": [
+          "system_design"
+        ],
+        "latestQuestion": null,
+        "latestAnswer": "",
+        "thoughtSummary": null,
+        "tool": "generate_interview_question",
+        "chosenAction": "REPHRASE_QUESTION",
+        "selectedAction": "REPHRASE_QUESTION",
+        "fallbackAction": "REPHRASE_QUESTION",
+        "selectionSource": "rule_fallback",
+        "candidateActions": [
+          {
+            "action": "REPHRASE_QUESTION",
+            "priority": 0.87,
+            "reason": "The evaluator flagged likely misunderstanding, so the safest next step is to rephrase the current topic.",
+            "evidenceNeed": [
+              "supporting_evidence"
+            ],
+            "risk": "low",
+            "actionInput": {
+              "targetTopic": "system_design",
+              "probeType": "rephrase",
+              "forceEvidence": true
+            }
+          },
+          {
+            "action": "ASK_PROBING_QUESTION",
+            "priority": 0.75,
+            "reason": "A narrower probing question could still collect personal action and result evidence.",
+            "evidenceNeed": [
+              "personal_action",
+              "result"
+            ],
+            "risk": "low",
+            "actionInput": {
+              "targetTopic": "system_design",
+              "probeType": "specific_example",
+              "forceEvidence": true
+            }
+          },
+          {
+            "action": "SWITCH_TOPIC",
+            "priority": 0.42,
+            "reason": "A required topic still has a coverage gap, but switching should wait if the current answer has follow-up value.",
+            "evidenceNeed": [
+              "coverage"
+            ],
+            "risk": "medium",
+            "actionInput": {
+              "targetTopic": "system_design",
+              "probeType": "coverage",
+              "forceEvidence": false,
+              "freshOnly": true
+            }
+          }
+        ],
+        "plannerSignals": {},
+        "starScores": {},
+        "actionInput": {
+          "targetTopic": "system_design",
+          "probeType": "rephrase",
+          "forceEvidence": true
+        },
+        "generatedQuestion": null,
+        "observationSummary": "planner_action_selected",
+        "slotSignals": {
+          "missingTopics": [
+            "system_design"
+          ],
+          "validationTargets": []
+        },
+        "dynamicSlots": null,
+        "abductiveState": null,
+        "sectionState": null,
+        "evaluator": null,
+        "isComplete": false
       }
     },
     {
-      "id": "report_generation_trace_missing_evidence",
-      "score": 1,
-      "rawScore": 0.54,
-      "subScores": {
-        "traceCompleteness": 0,
-        "correctAction": 1,
-        "evidenceGrounding": 0.7,
-        "finalQuestionQuality": 1,
-        "blockedBehaviourControl": 0
+      "schemaVersion": "trajectory_case_result_v1",
+      "caseId": "fresh_anchor_uses_pool",
+      "labels": {
+        "domain": "coverage",
+        "risk": "medium"
       },
-      "failedChecks": [
-        "trace_incomplete",
-        "blocked_behaviour_present"
-      ],
-      "diagnostics": {
-        "stages": [
-          "cv_parse",
-          "jd_parse",
-          "report_generation"
-        ],
-        "selectedAction": "generate_report",
-        "finalQuestion": "",
-        "rag": {
-          "used": false,
-          "sources": [],
-          "retrievalConfidence": 0,
-          "degraded": true,
-          "degradedReason": "retrieval_missing"
+      "latencyMs": 0.0459,
+      "terminalCondition": null,
+      "metrics": {
+        "actionSelectionAccuracy": 1,
+        "toolArgumentValidity": 1,
+        "evidenceUseAccuracy": 1,
+        "interviewStateSafety": 1,
+        "latencyBudgetCompliance": 1
+      },
+      "score": 1,
+      "expected": {
+        "action": "ASK_POOL_QUESTION",
+        "tool": "generate_interview_question",
+        "args": {
+          "targetTopic": "technical",
+          "probeType": "fresh_anchor",
+          "forceEvidence": false,
+          "freshOnly": true,
+          "category": "technical"
         },
-        "blockedBehaviours": [
-          "unsupported_skill_claim"
-        ]
+        "observationClass": "planner_action_selected",
+        "terminalCondition": null
+      },
+      "trajectoryRecord": {
+        "trajectoryId": "97bebcc4-8215-44f3-b6a6-38e1b82173f7",
+        "createdAt": "2026-07-10T08:03:14.934Z",
+        "sessionId": "eval-fresh_anchor_uses_pool",
+        "section": "technical_core",
+        "sectionKey": null,
+        "targetTopic": "technical",
+        "targetSlots": [
+          "testing"
+        ],
+        "latestQuestion": null,
+        "latestAnswer": "",
+        "thoughtSummary": null,
+        "tool": "generate_interview_question",
+        "chosenAction": "ASK_POOL_QUESTION",
+        "selectedAction": "ASK_POOL_QUESTION",
+        "fallbackAction": "ASK_POOL_QUESTION",
+        "selectionSource": "rule_fallback",
+        "candidateActions": [
+          {
+            "action": "ASK_POOL_QUESTION",
+            "priority": 0.92,
+            "reason": "Turn 3 is a fresh-question anchor, so the controller must open a new topic instead of extending the previous chain.",
+            "evidenceNeed": [
+              "coverage"
+            ],
+            "risk": "low",
+            "actionInput": {
+              "targetTopic": "technical",
+              "probeType": "fresh_anchor",
+              "forceEvidence": false,
+              "freshOnly": true,
+              "category": "technical"
+            }
+          },
+          {
+            "action": "SWITCH_TOPIC",
+            "priority": 0.42,
+            "reason": "A required topic still has a coverage gap, but switching should wait if the current answer has follow-up value.",
+            "evidenceNeed": [
+              "coverage"
+            ],
+            "risk": "medium",
+            "actionInput": {
+              "targetTopic": "testing",
+              "probeType": "coverage",
+              "forceEvidence": false,
+              "freshOnly": true
+            }
+          }
+        ],
+        "plannerSignals": {},
+        "starScores": {},
+        "actionInput": {
+          "targetTopic": "technical",
+          "probeType": "fresh_anchor",
+          "forceEvidence": false,
+          "freshOnly": true,
+          "category": "technical"
+        },
+        "generatedQuestion": null,
+        "observationSummary": "planner_action_selected",
+        "slotSignals": {
+          "missingTopics": [
+            "testing"
+          ],
+          "validationTargets": []
+        },
+        "dynamicSlots": null,
+        "abductiveState": null,
+        "sectionState": null,
+        "evaluator": null,
+        "isComplete": false
+      }
+    },
+    {
+      "schemaVersion": "trajectory_case_result_v1",
+      "caseId": "final_turn_wraps_stage",
+      "labels": {
+        "domain": "state_transition",
+        "risk": "high"
+      },
+      "latencyMs": 0.04,
+      "terminalCondition": "interview_stage_wrap",
+      "metrics": {
+        "actionSelectionAccuracy": 1,
+        "toolArgumentValidity": 1,
+        "evidenceUseAccuracy": 1,
+        "interviewStateSafety": 1,
+        "latencyBudgetCompliance": 1
+      },
+      "score": 1,
+      "expected": {
+        "action": "WRAP_STAGE",
+        "tool": "generate_interview_question",
+        "args": {
+          "targetTopic": "candidate_questions",
+          "probeType": "close_interview",
+          "forceEvidence": false
+        },
+        "observationClass": "planner_action_selected",
+        "terminalCondition": "interview_stage_wrap"
+      },
+      "trajectoryRecord": {
+        "trajectoryId": "d78dc9ee-9b86-4f85-806a-5aa0f5fdd330",
+        "createdAt": "2026-07-10T08:03:14.934Z",
+        "sessionId": "eval-final_turn_wraps_stage",
+        "section": "reflection_close",
+        "sectionKey": null,
+        "targetTopic": "candidate_questions",
+        "targetSlots": [],
+        "latestQuestion": null,
+        "latestAnswer": "",
+        "thoughtSummary": null,
+        "tool": "generate_interview_question",
+        "chosenAction": "WRAP_STAGE",
+        "selectedAction": "WRAP_STAGE",
+        "fallbackAction": "WRAP_STAGE",
+        "selectionSource": "rule_fallback",
+        "candidateActions": [
+          {
+            "action": "WRAP_STAGE",
+            "priority": 0.93,
+            "reason": "The interview is on the final planned turn, so the controller should use a clear closing question instead of opening another chain.",
+            "evidenceNeed": [
+              "coverage"
+            ],
+            "risk": "low",
+            "actionInput": {
+              "targetTopic": "candidate_questions",
+              "probeType": "close_interview",
+              "forceEvidence": false
+            }
+          }
+        ],
+        "plannerSignals": {},
+        "starScores": {},
+        "actionInput": {
+          "targetTopic": "candidate_questions",
+          "probeType": "close_interview",
+          "forceEvidence": false
+        },
+        "generatedQuestion": null,
+        "observationSummary": "planner_action_selected",
+        "slotSignals": {
+          "missingTopics": [],
+          "validationTargets": []
+        },
+        "dynamicSlots": null,
+        "abductiveState": null,
+        "sectionState": null,
+        "evaluator": null,
+        "isComplete": false
+      }
+    },
+    {
+      "schemaVersion": "trajectory_case_result_v1",
+      "caseId": "report_task_uses_report_tool",
+      "labels": {
+        "domain": "report",
+        "risk": "high"
+      },
+      "latencyMs": 0.0337,
+      "terminalCondition": "report_draft_requested",
+      "metrics": {
+        "actionSelectionAccuracy": 1,
+        "toolArgumentValidity": 1,
+        "evidenceUseAccuracy": 1,
+        "interviewStateSafety": 1,
+        "latencyBudgetCompliance": 1
+      },
+      "score": 1,
+      "expected": {
+        "action": "GENERATE_REPORT_DRAFT",
+        "tool": "draft_interview_report",
+        "args": {
+          "targetTopic": "report",
+          "probeType": null,
+          "forceEvidence": true
+        },
+        "observationClass": "planner_action_selected",
+        "terminalCondition": "report_draft_requested"
+      },
+      "trajectoryRecord": {
+        "trajectoryId": "c12c4269-ac1b-4a4b-b57d-a5ebdb235f23",
+        "createdAt": "2026-07-10T08:03:14.934Z",
+        "sessionId": "eval-report_task_uses_report_tool",
+        "section": "opening",
+        "sectionKey": null,
+        "targetTopic": "report",
+        "targetSlots": [],
+        "latestQuestion": null,
+        "latestAnswer": "",
+        "thoughtSummary": null,
+        "tool": "draft_interview_report",
+        "chosenAction": "GENERATE_REPORT_DRAFT",
+        "selectedAction": "GENERATE_REPORT_DRAFT",
+        "fallbackAction": "GENERATE_REPORT_DRAFT",
+        "selectionSource": "rule_fallback",
+        "candidateActions": [
+          {
+            "action": "GENERATE_REPORT_DRAFT",
+            "priority": 0.9,
+            "reason": "The current task is report generation, so the next action is to build a grounded draft.",
+            "evidenceNeed": [
+              "supporting_evidence"
+            ],
+            "risk": "low",
+            "actionInput": {
+              "targetTopic": "report",
+              "probeType": null,
+              "forceEvidence": true
+            }
+          },
+          {
+            "action": "ASK_PROBING_QUESTION",
+            "priority": 0.78,
+            "reason": "A narrower probing question could still collect personal action and result evidence.",
+            "evidenceNeed": [
+              "personal_action",
+              "result"
+            ],
+            "risk": "low",
+            "actionInput": {
+              "targetTopic": "role_fit",
+              "probeType": "specific_example",
+              "forceEvidence": true
+            }
+          }
+        ],
+        "plannerSignals": {},
+        "starScores": {},
+        "actionInput": {
+          "targetTopic": "report",
+          "probeType": null,
+          "forceEvidence": true
+        },
+        "generatedQuestion": null,
+        "observationSummary": "planner_action_selected",
+        "slotSignals": {
+          "missingTopics": [],
+          "validationTargets": []
+        },
+        "dynamicSlots": null,
+        "abductiveState": null,
+        "sectionState": null,
+        "evaluator": null,
+        "isComplete": false
       }
     }
   ]

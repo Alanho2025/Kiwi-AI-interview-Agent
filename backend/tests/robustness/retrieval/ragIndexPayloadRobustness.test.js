@@ -69,6 +69,22 @@ describe('RAG index payload builders', () => {
     expect(payload.agentMemory).toEqual({ weakAreas: ['examples'] });
   });
 
+  it('indexes Role Evidence Map instead of duplicating the legacy evidence map for new analysis', () => {
+    const roleEvidenceMap = {
+      schemaVersion: 'role_evidence_map_v1',
+      items: [{ roleIntentId: 'intent:api', classification: 'direct', sourceEvidence: [] }],
+    };
+
+    const payload = buildMatchAnalysisIndexPayload({
+      schemaVersion: 'v3',
+      roleEvidenceMap,
+      evidenceMap: [{ type: 'strength', label: 'legacy duplicate' }],
+    });
+
+    expect(payload.roleEvidenceMap).toEqual(roleEvidenceMap);
+    expect(payload).not.toHaveProperty('evidenceMap');
+  });
+
   it('builds a prepared_question_pool payload without raw CV or JD text', () => {
     const payload = buildPreparedQuestionPoolIndexPayload([{
       questionId: 'poolq-1',

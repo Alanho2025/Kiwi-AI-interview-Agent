@@ -37,6 +37,9 @@ describe('role-fit review repository robustness', () => {
           jdFingerprint: 'jd-fingerprint',
           roleFitReviewVersion: 1,
           roleFitReviewStatus: 'unreviewed',
+          retentionUntil: expect.any(Date),
+          containsSensitiveData: true,
+          accessScope: 'private',
         }),
       }),
       expect.objectContaining({ upsert: true, new: true })

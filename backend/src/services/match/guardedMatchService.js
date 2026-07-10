@@ -47,17 +47,6 @@ const isVerifiedRoleFit = (jdRubric = {}) => Boolean(
   && jdRubric.roleFit?.review?.status === 'verified'
 );
 
-const attachCompatibility = (matchResult = {}, compatibility = null) => {
-  if (!compatibility) return matchResult;
-  return {
-    ...matchResult,
-    matchingDetails: {
-      ...(matchResult.matchingDetails || {}),
-      compatibility,
-    },
-  };
-};
-
 const buildRoleFitBlockedResult = (jdRubric = {}) => ({
   schemaVersion: 'v3',
   candidateName: 'Candidate',
@@ -157,12 +146,9 @@ const runFreshSafeguardedMatch = async ({ cvInput, rawJD, humanReviewedJdRubric,
 
 export const compareCvToJobDescriptionWithSafeguard = async (cvInput, rawJD, jdRubric, settings = {}) => {
   const userId = settings.userId || cvInput?.userId || '';
-  if (jdRubric?.roleFit && !isVerifiedRoleFit(jdRubric)) {
+  if (!isVerifiedRoleFit(jdRubric)) {
     return buildRoleFitBlockedResult(jdRubric);
   }
-  const compatibility = !jdRubric?.roleFit && isHumanReviewedJd(jdRubric)
-    ? { roleFit: 'legacy_reviewed_jd' }
-    : null;
   const jdSafeguard = getJdSafeguard(jdRubric);
   const isJdMatchBlocked = Boolean(jdSafeguard.blockMatch);
   const humanReviewedJdRubric = isJdMatchBlocked && isHumanReviewedJd(jdRubric)
@@ -210,16 +196,16 @@ export const compareCvToJobDescriptionWithSafeguard = async (cvInput, rawJD, jdR
   });
   const cachedMatch = await readMatchArtifactCache({ userId, cacheKey: cacheIdentity.cacheKey, settings });
   if (cachedMatch) {
-    return attachCompatibility(cachedMatch, compatibility);
+    return cachedMatch;
   }
 
-  const freshMatch = attachCompatibility(await runFreshSafeguardedMatch({
+  const freshMatch = await runFreshSafeguardedMatch({
     cvInput,
     rawJD,
     humanReviewedJdRubric,
     settings,
     reviewedJdSafeguard,
-  }), compatibility);
+  });
 
   await Promise.allSettled([
     writeMatchArtifactCache({ userId, identity: cacheIdentity, matchResult: freshMatch, settings }),

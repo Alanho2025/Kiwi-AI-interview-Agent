@@ -185,7 +185,12 @@ export const judgeRetrievalCase = (scenario = {}) => {
   };
 };
 
-export const runRetrievalEval = async ({ datasetPath, reportRoot, label = 'Retrieval Eval' } = {}) => {
+export const runRetrievalEval = async ({
+  datasetPath,
+  reportRoot,
+  label = 'Retrieval Safety Eval',
+  reportBaseName = 'retrieval-safety-eval.latest',
+} = {}) => {
   const scenarios = JSON.parse(await fs.readFile(datasetPath, 'utf8'));
   const results = scenarios.map((scenario) => judgeRetrievalCase(scenario));
   const average = results.length
@@ -214,8 +219,8 @@ export const runRetrievalEval = async ({ datasetPath, reportRoot, label = 'Retri
 
   if (reportRoot) {
     await fs.mkdir(reportRoot, { recursive: true });
-    await fs.writeFile(path.join(reportRoot, 'retrieval-eval.latest.json'), `${JSON.stringify(summary, null, 2)}\n`);
-    await fs.writeFile(path.join(reportRoot, 'retrieval-eval.latest.md'), `${renderMarkdown(summary)}\n`);
+    await fs.writeFile(path.join(reportRoot, `${reportBaseName}.json`), `${JSON.stringify(summary, null, 2)}\n`);
+    await fs.writeFile(path.join(reportRoot, `${reportBaseName}.md`), `${renderMarkdown(summary)}\n`);
   }
 
   return summary;

@@ -145,20 +145,20 @@ Current Ragas also exposes RAG metrics such as context precision, context recall
 
 | Evaluation question | RAGAS-style measurement | Kiwi today | Gap |
 | --- | --- | --- | --- |
-| Did top-ranked chunks answer the query before irrelevant chunks? | Context precision / ranked relevance at K. | Fusion score exists, but `eval:retrieval` checks phrase presence in fixture sources, not the actual ranked `retrieveChunks` output. | High |
-| Did retrieval return all evidence needed to support a known reference answer? | Context recall against reference answer, reference chunks, or stable source IDs. | No per-query reference set or retrieval recall calculation. | High |
-| Did irrelevant or misleading chunks cause a wrong result? | Noise sensitivity over query, contexts, response and optional reference. | Has blocked-evidence fixtures, but no generated response linked to retrieved chunks. | High |
-| Is the generated report/coaching/question grounded in retrieved evidence? | Claim-level faithfulness: supported generated claims / total generated claims. | Report QA has grounding guards, but retrieval eval does not compare an actual output against that run's contexts. | High |
-| Does the response answer the intended task? | Response relevancy / role-specific rubric. | Interview evaluator and report tests exist, but are not joined with retrieval outcomes in one case record. | Medium |
-| Did the agent choose and invoke the correct action/tool? | Tool call accuracy / ToolCallF1 / goal accuracy over expected trajectory. | `eval:agent-trajectory` checks simplified trace scenarios; it is not derived from runtime action calls and does not check tool args as a first-class contract. | Medium |
-| Can a regression be compared across prompt, retriever, embedding, chunking and model changes? | Versioned evaluation dataset + per-case metric output + experiment metadata. | Latest JSON/Markdown reports exist but no common run schema, dataset version, model/retriever config fingerprint or regression baseline by metric. | High |
-| Can automated scores be trusted for hiring-coaching domain claims? | Judge calibration against human-labeled sample; inspect disagreements. | No calibration set or inter-rater agreement process found. | High |
+| Did top-ranked chunks answer the query before irrelevant chunks? | Context precision / ranked relevance at K. | `eval:retrieval` 現在以共用 production fusion ranker 執行 deterministic in-memory corpus，寫出 ranked chunks、precision@K、MRR 與 nDCG。 | Local synthetic complete；production corpus 待驗證 |
+| Did retrieval return all evidence needed to support a known reference answer? | Context recall against reference answer, reference chunks, or stable source IDs. | v1 dataset 以 stable chunk IDs 定義 relevant/forbidden sets，逐 case 輸出 recall@K。 | Local synthetic complete |
+| Did irrelevant or misleading chunks cause a wrong result? | Noise sensitivity over query, contexts, response and optional reference. | generation dataset 注入不相關 context，claim-level judge 分開輸出 noise sensitivity 與 unsupported rate。 | Deterministic lexical judge；semantic judge 待批准 |
+| Is the generated report/coaching/question grounded in retrieved evidence? | Claim-level faithfulness: supported generated claims / total generated claims. | claim class 綁定 CV/JD/match source policy；JD requirement 不可成為 candidate evidence。 | Synthetic outputs complete；real generation 待批准 |
+| Does the response answer the intended task? | Response relevancy / role-specific rubric. | generation case 現在輸出 response relevancy 與 required-claim coverage。 | Synthetic deterministic coverage |
+| Did the agent choose and invoke the correct action/tool? | Tool call accuracy / ToolCallF1 / goal accuracy over expected trajectory. | `eval:agent-trajectory` 直接呼叫正式 planner、tool mapping 與 trajectory builder，檢查 action、args、state 與 latency。 | Planner contract complete；external tool E2E 待 live gate |
+| Can a regression be compared across prompt, retriever, embedding, chunking and model changes? | Versioned evaluation dataset + per-case metric output + experiment metadata. | v1 datasets、config fingerprint、domain/risk slices 與 per-case JSON records 已落地。 | Complete for current local config |
+| Can automated scores be trusted for hiring-coaching domain claims? | Judge calibration against human-labeled sample; inspect disagreements. | 6-case calibration workflow 和 disagreement slices 已建立，但真實 reviewer 尚未執行。 | High；0/6、threshold not set |
 
-### Why the current 0.97 does not mean RAGAS-level quality
+### Why the historical 0.97 and current local 1.00 do not mean production RAGAS-level quality
 
-The `0.97` result is still useful: it proves the handcrafted judge accepts the intended safety cases, including weak evidence and timeout fallback. But it cannot measure the production retriever because the runner never runs the indexed corpus/query path. It also cannot establish faithfulness because it has no actual generated output to split into claims and compare against the retrieved contexts.
+歷史 `0.97` 仍有價值：它證明 handcrafted safety judge 接受 weak-evidence 與 timeout fixtures；現在它只由 `eval:retrieval-safety` 報告。新的 local `1.00` 則證明 v1 synthetic cases 能通過正式 fusion scoring path、claim source policy 和 runtime planner contract。
 
-Therefore the accurate statement is: **Kiwi has deterministic retrieval safety regression tests, not a full RAGAS-class RAG evaluation system.**
+但新分數仍不是 production 保證：embedding 仍是 deterministic hash model，generation outputs 是版本化 synthetic outputs，不是付費 provider 的實際生成；trajectory 沒有發出 external tool call；human calibration 是 0/6。準確說法是：**Kiwi 已具備 RAGAS-style 的 local deterministic retrieval/grounding/trajectory evaluation architecture，但尚未完成 production corpus、real-generation semantic judge 與 human-calibrated release gate。**
 
 ## Recommended Kiwi evaluation architecture
 

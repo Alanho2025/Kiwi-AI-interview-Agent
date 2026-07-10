@@ -21,6 +21,9 @@
 | `npm run test:all` | package script 里的 integration + robustness groups |
 | `npm run eval:local` | mock-safe deterministic evals |
 | `npm run eval:real` | real provider-backed evals，需要 credentials 和成本批准 |
+| `npm run eval:retrieval` | 共用 production fusion ranker 的 synthetic ranked retrieval + claim grounding |
+| `npm run eval:agent-trajectory` | 正式 planner/tool mapping/trajectory builder contract |
+| `npm run eval:calibration` | human-vs-judge disagreement；未完成人工 review 时禁止数值 threshold |
 
 ## Frontend checks
 
@@ -34,7 +37,7 @@
 
 ## Eval runners
 
-`backend/eval/runners` 覆盖 CV parse、JD parse、SEEK benchmark、CV-JD match、interview controller、report QA、baseline comparison、retrieval、agent trajectory、company research、voice quality、stability、preparation stability 和 voice robustness。它们适合回答“质量是否够好”，不是普通代码改动的默认测试。
+`backend/eval/runners` 覆盖 CV parse、JD parse、SEEK benchmark、CV-JD match、interview controller、report QA、baseline comparison、retrieval、agent trajectory、human calibration、company research、voice quality、stability、preparation stability 和 voice robustness。runtime retrieval/trajectory 与舊 safety fixture 有獨立命令和報告，避免把 0.97 fixture score 當成真實 retriever 品質。它們適合回答「這個版本化 local contract 是否退化」，不是普通代碼改動的預設測試，也不是未經人工校準的 production release 結論。
 
 ## 为什么这样测
 
@@ -49,4 +52,3 @@
 继续读 [source evidence](../references/source-evidence.md)，看本指南引用了哪些测试和源码。
 
 证据状态：除特别标注外，本页基于当前源码已确认。
-

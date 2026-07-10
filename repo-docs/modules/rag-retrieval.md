@@ -37,9 +37,10 @@
 
 ## 怎么检查
 
-相关 tests 在 `backend/tests/robustness/retrieval`，eval runner 在 `backend/eval/runners/runRetrievalEval.js`。如果以后接入真实 embedding model，需要更新 schema/embedding contract、eval baseline 和本页 caveat。
+相关 tests 在 `backend/tests/robustness/retrieval`。`npm run eval:retrieval` 会让 synthetic corpus 走与 PostgreSQL runtime 共用的 `rankRetrievalCandidates`，输出 precision@K、recall@K、MRR、nDCG、forbidden rate、source policy 和 claim grounding；旧 phrase fixture 已改为 `npm run eval:retrieval-safety`。
+
+当前 latest runtime 报告是 5 个 retrieval + 5 个 grounding cases，local average 1.00。这只证明 deterministic v1 dataset，不代表 production semantic retrieval 或 real-AI generation；human calibration 仍是 0/6、threshold 未设。如果以后接入真实 embedding model，需要更新 schema/embedding contract、config fingerprint、eval baseline 和本页 caveat。
 
 继续读 [retrieval agent](agent-retrieval.md)，看 objective 如何决定取哪些 evidence。
 
 证据状态：除特别标注外，本页基于当前源码已确认。
-

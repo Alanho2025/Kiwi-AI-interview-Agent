@@ -11,20 +11,25 @@ export const getEvidenceUsageCounts = ({ transcript = [] } = {}) => {
   const angleCounts = {};
 
   ensureArray(transcript)
-    .filter(turn => turn.role === 'ai')
+    .filter(turn => turn.role === 'ai' && turn.metadata?.countsAsQuestion !== false)
     .forEach(turn => {
-      const evIds = ensureArray(
-        turn.metadata?.recommendedEvidenceIds || 
-        turn.metadata?.questionDecision?.recommendedEvidenceIds ||
-        turn.metadata?.cvEvidenceRefs?.map(r => r.id || r.evidenceId)
-      );
+      const metadata = turn.metadata || {};
+      const rankTrace = metadata.rankTrace || metadata.questionDecision?.rankTrace || {};
+      const evIds = [...new Set([
+        ...ensureArray(metadata.recommendedEvidenceIds),
+        ...ensureArray(metadata.questionDecision?.recommendedEvidenceIds),
+        ...ensureArray(rankTrace.recommendedEvidenceIds),
+        ...ensureArray(metadata.cvEvidenceRefs).map(r => r?.id || r?.evidenceId),
+      ].filter(Boolean))];
       evIds.forEach(id => {
         if (id) {
           evidenceCounts[id] = (evidenceCounts[id] || 0) + 1;
         }
       });
 
-      const angle = turn.metadata?.evidenceAngle || turn.metadata?.questionDecision?.evidenceAngle;
+      const angle = metadata.evidenceAngle
+        || metadata.questionDecision?.evidenceAngle
+        || rankTrace.evidenceAngle;
       if (angle) {
         angleCounts[angle] = (angleCounts[angle] || 0) + 1;
       }

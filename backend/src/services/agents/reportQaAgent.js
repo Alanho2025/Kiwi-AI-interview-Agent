@@ -22,6 +22,13 @@ export const BLOCKING_REPORT_FLAGS = new Set([
   'uninformative_evidence_references',
   'turn_export_count_mismatch',
   'unacknowledged_transcript_conflict',
+  'role_intent_reference_missing',
+  'answer_alignment_without_proof_point',
+  'alignment_claim_not_grounded',
+  'company_claim_not_in_reviewed_profile',
+  'evidence_id_not_found',
+  'must_cover_intent_unreported',
+  'role_fit_artifact_not_owned',
 ]);
 
 const normalizeComparableText = (value = '') => String(value)
@@ -53,6 +60,43 @@ const meaningfulEvidenceReferences = (references = []) => {
     seen.add(key);
     return true;
   });
+};
+
+const getRoleFitIntegrity = (report = {}) => {
+  const roleFit = report.roleFit || {};
+  if ((!roleFit.schemaVersion && !roleFit.status) || roleFit.status === 'legacy') return { flags: [], checks: [] };
+  const alignments = Array.isArray(roleFit.answerAlignments) ? roleFit.answerAlignments : [];
+  const knownRoleIntentIds = new Set(roleFit.knownRoleIntentIds || []);
+  const knownEvidenceIds = new Set(roleFit.knownEvidenceIds || []);
+  const requiredCoverageIds = new Set(roleFit.requiredCoverageIds || []);
+  const reportedCoverageIds = new Set((roleFit.roleIntentCoverage?.items || []).map((item) => item.coverageId).filter(Boolean));
+  const missingRoleIntentReference = alignments.some((alignment) => (
+    (alignment.testedRoleIntentIds || []).some((id) => !knownRoleIntentIds.has(id))
+  ));
+  const alignmentWithoutProofPoint = alignments.some((alignment) => !alignment.proofPointId);
+  const ungroundedAlignment = alignments.some((alignment) => (
+    alignment.groundingStatus === 'blocked'
+    || (alignment.label === 'strong' && !(alignment.detectedEvidenceUsed || []).length)
+  ));
+  const unreviewedCompanyClaim = (roleFit.companyClaims || []).some((claim) => claim.reviewed !== true);
+  const unknownEvidenceId = alignments.some((alignment) => (
+    (alignment.detectedEvidenceUsed || []).some((evidence) => !knownEvidenceIds.has(evidence.evidenceId))
+  ));
+  const unreportedMustCover = [...requiredCoverageIds].some((coverageId) => !reportedCoverageIds.has(coverageId));
+  const ownershipInvalid = roleFit.ownership?.verified !== true;
+  const checks = [
+    ['role_fit_role_intents_known', !missingRoleIntentReference, 'role_intent_reference_missing'],
+    ['answer_alignments_have_proof_points', !alignmentWithoutProofPoint, 'answer_alignment_without_proof_point'],
+    ['answer_alignment_claims_grounded', !ungroundedAlignment, 'alignment_claim_not_grounded'],
+    ['company_claims_reviewed', !unreviewedCompanyClaim, 'company_claim_not_in_reviewed_profile'],
+    ['answer_alignment_evidence_ids_known', !unknownEvidenceId, 'evidence_id_not_found'],
+    ['must_cover_intents_reported', !unreportedMustCover, 'must_cover_intent_unreported'],
+    ['role_fit_artifacts_owned', !ownershipInvalid, 'role_fit_artifact_not_owned'],
+  ];
+  return {
+    flags: checks.filter(([, passed]) => !passed).map(([, , flag]) => flag),
+    checks: checks.map(([rule, passed]) => ({ rule, passed })),
+  };
 };
 
 export const runReportQaAgent = async ({ report = {}, analysisResult = {}, retrievalBundle = null } = {}) => {
@@ -134,6 +178,7 @@ export const runReportQaAgent = async ({ report = {}, analysisResult = {}, retri
   const hasDirectExampleSignals = turnBreakdowns.some((item) => extractAnswerEvidenceSignals(item.answer).isDirectPastExperience);
   const conflictingTranscriptRisk = (report.transcriptRisks || []).some((risk) => risk.code === 'conflicting_metric_values');
   const transcriptRiskVisible = Boolean(report.sections?.find((section) => section.id === 'transcript_risks')?.content);
+  const roleFitIntegrity = getRoleFitIntegrity(report);
 
   if (!report.summary) qualityFlags.push('missing_summary');
   if (!report.sections?.length) qualityFlags.push('missing_sections');
@@ -167,6 +212,7 @@ export const runReportQaAgent = async ({ report = {}, analysisResult = {}, retri
   if (highConfidenceUnsupported > 0) qualityFlags.push('unsupported_high_confidence_feedback');
   if (!report.authenticityMetrics) qualityFlags.push('authenticity_metrics_missing');
   if ((report.transcriptRisks || []).length > 0 && !report.sections?.find((section) => section.id === 'transcript_risks')) qualityFlags.push('transcript_risk_not_visible');
+  qualityFlags.push(...roleFitIntegrity.flags);
 
   const normalizedSummary = normalizeComparableText(report.summary || '');
   const normalizedDecisionLabel = normalizeComparableText(analysisResult.decision?.label || '');
@@ -175,6 +221,7 @@ export const runReportQaAgent = async ({ report = {}, analysisResult = {}, retri
     rule: 'decision_alignment',
     passed: !normalizedDecisionLabel || normalizedSummary.includes(normalizedDecisionLabel),
   });
+  consistencyChecks.push(...roleFitIntegrity.checks);
   consistencyChecks.push({ rule: 'rubric_question_alignment', passed: rubricQuestionMismatches.length === 0 });
   consistencyChecks.push({ rule: 'evidence_totals_match_scored_answers', passed: !evidenceTotalMismatch });
   consistencyChecks.push({ rule: 'overall_score_metric_alignment', passed: !scoreMetricMismatch });

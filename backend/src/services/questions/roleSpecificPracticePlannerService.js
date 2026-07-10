@@ -1,53 +1,62 @@
-/**
- * File responsibility: Service module.
- * Main responsibilities:
- * - Generate pre-computed InterviewProofStrategy from role fit profile and evidence map.
- * - Enrich question pool items with Role-Fit metadata.
- */
+import { ensureArray, normalizeKey } from '../../utils/commonHelpers.js';
+import { ensureProofStrategyQuestionCoverage } from './roleFitQuestionCoverageService.js';
 
-export const buildInterviewProofStrategy = ({ roleFitProfile = {}, roleEvidenceMap = {} } = {}) => {
-  const roleIntentProfileId = roleFitProfile.id || '';
-  const roleEvidenceMapId = roleEvidenceMap.id || roleEvidenceMap.matchAnalysisId || '';
-  
-  const targetRoleIntentIds = (roleFitProfile.roleIntent?.items || [])
-    .filter(item => item.priority === 'high')
-    .map(item => item.id);
-  
-  const mustCover = [];
-  const mapItems = roleEvidenceMap.items || [];
-  const mapItemsByIntentId = new Map(mapItems.map(item => [item.roleIntentId, item]));
-  
+const CLASSIFICATION_STRENGTH = {
+  direct: 1,
+  adjacent: 0.7,
+  weak: 0.4,
+  gap: 0,
+};
+
+const getEvidenceIds = (mapItem = {}) => mapItem.classification === 'gap'
+  ? []
+  : ensureArray(mapItem.sourceEvidence).map((evidence) => evidence?.evidenceId).filter(Boolean);
+
+const buildCoverage = ({ roleIntentId = null, mapItem = null, degraded = false } = {}) => {
+  const isGap = mapItem?.classification === 'gap';
+  return {
+    coverageId: isGap ? `cov-gap-${roleIntentId}` : `cov-intent-${roleIntentId}`,
+    type: isGap ? 'gap_validation' : 'role_intent',
+    roleIntentId,
+    minQuestions: 1,
+    evidenceOptions: getEvidenceIds(mapItem),
+    allowAdjacentEvidence: true,
+    status: degraded ? 'degraded' : 'pending',
+  };
+};
+
+export const buildInterviewProofStrategy = ({
+  roleFitProfile = {},
+  roleEvidenceMap = {},
+  roleEvidenceMapId = '',
+} = {}) => {
+  const roleIntentItems = ensureArray(roleFitProfile.roleIntent?.items);
+  const mapItems = ensureArray(roleEvidenceMap.items);
+  const mapItemsByIntentId = new Map(mapItems.map((item) => [item.roleIntentId, item]));
+  const highPriorityIntents = roleIntentItems.filter((item) => item.priority === 'high');
+  const targetIntents = highPriorityIntents.length ? highPriorityIntents : roleIntentItems.slice(0, 3);
+  const targetRoleIntentIds = targetIntents.map((item) => item.id).filter(Boolean);
+  const missingArtifacts = roleIntentItems.length === 0 || mapItems.length === 0;
+  const coverageByIntentId = new Map();
+
   targetRoleIntentIds.forEach((intentId) => {
-    const mapItem = mapItemsByIntentId.get(intentId);
-    const evidenceOptions = mapItem && mapItem.classification !== 'gap'
-      ? (mapItem.sourceEvidence || []).map(ev => ev.evidenceId)
-      : [];
-      
-    mustCover.push({
-      coverageId: `cov-intent-${intentId}`,
-      type: 'role_intent',
+    coverageByIntentId.set(intentId, buildCoverage({
       roleIntentId: intentId,
-      minQuestions: 1,
-      evidenceOptions,
-      allowAdjacentEvidence: true,
-      status: 'pending',
-    });
+      mapItem: mapItemsByIntentId.get(intentId) || null,
+      degraded: missingArtifacts,
+    }));
   });
-  
-  const gapItems = mapItems.filter(item => item.classification === 'gap');
-  gapItems.forEach((gapItem) => {
-    mustCover.push({
-      coverageId: `cov-gap-${gapItem.roleIntentId}`,
-      type: 'gap_validation',
-      roleIntentId: gapItem.roleIntentId,
-      minQuestions: 1,
-      evidenceOptions: [],
-      allowAdjacentEvidence: true,
-      status: 'pending',
-    });
-  });
-  
-  if (mustCover.length === 0) {
+
+  mapItems
+    .filter((item) => item.classification === 'gap' && item.roleIntentId)
+    .forEach((item) => coverageByIntentId.set(item.roleIntentId, buildCoverage({
+      roleIntentId: item.roleIntentId,
+      mapItem: item,
+      degraded: missingArtifacts,
+    })));
+
+  const mustCover = [...coverageByIntentId.values()];
+  if (!mustCover.length) {
     mustCover.push({
       coverageId: 'cov-fallback-generic',
       type: 'role_intent',
@@ -55,14 +64,14 @@ export const buildInterviewProofStrategy = ({ roleFitProfile = {}, roleEvidenceM
       minQuestions: 1,
       evidenceOptions: [],
       allowAdjacentEvidence: true,
-      status: 'pending',
+      status: 'degraded',
     });
   }
 
   return {
     schemaVersion: 'interview_proof_strategy_v1',
-    roleIntentProfileId,
-    roleEvidenceMapId,
+    roleIntentProfileId: roleFitProfile.id || '',
+    roleEvidenceMapId: roleEvidenceMapId || roleEvidenceMap.id || roleEvidenceMap.matchAnalysisId || '',
     targetRoleIntentIds,
     mustCover,
     avoidOveruse: {
@@ -73,66 +82,113 @@ export const buildInterviewProofStrategy = ({ roleFitProfile = {}, roleEvidenceM
       doNotShowRecommendedEvidenceDuringInterview: true,
       storeReasoningForReport: true,
     },
-    artifactStatus: 'ready',
-    degradedReason: null,
+    artifactStatus: missingArtifacts ? 'degraded' : 'ready',
+    degradedReason: missingArtifacts ? 'missing_role_fit_artifacts' : null,
   };
 };
 
-export const addRoleFitMetadataToQuestionPool = ({ poolItems = [], roleEvidenceMap = {}, roleFitProfile = {} } = {}) => {
-  const mapItems = roleEvidenceMap.items || [];
-  const targetRoleIntentIds = new Set(
-    (roleFitProfile.roleIntent?.items || [])
-      .filter(item => item.priority === 'high')
-      .map(item => item.id)
-  );
+const extractRequirementValues = (question = {}) => [
+  question.requirementId,
+  ...ensureArray(question.linkedJdRequirement).flatMap((requirement) => [
+    requirement?.requirementId,
+    requirement?.id,
+    requirement?.requirement,
+    requirement?.label,
+    requirement?.skill,
+    requirement?.text,
+  ]),
+].filter(Boolean);
 
-  return poolItems.map((question) => {
-    let matchedIntent = null;
-    const reqIds = (question.linkedJdRequirement || []).map(r => r.requirementId || r.id).filter(Boolean);
-    if (question.requirementId) reqIds.push(question.requirementId);
-    
-    for (const mapItem of mapItems) {
-      if (
-        reqIds.includes(mapItem.roleIntentId) || 
-        reqIds.includes(mapItem.requirementStatus) || 
-        (question.topic && mapItem.roleIntent && mapItem.roleIntent.toLowerCase().includes(question.topic.toLowerCase()))
-      ) {
-        matchedIntent = mapItem;
-        break;
-      }
+const textMatches = (left = '', right = '') => {
+  const leftKey = normalizeKey(left);
+  const rightKey = normalizeKey(right);
+  return Boolean(leftKey && rightKey && (leftKey.includes(rightKey) || rightKey.includes(leftKey)));
+};
+
+const findMatchedMapItem = ({ question = {}, mapItems = [] } = {}) => {
+  const requirementValues = extractRequirementValues(question);
+  const directIdMatch = mapItems.find((item) => requirementValues.includes(item.roleIntentId));
+  if (directIdMatch) return directIdMatch;
+
+  return mapItems.find((item) => [question.topic, ...requirementValues]
+    .some((value) => textMatches(value, item.roleIntent))) || null;
+};
+
+const getEvidenceMapStrength = (mapItem = {}) => {
+  const numericScore = Number(mapItem.score);
+  if (Number.isFinite(numericScore)) return Math.max(0, Math.min(1, numericScore / 100));
+  return CLASSIFICATION_STRENGTH[mapItem.classification] ?? 0;
+};
+
+export const addRoleFitMetadataToQuestionPool = ({
+  poolItems = [],
+  roleEvidenceMap = {},
+  roleFitProfile = {},
+} = {}) => {
+  const mapItems = ensureArray(roleEvidenceMap.items);
+  const highPriorityIntentIds = new Set(ensureArray(roleFitProfile.roleIntent?.items)
+    .filter((item) => item.priority === 'high')
+    .map((item) => item.id));
+
+  return ensureArray(poolItems).map((question) => {
+    const matchedIntent = findMatchedMapItem({ question, mapItems });
+    if (!matchedIntent?.roleIntentId) {
+      return {
+        ...question,
+        proofPointId: '',
+        coverageContractIds: [],
+        testedRoleIntentIds: [],
+        recommendedEvidenceIds: [],
+        evidenceAngle: '',
+        evidenceMapStrength: 0,
+        coveragePriority: 'optional',
+        roleFitReason: '',
+      };
     }
 
-    if (!matchedIntent && mapItems.length > 0) {
-      matchedIntent = mapItems.find(item => 
-        question.topic && item.roleIntent && item.roleIntent.toLowerCase().includes(question.topic.toLowerCase())
-      ) || mapItems[0];
-    }
-
-    const roleIntentId = matchedIntent ? matchedIntent.roleIntentId : null;
-    const isHighPriority = roleIntentId && targetRoleIntentIds.has(roleIntentId);
-    const isGap = matchedIntent && matchedIntent.classification === 'gap';
-
+    const roleIntentId = matchedIntent.roleIntentId;
+    const isGap = matchedIntent.classification === 'gap';
     const proofPointId = isGap ? `cov-gap-${roleIntentId}` : `cov-intent-${roleIntentId}`;
-    const testedRoleIntentIds = roleIntentId ? [roleIntentId] : [];
-    const recommendedEvidenceIds = matchedIntent && matchedIntent.classification !== 'gap'
-      ? (matchedIntent.sourceEvidence || []).map(ev => ev.evidenceId)
-      : [];
-    
-    const coveragePriority = isHighPriority ? 'must_cover' : isGap ? 'should_cover' : 'optional';
-    const evidenceAngle = question.questionIntent === 'behavioural_star' ? 'behavioural' : 'technical_ownership';
-    
-    const roleFitReason = isGap 
-      ? `Probes potential gap in ${matchedIntent?.roleIntent || question.topic || 'role fit'}.`
-      : `Validates candidate's experience for ${matchedIntent?.roleIntent || question.topic || 'role fit'}.`;
+    const isMustCover = isGap || highPriorityIntentIds.has(roleIntentId);
+    const roleIntentLabel = matchedIntent.roleIntent || question.topic || 'role fit';
 
     return {
       ...question,
       proofPointId,
-      testedRoleIntentIds,
-      recommendedEvidenceIds,
-      evidenceAngle,
-      coveragePriority,
-      roleFitReason,
+      coverageContractIds: [proofPointId],
+      testedRoleIntentIds: [roleIntentId],
+      recommendedEvidenceIds: getEvidenceIds(matchedIntent),
+      evidenceAngle: question.questionIntent === 'behavioural_star' ? 'behavioural' : 'technical_ownership',
+      evidenceMapStrength: getEvidenceMapStrength(matchedIntent),
+      coveragePriority: isMustCover ? 'must_cover' : 'optional',
+      roleFitReason: isGap
+        ? `Probes potential gap in ${roleIntentLabel}.`
+        : `Validates candidate experience for ${roleIntentLabel}.`,
     };
+  });
+};
+
+export const buildRoleFitQuestionPool = ({
+  poolItems = [],
+  roleEvidenceMap = {},
+  roleFitProfile = {},
+  context = {},
+} = {}) => {
+  const proofStrategy = buildInterviewProofStrategy({
+    roleFitProfile,
+    roleEvidenceMap,
+    roleEvidenceMapId: context.matchAnalysisId,
+  });
+  const enrichedItems = addRoleFitMetadataToQuestionPool({
+    poolItems,
+    roleEvidenceMap,
+    roleFitProfile,
+  });
+  return ensureProofStrategyQuestionCoverage({
+    poolItems: enrichedItems,
+    proofStrategy,
+    roleFitProfile,
+    roleEvidenceMap,
+    context,
   });
 };

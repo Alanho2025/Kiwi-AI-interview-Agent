@@ -19,7 +19,101 @@ import {
   titleCaseWords,
 } from './sessionShared.js';
 
-const sanitizeQuestionPoolForClient = (questionPool = []) => questionPool.map(({ sourceType, sourceId, matchedRequirementId, matchedSkill, cvEvidenceRefs, generationReason, confidence, planPriority, recommendedEvidenceIds, evidenceAngle, roleFitReason, ...safeItem }) => safeItem);
+export const sanitizeQuestionPoolForClient = (questionPool = []) => questionPool.map(({
+  sourceType,
+  sourceId,
+  matchedRequirementId,
+  matchedSkill,
+  cvEvidenceRefs,
+  generationReason,
+  confidence,
+  planPriority,
+  proofPointId,
+  coverageContractIds,
+  testedRoleIntentIds,
+  recommendedEvidenceIds,
+  evidenceAngle,
+  evidenceMapStrength,
+  coveragePriority,
+  roleFitReason,
+  rankTrace,
+  ...safeItem
+}) => safeItem);
+
+export const sanitizeRoleFitForClient = (roleFit = {}) => {
+  if (roleFit?.readiness && typeof roleFit.enabled === 'boolean') return roleFit;
+  const proofStrategy = roleFit?.proofStrategy || {};
+  const mustCover = Array.isArray(proofStrategy.mustCover) ? proofStrategy.mustCover : [];
+  const proofStrategyStatus = proofStrategy.artifactStatus || (Object.keys(proofStrategy).length ? 'degraded' : 'not_started');
+  return {
+    enabled: Boolean(Object.keys(proofStrategy).length),
+    readiness: {
+      proofStrategyStatus,
+      degradedReason: proofStrategy.degradedReason || null,
+      coverageCount: mustCover.length,
+      coveredCount: mustCover.filter((item) => item.status === 'covered').length,
+    },
+  };
+};
+
+export const sanitizeTranscriptMetadataForClient = (metadata = {}) => {
+  const {
+    proofPointId,
+    coverageContractIds,
+    testedRoleIntentIds,
+    recommendedEvidenceIds,
+    evidenceAngle,
+    evidenceMapStrength,
+    evidenceTarget,
+    evidenceUsed,
+    rankTrace,
+    questionDecision,
+    questionRanking,
+    topRootCandidates,
+    rejectedCandidates,
+    alternativesConsidered,
+    whyThisQuestion,
+    rationaleSummary,
+    selectedAngle,
+    shortReason,
+    baseQuestionText,
+    ...safeMetadata
+  } = metadata || {};
+  return safeMetadata;
+};
+
+export const sanitizeAnalysisForSession = (analysisResult, sessionStatus) => {
+  if (!analysisResult || !['in_progress', 'paused', 'completed'].includes(sessionStatus)) return analysisResult;
+  const roleEvidenceMap = analysisResult.roleEvidenceMap || {};
+  return {
+    ...analysisResult,
+    roleEvidenceMap: Object.keys(roleEvidenceMap).length
+      ? {
+        schemaVersion: roleEvidenceMap.schemaVersion || '',
+        intentCoverage: roleEvidenceMap.intentCoverage || {},
+        classificationCounts: roleEvidenceMap.classificationCounts || {},
+        artifactStatus: roleEvidenceMap.artifactStatus || 'ready',
+        degradedReason: roleEvidenceMap.degradedReason || null,
+      }
+      : {},
+  };
+};
+
+export const sanitizeLiveSessionForClient = (session = {}) => ({
+  ...session,
+  analysisResult: sanitizeAnalysisForSession(session.analysisResult, session.status),
+  interviewPlan: session.interviewPlan ? {
+    ...session.interviewPlan,
+    roleFit: sanitizeRoleFitForClient(session.interviewPlan.roleFit),
+    questionPool: sanitizeQuestionPoolForClient(session.interviewPlan.questionPool || []),
+  } : session.interviewPlan,
+  transcript: Array.isArray(session.transcript)
+    ? session.transcript.map((turn) => ({
+      ...turn,
+      metadata: sanitizeTranscriptMetadataForClient(turn.metadata),
+    }))
+    : [],
+});
 const isNonEmptyObject = (value) => Boolean(value && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length);
 const buildAnalysisSetupCv = (cvDocument) => {
   if (!cvDocument) return null;
@@ -90,12 +184,14 @@ const mapTranscriptTurns = (transcript) => transcript?.turns?.map((turn) => ({
   displayText: buildTranscriptDisplayText(turn),
   timestamp: new Date(turn.timestamp).toISOString(),
   questionId: turn.questionId,
-  metadata: turn.metadata || {},
+  metadata: sanitizeTranscriptMetadataForClient(turn.metadata),
 })) || [];
 
 export const buildSessionDetails = ({ row, plan, transcript, analysis, report, cvDocument, jobDescriptionInput }) => {
   const baseSession = mapSessionRow(row);
   const normalizedAnalysis = normalizeAnalysisResult(analysis);
+  const clientAnalysis = sanitizeAnalysisForSession(normalizedAnalysis, baseSession.status);
+  const validatedPlan = plan ? validateInterviewPlan(plan) : null;
   const roleMeta = buildCanonicalRoleMeta({
     resolvedTargetRole: row.target_role,
     normalizedAnalysis,
@@ -110,8 +206,12 @@ export const buildSessionDetails = ({ row, plan, transcript, analysis, report, c
     roleFamily: roleMeta.roleFamily,
     interviewModeKey: roleMeta.interviewModeKey,
     settings: plan?.settingsSnapshot || baseSession.settings,
-    analysisResult: normalizedAnalysis,
-    interviewPlan: plan ? { ...validateInterviewPlan(plan), questionPool: sanitizeQuestionPoolForClient(validateInterviewPlan(plan).questionPool || []) } : null,
+    analysisResult: clientAnalysis,
+    interviewPlan: validatedPlan ? {
+      ...validatedPlan,
+      roleFit: sanitizeRoleFitForClient(validatedPlan.roleFit),
+      questionPool: sanitizeQuestionPoolForClient(validatedPlan.questionPool || []),
+    } : null,
     hasReport: Boolean(report?.report),
     reportStatus: report?.latestStatus || null,
     cvProfile: cvDocument?.cvProfile || null,

@@ -162,6 +162,7 @@ export const validateReportOutput = (report = {}) => ({
   voiceDeliverySummary: normalizeVoiceDeliverySummary(report.voiceDeliverySummary || {}),
   companyMotivationFit: normalizeCompanyMotivationFit(report.companyMotivationFit || {}),
   transcriptRisks: ensureArray(report.transcriptRisks),
+  roleFit: isObject(report.roleFit) ? report.roleFit : {},
   authenticityMetrics: isObject(report.authenticityMetrics) ? report.authenticityMetrics : {},
   metadata: isObject(report.metadata) ? report.metadata : {},
   candidateFeedback: isObject(report.candidateFeedback)

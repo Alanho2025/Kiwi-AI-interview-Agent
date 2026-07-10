@@ -83,6 +83,11 @@ const CompanyValuesProfileSchema = new mongoose.Schema(
 
     startedAt: Date,
     completedAt: Date,
+    retentionUntil: { type: Date },
+    deletedAt: { type: Date },
+    containsSensitiveData: { type: Boolean, default: true },
+    accessScope: { type: String, default: 'private' },
+    schemaVersion: { type: String, default: 'v2' },
   },
   { timestamps: true }
 );

@@ -16,6 +16,8 @@ describe('questionPoolRankerService - Role-Fit integration', () => {
       proofPointId: 'cov-intent-intent-react',
       testedRoleIntentIds: ['intent-react'],
       recommendedEvidenceIds: ['ev-react-1'],
+      evidenceAngle: 'technical_ownership',
+      evidenceMapStrength: 0.9,
       coveragePriority: 'must_cover',
       modeCompatibility: { technical: true, behavioural: false, combined: true },
     },
@@ -142,8 +144,8 @@ describe('questionPoolRankerService - Role-Fit integration', () => {
       session: {
         transcript: [
           // Simulate two turns that already used ev-react-1
-          { role: 'ai', text: 'First react question.', metadata: { recommendedEvidenceIds: ['ev-react-1'] } },
-          { role: 'ai', text: 'Second react question.', metadata: { recommendedEvidenceIds: ['ev-react-1'] } },
+          { role: 'ai', text: 'First react question.', metadata: { countsAsQuestion: true, rankTrace: { recommendedEvidenceIds: ['ev-react-1'], evidenceAngle: 'technical_ownership' } } },
+          { role: 'ai', text: 'Second react question.', metadata: { countsAsQuestion: true, questionDecision: { rankTrace: { recommendedEvidenceIds: ['ev-react-1'], evidenceAngle: 'technical_ownership' } } } },
         ],
         interviewPlan: { roleFit: { proofStrategy } },
       },
@@ -157,5 +159,36 @@ describe('questionPoolRankerService - Role-Fit integration', () => {
     // Therefore Node should rank higher than React.
     expect(ranked[0].questionId).toBe('q-node');
     expect(ranked.find(q => q.questionId === 'q-react').penalties).toContain('evidence_overuse_penalty');
+  });
+
+  it('separates the legacy base score from traceable Role-Fit adjustments', () => {
+    const [ranked] = rankPreparedQuestionPool({
+      poolItems: [poolItems[0]],
+      session: {
+        transcript: [],
+        interviewPlan: {
+          roleFit: {
+            proofStrategy: {
+              mustCover: [{ coverageId: 'cov-intent-intent-react', roleIntentId: 'intent-react', status: 'pending' }],
+            },
+          },
+        },
+      },
+      decisionContext: { interviewStructure: { focusAreaKey: 'technical' } },
+    });
+
+    expect(ranked.rankTrace).toEqual(expect.objectContaining({
+      baseScore: expect.any(Number),
+      roleFitAdjustment: expect.objectContaining({
+        roleIntentCoverageBoost: expect.any(Number),
+        evidenceMapStrengthBoost: expect.any(Number),
+        unmetCoverageBoost: expect.any(Number),
+        gapRiskBoost: expect.any(Number),
+        evidenceOverusePenalty: expect.any(Number),
+        total: expect.any(Number),
+      }),
+      evidenceAngle: 'technical_ownership',
+    }));
+    expect(ranked.score).toBeCloseTo(ranked.rankTrace.baseScore + ranked.rankTrace.roleFitAdjustment.total, 3);
   });
 });

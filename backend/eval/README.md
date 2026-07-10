@@ -20,8 +20,11 @@ The evaluation design follows an agent benchmark style:
 - `npm run eval:e2e` → end-to-end interview scenario benchmark
 - `npm run eval:green` → Kiwi Green Agent benchmark runner
 - `npm run eval:voice-robustness` → deterministic voice robustness evaluation
-- `npm run eval:retrieval` → deterministic retrieval evaluation
-- `npm run eval:agent-trajectory` → deterministic agent trajectory evaluation
+- `npm run eval:retrieval` → production fusion ranker 的 deterministic in-memory retrieval + claim grounding evaluation
+- `npm run eval:retrieval-safety` → 舊 phrase/source fixture safety evaluation（不是 runtime benchmark）
+- `npm run eval:agent-trajectory` → production planner/tool mapping/trajectory builder evaluation
+- `npm run eval:agent-trajectory-safety` → 舊 handwritten trace fixture safety evaluation
+- `npm run eval:calibration` → human-vs-judge disagreement 與 threshold eligibility；預設不需 provider
 - `npm run eval:company-research` → deterministic company research evaluation
 - `npm run eval:voice-quality` → deterministic voice quality evaluation
 - `npm run eval:stability` → deterministic stability evaluation
@@ -54,6 +57,10 @@ The reports answer three questions quickly:
 1. Which cases are strong now
 2. Which cases are weak now
 3. Which checks failed, so fixes are evidence-based instead of guess-based
+
+`retrieval-eval.latest.json` 包含版本化 retrieval 與 generation grounding 子報告、config fingerprints、domain/risk slices 和逐 case ranked/claim records。`agent-trajectory-eval.latest.json` 保存正式 planner 產生的 action/tool/args/terminal-state trajectory。`human-calibration-eval.latest.json` 在真實 review 尚未完成時必須維持 `canAssertNumericalReleaseThreshold=false`。
+
+目前 local synthetic benchmark 分數不可宣稱為 production RAGAS 品質。它不使用 production corpus、外部 semantic embedding 或 real-provider generation；人工校準需依 `eval/manual-review/role-fit-calibration-guide-v1.md` 執行。
 
 Google Agents CLI trace builders and advice summarizers are documented separately in `eval/googleAgentsCli/README.md` and are not part of every default eval command.
 

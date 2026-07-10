@@ -316,6 +316,7 @@ export const buildAnalyzeOutput = ({
 } = {}) => {
   const hardGateFailed = requirementChecks.some((item) => item.type === 'hard' && item.status === 'not_met');
   const resolvedDecision = decision || deriveDecision({ overallScore, confidence, hardGateFailed });
+  const hasRoleEvidenceMap = Array.isArray(roleEvidenceMap?.items) && roleEvidenceMap.items.length > 0;
 
   return {
     schemaVersion: 'v3',
@@ -332,7 +333,7 @@ export const buildAnalyzeOutput = ({
     requirementChecks,
     scoreBreakdown,
     explanation,
-    evidenceMap,
+    evidenceMap: hasRoleEvidenceMap ? [] : evidenceMap,
     roleEvidenceMap,
     sourceSnapshots,
     strengths: explanation.strengths.map((item) => item.label),

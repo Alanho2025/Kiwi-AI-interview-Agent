@@ -65,15 +65,13 @@ const scorePoolItem = ({
   const selectedTopicFit = actionInput?.targetTopic && topicMatches(item.topic, [actionInput.targetTopic]) ? 0.18 : 0;
   const validationFit = actionInput?.actionType === 'ASK_VALIDATION_QUESTION' && ['match_gap', 'match_validation'].includes(item.sourceStage) ? 0.2 : 0;
 
-  // Role-fit coverage boost
-  let roleIntentCoverageBoost = 0;
+  const roleIntentCoverageBoost = ensureArray(item.testedRoleIntentIds).length ? 0.10 : 0;
   const unmetCoverage = trackedMustCover.find(cov => 
     cov.status === 'pending' && 
     (cov.coverageId === item.proofPointId || (cov.roleIntentId && ensureArray(item.testedRoleIntentIds).includes(cov.roleIntentId)))
   );
-  if (unmetCoverage) {
-    roleIntentCoverageBoost = 0.25;
-  }
+  const unmetCoverageBoost = unmetCoverage ? 0.25 : 0;
+  const evidenceMapStrengthBoost = weight(item.evidenceMapStrength, 0) * 0.10;
 
   // Gap risk boost
   let gapRiskBoost = 0;
@@ -90,7 +88,7 @@ const scorePoolItem = ({
     }
   });
 
-  const score = (
+  const baseScore = (
     weight(item.priorityWeight) * 0.30
     + weight(item.coverageWeight) * 0.20
     + weight(item.riskWeight) * 0.15
@@ -100,12 +98,25 @@ const scorePoolItem = ({
     + timeFit * 0.05
     + selectedTopicFit
     + validationFit
-    + roleIntentCoverageBoost
-    + gapRiskBoost
     - repetitionPenalty
     - answeredPenalty
-    - evidenceOverusePenalty
   );
+  const roleFitAdjustment = {
+    roleIntentCoverageBoost,
+    evidenceMapStrengthBoost,
+    unmetCoverageBoost,
+    gapRiskBoost,
+    evidenceOverusePenalty,
+  };
+  roleFitAdjustment.total = Number((
+    roleIntentCoverageBoost
+    + evidenceMapStrengthBoost
+    + unmetCoverageBoost
+    + gapRiskBoost
+    - evidenceOverusePenalty
+  ).toFixed(3));
+  const normalizedBaseScore = Number(baseScore.toFixed(3));
+  const score = Number((normalizedBaseScore + roleFitAdjustment.total).toFixed(3));
 
   const reasons = [];
   const penalties = [];
@@ -114,7 +125,9 @@ const scorePoolItem = ({
   if (selectedTopicFit) reasons.push('matches_action_topic');
   if (validationFit) reasons.push('validation_action_fit');
   if (freshnessScore === 1) reasons.push('fresh_topic');
-  if (roleIntentCoverageBoost > 0) reasons.push('unmet_must_cover_boost');
+  if (roleIntentCoverageBoost > 0) reasons.push('role_intent_coverage_boost');
+  if (evidenceMapStrengthBoost > 0) reasons.push('evidence_map_strength_boost');
+  if (unmetCoverageBoost > 0) reasons.push('unmet_must_cover_boost');
   if (gapRiskBoost > 0) reasons.push('gap_validation_boost');
   
   if (repetitionPenalty) penalties.push('repeated_topic');
@@ -124,13 +137,15 @@ const scorePoolItem = ({
 
   const rankTrace = {
     questionId: item.questionId,
-    score: Number(score.toFixed(3)),
+    score,
+    baseScore: normalizedBaseScore,
+    roleFitAdjustment,
     reasons,
     penalties,
     matchedSignals: [
       ...(missingEvidenceFit >= 1 ? ['missing_evidence_or_validation_target'] : []),
       ...(evaluatorState?.interactionStatus ? [`interaction:${evaluatorState.interactionStatus}`] : []),
-      ...(roleIntentCoverageBoost > 0 ? ['unmet_must_cover'] : []),
+      ...(unmetCoverageBoost > 0 ? ['unmet_must_cover'] : []),
     ],
     sourceType: item.sourceType,
     topic: item.topic,
@@ -138,11 +153,12 @@ const scorePoolItem = ({
     proofPointId: item.proofPointId || '',
     testedRoleIntentIds: item.testedRoleIntentIds || [],
     recommendedEvidenceIds: item.recommendedEvidenceIds || [],
+    evidenceAngle: item.evidenceAngle || '',
   };
 
   return {
     ...item,
-    score: Number(score.toFixed(3)),
+    score,
     reasons,
     penalties,
     matchedSignals: rankTrace.matchedSignals,

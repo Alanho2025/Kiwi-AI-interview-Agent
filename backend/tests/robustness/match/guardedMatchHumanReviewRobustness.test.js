@@ -70,10 +70,10 @@ describe('guarded match human review override', () => {
     expect(result.overallScore).toBe(0);
     expect(result.confidence).toBe(0);
     expect(result.decision).toMatchObject({ label: 'manual_review' });
-    expect(result.riskFlags).toContain('JD needs review before matching.');
+    expect(result.riskFlags).toContain('Review company and role understanding before matching.');
   });
 
-  it('allows matching when a previously blocked JD is human reviewed', async () => {
+  it('does not let a legacy human-review marker open a new match after cutover', async () => {
     const reviewedRubric = {
       ...blockedJdRubric,
       metadata: {
@@ -85,15 +85,9 @@ describe('guarded match human review override', () => {
 
     const result = await compareCvToJobDescriptionWithSafeguard(cvText, 'Data Engineer JD', reviewedRubric);
 
-    expect(result.overallScore).toBeGreaterThan(0);
-    expect(result.confidence).toBeGreaterThan(0);
-    expect(result.decision.reasonCodes || []).not.toContain('jd_safeguard_blocked_match');
-    expect(result.matchingDetails.jdSafeguard).toMatchObject({
-      blockMatch: false,
-      humanReviewOverrideApplied: true,
-      originalBlockMatch: true,
-    });
-    expect(result.matchingDetails.compatibility).toMatchObject({ roleFit: 'legacy_reviewed_jd' });
+    expect(result.overallScore).toBe(0);
+    expect(result.decision.reasonCodes).toContain('role_fit_review_required');
+    expect(result.matchingDetails.compatibility).toBeUndefined();
   });
 
   it('blocks a new role-fit rubric until its company and role understanding is verified', async () => {
@@ -121,6 +115,12 @@ describe('guarded match human review override', () => {
   it('carries CV analysis and JD-relevant hooks into interview context', async () => {
     const reviewedRubric = {
       ...blockedJdRubric,
+      roleFit: {
+        id: 'role-fit-1',
+        companyContext: { status: 'ready' },
+        review: { status: 'verified', version: 2 },
+        roleIntent: { items: [{ id: 'intent:python', statement: 'Python', priority: 'high' }] },
+      },
       metadata: {
         ...blockedJdRubric.metadata,
         humanReviewStatus: 'verified',

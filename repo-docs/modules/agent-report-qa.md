@@ -17,7 +17,7 @@ report QA agent 是报告状态的守门器。它不是润色器；它检查 rep
 
 ## 它做什么决策
 
-它决定 report 是否可发布为 ready。blocking flags 包含 `rubric_question_mismatch`、`evidence_total_mismatch`、`score_metric_mismatch`、`invalid_answer_rewrite`、`uninformative_evidence_references`、`turn_export_count_mismatch` 和 transcript conflict。
+它决定 report 是否可发布为 ready。除原有 rubric、evidence total、score、rewrite、turn export 和 transcript conflict 外，Role-Fit blocking flags 还包括 `role_intent_reference_missing`、`answer_alignment_without_proof_point`、`alignment_claim_not_grounded`、`company_claim_not_in_reviewed_profile`、`evidence_id_not_found`、`must_cover_intent_unreported`、`role_fit_artifact_not_owned`。
 
 ## 输出和持久化
 
@@ -25,9 +25,8 @@ QA result 会被 task runner 与 report 一起写入 `SessionReport.latestStatus
 
 ## 怎么检查
 
-相关 tests 在 `backend/tests/robustness/report/reportFrameworkQa.test.js`、`reportContentQualityRobustness.test.js`、`promptInjectionReportRobustness.test.js`。
+相关 tests 在 `backend/tests/robustness/report/reportFrameworkQa.test.js`、`reportQaRoleFitRepair.test.js`、`reportContentQualityRobustness.test.js`、`promptInjectionReportRobustness.test.js`。Role-Fit deterministic failure 会跳过 wording repair。
 
 继续读 [报告与 QA](feature-report-and-qa.md)，看 QA 如何影响用户可见报告状态。
 
 证据状态：除特别标注外，本页基于当前源码已确认。
-

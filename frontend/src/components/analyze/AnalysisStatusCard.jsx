@@ -14,6 +14,7 @@ import { CheckCircle2, AlertTriangle, ShieldCheck, Target, TrendingUp } from 'lu
 import { cn } from '../../utils/formatters.js';
 import { buildMatchResultViewModel } from '../../utils/matchResultViewModel.js';
 import { LoadingInsightPanel } from '../common/LoadingInsightPanel.jsx';
+import { ProofStrategyReviewPanel } from './ProofStrategyReviewPanel.jsx';
 
 const toneStyles = {
   success: {
@@ -289,49 +290,6 @@ const MatchSummary = ({ viewModel }) => {
   );
 };
 
-const RoleEvidenceReadinessCard = ({ questionPoolInfo }) => {
-  if (!questionPoolInfo) return null;
-  const isReady = questionPoolInfo.readiness === 'ready' || questionPoolInfo.prepared;
-  const statusColor = isReady ? 'text-emerald-700 bg-emerald-50 border-emerald-100' : 'text-amber-700 bg-amber-50 border-amber-100';
-  const statusLabel = isReady ? 'Active Proof Strategy' : 'Degraded Strategy';
-
-  return (
-    <div className={`rounded-xl border p-4 glass ${statusColor}`}>
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-semibold">Interview Plan Readiness</p>
-          <p className="mt-1 text-xs opacity-80">The system has prepared and prioritized practice coverage rules.</p>
-        </div>
-        <span className="rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider bg-white/60">
-          {statusLabel}
-        </span>
-      </div>
-
-      <div className="mt-4 grid grid-cols-3 gap-4 text-center">
-        <div className="rounded-lg bg-white/40 p-3">
-          <p className="text-xs opacity-70">Total Questions</p>
-          <p className="mt-1 text-2xl font-bold">{questionPoolInfo.count || 0}</p>
-        </div>
-        <div className="rounded-lg bg-white/40 p-3 col-span-2 text-left flex flex-col justify-center">
-          <p className="text-xs opacity-70">Coverage Channels</p>
-          <div className="mt-1 flex flex-wrap gap-1.5 text-[10px] font-medium">
-            {Object.entries(questionPoolInfo.sources || {}).map(([source, count]) => (
-              <span key={source} className="rounded bg-white/60 px-1.5 py-0.5">
-                {source}: {count}
-              </span>
-            ))}
-          </div>
-        </div>
-      </div>
-      {questionPoolInfo.degradedReason && (
-        <p className="mt-3 text-xs leading-5 opacity-90">
-          <strong>Note:</strong> {questionPoolInfo.degradedReason}
-        </p>
-      )}
-    </div>
-  );
-};
-
 /**
  * Purpose: Execute the main responsibility for AnalysisStatusCard.
  * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
@@ -398,7 +356,7 @@ export function AnalysisStatusCard({ status, matchRate, analysisResult, question
 
             <MatchSummary viewModel={matchViewModel} />
 
-            <RoleEvidenceReadinessCard questionPoolInfo={questionPoolInfo} />
+            <ProofStrategyReviewPanel questionPoolInfo={questionPoolInfo} />
 
             <div className="grid gap-3 lg:grid-cols-3">
               {matchViewModel.scoreCards.map((item) => <ScoreExplanationCard key={item.key} item={item} />)}

@@ -11,6 +11,7 @@ import { processRealtimeVoiceTurn } from '../services/voice/realtimeVoiceTurnSer
 import { synthesizeSpeech } from '../services/voice/ttsProviderRouter.js';
 import { withSessionTurnLock } from '../utils/sessionTurnLock.js';
 import { tryGenerateReportForCompletedSession } from './interviewControllerUtils.js';
+import { buildLiveInterviewTurnResponse } from '../services/interview/liveInterviewPayloadService.js';
 
 export const replyInterviewWithRealtimeVoice = asyncHandler(async (req, res) => {
   const { sessionId, transcriptText } = req.body;
@@ -41,21 +42,14 @@ export const replyInterviewWithRealtimeVoice = asyncHandler(async (req, res) => 
     latency: result.latency,
   }));
 
-  res.json(formatSuccess('Realtime voice reply processed', {
-    nextQuestion: result.agentResult.nextQuestion,
-    interviewerTurn: result.agentResult.interviewerTurn || null,
-    rationale: result.agentResult.rationale,
-    retrievalSnapshot: result.agentResult.retrievalSnapshot,
-    isComplete: Boolean(result.agentResult.isComplete),
-    completedBecause: result.agentResult.completedBecause || null,
-    reportStatus: result.generatedReport?.stored?.latestStatus || null,
-    evaluator: result.agentResult.evaluatorOutput || null,
-    reactTrace: result.agentResult.reactTrace || null,
+  res.json(formatSuccess('Realtime voice reply processed', buildLiveInterviewTurnResponse({
+    agentResult: result.agentResult,
+    updatedSession: result.updatedSession,
+    generatedReport: result.generatedReport,
     transcription: result.transcription,
     assistantAudio: result.assistantAudio,
     latency: result.latency,
-    session: result.updatedSession,
-  }));
+  })));
 });
 
 export const replyInterviewWithRealtimeVoiceStream = asyncHandler(async (req, res) => {
@@ -124,20 +118,13 @@ export const replyInterviewWithRealtimeVoiceStream = asyncHandler(async (req, re
 
   res.write(`data: ${JSON.stringify({
     type: 'done',
-    result: {
-      nextQuestion: result.agentResult.nextQuestion,
-      interviewerTurn: result.agentResult.interviewerTurn || null,
-      rationale: result.agentResult.rationale,
-      retrievalSnapshot: result.agentResult.retrievalSnapshot,
-      isComplete: Boolean(result.agentResult.isComplete),
-      completedBecause: result.agentResult.completedBecause || null,
-      reportStatus: result.generatedReport?.stored?.latestStatus || null,
-      evaluator: result.agentResult.evaluatorOutput || null,
-      reactTrace: result.agentResult.reactTrace || null,
+    result: buildLiveInterviewTurnResponse({
+      agentResult: result.agentResult,
+      updatedSession: result.updatedSession,
+      generatedReport: result.generatedReport,
       transcription: result.transcription,
       latency: result.latency,
-      session: result.updatedSession,
-    }
+    })
   })}\n\n`);
   res.end();
 });

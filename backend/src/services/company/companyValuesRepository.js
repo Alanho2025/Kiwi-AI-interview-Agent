@@ -1,11 +1,20 @@
 import { CompanyValuesProfile } from '../../db/models/companyValuesProfileModel.js';
 import { conflict } from '../../utils/appError.js';
+import { buildRetentionExpiry } from '../retention/retentionPolicy.js';
 
 const terminalStatuses = new Set(['ready', 'fallback', 'failed']);
 
 const cleanSet = (payload = {}) => Object.fromEntries(
   Object.entries(payload).filter(([, value]) => value !== undefined)
 );
+
+const buildPrivateRetentionFields = () => ({
+  retentionUntil: buildRetentionExpiry(),
+  deletedAt: null,
+  containsSensitiveData: true,
+  accessScope: 'private',
+  schemaVersion: 'v2',
+});
 
 export const getCompanyValuesProfile = async (sessionId) => {
   if (!sessionId) return null;
@@ -56,6 +65,7 @@ export const markCompanyValuesStatus = async ({
         errorMessage: errorMessage || undefined,
         startedAt: status === 'pending' ? new Date() : undefined,
         completedAt: terminalStatuses.has(status) ? new Date() : undefined,
+        ...buildPrivateRetentionFields(),
       }),
     },
     { upsert: true, new: true, setDefaultsOnInsert: true }
@@ -77,6 +87,7 @@ export const saveCompanyValuesProfile = async (profile = {}) => {
         userId: String(profile.userId),
         sessionId: profile.sessionId || undefined,
         completedAt,
+        ...buildPrivateRetentionFields(),
       }),
     },
     { upsert: true, new: true, setDefaultsOnInsert: true }
@@ -87,7 +98,7 @@ export const attachCompanyValuesProfileToSession = async ({ userId, jdFingerprin
   if (!userId || !jdFingerprint || !sessionId) return null;
   return CompanyValuesProfile.findOneAndUpdate(
     { userId: String(userId), jdFingerprint },
-    { $set: { sessionId } },
+    { $set: { sessionId, ...buildPrivateRetentionFields() } },
     { new: true }
   ).lean();
 };
@@ -107,6 +118,7 @@ export const saveCompanyRoleFitDraft = async ({ userId, jdFingerprint, roleFitPr
         rawJD,
         sourceUrl,
         jdRubric,
+        ...buildPrivateRetentionFields(),
       }),
     },
     { upsert: true, new: true, setDefaultsOnInsert: true }
@@ -146,6 +158,7 @@ export const confirmCompanyRoleFitReview = async ({
         roleFitReviewStatus: 'verified',
         roleFitReviewedAt: reviewedAt,
         jdRubric,
+        ...buildPrivateRetentionFields(),
       }),
     },
     { new: true }

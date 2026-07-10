@@ -284,6 +284,7 @@ export const buildInterviewTurnPlan = async ({
     actionInput: { ...actionInput, actionType },
   });
   const rootCandidateRankMs = Date.now() - rankStartedAt;
+  const roleFitQuestionRankingEnabled = ensureArray(session?.interviewPlan?.roleFit?.proofStrategy?.mustCover).length > 0;
   const selectedRootCandidate = turnKind === 'root_question' ? selectBestPreparedQuestion(rankedRootCandidates) : null;
   const topRootCandidates = rankedRootCandidates.slice(0, 3).map(toRootCandidate);
   const alternativeRootCandidates = turnKind === 'root_question'
@@ -335,6 +336,8 @@ export const buildInterviewTurnPlan = async ({
     latency: {
       answerSignalBuildMs,
       rootCandidateRankMs,
+      roleFitQuestionRankingEnabled,
+      roleFitQuestionRankingMs: roleFitQuestionRankingEnabled ? rootCandidateRankMs : 0,
       followUpContextBuildMs,
       ...(rankedRootCandidates.deduplication || {}),
       orchestratorDecisionMs: Date.now() - orchestratorStartedAt,

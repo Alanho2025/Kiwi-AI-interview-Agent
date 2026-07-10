@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildInterviewProofStrategy,
   addRoleFitMetadataToQuestionPool,
+  buildRoleFitQuestionPool,
 } from '../../../src/services/questions/roleSpecificPracticePlannerService.js';
 
 describe('roleSpecificPracticePlannerService', () => {
@@ -55,16 +56,14 @@ describe('roleSpecificPracticePlannerService', () => {
     expect(reactCover.type).toBe('role_intent');
     expect(reactCover.evidenceOptions).toEqual(['ev-react-1']);
 
-    // Node (high priority & gap) should be in mustCover
-    const nodeCover = strategy.mustCover.find(c => c.roleIntentId === 'intent-node');
-    expect(nodeCover).toBeDefined();
-    expect(nodeCover.type).toBe('role_intent'); // targetRoleIntentId matched
-
-    // Node is also classified as a gap, so it should have a gap_validation mustCover item
-    const gapCover = strategy.mustCover.find(c => c.coverageId === 'cov-gap-intent-node');
-    expect(gapCover).toBeDefined();
-    expect(gapCover.type).toBe('gap_validation');
-    expect(gapCover.evidenceOptions).toEqual([]);
+    const nodeCovers = strategy.mustCover.filter(c => c.roleIntentId === 'intent-node');
+    expect(nodeCovers).toEqual([
+      expect.objectContaining({
+        coverageId: 'cov-gap-intent-node',
+        type: 'gap_validation',
+        evidenceOptions: [],
+      }),
+    ]);
   });
 
   it('enriches a question pool with v3 metadata', () => {
@@ -93,5 +92,67 @@ describe('roleSpecificPracticePlannerService', () => {
     expect(nodeQ.testedRoleIntentIds).toEqual(['intent-node']);
     expect(nodeQ.recommendedEvidenceIds).toEqual([]);
     expect(nodeQ.coveragePriority).toBe('must_cover'); // high priority intent gap
+  });
+
+  it('does not attach the first role intent to an unrelated question', () => {
+    const [opening] = addRoleFitMetadataToQuestionPool({
+      poolItems: [{ questionId: 'q-opening', topic: 'self_intro', text: 'Please introduce yourself.' }],
+      roleEvidenceMap,
+      roleFitProfile,
+    });
+
+    expect(opening).toEqual(expect.objectContaining({
+      testedRoleIntentIds: [],
+      recommendedEvidenceIds: [],
+      coverageContractIds: [],
+      proofPointId: '',
+    }));
+  });
+
+  it('represents every must-cover contract with a v3 question or explicit degraded fallback', () => {
+    const result = buildRoleFitQuestionPool({
+      poolItems: [{
+        questionId: 'q-react',
+        sessionId: 'session-1',
+        schemaVersion: 'v3',
+        questionRole: 'root_question',
+        status: 'active',
+        topic: 'react',
+        category: 'technical',
+        text: 'Tell me about your React experience.',
+        fallbackText: 'Tell me about your React experience.',
+      }],
+      roleEvidenceMap,
+      roleFitProfile,
+      context: { userId: 'user-1', sessionId: 'session-1', matchAnalysisId: 'analysis-1' },
+    });
+
+    expect(result.readiness).toMatchObject({ status: 'ready', unresolvedCoverageIds: [] });
+    expect(result.proofStrategy.mustCover).toHaveLength(2);
+    result.proofStrategy.mustCover.forEach((coverage) => {
+      expect(result.items.some((item) => item.coverageContractIds.includes(coverage.coverageId))).toBe(true);
+    });
+    expect(result.items).toContainEqual(expect.objectContaining({
+      schemaVersion: 'v3',
+      sourceStage: 'role_fit_fallback',
+      testedRoleIntentIds: ['intent-node'],
+      coverageContractIds: ['cov-gap-intent-node'],
+    }));
+  });
+
+  it('returns an explicit degraded strategy when role-fit artifacts are unavailable', () => {
+    const result = buildRoleFitQuestionPool({
+      poolItems: [],
+      roleEvidenceMap: {},
+      roleFitProfile: {},
+      context: { userId: 'user-1', sessionId: 'session-1' },
+    });
+
+    expect(result.proofStrategy).toMatchObject({
+      artifactStatus: 'degraded',
+      degradedReason: 'missing_role_fit_artifacts',
+      mustCover: [expect.objectContaining({ status: 'degraded' })],
+    });
+    expect(result.readiness.status).toBe('degraded');
   });
 });

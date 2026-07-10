@@ -158,5 +158,6 @@ describe('grounded role evidence map robustness', () => {
     expect(result.roleEvidenceMap.items).toHaveLength(3);
     expect(result.matchingDetails.roleEvidenceMap).toEqual(result.roleEvidenceMap);
     expect(result.roleEvidenceMap.items.find((item) => item.roleIntentId === 'intent:sql').sourceEvidence[0].sourceTrace.section).toBe('experience');
+    expect(result.evidenceMap).toEqual([]);
   });
 });

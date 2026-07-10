@@ -1,6 +1,6 @@
 # Role-Fit Intelligence Goal
 
-狀態：分階段實作中；2026-07-10 已完成 CV parse、JD parse 與 CV-JD match 範圍  
+狀態：local implementation 與新流量 cutover 已完成；pre-cutover snapshot cleanup、browser、live provider 與 human calibration gates 待外部條件
 日期：2026-07-10  
 產品名稱：Kiwi AI Interview Agent
 
@@ -12,8 +12,9 @@
 - [總實作計畫](2026-07-10-role-fit-intelligence-implementation-plan.md)
 - [逐 feature gap audit](2026-07-10-role-fit-feature-gap-audit.md)
 - [Agent、ReAct 與 RAG evaluation 參考](references/agent-rag-evaluation-references.md)
+- [實作 checkpoint 與 trace](role-fit-implementation-trace.md)
 
-本文件中的「必須」是完整 Role-Fit Intelligence 的產品約束。CV parse、JD parse 與 CV-JD match 已在本輪落地；question strategy、interview、report 與 RAGAS-style eval 仍是後續範圍。
+本文件中的「必須」是完整 Role-Fit Intelligence 的產品約束。CV parse、JD parse、CV-JD match、Phase 3 question runtime、Phase 4 Answer Alignment/report、Phase 5 mock-safe voice hardening與 Phase 6 local runtime evaluation 已在本輪落地；report browser visual、live voice provider 與真實 human calibration 仍是外部 gate。
 
 ## 概覽（Overview）
 
@@ -205,4 +206,4 @@ Role-Fit Intelligence 只有在所有下列條件成立時才算完成：
 7. temporary compatibility adapter、kill switch、dead service、obsolete test/fixture 和不再讀取的 persistence branch 已依 removal manifest 刪除。
 8. 功能真正 shipped 後，更新 `repo-docs/`、implementation workflow 與 change log；在此之前不要把 proposal 寫成 current behavior。
 
-證據狀態：CV parse、JD parse 與 CV-JD match 已實作並通過 mock/robustness/integration 驗證；其餘段落仍是後續產品目標。現況事實以 current source、tests 與 `repo-docs/` 為準。
+證據狀態：CV/JD/match、Phase 3、Phase 4 product code、Phase 5 mock-safe voice hardening、Phase 6 local evaluation與新流量 cutover已通過對應 robustness/eval gates。新 match 只接受 owner-scoped verified Role-Fit；question/report 寫 v3/v7；Role-Fit artifacts 使用 private retention contract/registry；`legacy_reviewed_jd` 已移除。1.00 synthetic 分數不是 production semantic/real-AI 保證；human calibration 仍為 0/6、threshold `not_set`。三個 pre-cutover snapshot readers 仍等待 14-day telemetry/migration/retention gate；Phase 4 browser visual 與 live provider 3 秒 gate 仍待外部條件。現況與 locator 見 `docs/role-fit-implementation-trace.md` 和 `repo-docs/`。

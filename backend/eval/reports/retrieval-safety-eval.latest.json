@@ -1,0 +1,301 @@
+{
+  "label": "Retrieval Fixture Safety Eval",
+  "generatedAt": "2026-07-10T08:02:37.189Z",
+  "casesRun": 8,
+  "average": 0.97,
+  "metrics": {
+    "coverageRate": 0.9583,
+    "citationAccuracy": 1,
+    "hallucinationRate": 0,
+    "adversarialPassRate": 0.875,
+    "agentDisagreementRate": 0.0417,
+    "successRate": 1,
+    "averageLatency": 0.000324
+  },
+  "results": [
+    {
+      "id": "direct_skill_match",
+      "score": 1,
+      "subScores": {
+        "relevance": 1,
+        "blockedEvidence": 1,
+        "sourceCoverage": 1,
+        "degradedFallback": 1
+      },
+      "metrics": {
+        "coverageRate": 1,
+        "citationAccuracy": 1,
+        "hallucinationRate": 0,
+        "adversarialPassRate": 1,
+        "agentDisagreementRate": 0,
+        "successRate": 1,
+        "latency": 0.001767
+      },
+      "failedChecks": [],
+      "diagnostics": {
+        "relevantHits": [
+          "Python",
+          "SQL",
+          "data analysis"
+        ],
+        "blockedHits": [],
+        "queryTokenOverlap": [
+          "python",
+          "data",
+          "analysis"
+        ],
+        "sourceTypes": [
+          "cv",
+          "jd"
+        ]
+      }
+    },
+    {
+      "id": "paraphrased_skill_match",
+      "score": 1,
+      "subScores": {
+        "relevance": 0.67,
+        "blockedEvidence": 1,
+        "sourceCoverage": 1,
+        "degradedFallback": 1
+      },
+      "metrics": {
+        "coverageRate": 0.6667,
+        "citationAccuracy": 1,
+        "hallucinationRate": 0,
+        "adversarialPassRate": 0,
+        "agentDisagreementRate": 0.3333,
+        "successRate": 1,
+        "latency": 0.000107
+      },
+      "failedChecks": [],
+      "diagnostics": {
+        "relevantHits": [
+          "backend services",
+          "Express API"
+        ],
+        "blockedHits": [],
+        "queryTokenOverlap": [
+          "backend"
+        ],
+        "sourceTypes": [
+          "cv",
+          "jd"
+        ]
+      }
+    },
+    {
+      "id": "weak_evidence_not_upgraded",
+      "score": 0.8,
+      "subScores": {
+        "relevance": 1,
+        "blockedEvidence": 1,
+        "sourceCoverage": 1,
+        "degradedFallback": 1
+      },
+      "metrics": {
+        "coverageRate": 1,
+        "citationAccuracy": 1,
+        "hallucinationRate": 0,
+        "adversarialPassRate": 1,
+        "agentDisagreementRate": 0,
+        "successRate": 1,
+        "latency": 0.00007
+      },
+      "failedChecks": [
+        "query_has_some_overlap_or_timeout"
+      ],
+      "diagnostics": {
+        "relevantHits": [
+          "Vercel",
+          "Render",
+          "Node.js"
+        ],
+        "blockedHits": [
+          "Kubernetes",
+          "cloud-native engineering"
+        ],
+        "queryTokenOverlap": [],
+        "sourceTypes": [
+          "cv",
+          "jd"
+        ]
+      }
+    },
+    {
+      "id": "irrelevant_evidence_blocked",
+      "score": 1,
+      "subScores": {
+        "relevance": 1,
+        "blockedEvidence": 1,
+        "sourceCoverage": 1,
+        "degradedFallback": 1
+      },
+      "metrics": {
+        "coverageRate": 1,
+        "citationAccuracy": 1,
+        "hallucinationRate": 0,
+        "adversarialPassRate": 1,
+        "agentDisagreementRate": 0,
+        "successRate": 1,
+        "latency": 0.00009
+      },
+      "failedChecks": [],
+      "diagnostics": {
+        "relevantHits": [
+          "Vitest tests",
+          "React project"
+        ],
+        "blockedHits": [
+          "baking brownies",
+          "taking photos"
+        ],
+        "queryTokenOverlap": [
+          "software",
+          "testing"
+        ],
+        "sourceTypes": [
+          "cv",
+          "jd"
+        ]
+      }
+    },
+    {
+      "id": "cv_jd_gap_detected",
+      "score": 1,
+      "subScores": {
+        "relevance": 1,
+        "blockedEvidence": 1,
+        "sourceCoverage": 1,
+        "degradedFallback": 1
+      },
+      "metrics": {
+        "coverageRate": 1,
+        "citationAccuracy": 1,
+        "hallucinationRate": 0,
+        "adversarialPassRate": 1,
+        "agentDisagreementRate": 0,
+        "successRate": 1,
+        "latency": 0.000387
+      },
+      "failedChecks": [],
+      "diagnostics": {
+        "relevantHits": [
+          "Azure Speech",
+          "WebSocket"
+        ],
+        "blockedHits": [
+          "Azure cloud infrastructure",
+          "IAM",
+          "production monitoring"
+        ],
+        "queryTokenOverlap": [
+          "azure",
+          "cloud",
+          "infrastructure"
+        ],
+        "sourceTypes": [
+          "cv",
+          "jd"
+        ]
+      }
+    },
+    {
+      "id": "nz_guidance_only_when_needed",
+      "score": 1,
+      "subScores": {
+        "relevance": 1,
+        "blockedEvidence": 1,
+        "sourceCoverage": 1,
+        "degradedFallback": 1
+      },
+      "metrics": {
+        "coverageRate": 1,
+        "citationAccuracy": 1,
+        "hallucinationRate": 0,
+        "adversarialPassRate": 1,
+        "agentDisagreementRate": 0,
+        "successRate": 1,
+        "latency": 0.000101
+      },
+      "failedChecks": [],
+      "diagnostics": {
+        "relevantHits": [
+          "NZ interviews",
+          "collaboration",
+          "evidence-based answers"
+        ],
+        "blockedHits": [],
+        "queryTokenOverlap": [
+          "zealand"
+        ],
+        "sourceTypes": [
+          "cv",
+          "jd",
+          "nzGuide"
+        ]
+      }
+    },
+    {
+      "id": "star_example_retrieved_for_coaching",
+      "score": 1,
+      "subScores": {
+        "relevance": 1,
+        "blockedEvidence": 1,
+        "sourceCoverage": 1,
+        "degradedFallback": 1
+      },
+      "metrics": {
+        "coverageRate": 1,
+        "citationAccuracy": 1,
+        "hallucinationRate": 0,
+        "adversarialPassRate": 1,
+        "agentDisagreementRate": 0,
+        "successRate": 1,
+        "latency": 0.000043
+      },
+      "failedChecks": [],
+      "diagnostics": {
+        "relevantHits": [
+          "STAR",
+          "Result"
+        ],
+        "blockedHits": [],
+        "queryTokenOverlap": [
+          "star",
+          "answer"
+        ],
+        "sourceTypes": [
+          "transcript",
+          "starGuide"
+        ]
+      }
+    },
+    {
+      "id": "retrieval_timeout_degraded_fallback",
+      "score": 1,
+      "subScores": {
+        "relevance": 1,
+        "blockedEvidence": 1,
+        "sourceCoverage": 1,
+        "degradedFallback": 1
+      },
+      "metrics": {
+        "coverageRate": 1,
+        "citationAccuracy": 1,
+        "hallucinationRate": 0,
+        "adversarialPassRate": 1,
+        "agentDisagreementRate": 0,
+        "successRate": 1,
+        "latency": 0.000028
+      },
+      "failedChecks": [],
+      "diagnostics": {
+        "relevantHits": [],
+        "blockedHits": [],
+        "queryTokenOverlap": [],
+        "sourceTypes": []
+      }
+    }
+  ]
+}
