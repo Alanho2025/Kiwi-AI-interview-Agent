@@ -116,12 +116,14 @@ const intentCandidates = (rubric = {}) => {
   ];
 };
 
+const BOILERPLATE_INTENT_PATTERN = /^(?:why\s+you\s+should\s+care|why\s+work\s+for\s+us|why\s+join\s+us|what\s+we\s+offer|how\s+to\s+apply|about\s+the\s+company|about\s+us|apply\s+now|recruiter|save\s+job|share\s+this\s+job|work\s+type|posted\s+date|salary|location):?$/i;
+
 const buildRoleIntent = (rubric = {}) => {
   const seen = new Set();
   const items = intentCandidates(rubric).flatMap((candidate) => {
     const statement = normalizeText(candidate.statement);
     const key = statement.toLowerCase();
-    if (!statement || seen.has(key) || UNTRUSTED_INSTRUCTION_PATTERN.test(statement)) return [];
+    if (!statement || seen.has(key) || UNTRUSTED_INSTRUCTION_PATTERN.test(statement) || BOILERPLATE_INTENT_PATTERN.test(statement)) return [];
     seen.add(key);
     return [{
       id: stableId('intent', candidate.section, statement),

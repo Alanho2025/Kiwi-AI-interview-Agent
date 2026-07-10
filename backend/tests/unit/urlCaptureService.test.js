@@ -1,7 +1,26 @@
 import { describe, expect, it } from 'vitest';
-import { isBlockedIp, extractVisibleText, validateUrlForCapture } from '../../src/services/jobDescription/urlCaptureService.js';
+import { isBlockedIp, extractVisibleText, validateUrlForCapture, extractTargetedContainer } from '../../src/services/jobDescription/urlCaptureService.js';
 
 describe('urlCaptureService unit tests', () => {
+  describe('extractTargetedContainer', () => {
+    it('extracts SEEK job description block accurately', () => {
+      const html = '<div>Header</div><div data-automation="jobAdDetails"><div>Role Details</div></div><div>Footer</div>';
+      const container = extractTargetedContainer(html);
+      expect(container).toBe('<div data-automation="jobAdDetails"><div>Role Details</div></div>');
+    });
+
+    it('extracts Indeed job description block accurately', () => {
+      const html = '<div>Header</div><div id="jobDescriptionText">Role Details</div><div>Footer</div>';
+      const container = extractTargetedContainer(html);
+      expect(container).toBe('<div id="jobDescriptionText">Role Details</div>');
+    });
+
+    it('handles nested divs of the same tag correctly', () => {
+      const html = '<div>Header</div><div data-automation="jobAdDetails"><div>Nested <div>Deep</div></div></div><div>Footer</div>';
+      const container = extractTargetedContainer(html);
+      expect(container).toBe('<div data-automation="jobAdDetails"><div>Nested <div>Deep</div></div></div>');
+    });
+  });
   describe('isBlockedIp', () => {
     it('blocks loopback and private IPv4 addresses', () => {
       expect(isBlockedIp('127.0.0.1')).toBe(true);
@@ -37,7 +56,7 @@ describe('urlCaptureService unit tests', () => {
 
   describe('extractVisibleText', () => {
     it('removes scripts and styles and keeps text content', () => {
-      const html = '<html><head><style>body {color: red;}</style><script>alert(1);</script></head><body><h1>Hello World</h1><nav><ul><li>Home</li></ul></nav><main><p>This is a job description.</p></main><footer>Contact Us</footer></body></html>';
+      const html = '<html><head><style>body {color: red;}</style><script>alert(1);</script></head><body><nav><ul><li>Home</li></ul></nav><main><h1>Hello World</h1><p>This is a job description.</p></main><footer>Contact Us</footer></body></html>';
       const clean = extractVisibleText(html);
       expect(clean).toContain('Hello World');
       expect(clean).toContain('This is a job description.');

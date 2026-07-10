@@ -86,13 +86,67 @@ export const validateUrlForCapture = async (urlString) => {
   return parsedUrl.toString();
 };
 
+export const extractTargetedContainer = (html) => {
+  const targets = [
+    { attr: 'data-automation="jobAdDetails"', tag: 'div' },
+    { attr: 'id="jobDescriptionText"', tag: 'div' },
+    { attr: 'class="show-more-less-html__markup"', tag: 'div' },
+    { attr: 'class="description__text"', tag: 'div' },
+  ];
+
+  for (const { attr, tag } of targets) {
+    const attrIdx = html.indexOf(attr);
+    if (attrIdx === -1) continue;
+
+    // Find the opening tag start index before the attribute
+    const beforeAttr = html.slice(0, attrIdx);
+    const tagStartIdx = beforeAttr.lastIndexOf(`<${tag}`);
+    if (tagStartIdx === -1) continue;
+
+    // Now track nested tags starting from after `<tag`
+    let depth = 1;
+    let index = tagStartIdx + tag.length + 1;
+    const openTagStr = `<${tag}`;
+    const closeTagStr = `</${tag}>`;
+
+    while (depth > 0 && index < html.length) {
+      const nextOpen = html.indexOf(openTagStr, index);
+      const nextClose = html.indexOf(closeTagStr, index);
+
+      if (nextClose === -1) {
+        break; // Malformed HTML
+      }
+
+      if (nextOpen !== -1 && nextOpen < nextClose) {
+        depth++;
+        index = nextOpen + openTagStr.length;
+      } else {
+        depth--;
+        index = nextClose + closeTagStr.length;
+      }
+    }
+
+    if (depth === 0) {
+      return html.slice(tagStartIdx, index);
+    }
+  }
+
+  // Fallback to searching for `<main>` or `<article>`
+  const mainMatch = html.match(/<(main|article)[^>]*>([\s\S]*?)<\/\1>/i);
+  if (mainMatch) return mainMatch[0];
+
+  return html;
+};
+
 /**
  * Extracts visible text from raw HTML by removing scripts, styles, navigations, footers, etc.
  * @param {string} html 
  * @returns {string} Cleaned visible text
  */
 export const extractVisibleText = (html = '') => {
-  let text = html
+  const targetedHtml = extractTargetedContainer(html);
+
+  let text = targetedHtml
     .replace(/<script[^>]*>([\s\S]*?)<\/script>/gi, ' ')
     .replace(/<style[^>]*>([\s\S]*?)<\/style>/gi, ' ')
     .replace(/<nav[^>]*>([\s\S]*?)<\/nav>/gi, ' ')

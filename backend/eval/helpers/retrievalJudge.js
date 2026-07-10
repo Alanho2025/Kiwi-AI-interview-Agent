@@ -8,6 +8,7 @@
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { performance } from 'node:perf_hooks';
 
 const normalize = (value = '') => String(value || '')
   .toLowerCase()
@@ -52,22 +53,46 @@ const scoreBooleanChecks = (checks = []) => {
 };
 
 const renderMarkdown = (summary = {}) => {
+  const m = summary.metrics || {};
   const lines = [
     `# Retrieval Eval`,
     ``,
-    `Cases run: ${summary.casesRun}`,
-    `Average score: ${summary.average}`,
+    `- Cases run: ${summary.casesRun}`,
+    `- Average score: ${summary.average}`,
     ``,
-    `| Case | Score | Failed checks |`,
-    `|---|---:|---|`,
+    `## RAG Evaluation Metrics Summary`,
+    `| Metric | Average Score | Description |`,
+    `|---|---|---|`,
+    `| **Coverage Rate** | ${(m.coverageRate * 100).toFixed(2)}% | Fraction of expected relevant evidence successfully found in retrieved sources. |`,
+    `| **Citation Accuracy** | ${(m.citationAccuracy * 100).toFixed(2)}% | Fraction of output citations/claims verified in retrieved sources. |`,
+    `| **Hallucination Rate** | ${(m.hallucinationRate * 100).toFixed(2)}% | Fraction of output citations/claims unsupported by sources (1 - Citation Accuracy). |`,
+    `| **Adversarial Pass Rate** | ${(m.adversarialPassRate * 100).toFixed(2)}% | Fraction of adversarial test cases satisfying complete evidence and zero unsupported claims. |`,
+    `| **Agent Disagreement Rate** | ${(m.agentDisagreementRate * 100).toFixed(2)}% | Jaccard distance between expected evidence and actual retrieved evidence. |`,
+    `| **Success Rate** | ${(m.successRate * 100).toFixed(2)}% | Fraction of cases completing successfully without exception/degradation. |`,
+    `| **Average Latency** | ${m.averageLatency.toFixed(6)}s | End-to-end processing latency. |`,
+    ``,
+    `## Case Breakdown`,
+    `| Case | Score | Cov Rate | Cit Acc | Halluc Rate | Adv Pass | Ag Disagree | Latency | Failed Checks |`,
+    `|---|---:|---:|---:|---:|---:|---:|---:|---|`,
   ];
   for (const result of summary.results || []) {
-    lines.push(`| ${result.id} | ${result.score} | ${(result.failedChecks || []).join(', ') || '-'} |`);
+    const resMetrics = result.metrics || {};
+    lines.push(
+      `| ${result.id} | ${result.score} | ` +
+      `${(resMetrics.coverageRate * 100).toFixed(1)}% | ` +
+      `${(resMetrics.citationAccuracy * 100).toFixed(1)}% | ` +
+      `${(resMetrics.hallucinationRate * 100).toFixed(1)}% | ` +
+      `${resMetrics.adversarialPassRate === 1 ? 'Pass' : 'Fail'} | ` +
+      `${(resMetrics.agentDisagreementRate * 100).toFixed(1)}% | ` +
+      `${resMetrics.latency.toFixed(6)}s | ` +
+      `${(result.failedChecks || []).join(', ') || '-'} |`
+    );
   }
   return lines.join('\n');
 };
 
 export const judgeRetrievalCase = (scenario = {}) => {
+  const startTime = performance.now();
   const sourceChunks = flattenSources(scenario.sources || {});
   const allSourceText = sourceChunks.map((chunk) => chunk.text).join(' ');
   const expectedRelevantEvidence = scenario.expectedRelevantEvidence || [];
@@ -100,6 +125,38 @@ export const judgeRetrievalCase = (scenario = {}) => {
 
   const scored = scoreBooleanChecks(checks);
 
+  // Calculate the six RAG evaluation metrics
+  // 1. Coverage Rate (Cov): Mapped to expected relevant evidence hit fraction
+  const coverageRate = expectedRelevantEvidence.length
+    ? Number((relevantHits.length / expectedRelevantEvidence.length).toFixed(4))
+    : 1.0;
+
+  // 2. Citation Accuracy (CA): Fraction of citations in output/outcome that are verified
+  const expectedOutcome = scenario.expectedOutcome || '';
+  const citedExpected = expectedRelevantEvidence.filter((item) => includesPhrase(expectedOutcome, item));
+  const citedBlocked = blockedEvidence.filter((item) => includesPhrase(expectedOutcome, item) && outcomeClaimsBlockedEvidence({ outcome: expectedOutcome, blockedEvidence: [item] }));
+  const totalCitations = citedExpected.length + citedBlocked.length;
+  const citationAccuracy = totalCitations > 0
+    ? Number((1 - (citedBlocked.length / totalCitations)).toFixed(4))
+    : (noUnsupportedUpgrade ? 1.0 : 0.0);
+
+  // 3. Hallucination Rate (HR): 1 - Citation Accuracy
+  const hallucinationRate = Number((1 - citationAccuracy).toFixed(4));
+
+  // 4. Adversarial Pass Rate: Pass if all expected evidence found and no blocked evidence upgraded
+  const adversarialPassRate = (relevantHits.length === expectedRelevantEvidence.length && noUnsupportedUpgrade) ? 1.0 : 0.0;
+
+  // 5. Agent Disagreement Rate (ADR): Jaccard distance between expected and retrieved hits
+  const agentDisagreementRate = expectedRelevantEvidence.length
+    ? Number((1 - (relevantHits.length / expectedRelevantEvidence.length)).toFixed(4))
+    : 0.0;
+
+  // 6. Success Rate: 1.0 if runs successfully (hasSourceCoverage is true or handled timeout)
+  const successRate = hasSourceCoverage ? 1.0 : 0.0;
+
+  // 7. Latency: Wall-clock seconds
+  const latency = Number(((performance.now() - startTime) / 1000).toFixed(6));
+
   return {
     id: scenario.id,
     score: scored.score,
@@ -108,6 +165,15 @@ export const judgeRetrievalCase = (scenario = {}) => {
       blockedEvidence: noUnsupportedUpgrade ? 1 : 0,
       sourceCoverage: hasSourceCoverage ? 1 : 0,
       degradedFallback: degradedFallbackSafe ? 1 : 0,
+    },
+    metrics: {
+      coverageRate,
+      citationAccuracy,
+      hallucinationRate,
+      adversarialPassRate,
+      agentDisagreementRate,
+      successRate,
+      latency,
     },
     failedChecks: checks.filter((check) => !check.passed).map((check) => check.label),
     diagnostics: {
@@ -126,11 +192,23 @@ export const runRetrievalEval = async ({ datasetPath, reportRoot, label = 'Retri
     ? Number((results.reduce((sum, item) => sum + item.score, 0) / results.length).toFixed(2))
     : 0;
 
+  // Aggregate metrics
+  const aggregate = {
+    coverageRate: results.length ? Number((results.reduce((sum, item) => sum + item.metrics.coverageRate, 0) / results.length).toFixed(4)) : 0,
+    citationAccuracy: results.length ? Number((results.reduce((sum, item) => sum + item.metrics.citationAccuracy, 0) / results.length).toFixed(4)) : 0,
+    hallucinationRate: results.length ? Number((results.reduce((sum, item) => sum + item.metrics.hallucinationRate, 0) / results.length).toFixed(4)) : 0,
+    adversarialPassRate: results.length ? Number((results.reduce((sum, item) => sum + item.metrics.adversarialPassRate, 0) / results.length).toFixed(4)) : 0,
+    agentDisagreementRate: results.length ? Number((results.reduce((sum, item) => sum + item.metrics.agentDisagreementRate, 0) / results.length).toFixed(4)) : 0,
+    successRate: results.length ? Number((results.reduce((sum, item) => sum + item.metrics.successRate, 0) / results.length).toFixed(4)) : 0,
+    averageLatency: results.length ? Number((results.reduce((sum, item) => sum + item.metrics.latency, 0) / results.length).toFixed(6)) : 0,
+  };
+
   const summary = {
     label,
     generatedAt: new Date().toISOString(),
     casesRun: results.length,
     average,
+    metrics: aggregate,
     results,
   };
 

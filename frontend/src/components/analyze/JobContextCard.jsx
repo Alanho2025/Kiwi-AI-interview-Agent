@@ -58,16 +58,16 @@ const TechnicalGroups = ({ groups }) => {
   );
 };
 
-const EditableTextField = ({ label, value, onChange, placeholder = '' }) => (
+const EditableTextField = ({ label, value, onChange, placeholder = '', required = false }) => (
   <label className="block text-xs font-semibold text-muted">
-    {label}
+    {label} {required && <span className="text-red-500">*</span>}
     <input className={fieldClass} value={value || ''} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} />
   </label>
 );
 
-const EditableListField = ({ label, value = [], onChange, placeholder = '' }) => (
+const EditableListField = ({ label, value = [], onChange, placeholder = '', required = false }) => (
   <label className="block text-xs font-semibold text-muted">
-    {label}
+    {label} {required && <span className="text-red-500">*</span>}
     <textarea
       className={`${fieldClass} min-h-[92px] resize-y leading-5`}
       value={joinListText(value)}
@@ -78,9 +78,9 @@ const EditableListField = ({ label, value = [], onChange, placeholder = '' }) =>
   </label>
 );
 
-const EditableLongTextField = ({ label, value = '', onChange, placeholder = '' }) => (
+const EditableLongTextField = ({ label, value = '', onChange, placeholder = '', required = false }) => (
   <label className="block text-xs font-semibold text-muted">
-    {label}
+    {label} {required && <span className="text-red-500">*</span>}
     <textarea
       className={`${fieldClass} min-h-[92px] resize-y leading-5`}
       value={value}
@@ -194,15 +194,15 @@ const EditableJDReviewPanel = ({ rubric, onRubricChange }) => {
       </div>
 
       <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <EditableTextField label="Role title" value={overview.title || rubric?.title || ''} onChange={(value) => updateOverview('title', value)} />
-        <EditableTextField label="Company" value={overview.companyName || ''} onChange={(value) => updateOverview('companyName', value)} />
+        <EditableTextField label="Role title" required={true} value={overview.title || rubric?.title || ''} onChange={(value) => updateOverview('title', value)} />
+        <EditableTextField label="Company" required={true} value={overview.companyName || ''} onChange={(value) => updateOverview('companyName', value)} />
         <EditableTextField label="Location" value={overview.location || ''} onChange={(value) => updateOverview('location', value)} />
         <EditableTextField label="Employment type" value={overview.employmentType || ''} onChange={(value) => updateOverview('employmentType', value)} />
       </div>
 
       <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
-        <EditableListField label="Responsibilities" value={sections.responsibilities} onChange={(value) => updateSection('responsibilities', value)} />
-        <EditableListField label="Must-have requirements" value={sections.mustHaveRequirements} onChange={(value) => updateSection('mustHaveRequirements', value)} />
+        <EditableListField label="Responsibilities" required={true} value={sections.responsibilities} onChange={(value) => updateSection('responsibilities', value)} />
+        <EditableListField label="Must-have requirements" required={true} value={sections.mustHaveRequirements} onChange={(value) => updateSection('mustHaveRequirements', value)} />
         <EditableListField label="Nice-to-have requirements" value={sections.niceToHaveRequirements} onChange={(value) => updateSection('niceToHaveRequirements', value)} />
         <EditableListField label="Qualifications" value={sections.qualifications} onChange={(value) => updateSection('qualifications', value)} />
         <EditableListField label="Soft skills" value={sections.softSkills} onChange={(value) => updateSection('softSkills', value)} />
@@ -212,12 +212,14 @@ const EditableJDReviewPanel = ({ rubric, onRubricChange }) => {
       <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
         <EditableLongTextField
           label="Company understanding"
+          required={true}
           value={roleFit.companyUnderstanding?.summary || ''}
           onChange={updateCompanyUnderstanding}
           placeholder="Review the company context used for matching."
         />
         <EditableListField
           label="Role intent priorities"
+          required={true}
           value={(roleFit.roleIntent?.items || []).map((item) => item.statement)}
           onChange={updateRoleIntent}
           placeholder="One role intent per line."

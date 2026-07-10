@@ -33,6 +33,10 @@ const buildRoleFitReview = (roleFit = null, reviewStatus) => {
   const currentVersion = Math.max(1, Number(roleFit.review?.version) || 1);
   const isVerified = reviewStatus === 'verified';
 
+  if (isVerified && roleFit.review?.status === 'verified') {
+    return roleFit;
+  }
+
   return {
     ...roleFit,
     review: {

@@ -257,9 +257,12 @@ export function AnalyzePage() {
   const applyStructuredJD = (jdResponse, nextRawJD) => {
     setStructuredJD(jdResponse.structuredJD);
     setStructuredJDRubric(jdResponse.structuredJDRubric);
-    setSummarizedRawJD(nextRawJD);
+    setSummarizedRawJD(jdResponse.rawJD || nextRawJD);
     setJdHumanReviewedRawJD('');
     setJdReviewStatus('unreviewed');
+    if (jdResponse.rawJD) {
+      setRawJD(jdResponse.rawJD);
+    }
   };
 
   const restoreReadySessionAnalysis = useCallback((session) => {
@@ -519,6 +522,25 @@ export function AnalyzePage() {
   const handleConfirmJDSummary = async () => {
     if (!hasCurrentJDSummary) {
       setPageStatus(buildStatusMessage('error', 'Summarise current JD first', 'The JD text has changed. Summarise it again before confirming.'));
+      return;
+    }
+
+    // Validation check for required fields
+    const rubric = structuredJDRubric || {};
+    const overview = rubric.jobOverview || {};
+    const sections = rubric.sections || {};
+    const roleFit = rubric.roleFit || {};
+
+    const missingFields = [];
+    if (!String(overview.title || rubric.title || '').trim()) missingFields.push('Role title');
+    if (!String(overview.companyName || rubric.companyName || '').trim()) missingFields.push('Company');
+    if (!(sections.responsibilities || rubric.roleSummary || []).length) missingFields.push('Responsibilities');
+    if (!(sections.mustHaveRequirements || rubric.mustHaveRequirements || []).length) missingFields.push('Must-have requirements');
+    if (!String(roleFit.companyUnderstanding?.summary || '').trim()) missingFields.push('Company understanding');
+    if (!(roleFit.roleIntent?.items || []).length) missingFields.push('Role intent priorities');
+
+    if (missingFields.length > 0) {
+      setPageStatus(buildStatusMessage('error', 'Required fields missing', `Please fill in the following required fields before marking as reviewed: ${missingFields.join(', ')}.`));
       return;
     }
 

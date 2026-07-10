@@ -1,8 +1,17 @@
 {
   "label": "Retrieval Eval",
-  "generatedAt": "2026-06-02T20:48:45.430Z",
+  "generatedAt": "2026-07-10T05:00:40.221Z",
   "casesRun": 8,
   "average": 0.97,
+  "metrics": {
+    "coverageRate": 0.9583,
+    "citationAccuracy": 1,
+    "hallucinationRate": 0,
+    "adversarialPassRate": 0.875,
+    "agentDisagreementRate": 0.0417,
+    "successRate": 1,
+    "averageLatency": 0.000254
+  },
   "results": [
     {
       "id": "direct_skill_match",
@@ -12,6 +21,15 @@
         "blockedEvidence": 1,
         "sourceCoverage": 1,
         "degradedFallback": 1
+      },
+      "metrics": {
+        "coverageRate": 1,
+        "citationAccuracy": 1,
+        "hallucinationRate": 0,
+        "adversarialPassRate": 1,
+        "agentDisagreementRate": 0,
+        "successRate": 1,
+        "latency": 0.001602
       },
       "failedChecks": [],
       "diagnostics": {
@@ -41,6 +59,15 @@
         "sourceCoverage": 1,
         "degradedFallback": 1
       },
+      "metrics": {
+        "coverageRate": 0.6667,
+        "citationAccuracy": 1,
+        "hallucinationRate": 0,
+        "adversarialPassRate": 0,
+        "agentDisagreementRate": 0.3333,
+        "successRate": 1,
+        "latency": 0.000048
+      },
       "failedChecks": [],
       "diagnostics": {
         "relevantHits": [
@@ -65,6 +92,15 @@
         "blockedEvidence": 1,
         "sourceCoverage": 1,
         "degradedFallback": 1
+      },
+      "metrics": {
+        "coverageRate": 1,
+        "citationAccuracy": 1,
+        "hallucinationRate": 0,
+        "adversarialPassRate": 1,
+        "agentDisagreementRate": 0,
+        "successRate": 1,
+        "latency": 0.000039
       },
       "failedChecks": [
         "query_has_some_overlap_or_timeout"
@@ -95,6 +131,15 @@
         "sourceCoverage": 1,
         "degradedFallback": 1
       },
+      "metrics": {
+        "coverageRate": 1,
+        "citationAccuracy": 1,
+        "hallucinationRate": 0,
+        "adversarialPassRate": 1,
+        "agentDisagreementRate": 0,
+        "successRate": 1,
+        "latency": 0.00023
+      },
       "failedChecks": [],
       "diagnostics": {
         "relevantHits": [
@@ -123,6 +168,15 @@
         "blockedEvidence": 1,
         "sourceCoverage": 1,
         "degradedFallback": 1
+      },
+      "metrics": {
+        "coverageRate": 1,
+        "citationAccuracy": 1,
+        "hallucinationRate": 0,
+        "adversarialPassRate": 1,
+        "agentDisagreementRate": 0,
+        "successRate": 1,
+        "latency": 0.000037
       },
       "failedChecks": [],
       "diagnostics": {
@@ -155,6 +209,15 @@
         "sourceCoverage": 1,
         "degradedFallback": 1
       },
+      "metrics": {
+        "coverageRate": 1,
+        "citationAccuracy": 1,
+        "hallucinationRate": 0,
+        "adversarialPassRate": 1,
+        "agentDisagreementRate": 0,
+        "successRate": 1,
+        "latency": 0.000035
+      },
       "failedChecks": [],
       "diagnostics": {
         "relevantHits": [
@@ -182,6 +245,15 @@
         "sourceCoverage": 1,
         "degradedFallback": 1
       },
+      "metrics": {
+        "coverageRate": 1,
+        "citationAccuracy": 1,
+        "hallucinationRate": 0,
+        "adversarialPassRate": 1,
+        "agentDisagreementRate": 0,
+        "successRate": 1,
+        "latency": 0.000023
+      },
       "failedChecks": [],
       "diagnostics": {
         "relevantHits": [
@@ -207,6 +279,15 @@
         "blockedEvidence": 1,
         "sourceCoverage": 1,
         "degradedFallback": 1
+      },
+      "metrics": {
+        "coverageRate": 1,
+        "citationAccuracy": 1,
+        "hallucinationRate": 0,
+        "adversarialPassRate": 1,
+        "agentDisagreementRate": 0,
+        "successRate": 1,
+        "latency": 0.000015
       },
       "failedChecks": [],
       "diagnostics": {
