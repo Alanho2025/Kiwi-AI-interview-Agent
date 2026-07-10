@@ -104,6 +104,7 @@ export const validateInterviewPlan = (plan = {}) => ({
   questionPool: ensureArray(plan.questionPool),
   fallbackRules: isObject(plan.fallbackRules) ? plan.fallbackRules : {},
   settingsSnapshot: isObject(plan.settingsSnapshot) ? plan.settingsSnapshot : {},
+  roleFit: isObject(plan.roleFit) ? plan.roleFit : {},
 });
 
 export const validatePreparedQuestionPoolItem = (item = {}) => {

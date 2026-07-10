@@ -73,6 +73,7 @@ export function AnalyzePage() {
   const [analysisResult, setAnalysisResult] = useState(null);
   const [matchRate, setMatchRate] = useState(null);
   const [generatedSessionId, setGeneratedSessionId] = useState(null);
+  const [questionPoolInfo, setQuestionPoolInfo] = useState(null);
   const [isSummarizingJD, setIsSummarizingJD] = useState(false);
   const [isSavingCVReview, setIsSavingCVReview] = useState(false);
   const [deletingCvId, setDeletingCvId] = useState('');
@@ -210,6 +211,7 @@ export function AnalyzePage() {
     setAnalysisResult(null);
     setMatchRate(null);
     setGeneratedSessionId(null);
+    setQuestionPoolInfo(null);
   };
 
   const handleWorkflowStepChange = (stepId) => {
@@ -658,6 +660,7 @@ export function AnalyzePage() {
       });
 
       setGeneratedSessionId(planResponse.sessionId);
+      setQuestionPoolInfo(planResponse.questionPool);
       setAnalysisStatus('success');
       setActiveWorkflowStep(WORKFLOW_STEP_IDS.MATCH_RESULT);
       const modeLabel = sessionMode === 'voice' ? 'voice' : 'text';
@@ -756,6 +759,7 @@ export function AnalyzePage() {
                   status={analysisStatus}
                   matchRate={matchRate}
                   analysisResult={analysisResult}
+                  questionPoolInfo={questionPoolInfo}
                 />
               ) : null}
             </div>

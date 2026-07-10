@@ -19,7 +19,7 @@ import {
   titleCaseWords,
 } from './sessionShared.js';
 
-const sanitizeQuestionPoolForClient = (questionPool = []) => questionPool.map(({ sourceType, sourceId, matchedRequirementId, matchedSkill, cvEvidenceRefs, generationReason, confidence, planPriority, ...safeItem }) => safeItem);
+const sanitizeQuestionPoolForClient = (questionPool = []) => questionPool.map(({ sourceType, sourceId, matchedRequirementId, matchedSkill, cvEvidenceRefs, generationReason, confidence, planPriority, recommendedEvidenceIds, evidenceAngle, roleFitReason, ...safeItem }) => safeItem);
 const isNonEmptyObject = (value) => Boolean(value && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length);
 const buildAnalysisSetupCv = (cvDocument) => {
   if (!cvDocument) return null;

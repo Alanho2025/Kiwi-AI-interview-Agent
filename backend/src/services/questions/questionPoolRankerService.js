@@ -1,6 +1,8 @@
 import { ensureArray, normalizeKey } from '../../utils/commonHelpers.js';
 import { normalizeCategory } from './questionArtifactHelpers.js';
 import { buildQuestionHistory, filterNovelQuestionCandidates } from './questionDeduplicationService.js';
+import { trackInterviewCoverage } from './interviewCoverageContractService.js';
+import { getEvidenceUsageCounts } from './evidenceUsageLedgerService.js';
 
 const weight = (value, fallback = 0.5) => {
   const parsed = Number(value);
@@ -40,7 +42,16 @@ const computeTimeFit = (session = {}) => {
   return 0.5;
 };
 
-const scorePoolItem = ({ item, session, decisionContext, evaluatorState, actionInput, askedTopicKeys }) => {
+const scorePoolItem = ({ 
+  item, 
+  session, 
+  decisionContext, 
+  evaluatorState, 
+  actionInput, 
+  askedTopicKeys,
+  trackedMustCover = [],
+  evidenceCounts = {},
+}) => {
   const focusArea = decisionContext?.interviewStructure?.focusAreaKey || session?.settings?.focusArea || actionInput?.category || 'combined';
   const modeFit = computeModeFit(item, focusArea);
   const missingEvidenceFit = topicMatches(item.topic, decisionContext?.coverageState?.missingTopics)
@@ -54,6 +65,31 @@ const scorePoolItem = ({ item, session, decisionContext, evaluatorState, actionI
   const selectedTopicFit = actionInput?.targetTopic && topicMatches(item.topic, [actionInput.targetTopic]) ? 0.18 : 0;
   const validationFit = actionInput?.actionType === 'ASK_VALIDATION_QUESTION' && ['match_gap', 'match_validation'].includes(item.sourceStage) ? 0.2 : 0;
 
+  // Role-fit coverage boost
+  let roleIntentCoverageBoost = 0;
+  const unmetCoverage = trackedMustCover.find(cov => 
+    cov.status === 'pending' && 
+    (cov.coverageId === item.proofPointId || (cov.roleIntentId && ensureArray(item.testedRoleIntentIds).includes(cov.roleIntentId)))
+  );
+  if (unmetCoverage) {
+    roleIntentCoverageBoost = 0.25;
+  }
+
+  // Gap risk boost
+  let gapRiskBoost = 0;
+  if (item.sourceStage === 'match_gap' || item.coveragePriority === 'should_cover') {
+    gapRiskBoost = 0.20;
+  }
+
+  // Evidence overuse penalty
+  let evidenceOverusePenalty = 0;
+  ensureArray(item.recommendedEvidenceIds).forEach(evId => {
+    const count = evidenceCounts[evId] || 0;
+    if (count >= 2) {
+      evidenceOverusePenalty += 0.35 * (count - 1);
+    }
+  });
+
   const score = (
     weight(item.priorityWeight) * 0.30
     + weight(item.coverageWeight) * 0.20
@@ -64,8 +100,11 @@ const scorePoolItem = ({ item, session, decisionContext, evaluatorState, actionI
     + timeFit * 0.05
     + selectedTopicFit
     + validationFit
+    + roleIntentCoverageBoost
+    + gapRiskBoost
     - repetitionPenalty
     - answeredPenalty
+    - evidenceOverusePenalty
   );
 
   const reasons = [];
@@ -75,32 +114,39 @@ const scorePoolItem = ({ item, session, decisionContext, evaluatorState, actionI
   if (selectedTopicFit) reasons.push('matches_action_topic');
   if (validationFit) reasons.push('validation_action_fit');
   if (freshnessScore === 1) reasons.push('fresh_topic');
+  if (roleIntentCoverageBoost > 0) reasons.push('unmet_must_cover_boost');
+  if (gapRiskBoost > 0) reasons.push('gap_validation_boost');
+  
   if (repetitionPenalty) penalties.push('repeated_topic');
   if (answeredPenalty) penalties.push('already_asked');
   if (modeFit === 0) penalties.push(`mode_mismatch:${focusArea}`);
+  if (evidenceOverusePenalty > 0) penalties.push('evidence_overuse_penalty');
 
-  return {
-    ...item,
+  const rankTrace = {
+    questionId: item.questionId,
     score: Number(score.toFixed(3)),
     reasons,
     penalties,
     matchedSignals: [
       ...(missingEvidenceFit >= 1 ? ['missing_evidence_or_validation_target'] : []),
       ...(evaluatorState?.interactionStatus ? [`interaction:${evaluatorState.interactionStatus}`] : []),
+      ...(roleIntentCoverageBoost > 0 ? ['unmet_must_cover'] : []),
     ],
-    rankTrace: {
-      questionId: item.questionId,
-      score: Number(score.toFixed(3)),
-      reasons,
-      penalties,
-      matchedSignals: [
-        ...(missingEvidenceFit >= 1 ? ['missing_evidence_or_validation_target'] : []),
-        ...(evaluatorState?.interactionStatus ? [`interaction:${evaluatorState.interactionStatus}`] : []),
-      ],
-      sourceType: item.sourceType,
-      topic: item.topic,
-      category: item.category,
-    },
+    sourceType: item.sourceType,
+    topic: item.topic,
+    category: item.category,
+    proofPointId: item.proofPointId || '',
+    testedRoleIntentIds: item.testedRoleIntentIds || [],
+    recommendedEvidenceIds: item.recommendedEvidenceIds || [],
+  };
+
+  return {
+    ...item,
+    score: Number(score.toFixed(3)),
+    reasons,
+    penalties,
+    matchedSignals: rankTrace.matchedSignals,
+    rankTrace,
   };
 };
 
@@ -112,9 +158,33 @@ export const rankPreparedQuestionPool = ({ poolItems = [], session = {}, decisio
   const filterStartedAt = Date.now();
   const novelty = filterNovelQuestionCandidates({ candidates: poolItems, history });
   const candidateNoveltyFilterMs = Date.now() - filterStartedAt;
+
+  // Reconcile Role-Fit coverage and evidence ledger
+  const proofStrategy = session?.interviewPlan?.roleFit?.proofStrategy || {};
+  let trackedMustCover = [];
+  let evidenceCounts = {};
+  if (proofStrategy?.mustCover) {
+    trackedMustCover = trackInterviewCoverage({
+      proofStrategy,
+      transcript: session.transcript || [],
+      poolItems,
+    });
+    const ledger = getEvidenceUsageCounts({ transcript: session.transcript || [] });
+    evidenceCounts = ledger.evidenceCounts || {};
+  }
+
   const ranked = ensureArray(novelty.accepted)
     .filter((item) => item && item.status !== 'suppressed' && item.status !== 'expired')
-    .map((item) => scorePoolItem({ item, session, decisionContext, evaluatorState, actionInput, askedTopicKeys }))
+    .map((item) => scorePoolItem({ 
+      item, 
+      session, 
+      decisionContext, 
+      evaluatorState, 
+      actionInput, 
+      askedTopicKeys,
+      trackedMustCover,
+      evidenceCounts,
+    }))
     .sort((a, b) => b.score - a.score);
   ranked.rejectedCandidates = novelty.rejected;
   ranked.deduplication = { dedupeIndexBuildMs, candidateNoveltyFilterMs };

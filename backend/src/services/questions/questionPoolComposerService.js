@@ -1,10 +1,12 @@
 import { InterviewQuestionPoolItem } from '../../db/models/interviewQuestionPoolItemModel.js';
+import { CompanyValuesProfile } from '../../db/models/companyValuesProfileModel.js';
 import { ensureArray, normalizeKey, normalizeText } from '../../utils/commonHelpers.js';
 import { buildQuestionPoolFromAnalysis } from '../session/sessionShared.js';
 import { validatePreparedQuestionPool } from '../schemaValidationService.js';
 import { getCvQuestionSeeds } from './cvQuestionSeedService.js';
 import { getJdQuestionFilter } from './jdQuestionFilterService.js';
 import { buildAssessmentKey, buildQuestionFingerprint } from './questionDeduplicationService.js';
+import { addRoleFitMetadataToQuestionPool } from './roleSpecificPracticePlannerService.js';
 import {
   buildModeCompatibility,
   clampWeight,
@@ -143,6 +145,12 @@ const buildBaseItem = ({
     requirementCategory: rest.requirementCategory || '',
     capabilityGroup: rest.capabilityGroup || '',
     retentionUntil: questionRetentionDate(),
+    proofPointId: rest.proofPointId || '',
+    testedRoleIntentIds: ensureArray(rest.testedRoleIntentIds),
+    recommendedEvidenceIds: ensureArray(rest.recommendedEvidenceIds),
+    evidenceAngle: rest.evidenceAngle || '',
+    coveragePriority: rest.coveragePriority || '',
+    roleFitReason: rest.roleFitReason || '',
     ...rest,
   };
   return {
@@ -351,11 +359,12 @@ export const buildInterviewQuestionPoolItems = ({ userId, sessionId, cvFileId = 
 
 export const composeInterviewQuestionPool = async ({ userId, sessionId, cvFileId = null, matchAnalysisId = null, jdFingerprint = '', analysisResult = {}, settings = {} } = {}) => {
   if (!userId || !sessionId) return [];
-  const [cvSeeds, jdFilter] = await Promise.all([
+  const [cvSeeds, jdFilter, companyProfile] = await Promise.all([
     cvFileId ? getCvQuestionSeeds({ userId, cvFileId, status: 'active' }) : Promise.resolve([]),
     getJdQuestionFilter({ userId, matchAnalysisId, jdFingerprint }),
+    jdFingerprint ? CompanyValuesProfile.findOne({ userId: String(userId), jdFingerprint }).lean() : Promise.resolve(null),
   ]);
-  const items = buildInterviewQuestionPoolItems({
+  const rawItems = buildInterviewQuestionPoolItems({
     userId,
     sessionId,
     cvFileId,
@@ -366,6 +375,15 @@ export const composeInterviewQuestionPool = async ({ userId, sessionId, cvFileId
     cvSeeds,
     jdFilter,
   });
+
+  const roleEvidenceMap = analysisResult?.roleEvidenceMap || {};
+  const roleFitProfile = companyProfile?.roleFitProfile || {};
+  const items = addRoleFitMetadataToQuestionPool({
+    poolItems: rawItems,
+    roleEvidenceMap,
+    roleFitProfile,
+  });
+
   await InterviewQuestionPoolItem.deleteMany({ sessionId });
   if (!items.length) return [];
   await InterviewQuestionPoolItem.insertMany(items, { ordered: false });

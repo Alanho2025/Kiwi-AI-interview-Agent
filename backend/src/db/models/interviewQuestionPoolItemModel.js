@@ -51,6 +51,12 @@ const InterviewQuestionPoolItemSchema = new mongoose.Schema(
     rankTrace: { type: mongoose.Schema.Types.Mixed, default: {} },
     generationMethod: { type: String, default: 'deterministic' },
     metadata: { type: mongoose.Schema.Types.Mixed, default: {} },
+    proofPointId: { type: String, default: '' },
+    testedRoleIntentIds: { type: [String], default: [] },
+    recommendedEvidenceIds: { type: [String], default: [] },
+    evidenceAngle: { type: String, default: '' },
+    coveragePriority: { type: String, default: '' },
+    roleFitReason: { type: String, default: '' },
     retentionUntil: { type: Date },
   },
   { timestamps: true }
