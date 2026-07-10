@@ -21,7 +21,7 @@ import { AnalyzeActionsCard } from '../components/analyze/AnalyzeActionsCard.jsx
 import { AnalysisWorkflowShell } from '../components/analyze/AnalysisWorkflowShell.jsx';
 import { StatusBanner } from '../components/common/StatusBanner.jsx';
 import { uploadCV, getRecentCVs, selectCV, saveReviewedCvProfile, deleteCv } from '../api/uploadApi.js';
-import { paraphraseJD, matchCV, generateInterviewPlan, startCompanyValuesEnrichment } from '../api/analyzeApi.js';
+import { confirmRoleFitReview, paraphraseJD, matchCV, generateInterviewPlan, startCompanyValuesEnrichment } from '../api/analyzeApi.js';
 import { getSession } from '../api/sessionApi.js';
 import {
   DEFAULT_ANALYZE_MODE,
@@ -57,6 +57,8 @@ export function AnalyzePage() {
   const [recentCVs, setRecentCVs] = useState([]);
   const [selectedCV, setSelectedCV] = useState(null);
   const [rawJD, setRawJD] = useState('');
+  const [companyWebsiteUrl, setCompanyWebsiteUrl] = useState('');
+  const [userCompanyContext, setUserCompanyContext] = useState('');
   const [structuredJD, setStructuredJD] = useState('');
   const [structuredJDRubric, setStructuredJDRubric] = useState(null);
   const [summarizedRawJD, setSummarizedRawJD] = useState('');
@@ -85,6 +87,7 @@ export function AnalyzePage() {
     && voiceDeviceCheck?.mic?.status === 'ok'
     && voiceDeviceCheck?.speaker?.status === 'ok';
   const normalizedRawJD = normalizeJDText(rawJD);
+  const hasCompanyContext = Boolean(companyWebsiteUrl.trim() || userCompanyContext.trim());
   const hasCurrentJDSummary = Boolean(
     structuredJD
     && structuredJDRubric
@@ -208,6 +211,13 @@ export function AnalyzePage() {
     }
   };
 
+  const handleCompanyContextChange = (setter) => (value) => {
+    setter(value);
+    resetAnalysisState();
+    clearJDSummary();
+    setActiveWorkflowStep(WORKFLOW_STEP_IDS.JD_INPUT);
+  };
+
   const refreshRecentCVs = async () => {
     const updatedRecent = await getRecentCVs();
     setRecentCVs(updatedRecent);
@@ -239,6 +249,8 @@ export function AnalyzePage() {
     setCvHumanReviewedFileId(setup.cvHumanReviewedFileId || restoredSelectedCV?.id || session?.cvFileId || '');
     setCvReviewStatus(setup.cvReviewStatus || (restoredSelectedCV ? 'verified' : 'unreviewed'));
     setRawJD(restoredRawJD);
+    setCompanyWebsiteUrl(setup.companyWebsiteUrl || restoredRubric?.roleFit?.companyContext?.websiteUrl || '');
+    setUserCompanyContext(setup.userCompanyContext || restoredRubric?.roleFit?.companyContext?.manualContext || '');
     setStructuredJD(restoredStructuredJD);
     setStructuredJDRubric(restoredRubric);
     setSummarizedRawJD(setup.summarizedRawJD || restoredRawJD);
@@ -268,6 +280,8 @@ export function AnalyzePage() {
     setCvHumanReviewedFileId(restoredDraft.cvHumanReviewedFileId || '');
     setCvReviewStatus(restoredDraft.cvReviewStatus || 'unreviewed');
     setRawJD(restoredDraft.rawJD);
+    setCompanyWebsiteUrl(restoredDraft.companyWebsiteUrl || '');
+    setUserCompanyContext(restoredDraft.userCompanyContext || '');
     setStructuredJD(restoredDraft.structuredJD);
     setStructuredJDRubric(restoredDraft.structuredJDRubric);
     setSummarizedRawJD(restoredDraft.summarizedRawJD);
@@ -324,6 +338,8 @@ export function AnalyzePage() {
       cvHumanReviewedFileId,
       cvReviewStatus,
       rawJD,
+      companyWebsiteUrl,
+      userCompanyContext,
       structuredJD,
       structuredJDRubric,
       summarizedRawJD,
@@ -332,7 +348,7 @@ export function AnalyzePage() {
       settings,
       sessionMode,
     });
-  }, [selectedCV, structuredCVProfile, cvHumanReviewedFileId, cvReviewStatus, rawJD, structuredJD, structuredJDRubric, summarizedRawJD, jdHumanReviewedRawJD, jdReviewStatus, settings, sessionMode]);
+  }, [selectedCV, structuredCVProfile, cvHumanReviewedFileId, cvReviewStatus, rawJD, companyWebsiteUrl, userCompanyContext, structuredJD, structuredJDRubric, summarizedRawJD, jdHumanReviewedRawJD, jdReviewStatus, settings, sessionMode]);
 
   const handleUpload = async (file) => {
     try {
@@ -401,12 +417,16 @@ export function AnalyzePage() {
     if (!rawJD.trim()) {
       return;
     }
+    if (!hasCompanyContext) {
+      setPageStatus(buildStatusMessage('info', 'Add company context', 'Provide the company website or a short manual company context before summarising the JD.'));
+      return;
+    }
 
     setIsSummarizingJD(true);
     setAnalysisStatus('summarizing');
 
     try {
-      const jdResponse = await paraphraseJD(rawJD);
+      const jdResponse = await paraphraseJD({ rawJD, companyWebsiteUrl, userCompanyContext });
       applyStructuredJD(jdResponse, rawJD);
       setAnalysisStatus('idle');
       setActiveWorkflowStep(WORKFLOW_STEP_IDS.JD_REVIEW);
@@ -470,7 +490,24 @@ export function AnalyzePage() {
       return;
     }
 
-    const verifiedRubric = stampHumanReviewMetadata(structuredJDRubric, 'verified');
+    let verifiedRubric = stampHumanReviewMetadata(structuredJDRubric, 'verified');
+    if (verifiedRubric.roleFit?.jdFingerprint) {
+      try {
+        const confirmed = await confirmRoleFitReview({
+          jdFingerprint: verifiedRubric.roleFit.jdFingerprint,
+          baseVersion: verifiedRubric.roleFit.review?.baseVersion,
+          jdRubric: verifiedRubric,
+        });
+        verifiedRubric = {
+          ...verifiedRubric,
+          roleFit: confirmed.roleFit || verifiedRubric.roleFit,
+        };
+      } catch (error) {
+        setPageStatus(buildStatusMessage('error', 'JD review conflict', error.message || 'Re-summarise the JD and review the latest version.'));
+        return;
+      }
+    }
+
     setStructuredJDRubric(verifiedRubric);
     setStructuredJD(formatStructuredJobDescription(verifiedRubric));
     setJdHumanReviewedRawJD(rawJD);
@@ -627,6 +664,10 @@ export function AnalyzePage() {
                   <JobContextCard
                     rawJD={rawJD}
                     setRawJD={handleRawJDChange}
+                    companyWebsiteUrl={companyWebsiteUrl}
+                    setCompanyWebsiteUrl={handleCompanyContextChange(setCompanyWebsiteUrl)}
+                    userCompanyContext={userCompanyContext}
+                    setUserCompanyContext={handleCompanyContextChange(setUserCompanyContext)}
                     structuredJD={structuredJD}
                     structuredJDRubric={structuredJDRubric}
                     onStructuredJDRubricChange={handleStructuredJDRubricChange}

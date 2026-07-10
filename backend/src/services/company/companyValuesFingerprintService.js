@@ -14,6 +14,8 @@ export const buildCompanyValuesJdFingerprint = ({ rawJD = '', jdRubric = {} } = 
     overview.title || jdRubric?.title || jdRubric?.jobTitle || '',
     overview.companyName || '',
     overview.location || '',
+    jdRubric?.roleFit?.companyContext?.websiteUrl || '',
+    jdRubric?.roleFit?.companyContext?.manualContext || '',
   ].map(normalizeFingerprintText);
 
   return crypto

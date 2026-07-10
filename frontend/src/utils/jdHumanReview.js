@@ -28,12 +28,31 @@ const buildHumanReviewedSafeguard = (rubric = {}, reviewStatus) => {
   };
 };
 
+const buildRoleFitReview = (roleFit = null, reviewStatus) => {
+  if (!roleFit) return null;
+  const currentVersion = Math.max(1, Number(roleFit.review?.version) || 1);
+  const isVerified = reviewStatus === 'verified';
+
+  return {
+    ...roleFit,
+    review: {
+      ...(roleFit.review || {}),
+      status: reviewStatus,
+      baseVersion: isVerified ? currentVersion : Number(roleFit.review?.baseVersion) || 0,
+      version: isVerified ? currentVersion + 1 : currentVersion,
+      reviewedAt: isVerified ? new Date().toISOString() : null,
+    },
+  };
+};
+
 export const stampHumanReviewMetadata = (rubric, reviewStatus) => {
   const safeRubric = rubric || {};
   const reviewedSafeguard = buildHumanReviewedSafeguard(safeRubric, reviewStatus);
+  const reviewedRoleFit = buildRoleFitReview(safeRubric.roleFit, reviewStatus);
 
   return {
     ...safeRubric,
+    ...(reviewedRoleFit ? { roleFit: reviewedRoleFit } : {}),
     ...(reviewedSafeguard ? { safeguard: reviewedSafeguard } : {}),
     metadata: {
       ...(safeRubric.metadata || {}),

@@ -3,13 +3,18 @@ import { MatchAnalysisRecord } from '../../db/models/matchAnalysisRecordModel.js
 import { buildRetentionExpiry } from '../retention/retentionPolicy.js';
 
 const buildEvidenceRefs = (cvDocument, matchData) => {
-  const profileEvidence = (cvDocument.cvProfile?.evidenceMap || []).slice(0, 12).map((item) => ({
-    sourceType: 'cv_profile',
-    matchedSkill: item.label,
-    sourceSection: item.sourceSection,
-    sourceSnippet: item.sourceSnippet,
-    confidence: item.confidence,
-  }));
+  const profileEvidence = (matchData.roleEvidenceMap?.items || [])
+    .filter((item) => ['direct', 'adjacent'].includes(item.classification))
+    .flatMap((item) => (item.sourceEvidence || []).slice(0, 2).map((evidence) => ({
+      sourceType: 'cv_profile',
+      evidenceId: evidence.evidenceId,
+      matchedSkill: item.roleIntent,
+      sourceSection: evidence.sourceTrace?.section || '',
+      sourceSnippet: evidence.text || '',
+      confidence: Number(evidence.semanticScore || 0),
+      classification: item.classification,
+    })))
+    .slice(0, 12);
 
   const gapEvidence = (matchData.gaps || []).slice(0, 8).map((gap) => ({
     sourceType: 'match_gap',

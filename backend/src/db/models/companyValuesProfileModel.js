@@ -62,6 +62,15 @@ const CompanyValuesProfileSchema = new mongoose.Schema(
     mission: String,
     cultureNotes: [String],
 
+    roleFitProfile: { type: mongoose.Schema.Types.Mixed, default: null },
+    roleFitReviewVersion: { type: Number, default: 0 },
+    roleFitReviewStatus: {
+      type: String,
+      enum: ['unreviewed', 'edited', 'verified'],
+      default: 'unreviewed',
+    },
+    roleFitReviewedAt: Date,
+
     searchQueries: [String],
     searchResults: [SearchResultSchema],
     fetchedPages: [FetchedPageSchema],

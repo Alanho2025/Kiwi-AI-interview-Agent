@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import { buildCvProfile } from '../../../src/services/cv/cvProfileBuilderService.js';
+import { buildCvEvidenceProfile } from '../../../src/services/cv/cvEvidenceProfileBuilder.js';
 import { buildNormalizedCvProfile } from '../../../src/services/cv/cvProfileContractBuilder.js';
 import { normalizeCvEvidence } from '../../../src/services/cv/cvEvidenceNormalizer.js';
 import { buildCvDisplayView } from '../../../src/services/cv/cvDisplayViewService.js';
@@ -396,5 +397,42 @@ Python`);
       baseProfile: { candidateName: 'Alan Ho', sections: [] },
       reviewProfile: {},
     })).toThrow(/Missing CV review fields/i);
+  });
+
+  it('builds stable private evidence nodes with source trace and explicit signals', () => {
+    const projectSection = {
+      key: 'projects',
+      content: 'Delivery Portal\nBuilt REST APIs with Node.js and reduced reconciliation time by 35%.',
+    };
+    const firstProfile = buildCvEvidenceProfile({
+      candidateName: 'Ari Wong',
+      sections: [projectSection],
+      skills: [{ label: 'Node.js' }],
+    });
+    const shiftedProfile = buildCvEvidenceProfile({
+      candidateName: 'Ari Wong',
+      summary: 'Backend developer.',
+      sections: [{ key: 'personal_statement', content: 'Backend developer.' }, projectSection],
+      skills: [{ label: 'Node.js' }],
+    });
+    const firstProjectEvidence = firstProfile.evidenceItems.find((item) => /REST APIs/i.test(item.text));
+    const shiftedProjectEvidence = shiftedProfile.evidenceItems.find((item) => /REST APIs/i.test(item.text));
+
+    expect(firstProfile.schemaVersion).toBe('cv_evidence_profile_v2');
+    expect(firstProfile.accessScope).toBe('private');
+    expect(firstProjectEvidence.id).toBe(shiftedProjectEvidence.id);
+    expect(firstProjectEvidence.chunkId).toBe(shiftedProjectEvidence.chunkId);
+    expect(firstProjectEvidence.sourceTrace).toMatchObject({
+      section: 'projects',
+      sourceType: expect.stringMatching(/^project_/),
+    });
+    expect(firstProjectEvidence.rawSnippet).toMatch(/reduced reconciliation time by 35%/i);
+    expect(firstProjectEvidence.normalizedSummary).toMatch(/built rest apis/i);
+    expect(firstProjectEvidence.signals).toMatchObject({
+      responsibility: true,
+      outcome: true,
+      personalOwnership: true,
+    });
+    expect(firstProjectEvidence.signals.specificity).toBeGreaterThan(0.7);
   });
 });

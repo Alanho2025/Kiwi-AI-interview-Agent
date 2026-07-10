@@ -53,6 +53,7 @@ export const buildAnalyzeResult = ({
   cvEvidenceProfile = {},
   cvAnalysis = {},
   semanticEvidenceContext = {},
+  roleEvidenceMap = {},
 }) => {
   const confidence = calculateConfidence({ parsedCvProfile, macroScores, microScores, requirementChecks, cvEvidenceProfile });
   const decision = deriveDecision({ overallScore: scoreBreakdown.overallScore, confidence, hardGateFailed: hasHardGateFailure(requirementChecks) });
@@ -94,6 +95,7 @@ export const buildAnalyzeResult = ({
     evidenceStrengthBreakdown: semanticEvidenceContext.evidenceStrengthBreakdown || {},
     evidenceJudgements: semanticEvidenceContext.evidenceJudgements || {},
     universalRoleProfile: rubric.universalRoleProfile || rubric.metadata?.universalRoleProfile || null,
+    roleEvidenceMap,
     transitionProfile,
     scoreDimensions: {
       ...(scoreBreakdown.semanticDimensions || {}),
@@ -127,6 +129,7 @@ export const buildAnalyzeResult = ({
       },
       explanation,
       evidenceMap: [...strengths.map((item) => ({ type: 'strength', ...item })), ...gaps.map((item) => ({ type: 'gap', ...item }))],
+      roleEvidenceMap,
       sourceSnapshots: [{ sourceType: 'jd_rubric', title: rubric.title, criteriaCount: (rubric.microCriteria || []).length + (rubric.macroCriteria || []).length }],
       matchingDetails,
       legacy: {

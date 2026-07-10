@@ -78,12 +78,25 @@ const EditableListField = ({ label, value = [], onChange, placeholder = '' }) =>
   </label>
 );
 
+const EditableLongTextField = ({ label, value = '', onChange, placeholder = '' }) => (
+  <label className="block text-xs font-semibold text-muted">
+    {label}
+    <textarea
+      className={`${fieldClass} min-h-[92px] resize-y leading-5`}
+      value={value}
+      placeholder={placeholder}
+      onChange={(event) => onChange(event.target.value)}
+    />
+  </label>
+);
+
 const mapTechnicalGroupLabelsToObjects = (labels = []) => labels.map((label) => ({ label })).filter((item) => item.label);
 
 const EditableJDReviewPanel = ({ rubric, onRubricChange }) => {
   const sections = rubric?.sections || {};
   const overview = rubric?.jobOverview || {};
   const technicalSkills = sections.technicalSkills || {};
+  const roleFit = rubric?.roleFit || {};
 
   const patchRubric = (patcher) => {
     onRubricChange(patcher(rubric || {}));
@@ -125,6 +138,47 @@ const EditableJDReviewPanel = ({ rubric, onRubricChange }) => {
     }));
   };
 
+  const updateCompanyUnderstanding = (summary) => {
+    patchRubric((current) => ({
+      ...current,
+      roleFit: {
+        ...(current.roleFit || {}),
+        companyUnderstanding: {
+          ...(current.roleFit?.companyUnderstanding || {}),
+          summary,
+        },
+      },
+    }));
+  };
+
+  const updateRoleIntent = (statements) => {
+    patchRubric((current) => {
+      const existingItems = current.roleFit?.roleIntent?.items || [];
+      const items = statements.map((statement, index) => {
+        const existing = existingItems.find((item) => item.statement === statement) || existingItems[index];
+        return existing?.statement === statement
+          ? existing
+          : {
+              id: `intent:user-edit:${index + 1}`,
+              statement,
+              priority: existing?.priority || 'medium',
+              category: existing?.category || 'human_reviewed_intent',
+              sourceLabel: 'Human-reviewed role intent',
+              confidence: 1,
+              uncertainty: 'User-edited during JD review.',
+              sourceTrace: { sourceType: 'human_review', section: 'roleIntent', rawSnippet: statement },
+            };
+      });
+      return {
+        ...current,
+        roleFit: {
+          ...(current.roleFit || {}),
+          roleIntent: { ...(current.roleFit?.roleIntent || {}), items },
+        },
+      };
+    });
+  };
+
   const technicalGroupEntries = Object.entries(technicalSkills).length
     ? Object.entries(technicalSkills)
     : [['softwareDevelopment', []], ['data', []], ['aiMl', []], ['itInfrastructure', []]];
@@ -142,7 +196,6 @@ const EditableJDReviewPanel = ({ rubric, onRubricChange }) => {
       <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
         <EditableTextField label="Role title" value={overview.title || rubric?.title || ''} onChange={(value) => updateOverview('title', value)} />
         <EditableTextField label="Company" value={overview.companyName || ''} onChange={(value) => updateOverview('companyName', value)} />
-        <EditableTextField label="Company website URL (optional)" value={overview.companyWebsiteUrl || ''} onChange={(value) => updateOverview('companyWebsiteUrl', value)} placeholder="https://example.com" />
         <EditableTextField label="Location" value={overview.location || ''} onChange={(value) => updateOverview('location', value)} />
         <EditableTextField label="Employment type" value={overview.employmentType || ''} onChange={(value) => updateOverview('employmentType', value)} />
       </div>
@@ -154,6 +207,21 @@ const EditableJDReviewPanel = ({ rubric, onRubricChange }) => {
         <EditableListField label="Qualifications" value={sections.qualifications} onChange={(value) => updateSection('qualifications', value)} />
         <EditableListField label="Soft skills" value={sections.softSkills} onChange={(value) => updateSection('softSkills', value)} />
         <EditableListField label="Benefits" value={sections.benefits} onChange={(value) => updateSection('benefits', value)} />
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+        <EditableLongTextField
+          label="Company understanding"
+          value={roleFit.companyUnderstanding?.summary || ''}
+          onChange={updateCompanyUnderstanding}
+          placeholder="Review the company context used for matching."
+        />
+        <EditableListField
+          label="Role intent priorities"
+          value={(roleFit.roleIntent?.items || []).map((item) => item.statement)}
+          onChange={updateRoleIntent}
+          placeholder="One role intent per line."
+        />
       </div>
 
       <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -221,6 +289,10 @@ const AnalysisStatusBlock = ({
 export function JobContextCard({
   rawJD,
   setRawJD,
+  companyWebsiteUrl = '',
+  setCompanyWebsiteUrl,
+  userCompanyContext = '',
+  setUserCompanyContext,
   structuredJD,
   structuredJDRubric,
   onStructuredJDRubricChange,
@@ -253,7 +325,23 @@ export function JobContextCard({
           </div>
         </div>
 
-        <Button variant="secondary" onClick={onSummarize} disabled={!rawJD.trim() || isSummarizing} className="flex w-full items-center justify-center gap-2">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <EditableTextField
+            label="Company website URL"
+            value={companyWebsiteUrl}
+            onChange={setCompanyWebsiteUrl}
+            placeholder="https://company.example"
+          />
+          <EditableLongTextField
+            label="Manual company context"
+            value={userCompanyContext}
+            onChange={setUserCompanyContext}
+            placeholder="Add a short company summary when no website is available."
+          />
+        </div>
+        <p className="text-xs text-faint">Provide either a company website or manual company context.</p>
+
+        <Button variant="secondary" onClick={onSummarize} disabled={!rawJD.trim() || (!companyWebsiteUrl.trim() && !userCompanyContext.trim()) || isSummarizing} className="flex w-full items-center justify-center gap-2">
           {isSummarizing ? <><Loader2 className="h-4 w-4 animate-spin" /> Summarising...</> : <><FileText className="h-4 w-4" /> Summarise JD</>}
         </Button>
 

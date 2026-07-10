@@ -1,4 +1,5 @@
 import { CompanyValuesProfile } from '../../db/models/companyValuesProfileModel.js';
+import { conflict } from '../../utils/appError.js';
 
 const terminalStatuses = new Set(['ready', 'fallback', 'failed']);
 
@@ -84,4 +85,83 @@ export const attachCompanyValuesProfileToSession = async ({ userId, jdFingerprin
     { $set: { sessionId } },
     { new: true }
   ).lean();
+};
+
+export const saveCompanyRoleFitDraft = async ({ userId, jdFingerprint, roleFitProfile } = {}) => {
+  if (!userId || !jdFingerprint || !roleFitProfile) return null;
+  const version = Math.max(1, Number(roleFitProfile.review?.version) || 1);
+  return CompanyValuesProfile.findOneAndUpdate(
+    { userId: String(userId), jdFingerprint },
+    {
+      $set: {
+        userId: String(userId),
+        jdFingerprint,
+        roleFitProfile,
+        roleFitReviewVersion: version,
+        roleFitReviewStatus: roleFitProfile.review?.status || 'unreviewed',
+      },
+    },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  ).lean();
+};
+
+export const confirmCompanyRoleFitReview = async ({
+  userId,
+  jdFingerprint,
+  baseVersion,
+  roleFitProfile,
+} = {}) => {
+  const expectedVersion = Number(baseVersion);
+  const nextVersion = expectedVersion + 1;
+  if (!userId || !jdFingerprint || !Number.isInteger(expectedVersion) || expectedVersion < 1 || !roleFitProfile) {
+    throw conflict('Role-fit review conflict', 'The role-fit review version is missing or stale. Re-summarise the JD before confirming.');
+  }
+
+  const reviewedAt = new Date();
+  const reviewedProfile = {
+    ...roleFitProfile,
+    review: {
+      ...(roleFitProfile.review || {}),
+      status: 'verified',
+      baseVersion: expectedVersion,
+      version: nextVersion,
+      reviewedAt: reviewedAt.toISOString(),
+    },
+  };
+  const updated = await CompanyValuesProfile.findOneAndUpdate(
+    { userId: String(userId), jdFingerprint, roleFitReviewVersion: expectedVersion },
+    {
+      $set: {
+        roleFitProfile: reviewedProfile,
+        roleFitReviewVersion: nextVersion,
+        roleFitReviewStatus: 'verified',
+        roleFitReviewedAt: reviewedAt,
+      },
+    },
+    { new: true }
+  ).lean();
+
+  if (!updated) {
+    throw conflict('Role-fit review conflict', 'This JD understanding changed in another request. Re-summarise it before confirming.');
+  }
+  return updated;
+};
+
+export const assertVerifiedCompanyRoleFitReview = async ({
+  userId,
+  jdFingerprint,
+  reviewVersion,
+  roleFitProfileId,
+} = {}) => {
+  const profile = await getCompanyValuesProfileByFingerprint({ userId, jdFingerprint });
+  const isVerified = profile?.roleFitReviewStatus === 'verified';
+  const versionMatches = Number(profile?.roleFitReviewVersion) === Number(reviewVersion);
+  const identityMatches = Boolean(roleFitProfileId && profile?.roleFitProfile?.id === roleFitProfileId);
+  if (!isVerified || !versionMatches || !identityMatches) {
+    throw conflict(
+      'Role-fit review conflict',
+      'The verified company and role understanding is missing or stale. Re-summarise and confirm the JD before matching.'
+    );
+  }
+  return profile;
 };

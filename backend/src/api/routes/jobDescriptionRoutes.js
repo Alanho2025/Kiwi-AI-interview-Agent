@@ -10,11 +10,12 @@
  */
 
 import express from 'express';
-import { paraphraseJD, startCompanyValuesForReviewedJD } from '../../controllers/jobDescriptionController.js';
+import { confirmRoleFitReview, paraphraseJD, startCompanyValuesForReviewedJD } from '../../controllers/jobDescriptionController.js';
 
 const router = express.Router();
 
 router.post('/paraphrase', paraphraseJD);
+router.put('/role-fit/reviews/:jdFingerprint', confirmRoleFitReview);
 router.post('/company-values/enrichment', startCompanyValuesForReviewedJD);
 
 export default router;

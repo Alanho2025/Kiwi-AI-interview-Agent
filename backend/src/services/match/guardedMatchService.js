@@ -42,6 +42,54 @@ const isHumanReviewedJd = (jdRubric = {}) =>
   || jdRubric?.diagnostics?.humanReviewStatus === 'verified'
   || jdRubric?.metadata?.inputTrustLevel === 'human_reviewed';
 
+const isVerifiedRoleFit = (jdRubric = {}) => Boolean(
+  jdRubric.roleFit?.companyContext?.status === 'ready'
+  && jdRubric.roleFit?.review?.status === 'verified'
+);
+
+const attachCompatibility = (matchResult = {}, compatibility = null) => {
+  if (!compatibility) return matchResult;
+  return {
+    ...matchResult,
+    matchingDetails: {
+      ...(matchResult.matchingDetails || {}),
+      compatibility,
+    },
+  };
+};
+
+const buildRoleFitBlockedResult = (jdRubric = {}) => ({
+  schemaVersion: 'v3',
+  candidateName: 'Candidate',
+  jobTitle: jdRubric.title || jdRubric.jobTitle || 'Target Role',
+  overallScore: 0,
+  matchScore: 0,
+  confidence: 0,
+  decision: { label: 'manual_review', reasonCodes: ['role_fit_review_required'] },
+  parsedCvProfile: {},
+  parsedJdProfile: jdRubric,
+  macroScores: [],
+  microScores: [],
+  requirementChecks: [],
+  scoreBreakdown: {},
+  explanation: {
+    strengths: [],
+    gaps: [],
+    risks: [{ label: 'Review company and role understanding before matching.', evidence: [], detail: 'The role-fit draft has not been verified.' }],
+    summary: 'Review company and role understanding before matching.',
+  },
+  evidenceMap: [],
+  roleEvidenceMap: {},
+  sourceSnapshots: [],
+  strengths: [],
+  gaps: [],
+  riskFlags: ['Review company and role understanding before matching.'],
+  interviewFocus: [],
+  planPreview: 'Verify the role-fit draft before matching.',
+  matchingDetails: {},
+  cache: { hit: false, skipped: true, reason: 'role_fit_review_required' },
+});
+
 const buildHumanReviewedRubric = (jdRubric = {}, originalSafeguard = {}) => {
   const reviewedSafeguard = {
     ...originalSafeguard,
@@ -109,6 +157,12 @@ const runFreshSafeguardedMatch = async ({ cvInput, rawJD, humanReviewedJdRubric,
 
 export const compareCvToJobDescriptionWithSafeguard = async (cvInput, rawJD, jdRubric, settings = {}) => {
   const userId = settings.userId || cvInput?.userId || '';
+  if (jdRubric?.roleFit && !isVerifiedRoleFit(jdRubric)) {
+    return buildRoleFitBlockedResult(jdRubric);
+  }
+  const compatibility = !jdRubric?.roleFit && isHumanReviewedJd(jdRubric)
+    ? { roleFit: 'legacy_reviewed_jd' }
+    : null;
   const jdSafeguard = getJdSafeguard(jdRubric);
   const isJdMatchBlocked = Boolean(jdSafeguard.blockMatch);
   const humanReviewedJdRubric = isJdMatchBlocked && isHumanReviewedJd(jdRubric)
@@ -156,16 +210,16 @@ export const compareCvToJobDescriptionWithSafeguard = async (cvInput, rawJD, jdR
   });
   const cachedMatch = await readMatchArtifactCache({ userId, cacheKey: cacheIdentity.cacheKey, settings });
   if (cachedMatch) {
-    return cachedMatch;
+    return attachCompatibility(cachedMatch, compatibility);
   }
 
-  const freshMatch = await runFreshSafeguardedMatch({
+  const freshMatch = attachCompatibility(await runFreshSafeguardedMatch({
     cvInput,
     rawJD,
     humanReviewedJdRubric,
     settings,
     reviewedJdSafeguard,
-  });
+  }), compatibility);
 
   await Promise.allSettled([
     writeMatchArtifactCache({ userId, identity: cacheIdentity, matchResult: freshMatch, settings }),

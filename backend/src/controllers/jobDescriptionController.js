@@ -21,11 +21,54 @@ import { resolveUserFromRequest } from '../services/authService.js';
 import { recordLocalUsage } from '../services/aiUsageTrackingService.js';
 import { extractCompanyValuesContextFromJd } from '../services/company/companyValuesFingerprintService.js';
 import { startCompanyValuesEnrichment } from '../services/company/companyValuesEnrichmentService.js';
+import { buildRoleFitProfile, validateRoleFitReviewInput } from '../services/jobDescription/roleFitProfileBuilder.js';
+import { badRequest } from '../utils/appError.js';
+import {
+  confirmCompanyRoleFitReview,
+  saveCompanyRoleFitDraft,
+} from '../services/company/companyValuesRepository.js';
 
 export const paraphraseJD = asyncHandler(async (req, res) => {
   const rawJD = requireBodyField(req, 'rawJD', 'Please provide raw job description text');
   const user = await resolveUserFromRequest(req);
-  const structuredJDRubric = await buildGuardedStructuredJobDescriptionRubric(rawJD);
+  const companyWebsiteUrl = String(req.body?.companyWebsiteUrl || '').trim();
+  const userCompanyContext = String(req.body?.userCompanyContext || '').trim();
+  const parsedRubric = await buildGuardedStructuredJobDescriptionRubric(rawJD);
+  const roleFit = buildRoleFitProfile({ rawJD, rubric: parsedRubric, companyWebsiteUrl, userCompanyContext });
+  if (roleFit.companyContext.status !== 'ready') {
+    throw badRequest(
+      'Missing company context',
+      'Provide a valid company website URL or manual company context before summarising the JD.',
+      { securityFlags: roleFit.securityFlags }
+    );
+  }
+  const draftRubric = {
+    ...parsedRubric,
+    jobOverview: {
+      ...(parsedRubric.jobOverview || {}),
+      ...(roleFit.companyContext.websiteUrl ? { companyWebsiteUrl: roleFit.companyContext.websiteUrl } : {}),
+    },
+    roleFit,
+  };
+  const { jdFingerprint } = extractCompanyValuesContextFromJd({
+    rawJD,
+    jdRubric: draftRubric,
+    companyWebsiteUrl: roleFit.companyContext.websiteUrl,
+  });
+  const roleFitWithIdentity = { ...roleFit, jdFingerprint };
+  const structuredJDRubric = {
+    ...draftRubric,
+    roleFit: roleFitWithIdentity,
+    metadata: {
+      ...(draftRubric.metadata || {}),
+      jdFingerprint,
+    },
+  };
+  await saveCompanyRoleFitDraft({
+    userId: user.id,
+    jdFingerprint,
+    roleFitProfile: roleFitWithIdentity,
+  });
   const structuredJD = formatStructuredJobDescription(structuredJDRubric);
   await recordLocalUsage({
     userId: user.id,
@@ -46,6 +89,42 @@ export const paraphraseJD = asyncHandler(async (req, res) => {
     structuredJD,
     structuredJDRubric,
     safeguard: structuredJDRubric.safeguard,
+  }));
+});
+
+export const confirmRoleFitReview = asyncHandler(async (req, res) => {
+  const user = await resolveUserFromRequest(req);
+  const jdFingerprint = String(req.params?.jdFingerprint || '').trim();
+  const roleFitProfile = req.body?.roleFit || req.body?.jdRubric?.roleFit;
+  const baseVersion = Number(req.body?.baseVersion);
+  if (!jdFingerprint || !roleFitProfile) {
+    throw badRequest('Missing role-fit review', 'A JD fingerprint and role-fit draft are required.');
+  }
+  const validation = validateRoleFitReviewInput(roleFitProfile);
+  if (!validation.valid) {
+    throw badRequest(
+      'Invalid role-fit review',
+      'Review edits contain missing or unsafe company and role context.',
+      { errorCodes: validation.errorCodes }
+    );
+  }
+
+  const saved = await confirmCompanyRoleFitReview({
+    userId: user.id,
+    jdFingerprint,
+    baseVersion,
+    roleFitProfile,
+  });
+
+  logger.info('Role-fit JD review confirmed', getRequestLogMeta(req, {
+    jdFingerprint,
+    reviewVersion: saved?.roleFitReviewVersion,
+  }));
+
+  res.json(formatSuccess('Role-fit review confirmed', {
+    jdFingerprint,
+    roleFit: saved?.roleFitProfile || roleFitProfile,
+    reviewVersion: saved?.roleFitReviewVersion || baseVersion + 1,
   }));
 });
 

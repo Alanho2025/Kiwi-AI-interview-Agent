@@ -8,6 +8,13 @@ const EVIDENCE_STRENGTH_RANK = { strong: 3, partial: 2, weak: 1, missing: 0 };
 
 const buildRequirementCandidates = (rubric = {}) => {
   const candidates = [
+    ...(rubric.roleFit?.roleIntent?.items || []).map((item) => ({
+      id: item.id || `role-intent:${normalizeTaxonomyLabel(item.statement)}`,
+      label: item.statement,
+      text: item.statement,
+      category: item.category || 'role_intent',
+      sourceType: 'role_intent',
+    })),
     ...(rubric.universalRoleProfile?.requirements || []).map((item) => ({
       id: item.id || `universal:${normalizeTaxonomyLabel(item.text || item.label)}`,
       label: item.text || item.label,
@@ -44,16 +51,20 @@ const buildEvidenceCandidates = (evidenceProfile = {}) => {
       domain: item.domain || '',
       responsibilitySignal: Boolean(item.responsibilitySignal),
       achievementSignal: Boolean(item.achievementSignal),
+      sourceTrace: item.sourceTrace || null,
+      signals: item.signals || {},
     }))
     .filter((item) => item.text.trim());
 };
 
-const toMatchMap = (ranked = {}) => {
+const toMatchMap = (ranked = {}, evidence = []) => {
   const byLabel = {};
+  const evidenceById = new Map(evidence.flatMap((item) => [[item.id, item], [item.chunkId, item]]));
   const matches = (ranked.matches || []).map((item) => {
     const filteredMatches = (item.matches || [])
       .filter((match) => Number(match.score) >= SCORE_FLOOR)
       .map((match) => ({
+        ...(evidenceById.get(match.evidenceId || match.id || match.chunkId) || {}),
         ...match,
         score: Number(Number(match.score || 0).toFixed(4)),
       }))
@@ -89,7 +100,7 @@ export const buildSemanticEvidenceContext = async ({ rubric = {}, evidenceProfil
     ? null
     : await rankEvidenceWithSentenceTransformers({ requirements, evidence, topK: TOP_K });
   const ranked = pythonRanked || await rankSemanticEvidence({ requirements, evidence, topK: TOP_K, minScore: SCORE_FLOOR });
-  const { byLabel, matches } = toMatchMap(ranked);
+  const { byLabel, matches } = toMatchMap(ranked, evidence);
 
   return {
     model: ranked.model,

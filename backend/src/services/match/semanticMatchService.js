@@ -72,6 +72,8 @@ const rankFromVectors = ({ requirements = [], evidence = [], requirementVectors 
           domain: item.domain || '',
           responsibilitySignal: Boolean(item.responsibilitySignal),
           achievementSignal: Boolean(item.achievementSignal),
+          sourceTrace: item.sourceTrace || null,
+          signals: item.signals || {},
           score: Math.max(cosine, overlap),
         };
       })

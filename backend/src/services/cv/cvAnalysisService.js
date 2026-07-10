@@ -1,6 +1,7 @@
 import { badRequest } from '../../utils/appError.js';
 import { compareCvToJobDescriptionWithSafeguard } from '../match/guardedMatchService.js';
 import { getOwnedCvDocumentOrThrow } from './cvOwnershipService.js';
+import { assertVerifiedCompanyRoleFitReview } from '../company/companyValuesRepository.js';
 
 export const runCvJdMatchAnalysis = async ({ cvId, userId, rawJD, jdRubric, settings = {} }) => {
   if (!cvId) {
@@ -9,6 +10,15 @@ export const runCvJdMatchAnalysis = async ({ cvId, userId, rawJD, jdRubric, sett
 
   if (!rawJD && !jdRubric) {
     throw badRequest('Missing JD input', 'A raw job description or parsed JD rubric is required.');
+  }
+
+  if (jdRubric?.roleFit) {
+    await assertVerifiedCompanyRoleFitReview({
+      userId,
+      jdFingerprint: jdRubric.roleFit.jdFingerprint,
+      reviewVersion: jdRubric.roleFit.review?.version,
+      roleFitProfileId: jdRubric.roleFit.id,
+    });
   }
 
   const cvDocument = await getOwnedCvDocumentOrThrow({ cvId, userId });
