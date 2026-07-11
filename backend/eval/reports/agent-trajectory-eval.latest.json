@@ -2,7 +2,7 @@
   "schemaVersion": "trajectory_eval_report_v1",
   "datasetVersion": "role-fit-trajectory-v1",
   "configFingerprint": "sha256:b06adde605043e3327be500c710a480dc27495159b28f978aafac468dde288ef",
-  "generatedAt": "2026-07-10T22:08:37.032Z",
+  "generatedAt": "2026-07-11T05:17:29.486Z",
   "casesRun": 5,
   "average": 1,
   "metrics": {
@@ -99,7 +99,7 @@
         "domain": "interview",
         "risk": "high"
       },
-      "latencyMs": 1.5355,
+      "latencyMs": 1.8062,
       "terminalCondition": null,
       "metrics": {
         "actionSelectionAccuracy": 1,
@@ -120,8 +120,8 @@
         "terminalCondition": null
       },
       "trajectoryRecord": {
-        "trajectoryId": "8f7c2352-4cc3-4174-8b8f-3a788c735ed6",
-        "createdAt": "2026-07-10T22:08:37.030Z",
+        "trajectoryId": "3e14fa39-3e32-4e0a-a070-6f51a680d2e1",
+        "createdAt": "2026-07-11T05:17:29.484Z",
         "sessionId": "eval-vague_answer_requires_probe",
         "section": "technical_core",
         "sectionKey": null,
@@ -213,7 +213,7 @@
         "domain": "repair",
         "risk": "high"
       },
-      "latencyMs": 0.0565,
+      "latencyMs": 0.0493,
       "terminalCondition": null,
       "metrics": {
         "actionSelectionAccuracy": 1,
@@ -235,8 +235,8 @@
         "terminalCondition": null
       },
       "trajectoryRecord": {
-        "trajectoryId": "ac5f67e1-510c-4c5c-9f55-c1ff672ffb35",
-        "createdAt": "2026-07-10T22:08:37.031Z",
+        "trajectoryId": "bdd60ce1-ca00-4390-b054-a105f0c0221d",
+        "createdAt": "2026-07-11T05:17:29.485Z",
         "sessionId": "eval-misunderstanding_requires_rephrase",
         "section": "technical_core",
         "sectionKey": null,
@@ -327,7 +327,7 @@
         "domain": "coverage",
         "risk": "medium"
       },
-      "latencyMs": 0.0474,
+      "latencyMs": 0.0284,
       "terminalCondition": null,
       "metrics": {
         "actionSelectionAccuracy": 1,
@@ -351,8 +351,8 @@
         "terminalCondition": null
       },
       "trajectoryRecord": {
-        "trajectoryId": "611c04ae-753b-4d22-9103-58f146c515ee",
-        "createdAt": "2026-07-10T22:08:37.031Z",
+        "trajectoryId": "34345b1c-d5fc-449e-b5db-fa481e95f48c",
+        "createdAt": "2026-07-11T05:17:29.485Z",
         "sessionId": "eval-fresh_anchor_uses_pool",
         "section": "technical_core",
         "sectionKey": null,
@@ -432,7 +432,7 @@
         "domain": "state_transition",
         "risk": "high"
       },
-      "latencyMs": 0.0348,
+      "latencyMs": 0.112,
       "terminalCondition": "interview_stage_wrap",
       "metrics": {
         "actionSelectionAccuracy": 1,
@@ -454,8 +454,8 @@
         "terminalCondition": "interview_stage_wrap"
       },
       "trajectoryRecord": {
-        "trajectoryId": "536bf6f5-3623-4e7f-b9d2-6479cf81d87b",
-        "createdAt": "2026-07-10T22:08:37.031Z",
+        "trajectoryId": "b8932330-a143-40cd-a3c5-ed02242a3349",
+        "createdAt": "2026-07-11T05:17:29.485Z",
         "sessionId": "eval-final_turn_wraps_stage",
         "section": "reflection_close",
         "sectionKey": null,
@@ -512,7 +512,7 @@
         "domain": "report",
         "risk": "high"
       },
-      "latencyMs": 0.0338,
+      "latencyMs": 0.0304,
       "terminalCondition": "report_draft_requested",
       "metrics": {
         "actionSelectionAccuracy": 1,
@@ -534,8 +534,8 @@
         "terminalCondition": "report_draft_requested"
       },
       "trajectoryRecord": {
-        "trajectoryId": "a2e70f87-8fc0-4971-8080-9978af406e8a",
-        "createdAt": "2026-07-10T22:08:37.031Z",
+        "trajectoryId": "44045a4e-c551-4b40-9b60-6e218b655bf4",
+        "createdAt": "2026-07-11T05:17:29.485Z",
         "sessionId": "eval-report_task_uses_report_tool",
         "section": "opening",
         "sectionKey": null,

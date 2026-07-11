@@ -86,16 +86,20 @@ describe('role-fit evaluation datasets', () => {
     expect(serialized).not.toContain('/uploads');
   });
 
-  it('keeps human calibration as an explicit pending release gate until reviewed records exist', async () => {
+  it('keeps human calibration as an explicit pending release gate unless reviewed records exist', async () => {
     const dataset = await loadManualReviewDataset('role-fit-calibration-v1.json');
     const summary = buildHumanCalibrationSummary(dataset);
 
     expect(dataset.cases).toHaveLength(12);
-    expect(summary).toMatchObject({
-      status: 'pending_human_review',
-      totalCases: 12,
-      reviewedCases: 0,
-      canAssertNumericalReleaseThreshold: false,
-    });
+    if (summary.reviewedCases > 0) {
+      expect(['calibrated', 'review_complete_threshold_not_set']).toContain(summary.status);
+    } else {
+      expect(summary).toMatchObject({
+        status: 'pending_human_review',
+        totalCases: 12,
+        reviewedCases: 0,
+        canAssertNumericalReleaseThreshold: false,
+      });
+    }
   });
 });

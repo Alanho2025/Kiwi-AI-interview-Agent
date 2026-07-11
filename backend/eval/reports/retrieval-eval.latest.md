@@ -2,15 +2,15 @@
 
 - Retrieval dataset: role-fit-retrieval-v1
 - Generation dataset: role-fit-generation-v1
-- Cases run: 10
-- Combined average: 1
+- Cases run: 15
+- Combined average: 0.9833
 - Calibration status: pending_human_review
 - Numerical release threshold: not_set
 
 ## Retrieval metrics
 | Metric | Value |
 |---|---:|
-| precisionAtK | 1 |
+| precisionAtK | 0.85 |
 | recallAtK | 1 |
 | mrr | 1 |
 | ndcg | 1 |

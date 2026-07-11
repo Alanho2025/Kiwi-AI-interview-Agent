@@ -87,6 +87,86 @@
       "forbiddenChunkIds": ["question-leadership-1"],
       "labels": { "domain": "behavioral", "risk": "medium" },
       "expectedFallback": null
+    },
+    {
+      "schemaVersion": "retrieval_case_v1",
+      "caseId": "cv_behavioral_teamwork_experience",
+      "query": "cross-functional teamwork and conflict resolution",
+      "sourceTypes": ["cv"],
+      "topK": 2,
+      "corpus": [
+        { "chunkId": "cv-teamwork-1", "sourceType": "cv", "text": "Collaborated with cross-functional design and product teams, and resolved developer disagreements.", "metadata": { "section": "experience" } },
+        { "chunkId": "cv-tech-1", "sourceType": "cv", "text": "Wrote script in Python to automate database backup daily.", "metadata": { "section": "project" } },
+        { "chunkId": "jd-teamwork-1", "sourceType": "job_description", "text": "The candidate should have experience resolving teamwork conflict.", "metadata": { "section": "requirements" } }
+      ],
+      "relevantChunkIds": ["cv-teamwork-1"],
+      "forbiddenChunkIds": ["jd-teamwork-1"],
+      "labels": { "domain": "behavioral", "risk": "high" },
+      "expectedFallback": null
+    },
+    {
+      "schemaVersion": "retrieval_case_v1",
+      "caseId": "cv_transferable_leadership",
+      "query": "mentor junior developers and lead technical direction",
+      "sourceTypes": ["cv"],
+      "topK": 2,
+      "corpus": [
+        { "chunkId": "cv-mentor-1", "sourceType": "cv", "text": "Guided 3 bootcamp graduates through our tech stack and ran weekly code review sessions.", "metadata": { "section": "responsibilities" } },
+        { "chunkId": "cv-ui-1", "sourceType": "cv", "text": "Designed a CSS navbar styling library for the team UI.", "metadata": { "section": "project" } },
+        { "chunkId": "jd-lead-1", "sourceType": "job_description", "text": "Role requires mentoring junior engineers.", "metadata": { "section": "requirements" } }
+      ],
+      "relevantChunkIds": ["cv-mentor-1"],
+      "forbiddenChunkIds": ["jd-lead-1"],
+      "labels": { "domain": "leadership", "risk": "medium" },
+      "expectedFallback": null
+    },
+    {
+      "schemaVersion": "retrieval_case_v1",
+      "caseId": "cv_transferable_cloud_scaling",
+      "query": "experience with AWS cloud scaling infrastructure",
+      "sourceTypes": ["cv"],
+      "topK": 2,
+      "corpus": [
+        { "chunkId": "cv-cloud-1", "sourceType": "cv", "text": "Managed highly available clusters on Google Cloud Platform and scaled Kubernetes pods.", "metadata": { "section": "experience" } },
+        { "chunkId": "cv-sql-1", "sourceType": "cv", "text": "Optimized local MySQL indexing schemas.", "metadata": { "section": "project" } },
+        { "chunkId": "jd-aws-1", "sourceType": "job_description", "text": "Must have AWS scaling experience.", "metadata": { "section": "requirements" } }
+      ],
+      "relevantChunkIds": ["cv-cloud-1"],
+      "forbiddenChunkIds": ["jd-aws-1"],
+      "labels": { "domain": "infrastructure", "risk": "high" },
+      "expectedFallback": null
+    },
+    {
+      "schemaVersion": "retrieval_case_v1",
+      "caseId": "multi_source_alignment_retrieval",
+      "query": "combine Node.js requirements with candidate production scaling proof",
+      "sourceTypes": ["job_description", "cv"],
+      "topK": 2,
+      "corpus": [
+        { "chunkId": "jd-node-1", "sourceType": "job_description", "text": "The role requires Node.js API scaling.", "metadata": { "section": "requirements" } },
+        { "chunkId": "cv-scale-1", "sourceType": "cv", "text": "Scaled Node.js API to support 10k concurrent users.", "metadata": { "section": "experience" } },
+        { "chunkId": "cv-unrelated-1", "sourceType": "cv", "text": "Played volleyball at university level.", "metadata": { "section": "hobbies" } }
+      ],
+      "relevantChunkIds": ["jd-node-1", "cv-scale-1"],
+      "forbiddenChunkIds": [],
+      "labels": { "domain": "match", "risk": "high" },
+      "expectedFallback": null
+    },
+    {
+      "schemaVersion": "retrieval_case_v1",
+      "caseId": "transcript_contextual_answer_retrieval",
+      "query": "verify candidate database design claims against resume evidence",
+      "sourceTypes": ["transcript", "cv"],
+      "topK": 2,
+      "corpus": [
+        { "chunkId": "transcript-db-1", "sourceType": "transcript", "text": "In the interview I described Postgres database normalization.", "metadata": { "section": "answer" } },
+        { "chunkId": "cv-db-1", "sourceType": "cv", "text": "Designed normalised schema for large PostgreSQL transactional database.", "metadata": { "section": "experience" } },
+        { "chunkId": "jd-db-1", "sourceType": "job_description", "text": "Knowledge of relational databases is a plus.", "metadata": { "section": "requirements" } }
+      ],
+      "relevantChunkIds": ["transcript-db-1", "cv-db-1"],
+      "forbiddenChunkIds": ["jd-db-1"],
+      "labels": { "domain": "report", "risk": "high" },
+      "expectedFallback": null
     }
   ]
 }

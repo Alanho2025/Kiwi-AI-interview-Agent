@@ -1,8 +1,8 @@
 {
   "schemaVersion": "role_fit_rag_eval_report_v1",
-  "generatedAt": "2026-07-10T22:08:36.295Z",
-  "casesRun": 10,
-  "average": 1,
+  "generatedAt": "2026-07-11T05:44:56.864Z",
+  "casesRun": 15,
+  "average": 0.9833,
   "configFingerprints": {
     "retrieval": "sha256:dfce6a0be5f2fffc4cebddc015c355175ff5ac2566c014c88d409882c4de05aa",
     "generationRetrieval": [
@@ -17,11 +17,11 @@
     "schemaVersion": "retrieval_eval_report_v1",
     "datasetVersion": "role-fit-retrieval-v1",
     "configFingerprint": "sha256:dfce6a0be5f2fffc4cebddc015c355175ff5ac2566c014c88d409882c4de05aa",
-    "generatedAt": "2026-07-10T22:08:36.293Z",
-    "casesRun": 5,
-    "average": 1,
+    "generatedAt": "2026-07-11T05:44:56.863Z",
+    "casesRun": 10,
+    "average": 0.975,
     "metrics": {
-      "precisionAtK": 1,
+      "precisionAtK": 0.85,
       "recallAtK": 1,
       "mrr": 1,
       "ndcg": 1,
@@ -42,10 +42,10 @@
         }
       },
       "risk:high": {
-        "casesRun": 3,
-        "average": 1,
+        "casesRun": 7,
+        "average": 0.9762,
         "metrics": {
-          "precisionAtK": 1,
+          "precisionAtK": 0.8571,
           "recallAtK": 1,
           "mrr": 1,
           "ndcg": 1,
@@ -66,10 +66,10 @@
         }
       },
       "risk:medium": {
-        "casesRun": 2,
-        "average": 1,
+        "casesRun": 3,
+        "average": 0.9722,
         "metrics": {
-          "precisionAtK": 1,
+          "precisionAtK": 0.8333,
           "recallAtK": 1,
           "mrr": 1,
           "ndcg": 1,
@@ -102,6 +102,54 @@
         }
       },
       "domain:behavioral": {
+        "casesRun": 2,
+        "average": 0.9584,
+        "metrics": {
+          "precisionAtK": 0.75,
+          "recallAtK": 1,
+          "mrr": 1,
+          "ndcg": 1,
+          "forbiddenEvidenceRetrievalRate": 0,
+          "sourcePolicyAccuracy": 1
+        }
+      },
+      "domain:leadership": {
+        "casesRun": 1,
+        "average": 0.9167,
+        "metrics": {
+          "precisionAtK": 0.5,
+          "recallAtK": 1,
+          "mrr": 1,
+          "ndcg": 1,
+          "forbiddenEvidenceRetrievalRate": 0,
+          "sourcePolicyAccuracy": 1
+        }
+      },
+      "domain:infrastructure": {
+        "casesRun": 1,
+        "average": 0.9167,
+        "metrics": {
+          "precisionAtK": 0.5,
+          "recallAtK": 1,
+          "mrr": 1,
+          "ndcg": 1,
+          "forbiddenEvidenceRetrievalRate": 0,
+          "sourcePolicyAccuracy": 1
+        }
+      },
+      "domain:match": {
+        "casesRun": 1,
+        "average": 1,
+        "metrics": {
+          "precisionAtK": 1,
+          "recallAtK": 1,
+          "mrr": 1,
+          "ndcg": 1,
+          "forbiddenEvidenceRetrievalRate": 0,
+          "sourcePolicyAccuracy": 1
+        }
+      },
+      "domain:report": {
         "casesRun": 1,
         "average": 1,
         "metrics": {
@@ -128,7 +176,7 @@
           "cv"
         ],
         "configFingerprint": "sha256:f490a089ed96b16f073c17496960df746ef51881052b6e85422652d9a1cafff3",
-        "latencyMs": 25.05,
+        "latencyMs": 39.8268,
         "rankedChunks": [
           {
             "chunkId": "cv-api-1",
@@ -185,7 +233,7 @@
           "job_description"
         ],
         "configFingerprint": "sha256:f490a089ed96b16f073c17496960df746ef51881052b6e85422652d9a1cafff3",
-        "latencyMs": 24.3191,
+        "latencyMs": 31.4613,
         "rankedChunks": [
           {
             "chunkId": "jd-reliability-1",
@@ -242,7 +290,7 @@
           "match_analysis"
         ],
         "configFingerprint": "sha256:f490a089ed96b16f073c17496960df746ef51881052b6e85422652d9a1cafff3",
-        "latencyMs": 23.5645,
+        "latencyMs": 28.2911,
         "rankedChunks": [
           {
             "chunkId": "match-gap-1",
@@ -299,7 +347,7 @@
           "cv"
         ],
         "configFingerprint": "sha256:f490a089ed96b16f073c17496960df746ef51881052b6e85422652d9a1cafff3",
-        "latencyMs": 20.8325,
+        "latencyMs": 27.5901,
         "rankedChunks": [
           {
             "chunkId": "cv-a11y-1",
@@ -356,7 +404,7 @@
           "interview_plan"
         ],
         "configFingerprint": "sha256:f490a089ed96b16f073c17496960df746ef51881052b6e85422652d9a1cafff3",
-        "latencyMs": 19.611,
+        "latencyMs": 27.4618,
         "rankedChunks": [
           {
             "chunkId": "plan-leadership-2",
@@ -399,13 +447,300 @@
         },
         "score": 1,
         "expectedFallback": null
+      },
+      {
+        "schemaVersion": "retrieval_case_result_v1",
+        "caseId": "cv_behavioral_teamwork_experience",
+        "datasetVersion": "role-fit-retrieval-v1",
+        "labels": {
+          "domain": "behavioral",
+          "risk": "high"
+        },
+        "query": "cross-functional teamwork and conflict resolution",
+        "sourceTypes": [
+          "cv"
+        ],
+        "configFingerprint": "sha256:f490a089ed96b16f073c17496960df746ef51881052b6e85422652d9a1cafff3",
+        "latencyMs": 27.2907,
+        "rankedChunks": [
+          {
+            "chunkId": "cv-teamwork-1",
+            "sourceType": "cv",
+            "sourceId": null,
+            "text": "Collaborated with cross-functional design and product teams, and resolved developer disagreements.",
+            "metadata": {
+              "section": "experience"
+            },
+            "scores": {
+              "semantic": 0.350877,
+              "keyword": 0.5,
+              "metadata": 0,
+              "fusion": 0.367982
+            }
+          },
+          {
+            "chunkId": "cv-tech-1",
+            "sourceType": "cv",
+            "sourceId": null,
+            "text": "Wrote script in Python to automate database backup daily.",
+            "metadata": {
+              "section": "project"
+            },
+            "scores": {
+              "semantic": 0.200328,
+              "keyword": 0,
+              "metadata": 0,
+              "fusion": 0.11018
+            }
+          }
+        ],
+        "metrics": {
+          "precisionAtK": 0.5,
+          "recallAtK": 1,
+          "mrr": 1,
+          "ndcg": 1,
+          "forbiddenEvidenceRetrievalRate": 0,
+          "sourcePolicyAccuracy": 1
+        },
+        "score": 0.9167,
+        "expectedFallback": null
+      },
+      {
+        "schemaVersion": "retrieval_case_result_v1",
+        "caseId": "cv_transferable_leadership",
+        "datasetVersion": "role-fit-retrieval-v1",
+        "labels": {
+          "domain": "leadership",
+          "risk": "medium"
+        },
+        "query": "mentor junior developers and lead technical direction",
+        "sourceTypes": [
+          "cv"
+        ],
+        "configFingerprint": "sha256:f490a089ed96b16f073c17496960df746ef51881052b6e85422652d9a1cafff3",
+        "latencyMs": 27.085,
+        "rankedChunks": [
+          {
+            "chunkId": "cv-mentor-1",
+            "sourceType": "cv",
+            "sourceId": null,
+            "text": "Guided 3 bootcamp graduates through our tech stack and ran weekly code review sessions.",
+            "metadata": {
+              "section": "responsibilities"
+            },
+            "scores": {
+              "semantic": 0.13639,
+              "keyword": 0.142857,
+              "metadata": 0,
+              "fusion": 0.125014
+            }
+          },
+          {
+            "chunkId": "cv-ui-1",
+            "sourceType": "cv",
+            "sourceId": null,
+            "text": "Designed a CSS navbar styling library for the team UI.",
+            "metadata": {
+              "section": "project"
+            },
+            "scores": {
+              "semantic": 0.194284,
+              "keyword": 0,
+              "metadata": 0,
+              "fusion": 0.106856
+            }
+          }
+        ],
+        "metrics": {
+          "precisionAtK": 0.5,
+          "recallAtK": 1,
+          "mrr": 1,
+          "ndcg": 1,
+          "forbiddenEvidenceRetrievalRate": 0,
+          "sourcePolicyAccuracy": 1
+        },
+        "score": 0.9167,
+        "expectedFallback": null
+      },
+      {
+        "schemaVersion": "retrieval_case_result_v1",
+        "caseId": "cv_transferable_cloud_scaling",
+        "datasetVersion": "role-fit-retrieval-v1",
+        "labels": {
+          "domain": "infrastructure",
+          "risk": "high"
+        },
+        "query": "experience with AWS cloud scaling infrastructure",
+        "sourceTypes": [
+          "cv"
+        ],
+        "configFingerprint": "sha256:f490a089ed96b16f073c17496960df746ef51881052b6e85422652d9a1cafff3",
+        "latencyMs": 26.9235,
+        "rankedChunks": [
+          {
+            "chunkId": "cv-cloud-1",
+            "sourceType": "cv",
+            "sourceId": null,
+            "text": "Managed highly available clusters on Google Cloud Platform and scaled Kubernetes pods.",
+            "metadata": {
+              "section": "experience"
+            },
+            "scores": {
+              "semantic": 0.342573,
+              "keyword": 0.166667,
+              "metadata": 0,
+              "fusion": 0.246749
+            }
+          },
+          {
+            "chunkId": "cv-sql-1",
+            "sourceType": "cv",
+            "sourceId": null,
+            "text": "Optimized local MySQL indexing schemas.",
+            "metadata": {
+              "section": "project"
+            },
+            "scores": {
+              "semantic": 0.177521,
+              "keyword": 0,
+              "metadata": 0,
+              "fusion": 0.097637
+            }
+          }
+        ],
+        "metrics": {
+          "precisionAtK": 0.5,
+          "recallAtK": 1,
+          "mrr": 1,
+          "ndcg": 1,
+          "forbiddenEvidenceRetrievalRate": 0,
+          "sourcePolicyAccuracy": 1
+        },
+        "score": 0.9167,
+        "expectedFallback": null
+      },
+      {
+        "schemaVersion": "retrieval_case_result_v1",
+        "caseId": "multi_source_alignment_retrieval",
+        "datasetVersion": "role-fit-retrieval-v1",
+        "labels": {
+          "domain": "match",
+          "risk": "high"
+        },
+        "query": "combine Node.js requirements with candidate production scaling proof",
+        "sourceTypes": [
+          "job_description",
+          "cv"
+        ],
+        "configFingerprint": "sha256:f490a089ed96b16f073c17496960df746ef51881052b6e85422652d9a1cafff3",
+        "latencyMs": 27.3089,
+        "rankedChunks": [
+          {
+            "chunkId": "jd-node-1",
+            "sourceType": "job_description",
+            "sourceId": null,
+            "text": "The role requires Node.js API scaling.",
+            "metadata": {
+              "section": "requirements"
+            },
+            "scores": {
+              "semantic": 0.297449,
+              "keyword": 0.25,
+              "metadata": 0,
+              "fusion": 0.251097
+            }
+          },
+          {
+            "chunkId": "cv-scale-1",
+            "sourceType": "cv",
+            "sourceId": null,
+            "text": "Scaled Node.js API to support 10k concurrent users.",
+            "metadata": {
+              "section": "experience"
+            },
+            "scores": {
+              "semantic": 0.188655,
+              "keyword": 0.125,
+              "metadata": 0,
+              "fusion": 0.14751
+            }
+          }
+        ],
+        "metrics": {
+          "precisionAtK": 1,
+          "recallAtK": 1,
+          "mrr": 1,
+          "ndcg": 1,
+          "forbiddenEvidenceRetrievalRate": 0,
+          "sourcePolicyAccuracy": 1
+        },
+        "score": 1,
+        "expectedFallback": null
+      },
+      {
+        "schemaVersion": "retrieval_case_result_v1",
+        "caseId": "transcript_contextual_answer_retrieval",
+        "datasetVersion": "role-fit-retrieval-v1",
+        "labels": {
+          "domain": "report",
+          "risk": "high"
+        },
+        "query": "verify candidate database design claims against resume evidence",
+        "sourceTypes": [
+          "transcript",
+          "cv"
+        ],
+        "configFingerprint": "sha256:f490a089ed96b16f073c17496960df746ef51881052b6e85422652d9a1cafff3",
+        "latencyMs": 28.9925,
+        "rankedChunks": [
+          {
+            "chunkId": "transcript-db-1",
+            "sourceType": "transcript",
+            "sourceId": null,
+            "text": "In the interview I described Postgres database normalization.",
+            "metadata": {
+              "section": "answer"
+            },
+            "scores": {
+              "semantic": 0.258893,
+              "keyword": 0.125,
+              "metadata": 0,
+              "fusion": 0.186141
+            }
+          },
+          {
+            "chunkId": "cv-db-1",
+            "sourceType": "cv",
+            "sourceId": null,
+            "text": "Designed normalised schema for large PostgreSQL transactional database.",
+            "metadata": {
+              "section": "experience"
+            },
+            "scores": {
+              "semantic": 0.196472,
+              "keyword": 0.125,
+              "metadata": 0,
+              "fusion": 0.15181
+            }
+          }
+        ],
+        "metrics": {
+          "precisionAtK": 1,
+          "recallAtK": 1,
+          "mrr": 1,
+          "ndcg": 1,
+          "forbiddenEvidenceRetrievalRate": 0,
+          "sourcePolicyAccuracy": 1
+        },
+        "score": 1,
+        "expectedFallback": null
       }
     ]
   },
   "generation": {
     "schemaVersion": "generation_grounding_eval_report_v1",
     "datasetVersion": "role-fit-generation-v1",
-    "generatedAt": "2026-07-10T22:08:36.277Z",
+    "generatedAt": "2026-07-11T05:44:56.836Z",
     "casesRun": 5,
     "average": 1,
     "metrics": {

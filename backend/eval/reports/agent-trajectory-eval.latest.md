@@ -15,8 +15,8 @@
 
 | Case | Action | Tool | Score | Latency (ms) |
 |---|---|---|---:|---:|
-| vague_answer_requires_probe | ASK_PROBING_QUESTION | generate_interview_question | 1 | 1.5355 |
-| misunderstanding_requires_rephrase | REPHRASE_QUESTION | generate_interview_question | 1 | 0.0565 |
-| fresh_anchor_uses_pool | ASK_POOL_QUESTION | generate_interview_question | 1 | 0.0474 |
-| final_turn_wraps_stage | WRAP_STAGE | generate_interview_question | 1 | 0.0348 |
-| report_task_uses_report_tool | GENERATE_REPORT_DRAFT | draft_interview_report | 1 | 0.0338 |
+| vague_answer_requires_probe | ASK_PROBING_QUESTION | generate_interview_question | 1 | 1.8062 |
+| misunderstanding_requires_rephrase | REPHRASE_QUESTION | generate_interview_question | 1 | 0.0493 |
+| fresh_anchor_uses_pool | ASK_POOL_QUESTION | generate_interview_question | 1 | 0.0284 |
+| final_turn_wraps_stage | WRAP_STAGE | generate_interview_question | 1 | 0.112 |
+| report_task_uses_report_tool | GENERATE_REPORT_DRAFT | draft_interview_report | 1 | 0.0304 |
