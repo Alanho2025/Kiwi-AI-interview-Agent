@@ -1,0 +1,43 @@
+Caruso is the AI-native fund administration platform for private markets. We replace legacy systems with modern software and integrated services, helping fund managers save time, impress investors, and grow AUM.
+Since launching just over two years ago, Caruso has grown rapidly to $100B+ in assets, 900+ funds, and 80,000+ investors on the platform. We just completed our Series A capital raise, and are looking for smart, ambitious people to help us build a global business.
+
+## Role summary
+We are hiring a Senior Software Engineer (Agentic) to help us build software with AI at the core of the engineering workflow.
+This role is for someone who wants to move from customer problem to shipped product, using AI agents and modern tooling as a force multiplier across backend, frontend, and product work.
+
+## What you’ll do
+- Work across Go services, GraphQL and gRPC APIs, TypeScript and Next.js applications, AWS infrastructure, and AI-enabled workflows.
+- Build products and systems across investor onboarding, fund operations, registry workflows, internal tooling, and investor experiences.
+- Use high-end agentic tooling and frontier models as part of day-to-day development.
+- Own meaningful domains in small teams with autonomy, trust, and clear business impact.
+- Work closely with engineering, product, design, and operations.
+
+## What we’re looking for
+- This role is usually a good fit for someone with a few years of commercial experience, but we care more about capability than titles.
+- Experience with Go, TypeScript, JavaScript, Python, or similar languages.
+- Interest in AI-assisted and agentic development.
+- Strong product mindset, curiosity, and good judgment.
+- Comfort working through ambiguity and turning ideas into practical solutions.
+- Good communication and collaboration.
+- Backgrounds in software, mathematics, physics, engineering, or product-technical roles can all be a strong fit.
+You do not need to be a Go specialist. We care about adaptability, product sense, and strong use of modern tools.
+
+## Tech stack
+- Go, TypeScript, Next.js, React
+- GraphQL, gRPC, Protobuf
+- AWS, Fargate, Lambda, Kinesis
+- MySQL, DynamoDB, S3
+- Terraform, Docker, GitHub, Datadog, Linear
+
+## Why Caruso
+- Real scale and real complexity
+- High-end agentic tooling and frontier model access
+- Strong engineering team and real ownership
+- Premium office in Viaduct Harbour
+- MacBook Pro, dual screens, Apple peripherals, and AirPods Pro
+- Southern Cross health insurance
+- Extended parental leave and unlimited sick leave
+
+## Requirement
+- Right to work in New Zealand
+If you’re excited by the idea of using AI to expand what a small, high-trust team can do, we’d love to hear from you.

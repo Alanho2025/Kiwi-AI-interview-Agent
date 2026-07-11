@@ -31,6 +31,7 @@ const SessionAnalysisSchema = new mongoose.Schema(
     confidence: { type: Number, default: 0 },
     explanation: { type: mongoose.Schema.Types.Mixed, default: {} },
     evidenceMap: { type: [mongoose.Schema.Types.Mixed], default: [] },
+    roleEvidenceMap: { type: mongoose.Schema.Types.Mixed, default: {} },
     sourceSnapshots: { type: [mongoose.Schema.Types.Mixed], default: [] },
     retrievalSnapshots: { type: [mongoose.Schema.Types.Mixed], default: [] },
     reportArtifacts: { type: [mongoose.Schema.Types.Mixed], default: [] },

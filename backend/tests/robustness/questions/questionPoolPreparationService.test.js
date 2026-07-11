@@ -20,6 +20,24 @@ const root = (id, topic, text = `Tell me about ${topic}?`) => ({
 });
 
 describe('question pool preparation readiness', () => {
+  it('degrades a numerically sufficient pool when a must-cover contract has no question', () => {
+    const items = ['react', 'database', 'testing', 'automation', 'deployment']
+      .map((topic, index) => root(`q${index}`, topic));
+
+    expect(assessQuestionPoolReadiness({
+      items,
+      settings: { questionLimit: 8, seniorityLevel: 'junior', focusArea: 'combined' },
+      proofStrategy: {
+        artifactStatus: 'ready',
+        mustCover: [{ coverageId: 'cov-missing', minQuestions: 1, status: 'pending' }],
+      },
+    })).toMatchObject({
+      status: 'degraded',
+      degradedReason: 'unrepresented_must_cover_contracts',
+      unresolvedCoverageIds: ['cov-missing'],
+    });
+  });
+
   it('does not generate reserves when the unique prepared pool is sufficient', async () => {
     const items = ['react', 'database', 'testing', 'automation', 'deployment']
       .map((topic, index) => root(`q${index}`, topic));

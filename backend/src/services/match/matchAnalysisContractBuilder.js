@@ -38,5 +38,6 @@ export const buildMatchAnalysisContract = (analysis = {}) => {
       roleCanonical: analysis.matchingDetails?.questionPlanHints?.roleCanonical || analysis.parsedJdProfile?.roleCanonical || analysis.jobTitle || 'general_role',
     },
     explanation,
+    roleEvidenceMap: analysis.roleEvidenceMap || analysis.matchingDetails?.roleEvidenceMap || {},
   };
 };

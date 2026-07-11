@@ -1,0 +1,142 @@
+[
+  {
+    "id": "seek_caruso_senior_software_engineer_agentic",
+    "fileName": "seek-caruso-senior-software-engineer-agentic.txt",
+    "dsOutput": {
+      "overallScore": 56.77,
+      "decision": "not_qualified",
+      "scoreBreakdown": {
+        "macro": 50.17,
+        "micro": 42.61,
+        "requirements": 54.02
+      },
+      "intentCoverage": {
+        "highPriorityTotal": 10,
+        "strong": 0,
+        "partial": 10,
+        "missing": 0
+      },
+      "classificationCounts": {
+        "direct": 0,
+        "adjacent": 3,
+        "weak": 12,
+        "gap": 0
+      },
+      "title": "Senior Software Engineer (Agentic) To Help Us Build Software With AI At The Core Of The Engineering Workflow",
+      "companyName": "",
+      "requirementCount": 0
+    }
+  },
+  {
+    "id": "seek_humankind_junior_intermediate_frontend_developer",
+    "fileName": "seek-humankind-junior-intermediate-frontend-developer.txt",
+    "dsOutput": {
+      "overallScore": 32.39,
+      "decision": "weak_match",
+      "scoreBreakdown": {
+        "macro": 24.07,
+        "micro": 50,
+        "requirements": 25
+      },
+      "intentCoverage": {
+        "highPriorityTotal": 24,
+        "strong": 0,
+        "partial": 22,
+        "missing": 2
+      },
+      "classificationCounts": {
+        "direct": 0,
+        "adjacent": 7,
+        "weak": 19,
+        "gap": 2
+      },
+      "title": "Junior-intermediate Frontend Developer",
+      "companyName": "",
+      "requirementCount": 0
+    }
+  },
+  {
+    "id": "seek_talent_army_software_engineer",
+    "fileName": "seek-talent-army-software-engineer.txt",
+    "dsOutput": {
+      "overallScore": 11.52,
+      "decision": "not_qualified",
+      "scoreBreakdown": {
+        "macro": 7.74,
+        "micro": 8.33,
+        "requirements": 8.33
+      },
+      "intentCoverage": {
+        "highPriorityTotal": 4,
+        "strong": 0,
+        "partial": 4,
+        "missing": 0
+      },
+      "classificationCounts": {
+        "direct": 0,
+        "adjacent": 3,
+        "weak": 4,
+        "gap": 0
+      },
+      "title": "Software Engineer",
+      "companyName": "",
+      "requirementCount": 0
+    }
+  },
+  {
+    "id": "seek_serato_graduate_programme",
+    "fileName": "seek-serato-graduate-programme.txt",
+    "dsOutput": {
+      "overallScore": 57.7,
+      "decision": "borderline",
+      "scoreBreakdown": {
+        "macro": 50.45,
+        "micro": 25,
+        "requirements": 62.5
+      },
+      "intentCoverage": {
+        "highPriorityTotal": 3,
+        "strong": 0,
+        "partial": 3,
+        "missing": 0
+      },
+      "classificationCounts": {
+        "direct": 0,
+        "adjacent": 2,
+        "weak": 2,
+        "gap": 0
+      },
+      "title": "2026 Serato Graduate",
+      "companyName": "Serato",
+      "requirementCount": 0
+    }
+  },
+  {
+    "id": "seek_hi_tech_ai_product_engineer",
+    "fileName": "seek-hi-tech-ai-product-engineer.txt",
+    "dsOutput": {
+      "overallScore": 56.41,
+      "decision": "borderline",
+      "scoreBreakdown": {
+        "macro": 51.62,
+        "micro": 56.44,
+        "requirements": 51.79
+      },
+      "intentCoverage": {
+        "highPriorityTotal": 38,
+        "strong": 0,
+        "partial": 36,
+        "missing": 2
+      },
+      "classificationCounts": {
+        "direct": 0,
+        "adjacent": 14,
+        "weak": 23,
+        "gap": 2
+      },
+      "title": "AI Product Engineer (Typescript/angular/java) HI Technology & Innovation",
+      "companyName": "HI Technology & Innovation",
+      "requirementCount": 0
+    }
+  }
+]

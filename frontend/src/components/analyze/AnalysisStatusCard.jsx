@@ -14,6 +14,7 @@ import { CheckCircle2, AlertTriangle, ShieldCheck, Target, TrendingUp } from 'lu
 import { cn } from '../../utils/formatters.js';
 import { buildMatchResultViewModel } from '../../utils/matchResultViewModel.js';
 import { LoadingInsightPanel } from '../common/LoadingInsightPanel.jsx';
+import { ProofStrategyReviewPanel } from './ProofStrategyReviewPanel.jsx';
 
 const toneStyles = {
   success: {
@@ -198,6 +199,64 @@ const EvidenceStrengthSummary = ({ breakdown = {}, semanticEvidenceMatches = [],
   );
 };
 
+const roleEvidenceCopy = {
+  direct: { title: 'Direct evidence', tone: 'success', empty: 'No role intent has direct CV proof yet.' },
+  adjacent: { title: 'Adjacent evidence', tone: 'info', empty: 'No transferable evidence was identified.' },
+  weak: { title: 'Weak evidence', tone: 'warning', empty: 'No weak evidence signals were identified.' },
+  gap: { title: 'Evidence gaps', tone: 'danger', empty: 'No unsupported role intents were identified.' },
+};
+
+const RoleEvidenceMap = ({ groups = {}, coverage = {} }) => {
+  const totalItems = Object.values(groups).reduce((total, items) => total + items.length, 0);
+  if (!totalItems) return null;
+
+  return (
+    <div className="rounded-xl border border-gray-100 glass p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-sm font-semibold text-primary">Role evidence map</p>
+          <p className="mt-1 text-xs text-faint">Each role intent is tied to traceable CV evidence or shown as a gap.</p>
+        </div>
+        <div className="flex flex-wrap gap-2 text-xs font-semibold">
+          <span className="rounded-lg bg-emerald-100 px-2.5 py-1 text-emerald-800">Strong {coverage.strong || 0}</span>
+          <span className="rounded-lg bg-sky-100 px-2.5 py-1 text-sky-800">Partial {coverage.partial || 0}</span>
+          <span className="rounded-lg bg-red-100 px-2.5 py-1 text-red-800">Missing {coverage.missing || 0}</span>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3 lg:grid-cols-2">
+        {Object.entries(roleEvidenceCopy).map(([classification, copy]) => {
+          const items = groups[classification] || [];
+          const styles = getTone(copy.tone);
+          return (
+            <div key={classification} className="rounded-lg border border-gray-100 p-3">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-semibold text-primary">{copy.title}</p>
+                <span className={cn('rounded-lg px-2 py-1 text-xs font-semibold', styles.badge)}>{items.length}</span>
+              </div>
+              {items.length ? (
+                <div className="mt-3 space-y-3">
+                  {items.slice(0, 4).map((item) => (
+                    <div key={item.id} className="rounded-md bg-transparent p-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-xs font-semibold text-primary">{item.label}</p>
+                        <span className="shrink-0 text-xs font-semibold text-muted">{item.score}/100</span>
+                      </div>
+                      {item.evidence ? <p className="mt-1 text-xs leading-5 text-muted">Evidence: {item.evidence}</p> : null}
+                      {item.sourceSection ? <p className="mt-1 text-xs text-faint">CV section: {item.sourceSection}</p> : null}
+                      {item.limitation ? <p className="mt-1 text-xs leading-5 text-faint">Limit: {item.limitation}</p> : null}
+                    </div>
+                  ))}
+                </div>
+              ) : <p className="mt-3 text-xs text-faint">{copy.empty}</p>}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 const MatchSummary = ({ viewModel }) => {
   const styles = getTone(viewModel.decision.tone);
   const Icon = viewModel.decision.tone === 'success' ? TrendingUp : viewModel.decision.tone === 'danger' ? AlertTriangle : Target;
@@ -237,7 +296,7 @@ const MatchSummary = ({ viewModel }) => {
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-export function AnalysisStatusCard({ status, matchRate, analysisResult }) {
+export function AnalysisStatusCard({ status, matchRate, analysisResult, questionPoolInfo }) {
   const matchViewModel = buildMatchResultViewModel(analysisResult, matchRate);
 
   return (
@@ -297,6 +356,8 @@ export function AnalysisStatusCard({ status, matchRate, analysisResult }) {
 
             <MatchSummary viewModel={matchViewModel} />
 
+            <ProofStrategyReviewPanel questionPoolInfo={questionPoolInfo} />
+
             <div className="grid gap-3 lg:grid-cols-3">
               {matchViewModel.scoreCards.map((item) => <ScoreExplanationCard key={item.key} item={item} />)}
             </div>
@@ -320,6 +381,11 @@ export function AnalysisStatusCard({ status, matchRate, analysisResult }) {
               breakdown={matchViewModel.evidenceStrengthBreakdown}
               semanticEvidenceMatches={matchViewModel.semanticEvidenceMatches}
               semanticEvidenceModel={matchViewModel.semanticEvidenceModel}
+            />
+
+            <RoleEvidenceMap
+              groups={matchViewModel.roleEvidenceGroups}
+              coverage={matchViewModel.roleIntentCoverage}
             />
 
             <RequirementChecks items={matchViewModel.requirementChecks} />

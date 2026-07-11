@@ -91,3 +91,10 @@ export const invalidState = (message, details = message, meta = {}) => new AppEr
   details,
   meta,
 });
+
+export const conflict = (message, details = message, meta = {}) => new AppError(message, {
+  statusCode: 409,
+  code: 'CONFLICT',
+  details,
+  meta,
+});

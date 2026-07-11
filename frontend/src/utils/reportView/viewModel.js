@@ -13,6 +13,50 @@ import { buildFallbackAnswerRewriteTips, buildFallbackCoachingAdvice, buildFallb
 import { buildDataInsights, buildTakeaway } from './insights.js';
 import { getScoreBand } from './shared.js';
 
+const buildRoleFitView = (roleFit = {}) => {
+  if (!roleFit?.schemaVersion && !roleFit?.status) return { available: false, status: 'unavailable' };
+  const status = ['ready', 'limited', 'unavailable'].includes(roleFit.status)
+    ? roleFit.status
+    : 'unavailable';
+  return {
+    available: ['ready', 'limited'].includes(status),
+    status,
+    roleIntentCoverage: {
+      total: Number(roleFit.roleIntentCoverage?.total || 0),
+      covered: Number(roleFit.roleIntentCoverage?.covered || 0),
+      partial: Number(roleFit.roleIntentCoverage?.partial || 0),
+      missing: Number(roleFit.roleIntentCoverage?.missing || 0),
+      unavailable: Number(roleFit.roleIntentCoverage?.unavailable || 0),
+      items: (roleFit.roleIntentCoverage?.items || []).map((item) => ({
+        label: item.label || 'Role focus',
+        status: item.status || 'unavailable',
+      })),
+    },
+    evidenceUsageMap: {
+      totalUses: Number(roleFit.evidenceUsageMap?.totalUses || 0),
+      items: (roleFit.evidenceUsageMap?.items || []).map((item) => ({
+        label: item.label || 'Interview example',
+        useCount: Number(item.useCount || 0),
+        angles: item.angles || [],
+      })),
+    },
+    answerAlignments: (roleFit.answerAlignments || []).map((item) => ({
+      turnId: item.turnId || item.questionId,
+      question: item.question || 'Interview question',
+      label: item.label || 'unavailable',
+      score: Number(item.score || 0),
+      scoreBreakdown: item.scoreBreakdown || {},
+      groundingStatus: item.groundingStatus || 'limited',
+      diagnosis: item.diagnosis || {},
+      betterAnswerPlan: item.betterAnswerPlan || {},
+    })),
+    questionReasoning: (roleFit.questionReasoning || []).map((item) => ({
+      topic: item.topic || 'Role focus',
+      reason: item.reason || 'This question checked an important part of the role.',
+    })),
+  };
+};
+
 /**
  * Purpose: Execute the main responsibility for buildReportViewModel.
  * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
@@ -83,5 +127,6 @@ export const buildReportViewModel = (reportData) => {
     scoreExplanations: report.scoreExplanations || null,
     scoreLimitations: report.scoreLimitations || [],
     authenticityMetrics: report.authenticityMetrics || null,
+    roleFit: buildRoleFitView(report.roleFit),
   };
 };

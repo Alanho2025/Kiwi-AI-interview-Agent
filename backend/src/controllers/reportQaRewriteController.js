@@ -10,10 +10,11 @@ import { SessionReport } from '../db/models/sessionReportModel.js';
 import { SessionAnalysis } from '../db/models/sessionAnalysisModel.js';
 import { getSessionExecutionCost } from '../services/aiUsageTrackingService.js';
 import { rewriteReportWithQaPrompt } from '../services/report/reportRewriteService.js';
+import { buildRetentionExpiry } from '../services/retention/retentionPolicy.js';
 
 const normalizeUserPrompt = (value = '') => String(value || '').trim().slice(0, 2000);
 
-const persistPromptRewrittenReport = async ({ sessionId, report, qaResult, originalQaResult, rewriteMetadata }) => {
+const persistPromptRewrittenReport = async ({ sessionId, userId, report, qaResult, originalQaResult, rewriteMetadata }) => {
   await SessionAnalysis.findOneAndUpdate(
     { sessionId },
     {
@@ -34,10 +35,16 @@ const persistPromptRewrittenReport = async ({ sessionId, report, qaResult, origi
     { sessionId },
     {
       sessionId,
+      userId,
       report,
       qaResult,
       latestStatus: qaResult?.passed ? 'ready' : 'needs_review',
       rewriteMetadata,
+      retentionUntil: buildRetentionExpiry(),
+      deletedAt: null,
+      containsSensitiveData: true,
+      accessScope: 'private',
+      schemaVersion: 'v7',
     },
     { upsert: true, new: true, setDefaultsOnInsert: true }
   );
@@ -94,6 +101,7 @@ export const qaRewriteReport = asyncHandler(async (req, res) => {
 
   const stored = await persistPromptRewrittenReport({
     sessionId,
+    userId: session.userId,
     report: rewriteResult.report,
     qaResult: rewrittenQaResult,
     originalQaResult: existingQa.qaResult,

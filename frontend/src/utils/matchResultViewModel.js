@@ -260,6 +260,25 @@ const buildEvidenceItem = (item, fallbackDetail) => ({
   evidence: getEvidence(item),
 });
 
+const buildRoleEvidenceGroups = (roleEvidenceMap = {}) => {
+  const groups = { direct: [], adjacent: [], weak: [], gap: [] };
+  (roleEvidenceMap.items || []).forEach((item) => {
+    const classification = groups[item.classification] ? item.classification : 'gap';
+    const sourceEvidence = (item.sourceEvidence || [])[0] || {};
+    groups[classification].push({
+      id: item.roleIntentId || item.id || item.roleIntent,
+      label: item.roleIntent || item.label || 'Role intent',
+      priority: item.priority || 'medium',
+      classification,
+      score: clampScore(item.score),
+      evidence: sourceEvidence.text || '',
+      sourceSection: sourceEvidence.sourceTrace?.section || '',
+      limitation: item.limitation || '',
+    });
+  });
+  return groups;
+};
+
 const buildScoreExplanation = ({ key, label, strengths, gaps, risks, requirementChecks }) => {
   if (key === 'macro') {
     const gap = joinLabels(gaps, 1) || joinLabels(risks, 1);
@@ -301,6 +320,7 @@ export const buildMatchResultViewModel = (analysisResult = {}, matchRate = 0) =>
   const filteredSemanticEvidenceMatches = Array.isArray(matchingDetails.semanticEvidenceMatches)
     ? filterSemanticEvidenceMatches(matchingDetails.semanticEvidenceMatches, rawRequirementChecks)
     : [];
+  const roleEvidenceMap = analysisResult?.roleEvidenceMap || matchingDetails.roleEvidenceMap || {};
 
   const scoreCards = Object.entries(scoreReason).map(([key, copy]) => {
     const score = clampScore(scoreBreakdown[key]);
@@ -358,5 +378,12 @@ export const buildMatchResultViewModel = (analysisResult = {}, matchRate = 0) =>
       : matchingDetails.evidenceStrengthBreakdown || {},
     semanticEvidenceMatches: filteredSemanticEvidenceMatches,
     semanticEvidenceModel: matchingDetails.semanticEvidenceModel || null,
+    roleIntentCoverage: roleEvidenceMap.intentCoverage || {
+      highPriorityTotal: 0,
+      strong: 0,
+      partial: 0,
+      missing: 0,
+    },
+    roleEvidenceGroups: buildRoleEvidenceGroups(roleEvidenceMap),
   };
 };

@@ -173,4 +173,39 @@ describe('report PDF export', () => {
     expect(renderedText).toContain('Latency reduction');
     expect(renderedText).toContain('latency from 12 seconds to 3 seconds');
   });
+
+  it('prints plain-language Role-Fit coverage and answer feedback', async () => {
+    const { generateReportPDF } = await import('../reportApi.js');
+
+    await generateReportPDF({
+      sessionId: 'role-fit-pdf',
+      report: {
+        roleFit: {
+          status: 'ready',
+          roleIntentCoverage: {
+            total: 1,
+            covered: 1,
+            items: [{ label: 'Reliable production delivery', status: 'covered' }],
+          },
+          evidenceUsageMap: { totalUses: 0, items: [] },
+          answerAlignments: [{
+            turnId: 'answer-1',
+            question: 'Tell me about a delivery improvement.',
+            label: 'strong',
+            score: 88,
+            diagnosis: { mainIssue: 'Clear ownership and result.' },
+            betterAnswerPlan: { direction: 'Keep the result easy to hear.' },
+          }],
+          questionReasoning: [],
+        },
+      },
+      qaResult: {},
+    });
+
+    const renderedText = pdfMocks.instances.at(-1).textCalls.join('\n');
+    expect(renderedText).toContain('How Your Answers Matched This Role');
+    expect(renderedText).toContain('Reliable production delivery');
+    expect(renderedText).toContain('Strong Match For This Answer');
+    expect(renderedText).not.toMatch(/proofPointId|coverageId|evidenceId/);
+  });
 });

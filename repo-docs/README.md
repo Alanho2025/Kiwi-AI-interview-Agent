@@ -10,6 +10,8 @@ Kiwi AI Interview Agent 是一个把 CV、目标 JD、访谈答案和报告检�
 | --- | --- | --- |
 | 快速理解一个真实运行 | [跟随一次从准备到报告的主流程](walkthroughs/one-real-run.md) | 知道用户输入如何变成访谈问题和报告状态 |
 | 按 feature 理解代码 | [看多条产品流程之间的关系](flows.md) | 知道 CV/JD、match、interview、voice、report、recording、RAG 各自在哪里接力 |
+| 了解用戶層 JD 解析與 CV-JD 匹配行為 | [用戶層 JD 解析與 CV-JD 匹配指南](modules/user-facing-cv-jd-behavior.md) | 知道用戶能看到、編輯和對比的 JD/Match 具體欄位與介面資訊 |
+| 從非技術利害關係人視角理解專案關注重點 | [非技術利害關係人視角指南](modules/non-tech-stakeholder-view.md) | 了解 HR、法務合規與產品決策者在意的安全、合規、體驗及 Playwright 測試價值 |
 | 理解所有 agent | [从 agent registry 和 task runner 开始](modules/agent-registry-and-task-runner.md) | 知道正式 agent、功能内 critic、voice agent 与 memory/trace 怎么分工 |
 | 理解现在的 RAG | [看当前检索层如何建索引和取证据](modules/rag-retrieval.md) | 知道 `weighted_hash_ngram_v2`、`document_chunks`、fusion score 和 corrective retry 的边界 |
 | 理解已有验证和测试 | [看验证与保护层](modules/validations-and-guards.md) 和 [测试/eval 版图](modules/testing-and-evaluation.md) | 知道哪些行为被守住、哪些测试为什么存在、哪些 real provider 路径需要批准 |

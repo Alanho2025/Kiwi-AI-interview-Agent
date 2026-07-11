@@ -44,4 +44,23 @@ describe('stampHumanReviewMetadata', () => {
     expect(stampedRubric.metadata.inputTrustLevel).toBe('ai_parsed');
     expect(stampedRubric.diagnostics.humanReviewStatus).toBe('edited');
   });
+
+  it('versions and verifies the role-fit review contract without discarding source-labelled drafts', () => {
+    const stampedRubric = stampHumanReviewMetadata({
+      title: 'Data Analyst',
+      roleFit: {
+        review: { status: 'unreviewed', version: 3 },
+        companyUnderstanding: { summary: 'Builds trusted reporting products.' },
+        roleIntent: { items: [{ id: 'intent:sql', statement: 'Production SQL', sourceLabel: 'JD must-have requirement' }] },
+      },
+    }, 'verified');
+
+    expect(stampedRubric.roleFit.review).toMatchObject({
+      status: 'verified',
+      baseVersion: 3,
+      version: 4,
+    });
+    expect(stampedRubric.roleFit.companyUnderstanding.summary).toBe('Builds trusted reporting products.');
+    expect(stampedRubric.roleFit.roleIntent.items[0].sourceLabel).toBe('JD must-have requirement');
+  });
 });

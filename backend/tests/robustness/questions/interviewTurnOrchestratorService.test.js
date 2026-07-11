@@ -184,4 +184,46 @@ describe('interviewTurnOrchestratorService', () => {
     expect(plan.followUpContext).toBeNull();
     expect(plan.selectedRootCandidate).toEqual(expect.objectContaining({ questionId: 'pool-1' }));
   });
+
+  it('records an explicit Role-Fit ranking latency marker without adding a new async decision step', async () => {
+    const roleFitPool = [{
+      ...poolItems[0],
+      schemaVersion: 'v3',
+      proofPointId: 'cov-intent-testing',
+      coverageContractIds: ['cov-intent-testing'],
+      testedRoleIntentIds: ['intent-testing'],
+      recommendedEvidenceIds: ['evidence-testing'],
+      evidenceAngle: 'validation',
+      evidenceMapStrength: 0.8,
+      coveragePriority: 'must_cover',
+    }];
+    const plan = await buildInterviewTurnPlan({
+      session: {
+        ...baseSession,
+        transcript: [{ role: 'ai', questionId: 'q1', metadata: { stage: 'technical', topic: 'React', followUpDepth: 2 } }],
+        interviewPlan: {
+          roleFit: {
+            proofStrategy: {
+              artifactStatus: 'ready',
+              mustCover: [{ coverageId: 'cov-intent-testing', roleIntentId: 'intent-testing', minQuestions: 1 }],
+            },
+          },
+        },
+      },
+      actionType: AGENT_ACTION_TYPES.ASK_VALIDATION_QUESTION,
+      decisionContext: {
+        ...baseDecisionContext,
+        environment: { latestAnswer: { text: 'I explained the React work with tests and validation details.', tokenCount: 10 } },
+      },
+      actionInput: { targetTopic: 'testing evidence', probeType: 'validation' },
+      poolItems: roleFitPool,
+    });
+
+    expect(plan.selectedRootCandidate.questionId).toBe('pool-1');
+    expect(plan.latency).toEqual(expect.objectContaining({
+      roleFitQuestionRankingEnabled: true,
+      roleFitQuestionRankingMs: expect.any(Number),
+    }));
+    expect(plan.latency.roleFitQuestionRankingMs).toBe(plan.latency.rootCandidateRankMs);
+  });
 });

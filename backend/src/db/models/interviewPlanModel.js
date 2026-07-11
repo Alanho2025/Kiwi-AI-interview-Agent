@@ -31,6 +31,14 @@ const QuestionPoolItemSchema = new mongoose.Schema(
     planPriority: Number,
     roleCanonical: String,
     roleFamily: String,
+    proofPointId: String,
+    coverageContractIds: [String],
+    testedRoleIntentIds: [String],
+    recommendedEvidenceIds: [String],
+    evidenceAngle: String,
+    evidenceMapStrength: Number,
+    coveragePriority: String,
+    roleFitReason: String,
   },
   { _id: false }
 );
@@ -59,6 +67,7 @@ const InterviewPlanSchema = new mongoose.Schema(
     deletedAt: { type: Date },
     containsSensitiveData: { type: Boolean, default: true },
     accessScope: { type: String, default: 'private' },
+    roleFit: { type: mongoose.Schema.Types.Mixed, default: {} },
     schemaVersion: { type: String, default: 'v3' },
   },
   { timestamps: true }

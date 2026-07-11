@@ -5,6 +5,7 @@ import {
   buildPreparedRootQuestionPoolQuery,
 } from '../../../src/services/questions/questionPoolComposerService.js';
 import * as questionPoolComposerService from '../../../src/services/questions/questionPoolComposerService.js';
+import { validatePreparedQuestionPool } from '../../../src/services/schemaValidationService.js';
 
 const baseArgs = {
   userId: 'user-1',
@@ -202,13 +203,41 @@ describe('questionPoolComposerService', () => {
 
     const requirementQuestion = pool.find((item) => item.sourceType === 'jd_requirement');
     expect(requirementQuestion).toMatchObject({
-      schemaVersion: 'v2',
+      schemaVersion: 'v3',
       questionFamily: 'role_specific',
       evidenceMode: 'past_example',
       roleDomain: 'healthcare',
       requirementCategory: 'compliance_or_safety',
       capabilityGroup: 'compliance_ethics_safety',
     });
+  });
+
+  it('keeps legacy v2 items readable while new prepared items use v3', () => {
+    const [legacyItem, currentItem] = validatePreparedQuestionPool([
+      {
+        questionId: 'legacy-v2',
+        sessionId: 'legacy-session',
+        schemaVersion: 'v2',
+        text: 'Tell me about a project.',
+        category: 'technical',
+        topic: 'project',
+        sourceType: 'legacy_plan',
+      },
+      {
+        questionId: 'current-v3',
+        sessionId: 'current-session',
+        schemaVersion: 'v3',
+        text: 'Tell me about a role-specific project.',
+        category: 'technical',
+        topic: 'role fit',
+        sourceType: 'role_fit',
+        coverageContractIds: ['cov-1'],
+      },
+    ]);
+
+    expect(legacyItem).toMatchObject({ schemaVersion: 'v2' });
+    expect(legacyItem).not.toHaveProperty('coverageContractIds');
+    expect(currentItem).toMatchObject({ schemaVersion: 'v3', coverageContractIds: ['cov-1'] });
   });
 
   it('queries prepared root questions with backward compatibility for legacy records', () => {

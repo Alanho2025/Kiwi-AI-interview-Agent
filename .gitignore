@@ -17,3 +17,6 @@ backend/benchmarks/voice-asr-fallback/*.results.json
 
 # Ignore only the generated report directory at the repository root.
 /report/
+
+# Browser/eval screenshots and local run artifacts.
+/output/

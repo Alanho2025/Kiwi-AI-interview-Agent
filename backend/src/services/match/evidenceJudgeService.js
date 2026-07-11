@@ -221,9 +221,33 @@ export const judgeRequirementEvidenceBatch = async ({ requirements = [], semanti
     return fallbackById;
   }
 
+  // Segment items into local-bypassed vs ambiguous (requiring LLM)
+  const localBypassedJudgements = {};
+  const ambiguousItems = [];
+
+  for (const item of items) {
+    const maxScore = item.topEvidence[0]?.score || 0;
+    const isBypass = maxScore >= 0.82 || maxScore <= 0.45 || item.topEvidence.length === 0;
+
+    if (isBypass) {
+      localBypassedJudgements[item.requirement.id] = {
+        ...item.fallback,
+        routedLocally: true,
+      };
+    } else {
+      ambiguousItems.push(item);
+    }
+  }
+
+  // If there are no ambiguous items, we completely bypass the LLM!
+  if (ambiguousItems.length === 0) {
+    return localBypassedJudgements;
+  }
+
+  // Call LLM only for ambiguous items
   const aiPayload = await callDeepSeekJson({
     prompt: buildPrompt({
-      items: items.map(({ requirement, topEvidence }) => ({
+      items: ambiguousItems.map(({ requirement, topEvidence }) => ({
         requirement: {
           id: requirement.id,
           text: requirement.text || requirement.label,
@@ -236,14 +260,22 @@ export const judgeRequirementEvidenceBatch = async ({ requirements = [], semanti
       })),
     }),
     systemInstruction: 'You are a strict CV-JD evidence judge. Return valid JSON only. No prose.',
-    fallback: { judgements: Object.values(fallbackById) },
+    fallback: { judgements: ambiguousItems.map(item => item.fallback) },
     maxRetries: 1,
     usageMetadata: { stage: 'cv_jd_match', feature: 'evidence_judge' },
   });
 
   const aiById = normalizeAiJudgements(aiPayload, fallbackById);
-  return Object.fromEntries(Object.entries(fallbackById).map(([id, fallback]) => {
+
+  // Merge local bypassed judgements and AI judgements
+  return Object.fromEntries(requirements.map((req) => {
+    const id = req.id;
+    if (localBypassedJudgements[id]) {
+      return [id, localBypassedJudgements[id]];
+    }
+
     const ai = aiById[id];
+    const fallback = fallbackById[id];
     if (!ai) return [id, fallback];
     if (fallback.status === 'met' && fallback.evidenceStrength === 'strong' && /degree|bachelor|master|qualification|tertiary|diploma/i.test(fallback.reason || '')) {
       return [id, fallback];

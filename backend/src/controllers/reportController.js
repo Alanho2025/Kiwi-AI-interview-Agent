@@ -158,7 +158,21 @@ export const exportReport = asyncHandler(async (req, res) => {
  * Inputs: Report object from MongoDB.
  * Returns: Formatted text string.
  */
-function formatReportAsText(report) {
+const ROLE_FIT_COVERAGE_LABELS = {
+  covered: 'Clearly demonstrated',
+  partial: 'Partly demonstrated',
+  missing: 'Needs stronger evidence',
+  unavailable: 'Not assessed',
+};
+const ROLE_FIT_ANSWER_LABELS = {
+  strong: 'Strong match for this answer',
+  partial: 'Partly matched this focus',
+  weak: 'Needs a clearer connection',
+  off_target: 'Did not yet answer this focus',
+  unavailable: 'Not assessed',
+};
+
+export function formatReportAsText(report) {
   const lines = [];
   const r = report.report || {};
   const qa = report.qaResult || {};
@@ -239,6 +253,29 @@ function formatReportAsText(report) {
       }
       lines.push('');
     });
+  }
+
+  if (r.roleFit?.status && r.roleFit.status !== 'legacy') {
+    const roleFit = r.roleFit;
+    const coverage = roleFit.roleIntentCoverage || {};
+    lines.push('HOW YOUR ANSWERS MATCHED THIS ROLE');
+    lines.push('==================================');
+    if (roleFit.status === 'unavailable') {
+      lines.push('Role-specific coaching was unavailable. Existing interview feedback remains available.');
+    } else {
+      lines.push(`${coverage.covered || 0} of ${coverage.total || 0} focus areas clearly demonstrated.`);
+      (coverage.items || []).forEach((item) => {
+        lines.push(`- ${item.label || 'Role focus'}: ${ROLE_FIT_COVERAGE_LABELS[item.status] || 'Not assessed'}`);
+      });
+      (roleFit.answerAlignments || []).forEach((alignment, index) => {
+        lines.push('');
+        lines.push(`Answer ${index + 1}: ${alignment.question || 'Interview question'}`);
+        lines.push(`${ROLE_FIT_ANSWER_LABELS[alignment.label] || 'Not assessed'} (${Number(alignment.score || 0)}/100)`);
+        if (alignment.diagnosis?.mainIssue) lines.push(alignment.diagnosis.mainIssue);
+        if (alignment.betterAnswerPlan?.direction) lines.push(`Next step: ${alignment.betterAnswerPlan.direction}`);
+      });
+    }
+    lines.push('');
   }
   
   // Recommendations

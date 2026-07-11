@@ -17,6 +17,13 @@ const DETERMINISTIC_RECOMPUTE_FLAGS = new Set([
   'uninformative_evidence_references',
   'turn_export_count_mismatch',
   'unacknowledged_transcript_conflict',
+  'role_intent_reference_missing',
+  'answer_alignment_without_proof_point',
+  'alignment_claim_not_grounded',
+  'company_claim_not_in_reviewed_profile',
+  'evidence_id_not_found',
+  'must_cover_intent_unreported',
+  'role_fit_artifact_not_owned',
 ]);
 
 export const buildRepairInstructionFromQa = (qaResult = {}) => {

@@ -139,6 +139,7 @@ export const buildReportDraft = ({
   companyMotivationFit = {},
   scores = {},
   transcriptRisks = [],
+  roleFit = {},
 }) => {
   const strongEvidenceText = buildStrongEvidenceText(evidenceSummary);
   const candidateFacingDecision = resolveCandidateFacingDecision({ analysisResult, evidenceSummary, interviewMetrics });
@@ -176,9 +177,18 @@ export const buildReportDraft = ({
     evaluatedTurnCount: ensureArray(evaluatorRecords).length,
     voiceDeliveryConfidence: voiceDeliverySummary?.deliveryConfidence || null,
   };
+  const roleEvidenceReferences = ensureArray(analysisResult.roleEvidenceMap?.items)
+    .slice(0, 5)
+    .map((item) => ({
+      roleIntentId: item.roleIntentId || null,
+      label: item.roleIntent || 'Role evidence',
+      classification: item.classification || 'gap',
+      evidenceIds: ensureArray(item.sourceEvidence).map((evidence) => evidence.evidenceId).filter(Boolean),
+      sourceType: 'role_evidence_map',
+    }));
 
   return {
-    schemaVersion: 'v6',
+    schemaVersion: 'v7',
     sessionId: session.id,
     candidateName: analysisResult.candidateName || session.candidateName || 'Candidate',
     jobTitle: analysisResult.jobTitle || session.targetRole || 'Target Role',
@@ -274,7 +284,7 @@ export const buildReportDraft = ({
       internalReflectionSummary: buildReflectionMemoryText(reflectionRecords),
       internalCoachingSummary: buildCoachingMemoryText(userCoachingMemory),
       internalSourceReferences: [
-        ...(analysisResult.evidenceMap || []).slice(0, 5),
+        ...roleEvidenceReferences,
         ...((retrievalBundle?.items || []).slice(0, 3).map((item) => ({
           chunkId: item.chunkId,
           label: item.metadata?.label || item.sourceType,
@@ -286,6 +296,7 @@ export const buildReportDraft = ({
     nzWorkplaceFit,
     voiceDeliverySummary,
     transcriptRisks: ensureArray(transcriptRisks),
+    roleFit,
     companyMotivationFit,
     authenticityMetrics: evaluateAuthenticity({ transcript: session.transcript || [], candidateFeedback }),
     candidateFeedback: {

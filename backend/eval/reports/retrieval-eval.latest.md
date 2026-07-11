@@ -1,15 +1,31 @@
-# Retrieval Eval
+# Runtime Retrieval and Generation Grounding Eval
 
-Cases run: 8
-Average score: 0.97
+- Retrieval dataset: role-fit-retrieval-v1
+- Generation dataset: role-fit-generation-v1
+- Cases run: 15
+- Combined average: 0.9833
+- Calibration status: pending_human_review
+- Numerical release threshold: not_set
 
-| Case | Score | Failed checks |
-|---|---:|---|
-| direct_skill_match | 1 | - |
-| paraphrased_skill_match | 1 | - |
-| weak_evidence_not_upgraded | 0.8 | query_has_some_overlap_or_timeout |
-| irrelevant_evidence_blocked | 1 | - |
-| cv_jd_gap_detected | 1 | - |
-| nz_guidance_only_when_needed | 1 | - |
-| star_example_retrieved_for_coaching | 1 | - |
-| retrieval_timeout_degraded_fallback | 1 | - |
+## Retrieval metrics
+| Metric | Value |
+|---|---:|
+| precisionAtK | 0.85 |
+| recallAtK | 1 |
+| mrr | 1 |
+| ndcg | 1 |
+| forbiddenEvidenceRetrievalRate | 0 |
+| sourcePolicyAccuracy | 1 |
+
+## Generation grounding metrics
+| Metric | Value |
+|---|---:|
+| claimFaithfulness | 1 |
+| requiredClaimCoverage | 1 |
+| responseRelevancy | 1 |
+| noiseSensitivity | 0 |
+| unsupportedClaimFailureRate | 0 |
+
+## Important interpretation
+
+This report executes the production fusion ranker through its deterministic in-memory adapter. Generation grounding is a separate claim-level evaluation. Human calibration is required before these scores become numerical release thresholds.

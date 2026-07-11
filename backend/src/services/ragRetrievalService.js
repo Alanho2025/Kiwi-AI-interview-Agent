@@ -9,8 +9,21 @@
  * - Prefer composition and small helpers over repeated inline logic.
  */
 
-import { embedText, normalizeForRetrieval } from './embeddingService.js';
+import {
+  EMBEDDING_DIMENSION,
+  EMBEDDING_MODEL,
+  cosineSimilarity,
+  embedText,
+  normalizeForRetrieval,
+} from './embeddingService.js';
 import { query as postgresQuery } from '../db/postgres.js';
+
+export const RETRIEVAL_CONFIG = Object.freeze({
+  embeddingModel: EMBEDDING_MODEL,
+  embeddingDimension: EMBEDDING_DIMENSION,
+  fusionWeights: Object.freeze({ semantic: 0.55, keyword: 0.35, metadata: 0.1 }),
+  maximumCandidateCount: 100,
+});
 
 /**
  * Purpose: Execute the main responsibility for tokenize.
@@ -42,7 +55,81 @@ const keywordScore = (queryTokens, text = '') => {
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-const computeFusionScore = ({ semantic = 0, keyword = 0, metadata = 0 }) => Number((semantic * 0.55 + keyword * 0.35 + metadata * 0.1).toFixed(6));
+const computeFusionScore = ({ semantic = 0, keyword = 0, metadata = 0 }) => Number((
+  semantic * RETRIEVAL_CONFIG.fusionWeights.semantic
+  + keyword * RETRIEVAL_CONFIG.fusionWeights.keyword
+  + metadata * RETRIEVAL_CONFIG.fusionWeights.metadata
+).toFixed(6));
+
+const matchesSourcePolicy = (chunk = {}, sourceTypes = [], sessionId = null) => {
+  if (sourceTypes.length && !sourceTypes.includes(chunk.sourceType)) return false;
+  if (sessionId && chunk.sessionId !== sessionId) return false;
+  return true;
+};
+
+export const rankRetrievalCandidates = ({
+  query = '',
+  candidateChunks = [],
+  topK = 5,
+  sourceTypes = [],
+  sourceId = null,
+  sessionId = null,
+  minimumScore = 0.05,
+} = {}) => {
+  const queryTokens = tokenize(query);
+
+  return (candidateChunks || [])
+    .filter((chunk) => matchesSourcePolicy(chunk, sourceTypes, sessionId))
+    .map((chunk) => {
+      const semantic = Number(chunk.semantic || 0);
+      const keyword = keywordScore(queryTokens, chunk.text || '');
+      const metadata = chunk.metadata || {};
+      const metadataBoost = sourceId && metadata.sourceId === sourceId
+        ? 1
+        : sessionId && chunk.sessionId === sessionId
+          ? 0.75
+          : 0;
+
+      return {
+        chunkId: chunk.chunkId,
+        sourceType: chunk.sourceType,
+        sourceId: metadata.sourceId || sourceId,
+        sessionId: chunk.sessionId,
+        text: chunk.text,
+        metadata,
+        scores: {
+          semantic,
+          keyword,
+          metadata: metadataBoost,
+          fusion: computeFusionScore({ semantic, keyword, metadata: metadataBoost }),
+        },
+      };
+    })
+    .filter((item) => item.scores.fusion >= minimumScore)
+    .sort((left, right) => (
+      right.scores.fusion - left.scores.fusion
+      || String(left.chunkId || '').localeCompare(String(right.chunkId || ''))
+    ))
+    .slice(0, topK);
+};
+
+export const rankInMemoryRetrievalCorpus = async ({
+  query = '',
+  corpus = [],
+  ...rankingOptions
+} = {}) => {
+  const queryEmbedding = await embedText(query);
+  const candidates = await Promise.all((corpus || []).map(async (chunk) => ({
+    ...chunk,
+    semantic: cosineSimilarity(queryEmbedding, await embedText(chunk.text || '')),
+  })));
+
+  return rankRetrievalCandidates({
+    query,
+    candidateChunks: candidates,
+    ...rankingOptions,
+  });
+};
 
 export const retrieveChunks = async ({
   query,
@@ -53,7 +140,6 @@ export const retrieveChunks = async ({
   minimumScore = 0.05,
 } = {}) => {
   const queryEmbedding = await embedText(query || '');
-  const queryTokens = tokenize(query || '');
   const vectorString = `[${queryEmbedding.join(',')}]`;
 
   // Build Postgres Query
@@ -86,29 +172,15 @@ export const retrieveChunks = async ({
 
   const { rows: candidateChunks } = await postgresQuery(sql, params);
 
-  return candidateChunks
-    .map((chunk) => {
-      const semantic = chunk.semantic || 0;
-      const keyword = keywordScore(queryTokens, chunk.text || '');
-      const metadataObj = chunk.metadata || {};
-      
-      // Legacy metadata boost logic
-      const metadataBoost = sourceId && metadataObj.sourceId === sourceId ? 1 : sessionId && chunk.sessionId === sessionId ? 0.75 : 0;
-      const fusionScore = computeFusionScore({ semantic, keyword, metadata: metadataBoost });
-
-      return {
-        chunkId: chunk.chunkId,
-        sourceType: chunk.sourceType,
-        sourceId: metadataObj.sourceId || sourceId,
-        sessionId: chunk.sessionId,
-        text: chunk.text,
-        metadata: metadataObj,
-        scores: { semantic, keyword, metadata: metadataBoost, fusion: fusionScore },
-      };
-    })
-    .filter((item) => item.scores.fusion >= minimumScore)
-    .sort((left, right) => right.scores.fusion - left.scores.fusion)
-    .slice(0, topK);
+  return rankRetrievalCandidates({
+    query,
+    candidateChunks,
+    topK,
+    sourceTypes,
+    sourceId,
+    sessionId,
+    minimumScore,
+  });
 };
 
 /**

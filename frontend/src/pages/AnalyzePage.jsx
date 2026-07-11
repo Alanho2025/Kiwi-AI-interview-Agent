@@ -21,7 +21,7 @@ import { AnalyzeActionsCard } from '../components/analyze/AnalyzeActionsCard.jsx
 import { AnalysisWorkflowShell } from '../components/analyze/AnalysisWorkflowShell.jsx';
 import { StatusBanner } from '../components/common/StatusBanner.jsx';
 import { uploadCV, getRecentCVs, selectCV, saveReviewedCvProfile, deleteCv } from '../api/uploadApi.js';
-import { paraphraseJD, matchCV, generateInterviewPlan, startCompanyValuesEnrichment } from '../api/analyzeApi.js';
+import { confirmRoleFitReview, paraphraseJD, matchCV, generateInterviewPlan, startCompanyValuesEnrichment, getSavedJDs } from '../api/analyzeApi.js';
 import { getSession } from '../api/sessionApi.js';
 import {
   DEFAULT_ANALYZE_MODE,
@@ -57,6 +57,8 @@ export function AnalyzePage() {
   const [recentCVs, setRecentCVs] = useState([]);
   const [selectedCV, setSelectedCV] = useState(null);
   const [rawJD, setRawJD] = useState('');
+  const [companyWebsiteUrl, setCompanyWebsiteUrl] = useState('');
+  const [userCompanyContext, setUserCompanyContext] = useState('');
   const [structuredJD, setStructuredJD] = useState('');
   const [structuredJDRubric, setStructuredJDRubric] = useState(null);
   const [summarizedRawJD, setSummarizedRawJD] = useState('');
@@ -71,20 +73,53 @@ export function AnalyzePage() {
   const [analysisResult, setAnalysisResult] = useState(null);
   const [matchRate, setMatchRate] = useState(null);
   const [generatedSessionId, setGeneratedSessionId] = useState(null);
+  const [questionPoolInfo, setQuestionPoolInfo] = useState(null);
   const [isSummarizingJD, setIsSummarizingJD] = useState(false);
   const [isSavingCVReview, setIsSavingCVReview] = useState(false);
   const [deletingCvId, setDeletingCvId] = useState('');
   const [pageStatus, setPageStatus] = useState(null);
   const [voiceDeviceCheck, setVoiceDeviceCheck] = useState(DEFAULT_VOICE_DEVICE_CHECK);
   const [activeWorkflowStep, setActiveWorkflowStep] = useState(WORKFLOW_STEP_IDS.CV_UPLOAD);
+  const [savedJDs, setSavedJDs] = useState([]);
+  const [isLoadingSavedJDs, setIsLoadingSavedJDs] = useState(false);
   const isGeneratingPlanRef = useRef(false);
 
   const { startTour, globalTourStep, advanceGlobalTour } = useTour();
+
+  const fetchSavedJDs = useCallback(async () => {
+    setIsLoadingSavedJDs(true);
+    try {
+      const response = await getSavedJDs();
+      setSavedJDs(response.savedJDs || []);
+    } catch (error) {
+      console.error('Failed to load saved JDs:', error);
+    } finally {
+      setIsLoadingSavedJDs(false);
+    }
+  }, []);
+
+  const handleSelectSavedJD = (fingerprint) => {
+    const selected = savedJDs.find(jd => jd.jdFingerprint === fingerprint);
+    if (!selected) return;
+
+    resetAnalysisState();
+    setRawJD(selected.rawJD || '');
+    setCompanyWebsiteUrl(selected.websiteUrl || '');
+    setUserCompanyContext(selected.roleFitProfile?.companyUnderstanding?.summary || '');
+    setStructuredJD(selected.rawJD ? formatStructuredJobDescription(selected.jdRubric) : '');
+    setStructuredJDRubric(selected.jdRubric);
+    setSummarizedRawJD(selected.rawJD || '');
+    setJdHumanReviewedRawJD(selected.rawJD || '');
+    setJdReviewStatus('verified'); // Auto-verify saved JDs
+    setActiveWorkflowStep(WORKFLOW_STEP_IDS.SESSION_SETUP); // Proceed straight to session setup
+    setPageStatus(buildStatusMessage('success', 'Saved JD selected', `Loaded "${selected.title || 'Saved JD'}". You can now proceed directly to session setup.`));
+  };
 
   const isVoiceReady = voiceDeviceCheck?.browser?.status === 'ok'
     && voiceDeviceCheck?.mic?.status === 'ok'
     && voiceDeviceCheck?.speaker?.status === 'ok';
   const normalizedRawJD = normalizeJDText(rawJD);
+  const hasCompanyContext = Boolean(companyWebsiteUrl.trim() || userCompanyContext.trim());
   const hasCurrentJDSummary = Boolean(
     structuredJD
     && structuredJDRubric
@@ -176,6 +211,7 @@ export function AnalyzePage() {
     setAnalysisResult(null);
     setMatchRate(null);
     setGeneratedSessionId(null);
+    setQuestionPoolInfo(null);
   };
 
   const handleWorkflowStepChange = (stepId) => {
@@ -208,6 +244,13 @@ export function AnalyzePage() {
     }
   };
 
+  const handleCompanyContextChange = (setter) => (value) => {
+    setter(value);
+    resetAnalysisState();
+    clearJDSummary();
+    setActiveWorkflowStep(WORKFLOW_STEP_IDS.JD_INPUT);
+  };
+
   const refreshRecentCVs = async () => {
     const updatedRecent = await getRecentCVs();
     setRecentCVs(updatedRecent);
@@ -216,9 +259,12 @@ export function AnalyzePage() {
   const applyStructuredJD = (jdResponse, nextRawJD) => {
     setStructuredJD(jdResponse.structuredJD);
     setStructuredJDRubric(jdResponse.structuredJDRubric);
-    setSummarizedRawJD(nextRawJD);
+    setSummarizedRawJD(jdResponse.rawJD || nextRawJD);
     setJdHumanReviewedRawJD('');
     setJdReviewStatus('unreviewed');
+    if (jdResponse.rawJD) {
+      setRawJD(jdResponse.rawJD);
+    }
   };
 
   const restoreReadySessionAnalysis = useCallback((session) => {
@@ -239,6 +285,8 @@ export function AnalyzePage() {
     setCvHumanReviewedFileId(setup.cvHumanReviewedFileId || restoredSelectedCV?.id || session?.cvFileId || '');
     setCvReviewStatus(setup.cvReviewStatus || (restoredSelectedCV ? 'verified' : 'unreviewed'));
     setRawJD(restoredRawJD);
+    setCompanyWebsiteUrl(setup.companyWebsiteUrl || restoredRubric?.roleFit?.companyContext?.websiteUrl || '');
+    setUserCompanyContext(setup.userCompanyContext || restoredRubric?.roleFit?.companyContext?.manualContext || '');
     setStructuredJD(restoredStructuredJD);
     setStructuredJDRubric(restoredRubric);
     setSummarizedRawJD(setup.summarizedRawJD || restoredRawJD);
@@ -268,6 +316,8 @@ export function AnalyzePage() {
     setCvHumanReviewedFileId(restoredDraft.cvHumanReviewedFileId || '');
     setCvReviewStatus(restoredDraft.cvReviewStatus || 'unreviewed');
     setRawJD(restoredDraft.rawJD);
+    setCompanyWebsiteUrl(restoredDraft.companyWebsiteUrl || '');
+    setUserCompanyContext(restoredDraft.userCompanyContext || '');
     setStructuredJD(restoredDraft.structuredJD);
     setStructuredJDRubric(restoredDraft.structuredJDRubric);
     setSummarizedRawJD(restoredDraft.summarizedRawJD);
@@ -310,12 +360,13 @@ export function AnalyzePage() {
     getRecentCVs().then((items) => {
       if (isActive) setRecentCVs(items);
     }).catch(console.error);
+    fetchSavedJDs().catch(console.error);
     loadResumeSession();
 
     return () => {
       isActive = false;
     };
-  }, [location.search, location.state, navigate, restoreReadySessionAnalysis]);
+  }, [location.search, location.state, navigate, restoreReadySessionAnalysis, fetchSavedJDs]);
 
   useEffect(() => {
     persistAnalyzeDraft({
@@ -324,6 +375,8 @@ export function AnalyzePage() {
       cvHumanReviewedFileId,
       cvReviewStatus,
       rawJD,
+      companyWebsiteUrl,
+      userCompanyContext,
       structuredJD,
       structuredJDRubric,
       summarizedRawJD,
@@ -332,7 +385,7 @@ export function AnalyzePage() {
       settings,
       sessionMode,
     });
-  }, [selectedCV, structuredCVProfile, cvHumanReviewedFileId, cvReviewStatus, rawJD, structuredJD, structuredJDRubric, summarizedRawJD, jdHumanReviewedRawJD, jdReviewStatus, settings, sessionMode]);
+  }, [selectedCV, structuredCVProfile, cvHumanReviewedFileId, cvReviewStatus, rawJD, companyWebsiteUrl, userCompanyContext, structuredJD, structuredJDRubric, summarizedRawJD, jdHumanReviewedRawJD, jdReviewStatus, settings, sessionMode]);
 
   const handleUpload = async (file) => {
     try {
@@ -401,12 +454,16 @@ export function AnalyzePage() {
     if (!rawJD.trim()) {
       return;
     }
+    if (!hasCompanyContext) {
+      setPageStatus(buildStatusMessage('info', 'Add company context', 'Provide the company website or a short manual company context before summarising the JD.'));
+      return;
+    }
 
     setIsSummarizingJD(true);
     setAnalysisStatus('summarizing');
 
     try {
-      const jdResponse = await paraphraseJD(rawJD);
+      const jdResponse = await paraphraseJD({ rawJD, companyWebsiteUrl, userCompanyContext });
       applyStructuredJD(jdResponse, rawJD);
       setAnalysisStatus('idle');
       setActiveWorkflowStep(WORKFLOW_STEP_IDS.JD_REVIEW);
@@ -470,7 +527,43 @@ export function AnalyzePage() {
       return;
     }
 
-    const verifiedRubric = stampHumanReviewMetadata(structuredJDRubric, 'verified');
+    // Validation check for required fields
+    const rubric = structuredJDRubric || {};
+    const overview = rubric.jobOverview || {};
+    const sections = rubric.sections || {};
+    const roleFit = rubric.roleFit || {};
+
+    const missingFields = [];
+    if (!String(overview.title || rubric.title || '').trim()) missingFields.push('Role title');
+    if (!String(overview.companyName || rubric.companyName || '').trim()) missingFields.push('Company');
+    if (!(sections.responsibilities || rubric.roleSummary || []).length) missingFields.push('Responsibilities');
+    if (!(sections.mustHaveRequirements || rubric.mustHaveRequirements || []).length) missingFields.push('Must-have requirements');
+    if (!String(roleFit.companyUnderstanding?.summary || '').trim()) missingFields.push('Company understanding');
+    if (!(roleFit.roleIntent?.items || []).length) missingFields.push('Role intent priorities');
+
+    if (missingFields.length > 0) {
+      setPageStatus(buildStatusMessage('error', 'Required fields missing', `Please fill in the following required fields before marking as reviewed: ${missingFields.join(', ')}.`));
+      return;
+    }
+
+    let verifiedRubric = stampHumanReviewMetadata(structuredJDRubric, 'verified');
+    if (verifiedRubric.roleFit?.jdFingerprint) {
+      try {
+        const confirmed = await confirmRoleFitReview({
+          jdFingerprint: verifiedRubric.roleFit.jdFingerprint,
+          baseVersion: verifiedRubric.roleFit.review?.baseVersion,
+          jdRubric: verifiedRubric,
+        });
+        verifiedRubric = {
+          ...verifiedRubric,
+          roleFit: confirmed.roleFit || verifiedRubric.roleFit,
+        };
+      } catch (error) {
+        setPageStatus(buildStatusMessage('error', 'JD review conflict', error.message || 'Re-summarise the JD and review the latest version.'));
+        return;
+      }
+    }
+
     setStructuredJDRubric(verifiedRubric);
     setStructuredJD(formatStructuredJobDescription(verifiedRubric));
     setJdHumanReviewedRawJD(rawJD);
@@ -491,6 +584,7 @@ export function AnalyzePage() {
     } catch (error) {
       setPageStatus(buildStatusMessage('warning', 'JD summary reviewed', `The JD is ready for matching, but company-specific coaching search did not start: ${error.message}`));
     }
+    fetchSavedJDs().catch(console.error);
   };
 
   const handleConfirmCVReview = async () => {
@@ -566,6 +660,7 @@ export function AnalyzePage() {
       });
 
       setGeneratedSessionId(planResponse.sessionId);
+      setQuestionPoolInfo(planResponse.questionPool);
       setAnalysisStatus('success');
       setActiveWorkflowStep(WORKFLOW_STEP_IDS.MATCH_RESULT);
       const modeLabel = sessionMode === 'voice' ? 'voice' : 'text';
@@ -627,6 +722,10 @@ export function AnalyzePage() {
                   <JobContextCard
                     rawJD={rawJD}
                     setRawJD={handleRawJDChange}
+                    companyWebsiteUrl={companyWebsiteUrl}
+                    setCompanyWebsiteUrl={handleCompanyContextChange(setCompanyWebsiteUrl)}
+                    userCompanyContext={userCompanyContext}
+                    setUserCompanyContext={handleCompanyContextChange(setUserCompanyContext)}
                     structuredJD={structuredJD}
                     structuredJDRubric={structuredJDRubric}
                     onStructuredJDRubricChange={handleStructuredJDRubricChange}
@@ -637,6 +736,9 @@ export function AnalyzePage() {
                     requiresJdHumanReview={requiresJdHumanReview}
                     isJdEdited={isJdEdited}
                     onConfirmJDSummary={handleConfirmJDSummary}
+                    savedJDs={savedJDs}
+                    isLoadingSavedJDs={isLoadingSavedJDs}
+                    onSelectSavedJD={handleSelectSavedJD}
                   />
                 </div>
               ) : null}
@@ -657,6 +759,7 @@ export function AnalyzePage() {
                   status={analysisStatus}
                   matchRate={matchRate}
                   analysisResult={analysisResult}
+                  questionPoolInfo={questionPoolInfo}
                 />
               ) : null}
             </div>

@@ -1,9 +1,11 @@
 import { resolveInterviewModeConfig } from '../../config/interviewBlueprints.js';
 import { InterviewQuestionPoolItem } from '../../db/models/interviewQuestionPoolItemModel.js';
+import { InterviewPlan } from '../../db/models/interviewPlanModel.js';
 import { ensureArray, normalizeKey, normalizeText } from '../../utils/commonHelpers.js';
 import { callDeepSeek } from '../deepseekService.js';
 import { buildModeCompatibility, stableQuestionId } from './questionArtifactHelpers.js';
 import { composeInterviewQuestionPool } from './questionPoolComposerService.js';
+import { assessProofStrategyQuestionCoverage } from './roleFitQuestionCoverageService.js';
 import {
   buildAssessmentKey,
   buildQuestionFingerprint,
@@ -144,7 +146,7 @@ const buildRequiredUniqueRootCount = (settings = {}) => {
   return Math.min(config.totalQuestions, freshRootSlots + RESERVE_BUFFER_SIZE);
 };
 
-export const assessQuestionPoolReadiness = ({ items = [], settings = {} } = {}) => {
+export const assessQuestionPoolReadiness = ({ items = [], settings = {}, proofStrategy = null } = {}) => {
   const requiredUniqueRootCount = buildRequiredUniqueRootCount(settings);
   const uniqueRootAssessmentKeys = new Set(
     items
@@ -153,14 +155,27 @@ export const assessQuestionPoolReadiness = ({ items = [], settings = {} } = {}) 
       .map((item) => item.assessmentKey),
   );
   const uniqueRootCount = uniqueRootAssessmentKeys.size;
-  const ready = uniqueRootCount >= requiredUniqueRootCount;
+  const hasProofStrategy = Boolean(proofStrategy && Object.keys(proofStrategy).length);
+  const proofCoverage = hasProofStrategy
+    ? assessProofStrategyQuestionCoverage({ proofStrategy, poolItems: items })
+    : { representedCoverageIds: [], unresolvedCoverageIds: [] };
+  const proofStrategyDegraded = hasProofStrategy && proofStrategy.artifactStatus !== 'ready';
+  const hasUnrepresentedCoverage = proofCoverage.unresolvedCoverageIds.length > 0;
+  const hasEnoughUniqueQuestions = uniqueRootCount >= requiredUniqueRootCount;
+  const ready = hasEnoughUniqueQuestions && !proofStrategyDegraded && !hasUnrepresentedCoverage;
+  const degradedReason = !hasEnoughUniqueQuestions
+    ? 'insufficient_unique_prepared_questions'
+    : proofStrategyDegraded
+      ? proofStrategy.degradedReason || 'proof_strategy_degraded'
+      : hasUnrepresentedCoverage ? 'unrepresented_must_cover_contracts' : null;
 
   return {
     status: ready ? 'ready' : 'degraded',
     readiness: ready ? 'ready' : 'degraded',
-    degradedReason: ready ? null : 'insufficient_unique_prepared_questions',
+    degradedReason,
     requiredUniqueRootCount,
     uniqueRootCount,
+    ...proofCoverage,
   };
 };
 
@@ -180,22 +195,37 @@ const buildPreparedHistory = (items = []) => buildQuestionHistory(
 
 const normalizeReserveQuestion = (item = {}) => ({
   ...normalizeRootQuestion(item),
+  schemaVersion: 'v3',
   sourceStage: 'preparation_reserve',
   sourceType: 'bounded_llm_reserve',
   generationMethod: 'bounded_llm',
   status: 'active',
+  coverageContractIds: [],
+  testedRoleIntentIds: [],
+  recommendedEvidenceIds: [],
 });
+
+const loadPersistedProofStrategy = async (sessionId) => {
+  if (!sessionId) return null;
+  const plan = await InterviewPlan.findOne({ sessionId }).select({ 'roleFit.proofStrategy': 1 }).lean();
+  return plan?.roleFit?.proofStrategy || null;
+};
 
 export const prepareInterviewQuestionPool = async ({
   settings = {},
   composePool = composeInterviewQuestionPool,
   generateReserveQuestions = null,
   persistReserveQuestions = null,
+  proofStrategy = null,
+  loadProofStrategy = loadPersistedProofStrategy,
   ...context
 } = {}) => {
   const items = await composePool({ settings, ...context });
-  const initialReadiness = assessQuestionPoolReadiness({ items, settings });
-  if (initialReadiness.status === 'ready') {
+  const resolvedProofStrategy = proofStrategy
+    || (context.sessionId ? await loadProofStrategy(context.sessionId) : null);
+  const initialReadiness = assessQuestionPoolReadiness({ items, settings, proofStrategy: resolvedProofStrategy });
+  const needsCapacityReserve = initialReadiness.uniqueRootCount < initialReadiness.requiredUniqueRootCount;
+  if (initialReadiness.status === 'ready' || !needsCapacityReserve) {
     return {
       items,
       readiness: initialReadiness,
@@ -237,7 +267,11 @@ export const prepareInterviewQuestionPool = async ({
 
     return {
       items: preparedItems,
-      readiness: assessQuestionPoolReadiness({ items: preparedItems, settings }),
+      readiness: assessQuestionPoolReadiness({
+        items: preparedItems,
+        settings,
+        proofStrategy: resolvedProofStrategy,
+      }),
       rejectedReserveQuestions: novelty.rejected,
       reserveGenerationError: null,
     };

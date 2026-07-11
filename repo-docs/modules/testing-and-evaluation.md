@@ -21,6 +21,11 @@
 | `npm run test:all` | package script 里的 integration + robustness groups |
 | `npm run eval:local` | mock-safe deterministic evals |
 | `npm run eval:real` | real provider-backed evals，需要 credentials 和成本批准 |
+| `npm run eval:retrieval` | 共用 production fusion ranker 的 synthetic ranked retrieval + claim grounding |
+| `npm run eval:agent-trajectory` | 正式 planner/tool mapping/trajectory builder contract |
+| `npm run eval:role-fit-v2-adversarial` | Role-Fit Closed Loop v2 的 12-case mock-safe adversarial coverage gate |
+| `npm run eval:calibration` | human-vs-judge disagreement；目前 12/12 reviewed，release threshold 為 0.85 |
+| `npm run eval:role-fit-release-gate` | 聚合 calibration、adversarial、cutover/retention contract、browser visual、voice flow；voice 3 秒 SLO 超標只記為 known issue |
 
 ## Frontend checks
 
@@ -29,12 +34,14 @@
 | `npm run test:all` | hooks、utils、components、API wrapper |
 | `npm run test:voice` | voice panel、voice session hook、VAD、latency trace |
 | `npm run test:e2e:question-pipeline` | browser-level question pipeline flow |
+| `npm run test:e2e:role-fit-visual` | Role-Fit report browser visual gate，輸出 desktop/mobile screenshots |
+| `npm run test:e2e:voice-real-backend` | 用 test STT/TTS providers 跑 real backend duplex voice browser flow |
 | `npm run test:e2e:recording-recovery` | IndexedDB/background upload recovery |
 | `npm run quality:all` | lint + tests + build |
 
 ## Eval runners
 
-`backend/eval/runners` 覆盖 CV parse、JD parse、SEEK benchmark、CV-JD match、interview controller、report QA、baseline comparison、retrieval、agent trajectory、company research、voice quality、stability、preparation stability 和 voice robustness。它们适合回答“质量是否够好”，不是普通代码改动的默认测试。
+`backend/eval/runners` 覆盖 CV parse、JD parse、SEEK benchmark、CV-JD match、interview controller、report QA、baseline comparison、retrieval、agent trajectory、Role-Fit v2 adversarial、human calibration、Role-Fit release gate、company research、voice quality、stability、preparation stability 和 voice robustness。runtime retrieval/trajectory 与舊 safety fixture 有獨立命令和報告，避免把 fixture score 當成真實 retriever 品質。Role-Fit v2 adversarial runner 檢查本地 deterministic coverage，並依 paired calibration summary 決定 release threshold claim；目前 12/12 calibration 完成、threshold 0.85。Release gate 最新狀態是 `ready_with_known_issues`，唯一 known issue 是 real-backend voice next-question first audio 超過 3 秒。這些報告適合回答「這個版本化 local contract 是否退化」，仍不是 production semantic retrieval 或 live Azure/ElevenLabs provider SLO 的替代品。
 
 ## 为什么这样测
 
@@ -49,4 +56,3 @@
 继续读 [source evidence](../references/source-evidence.md)，看本指南引用了哪些测试和源码。
 
 证据状态：除特别标注外，本页基于当前源码已确认。
-

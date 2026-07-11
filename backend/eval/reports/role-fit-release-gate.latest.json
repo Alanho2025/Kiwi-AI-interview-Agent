@@ -1,0 +1,53 @@
+{
+  "schemaVersion": "role_fit_release_gate_report_v1",
+  "generatedAt": "2026-07-11T08:59:13.799Z",
+  "releaseStatus": "ready_with_known_issues",
+  "finalClaimAllowed": true,
+  "releaseBlockers": [],
+  "knownIssues": [
+    "voice_next_question_3s_slo_exceeded"
+  ],
+  "gates": {
+    "calibration": {
+      "status": "passed",
+      "statusValue": "calibrated",
+      "reviewedCases": 12,
+      "totalCases": 12,
+      "releaseThreshold": 0.85
+    },
+    "adversarial": {
+      "status": "passed",
+      "datasetChecksPassed": true,
+      "productionClaimAllowed": true,
+      "totalCases": 12
+    },
+    "cutoverRetention": {
+      "status": "passed",
+      "productionTelemetryAvailable": false,
+      "productionTelemetryNote": "Local source and model contracts are verified here. Production retention telemetry requires a live production data source and is not available in this repository run."
+    },
+    "browserVisual": {
+      "status": "passed",
+      "screenshotCount": 2,
+      "assertions": [
+        "role_fit_section_visible",
+        "answer_alignment_visible",
+        "question_reasoning_visible",
+        "desktop_screenshot_non_empty",
+        "mobile_screenshot_non_empty"
+      ]
+    },
+    "voiceFlow": {
+      "status": "passed",
+      "assistantFirstAudioMs": 2321,
+      "nextQuestionFirstAudioMs": 4415,
+      "turnDoneMs": 5181
+    },
+    "voiceThreeSecondSlo": {
+      "status": "known_issue",
+      "targetMs": 3000,
+      "assistantFirstAudioMs": 2321,
+      "nextQuestionFirstAudioMs": 4415
+    }
+  }
+}

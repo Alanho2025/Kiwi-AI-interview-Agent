@@ -70,5 +70,64 @@
       "enforceDistinctGapRisk": true,
       "requireEvidenceForStrengths": true
     }
+  },
+  {
+    "id": "alan_ho_to_caruso_senior_agentic",
+    "cvFixture": "alan-ho-cv.txt",
+    "jdFixture": "seek-caruso-senior-software-engineer-agentic.txt",
+    "expected": {
+      "acceptableDecisions": ["borderline", "moderate_match"],
+      "scoreRange": [50, 75],
+      "matchedRequirementKeywords": ["agentic", "typescript", "react"],
+      "gapKeywords": ["go", "aws"],
+      "riskKeywords": ["commercial software experience"],
+      "priorityTopicKeywords": ["go", "agentic"]
+    }
+  },
+  {
+    "id": "alan_ho_to_humankind_frontend",
+    "cvFixture": "alan-ho-cv.txt",
+    "jdFixture": "seek-humankind-junior-intermediate-frontend-developer.txt",
+    "expected": {
+      "acceptableDecisions": ["strong_match", "moderate_match"],
+      "scoreRange": [80, 100],
+      "matchedRequirementKeywords": ["react", "javascript", "html", "css", "nz work rights"],
+      "strengthKeywords": ["react", "detail"],
+      "priorityTopicKeywords": ["react", "javascript"]
+    }
+  },
+  {
+    "id": "alan_ho_to_talent_army_remote_saas",
+    "cvFixture": "alan-ho-cv.txt",
+    "jdFixture": "seek-talent-army-software-engineer.txt",
+    "expected": {
+      "acceptableDecisions": ["borderline", "weak_match"],
+      "scoreRange": [45, 75],
+      "matchedRequirementKeywords": ["react", "typescript"],
+      "gapKeywords": ["commercial experience", "saas product experience"]
+    }
+  },
+  {
+    "id": "alan_ho_to_serato_graduate",
+    "cvFixture": "alan-ho-cv.txt",
+    "jdFixture": "seek-serato-graduate-programme.txt",
+    "expected": {
+      "acceptableDecisions": ["strong_match", "moderate_match"],
+      "scoreRange": [85, 100],
+      "matchedRequirementKeywords": ["gpa", "agentic engineering", "python"],
+      "strengthKeywords": ["gpa", "agentic"]
+    }
+  },
+  {
+    "id": "alan_ho_to_hi_tech_ai_product_engineer",
+    "cvFixture": "alan-ho-cv.txt",
+    "jdFixture": "seek-hi-tech-ai-product-engineer.txt",
+    "expected": {
+      "acceptableDecisions": ["weak_match", "not_qualified"],
+      "scoreRange": [30, 60],
+      "gapKeywords": ["java", "angular"],
+      "priorityTopicKeywords": ["java", "angular"]
+    }
   }
 ]
+
