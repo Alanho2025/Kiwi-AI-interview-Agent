@@ -22,6 +22,11 @@ describe('session Role-Fit client redaction', () => {
         roleFit: {
           proofStrategy: {
             artifactStatus: 'ready',
+            roleFitDiagnostics: {
+              schemaVersion: 'role_fit_diagnostics_v1',
+              proofStrategyStatus: 'ready',
+              counts: { proofCoverageCount: 1 },
+            },
             mustCover: [{
               coverageId: 'cov-private-1',
               roleIntentId: 'intent-private-1',
@@ -37,6 +42,17 @@ describe('session Role-Fit client redaction', () => {
           testedRoleIntentIds: ['intent-private-1'],
           recommendedEvidenceIds: ['private-evidence-1'],
           evidenceAngle: 'technical_ownership',
+          preparationGuidance: {
+            proofAngle: 'private-proof-angle',
+            howToUse: 'private-how-to-use',
+            risk: 'private-risk',
+          },
+          evidenceGuidance: {
+            howToSayIt: ['private-how-to-say-it'],
+          },
+          hiringLogicCoverage: {
+            businessProblemIds: ['private-business-problem'],
+          },
         }],
       },
       transcript: {
@@ -57,10 +73,22 @@ describe('session Role-Fit client redaction', () => {
               evidenceUsed: ['private-evidence-1'],
               rankTrace: { recommendedEvidenceIds: ['private-evidence-1'] },
             },
+            preparationGuidance: {
+              howToUse: 'private-turn-how-to-use',
+            },
+            hiringLogicCoverage: {
+              businessProblemIds: ['private-turn-business-problem'],
+            },
           },
         }],
       },
       analysis: {
+        roleFitDiagnostics: {
+          schemaVersion: 'role_fit_diagnostics_v1',
+          companyContextStatus: 'grounded',
+          evidenceMapCoverage: 1,
+          counts: { evidenceMapItemCount: 1 },
+        },
         roleEvidenceMap: {
           items: [{
             roleIntentId: 'intent-private-1',
@@ -74,7 +102,7 @@ describe('session Role-Fit client redaction', () => {
     });
 
     const serialized = JSON.stringify(result);
-    expect(serialized).not.toMatch(/private-evidence|private-cv-snippet|cov-private|intent-private|private-internal-reason|private-alternative/);
+    expect(serialized).not.toMatch(/private-evidence|private-cv-snippet|cov-private|intent-private|private-internal-reason|private-alternative|private-proof-angle|private-how-to-use|private-risk|private-business-problem/);
     expect(result.transcript[0].metadata).toEqual(expect.objectContaining({
       topic: 'experience',
       latency: { rootCandidateRankMs: 2 },
@@ -82,6 +110,18 @@ describe('session Role-Fit client redaction', () => {
     expect(result.interviewPlan.roleFit).toMatchObject({
       enabled: true,
       readiness: { proofStrategyStatus: 'ready' },
+      diagnostics: expect.objectContaining({
+        schemaVersion: 'role_fit_diagnostics_v1',
+        proofStrategyStatus: 'ready',
+      }),
     });
+    expect(result.analysisResult.roleFitDiagnostics).toEqual(expect.objectContaining({
+      schemaVersion: 'role_fit_diagnostics_v1',
+      evidenceMapCoverage: 1,
+    }));
+    expect(result.analysisSetup.roleFitDiagnostics).toEqual(expect.objectContaining({
+      schemaVersion: 'role_fit_diagnostics_v1',
+      evidenceMapCoverage: 1,
+    }));
   });
 });

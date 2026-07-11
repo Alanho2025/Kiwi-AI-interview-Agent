@@ -434,5 +434,35 @@ Python`);
       personalOwnership: true,
     });
     expect(firstProjectEvidence.signals.specificity).toBeGreaterThan(0.7);
+    expect(firstProjectEvidence.proofAngles).toEqual(expect.arrayContaining([
+      expect.stringMatching(/ownership|delivery/i),
+      expect.stringMatching(/outcome|impact/i),
+    ]));
+    expect(firstProjectEvidence.strengthSignals).toEqual(expect.objectContaining({
+      specificity: expect.any(Number),
+      outcomeEvidence: expect.any(Number),
+      personalOwnership: expect.any(Number),
+      credibility: expect.any(Number),
+    }));
+    expect(firstProjectEvidence.howToSayIt[0]).toMatch(/situation|action|result/i);
+    expect(firstProjectEvidence.avoidUsingFor).toEqual(expect.arrayContaining([
+      expect.stringMatching(/without/i),
+    ]));
+    expect(firstProjectEvidence.fitLimits).toEqual(expect.arrayContaining([
+      expect.stringMatching(/scope|validated|context/i),
+    ]));
+    expect(firstProfile.candidateEvidenceGraph).toMatchObject({
+      schemaVersion: 'candidate_evidence_graph_v2',
+      accessScope: 'private',
+    });
+    expect(firstProfile.candidateEvidenceGraph.evidenceItems).toContainEqual(expect.objectContaining({
+      evidenceId: firstProjectEvidence.id,
+      source: expect.stringMatching(/^cv_/),
+      sourceTrace: firstProjectEvidence.sourceTrace,
+      proofAngles: firstProjectEvidence.proofAngles,
+      howToSayIt: firstProjectEvidence.howToSayIt,
+      avoidUsingFor: firstProjectEvidence.avoidUsingFor,
+      fitLimits: firstProjectEvidence.fitLimits,
+    }));
   });
 });

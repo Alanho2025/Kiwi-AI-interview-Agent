@@ -10,25 +10,19 @@
  */
 
 import { formatSuccess } from '../utils/responseFormatter.js';
-import {
-  buildGuardedStructuredJobDescriptionRubric,
-  formatStructuredJobDescription,
-} from '../services/jobDescriptionService.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { requireBodyField } from '../utils/controllerHelpers.js';
 import { logger, getRequestLogMeta } from '../utils/logger.js';
 import { resolveUserFromRequest } from '../services/authService.js';
-import { recordLocalUsage } from '../services/aiUsageTrackingService.js';
 import { extractCompanyValuesContextFromJd } from '../services/company/companyValuesFingerprintService.js';
 import { startCompanyValuesEnrichment } from '../services/company/companyValuesEnrichmentService.js';
-import { buildRoleFitProfile, validateRoleFitReviewInput } from '../services/jobDescription/roleFitProfileBuilder.js';
+import { validateRoleFitReviewInput } from '../services/jobDescription/roleFitProfileBuilder.js';
+import { prepareJobDescriptionForReview } from '../services/jobDescription/jobDescriptionPreparationService.js';
 import { badRequest } from '../utils/appError.js';
 import {
   confirmCompanyRoleFitReview,
-  saveCompanyRoleFitDraft,
   getCompanyValuesProfilesByUserId,
 } from '../services/company/companyValuesRepository.js';
-import { captureUrlContent } from '../services/jobDescription/urlCaptureService.js';
 
 export const paraphraseJD = asyncHandler(async (req, res) => {
   const rawJD = requireBodyField(req, 'rawJD', 'Please provide raw job description text');
@@ -36,77 +30,24 @@ export const paraphraseJD = asyncHandler(async (req, res) => {
   const companyWebsiteUrl = String(req.body?.companyWebsiteUrl || '').trim();
   const userCompanyContext = String(req.body?.userCompanyContext || '').trim();
 
-  let targetRawJD = rawJD.trim();
-  let sourceUrl = '';
-
-  const isUrl = /^https?:\/\//i.test(targetRawJD);
-  if (isUrl) {
-    logger.info(`URL detected in paraphraseJD: ${targetRawJD}. Capturing content...`);
-    const captured = await captureUrlContent(targetRawJD);
-    targetRawJD = captured.visibleText;
-    sourceUrl = captured.finalUrl;
-  }
-
-  const parsedRubric = await buildGuardedStructuredJobDescriptionRubric(targetRawJD);
-  const roleFit = buildRoleFitProfile({ rawJD: targetRawJD, rubric: parsedRubric, companyWebsiteUrl, userCompanyContext });
-  if (roleFit.companyContext.status !== 'ready') {
-    throw badRequest(
-      'Missing company context',
-      'Provide a valid company website URL or manual company context before summarising the JD.',
-      { securityFlags: roleFit.securityFlags }
-    );
-  }
-  const draftRubric = {
-    ...parsedRubric,
-    jobOverview: {
-      ...(parsedRubric.jobOverview || {}),
-      ...(roleFit.companyContext.websiteUrl ? { companyWebsiteUrl: roleFit.companyContext.websiteUrl } : {}),
-    },
-    roleFit,
-  };
-  const { jdFingerprint } = extractCompanyValuesContextFromJd({
-    rawJD: targetRawJD,
-    jdRubric: draftRubric,
-    companyWebsiteUrl: roleFit.companyContext.websiteUrl,
-  });
-  const roleFitWithIdentity = { ...roleFit, jdFingerprint };
-  const structuredJDRubric = {
-    ...draftRubric,
-    roleFit: roleFitWithIdentity,
-    metadata: {
-      ...(draftRubric.metadata || {}),
-      jdFingerprint,
-    },
-  };
-  await saveCompanyRoleFitDraft({
+  const prepared = await prepareJobDescriptionForReview({
+    rawJD,
     userId: user.id,
-    jdFingerprint,
-    roleFitProfile: roleFitWithIdentity,
-    rawJD: targetRawJD,
-    sourceUrl,
-  });
-  const structuredJD = formatStructuredJobDescription(structuredJDRubric);
-  await recordLocalUsage({
-    userId: user.id,
-    stage: 'jd_parse',
-    operation: 'local_parse',
-    metadata: {
-      rawTextLength: targetRawJD.length,
-      safeguardStatus: structuredJDRubric?.safeguard?.finalStatus || null,
-    },
+    companyWebsiteUrl,
+    userCompanyContext,
   });
 
   logger.info('Job description paraphrased', getRequestLogMeta(req, {
-    rubricCriteriaCount: structuredJDRubric?.microCriteria?.length || 0,
-    safeguardStatus: structuredJDRubric?.safeguard?.finalStatus,
+    rubricCriteriaCount: prepared.structuredJDRubric?.microCriteria?.length || 0,
+    safeguardStatus: prepared.structuredJDRubric?.safeguard?.finalStatus,
   }));
 
   res.json(formatSuccess('Job description paraphrased successfully', {
-    structuredJD,
-    structuredJDRubric,
-    safeguard: structuredJDRubric.safeguard,
-    rawJD: targetRawJD, // Return the extracted text to let front-end update state
-    sourceUrl,
+    structuredJD: prepared.structuredJD,
+    structuredJDRubric: prepared.structuredJDRubric,
+    safeguard: prepared.structuredJDRubric.safeguard,
+    rawJD: prepared.rawJD, // Return the extracted text to let front-end update state
+    sourceUrl: prepared.sourceUrl,
   }));
 });
 

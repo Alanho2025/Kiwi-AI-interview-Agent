@@ -28,12 +28,12 @@ const poolItem = {
   coverageContractIds: ['cov-intent-delivery'],
   testedRoleIntentIds: ['intent-delivery'],
   recommendedEvidenceIds: ['evidence-delivery'],
-  evidenceAngle: 'technical_ownership',
+  evidenceAngle: 'production delivery ownership',
   expectedSignal: ['personal ownership', 'validation', 'measurable outcome'],
 };
 
 const roleEvidenceMap = {
-  schemaVersion: 'role_evidence_map_v1',
+  schemaVersion: 'role_evidence_map_v2',
   items: [{
     roleIntentId: 'intent-delivery',
     roleIntent: 'Own reliable production delivery',
@@ -87,7 +87,8 @@ describe('answer alignment service', () => {
 
     expect(alignments).toHaveLength(1);
     expect(alignments[0]).toMatchObject({
-      schemaVersion: 'answer_alignment_v1',
+      schemaVersion: 'answer_alignment_v2',
+      compatibilityVersion: 'answer_alignment_v1',
       turnId: 'turn-answer-delivery',
       questionId: 'question-delivery',
       proofPointId: 'cov-intent-delivery',
@@ -95,14 +96,48 @@ describe('answer alignment service', () => {
       groundingStatus: 'grounded',
     });
     expect(alignments[0].score).toBeGreaterThanOrEqual(80);
+    expect(alignments[0].score).toBeLessThanOrEqual(100);
     expect(alignments[0].label).toBe('strong');
+    expect(alignments[0].scoreBreakdown).toEqual(expect.objectContaining({
+      questionAlignment: expect.any(Number),
+      evidenceFit: expect.any(Number),
+      evidenceClarity: expect.any(Number),
+      roleIntentFit: expect.any(Number),
+      naturalness: expect.any(Number),
+      concision: expect.any(Number),
+    }));
     expect(alignments[0].score).toBe(Object.values(alignments[0].scoreBreakdown)
       .reduce((sum, value) => sum + value, 0));
+    expect(alignments[0].evidenceUseDiagnosis).toEqual(expect.objectContaining({
+      status: 'matched_recommended_evidence',
+      recommendedEvidenceIds: ['evidence-delivery'],
+      detectedEvidenceIds: ['evidence-delivery'],
+    }));
     expect(alignments[0].detectedEvidenceUsed).toEqual([expect.objectContaining({
       evidenceId: 'evidence-delivery',
       confidence: expect.stringMatching(/high|medium/),
-      angleUsed: 'technical_ownership',
+      angleUsed: 'production delivery ownership',
     })]);
+  });
+
+  it('diagnoses answers that miss the recommended evidence angle without inventing support', () => {
+    const [alignment] = buildAnswerAlignments(buildInput([{
+      ...acceptedPair,
+      answerTurn: {
+        ...acceptedPair.answerTurn,
+        text: 'I enjoy learning new tools and prefer working with organized teams.',
+      },
+    }]));
+
+    expect(alignment.schemaVersion).toBe('answer_alignment_v2');
+    expect(alignment.detectedEvidenceUsed).toEqual([]);
+    expect(alignment.evidenceUseDiagnosis).toEqual(expect.objectContaining({
+      status: 'recommended_evidence_not_used',
+      recommendedEvidenceIds: ['evidence-delivery'],
+      detectedEvidenceIds: [],
+    }));
+    expect(alignment.label).not.toBe('strong');
+    expect(alignment.groundingStatus).toBe('limited');
   });
 
   it('does not create alignment for repair, confirmation, or rejected transcript turns', () => {
@@ -146,6 +181,16 @@ describe('answer alignment service', () => {
     expect(summary.status).toBe('ready');
     expect(summary.roleIntentCoverage).toMatchObject({ total: 1, covered: 1, missing: 0 });
     expect(summary.evidenceUsageMap).toMatchObject({ totalUses: 1 });
+    expect(summary.roleFitDiagnostics).toMatchObject({
+      schemaVersion: 'role_fit_diagnostics_v1',
+      proofStrategyStatus: 'ready',
+      answerAlignmentStatus: 'ready',
+      counts: expect.objectContaining({
+        evidenceMapItemCount: 1,
+        proofCoverageCount: 1,
+        answerAlignmentCount: 1,
+      }),
+    });
     expect(summary.questionReasoning[0]).toMatchObject({
       questionId: 'question-delivery',
       topic: 'Production delivery reliability',

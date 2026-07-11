@@ -24,12 +24,13 @@ The evaluation design follows an agent benchmark style:
 - `npm run eval:retrieval-safety` → 舊 phrase/source fixture safety evaluation（不是 runtime benchmark）
 - `npm run eval:agent-trajectory` → production planner/tool mapping/trajectory builder evaluation
 - `npm run eval:agent-trajectory-safety` → 舊 handwritten trace fixture safety evaluation
+- `npm run eval:role-fit-v2-adversarial` → Role-Fit Closed Loop v2 的 mock-safe adversarial coverage gate
 - `npm run eval:calibration` → human-vs-judge disagreement 與 threshold eligibility；預設不需 provider
 - `npm run eval:company-research` → deterministic company research evaluation
 - `npm run eval:voice-quality` → deterministic voice quality evaluation
 - `npm run eval:stability` → deterministic stability evaluation
 - `npm run eval:prep-stability` → deterministic preparation stability evaluation
-- `npm run eval:agent-framework` → retrieval, trajectory, company research, voice quality, and stability evals
+- `npm run eval:agent-framework` → retrieval, trajectory, Role-Fit v2 adversarial, calibration, company research, voice quality, and stability evals
 - `npm run eval:local` → E2E, Green Agent, voice robustness, and agent-framework evals without real-provider requirements
 - `npm run eval:real` → CV, JD, SEEK, match, interview, report, and baseline real-provider evals
 - `npm run eval:all` / `npm run eval:plan` → runs 15 suites sequentially through `runPlanEvalSuite.js`, including the real-provider CV, JD, SEEK, match, interview, report, and baseline evals plus local E2E/Green/voice/retrieval/trajectory/company/stability suites; requires explicit cost/credential approval
@@ -58,7 +59,7 @@ The reports answer three questions quickly:
 2. Which cases are weak now
 3. Which checks failed, so fixes are evidence-based instead of guess-based
 
-`retrieval-eval.latest.json` 包含版本化 retrieval 與 generation grounding 子報告、config fingerprints、domain/risk slices 和逐 case ranked/claim records。`agent-trajectory-eval.latest.json` 保存正式 planner 產生的 action/tool/args/terminal-state trajectory。`human-calibration-eval.latest.json` 在真實 review 尚未完成時必須維持 `canAssertNumericalReleaseThreshold=false`。
+`retrieval-eval.latest.json` 包含版本化 retrieval 與 generation grounding 子報告、config fingerprints、domain/risk slices 和逐 case ranked/claim records。`agent-trajectory-eval.latest.json` 保存正式 planner 產生的 action/tool/args/terminal-state trajectory。`role-fit-v2-adversarial.latest.json` 保存 v2 adversarial coverage summary，並固定 `productionClaimAllowed=false`，直到人工校準完成。`human-calibration-eval.latest.json` 在真實 review 尚未完成時必須維持 `canAssertNumericalReleaseThreshold=false`。
 
 目前 local synthetic benchmark 分數不可宣稱為 production RAGAS 品質。它不使用 production corpus、外部 semantic embedding 或 real-provider generation；人工校準需依 `eval/manual-review/role-fit-calibration-guide-v1.md` 執行。
 

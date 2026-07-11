@@ -27,6 +27,14 @@ describe('RoleFitReportSection', () => {
         question: 'Tell me about a production delivery improvement.',
         label: 'strong',
         score: 84,
+        scoreBreakdown: {
+          questionAlignment: 20,
+          evidenceFit: 18,
+          evidenceClarity: 18,
+          roleIntentFit: 20,
+          naturalness: 4,
+          concision: 4,
+        },
         diagnosis: { mainIssue: 'Your answer directly addressed this focus area.' },
         betterAnswerPlan: { direction: 'Keep the example and make the result easy to hear.' },
       }],
@@ -41,6 +49,9 @@ describe('RoleFitReportSection', () => {
     expect(screen.getByText('1 of 2 focus areas clearly demonstrated')).toBeInTheDocument();
     expect(screen.getByText('Reliable production delivery')).toBeInTheDocument();
     expect(screen.getByText(/Strong match for this answer/i)).toBeInTheDocument();
+    expect(screen.getByText(/Question alignment: 20/i)).toBeInTheDocument();
+    expect(screen.getByText(/Evidence fit: 18/i)).toBeInTheDocument();
+    expect(screen.getByText(/Concision: 4/i)).toBeInTheDocument();
     expect(screen.queryByText(/proofPointId|coverageId|schemaVersion|evidence-delivery/i)).not.toBeInTheDocument();
   });
 

@@ -2,6 +2,7 @@ import { buildAnalyzeOutput, deriveDecision, roundScore, clampScore, isNonTechni
 import { validateAnalyzeOutput } from '../schemaValidationService.js';
 import { unique } from './matchShared.js';
 import { buildLegacyWeightedBreakdown } from './matchScoringService.js';
+import { buildRoleFitDiagnostics } from '../roleFit/roleFitDiagnosticsService.js';
 
 export const calculateConfidence = ({ parsedCvProfile, macroScores, microScores, requirementChecks, cvEvidenceProfile, rubric = {} }) => {
   const hardMissingCount = requirementChecks.filter((item) => item.type === 'hard' && item.status === 'not_met' && !isNonTechnicalHardRequirement(item, rubric)).length;
@@ -61,6 +62,10 @@ export const buildAnalyzeResult = ({
 }) => {
   const confidence = calculateConfidence({ parsedCvProfile, macroScores, microScores, requirementChecks, cvEvidenceProfile, rubric });
   const decision = deriveDecision({ overallScore: scoreBreakdown.overallScore, confidence, hardGateFailed: hasHardGateFailure(requirementChecks, rubric) });
+  const roleFitDiagnostics = buildRoleFitDiagnostics({
+    roleFitProfile: rubric.roleFit || {},
+    roleEvidenceMap,
+  });
   const interviewFocus = unique([
     ...(questionPlanHints.priorityTopics || []).slice(0, 3),
     ...questionPlanHints.mustProbeSkills.slice(0, 3),
@@ -100,6 +105,7 @@ export const buildAnalyzeResult = ({
     evidenceJudgements: semanticEvidenceContext.evidenceJudgements || {},
     universalRoleProfile: rubric.universalRoleProfile || rubric.metadata?.universalRoleProfile || null,
     roleEvidenceMap,
+    roleFitDiagnostics,
     transitionProfile,
     scoreDimensions: {
       ...(scoreBreakdown.semanticDimensions || {}),
@@ -134,6 +140,7 @@ export const buildAnalyzeResult = ({
       explanation,
       evidenceMap: [...strengths.map((item) => ({ type: 'strength', ...item })), ...gaps.map((item) => ({ type: 'gap', ...item }))],
       roleEvidenceMap,
+      roleFitDiagnostics,
       sourceSnapshots: [{ sourceType: 'jd_rubric', title: rubric.title, criteriaCount: (rubric.microCriteria || []).length + (rubric.macroCriteria || []).length }],
       matchingDetails,
       legacy: {

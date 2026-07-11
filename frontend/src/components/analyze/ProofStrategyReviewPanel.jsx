@@ -54,6 +54,12 @@ export function ProofStrategyReviewPanel({ questionPoolInfo }) {
               <div className="min-w-0">
                 <p className="break-words text-sm font-medium text-primary">{area.label}</p>
                 <p className="mt-0.5 text-xs text-faint">{area.kind === 'gap' ? 'Needs a clear example' : 'Experience to explore'}</p>
+                {area.preparationHint ? (
+                  <p className="mt-1 break-words text-xs leading-5 text-muted">{area.preparationHint}</p>
+                ) : null}
+                {area.risk ? (
+                  <p className="mt-1 break-words text-xs leading-5 text-amber-700">{area.risk}</p>
+                ) : null}
               </div>
             </div>
           ))}

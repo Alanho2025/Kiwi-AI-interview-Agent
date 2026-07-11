@@ -82,6 +82,53 @@ describe('report framework QA', () => {
     expect(qa.passed).toBe(false);
   });
 
+  it('blocks invalid Answer Alignment v2 dimensions and wrong-example diagnoses', async () => {
+    const report = buildReport({
+      rubricType: 'starr',
+      frameworkKey: 'behavioural_starr',
+      starApplicable: true,
+      starBreakdown: {
+        situation: 'clear', task: 'clear', action: 'clear', resultOrReaction: 'clear', reflection: 'clear',
+      },
+    });
+    report.roleFit = {
+      status: 'limited',
+      ownership: { verified: true },
+      knownRoleIntentIds: ['intent-known'],
+      knownEvidenceIds: ['evidence-known'],
+      requiredCoverageIds: ['cov-required'],
+      roleIntentCoverage: { items: [{ coverageId: 'cov-required' }] },
+      answerAlignments: [{
+        schemaVersion: 'answer_alignment_v2',
+        turnId: 'answer-1',
+        questionId: 'question-1',
+        proofPointId: 'cov-required',
+        testedRoleIntentIds: ['intent-known'],
+        detectedEvidenceUsed: [{ evidenceId: 'evidence-known' }],
+        score: 105,
+        label: 'partial',
+        groundingStatus: 'grounded',
+        scoreBreakdown: {
+          questionAlignment: 20,
+          evidenceFit: 20,
+        },
+        evidenceUseDiagnosis: { status: 'wrong_example' },
+      }],
+    };
+
+    const qa = await runReportQaAgent({
+      report,
+      analysisResult: { decision: { label: 'manual_review' }, explanation: {} },
+    });
+
+    expect(qa.qualityFlags).toEqual(expect.arrayContaining([
+      'answer_alignment_score_out_of_range',
+      'answer_alignment_missing_v2_dimensions',
+      'answer_alignment_wrong_evidence_use',
+    ]));
+    expect(qa.passed).toBe(false);
+  });
+
   it('flags deterministic report integrity mismatches', async () => {
     const report = buildReport({
       question: 'How did you validate that the feedback helped?',

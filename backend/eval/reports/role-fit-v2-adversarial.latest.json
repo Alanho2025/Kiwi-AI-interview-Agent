@@ -1,0 +1,38 @@
+{
+  "schemaVersion": "role_fit_v2_adversarial_eval_report_v1",
+  "datasetVersion": "role-fit-v2-adversarial-v1",
+  "totalCases": 12,
+  "datasetChecksPassed": true,
+  "malformedCaseIds": [],
+  "coverage": {
+    "riskAreas": [
+      "jd_prompt_injection",
+      "website_evidence_safety",
+      "company_grounding",
+      "source_conflict",
+      "role_intent_grounding",
+      "candidate_evidence",
+      "role_evidence_map",
+      "question_ranking",
+      "live_no_hint",
+      "answer_alignment_dataset",
+      "answer_alignment",
+      "report_qa"
+    ],
+    "expectedStatuses": [
+      "blocked_or_degraded",
+      "blocked",
+      "degraded",
+      "needs_review",
+      "limited",
+      "gap",
+      "deprioritized",
+      "redacted",
+      "excluded",
+      "limited_or_blocked"
+    ],
+    "highRiskCount": 9
+  },
+  "productionClaimAllowed": false,
+  "productionClaimBlocker": "human_calibration_pending"
+}

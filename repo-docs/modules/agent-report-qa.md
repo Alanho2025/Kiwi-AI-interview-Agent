@@ -17,7 +17,7 @@ report QA agent 是报告状态的守门器。它不是润色器；它检查 rep
 
 ## 它做什么决策
 
-它决定 report 是否可发布为 ready。除原有 rubric、evidence total、score、rewrite、turn export 和 transcript conflict 外，Role-Fit blocking flags 还包括 `role_intent_reference_missing`、`answer_alignment_without_proof_point`、`alignment_claim_not_grounded`、`company_claim_not_in_reviewed_profile`、`evidence_id_not_found`、`must_cover_intent_unreported`、`role_fit_artifact_not_owned`。
+它决定 report 是否可发布为 ready。除原有 rubric、evidence total、score、rewrite、turn export 和 transcript conflict 外，Role-Fit blocking flags 还包括 `role_intent_reference_missing`、`answer_alignment_without_proof_point`、`alignment_claim_not_grounded`、`answer_alignment_score_out_of_range`、`answer_alignment_missing_v2_dimensions`、`answer_alignment_wrong_evidence_use`、`company_claim_not_in_reviewed_profile`、`evidence_id_not_found`、`must_cover_intent_unreported`、`role_fit_artifact_not_owned`。
 
 ## 输出和持久化
 

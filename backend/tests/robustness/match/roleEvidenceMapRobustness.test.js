@@ -6,6 +6,28 @@ import { compareCvToJobDescription } from '../../../src/services/matchService.js
 
 const roleFitProfile = {
   roleIntent: {
+    rolePurpose: {
+      shortStatement: 'Help the employer keep customer data delivery reliable.',
+    },
+    businessProblemHypotheses: [{
+      id: 'business-problem:data-reliability',
+      statement: 'Customer data delivery may be fragile when production pipelines fail.',
+    }],
+    workflowPainPoints: [{
+      id: 'workflow-pain:failed-loads',
+      statement: 'Failed data loads need clearer recovery and ownership.',
+    }],
+    idealCandidateSignals: [{
+      id: 'candidate-signal:sql-delivery-owner',
+      roleIntentId: 'intent:sql',
+      signal: 'Own production SQL reliability with measurable recovery outcomes.',
+    }],
+    interviewProbeMap: [{
+      probeId: 'probe:sql-reliability',
+      testedIntentIds: ['intent:sql'],
+      expectedSignals: ['production ownership', 'measurable reliability outcome'],
+      riskReduced: 'Checks whether SQL experience is production delivery rather than tool exposure.',
+    }],
     items: [
       { id: 'intent:sql', statement: 'Production SQL experience', priority: 'high', sourceLabel: 'JD must-have requirement' },
       { id: 'intent:stakeholder', statement: 'Stakeholder communication', priority: 'high', sourceLabel: 'JD soft skill' },
@@ -21,6 +43,16 @@ const tracedEvidence = {
   score: 0.91,
   responsibilitySignal: true,
   achievementSignal: true,
+  proofAngles: ['production ownership', 'measurable reliability impact'],
+  strengthSignals: {
+    specificity: 90,
+    outcomeEvidence: 92,
+    personalOwnership: 88,
+    credibility: 95,
+  },
+  howToSayIt: ['Use this as a STAR example: explain the failed-load problem, your pipeline work, and the 35% recovery impact.'],
+  avoidUsingFor: ['Do not use this as proof of stakeholder communication unless you add the stakeholder context.'],
+  fitLimits: ['Validate the production scale and your exact ownership scope.'],
   sourceTrace: {
     section: 'experience',
     sourceType: 'experience',
@@ -45,10 +77,32 @@ describe('grounded role evidence map robustness', () => {
     });
     const item = map.items.find((entry) => entry.roleIntentId === 'intent:sql');
 
-    expect(map.schemaVersion).toBe('role_evidence_map_v1');
+    expect(map.schemaVersion).toBe('role_evidence_map_v2');
+    expect(map.compatibilityVersion).toBe('role_evidence_map_v1');
     expect(item.classification).toBe('direct');
+    expect(item.fitType).toBe('direct');
     expect(item.score).toBeGreaterThanOrEqual(80);
     expect(item.sourceEvidence[0].sourceTrace.section).toBe('experience');
+    expect(item.sourceEvidence[0]).toEqual(expect.objectContaining({
+      proofAngles: ['production ownership', 'measurable reliability impact'],
+      strengthSignals: expect.objectContaining({ credibility: 95 }),
+      howToSayIt: tracedEvidence.howToSayIt,
+      avoidUsingFor: tracedEvidence.avoidUsingFor,
+      fitLimits: tracedEvidence.fitLimits,
+    }));
+    expect(item.proofAngle).toBe('production ownership');
+    expect(item.evidenceGuidance).toEqual(expect.objectContaining({
+      howToSayIt: tracedEvidence.howToSayIt,
+      avoidUsingFor: tracedEvidence.avoidUsingFor,
+      fitLimits: tracedEvidence.fitLimits,
+    }));
+    expect(item.hiringLogicLinks).toEqual(expect.objectContaining({
+      rolePurpose: 'Help the employer keep customer data delivery reliable.',
+      businessProblemIds: ['business-problem:data-reliability'],
+      workflowPainPointIds: ['workflow-pain:failed-loads'],
+      idealCandidateSignalIds: ['candidate-signal:sql-delivery-owner'],
+      interviewProbeIds: ['probe:sql-reliability'],
+    }));
     expect(item.componentScores).toEqual(expect.objectContaining({
       semanticRelevance: expect.any(Number),
       jdRequirementMatch: 100,
@@ -154,9 +208,20 @@ describe('grounded role evidence map robustness', () => {
       rubricWithRoleFit
     );
 
-    expect(result.roleEvidenceMap.schemaVersion).toBe('role_evidence_map_v1');
+    expect(result.roleEvidenceMap.schemaVersion).toBe('role_evidence_map_v2');
+    expect(result.roleEvidenceMap.compatibilityVersion).toBe('role_evidence_map_v1');
     expect(result.roleEvidenceMap.items).toHaveLength(3);
     expect(result.matchingDetails.roleEvidenceMap).toEqual(result.roleEvidenceMap);
+    expect(result.roleFitDiagnostics).toMatchObject({
+      schemaVersion: 'role_fit_diagnostics_v1',
+      companyContextStatus: 'missing',
+      evidenceMapCoverage: expect.any(Number),
+      counts: expect.objectContaining({
+        roleIntentCount: 3,
+        evidenceMapItemCount: 3,
+      }),
+    });
+    expect(result.matchingDetails.roleFitDiagnostics).toEqual(result.roleFitDiagnostics);
     expect(result.roleEvidenceMap.items.find((item) => item.roleIntentId === 'intent:sql').sourceEvidence[0].sourceTrace.section).toBe('experience');
     expect(result.evidenceMap).toEqual([]);
   });

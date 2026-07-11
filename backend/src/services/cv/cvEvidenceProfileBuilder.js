@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import { normalizeProjectsSection } from './cvProjectNormalizer.js';
 import { extractAchievements } from './cvAchievementExtractor.js';
 import { extractCapabilities } from './cvCapabilityExtractor.js';
+import { buildCandidateEvidenceGraph, buildCandidateEvidenceStrategy } from './candidateEvidenceGraphBuilder.js';
 
 const sectionByKey = (sections = [], key) => sections.find((section) => section.key === key)?.content || '';
 
@@ -104,37 +105,52 @@ export const buildTraceableCvEvidenceItem = (item = {}) => {
   const stableKey = buildStableEvidenceKey(item, text);
   const tools = item.tools || extractTools(text);
   const section = item.section || inferSection(item.sourceType);
+  const evidenceStrength = resolveEvidenceStrength(item, text);
   const responsibilitySignal = Boolean(item.responsibilitySignal ?? /built|owned|led|managed|coordinated|supported|handled|delivered|implemented|resolved|prepared|maintained|designed|developed|evaluated|benchmarked/i.test(text));
   const achievementSignal = Boolean(item.achievementSignal ?? /\d|%|reduced|improved|increased|saved|delivered|launched|achieved/i.test(text));
   const id = item.id && !/^evidence:\d+$/.test(item.id) ? item.id : `evidence:${stableKey}`;
   const chunkId = item.chunkId && !/^cv_\d+$/.test(item.chunkId) ? item.chunkId : `cv:${stableKey}`;
+  const sourceTrace = {
+    section,
+    sourceType: item.sourceType || 'unknown',
+    chunkId,
+    ...(item.projectTitle ? { projectTitle: item.projectTitle } : {}),
+    ...(item.sourceTrace || {}),
+  };
+  const signals = {
+    responsibility: responsibilitySignal,
+    outcome: achievementSignal,
+    specificity: calculateSpecificity({ item, text, tools }),
+    personalOwnership: Boolean(/\b(i|my|owned|led|built|designed|developed|implemented|delivered|managed)\b/i.test(text)),
+    ...(item.signals || {}),
+  };
+  const evidenceStrategy = buildCandidateEvidenceStrategy({
+    item,
+    text,
+    section,
+    tools,
+    evidenceStrength,
+    responsibilitySignal,
+    achievementSignal,
+    signals,
+    sourceTrace,
+  });
 
   return {
     ...item,
     id,
     chunkId,
     section,
-    evidenceStrength: resolveEvidenceStrength(item, text),
+    ...evidenceStrategy,
+    evidenceStrength,
     tools,
     domain: item.domain || inferDomain(text),
     responsibilitySignal,
     achievementSignal,
     rawSnippet: item.rawSnippet || text,
     normalizedSummary: item.normalizedSummary || normalizeEvidenceText(text),
-    sourceTrace: {
-      section,
-      sourceType: item.sourceType || 'unknown',
-      chunkId,
-      ...(item.projectTitle ? { projectTitle: item.projectTitle } : {}),
-      ...(item.sourceTrace || {}),
-    },
-    signals: {
-      responsibility: responsibilitySignal,
-      outcome: achievementSignal,
-      specificity: calculateSpecificity({ item, text, tools }),
-      personalOwnership: Boolean(/\b(i|my|owned|led|built|designed|developed|implemented|delivered|managed)\b/i.test(text)),
-      ...(item.signals || {}),
-    },
+    sourceTrace,
+    signals,
   };
 };
 
@@ -236,6 +252,7 @@ export const buildCvEvidenceProfile = (cvProfile = {}, normalizedText = '', opti
     achievements,
     quantifiedEvidence: extractQuantifiedEvidence({ achievements, evidenceItems, normalizedText }),
     evidenceItems,
+    candidateEvidenceGraph: buildCandidateEvidenceGraph(evidenceItems),
     nlpSignals: options.nlpSignals || null,
   };
 };

@@ -17,6 +17,19 @@ const splitListText = (value = '') => String(value || '')
 const joinListText = (items = []) => normalizeList(items).join('\n');
 const fieldClass = 'mt-2 w-full rounded-xl border border-theme glass px-3 py-2 text-sm text-primary outline-none transition focus:[border-color:var(--accent)] focus:ring-2 focus:ring-1 focus:ring-accent/15';
 
+const buildHumanEditedRoleIntent = ({ statement, existing, index }) => ({
+  id: `intent:user-edit:${index + 1}`,
+  statement,
+  priority: existing?.priority || 'medium',
+  category: existing?.category || 'human_reviewed_intent',
+  sourceLabel: 'Human-reviewed role intent',
+  confidence: Number.isFinite(Number(existing?.confidence)) ? Math.min(Number(existing.confidence), 0.5) : 0.5,
+  sourceConfidence: 'unsupported',
+  reviewConfidence: 'user_modified',
+  uncertainty: 'User-edited during JD review. Treat this as preparation guidance, not verified employer truth.',
+  sourceTrace: { sourceType: 'human_review', section: 'roleIntent', rawSnippet: statement },
+});
+
 const SummarySection = ({ title, items = [], emptyText = 'No clear items detected in this section.' }) => (
   <div className="rounded-lg border border-gray-100 glass p-4">
     <h5 className="text-sm font-semibold text-primary">{title}</h5>
@@ -158,16 +171,7 @@ const EditableJDReviewPanel = ({ rubric, onRubricChange }) => {
         const existing = existingItems.find((item) => item.statement === statement) || existingItems[index];
         return existing?.statement === statement
           ? existing
-          : {
-              id: `intent:user-edit:${index + 1}`,
-              statement,
-              priority: existing?.priority || 'medium',
-              category: existing?.category || 'human_reviewed_intent',
-              sourceLabel: 'Human-reviewed role intent',
-              confidence: 1,
-              uncertainty: 'User-edited during JD review.',
-              sourceTrace: { sourceType: 'human_review', section: 'roleIntent', rawSnippet: statement },
-            };
+          : buildHumanEditedRoleIntent({ statement, existing, index });
       });
       return {
         ...current,

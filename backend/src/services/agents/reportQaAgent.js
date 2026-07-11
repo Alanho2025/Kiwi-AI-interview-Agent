@@ -25,6 +25,9 @@ export const BLOCKING_REPORT_FLAGS = new Set([
   'role_intent_reference_missing',
   'answer_alignment_without_proof_point',
   'alignment_claim_not_grounded',
+  'answer_alignment_score_out_of_range',
+  'answer_alignment_missing_v2_dimensions',
+  'answer_alignment_wrong_evidence_use',
   'company_claim_not_in_reviewed_profile',
   'evidence_id_not_found',
   'must_cover_intent_unreported',
@@ -36,6 +39,15 @@ const normalizeComparableText = (value = '') => String(value)
   .replace(/[_-]+/g, ' ')
   .replace(/\s+/g, ' ')
   .trim();
+
+const REQUIRED_ANSWER_ALIGNMENT_V2_DIMENSIONS = [
+  'questionAlignment',
+  'evidenceFit',
+  'evidenceClarity',
+  'roleIntentFit',
+  'naturalness',
+  'concision',
+];
 
 const scoreCoverage = (report = {}) => {
   const sections = Array.isArray(report.sections) ? report.sections.length : 0;
@@ -78,6 +90,16 @@ const getRoleFitIntegrity = (report = {}) => {
     alignment.groundingStatus === 'blocked'
     || (alignment.label === 'strong' && !(alignment.detectedEvidenceUsed || []).length)
   ));
+  const scoreOutOfRange = alignments.some((alignment) => (
+    !Number.isFinite(Number(alignment.score))
+    || Number(alignment.score) < 0
+    || Number(alignment.score) > 100
+  ));
+  const missingV2Dimensions = alignments.some((alignment) => (
+    alignment.schemaVersion === 'answer_alignment_v2'
+    && REQUIRED_ANSWER_ALIGNMENT_V2_DIMENSIONS.some((dimension) => !Number.isFinite(Number(alignment.scoreBreakdown?.[dimension])))
+  ));
+  const wrongEvidenceUse = alignments.some((alignment) => alignment.evidenceUseDiagnosis?.status === 'wrong_example');
   const unreviewedCompanyClaim = (roleFit.companyClaims || []).some((claim) => claim.reviewed !== true);
   const unknownEvidenceId = alignments.some((alignment) => (
     (alignment.detectedEvidenceUsed || []).some((evidence) => !knownEvidenceIds.has(evidence.evidenceId))
@@ -88,6 +110,9 @@ const getRoleFitIntegrity = (report = {}) => {
     ['role_fit_role_intents_known', !missingRoleIntentReference, 'role_intent_reference_missing'],
     ['answer_alignments_have_proof_points', !alignmentWithoutProofPoint, 'answer_alignment_without_proof_point'],
     ['answer_alignment_claims_grounded', !ungroundedAlignment, 'alignment_claim_not_grounded'],
+    ['answer_alignment_scores_in_range', !scoreOutOfRange, 'answer_alignment_score_out_of_range'],
+    ['answer_alignment_v2_dimensions_present', !missingV2Dimensions, 'answer_alignment_missing_v2_dimensions'],
+    ['answer_alignment_uses_right_evidence', !wrongEvidenceUse, 'answer_alignment_wrong_evidence_use'],
     ['company_claims_reviewed', !unreviewedCompanyClaim, 'company_claim_not_in_reviewed_profile'],
     ['answer_alignment_evidence_ids_known', !unknownEvidenceId, 'evidence_id_not_found'],
     ['must_cover_intents_reported', !unreportedMustCover, 'must_cover_intent_unreported'],

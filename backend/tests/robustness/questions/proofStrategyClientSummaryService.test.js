@@ -18,6 +18,12 @@ describe('proofStrategyClientSummaryService', () => {
           coveragePriority: 'must_cover',
           recommendedEvidenceIds: ['private-evidence-react'],
           evidenceAngle: 'technical_ownership',
+          preparationGuidance: {
+            proofAngle: 'frontend delivery ownership',
+            howToUse: 'Prepare one example that shows frontend delivery ownership.',
+            risk: 'Do not use this as proof of backend ownership.',
+            fitLimits: ['Clarify production scope.'],
+          },
         },
         {
           topic: 'Node.js backend ownership',
@@ -38,7 +44,13 @@ describe('proofStrategyClientSummaryService', () => {
       fallbackQuestionCount: 1,
       unresolvedCount: 0,
       focusAreas: [
-        { label: 'React frontend experience', kind: 'experience' },
+        {
+          label: 'React frontend experience',
+          kind: 'experience',
+          proofAngle: 'frontend delivery ownership',
+          preparationHint: 'Prepare one example that shows frontend delivery ownership.',
+          risk: 'Do not use this as proof of backend ownership.',
+        },
         { label: 'Node.js backend ownership', kind: 'gap' },
       ],
     });

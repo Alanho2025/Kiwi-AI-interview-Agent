@@ -67,6 +67,7 @@ export const validateAnalyzeOutput = (payload = {}) => {
       : buildExplanationObject(),
     evidenceMap: ensureArray(safePayload.evidenceMap),
     roleEvidenceMap: isObject(safePayload.roleEvidenceMap) ? safePayload.roleEvidenceMap : {},
+    roleFitDiagnostics: isObject(safePayload.roleFitDiagnostics) ? safePayload.roleFitDiagnostics : {},
     sourceSnapshots: ensureArray(safePayload.sourceSnapshots),
     matchingDetails: isObject(safePayload.matchingDetails) ? safePayload.matchingDetails : {},
     legacy: {

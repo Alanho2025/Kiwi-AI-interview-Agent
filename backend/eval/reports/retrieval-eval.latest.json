@@ -1,6 +1,6 @@
 {
   "schemaVersion": "role_fit_rag_eval_report_v1",
-  "generatedAt": "2026-07-10T08:03:14.284Z",
+  "generatedAt": "2026-07-10T22:08:36.295Z",
   "casesRun": 10,
   "average": 1,
   "configFingerprints": {
@@ -17,7 +17,7 @@
     "schemaVersion": "retrieval_eval_report_v1",
     "datasetVersion": "role-fit-retrieval-v1",
     "configFingerprint": "sha256:dfce6a0be5f2fffc4cebddc015c355175ff5ac2566c014c88d409882c4de05aa",
-    "generatedAt": "2026-07-10T08:03:14.281Z",
+    "generatedAt": "2026-07-10T22:08:36.293Z",
     "casesRun": 5,
     "average": 1,
     "metrics": {
@@ -128,7 +128,7 @@
           "cv"
         ],
         "configFingerprint": "sha256:f490a089ed96b16f073c17496960df746ef51881052b6e85422652d9a1cafff3",
-        "latencyMs": 23.0802,
+        "latencyMs": 25.05,
         "rankedChunks": [
           {
             "chunkId": "cv-api-1",
@@ -185,7 +185,7 @@
           "job_description"
         ],
         "configFingerprint": "sha256:f490a089ed96b16f073c17496960df746ef51881052b6e85422652d9a1cafff3",
-        "latencyMs": 22.9135,
+        "latencyMs": 24.3191,
         "rankedChunks": [
           {
             "chunkId": "jd-reliability-1",
@@ -242,7 +242,7 @@
           "match_analysis"
         ],
         "configFingerprint": "sha256:f490a089ed96b16f073c17496960df746ef51881052b6e85422652d9a1cafff3",
-        "latencyMs": 20.8882,
+        "latencyMs": 23.5645,
         "rankedChunks": [
           {
             "chunkId": "match-gap-1",
@@ -299,7 +299,7 @@
           "cv"
         ],
         "configFingerprint": "sha256:f490a089ed96b16f073c17496960df746ef51881052b6e85422652d9a1cafff3",
-        "latencyMs": 19.717,
+        "latencyMs": 20.8325,
         "rankedChunks": [
           {
             "chunkId": "cv-a11y-1",
@@ -356,7 +356,7 @@
           "interview_plan"
         ],
         "configFingerprint": "sha256:f490a089ed96b16f073c17496960df746ef51881052b6e85422652d9a1cafff3",
-        "latencyMs": 19.403,
+        "latencyMs": 19.611,
         "rankedChunks": [
           {
             "chunkId": "plan-leadership-2",
@@ -405,7 +405,7 @@
   "generation": {
     "schemaVersion": "generation_grounding_eval_report_v1",
     "datasetVersion": "role-fit-generation-v1",
-    "generatedAt": "2026-07-10T08:03:14.264Z",
+    "generatedAt": "2026-07-10T22:08:36.277Z",
     "casesRun": 5,
     "average": 1,
     "metrics": {

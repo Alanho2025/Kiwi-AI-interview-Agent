@@ -3,8 +3,16 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { evaluateRoleFitV2AdversarialDataset } from '../../../eval/helpers/roleFitV2AdversarialEvaluator.js';
+import { buildHumanCalibrationSummary } from '../../../eval/helpers/humanCalibrationEvaluator.js';
+
 const loadDataset = async (relativePath) => JSON.parse(await fs.readFile(
   path.resolve('eval/datasets', relativePath),
+  'utf8',
+));
+
+const loadManualReviewDataset = async (relativePath) => JSON.parse(await fs.readFile(
+  path.resolve('eval/manual-review', relativePath),
   'utf8',
 ));
 
@@ -47,5 +55,47 @@ describe('role-fit evaluation datasets', () => {
       }));
       expect(Object.hasOwn(evaluationCase, 'expectedTerminalCondition')).toBe(true);
     }
+  });
+
+  it('keeps the Role-Fit V2 adversarial suite at 12 mock-safe cases with explicit safeguards', async () => {
+    const dataset = await loadDataset('role-fit-v2/adversarial-v1.json');
+    const summary = evaluateRoleFitV2AdversarialDataset(dataset);
+    const serialized = JSON.stringify(dataset).toLowerCase();
+
+    expect(dataset).toMatchObject({
+      schemaVersion: 'role_fit_v2_adversarial_dataset_v1',
+      datasetVersion: 'role-fit-v2-adversarial-v1',
+    });
+    expect(dataset.cases).toHaveLength(12);
+    expect(dataset.cases.every((item) => (
+      item.caseId
+      && item.riskArea
+      && item.expectedSafeguard
+      && item.expectedStatus
+      && item.assertions?.length
+    ))).toBe(true);
+    expect(summary).toMatchObject({
+      schemaVersion: 'role_fit_v2_adversarial_eval_report_v1',
+      totalCases: 12,
+      datasetChecksPassed: true,
+      productionClaimAllowed: false,
+      productionClaimBlocker: 'human_calibration_pending',
+    });
+    expect(serialized).not.toContain('@');
+    expect(serialized).not.toContain('heminghan');
+    expect(serialized).not.toContain('/uploads');
+  });
+
+  it('keeps human calibration as an explicit pending release gate until reviewed records exist', async () => {
+    const dataset = await loadManualReviewDataset('role-fit-calibration-v1.json');
+    const summary = buildHumanCalibrationSummary(dataset);
+
+    expect(dataset.cases).toHaveLength(12);
+    expect(summary).toMatchObject({
+      status: 'pending_human_review',
+      totalCases: 12,
+      reviewedCases: 0,
+      canAssertNumericalReleaseThreshold: false,
+    });
   });
 });

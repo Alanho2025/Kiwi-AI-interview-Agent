@@ -25,6 +25,19 @@ describe('roleSpecificPracticePlannerService', () => {
         roleIntent: 'React frontend experience',
         classification: 'direct',
         sourceEvidence: [{ evidenceId: 'ev-react-1' }],
+        proofAngle: 'frontend delivery ownership',
+        evidenceGuidance: {
+          howToSayIt: ['Use one React delivery example with situation, action, and result.'],
+          avoidUsingFor: ['Do not use this as proof of backend ownership.'],
+          fitLimits: ['Clarify production scope.'],
+        },
+        hiringLogicLinks: {
+          rolePurpose: 'Improve user-facing product delivery.',
+          businessProblemIds: ['business-problem:frontend-delivery'],
+          workflowPainPointIds: ['workflow-pain:ui-release-risk'],
+          idealCandidateSignalIds: ['candidate-signal:react-owner'],
+          interviewProbeIds: ['probe:react-delivery'],
+        },
       },
       {
         roleIntentId: 'intent-node',
@@ -48,6 +61,16 @@ describe('roleSpecificPracticePlannerService', () => {
     expect(strategy.roleIntentProfileId).toBe('profile-1');
     expect(strategy.roleEvidenceMapId).toBe('analysis-1');
     expect(strategy.targetRoleIntentIds).toEqual(['intent-react', 'intent-node']);
+    expect(strategy.roleFitDiagnostics).toMatchObject({
+      schemaVersion: 'role_fit_diagnostics_v1',
+      evidenceMapCoverage: expect.any(Number),
+      proofStrategyStatus: 'ready',
+      counts: expect.objectContaining({
+        roleIntentCount: 3,
+        evidenceMapItemCount: 3,
+        proofCoverageCount: 2,
+      }),
+    });
 
     // Check mustCover mapping
     // React (high priority) should be role_intent
@@ -55,6 +78,17 @@ describe('roleSpecificPracticePlannerService', () => {
     expect(reactCover).toBeDefined();
     expect(reactCover.type).toBe('role_intent');
     expect(reactCover.evidenceOptions).toEqual(['ev-react-1']);
+    expect(reactCover).toEqual(expect.objectContaining({
+      proofAngle: 'frontend delivery ownership',
+      evidenceGuidance: expect.objectContaining({
+        howToSayIt: ['Use one React delivery example with situation, action, and result.'],
+        avoidUsingFor: ['Do not use this as proof of backend ownership.'],
+      }),
+      hiringLogicLinks: expect.objectContaining({
+        businessProblemIds: ['business-problem:frontend-delivery'],
+        idealCandidateSignalIds: ['candidate-signal:react-owner'],
+      }),
+    }));
 
     const nodeCovers = strategy.mustCover.filter(c => c.roleIntentId === 'intent-node');
     expect(nodeCovers).toEqual([
@@ -85,6 +119,17 @@ describe('roleSpecificPracticePlannerService', () => {
     expect(reactQ.testedRoleIntentIds).toEqual(['intent-react']);
     expect(reactQ.recommendedEvidenceIds).toEqual(['ev-react-1']);
     expect(reactQ.coveragePriority).toBe('must_cover');
+    expect(reactQ.evidenceAngle).toBe('frontend delivery ownership');
+    expect(reactQ.preparationGuidance).toEqual(expect.objectContaining({
+      proofAngle: 'frontend delivery ownership',
+      howToUse: expect.stringMatching(/frontend delivery ownership/i),
+      risk: 'Do not use this as proof of backend ownership.',
+      fitLimits: ['Clarify production scope.'],
+    }));
+    expect(reactQ.hiringLogicCoverage).toEqual(expect.objectContaining({
+      businessProblemIds: ['business-problem:frontend-delivery'],
+      interviewProbeIds: ['probe:react-delivery'],
+    }));
     expect(reactQ.roleFitReason).toContain('React frontend experience');
 
     const nodeQ = enriched.find(q => q.questionId === 'q-2');
@@ -152,6 +197,11 @@ describe('roleSpecificPracticePlannerService', () => {
       artifactStatus: 'degraded',
       degradedReason: 'missing_role_fit_artifacts',
       mustCover: [expect.objectContaining({ status: 'degraded' })],
+      roleFitDiagnostics: expect.objectContaining({
+        schemaVersion: 'role_fit_diagnostics_v1',
+        proofStrategyStatus: 'degraded',
+        degradedReasons: expect.arrayContaining(['missing_role_fit_artifacts']),
+      }),
     });
     expect(result.readiness.status).toBe('degraded');
   });

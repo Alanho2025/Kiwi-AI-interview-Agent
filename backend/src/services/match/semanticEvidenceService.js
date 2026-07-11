@@ -37,14 +37,16 @@ const buildRequirementCandidates = (rubric = {}) => {
 };
 
 const buildEvidenceCandidates = (evidenceProfile = {}) => {
-  const items = evidenceProfile.evidenceItems || [];
+  const items = evidenceProfile.evidenceItems || evidenceProfile.candidateEvidenceGraph?.evidenceItems || [];
   return items
     .map((item, index) => ({
-      id: item.id || `evidence:${index}`,
-      text: item.text || '',
-      sourceType: item.sourceType || '',
-      section: item.section || '',
-      chunkId: item.chunkId || item.id || `cv_${index + 1}`,
+      id: item.id || item.evidenceId || `evidence:${index}`,
+      text: item.text || item.rawSnippet || item.title || '',
+      sourceType: item.sourceType || item.sourceTrace?.sourceType || item.source || '',
+      candidateEvidenceSource: item.candidateEvidenceSource || item.source || '',
+      title: item.title || '',
+      section: item.section || item.sourceTrace?.section || '',
+      chunkId: item.chunkId || item.id || item.evidenceId || `cv_${index + 1}`,
       projectTitle: item.projectTitle || '',
       evidenceStrength: item.evidenceStrength || 'weak',
       tools: item.tools || [],
@@ -53,6 +55,11 @@ const buildEvidenceCandidates = (evidenceProfile = {}) => {
       achievementSignal: Boolean(item.achievementSignal),
       sourceTrace: item.sourceTrace || null,
       signals: item.signals || {},
+      proofAngles: item.proofAngles || [],
+      strengthSignals: item.strengthSignals || {},
+      howToSayIt: item.howToSayIt || [],
+      avoidUsingFor: item.avoidUsingFor || [],
+      fitLimits: item.fitLimits || [],
     }))
     .filter((item) => item.text.trim());
 };

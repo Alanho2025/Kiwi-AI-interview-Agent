@@ -14,7 +14,13 @@ describe('ProofStrategyReviewPanel', () => {
         fallbackQuestionCount: 0,
         unresolvedCount: 0,
         focusAreas: [
-          { label: 'React delivery experience', kind: 'experience' },
+          {
+            label: 'React delivery experience',
+            kind: 'experience',
+            proofAngle: 'frontend delivery ownership',
+            preparationHint: 'Prepare one example that shows frontend delivery ownership.',
+            risk: 'Do not use this as proof of backend ownership.',
+          },
           { label: 'Production support', kind: 'gap' },
         ],
       },
@@ -24,6 +30,8 @@ describe('ProofStrategyReviewPanel', () => {
     expect(screen.getByText('4 focus areas')).toBeInTheDocument();
     expect(screen.getByText('2 gaps to explore')).toBeInTheDocument();
     expect(screen.getByText('React delivery experience')).toBeInTheDocument();
+    expect(screen.getByText('Prepare one example that shows frontend delivery ownership.')).toBeInTheDocument();
+    expect(screen.getByText('Do not use this as proof of backend ownership.')).toBeInTheDocument();
     expect(screen.getByText('Production support')).toBeInTheDocument();
     expect(screen.queryByText(/coverage|schema|proof point|rank/i)).not.toBeInTheDocument();
   });

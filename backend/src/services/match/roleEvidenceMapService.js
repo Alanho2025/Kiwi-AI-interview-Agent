@@ -11,7 +11,9 @@ const WEIGHTS = {
 };
 
 const clampScore = (value) => Math.max(0, Math.min(100, Math.round(Number(value) || 0)));
+const ensureArray = (value) => (Array.isArray(value) ? value : []);
 const normalizeKey = (value = '') => normalizeTaxonomyLabel(String(value || ''));
+const unique = (items = []) => [...new Set(items.filter(Boolean))];
 
 const findRequirementCheck = (requirementChecks = [], statement = '') => {
   const key = normalizeKey(statement);
@@ -85,7 +87,52 @@ const buildLimitation = ({ classification, match, requirementCheck }) => {
     : 'The available evidence is below the grounded match threshold.';
 };
 
-const buildMapItem = ({ roleIntent, requirementChecks, semanticEvidenceContext }) => {
+const buildSourceEvidence = (match = {}) => ({
+  evidenceId: match.id || match.evidenceId,
+  text: match.text,
+  title: match.title || match.projectTitle || '',
+  candidateEvidenceSource: match.candidateEvidenceSource || '',
+  evidenceStrength: match.evidenceStrength || 'weak',
+  semanticScore: Number(Number(match.score || 0).toFixed(4)),
+  sourceTrace: match.sourceTrace,
+  proofAngles: ensureArray(match.proofAngles),
+  strengthSignals: match.strengthSignals || {},
+  howToSayIt: ensureArray(match.howToSayIt),
+  avoidUsingFor: ensureArray(match.avoidUsingFor),
+  fitLimits: ensureArray(match.fitLimits),
+});
+
+const buildEvidenceGuidance = (sourceEvidence = []) => ({
+  proofAngles: unique(sourceEvidence.flatMap((item) => ensureArray(item.proofAngles))).slice(0, 5),
+  howToSayIt: unique(sourceEvidence.flatMap((item) => ensureArray(item.howToSayIt))).slice(0, 3),
+  avoidUsingFor: unique(sourceEvidence.flatMap((item) => ensureArray(item.avoidUsingFor))).slice(0, 4),
+  fitLimits: unique(sourceEvidence.flatMap((item) => ensureArray(item.fitLimits))).slice(0, 4),
+});
+
+const getRoleIntentProfile = (roleFitProfile = {}) => roleFitProfile.roleIntent || {};
+
+const buildHiringLogicLinks = ({ roleFitProfile = {}, roleIntent = {} } = {}) => {
+  const roleIntentProfile = getRoleIntentProfile(roleFitProfile);
+  return {
+    rolePurpose: roleIntentProfile.rolePurpose?.shortStatement || '',
+    businessProblemIds: ensureArray(roleIntentProfile.businessProblemHypotheses)
+      .map((item) => item.id)
+      .filter(Boolean),
+    workflowPainPointIds: ensureArray(roleIntentProfile.workflowPainPoints)
+      .map((item) => item.id)
+      .filter(Boolean),
+    idealCandidateSignalIds: ensureArray(roleIntentProfile.idealCandidateSignals)
+      .filter((item) => !item.roleIntentId || item.roleIntentId === roleIntent.id)
+      .map((item) => item.id)
+      .filter(Boolean),
+    interviewProbeIds: ensureArray(roleIntentProfile.interviewProbeMap)
+      .filter((item) => ensureArray(item.testedIntentIds).includes(roleIntent.id))
+      .map((item) => item.probeId)
+      .filter(Boolean),
+  };
+};
+
+const buildMapItem = ({ roleFitProfile, roleIntent, requirementChecks, semanticEvidenceContext }) => {
   const requirementCheck = findRequirementCheck(requirementChecks, roleIntent.statement);
   const semanticMatches = getSemanticMatches(semanticEvidenceContext, roleIntent.statement);
   const tracedMatches = semanticMatches.filter(hasSourceTrace);
@@ -93,6 +140,10 @@ const buildMapItem = ({ roleIntent, requirementChecks, semanticEvidenceContext }
   const componentScores = buildComponentScores({ roleIntent, requirementCheck, match: topMatch });
   const score = weightedScore(componentScores);
   const classification = classifyEvidence({ score, match: topMatch, requirementCheck });
+  const sourceEvidence = classification === 'gap'
+    ? []
+    : tracedMatches.slice(0, 3).map(buildSourceEvidence);
+  const evidenceGuidance = buildEvidenceGuidance(sourceEvidence);
 
   return {
     id: `role-evidence:${roleIntent.id}`,
@@ -100,17 +151,13 @@ const buildMapItem = ({ roleIntent, requirementChecks, semanticEvidenceContext }
     roleIntent: roleIntent.statement,
     priority: roleIntent.priority || requirementCheck?.importance || 'medium',
     classification,
+    fitType: classification,
     score,
     componentScores,
-    sourceEvidence: classification === 'gap'
-      ? []
-      : tracedMatches.slice(0, 3).map((match) => ({
-        evidenceId: match.id || match.evidenceId,
-        text: match.text,
-        evidenceStrength: match.evidenceStrength || 'weak',
-        semanticScore: Number(Number(match.score || 0).toFixed(4)),
-        sourceTrace: match.sourceTrace,
-      })),
+    sourceEvidence,
+    proofAngle: evidenceGuidance.proofAngles[0] || (classification === 'gap' ? 'gap validation' : 'role-fit evidence'),
+    evidenceGuidance,
+    hiringLogicLinks: buildHiringLogicLinks({ roleFitProfile, roleIntent }),
     limitation: buildLimitation({ classification, match: topMatch, requirementCheck }),
     requirementStatus: requirementCheck?.status || 'not_mapped',
   };
@@ -128,14 +175,16 @@ const buildIntentCoverage = (items = []) => {
 
 export const buildRoleEvidenceMap = ({ roleFitProfile = {}, requirementChecks = [], semanticEvidenceContext = {} } = {}) => {
   const items = (roleFitProfile.roleIntent?.items || []).map((roleIntent) => buildMapItem({
+    roleFitProfile,
     roleIntent,
     requirementChecks,
     semanticEvidenceContext,
   }));
 
   return {
-    schemaVersion: 'role_evidence_map_v1',
-    scoringVersion: 'role_evidence_weighted_v1',
+    schemaVersion: 'role_evidence_map_v2',
+    compatibilityVersion: 'role_evidence_map_v1',
+    scoringVersion: 'role_evidence_weighted_v2',
     items,
     intentCoverage: buildIntentCoverage(items),
     classificationCounts: {

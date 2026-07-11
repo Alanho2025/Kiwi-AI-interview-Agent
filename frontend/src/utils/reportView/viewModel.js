@@ -45,6 +45,7 @@ const buildRoleFitView = (roleFit = {}) => {
       question: item.question || 'Interview question',
       label: item.label || 'unavailable',
       score: Number(item.score || 0),
+      scoreBreakdown: item.scoreBreakdown || {},
       groundingStatus: item.groundingStatus || 'limited',
       diagnosis: item.diagnosis || {},
       betterAnswerPlan: item.betterAnswerPlan || {},

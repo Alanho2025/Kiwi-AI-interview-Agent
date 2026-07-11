@@ -10,17 +10,29 @@ const isGapQuestion = (item = {}) => item.evidenceAngle === 'gap_validation'
   || item.questionIntent === 'validate_gap'
   || item.sourceStage === 'match_gap';
 
+const buildFocusArea = (item = {}) => {
+  const label = normalizeText(item.topic || item.competency);
+  const guidance = item.preparationGuidance || {};
+  return {
+    label,
+    kind: isGapQuestion(item) ? 'gap' : 'experience',
+    ...(guidance.proofAngle ? { proofAngle: guidance.proofAngle } : {}),
+    ...(guidance.howToUse ? { preparationHint: guidance.howToUse } : {}),
+    ...(guidance.risk ? { risk: guidance.risk } : {}),
+  };
+};
+
 export const buildProofStrategyClientSummary = ({ readiness = {}, poolItems = [] } = {}) => {
   const focusItems = ensureArray(poolItems).filter((item) => (
     item.coveragePriority === 'must_cover' && getCoverageIds(item).length > 0
   ));
   const uniqueFocusAreas = new Map();
   focusItems.forEach((item) => {
-    const label = normalizeText(item.topic || item.competency);
+    const focusArea = buildFocusArea(item);
+    const label = focusArea.label;
     if (!label) return;
     const key = label.toLowerCase();
-    const kind = isGapQuestion(item) ? 'gap' : 'experience';
-    if (!uniqueFocusAreas.has(key) || kind === 'gap') uniqueFocusAreas.set(key, { label, kind });
+    if (!uniqueFocusAreas.has(key) || focusArea.kind === 'gap') uniqueFocusAreas.set(key, focusArea);
   });
 
   const representedCoverageIds = new Set(focusItems.flatMap(getCoverageIds));

@@ -1,5 +1,6 @@
 import { ensureArray, normalizeKey } from '../../utils/commonHelpers.js';
 import { ensureProofStrategyQuestionCoverage } from './roleFitQuestionCoverageService.js';
+import { buildRoleFitDiagnostics } from '../roleFit/roleFitDiagnosticsService.js';
 
 const CLASSIFICATION_STRENGTH = {
   direct: 1,
@@ -12,14 +13,38 @@ const getEvidenceIds = (mapItem = {}) => mapItem.classification === 'gap'
   ? []
   : ensureArray(mapItem.sourceEvidence).map((evidence) => evidence?.evidenceId).filter(Boolean);
 
+const getProofAngle = (mapItem = {}, isGap = false) => {
+  const safeMapItem = mapItem || {};
+  return safeMapItem.proofAngle || (isGap ? 'gap_validation' : 'role-fit evidence');
+};
+
+const buildPreparationGuidance = ({ mapItem = {}, roleIntentLabel = '', isGap = false } = {}) => {
+  const safeMapItem = mapItem || {};
+  const evidenceGuidance = safeMapItem.evidenceGuidance || {};
+  const proofAngle = getProofAngle(safeMapItem, isGap);
+  return {
+    proofAngle,
+    howToUse: isGap
+      ? `Prepare to explain whether you have a clear example for ${roleIntentLabel}.`
+      : `Prepare one example that shows ${proofAngle}.`,
+    risk: ensureArray(evidenceGuidance.avoidUsingFor)[0] || safeMapItem.limitation || '',
+    fitLimits: ensureArray(evidenceGuidance.fitLimits).slice(0, 2),
+  };
+};
+
 const buildCoverage = ({ roleIntentId = null, mapItem = null, degraded = false } = {}) => {
   const isGap = mapItem?.classification === 'gap';
+  const roleIntentLabel = mapItem?.roleIntent || 'this role focus';
   return {
     coverageId: isGap ? `cov-gap-${roleIntentId}` : `cov-intent-${roleIntentId}`,
     type: isGap ? 'gap_validation' : 'role_intent',
     roleIntentId,
     minQuestions: 1,
     evidenceOptions: getEvidenceIds(mapItem),
+    proofAngle: getProofAngle(mapItem, isGap),
+    evidenceGuidance: mapItem?.evidenceGuidance || {},
+    hiringLogicLinks: mapItem?.hiringLogicLinks || {},
+    preparationGuidance: buildPreparationGuidance({ mapItem, roleIntentLabel, isGap }),
     allowAdjacentEvidence: true,
     status: degraded ? 'degraded' : 'pending',
   };
@@ -68,7 +93,7 @@ export const buildInterviewProofStrategy = ({
     });
   }
 
-  return {
+  const strategy = {
     schemaVersion: 'interview_proof_strategy_v1',
     roleIntentProfileId: roleFitProfile.id || '',
     roleEvidenceMapId: roleEvidenceMapId || roleEvidenceMap.id || roleEvidenceMap.matchAnalysisId || '',
@@ -84,6 +109,15 @@ export const buildInterviewProofStrategy = ({
     },
     artifactStatus: missingArtifacts ? 'degraded' : 'ready',
     degradedReason: missingArtifacts ? 'missing_role_fit_artifacts' : null,
+  };
+
+  return {
+    ...strategy,
+    roleFitDiagnostics: buildRoleFitDiagnostics({
+      roleFitProfile,
+      roleEvidenceMap,
+      proofStrategy: strategy,
+    }),
   };
 };
 
@@ -151,6 +185,12 @@ export const addRoleFitMetadataToQuestionPool = ({
     const proofPointId = isGap ? `cov-gap-${roleIntentId}` : `cov-intent-${roleIntentId}`;
     const isMustCover = isGap || highPriorityIntentIds.has(roleIntentId);
     const roleIntentLabel = matchedIntent.roleIntent || question.topic || 'role fit';
+    const evidenceAngle = getProofAngle(matchedIntent, isGap);
+    const preparationGuidance = buildPreparationGuidance({
+      mapItem: matchedIntent,
+      roleIntentLabel,
+      isGap,
+    });
 
     return {
       ...question,
@@ -158,7 +198,10 @@ export const addRoleFitMetadataToQuestionPool = ({
       coverageContractIds: [proofPointId],
       testedRoleIntentIds: [roleIntentId],
       recommendedEvidenceIds: getEvidenceIds(matchedIntent),
-      evidenceAngle: question.questionIntent === 'behavioural_star' ? 'behavioural' : 'technical_ownership',
+      evidenceAngle,
+      preparationGuidance,
+      evidenceGuidance: matchedIntent.evidenceGuidance || {},
+      hiringLogicCoverage: matchedIntent.hiringLogicLinks || {},
       evidenceMapStrength: getEvidenceMapStrength(matchedIntent),
       coveragePriority: isMustCover ? 'must_cover' : 'optional',
       roleFitReason: isGap

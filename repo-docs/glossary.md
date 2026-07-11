@@ -4,6 +4,14 @@
 | --- | --- | --- |
 | CV review gate | 用户确认 match-relevant CV fields 后，后续 match 和 question seed 才能更可信地使用 CV 证据 | [CV/JD 准备机制](modules/feature-cv-jd-preparation.md) |
 | JD rubric | 从 pasted JD 解析出的结构化岗位要求、角色信息、技能和 metadata，不等同于原始 JD 文本 | [CV/JD 准备机制](modules/feature-cv-jd-preparation.md) |
+| businessModel | `company_understanding_v2` 里对公司商业模式线索的 source-linked 分类；来自已有 company facts，不是外部研究结论 | [CV/JD 准备机制](modules/feature-cv-jd-preparation.md) |
+| customersOrUsers | `company_understanding_v2` 里对服务对象、用户或客户线索的 source-linked 分类 | [CV/JD 准备机制](modules/feature-cv-jd-preparation.md) |
+| productsOrServices | `company_understanding_v2` 里对产品、服务、平台、工具或分析能力线索的 source-linked 分类 | [CV/JD 准备机制](modules/feature-cv-jd-preparation.md) |
+| operatingContext | `company_understanding_v2` 里对工作流程、运营场景或业务上下文线索的 source-linked 分类 | [CV/JD 准备机制](modules/feature-cv-jd-preparation.md) |
+| hiringContextHypotheses | `company_understanding_v2` 里基于已审查来源生成的招聘背景假设；默认需要用户确认，不是雇主事实 | [CV/JD 准备机制](modules/feature-cv-jd-preparation.md) |
+| role_intent_decoder_v2 | Role intent 的 v2 preparation artifact；保留 legacy requirement items，同时输出 role purpose、business hypotheses、workflow pain、ideal signals、interview probes 和 diagnostics | [CV/JD 准备机制](modules/feature-cv-jd-preparation.md) |
+| role_fit_diagnostics_v1 | Role-Fit compact diagnostics payload；只传状态、counts、coverage、degraded reasons 和 source limitations，不复制 CV/JD/company 原文 | [match 与问题准备](modules/feature-match-and-question-prep.md) |
+| low_confidence_hiring_logic | RoleIntentDecoder 缺少 grounded company support 等情境下的 degraded reason；表示 hiring logic 仍是低信心准备假设 | [CV/JD 准备机制](modules/feature-cv-jd-preparation.md) |
 | matchAnalysisId | 已持久化的 CV-JD match record 标识，让 interview plan 不只依赖前端临时状态 | [match 与问题准备](modules/feature-match-and-question-prep.md) |
 | prepared question pool | 访谈前生成的候选问题池；运行时仍会被 ranker、dedupe、follow-up 控制影响 | [interviewer agent](modules/agent-interviewer.md) |
 | accepted answer | 可以进入报告计分的数据；repair、clarification、repeat、system turn 不属于它 | [报告与 QA](modules/feature-report-and-qa.md) |

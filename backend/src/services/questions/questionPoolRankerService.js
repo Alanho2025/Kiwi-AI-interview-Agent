@@ -10,6 +10,13 @@ const weight = (value, fallback = 0.5) => {
   return Math.max(0, Math.min(1, parsed));
 };
 
+const countHiringLogicLinks = (coverage = {}) => [
+  ...ensureArray(coverage.businessProblemIds),
+  ...ensureArray(coverage.workflowPainPointIds),
+  ...ensureArray(coverage.idealCandidateSignalIds),
+  ...ensureArray(coverage.interviewProbeIds),
+].filter(Boolean).length;
+
 const topicMatches = (topic = '', values = []) => {
   const topicKey = normalizeKey(topic);
   if (!topicKey) return false;
@@ -72,6 +79,10 @@ const scorePoolItem = ({
   );
   const unmetCoverageBoost = unmetCoverage ? 0.25 : 0;
   const evidenceMapStrengthBoost = weight(item.evidenceMapStrength, 0) * 0.10;
+  const hasSpecificProofAngle = Boolean(item.preparationGuidance?.proofAngle || item.evidenceAngle)
+    && !['technical_ownership', 'behavioural', 'gap_validation'].includes(item.evidenceAngle);
+  const proofAngleFitBoost = hasSpecificProofAngle ? 0.06 : 0;
+  const hiringLogicLinkBoost = Math.min(0.08, countHiringLogicLinks(item.hiringLogicCoverage) * 0.02);
 
   // Gap risk boost
   let gapRiskBoost = 0;
@@ -106,6 +117,8 @@ const scorePoolItem = ({
     evidenceMapStrengthBoost,
     unmetCoverageBoost,
     gapRiskBoost,
+    proofAngleFitBoost,
+    hiringLogicLinkBoost,
     evidenceOverusePenalty,
   };
   roleFitAdjustment.total = Number((
@@ -113,6 +126,8 @@ const scorePoolItem = ({
     + evidenceMapStrengthBoost
     + unmetCoverageBoost
     + gapRiskBoost
+    + proofAngleFitBoost
+    + hiringLogicLinkBoost
     - evidenceOverusePenalty
   ).toFixed(3));
   const normalizedBaseScore = Number(baseScore.toFixed(3));
@@ -129,6 +144,8 @@ const scorePoolItem = ({
   if (evidenceMapStrengthBoost > 0) reasons.push('evidence_map_strength_boost');
   if (unmetCoverageBoost > 0) reasons.push('unmet_must_cover_boost');
   if (gapRiskBoost > 0) reasons.push('gap_validation_boost');
+  if (proofAngleFitBoost > 0) reasons.push('proof_angle_fit_boost');
+  if (hiringLogicLinkBoost > 0) reasons.push('hiring_logic_link_boost');
   
   if (repetitionPenalty) penalties.push('repeated_topic');
   if (answeredPenalty) penalties.push('already_asked');
@@ -154,6 +171,8 @@ const scorePoolItem = ({
     testedRoleIntentIds: item.testedRoleIntentIds || [],
     recommendedEvidenceIds: item.recommendedEvidenceIds || [],
     evidenceAngle: item.evidenceAngle || '',
+    preparationGuidance: item.preparationGuidance || null,
+    hiringLogicCoverage: item.hiringLogicCoverage || {},
   };
 
   return {

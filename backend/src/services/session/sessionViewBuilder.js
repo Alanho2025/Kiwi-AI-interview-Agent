@@ -18,6 +18,7 @@ import {
   normalizeAnalysisResult,
   titleCaseWords,
 } from './sessionShared.js';
+import { sanitizeRoleFitDiagnostics } from '../roleFit/roleFitDiagnosticsService.js';
 
 export const sanitizeQuestionPoolForClient = (questionPool = []) => questionPool.map(({
   sourceType,
@@ -33,6 +34,9 @@ export const sanitizeQuestionPoolForClient = (questionPool = []) => questionPool
   testedRoleIntentIds,
   recommendedEvidenceIds,
   evidenceAngle,
+  preparationGuidance,
+  evidenceGuidance,
+  hiringLogicCoverage,
   evidenceMapStrength,
   coveragePriority,
   roleFitReason,
@@ -53,6 +57,7 @@ export const sanitizeRoleFitForClient = (roleFit = {}) => {
       coverageCount: mustCover.length,
       coveredCount: mustCover.filter((item) => item.status === 'covered').length,
     },
+    diagnostics: sanitizeRoleFitDiagnostics(proofStrategy.roleFitDiagnostics || roleFit.roleFitDiagnostics || {}),
   };
 };
 
@@ -64,6 +69,9 @@ export const sanitizeTranscriptMetadataForClient = (metadata = {}) => {
     recommendedEvidenceIds,
     evidenceAngle,
     evidenceMapStrength,
+    preparationGuidance,
+    evidenceGuidance,
+    hiringLogicCoverage,
     evidenceTarget,
     evidenceUsed,
     rankTrace,
@@ -87,6 +95,7 @@ export const sanitizeAnalysisForSession = (analysisResult, sessionStatus) => {
   const roleEvidenceMap = analysisResult.roleEvidenceMap || {};
   return {
     ...analysisResult,
+    roleFitDiagnostics: sanitizeRoleFitDiagnostics(analysisResult.roleFitDiagnostics || {}),
     roleEvidenceMap: Object.keys(roleEvidenceMap).length
       ? {
         schemaVersion: roleEvidenceMap.schemaVersion || '',
@@ -166,6 +175,7 @@ const buildAnalysisSetup = ({ baseSession, plan, analysis, normalizedAnalysis, c
     jdHumanReviewedRawJD: rawJD,
     settings: plan?.settingsSnapshot || baseSession.settings,
     sessionMode: baseSession.mode || 'text',
+    roleFitDiagnostics: sanitizeRoleFitDiagnostics(normalizedAnalysis.roleFitDiagnostics || {}),
   };
 };
 

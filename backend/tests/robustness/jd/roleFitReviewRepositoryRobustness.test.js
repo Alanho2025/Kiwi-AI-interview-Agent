@@ -53,13 +53,52 @@ describe('role-fit review repository robustness', () => {
       userId: 'user-1',
       jdFingerprint: 'jd-fingerprint',
       baseVersion: 3,
-      roleFitProfile: { id: 'role-fit-1', review: { status: 'verified', baseVersion: 3, version: 4 } },
+      roleFitProfile: {
+        id: 'role-fit-1',
+        review: { status: 'verified', baseVersion: 3, version: 4 },
+        companyUnderstanding: {
+          facts: [{ statement: 'Builds analytics products.', sourceConfidence: 'medium', reviewConfidence: 'unreviewed' }],
+          businessModel: [{ statement: 'Builds analytics products.', sourceConfidence: 'medium', reviewConfidence: 'unreviewed' }],
+          customersOrUsers: [{ statement: 'Serves energy teams.', sourceConfidence: 'medium', reviewConfidence: 'unreviewed' }],
+          productsOrServices: [{ statement: 'Analytics dashboards.', sourceConfidence: 'medium', reviewConfidence: 'unreviewed' }],
+          operatingContext: [{ statement: 'Manual reporting workflows.', sourceConfidence: 'medium', reviewConfidence: 'unreviewed' }],
+          hiringContextHypotheses: [{ statement: 'May need this role to reduce manual workflow risk.', sourceConfidence: 'low', reviewConfidence: 'unreviewed' }],
+        },
+        roleIntent: {
+          items: [{ statement: 'Production SQL', sourceConfidence: 'medium', reviewConfidence: 'unreviewed' }],
+        },
+      },
     });
 
     expect(mocks.findOneAndUpdate).toHaveBeenCalledWith(
       { userId: 'user-1', jdFingerprint: 'jd-fingerprint', roleFitReviewVersion: 3 },
       expect.objectContaining({
-        $set: expect.objectContaining({ roleFitReviewVersion: 4, roleFitReviewStatus: 'verified' }),
+        $set: expect.objectContaining({
+          roleFitReviewVersion: 4,
+          roleFitReviewStatus: 'verified',
+          roleFitProfile: expect.objectContaining({
+            companyUnderstanding: expect.objectContaining({
+              facts: [expect.objectContaining({
+                sourceConfidence: 'medium',
+                reviewConfidence: 'user_confirmed',
+              })],
+              businessModel: [expect.objectContaining({
+                sourceConfidence: 'medium',
+                reviewConfidence: 'user_confirmed',
+              })],
+              hiringContextHypotheses: [expect.objectContaining({
+                sourceConfidence: 'low',
+                reviewConfidence: 'user_confirmed',
+              })],
+            }),
+            roleIntent: expect.objectContaining({
+              items: [expect.objectContaining({
+                sourceConfidence: 'medium',
+                reviewConfidence: 'user_confirmed',
+              })],
+            }),
+          }),
+        }),
       }),
       expect.objectContaining({ new: true })
     );

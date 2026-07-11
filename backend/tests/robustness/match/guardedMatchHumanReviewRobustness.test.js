@@ -71,6 +71,12 @@ describe('guarded match human review override', () => {
     expect(result.confidence).toBe(0);
     expect(result.decision).toMatchObject({ label: 'manual_review' });
     expect(result.riskFlags).toContain('Review company and role understanding before matching.');
+    expect(result.roleFitDiagnostics).toMatchObject({
+      schemaVersion: 'role_fit_diagnostics_v1',
+      proofStrategyStatus: 'degraded',
+      degradedReasons: expect.arrayContaining(['role_fit_review_required']),
+    });
+    expect(result.matchingDetails.roleFitDiagnostics).toEqual(result.roleFitDiagnostics);
   });
 
   it('does not let a legacy human-review marker open a new match after cutover', async () => {
@@ -88,6 +94,33 @@ describe('guarded match human review override', () => {
     expect(result.overallScore).toBe(0);
     expect(result.decision.reasonCodes).toContain('role_fit_review_required');
     expect(result.matchingDetails.compatibility).toBeUndefined();
+    expect(result.roleFitDiagnostics.degradedReasons).toContain('role_fit_review_required');
+  });
+
+  it('keeps JD safeguard blocked results observable with compact role-fit diagnostics', async () => {
+    const reviewedRubric = {
+      ...blockedJdRubric,
+      roleFit: {
+        id: 'role-fit-1',
+        companyContext: { status: 'ready' },
+        review: { status: 'verified', version: 2 },
+        roleIntent: { items: [{ id: 'intent:python', statement: 'Python', priority: 'high' }] },
+      },
+    };
+
+    const result = await compareCvToJobDescriptionWithSafeguard(cvText, 'Data Engineer JD', reviewedRubric);
+
+    expect(result.overallScore).toBe(0);
+    expect(result.decision.reasonCodes).toContain('jd_safeguard_blocked_match');
+    expect(result.roleFitDiagnostics).toMatchObject({
+      schemaVersion: 'role_fit_diagnostics_v1',
+      companyContextStatus: 'manual',
+      roleIntentStatus: 'user_confirmed',
+      proofStrategyStatus: 'degraded',
+      degradedReasons: expect.arrayContaining(['jd_safeguard_blocked_match']),
+    });
+    expect(result.matchingDetails.roleFitDiagnostics).toEqual(result.roleFitDiagnostics);
+    expect(JSON.stringify(result.roleFitDiagnostics)).not.toContain('Python');
   });
 
   it('blocks a new role-fit rubric until its company and role understanding is verified', async () => {
@@ -110,6 +143,12 @@ describe('guarded match human review override', () => {
     expect(result.overallScore).toBe(0);
     expect(result.decision.reasonCodes).toContain('role_fit_review_required');
     expect(result.riskFlags.join(' ')).toMatch(/company and role understanding/i);
+    expect(result.roleFitDiagnostics).toMatchObject({
+      schemaVersion: 'role_fit_diagnostics_v1',
+      roleIntentStatus: 'needs_review',
+      proofStrategyStatus: 'degraded',
+      degradedReasons: expect.arrayContaining(['role_fit_review_required']),
+    });
   });
 
   it('carries CV analysis and JD-relevant hooks into interview context', async () => {

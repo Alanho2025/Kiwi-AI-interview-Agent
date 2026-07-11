@@ -15,6 +15,19 @@ const ANSWER_LABELS = {
   unavailable: 'Not assessed',
 };
 
+const ALIGNMENT_DIMENSION_LABELS = {
+  questionAlignment: 'Question alignment',
+  evidenceFit: 'Evidence fit',
+  evidenceClarity: 'Evidence clarity',
+  roleIntentFit: 'Role intent fit',
+  naturalness: 'Naturalness',
+  concision: 'Concision',
+};
+
+const buildDimensionRows = (scoreBreakdown = {}) => Object.entries(ALIGNMENT_DIMENSION_LABELS)
+  .map(([key, label]) => ({ key, label, value: scoreBreakdown[key] }))
+  .filter((item) => Number.isFinite(Number(item.value)));
+
 export function RoleFitReportSection({ roleFit = {} }) {
   if (!roleFit.available) {
     return (
@@ -93,6 +106,15 @@ export function RoleFitReportSection({ roleFit = {} }) {
                   <p className="shrink-0 text-sm font-semibold text-sky-700">{ANSWER_LABELS[alignment.label] || 'Not assessed'} · {alignment.score}/100</p>
                 </div>
                 <p className="mt-2 text-sm leading-6 text-muted">{alignment.diagnosis?.mainIssue}</p>
+                {buildDimensionRows(alignment.scoreBreakdown).length ? (
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    {buildDimensionRows(alignment.scoreBreakdown).map((dimension) => (
+                      <p key={dimension.key} className="text-xs font-medium text-muted">
+                        {dimension.label}: {dimension.value}
+                      </p>
+                    ))}
+                  </div>
+                ) : null}
                 {alignment.betterAnswerPlan?.direction ? (
                   <p className="mt-2 flex items-start gap-2 text-sm leading-6 text-primary">
                     <Lightbulb className="mt-1 h-4 w-4 shrink-0 text-amber-600" />

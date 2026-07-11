@@ -1,5 +1,6 @@
 import { ensureArray, normalizeKey, normalizeText, tokenize } from '../../utils/commonHelpers.js';
 import { extractAnswerEvidenceSignals } from './answerEvidenceSignalService.js';
+import { buildRoleFitDiagnostics } from '../roleFit/roleFitDiagnosticsService.js';
 
 const EXCLUDED_ANSWER_TYPES = new Set([
   'repair_prompt',
@@ -123,12 +124,12 @@ const buildScoreBreakdown = ({ answer, question, roleIntentText, mapItems, detec
     || mapItems.find((item) => item.classification === 'adjacent')?.classification
     || mapItems[0]?.classification;
   const questionAlignment = clamp(
-    questionOverlap >= 0.15 ? 22 : signals.hasPastContext && signals.hasPersonalAction ? 18 : 8,
-    25,
+    questionOverlap >= 0.15 ? 22 : signals.hasPastContext && signals.hasPersonalAction ? 16 : 7,
+    22,
   );
   const roleIntentFit = clamp(
-    roleIntentOverlap >= 0.35 ? 25 : roleIntentOverlap >= 0.15 ? 20 : questionOverlap >= 0.15 ? 15 : 5,
-    25,
+    roleIntentOverlap >= 0.35 ? 22 : roleIntentOverlap >= 0.15 ? 18 : questionOverlap >= 0.15 ? 14 : 5,
+    22,
   );
   const evidenceFit = clamp(
     detectedEvidenceUsed.length
@@ -143,8 +144,9 @@ const buildScoreBreakdown = ({ answer, question, roleIntentText, mapItems, detec
     signals.hasOutcome || signals.metricMatches?.length,
   ].filter(Boolean).length * 5, 20);
   const wordCount = normalizeText(answer).split(/\s+/).filter(Boolean).length;
-  const naturalness = clamp(wordCount >= 12 && wordCount <= 180 ? 10 : wordCount >= 6 ? 7 : 3, 10);
-  return { questionAlignment, roleIntentFit, evidenceFit, evidenceClarity, naturalness };
+  const naturalness = clamp(wordCount >= 12 && wordCount <= 180 ? 8 : wordCount >= 6 ? 6 : 3, 8);
+  const concision = clamp(wordCount <= 90 ? 8 : wordCount <= 180 ? 6 : wordCount <= 260 ? 3 : 1, 8);
+  return { questionAlignment, evidenceFit, evidenceClarity, roleIntentFit, naturalness, concision };
 };
 
 const buildMainIssue = ({ label, missedSignals = [], groundingStatus }) => {
@@ -152,6 +154,23 @@ const buildMainIssue = ({ label, missedSignals = [], groundingStatus }) => {
   if (label === 'strong') return 'Your answer directly addressed this focus area with clear evidence.';
   if (missedSignals.length) return `The answer needs clearer ${missedSignals.slice(0, 2).join(' and ')}.`;
   return 'The answer needs a more direct connection to this part of the role.';
+};
+
+const buildEvidenceUseDiagnosis = ({ recommendedEvidenceIds = [], detectedEvidenceUsed = [] } = {}) => {
+  const recommended = unique(recommendedEvidenceIds);
+  const detected = unique(detectedEvidenceUsed.map((item) => item.evidenceId));
+  if (!recommended.length) {
+    return { status: 'no_recommended_evidence', recommendedEvidenceIds: [], detectedEvidenceIds: detected };
+  }
+  if (!detected.length) {
+    return { status: 'recommended_evidence_not_used', recommendedEvidenceIds: recommended, detectedEvidenceIds: [] };
+  }
+  const matchedRecommended = detected.some((evidenceId) => recommended.includes(evidenceId));
+  return {
+    status: matchedRecommended ? 'matched_recommended_evidence' : 'wrong_example',
+    recommendedEvidenceIds: recommended,
+    detectedEvidenceIds: detected,
+  };
 };
 
 export const buildAnswerAlignments = ({
@@ -191,9 +210,14 @@ export const buildAnswerAlignments = ({
     const groundingStatus = !mapItems.length
       ? 'blocked'
       : detectedEvidenceUsed.length ? 'grounded' : 'limited';
+    const evidenceUseDiagnosis = buildEvidenceUseDiagnosis({
+      recommendedEvidenceIds: context.recommendedEvidenceIds,
+      detectedEvidenceUsed,
+    });
 
     return {
-      schemaVersion: 'answer_alignment_v1',
+      schemaVersion: 'answer_alignment_v2',
+      compatibilityVersion: 'answer_alignment_v1',
       turnId: pair.answerTurn?.id || `answer-${pair.questionId || index + 1}`,
       questionId: pair.questionId || pair.questionTurn?.questionId || '',
       question: normalizeText(pair.questionTurn?.text || context.poolItem.text),
@@ -203,6 +227,7 @@ export const buildAnswerAlignments = ({
       expectedSignals: context.expectedSignals,
       candidateAnswerSummary: answer.slice(0, 360),
       detectedEvidenceUsed,
+      evidenceUseDiagnosis,
       score,
       label,
       scoreBreakdown,
@@ -282,6 +307,7 @@ export const buildRoleFitReportSummary = ({
   const proofStrategy = interviewPlan.roleFit?.proofStrategy || {};
   const hasRoleFitContract = ensureArray(proofStrategy.mustCover).length > 0;
   if (!hasRoleFitContract) {
+    const roleFitDiagnostics = buildRoleFitDiagnostics({ roleFitReport: { status: 'legacy' } });
     return {
       schemaVersion: 'role_fit_report_v1',
       status: 'legacy',
@@ -289,6 +315,7 @@ export const buildRoleFitReportSummary = ({
       roleIntentCoverage: { total: 0, covered: 0, partial: 0, missing: 0, unavailable: 0, items: [] },
       evidenceUsageMap: { totalUses: 0, items: [] },
       questionReasoning: [],
+      roleFitDiagnostics,
       ownership: { verified: false, source: 'legacy_snapshot' },
       knownRoleIntentIds: [],
       knownEvidenceIds: [],
@@ -319,14 +346,22 @@ export const buildRoleFitReportSummary = ({
     || roleIntentCoverage.partial > 0
     || roleIntentCoverage.missing > 0
     || roleIntentCoverage.unavailable > 0;
+  const status = hasUnavailable ? 'unavailable' : hasLimits ? 'limited' : 'ready';
+  const roleFitDiagnostics = buildRoleFitDiagnostics({
+    roleEvidenceMap,
+    proofStrategy,
+    answerAlignments,
+    roleFitReport: { status },
+  });
 
   return {
     schemaVersion: 'role_fit_report_v1',
-    status: hasUnavailable ? 'unavailable' : hasLimits ? 'limited' : 'ready',
+    status,
     answerAlignments,
     roleIntentCoverage,
     evidenceUsageMap,
     questionReasoning,
+    roleFitDiagnostics,
     ownership: { verified: Boolean(session.id && session.userId), source: 'session_owner' },
     knownRoleIntentIds: unique(ensureArray(roleEvidenceMap.items).map((item) => item.roleIntentId)),
     knownEvidenceIds: unique([...evidenceIndex.keys()]),

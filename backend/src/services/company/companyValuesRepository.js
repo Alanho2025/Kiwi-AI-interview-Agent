@@ -16,6 +16,37 @@ const buildPrivateRetentionFields = () => ({
   schemaVersion: 'v2',
 });
 
+const markReviewConfidence = (item) => (
+  item && typeof item === 'object'
+    ? { ...item, reviewConfidence: 'user_confirmed' }
+    : item
+);
+
+const markReviewConfidenceList = (items = []) => (items || []).map(markReviewConfidence);
+
+const applyCompanyUnderstandingReviewConfidence = (companyUnderstanding = {}) => ({
+  ...companyUnderstanding,
+  facts: markReviewConfidenceList(companyUnderstanding.facts),
+  businessModel: markReviewConfidenceList(companyUnderstanding.businessModel),
+  customersOrUsers: markReviewConfidenceList(companyUnderstanding.customersOrUsers),
+  productsOrServices: markReviewConfidenceList(companyUnderstanding.productsOrServices),
+  operatingContext: markReviewConfidenceList(companyUnderstanding.operatingContext),
+  hiringContextHypotheses: markReviewConfidenceList(companyUnderstanding.hiringContextHypotheses),
+});
+
+const applyRoleFitReviewConfidence = (roleFitProfile = {}) => ({
+  ...roleFitProfile,
+  companyUnderstanding: roleFitProfile.companyUnderstanding
+    ? applyCompanyUnderstandingReviewConfidence(roleFitProfile.companyUnderstanding)
+    : roleFitProfile.companyUnderstanding,
+  roleIntent: roleFitProfile.roleIntent
+    ? {
+        ...roleFitProfile.roleIntent,
+        items: markReviewConfidenceList(roleFitProfile.roleIntent.items),
+      }
+    : roleFitProfile.roleIntent,
+});
+
 export const getCompanyValuesProfile = async (sessionId) => {
   if (!sessionId) return null;
   return CompanyValuesProfile.findOne({ sessionId }).lean();
@@ -139,10 +170,11 @@ export const confirmCompanyRoleFitReview = async ({
   }
 
   const reviewedAt = new Date();
+  const confidenceReviewedProfile = applyRoleFitReviewConfidence(roleFitProfile);
   const reviewedProfile = {
-    ...roleFitProfile,
+    ...confidenceReviewedProfile,
     review: {
-      ...(roleFitProfile.review || {}),
+      ...(confidenceReviewedProfile.review || {}),
       status: 'verified',
       baseVersion: expectedVersion,
       version: nextVersion,

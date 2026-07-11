@@ -16,7 +16,16 @@ describe('questionPoolRankerService - Role-Fit integration', () => {
       proofPointId: 'cov-intent-intent-react',
       testedRoleIntentIds: ['intent-react'],
       recommendedEvidenceIds: ['ev-react-1'],
-      evidenceAngle: 'technical_ownership',
+      evidenceAngle: 'frontend delivery ownership',
+      preparationGuidance: {
+        proofAngle: 'frontend delivery ownership',
+        howToUse: 'Prepare one example that shows frontend delivery ownership.',
+      },
+      hiringLogicCoverage: {
+        businessProblemIds: ['business-problem:frontend-delivery'],
+        idealCandidateSignalIds: ['candidate-signal:react-owner'],
+        interviewProbeIds: ['probe:react-delivery'],
+      },
       evidenceMapStrength: 0.9,
       coveragePriority: 'must_cover',
       modeCompatibility: { technical: true, behavioural: false, combined: true },
@@ -184,11 +193,21 @@ describe('questionPoolRankerService - Role-Fit integration', () => {
         evidenceMapStrengthBoost: expect.any(Number),
         unmetCoverageBoost: expect.any(Number),
         gapRiskBoost: expect.any(Number),
+        proofAngleFitBoost: expect.any(Number),
+        hiringLogicLinkBoost: expect.any(Number),
         evidenceOverusePenalty: expect.any(Number),
         total: expect.any(Number),
       }),
-      evidenceAngle: 'technical_ownership',
+      evidenceAngle: 'frontend delivery ownership',
+      preparationGuidance: expect.objectContaining({
+        proofAngle: 'frontend delivery ownership',
+      }),
+      hiringLogicCoverage: expect.objectContaining({
+        businessProblemIds: ['business-problem:frontend-delivery'],
+      }),
     }));
+    expect(ranked.reasons).toContain('proof_angle_fit_boost');
+    expect(ranked.reasons).toContain('hiring_logic_link_boost');
     expect(ranked.score).toBeCloseTo(ranked.rankTrace.baseScore + ranked.rankTrace.roleFitAdjustment.total, 3);
   });
 });
