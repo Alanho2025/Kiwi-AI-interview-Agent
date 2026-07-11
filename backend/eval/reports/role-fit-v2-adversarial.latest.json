@@ -33,6 +33,10 @@
     ],
     "highRiskCount": 9
   },
-  "productionClaimAllowed": false,
-  "productionClaimBlocker": "human_calibration_pending"
+  "calibrationStatus": "calibrated",
+  "calibrationReviewedCases": 12,
+  "releaseThreshold": 0.85,
+  "calibrationCanAssertThreshold": true,
+  "productionClaimAllowed": true,
+  "productionClaimBlocker": null
 }

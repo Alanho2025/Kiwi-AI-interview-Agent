@@ -1,9 +1,11 @@
 # Role-Fit Intelligence Spec
 
-狀態：分階段實作中；CV/JD/match、Phase 3、Phase 4 product code 與 Phase 5 mock-safe voice hardening已落地
+狀態：v1 historical implementation contract；V2 final 狀態以 `2026-07-11-role-fit-v2-spec.md` / release gate 為準
 日期：2026-07-10  
 執行模式：Builder，現有 Node/Express + React/Vite 架構內原地替換實作  
 對應目標：[Role-Fit Intelligence Goal](role-fit-goal.md)
+
+V2 補充：Role-Fit Closed Loop v2 已在 2026-07-11 落地為 final local implementation；release gate 為 `ready_with_known_issues`，known issue 是 voice next-question first audio 超過 3 秒。本 v1 spec 保留原 checkpoint contract，不覆蓋 V2 goal/spec/trace。
 
 ## 概覽（Overview）
 
@@ -1000,4 +1002,4 @@ Before production cutover, `ROLE_FIT_REPLACEMENT_KILL_SWITCH` may return new tra
 - Source alignment: compare all requirements against the linked goal, gap audit and voice product behavior contract before code starts.
 - Implementation verification: use the phase-specific focused test matrix above; update `repo-docs/` only after implemented behavior ships.
 
-證據狀態：RFI-002 至 RFI-015 的 local/mock-safe product/evaluator implementation與 RFI-016 新流量 cutover 已落地。新 match 缺少 owner-scoped verified Role-Fit 一律阻擋；question/report 寫 v3/v7；Role-Fit artifacts 使用既有 private retention policy/registry；`legacy_reviewed_jd` 已移除。Phase 4 browser visual gate、Phase 5 live provider 3 秒 gate和真實 human calibration（0/6）未完成。三個 pre-cutover evidence/question/report readers 因缺少 production 14-day telemetry、migration 或 retention-window closure 證據仍為 `active`，因此 final obsolete snapshot cleanup 不能標完成。現況與 locator 見 `docs/role-fit-implementation-trace.md` 與 removal manifest，並以 current source 和 `repo-docs/` 為準。
+證據狀態：本文件是 v1 historical spec。RFI-002 至 RFI-015 的 local/mock-safe product/evaluator implementation與 RFI-016 新流量 cutover 已落地；當時 Phase 4 browser visual gate、Phase 5 live provider 3 秒 gate和真實 human calibration 尚未完成。Current V2 final 狀態請以 `docs/2026-07-11-role-fit-v2-spec.md`、`docs/2026-07-11-role-fit-v2-implementation-trace.md`、removal manifest 和 `backend/eval/reports/role-fit-release-gate.latest.json` 為準：12/12 calibration 已完成、threshold 0.85、browser visual 與 real-backend voice flow 已跑，release gate 為 `ready_with_known_issues`，唯一 known issue 是 voice next-question first audio 超過 3 秒。三個 pre-cutover evidence/question/report readers 的 final deletion 仍需要 production 14-day telemetry、migration 或 retention-window closure 證據，本地 repo 只能證明 new-flow cutover contract。

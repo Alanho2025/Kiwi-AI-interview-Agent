@@ -26,6 +26,8 @@
 | npm run test:report | 后端 focused report robustness check，覆盖 report dataset、QA、grounding、rewrite 和 score consistency | [测试与 evaluation](modules/testing-and-evaluation.md) |
 | npm run test:retrieval | 后端 focused retrieval robustness check，覆盖 RAG payload、quality assessor 和 retrieve-for-turn | [RAG 检索层](modules/rag-retrieval.md) |
 | npm run eval:retrieval | 版本化 synthetic runtime benchmark；共用 production fusion ranker，并分开输出 ranked retrieval 与 claim grounding；不是 real-provider 或已人工校准的 production gate | [测试与 evaluation](modules/testing-and-evaluation.md) |
+| npm run test:e2e:role-fit-visual | Frontend Playwright visual gate；用 mock API 打开 Role-Fit report，验证 Answer Alignment / role-fit evidence UI 并输出 desktop/mobile screenshots | [报告与 QA](modules/feature-report-and-qa.md) |
+| npm run test:e2e:voice-real-backend | Frontend Playwright real-backend voice flow；使用 test STT/TTS providers 跑 authenticated voice socket，并把 3 秒 next-question SLO 结果写入 artifact | [测试与 evaluation](modules/testing-and-evaluation.md) |
 | npm run test:voice | 后端或前端 voice focused check；具体覆盖取决于从 `backend` 还是 `frontend` 目录运行 | [voice interview](modules/feature-voice-interview.md) |
 | voice confidence gate | 把 ASR transcript 分为 accepted、rejected、needs confirmation 的产品规则层 | [voice interview](modules/feature-voice-interview.md) |
 | bounded repair | 报告 QA 后有限次 wording repair；不能掩盖 deterministic blocking flags | [report QA agent](modules/agent-report-qa.md) |

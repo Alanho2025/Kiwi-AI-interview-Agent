@@ -1,10 +1,12 @@
 # Role-Fit Intelligence 實作追蹤
 
-狀態：local implementation 與新流量 cutover 完成；外部 release gates 待完成
+狀態：v1 historical trace；local implementation 與新流量 cutover 完成。V2 final release 狀態以 `docs/2026-07-11-role-fit-v2-implementation-trace.md` 和 `backend/eval/reports/role-fit-release-gate.latest.json` 為準。
 開始日期：2026-07-10
 目標文件：[Role-Fit Intelligence Goal](role-fit-goal.md)
 驗收文件：[Role-Fit Intelligence Spec](role-fit-spec.md)
 基線 commit：`e5c76ff04863a1938aec5dc63372dbc815c7c6b3`
+
+V2 補充：2026-07-11 Role-Fit Closed Loop v2 已完成 human calibration、browser visual、real-backend voice flow 和 release gate 聚合；目前 release status 是 `ready_with_known_issues`，known issue 是 voice next-question first audio 超過 3 秒。本文件以下 CP0-CP6 保留 v1 歷史 checkpoint，不直接覆蓋當時的 pending gate 記錄。
 
 ## 追蹤規則
 
@@ -224,7 +226,7 @@
 | claim-level grounding | `backend/eval/helpers/generationGroundingEvaluator.js` | generation 與 retrieval ranking 分開；以 claim class 限制 CV/JD/match source，不把 JD requirement 升級成 candidate evidence。 |
 | runtime ReAct trajectory | `backend/eval/helpers/runtimeTrajectoryEvaluator.js` | 直接呼叫 `selectNextAction`、`getToolNameForAction` 和 `buildTrajectoryStep`，記錄 action、tool、args、observation、terminal state、state safety 與 latency。 |
 | dataset / CLI cutover | `backend/eval/datasets/**/**-v1.json`、`backend/eval/runners`、`backend/package.json` | `eval:retrieval` / `eval:agent-trajectory` 已切到 runtime path；舊 phrase/handwritten trace judge 改由 `*:safety` 執行。 |
-| human calibration gate | `backend/eval/helpers/humanCalibrationEvaluator.js`、`backend/eval/manual-review/role-fit-calibration-v1.json` | 只有完整 reviewer/date/rationale 和雙 reviewer threshold decision 才可宣稱數值 release threshold。現況 0/6，`not_set`。 |
+| human calibration gate | `backend/eval/helpers/humanCalibrationEvaluator.js`、`backend/eval/manual-review/role-fit-calibration-v1.json` | 只有完整 reviewer/date/rationale 和雙 reviewer threshold decision 才可宣稱數值 release threshold。CP4 當時為 0/6、`not_set`；current V2 final 已完成 12/12 calibration、threshold 0.85。 |
 
 ### Versioned synthetic datasets
 
@@ -245,7 +247,7 @@
 | `npm run eval:agent-trajectory` | 5 cases；average 1.00；報告保留 runtime planner trajectory records |
 | `npm run eval:retrieval-safety` | 舊 8-case fixture safety average 0.97；獨立報告，不再代表 runtime benchmark |
 | `npm run eval:agent-trajectory-safety` | 舊 3-case handwritten trace safety average 1.00；獨立報告 |
-| `npm run eval:calibration` | `pending_human_review`；0/6；numerical threshold 不允許 |
+| `npm run eval:calibration` | CP4 當時 `pending_human_review`；0/6；current V2 final 已完成 12/12 review 並允許 0.85 release threshold |
 
 ### Checkpoint 結論與限制
 
@@ -253,7 +255,7 @@
 - `1.00` 只表示這批 synthetic deterministic cases 通過，不表示 production semantic retrieval、real-AI generation 或人類校準已完成。
 - generation suite 評估版本化 synthetic outputs，不呼叫付費 LLM；semantic paraphrase judge / real generated output eval 需要 real-provider approval 後另跑。
 - trajectory suite 執行正式 planner、tool mapping 與 trajectory builder，但不發出 external tool/provider call；這是 action contract eval，不是 live interview E2E。
-- 真實 reviewer 尚未填寫 6 個 calibration cases，因此 Phase 6 的 numerical release threshold acceptance 保持 pending，沒有虛構完成。
+- CP4 當時真實 reviewer 尚未填寫 6 個 calibration cases，因此 Phase 6 的 numerical release threshold acceptance 保持 pending；current V2 final 已完成 12/12 calibration，歷史紀錄保留作為 checkpoint 追溯。
 
 證據狀態：CP4 local runtime evaluator 已完成；human calibration review、CP2 browser visual、CP3 live provider SLO 仍是明確外部 gate。下一步進入 CP5 privacy/cutover/removal audit。
 
@@ -310,7 +312,7 @@
 | Frontend quality | 48 files、296 tests、ESLint、Vite production build（2100 modules）全部通過 |
 | Full mock-safe eval | E2E 20 cases=0.99、Green 20=0.99、voice robustness 8=1.00、runtime retrieval+grounding 10=1.00、runtime trajectory 5=1.00、company research 5=0.93、voice quality 6=1.00、stability 3=1.00 |
 | Historical safety eval | retrieval fixture 8=0.97；trajectory fixture 3=1.00；與 runtime reports 分檔 |
-| Human calibration | 0/6、`pending_human_review`、`canAssertNumericalReleaseThreshold=false` |
+| Human calibration | CP6 當時 0/6、`pending_human_review`、`canAssertNumericalReleaseThreshold=false`；current V2 final 已完成 12/12 calibration、threshold 0.85 |
 | Spec lint | 8/8 pass |
 | Repo docs validator | 0 errors、0 warnings |
 | Final import search | `legacy_reviewed_jd`、Role-Fit kill-switch names、question default v2、`legacyItems` production references 為 0；只剩 manifest 列冊 readers |

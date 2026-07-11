@@ -1,10 +1,11 @@
 # Role-Fit Closed Loop v2 Goal
 
-狀態：final goal；V2-0 至 V2-6 first slices 已落地，external release gates 仍待完成  
+狀態：final goal；V2-0 至 V2-6 已落地，release gate 為 `ready_with_known_issues`
 日期：2026-07-11 NZST  
 產品名稱：Kiwi AI Interview Agent  
 關聯 spec：[Role-Fit Closed Loop v2 Spec](2026-07-11-role-fit-v2-spec.md)
 實作追蹤：[Role-Fit Closed Loop v2 Implementation Trace](2026-07-11-role-fit-v2-implementation-trace.md)
+實作敘事：[Role-Fit Closed Loop v2 Implementation Narrative](2026-07-11-role-fit-v2-implementation-narrative.md)
 
 ## 文件定位
 
@@ -28,14 +29,14 @@ grounded company understanding
 | --- | --- | --- |
 | Git / workspace | V2 開始時以 `1eeaa907d8f7d90d6b226f2d6d0f49afa07ceacc` 作為乾淨基線；目前 V2 implementation slices 保持在本地 working tree，未提交。 | `git status --short --branch`、implementation trace |
 | v1 local implementation | CV/JD/match、question v3、report v7、mock-safe voice hardening、runtime retrieval/trajectory eval 和新流量 cutover 已在 trace 中標為完成。 | `docs/role-fit-implementation-trace.md` |
-| External release gates | Browser visual、live provider 3 秒 SLO、human calibration 和 production snapshot retention gate 未完成。 | `docs/role-fit-implementation-trace.md` |
+| Release gates | Human calibration、adversarial、cutover/retention contract、browser visual 和 voice flow 已由 release gate 聚合；voice next-question 3 秒 SLO 超標，列為 known issue。 | `backend/eval/reports/role-fit-release-gate.latest.json` |
 | Company context gate | JD summarize 需要 website URL 或 manual company context；缺少時會丟 `Missing company context`。 | `backend/src/controllers/jobDescriptionController.js` |
 | Website understanding | Website URL 目前主要保存為 supplied URL；JD parsing 階段沒有驗證 website content。 | `backend/src/services/jobDescription/roleFitProfileBuilder.js` |
 | Role intent | `buildRoleIntent()` 主要從 JD requirements、responsibilities、soft skills 和 parsed requirements 生成 intent items。 | `backend/src/services/jobDescription/roleFitProfileBuilder.js` |
 | Human review confidence | 前端 user-edited role intent 仍寫入 `confidence: 1`，沒有拆成 source confidence 和 review confidence。 | `frontend/src/components/analyze/JobContextCard.jsx` |
 | Report alignment | Answer Alignment 已有 accepted-answer-only path，但舊 / 缺少 proof contract 時仍以 safe legacy/unavailable path 降級。 | `backend/src/services/report/answerAlignmentService.js` |
 
-V2 更新：2026-07-11 已把 source confidence 和 review confidence 拆開；website-only context 會標成 `supplied_url_only` / `url_supplied`。V2-1 已新增 bounded same-origin website evidence capture，能在安全 fetch 成功時把 snippets 標成 `company_website` evidence；manual context 明確否定 website domain term 時會輸出 conflict diagnostics，而不是靜默選邊。V2-2 已新增 deterministic `company_understanding_v2` detail fields 和 `role_intent_decoder_v2` slice，讓 company understanding 保留 business model、users/products/context、hiring hypotheses，role intent artifact 同時保留 legacy requirement `items`、hiring-logic fields 和 compact diagnostics；低信心 hiring logic 會透過 `roleFitDiagnostics.degradedReasons` 暴露。V2-3 至 V2-5 已接上 Candidate Evidence Graph、Role Evidence Map v2、proof strategy UX、metadata-aware ranking 和 Answer Alignment v2。V2-6 已新增 12-case mock-safe adversarial suite 與 12-case human calibration gate；production threshold 仍因 0/12 human review pending 而 blocked。詳見 v2 implementation trace。
+V2 更新：2026-07-11 已把 source confidence 和 review confidence 拆開；website-only context 會標成 `supplied_url_only` / `url_supplied`。V2-1 已新增 bounded same-origin website evidence capture，能在安全 fetch 成功時把 snippets 標成 `company_website` evidence；manual context 明確否定 website domain term 時會輸出 conflict diagnostics，而不是靜默選邊。V2-2 已新增 deterministic `company_understanding_v2` detail fields 和 `role_intent_decoder_v2` slice，讓 company understanding 保留 business model、users/products/context、hiring hypotheses，role intent artifact 同時保留 legacy requirement `items`、hiring-logic fields 和 compact diagnostics；低信心 hiring logic 會透過 `roleFitDiagnostics.degradedReasons` 暴露。V2-3 至 V2-5 已接上 Candidate Evidence Graph、Role Evidence Map v2、proof strategy UX、metadata-aware ranking 和 Answer Alignment v2。V2-6 已新增 12-case mock-safe adversarial suite、完成 12/12 human calibration，release threshold 為 0.85；browser visual、real-backend voice flow 和 Role-Fit release gate 已跑通，唯一 known issue 是 voice next-question first audio 超過 3 秒。詳見 v2 implementation trace 與 implementation narrative。
 
 ## ChatGPT 評價收斂
 
@@ -138,7 +139,7 @@ Kiwi helps job seekers decode the hiring logic behind a JD, map their real exper
 | V2-3 | Evidence strategy | CandidateEvidenceGraph v2、RoleEvidenceMap v2、how-to-say-it / avoid-using guidance |
 | V2-4 | Proof Strategy UX + question ranking | Prep strategy page、metadata-aware question ranking、live no-hint verification |
 | V2-5 | Answer Alignment coaching | Per-turn dimensions、better spoken answer plan、QA grounding, TXT/PDF/UI export |
-| V2-6 | Evaluation and cleanup | Adversarial suite、human calibration、browser/live/retention gates、dead code cleanup；目前 local adversarial/calibration gate 已接入，external gates 未完成 |
+| V2-6 | Evaluation and cleanup | Adversarial suite、human calibration、browser visual、voice flow、cutover/retention contract 和 release gate 已接入；voice 3 秒 SLO 是 known issue |
 
 ## Definition of Done
 
@@ -150,7 +151,7 @@ v2 只有在下列條件全部成立時才算完成：
 4. Every strong/direct evidence claim has a traceable candidate source.
 5. Every live question decision can be explained after the interview without exposing private chain-of-thought.
 6. Answer Alignment is only produced for accepted answers and is blocked by deterministic QA when ungrounded.
-7. Voice mock-safe gates, live-provider SLO gate, browser visual gate, human calibration and retention gates are separately reported without exaggerating one as another.
+7. Voice mock-safe gates, real-backend voice flow, browser visual gate, human calibration and retention contract gates are separately reported without exaggerating one as another; voice 3 秒 SLO 超標保持 known issue。
 8. `repo-docs/` is updated only after shipped behavior changes; proposal language remains clearly marked as future plan.
 
 ## Open Decisions
@@ -161,6 +162,6 @@ v2 只有在下列條件全部成立時才算完成：
 | Human review semantics | `reviewStatus=user_confirmed` means user approved current preparation interpretation; it does not mean employer truth is independently verified. |
 | Role Intent Decoder owner | New service under `backend/src/services/jobDescription/`, composed by a thin `jobDescriptionPreparationService`. |
 | Proof Strategy UX | Prep page only. Live interview receives no evidence hints. |
-| Eval release threshold | Do not set numeric production threshold until human calibration has enough reviewed cases. |
+| Eval release threshold | 12/12 calibration 已完成；current threshold decision is 0.85；release gate status is `ready_with_known_issues` because voice next-question 3 秒 SLO 超標。 |
 
-證據狀態：本文件基於 2026-07-11 NZST 對 `docs/role_fit_recommend_by_chatGPT.md`、現有 Role-Fit docs、implementation trace、repo-docs 和當前 source locator 的檢查。它是下一輪目標，不是已 shipped behavior。
+證據狀態：本文件基於 2026-07-11 NZST 對 `docs/role_fit_recommend_by_chatGPT.md`、現有 Role-Fit docs、implementation trace、repo-docs、current source locator 和 `backend/eval/reports/role-fit-release-gate.latest.json` 的檢查。V2 已成為 final local implementation；voice 3 秒下一題 SLO 是明確 known issue。

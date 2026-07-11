@@ -1,9 +1,10 @@
 # Role-Fit Closed Loop v2 Implementation Trace
 
-狀態：V2-0 至 V2-6 first slices 已完成；human calibration / real-provider / browser-live gates 仍待後續  
+狀態：V2-0 至 V2-6 已完成；release gate 為 `ready_with_known_issues`
 開始日期：2026-07-11 NZST  
 目標文件：[Role-Fit Closed Loop v2 Goal](2026-07-11-role-fit-v2-goal.md)  
 Spec：[Role-Fit Closed Loop v2 Spec](2026-07-11-role-fit-v2-spec.md)  
+實作敘事：[Role-Fit Closed Loop v2 Implementation Narrative](2026-07-11-role-fit-v2-implementation-narrative.md)
 基線 commit：`1eeaa907d8f7d90d6b226f2d6d0f49afa07ceacc`
 
 ## Checkpoint 總表
@@ -16,7 +17,7 @@ Spec：[Role-Fit Closed Loop v2 Spec](2026-07-11-role-fit-v2-spec.md)
 | V2-3 | CandidateEvidenceGraph v2 + RoleEvidenceMap v2 | first slice 已完成；UX/ranking/report deeper use 待後續 | CV/match/questions/report focused gates 通過；v1 compatibility marker 保留 |
 | V2-4 | Proof Strategy UX + metadata-aware ranking hardening | first slice 已完成；deeper calibration 待後續 | questions/server/voice/frontend focused gates 通過；active live no-hint 保持 |
 | V2-5 | Answer Alignment v2 dimensions + QA expansion | first slice 已完成；calibration 待後續 | report/frontend focused gates 通過；v1 compatibility marker 保留 |
-| V2-6 | Adversarial eval + human calibration + cleanup | first slice 已完成；production threshold 仍 blocked | retrieval 31/31、`eval:agent-framework` mock-safe 通過；calibration 0/12 pending |
+| V2-6 | Adversarial eval + human calibration + browser/voice/release gate | 已完成；release gate `ready_with_known_issues` | retrieval 32/32、contracts 18/18、calibration 12/12 reviewed、threshold 0.85、browser visual pass、voice flow pass、voice 3 秒 SLO known issue |
 
 ## V2-0：Contract hardening
 
@@ -94,8 +95,8 @@ Spec：[Role-Fit Closed Loop v2 Spec](2026-07-11-role-fit-v2-spec.md)
 | `cd backend && npm run test:server` | 4 files、8 tests 通過 |
 | `cd backend && npm run test:report` | 16 files、84 tests 通過 |
 | `cd backend && npm run test:prep-stability` | CV/JD/match/questions/retrieval/report/contracts robustness groups 通過 |
-| `cd backend && npm run eval:role-fit-v2-adversarial` | 12 cases；dataset checks passed；production claim blocked by `human_calibration_pending` |
-| `cd backend && npm run eval:calibration` | pending_human_review；0/12 reviewed；numerical threshold 不允許 |
+| `cd backend && npm run eval:role-fit-v2-adversarial` | V2-0 當時 12 cases；dataset checks passed；production claim blocked by `human_calibration_pending`；final V2-6 已由 12/12 calibration 解鎖 |
+| `cd backend && npm run eval:calibration` | V2-0 當時 `pending_human_review`；0/12 reviewed；final V2-6 已完成 12/12 review 並設定 threshold 0.85 |
 | `cd backend && npm run lint` | 通過 |
 | `python3 /Users/heminghan/.codex/skills/repo-docs/scripts/validate_repo_docs.py /Users/heminghan/Kiwi-AI-interview-Agent/repo-docs --repo-root /Users/heminghan/Kiwi-AI-interview-Agent` | 0 errors、2 existing warnings |
 | `python3 /Users/heminghan/.codex/skills/spec-driven-development-blueprint/scripts/spec_lint.py docs/2026-07-11-role-fit-v2-spec.md --format json` | 8/8 pass |
@@ -104,7 +105,7 @@ Spec：[Role-Fit Closed Loop v2 Spec](2026-07-11-role-fit-v2-spec.md)
 ### Remaining V2-0 notes
 
 - `roleFitDiagnostics` 已完成本地 match/proof/session/report compact propagation。
-- Browser UI visual gate、real-provider calibration 和 production snapshot gate 仍屬外部驗收，不由本地 diagnostics propagation 取代。
+- Browser UI visual gate、real-backend voice flow、human calibration 和 release gate 在 final V2-6 已補齊；V2-0 此處只保留當時 diagnostics propagation slice 的限制。
 
 ## V2-1：Website evidence safety slice
 
@@ -336,7 +337,7 @@ Spec：[Role-Fit Closed Loop v2 Spec](2026-07-11-role-fit-v2-spec.md)
 - V2 score weights are deterministic first-pass values and still need human calibration before production-quality scoring claims.
 - Real-AI wording/report calibration remains outside this mock-safe first slice.
 
-## V2-6：Adversarial eval / human calibration gate slice
+## V2-6：Adversarial eval / human calibration / release gate
 
 ### 已完成
 
@@ -356,28 +357,45 @@ Spec：[Role-Fit Closed Loop v2 Spec](2026-07-11-role-fit-v2-spec.md)
   - `role-fit-v2-adversarial.latest.json`
   - `role-fit-v2-adversarial.latest.md`
 - `backend/package.json` 新增 `eval:role-fit-v2-adversarial`，並把它接入 `eval:agent-framework`。
-- `eval/manual-review/role-fit-calibration-v1.json` 擴充到 12 筆，新增 V2 adversarial cases 的 manual review records；全部保持 `humanReview: null`。
-- Human calibration summary 明確維持：
-  - `status: pending_human_review`
-  - `reviewedCases: 0`
+- `eval/manual-review/role-fit-calibration-v1.json` 已完成 12/12 human review records。
+- Human calibration summary 現在為：
+  - `status: calibrated`
+  - `reviewedCases: 12`
   - `totalCases: 12`
-  - `canAssertNumericalReleaseThreshold: false`
+  - `thresholdDecision.value: 0.85`
+  - `canAssertNumericalReleaseThreshold: true`
+- `roleFitV2AdversarialEvaluator` 會讀取 paired calibration summary；校準完成後 `productionClaimAllowed: true`，未校準時仍由 `human_calibration_pending` 擋下。
+- 新增 `roleFitReleaseGateEvaluator` 和 `runRoleFitReleaseGateEval.js`，聚合 calibration、adversarial、cutover/retention contract、browser visual artifact 和 voice flow artifact。
+- 新增 `frontend/e2e/specs/role-fit-browser-visual.spec.js` 與 `frontend` script `test:e2e:role-fit-visual`，用 mock API 驗證 Role-Fit report UI 並輸出 desktop/mobile screenshots。
+- `voice-realtime-latency.playwright.mjs` 與 `voice-real-backend.playwright.mjs` 會輸出 voice flow artifact；real-backend flow 使用 test STT/TTS providers 跑 through backend socket。
+- Release gate 最新狀態是 `ready_with_known_issues`；release blockers 為 none；known issue 是 `voice_next_question_3s_slo_exceeded`。
 
 ### Tests first
 
 新增/收緊的紅線：
 
 - `backend/tests/robustness/retrieval/roleFitEvaluationDatasets.test.js`
-  - adversarial dataset 必須是 12 筆、versioned、mock-safe、無 private local identifiers，並由 evaluator 回報 `productionClaimAllowed: false`。
-  - human calibration dataset 必須是 12 筆，且未完成人工審查時禁止 numerical release threshold。
+  - adversarial dataset 必須是 12 筆、versioned、mock-safe、無 private local identifiers。
+  - evaluator 必須依 paired calibration summary 決定 release threshold claim；未校準時禁止，校準後允許。
+  - human calibration dataset 必須是 12 筆；完成 auditable review 和 threshold decision 後才能允許 numerical release threshold。
+- `backend/tests/robustness/contracts/evalReportingContractRobustness.test.js`
+  - release gate 在 non-SLO gates 通過且 voice flow 通過時允許 final claim。
+  - voice next-question 3 秒超標只能進 known issue，不能變成 non-SLO blocker。
+  - browser visual artifact 缺失時必須阻擋 final claim。
+  - cutover/retention summary 必須從 source/model/registry contract 讀出 passed，且不得冒稱 production telemetry available。
 
 ### Verification
 
 | Command | Result |
 | --- | --- |
-| `cd backend && npm run test:retrieval` | 10 files、31 tests 通過 |
-| `cd backend && npm run eval:role-fit-v2-adversarial` | 12 cases；dataset checks passed；production claim blocked by `human_calibration_pending` |
-| `cd backend && npm run eval:calibration` | pending_human_review；0/12 reviewed；numerical threshold 不允許 |
+| `cd backend && npm run test:retrieval` | 10 files、32 tests 通過 |
+| `cd backend && npm run test:contracts` | 6 files、18 tests 通過 |
+| `cd backend && npm run eval:role-fit-v2-adversarial` | 12 cases；dataset checks passed；production claim allowed |
+| `cd backend && npm run eval:calibration` | calibrated；12/12 reviewed；threshold 0.85；numerical threshold 允許 |
+| `cd frontend && npm run test:e2e:role-fit-visual` | desktop/mobile Role-Fit report visual artifact 通過 |
+| `cd frontend && npm run test:e2e:voice-smoke` | deterministic browser voice smoke 通過 |
+| `cd frontend && npm run test:e2e:voice-real-backend` | real-backend voice flow 通過；latest next-question first audio 約 4415ms，3 秒 SLO 未達 |
+| `cd backend && npm run eval:role-fit-release-gate` | `ready_with_known_issues`；release blockers none；known issue `voice_next_question_3s_slo_exceeded` |
 | `cd backend && npm run eval:agent-framework` | retrieval / trajectory / Role-Fit V2 adversarial / calibration / company / voice / stability mock-safe suites 通過 |
 | `cd backend && npm run test:prep-stability` | CV/JD/match/questions/retrieval/report/contracts robustness groups 通過 |
 | `cd backend && npm run lint` | 通過 |
@@ -387,8 +405,9 @@ Spec：[Role-Fit Closed Loop v2 Spec](2026-07-11-role-fit-v2-spec.md)
 
 ### Remaining V2-6 notes
 
-- 這個 slice 是 deterministic local gate，不呼叫 real AI provider。
-- Production-quality scoring 或 release threshold 仍需真人 reviewer 完成 12 筆 calibration 並留下 auditable threshold decision。
-- Browser visual gate、live provider 3 秒 voice SLO、production snapshot/retention gate 和 dead-code cleanup 仍是後續 external gates。
+- 這個 slice 的 adversarial/calibration/release gate 不呼叫 real AI provider。
+- Release threshold 已由 12/12 human review 和 auditable threshold decision 解鎖為 0.85。
+- Browser visual gate 已補；voice flow 已跑；voice next-question 3 秒 SLO 未達，列為 known issue。
+- Production retention telemetry 仍不是本地 repo 可證明事項；本輪完成的是 source/model/registry cutover-retention contract，並明確標記 `productionTelemetryAvailable: false`。
 
-證據狀態：本頁只記錄已完成的本地 code/test change；V2-0 至 V2-6 皆為 first-slice implementation，仍需 external calibration / browser / live-provider gates 才能宣稱 production release 完成。
+證據狀態：本頁記錄已完成的本地 code/test/doc/eval change。V2 final local implementation release gate 為 `ready_with_known_issues`；唯一 known issue 是 voice next-question 3 秒 SLO 超標。

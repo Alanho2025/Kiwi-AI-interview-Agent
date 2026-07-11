@@ -26,6 +26,7 @@ The evaluation design follows an agent benchmark style:
 - `npm run eval:agent-trajectory-safety` → 舊 handwritten trace fixture safety evaluation
 - `npm run eval:role-fit-v2-adversarial` → Role-Fit Closed Loop v2 的 mock-safe adversarial coverage gate
 - `npm run eval:calibration` → human-vs-judge disagreement 與 threshold eligibility；預設不需 provider
+- `npm run eval:role-fit-release-gate` → 聚合 Role-Fit calibration、adversarial、cutover/retention contract、browser visual 和 voice flow artifact；3 秒 voice SLO 超標會記為 known issue
 - `npm run eval:company-research` → deterministic company research evaluation
 - `npm run eval:voice-quality` → deterministic voice quality evaluation
 - `npm run eval:stability` → deterministic stability evaluation
@@ -59,7 +60,7 @@ The reports answer three questions quickly:
 2. Which cases are weak now
 3. Which checks failed, so fixes are evidence-based instead of guess-based
 
-`retrieval-eval.latest.json` 包含版本化 retrieval 與 generation grounding 子報告、config fingerprints、domain/risk slices 和逐 case ranked/claim records。`agent-trajectory-eval.latest.json` 保存正式 planner 產生的 action/tool/args/terminal-state trajectory。`role-fit-v2-adversarial.latest.json` 保存 v2 adversarial coverage summary，並固定 `productionClaimAllowed=false`，直到人工校準完成。`human-calibration-eval.latest.json` 在真實 review 尚未完成時必須維持 `canAssertNumericalReleaseThreshold=false`。
+`retrieval-eval.latest.json` 包含版本化 retrieval 與 generation grounding 子報告、config fingerprints、domain/risk slices 和逐 case ranked/claim records。`agent-trajectory-eval.latest.json` 保存正式 planner 產生的 action/tool/args/terminal-state trajectory。`role-fit-v2-adversarial.latest.json` 保存 v2 adversarial coverage summary，並讀取 paired human calibration summary 決定是否允許 release threshold claim。`human-calibration-eval.latest.json` 目前為 12/12 reviewed、threshold 0.85、`canAssertNumericalReleaseThreshold=true`。`role-fit-release-gate.latest.json` 聚合 non-SLO release evidence；voice real-backend flow 要跑，但 next-question 3 秒 SLO 超標時只標為 known issue。
 
 目前 local synthetic benchmark 分數不可宣稱為 production RAGAS 品質。它不使用 production corpus、外部 semantic embedding 或 real-provider generation；人工校準需依 `eval/manual-review/role-fit-calibration-guide-v1.md` 執行。
 

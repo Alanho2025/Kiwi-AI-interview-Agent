@@ -1,7 +1,7 @@
 # Role-Fit 相容層移除清單
 
-狀態：新 match/question/report 已完成 cutover；legacy reviewed-JD 新流量入口已移除；保留三個只讀 snapshot adapter，等待 production retention/resume gate
-日期：2026-07-10
+狀態：新 match/question/report 已完成 cutover；legacy reviewed-JD 新流量入口已移除；local cutover/retention contract 通過；production telemetry 仍不可由本地 repo 證明
+日期：2026-07-11
 
 ## 目前唯一新資料主路徑
 
@@ -16,7 +16,7 @@
 
 ## 暫時相容 adapter
 
-無。所有相容層已於 2026-07-10 清理完成。
+新流量沒有 legacy adapter。仍可讀的 old snapshot safe-unavailable / migration-aware reader 只服務 pre-cutover 資料，不是新流量入口。
 
 ## 已移除 adapter
 
@@ -29,9 +29,9 @@
 
 新 frontend 不會產生 legacy marker。所有新 match request 必須帶 `roleFit`，並通過 owner、`jdFingerprint`、profile ID、persisted review version 與 `verified` status 檢查；client-only `humanReviewStatus` 不再足以開始 match。
 
-## 移除門檻
+## Production telemetry 門檻
 
-滿足全部條件後刪除 legacy adapter：
+本地 code contract 已由 `backend/tests/robustness/contracts/roleFitCutoverRetentionContract.test.js` 和 `npm run eval:role-fit-release-gate` 驗證。若要宣稱 production snapshot / retention telemetry 完成，仍需滿足：
 
 1. 所有可恢復的 pre-cutover Analyze draft/session 已完成、過期或遷移。
 2. Production analysis/session 連續 14 天沒有載入缺少 `roleEvidenceMap` 的 snapshot，或全部已過 retention/resume window。
@@ -39,14 +39,14 @@
 4. Production 可恢復 session 連續 14 天沒有載入 v2/無版本 question snapshot，或所有該類 snapshot 已過 retention/resume window。
 5. Production 可讀 report 連續 14 天沒有 v6/更舊 snapshot，或舊 report 已遷移/過 retention window；TXT/PDF/UI 均只需 v7 contract。
 
-## 刪除動作
+## 後續 production 刪除動作
 
 1. 已完成：移除 `guardedMatchService.js` 的 `attachCompatibility` / `legacy_reviewed_jd`，並把舊 expectation 改成缺少 Role-Fit 必須重新 review。
-2. Retention gate 成立後，移除 analyze/session schema 的 legacy `evidenceMap` reader、fallback 與相依 fixtures。
+2. Production telemetry gate 成立後，移除 analyze/session schema 的 legacy `evidenceMap` reader、fallback 與相依 fixtures。
 3. 執行 `rg -n "legacy_reviewed_jd|compatibility.roleFit|evidenceMap" backend frontend`，確認剩餘 `evidenceMap` 都是 JD normalizer/CV evidence 的不同概念或已列冊 snapshot reader。
 4. 移除 question/plan validator 對 v2/無 Role-Fit fields 的 snapshot defaults，並以 migration/import search 證明新資料與可恢復資料都只需要 v3。
 5. 移除 report view model 的 `legacy` absence branch 和相依 tests；在刪除前必須先證明沒有仍可存取的 v6/更舊 report。
 
-## 目前不能刪除的部分
+## 本地 release gate interpretation
 
-新資料 consumer 已 cut over 到 `roleEvidenceMap`，但 legacy `evidenceMap` fallback、v2/無版本 question reader與 v6/更舊 report reader仍服務 pre-cutover snapshot。工作區沒有 production telemetry 或已完成 migration 的證據，因此不能只因新資料已寫 v3/v7 就刪除；這三項 status 保持 `active`，不是 `ready_to_remove`。`company values enrichment` 仍負責後續 company-specific coaching research，不是 role-fit company context 的重複實作。
+新資料 consumer 已 cut over 到 `roleEvidenceMap`、question v3 和 report v7。Release gate 只宣稱 local source/model/registry contract passed，且明確輸出 `productionTelemetryAvailable: false`。因此本文件不再把 old snapshot reader 當作新流量 adapter；也不把本地測試冒充為 production 14-day telemetry。`company values enrichment` 仍負責後續 company-specific coaching research，不是 Role-Fit company context 的重複實作。

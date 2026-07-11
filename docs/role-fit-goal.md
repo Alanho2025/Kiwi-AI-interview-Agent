@@ -1,8 +1,10 @@
 # Role-Fit Intelligence Goal
 
-狀態：local implementation 與新流量 cutover 已完成；pre-cutover snapshot cleanup、browser、live provider 與 human calibration gates 待外部條件
+狀態：v1 historical goal；V2 final 狀態以 `2026-07-11-role-fit-v2-goal.md` / release gate 為準
 日期：2026-07-10  
 產品名稱：Kiwi AI Interview Agent
+
+V2 補充：Role-Fit Closed Loop v2 已在 2026-07-11 落地為 final local implementation；release gate 為 `ready_with_known_issues`，known issue 是 voice next-question first audio 超過 3 秒。本 v1 goal 保留原產品目標與歷史 gate 記錄，不覆蓋 V2 goal/spec/trace。
 
 ## 文件定位
 
@@ -206,4 +208,4 @@ Role-Fit Intelligence 只有在所有下列條件成立時才算完成：
 7. temporary compatibility adapter、kill switch、dead service、obsolete test/fixture 和不再讀取的 persistence branch 已依 removal manifest 刪除。
 8. 功能真正 shipped 後，更新 `repo-docs/`、implementation workflow 與 change log；在此之前不要把 proposal 寫成 current behavior。
 
-證據狀態：CV/JD/match、Phase 3、Phase 4 product code、Phase 5 mock-safe voice hardening、Phase 6 local evaluation與新流量 cutover已通過對應 robustness/eval gates。新 match 只接受 owner-scoped verified Role-Fit；question/report 寫 v3/v7；Role-Fit artifacts 使用 private retention contract/registry；`legacy_reviewed_jd` 已移除。1.00 synthetic 分數不是 production semantic/real-AI 保證；human calibration 仍為 0/6、threshold `not_set`。三個 pre-cutover snapshot readers 仍等待 14-day telemetry/migration/retention gate；Phase 4 browser visual 與 live provider 3 秒 gate 仍待外部條件。現況與 locator 見 `docs/role-fit-implementation-trace.md` 和 `repo-docs/`。
+證據狀態：本文件是 v1 historical goal。CV/JD/match、Phase 3、Phase 4 product code、Phase 5 mock-safe voice hardening、Phase 6 local evaluation與新流量 cutover已通過對應 robustness/eval gates；當時 human calibration、browser visual 和 live provider gate 尚未完成。Current V2 final 狀態請以 `docs/2026-07-11-role-fit-v2-goal.md`、`docs/2026-07-11-role-fit-v2-implementation-trace.md` 和 `backend/eval/reports/role-fit-release-gate.latest.json` 為準：12/12 calibration 已完成、threshold 0.85、browser visual 與 real-backend voice flow 已跑，release gate 為 `ready_with_known_issues`，唯一 known issue 是 voice next-question first audio 超過 3 秒。Production 14-day telemetry/migration/retention-window closure 仍不能由本地 repo 證明。

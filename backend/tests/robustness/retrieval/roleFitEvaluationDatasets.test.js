@@ -59,7 +59,9 @@ describe('role-fit evaluation datasets', () => {
 
   it('keeps the Role-Fit V2 adversarial suite at 12 mock-safe cases with explicit safeguards', async () => {
     const dataset = await loadDataset('role-fit-v2/adversarial-v1.json');
-    const summary = evaluateRoleFitV2AdversarialDataset(dataset);
+    const calibrationDataset = await loadManualReviewDataset('role-fit-calibration-v1.json');
+    const calibrationSummary = buildHumanCalibrationSummary(calibrationDataset);
+    const summary = evaluateRoleFitV2AdversarialDataset(dataset, { calibrationSummary });
     const serialized = JSON.stringify(dataset).toLowerCase();
 
     expect(dataset).toMatchObject({
@@ -78,12 +80,36 @@ describe('role-fit evaluation datasets', () => {
       schemaVersion: 'role_fit_v2_adversarial_eval_report_v1',
       totalCases: 12,
       datasetChecksPassed: true,
-      productionClaimAllowed: false,
-      productionClaimBlocker: 'human_calibration_pending',
+      calibrationStatus: 'calibrated',
+      calibrationReviewedCases: 12,
+      releaseThreshold: 0.85,
+      productionClaimAllowed: true,
+      productionClaimBlocker: null,
     });
     expect(serialized).not.toContain('@');
     expect(serialized).not.toContain('heminghan');
     expect(serialized).not.toContain('/uploads');
+  });
+
+  it('does not allow Role-Fit V2 production claims without calibrated human review', async () => {
+    const dataset = await loadDataset('role-fit-v2/adversarial-v1.json');
+    const summary = evaluateRoleFitV2AdversarialDataset(dataset, {
+      calibrationSummary: {
+        status: 'pending_human_review',
+        reviewedCases: 0,
+        totalCases: 12,
+        canAssertNumericalReleaseThreshold: false,
+        thresholdDecision: { status: 'not_set', value: null },
+      },
+    });
+
+    expect(summary).toMatchObject({
+      productionClaimAllowed: false,
+      productionClaimBlocker: 'human_calibration_pending',
+      calibrationStatus: 'pending_human_review',
+      calibrationReviewedCases: 0,
+      releaseThreshold: null,
+    });
   });
 
   it('keeps human calibration as an explicit pending release gate unless reviewed records exist', async () => {
@@ -91,6 +117,15 @@ describe('role-fit evaluation datasets', () => {
     const summary = buildHumanCalibrationSummary(dataset);
 
     expect(dataset.cases).toHaveLength(12);
+    if (summary.canAssertNumericalReleaseThreshold) {
+      expect(dataset.status).toBe('calibrated');
+      expect(summary).toMatchObject({
+        status: 'calibrated',
+        reviewedCases: 12,
+        canAssertNumericalReleaseThreshold: true,
+      });
+      return;
+    }
     if (summary.reviewedCases > 0) {
       expect(['calibrated', 'review_complete_threshold_not_set']).toContain(summary.status);
     } else {

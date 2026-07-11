@@ -31,7 +31,7 @@ report generator 会建立 accepted-answer dataset、turn rubrics、scores、tra
 
 ## 怎么检查
 
-报告测试集中在 `backend/tests/robustness/report` 和 frontend report view/API tests。它们测试的不是“报告看起来有文字”，而是 accepted-answer-only、Answer Alignment v2 六分项、alignment score 0-100、evidence-use diagnosis、Role-Fit diagnostics、evidence IDs、must-cover coverage、QA blocking、turn export count、rewrite safety，以及 UI/TXT/PDF legacy/unavailable behavior。2026-07-10 的 browser screenshot gate 因执行环境权限待补，不把 component tests 冒充 pixel evidence。
+报告测试集中在 `backend/tests/robustness/report` 和 frontend report view/API tests。它们测试的不是“报告看起来有文字”，而是 accepted-answer-only、Answer Alignment v2 六分项、alignment score 0-100、evidence-use diagnosis、Role-Fit diagnostics、evidence IDs、must-cover coverage、QA blocking、turn export count、rewrite safety，以及 UI/TXT/PDF legacy/unavailable behavior。2026-07-11 已新增 `npm run test:e2e:role-fit-visual`，用 browser mock API 截取 Role-Fit report desktop/mobile screenshots；component tests 和 visual gate 分開記錄。
 
 继续读 [report generator agent](agent-report-generator.md) 和 [report QA agent](agent-report-qa.md)。
 

@@ -1,7 +1,7 @@
 {
   "schemaVersion": "human_calibration_report_v1",
   "datasetVersion": "role-fit-calibration-v1",
-  "generatedAt": "2026-07-11T05:40:17.181Z",
+  "generatedAt": "2026-07-11T08:57:58.660Z",
   "status": "calibrated",
   "disagreementTolerance": 0.15,
   "totalCases": 12,

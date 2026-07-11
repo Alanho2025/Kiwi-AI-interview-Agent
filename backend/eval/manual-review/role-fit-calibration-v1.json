@@ -2,7 +2,7 @@
   "schemaVersion": "human_calibration_dataset_v1",
   "datasetVersion": "role-fit-calibration-v1",
   "reviewerGuideVersion": "role-fit-calibration-guide-v1",
-  "status": "pending_human_review",
+  "status": "calibrated",
   "disagreementTolerance": 0.15,
   "thresholdDecision": {
     "status": "approved",

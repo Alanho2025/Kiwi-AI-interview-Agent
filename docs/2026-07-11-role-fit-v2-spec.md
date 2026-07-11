@@ -5,6 +5,7 @@
 執行模式：Builder / Author  
 對應目標：[Role-Fit Closed Loop v2 Goal](2026-07-11-role-fit-v2-goal.md)
 實作追蹤：[Role-Fit Closed Loop v2 Implementation Trace](2026-07-11-role-fit-v2-implementation-trace.md)
+實作敘事：[Role-Fit Closed Loop v2 Implementation Narrative](2026-07-11-role-fit-v2-implementation-narrative.md)
 
 ## Overview
 
@@ -502,7 +503,7 @@ v2 can be considered implemented only when:
 6. Answer Alignment report diagnoses wrong example, weak evidence and off-target answers.
 7. Diagnostics make silent degradation impossible across parse, match, plan, interview and report.
 8. The adversarial suite and human calibration are complete enough to set or explicitly defer release thresholds.
-9. Browser visual, live provider and retention gates remain separately tracked.
+9. Browser visual, voice flow and retention contract gates remain separately tracked; voice 3 秒 next-question SLO 超標不得被隱藏。
 
 ## Unresolved Decisions
 
@@ -511,11 +512,11 @@ v2 can be considered implemented only when:
 | Website page scope | Fetch only bounded official/same-origin pages from user-provided URL. |
 | External search | Not allowed in v2 without separate approval. |
 | Company source storage | Store snippets/references, not full raw pages, unless retention policy explicitly permits. |
-| Human calibration size | Start with 12 adversarial cases; do not assert product threshold until reviewers complete them. |
+| Human calibration size | 12 adversarial cases are reviewed; current release threshold decision is 0.85. |
 | Existing v1 docs | Keep as shipped foundation trace. Add v2 docs as next-phase contract until implementation starts. |
 
 ## Repo-docs sync decision
 
-Current `repo-docs/` describes shipped behavior. This v2 spec is a future implementation plan, so guide changes should wait until behavior-bearing source changes ship. If implementation later changes parse/match/question/report behavior, patch the relevant Chinese guide module and `repo-docs/change-log.md` in that same turn.
+Current `repo-docs/` describes shipped behavior and has been updated for V2. If later work changes parse/match/question/report/voice behavior, patch the relevant Chinese guide module and `repo-docs/change-log.md` in that same turn.
 
-證據狀態：本 spec 是下一輪藍圖，基於 current source inspection 和 `docs/role_fit_recommend_by_chatGPT.md` 評價。它不聲稱 v2 behavior 已經 shipped。
+證據狀態：本 spec 已從下一輪藍圖更新為 V2 final local implementation contract。Release evidence 聚合於 `backend/eval/reports/role-fit-release-gate.latest.json`；狀態為 `ready_with_known_issues`，known issue 是 voice next-question first audio 超過 3 秒。

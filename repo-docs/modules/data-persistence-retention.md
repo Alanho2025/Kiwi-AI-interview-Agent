@@ -23,7 +23,7 @@
 | Browser queue | [IndexedDB chunk store](../../frontend/src/runtime/recording/indexedDbRecordingChunkStore.js) | 本地 durable chunk recovery |
 | Retention | [retention services](../../backend/src/services/retention) | audit、dry run、backup/quarantine、cleanup、worker |
 
-Role-Fit 的 Company profile、match record、interview plan、prepared question、session analysis 和 report 都以 user/session/match ID 維持 ownership，敏感 Mongo artifacts 使用 `retentionUntil`、`deletedAt`、`containsSensitiveData`、`accessScope=private`，並已在 `mongoRetentionModelRegistry` 登記。寫入 Company Role-Fit draft/review 或 report 時沿用既有 7-day policy 更新 retention，不另造期限。
+Role-Fit 的 Company profile、match record、interview plan、prepared question、session analysis 和 report 都以 user/session/match ID 維持 ownership，敏感 Mongo artifacts 使用 `retentionUntil`、`deletedAt`、`containsSensitiveData`、`accessScope=private`，並已在 `mongoRetentionModelRegistry` 登記。寫入 Company Role-Fit draft/review 或 report 時沿用既有 7-day policy 更新 retention，不另造期限。Role-Fit release gate 目前只宣稱 local source/model/registry contract passed；它明確標記 `productionTelemetryAvailable=false`，不把本地 contract 冒充成 production 14-day telemetry。
 
 ## 保守边界
 

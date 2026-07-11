@@ -55,6 +55,7 @@
     "eval:agent-trajectory-safety": "NODE_ENV=test AI_TEST_MODE=mock node eval/runners/runAgentTrajectorySafetyEval.js",
     "eval:role-fit-v2-adversarial": "NODE_ENV=test AI_TEST_MODE=mock node eval/runners/runRoleFitV2AdversarialEval.js",
     "eval:calibration": "NODE_ENV=test AI_TEST_MODE=mock node eval/runners/runHumanCalibrationEval.js",
+    "eval:role-fit-release-gate": "NODE_ENV=test AI_TEST_MODE=mock node eval/runners/runRoleFitReleaseGateEval.js",
     "eval:google-prep-trace": "node eval/runners/buildGoogleAgentsCliPrepPipelineTrace.js",
     "eval:google-prep-advice": "node eval/runners/summarizeGoogleAgentsCliPrepPipelineAdvice.js",
     "eval:google-voice-trace": "node eval/runners/buildGoogleAgentsCliVoiceTrace.js",

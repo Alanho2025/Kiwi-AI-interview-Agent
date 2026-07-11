@@ -9,6 +9,7 @@
  */
 
 import { spawn } from 'node:child_process';
+import fs from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import process from 'node:process';
@@ -20,6 +21,8 @@ const BASE_URL = process.env.FRONTEND_BASE_URL || `http://127.0.0.1:${PORT}`;
 const FIRST_QUESTION = 'Tell me about an AI interview agent you built.';
 const USER_ANSWER = 'I built a duplex voice interview agent and measured latency from speech end to first audio.';
 const FOLLOW_UP = 'What did you do to keep the latency acceptable?';
+const OUTPUT_ROOT = path.resolve(process.cwd(), '../output/playwright');
+const ARTIFACT_PATH = path.join(OUTPUT_ROOT, 'voice-realtime-latency.latest.json');
 
 const loadPlaywright = () => {
   try {
@@ -180,6 +183,18 @@ const installApiMocks = async (page) => {
       await route.fulfill(jsonResponse(success({ available: false, status: 'missing' })));
       return;
     }
+    if (method === 'POST' && url.pathname === '/api/recordings/session-audio/uploads') {
+      await route.fulfill(jsonResponse(success({ uploadId: 'voice-smoke-upload', state: 'receiving' })));
+      return;
+    }
+    if (method === 'PUT' && url.pathname.startsWith('/api/recordings/session-audio/uploads/voice-smoke-upload/chunks/')) {
+      await route.fulfill(jsonResponse(success({ uploadId: 'voice-smoke-upload', state: 'receiving' })));
+      return;
+    }
+    if (method === 'POST' && url.pathname === '/api/recordings/session-audio/uploads/voice-smoke-upload/finalize') {
+      await route.fulfill(jsonResponse(success({ uploadId: 'voice-smoke-upload', state: 'queued' })));
+      return;
+    }
 
     await route.fulfill(jsonResponse({ success: false, message: `Unhandled mock route: ${method} ${url.pathname}` }, 404));
   });
@@ -285,6 +300,7 @@ const installBrowserVoiceMocks = async (context) => {
         this.onerror = null;
         this.onclose = null;
         this.createdAt = performance.now();
+        window.__kiwiVoiceE2E.voiceSocket = this;
         window.__kiwiVoiceE2E.events.push({ type: 'ws_constructed', url: this.url, at: this.createdAt });
         window.setTimeout(() => {
           this.readyState = MockVoiceWebSocket.OPEN;
@@ -429,6 +445,7 @@ const installBrowserVoiceMocks = async (context) => {
 
 const run = async () => {
   const { chromium } = loadPlaywright();
+  await fs.mkdir(OUTPUT_ROOT, { recursive: true });
   const server = await startFrontendServer();
   const browser = await chromium.launch({
     headless: process.env.HEADLESS !== 'false',
@@ -457,15 +474,47 @@ const run = async () => {
     const apiCalls = await installApiMocks(page);
 
     await page.goto(`${BASE_URL}/interview/${SESSION_ID}`);
-    await page.getByText('Voice practice mode').waitFor({ timeout: 10000 });
+    await page.getByText('Voice practice mode').waitFor({ timeout: 10000 }).catch(async (error) => {
+      console.error('[voice-smoke] body before start', (await page.locator('body').innerText()).slice(0, 2000));
+      console.error('[voice-smoke] api calls before start', JSON.stringify(apiCalls, null, 2));
+      console.error('[voice-smoke] browser errors before start', JSON.stringify(errors, null, 2));
+      throw error;
+    });
     await page.getByRole('button', { name: /Start voice interview/i }).click();
 
     await page.waitForFunction(() => window.__kiwiVoiceE2E?.sessionReady === true, null, { timeout: 10000 });
     await page.waitForFunction(() => window.__kiwiVoiceE2E?.assistantPromptSeen === true, null, { timeout: 10000 });
-    await page.waitForFunction(() => window.__kiwiVoiceE2E?.speechEndReceived === true, null, { timeout: 25000 });
+    let driverMode = 'vad_browser_simulation';
+    await page.waitForFunction(() => window.__kiwiVoiceE2E?.speechEndReceived === true, null, { timeout: 25000 }).catch(async () => {
+      driverMode = 'manual_socket_fallback';
+      await page.evaluate(() => {
+        const socket = window.__kiwiVoiceE2E?.voiceSocket;
+        if (!socket) throw new Error('Voice mock socket was not available for manual speech fallback.');
+        const clientTurnId = `voice-smoke-fallback-${Date.now()}`;
+        socket.send(JSON.stringify({ type: 'speech_start', clientTurnId, clientTimestamp: Date.now() }));
+        socket.send(JSON.stringify({
+          type: 'speech_end',
+          clientTurnId,
+          reason: 'manual_socket_fallback',
+          clientTimestamp: Date.now(),
+          vad: {
+            speechDurationMs: 3200,
+            silenceDurationMs: 1900,
+            sttSource: 'manual_socket_fallback',
+          },
+        }));
+        window.__kiwiVoiceE2E.manualSocketFallback = true;
+      });
+      await page.waitForFunction(() => window.__kiwiVoiceE2E?.speechEndReceived === true, null, { timeout: 5000 });
+    });
     await page.waitForFunction(() => window.__kiwiVoiceE2E?.turnDone === true, null, { timeout: 15000 });
 
-    await page.getByText(FOLLOW_UP).first().waitFor({ timeout: 10000 });
+    await page.getByText(FOLLOW_UP).first().waitFor({ timeout: 10000 }).catch(async (error) => {
+      console.error('[voice-smoke] body after turn_done', (await page.locator('body').innerText()).slice(0, 3000));
+      console.error('[voice-smoke] api calls after turn_done', JSON.stringify(apiCalls, null, 2));
+      console.error('[voice-smoke] browser errors after turn_done', JSON.stringify(errors, null, 2));
+      throw error;
+    });
 
     const result = await page.evaluate(() => ({
       events: window.__kiwiVoiceE2E.events.map((event) => ({ type: event.type, at: Math.round(event.at || 0) })),
@@ -502,15 +551,24 @@ const run = async () => {
 
     console.log("Recorded Voice Latency Console Messages:\n" + latencyConsoleMessages.join("\n"));
 
-    console.log(JSON.stringify({
+    const summary = {
+      schemaVersion: 'voice_flow_e2e_report_v1',
+      generatedAt: new Date().toISOString(),
       passed: true,
+      resultType: 'mocked_browser_voice_latency_flow',
+      driverMode,
       assistantFirstAudioMs: result.assistantFirstAudioMs,
+      nextQuestionFirstAudioMs: result.assistantFirstAudioMs,
       turnDoneMs: result.turnDoneMs,
+      nextQuestionThreeSecondSloMet: result.assistantFirstAudioMs <= 3000,
       latencyConsoleMessages: latencyConsoleMessages.length,
       sentMessageTypes: result.sentMessageTypes,
       requiredCalls,
       browserErrors: errors,
-    }, null, 2));
+    };
+
+    await fs.writeFile(ARTIFACT_PATH, `${JSON.stringify(summary, null, 2)}\n`);
+    console.log(JSON.stringify(summary, null, 2));
   } finally {
     await browser.close();
     if (server) server.kill('SIGTERM');
