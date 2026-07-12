@@ -1,0 +1,105 @@
+{
+  "schemaVersion": "e2e_refine_release_gate_report_v1",
+  "generatedAt": "2026-07-12T00:23:58.843Z",
+  "releaseStatus": "ready_with_known_issues",
+  "releaseBlockers": [],
+  "knownIssues": [
+    "voice_next_question_3s_slo_exceeded"
+  ],
+  "external": [
+    "live_azure_stt_not_run",
+    "live_elevenlabs_tts_not_run",
+    "production_retention_telemetry_unavailable",
+    "real_provider_semantic_judge_not_run"
+  ],
+  "gates": {
+    "reviewLock": {
+      "status": "passed",
+      "blocker": null,
+      "blockers": [],
+      "schemaVersion": "review_lock_bypass_e2e_report_v1",
+      "truthLevel": "hybrid_backend",
+      "resultType": "review_lock_bypass_blocked",
+      "assertionCount": 3,
+      "requiredAssertionsPresent": true,
+      "browserErrorCount": 0,
+      "knownIssues": []
+    },
+    "voiceLowConfidence": {
+      "status": "passed",
+      "blocker": null,
+      "blockers": [],
+      "schemaVersion": "voice_low_confidence_ui_e2e_report_v1",
+      "truthLevel": "hybrid_backend",
+      "resultType": "low_confidence_confirmation_visible",
+      "assertionCount": 3,
+      "requiredAssertionsPresent": true,
+      "browserErrorCount": 0,
+      "knownIssues": []
+    },
+    "retentionDeletion": {
+      "status": "passed",
+      "blocker": null,
+      "blockers": [],
+      "schemaVersion": "retention_deletion_lifecycle_e2e_report_v1",
+      "truthLevel": "hybrid_backend",
+      "resultType": "retention_deletion_access_denied",
+      "assertionCount": 7,
+      "requiredAssertionsPresent": true,
+      "browserErrorCount": 0,
+      "knownIssues": []
+    },
+    "voiceNetworkBargeIn": {
+      "status": "passed",
+      "blocker": null,
+      "blockers": [],
+      "schemaVersion": "voice_network_barge_in_e2e_report_v1",
+      "truthLevel": "hybrid_backend",
+      "resultType": "voice_network_barge_in_recoverable",
+      "assertionCount": 3,
+      "requiredAssertionsPresent": true,
+      "browserErrorCount": 0,
+      "knownIssues": [
+        "voice_next_question_3s_slo_exceeded"
+      ]
+    },
+    "voiceThreeSecondSlo": {
+      "status": "known_issue",
+      "targetMs": 3000,
+      "nextQuestionFirstAudioMs": 12619
+    }
+  },
+  "requiredArtifacts": {
+    "reviewLock": {
+      "label": "Review lock bypass",
+      "filename": "review-lock-bypass.latest.json",
+      "requiredAssertions": [
+        "review_lock_bypass_blocked"
+      ]
+    },
+    "voiceLowConfidence": {
+      "label": "Voice low-confidence UI",
+      "filename": "voice-low-confidence-ui.latest.json",
+      "requiredAssertions": [
+        "low_confidence_confirmation_visible",
+        "question_count_unchanged"
+      ]
+    },
+    "retentionDeletion": {
+      "label": "Retention deletion lifecycle",
+      "filename": "retention-deletion-lifecycle.latest.json",
+      "requiredAssertions": [
+        "deleted_session_not_readable",
+        "deleted_cv_not_reusable"
+      ]
+    },
+    "voiceNetworkBargeIn": {
+      "label": "Voice network and barge-in",
+      "filename": "voice-network-barge-in.latest.json",
+      "requiredAssertions": [
+        "bounded_slow_network_completed",
+        "barge_in_acknowledged"
+      ]
+    }
+  }
+}

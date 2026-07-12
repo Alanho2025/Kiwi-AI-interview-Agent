@@ -1,5 +1,14 @@
 # Version History
 
+## 2026-07-12 - E2E Refine Gate and Voice Interrupt Hardening
+
+- Added stakeholder E2E refine scripts for review-lock API bypass, retention/deletion lifecycle access denial, low-confidence voice confirmation UI, and weak-network/barge-in voice flow.
+- Added shared E2E artifact/backend/voice harness helpers and `frontend` aggregate command `npm run test:e2e:role-fit-refine`.
+- Added backend `eval:e2e-refine-release-gate`, which reads `output/playwright/*.latest.json` artifacts and writes `backend/eval/reports/e2e-refine-release-gate.latest.{json,md}`.
+- Hardened interview-plan creation so `manual_review` match analysis cannot be used to create a usable interview plan by bypassing the frontend.
+- Fixed the duplex WebSocket queue so interrupt control messages (`barge_in`, `cancel_assistant_audio`) can interrupt streaming assistant speech instead of waiting behind queued TTS work.
+- Current E2E refine gate status is `ready_with_known_issues`: four required artifacts pass, release blockers are none, and the remaining known issue is voice next-question first audio exceeding the 3-second target.
+
 ## 2026-07-11 - Role-Fit Closed Loop v2 Final Goal
 
 - Upgraded the product from requirement-centered CV-JD practice into a Role-Fit closed loop: reviewed company context, hiring-logic role intent, candidate evidence graph, proof strategy, interview question metadata, and answer-alignment report now share a traceable contract.

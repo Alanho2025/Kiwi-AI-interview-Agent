@@ -1,6 +1,6 @@
 {
   "schemaVersion": "role_fit_release_gate_report_v1",
-  "generatedAt": "2026-07-11T08:59:13.799Z",
+  "generatedAt": "2026-07-12T00:24:52.971Z",
   "releaseStatus": "ready_with_known_issues",
   "finalClaimAllowed": true,
   "releaseBlockers": [],

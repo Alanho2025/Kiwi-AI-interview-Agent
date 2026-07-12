@@ -21,7 +21,8 @@
 | SessionAnalysis | MongoDB artifact record；保存 controller state、decision/evaluator/trajectory records、RAG index status、agent memory、report artifacts 等 | [数据与保留](modules/data-persistence-retention.md) |
 | SessionReport | MongoDB report record；保存最新报告、QA result、状态、版本和 repair history | [报告与 QA](modules/feature-report-and-qa.md) |
 | interviewEvaluator | 正式 registry 里的 evaluator callable；把最新答案转成 specificity、evidence、misunderstanding、coverage 等 planner signals | [interview evaluator](modules/agent-interview-evaluator.md) |
-| npm run test:all | package-level broad test command；backend 和 frontend 的覆盖范围不同，real AI eval 不包含在常规 mock-safe 检查里 | [测试与 evaluation](modules/testing-and-evaluation.md) |
+| npm run test:all | package-level broad test command；backend 包含 configured robustness groups including retention，frontend 覆盖 hooks/utils/components，real AI eval 不包含在常规 mock-safe 检查里 | [测试与 evaluation](modules/testing-and-evaluation.md) |
+| npm run test:retention | 后端 focused retention lifecycle robustness check；覆盖 audit、backup/quarantine、transaction adapters、policy 和 cleanup planning | [测试与 evaluation](modules/testing-and-evaluation.md) |
 | npm run test:questions | 后端 focused question pipeline robustness check，覆盖 pool、dedupe、ranker、turn orchestration 和 metadata | [测试与 evaluation](modules/testing-and-evaluation.md) |
 | npm run test:report | 后端 focused report robustness check，覆盖 report dataset、QA、grounding、rewrite 和 score consistency | [测试与 evaluation](modules/testing-and-evaluation.md) |
 | npm run test:retrieval | 后端 focused retrieval robustness check，覆盖 RAG payload、quality assessor 和 retrieve-for-turn | [RAG 检索层](modules/rag-retrieval.md) |

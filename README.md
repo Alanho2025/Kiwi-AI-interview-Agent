@@ -15,6 +15,7 @@ This repository is prepared for academic marking. The project is not a simple ch
 | Code-to-document alignment | `docs/code-document-alignment.md` |
 | Role-Fit v2 implementation narrative | `docs/2026-07-11-role-fit-v2-implementation-narrative.md` |
 | Role-Fit v2 goal/spec/trace | `docs/2026-07-11-role-fit-v2-goal.md`, `docs/2026-07-11-role-fit-v2-spec.md`, `docs/2026-07-11-role-fit-v2-implementation-trace.md` |
+| E2E refine final goal/spec | `docs/further_plan/e2e-refine-implementation-goal.md`, `docs/further_plan/e2e-refine-implementation-spec.md` |
 | Living repo-docs guide, sync check, and change-log source for repo questions | `repo-docs/README.md` |
 | Collaboration and AI-agent rules | `AGENTS.md` |
 
@@ -340,6 +341,7 @@ npm run test:report
 npm run test:voice
 npm run eval:local
 npm run eval:role-fit-release-gate
+npm run eval:e2e-refine-release-gate
 npm run eval:real
 npm run eval:all
 npm run quality:local
@@ -357,11 +359,12 @@ npm run test:e2e:role-fit-visual
 npm run test:e2e:voice-latency
 npm run test:e2e:voice-real-backend
 npm run test:e2e:recording-recovery
+npm run test:e2e:role-fit-refine
 npm run build
 npm run quality:all
 ```
 
-`eval:real`, `eval:all`, and backend `quality:all` include real-provider work and must only be run with configured credentials, cost/quota awareness, and explicit approval. Backend `test:all` runs the groups listed in `backend/package.json`; it does not currently include every unit, retention, or interview test file.
+`eval:real`, `eval:all`, and backend `quality:all` include real-provider work and must only be run with configured credentials, cost/quota awareness, and explicit approval. Backend `test:all` runs the groups listed in `backend/package.json`, including retention robustness; it still does not include every unit or interview test file. Frontend `test:e2e:role-fit-refine` runs the stakeholder E2E refine gate with synthetic data, test STT/TTS providers, and local browser automation: review-lock bypass, retention/deletion access denial, low-confidence voice confirmation, and weak-network/barge-in voice.
 
 ## Safe demo path
 
@@ -388,6 +391,7 @@ Voice mode is product-wired, but it should only be demonstrated when credentials
 
 - Voice mode is wired, but live quality depends on the configured speech-provider credentials, browser audio permissions, WebSocket connection health, and microphone conditions. Provider fallback occurs when a speech session starts; an active STT turn is not switched mid-recording.
 - The Role-Fit v2 release gate is `ready_with_known_issues`: calibration, adversarial, cutover/retention contract, browser visual, and voice flow gates pass, but real-backend voice measured next-question first audio above the 3-second target.
+- The E2E refine release gate is also `ready_with_known_issues`: review-lock bypass, retention/deletion access denial, low-confidence voice UI, and weak-network/barge-in voice pass locally, but the voice next-question first audio SLO remains above the 3-second target and live Azure/ElevenLabs/production retention telemetry are external.
 - Recording upload is resumable and MP3 conversion is asynchronous. Report viewing does not prove that recording conversion has finished; the report page exposes recording state separately.
 - Some preparation steps are resilient by design. If CV seeds, JD filters, or prepared question pool creation fail, the system may fall back instead of blocking the interview.
 - The deterministic local embedding is acceptable for MVP retrieval experiments, but a production semantic retrieval plan would need a stronger embedding model.

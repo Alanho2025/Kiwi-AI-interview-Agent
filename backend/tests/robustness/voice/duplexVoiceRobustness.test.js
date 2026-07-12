@@ -1,7 +1,8 @@
 import jwt from 'jsonwebtoken';
+import { EventEmitter } from 'node:events';
 import { describe, expect, it, vi } from 'vitest';
 
-import { buildDuplexSocketContext, parseCookies, sendJson, safeJsonParse } from '../../../src/api/duplexVoiceSocket.js';
+import { buildDuplexSocketContext, createSocketMessageQueue, parseCookies, sendJson, safeJsonParse } from '../../../src/api/duplexVoiceSocket.js';
 import { AGENT_TOOL_NAMES } from '../../../src/constants/agentToolNames.js';
 import { createBargeInController } from '../../../src/services/voice/bargeInController.js';
 import { buildConfidenceGate, validateRealtimeVoiceTranscript } from '../../../src/services/voice/speechConfidenceGate.js';
@@ -73,6 +74,41 @@ describe('duplex voice robustness', () => {
     }));
     expect(controller.isTokenActive(token)).toBe(false);
     expect(sent[0]).toEqual(ack);
+  });
+
+  it('lets barge-in bypass queued assistant speech streaming', async () => {
+    const socket = new EventEmitter();
+    const handled = [];
+    const duplexSessionRef = {
+      current: {
+        handleJsonMessage: async (payload) => {
+          if (payload.type === 'speak_text') {
+            handled.push('speak_text:start');
+            await new Promise((resolve) => setTimeout(resolve, 30));
+            handled.push('speak_text:end');
+            return;
+          }
+          handled.push(payload.type);
+        },
+      },
+    };
+
+    const queue = createSocketMessageQueue({
+      socket,
+      context: { sessionId: 's1' },
+      duplexSessionRef,
+      safeSend: vi.fn(),
+    });
+
+    socket.emit('message', JSON.stringify({ type: 'speak_text', text: 'Long assistant speech' }), false);
+    await Promise.resolve();
+    socket.emit('message', JSON.stringify({ type: 'barge_in', reason: 'user_started_speaking' }), false);
+
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    expect(handled).toEqual(['speak_text:start', 'barge_in']);
+
+    await queue.drain();
+    expect(handled).toEqual(['speak_text:start', 'barge_in', 'speak_text:end']);
   });
 
   it('treats low or missing STT confidence conservatively', () => {

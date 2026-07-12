@@ -34,6 +34,11 @@ const parseAuthToken = (requestUrl, request = {}) => {
   return parseCookieAuth(request) || parseJwtAuthToken(requestUrl.searchParams.get('token') || '');
 };
 
+const INTERRUPT_CONTROL_TYPES = new Set(['barge_in', 'cancel_assistant_audio']);
+
+export const isInterruptControlPayload = (payload = {}) =>
+  INTERRUPT_CONTROL_TYPES.has(payload?.type);
+
 export const buildDuplexSocketContext = (request) => {
   const requestUrl = new URL(request.url, `http://${request.headers.host}`);
   const match = requestUrl.pathname.match(DUPLEX_VOICE_PATH_PATTERN);
@@ -63,8 +68,22 @@ export async function loadDuplexVoiceDependencies() {
   };
 }
 
-const createSocketMessageQueue = ({ socket, context, duplexSessionRef, safeSend }) => {
+export const createSocketMessageQueue = ({ socket, context, duplexSessionRef, safeSend }) => {
   let queue = Promise.resolve();
+
+  const processPayload = async (payload) => {
+    if (!payload) return;
+    await duplexSessionRef.current?.handleJsonMessage?.(payload);
+  };
+
+  const handleQueueError = (error) => {
+    logger.error('Duplex voice socket message failed', { error, sessionId: context.sessionId });
+    safeSend({
+      type: 'error',
+      code: 'DUPLEX_MESSAGE_FAILED',
+      message: error?.message || 'Duplex voice message failed.',
+    });
+  };
 
   const processMessage = async (message, isBinary) => {
     if (isBinary) {
@@ -73,21 +92,21 @@ const createSocketMessageQueue = ({ socket, context, duplexSessionRef, safeSend 
     }
 
     const payload = safeJsonParse(String(message));
-    if (!payload) return;
-    await duplexSessionRef.current?.handleJsonMessage?.(payload);
+    await processPayload(payload);
   };
 
   socket.on('message', (message, isBinary) => {
+    if (!isBinary) {
+      const payload = safeJsonParse(String(message));
+      if (isInterruptControlPayload(payload)) {
+        void processPayload(payload).catch(handleQueueError);
+        return;
+      }
+    }
+
     queue = queue
       .then(() => processMessage(message, isBinary))
-      .catch((error) => {
-        logger.error('Duplex voice socket message failed', { error, sessionId: context.sessionId });
-        safeSend({
-          type: 'error',
-          code: 'DUPLEX_MESSAGE_FAILED',
-          message: error?.message || 'Duplex voice message failed.',
-        });
-      });
+      .catch(handleQueueError);
   });
 
   return {

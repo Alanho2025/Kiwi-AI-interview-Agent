@@ -1,5 +1,12 @@
 # Version History
 
+## 2026-07-12 - E2E Refine Backend Gate
+
+- Added interview-plan match usability guard so `manual_review` match analyses cannot be used to create a normal interview session.
+- Added E2E refine release gate evaluator and runner for review-lock, retention/deletion, low-confidence voice, and weak-network/barge-in artifacts.
+- Updated duplex voice WebSocket handling so interrupt control messages bypass the regular serialized queue and can stop active assistant speech during streaming.
+- Added robustness coverage for the interrupt queue behavior.
+
 ## 2026-06-23 - Current Backend Alignment
 
 - Added question novelty preparation/runtime guards and safe duplicate exhaustion.

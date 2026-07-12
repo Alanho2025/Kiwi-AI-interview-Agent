@@ -33,6 +33,7 @@ import { buildJdQuestionFilter } from '../services/questions/jdQuestionFilterSer
 import { generateCvQuestionSeeds, getCvQuestionSeeds } from '../services/questions/cvQuestionSeedService.js';
 import { prepareInterviewQuestionPool } from '../services/questions/questionPoolPreparationService.js';
 import { buildProofStrategyClientSummary } from '../services/questions/proofStrategyClientSummaryService.js';
+import { assertUsableMatchForInterviewPlan } from '../services/match/matchPlanGateService.js';
 
 export const matchCV = asyncHandler(async (req, res) => {
   const { cvId, rawJD, jdRubric, settings } = req.body;
@@ -128,6 +129,7 @@ export const generateInterviewPlan = asyncHandler(async (req, res) => {
     : null;
 
   const resolvedAnalysis = persistedAnalysis?.matchAnalysis || analysisResult || {};
+  assertUsableMatchForInterviewPlan(resolvedAnalysis);
   const companyValuesContext = extractCompanyValuesContextFromJd({
     rawJD: rawJD || jdText || '',
     jdRubric: jdRubric || resolvedAnalysis?.parsedJdProfile || {},

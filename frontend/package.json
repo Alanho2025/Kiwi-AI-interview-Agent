@@ -28,6 +28,11 @@
     "test:e2e:voice-smoke": "node e2e/voice-realtime-latency.playwright.mjs",
     "test:e2e:voice-real-backend": "node e2e/voice-real-backend.playwright.mjs",
     "test:e2e:recording-recovery": "node e2e/recording-recovery.playwright.mjs",
+    "test:e2e:review-lock": "node e2e/review-lock-bypass.playwright.mjs",
+    "test:e2e:retention-deletion": "node e2e/retention-deletion-lifecycle.playwright.mjs",
+    "test:e2e:voice-low-confidence": "node e2e/voice-low-confidence-ui.playwright.mjs",
+    "test:e2e:voice-network-barge-in": "node e2e/voice-network-barge-in.playwright.mjs",
+    "test:e2e:role-fit-refine": "npm run test:e2e:review-lock && npm run test:e2e:retention-deletion && npm run test:e2e:voice-low-confidence && npm run test:e2e:voice-network-barge-in",
     "test:e2e:voice-fixture": "node e2e/fixtures/generateVoiceFixture.mjs",
     "test:e2e:voice-latency": "npm run test:e2e:voice-smoke"
   },
