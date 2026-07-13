@@ -6,6 +6,14 @@
  * - Support optional delays so robustness tests can verify timeout and UI states.
  */
 
+import { buildConfidenceGate } from './speechConfidenceGate.js';
+import {
+  calibrateTranscript,
+  mergeStaticNormalizationIntoCalibration,
+  normalizeNBestCandidates,
+} from './transcriptCalibrationService.js';
+import { normalizeTranscript } from './transcriptNormalizer.js';
+
 const DEFAULT_TRANSCRIPT = 'I built a duplex voice interview agent and measured latency from speech end to first audio.';
 const DEFAULT_CONFIDENCE = 0.92;
 
@@ -15,6 +23,16 @@ const numberFromEnv = (key, fallback) => {
 };
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const parseNBestCandidates = () => {
+  const raw = String(process.env.TEST_REALTIME_STT_NBEST_JSON || process.env.TEST_REALTIME_STT_NBEST || '').trim();
+  if (!raw) return [];
+  try {
+    return normalizeNBestCandidates(JSON.parse(raw));
+  } catch {
+    return [];
+  }
+};
 
 const hasAudiblePcm = (buffer = Buffer.alloc(0)) => {
   if (!buffer?.length) return false;
@@ -27,6 +45,8 @@ const hasAudiblePcm = (buffer = Buffer.alloc(0)) => {
 };
 
 export const createTestRealtimeSpeechSession = ({
+  language = 'en-NZ',
+  contextualGlossary = [],
   onPartialTranscript,
   onFinalTranscript,
   onSessionStarted,
@@ -43,6 +63,35 @@ export const createTestRealtimeSpeechSession = ({
   const stopDelayMs = numberFromEnv('TEST_REALTIME_STT_STOP_DELAY_MS', 0);
   const partialDelayMs = numberFromEnv('TEST_REALTIME_STT_PARTIAL_DELAY_MS', 0);
   const finalDelayMs = numberFromEnv('TEST_REALTIME_STT_FINAL_DELAY_MS', 0);
+
+  const buildFinalTranscriptPayload = () => {
+    const calibration = calibrateTranscript({
+      rawText: transcript,
+      nBestCandidates: parseNBestCandidates(),
+      glossaryItems: contextualGlossary,
+    });
+    const normalized = normalizeTranscript(calibration.selectedTranscript);
+    const selectedConfidence = calibration.confidence.stt ?? confidence;
+    const confidenceGate = buildConfidenceGate(selectedConfidence);
+
+    return {
+      type: 'final_transcript',
+      displayText: normalized.normalizedText || normalized.rawText,
+      normalizedText: normalized.normalizedText,
+      rawText: calibration.rawTranscript,
+      changed: normalized.changed || calibration.decisionType !== 'no_change',
+      corrections: normalized.corrections,
+      transcriptCalibration: mergeStaticNormalizationIntoCalibration({ calibration, normalized }),
+      nbest: calibration.nbest,
+      confidence: selectedConfidence,
+      confidenceStatus: confidenceGate.status,
+      shouldConfirm: confidenceGate.shouldConfirm,
+      shouldRecordAgain: confidenceGate.shouldRecordAgain,
+      provider: 'test_realtime_stt',
+      language,
+      timestamp: new Date().toISOString(),
+    };
+  };
 
   return {
     async start() {
@@ -84,15 +133,7 @@ export const createTestRealtimeSpeechSession = ({
       const audible = chunks.some((chunk) => hasAudiblePcm(chunk));
       if (audible && transcript.trim()) {
         await sleep(finalDelayMs);
-        onFinalTranscript?.({
-          type: 'final_transcript',
-          displayText: transcript,
-          normalizedText: transcript,
-          rawText: transcript,
-          confidence,
-          provider: 'test_realtime_stt',
-          timestamp: new Date().toISOString(),
-        });
+        onFinalTranscript?.(buildFinalTranscriptPayload());
       }
       onSessionStopped?.({
         type: 'speech_session_stopped',

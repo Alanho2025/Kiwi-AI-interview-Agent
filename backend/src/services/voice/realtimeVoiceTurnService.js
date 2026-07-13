@@ -20,6 +20,11 @@ import { buildRealtimeVoiceLatencySummary } from '../../utils/realtimeVoiceLaten
 import { validateRealtimeVoiceTranscript } from './speechConfidenceGate.js';
 import { analyzeVoiceDelivery, persistVoiceDeliveryMetrics } from './voiceDeliveryAnalyzerService.js';
 import { buildLatencyBreakdown, recordAgentTraceEvent } from '../aiControl/agentTraceService.js';
+import { AppError } from '../../utils/appError.js';
+import {
+  buildTranscriptReviewItem,
+  evaluateTranscriptReviewDecision,
+} from './transcriptReviewPolicyService.js';
 
 const toBase64 = (buffer) => Buffer.from(buffer).toString('base64');
 
@@ -48,6 +53,79 @@ const buildSessionPatch = (agentResult, session) => {
     : {
         currentQuestionIndex: agentResult.nextQuestionOrder,
       };
+};
+
+const resolveTranscriptReviewDecision = ({
+  normalizedAnswer,
+  transcriptProvenance,
+  transcriptGate,
+  asrConfidence,
+  latestQuestion,
+  transcriptConfirmation,
+  skipTranscriptGate,
+  sessionId,
+} = {}) => {
+  const rawTranscript = transcriptProvenance?.rawText
+    || transcriptProvenance?.transcriptCalibration?.rawTranscript
+    || normalizedAnswer;
+  const calibratedTranscript = transcriptProvenance?.normalizedText
+    || transcriptProvenance?.transcriptCalibration?.calibratedTranscript
+    || normalizedAnswer;
+  const baseDecision = transcriptConfirmation?.transcriptReviewDecision
+    || evaluateTranscriptReviewDecision({
+      rawTranscript,
+      calibratedTranscript,
+      transcriptCalibration: transcriptProvenance?.transcriptCalibration || null,
+      transcriptGate,
+      asrConfidence,
+      currentQuestion: latestQuestion || null,
+    });
+
+  const reviewItems = (baseDecision.reviewItems || []).map((item) => ({
+    ...item,
+    ...buildTranscriptReviewItem({
+      decision: baseDecision,
+      sessionId,
+      questionId: latestQuestion?.id || null,
+      turnId: null,
+      questionText: latestQuestion?.question_text || latestQuestion?.text || '',
+    }),
+  }));
+
+  if (skipTranscriptGate && transcriptConfirmation?.confirmedByUser === true) {
+    return {
+      ...baseDecision,
+      confirmedByUser: true,
+      resolutionStatus: 'user_confirmed',
+      userAction: 'none_required',
+      scoringPolicy: 'safe_to_score',
+      reviewItems,
+      guardrail: {
+        ...(baseDecision.guardrail || {}),
+        rawTranscriptPreserved: true,
+        clarificationCanReplaceRawTranscript: false,
+      },
+    };
+  }
+
+  return {
+    ...baseDecision,
+    reviewItems,
+  };
+};
+
+const assertTranscriptReviewAllowsScoring = (decision = {}) => {
+  if (decision.decisionType !== 'immediate_confirmation'
+    || decision.scoringPolicy !== 'block_scoring_until_confirmed') return;
+
+  throw new AppError('Voice transcript needs confirmation before scoring', {
+    statusCode: 400,
+    code: 'TRANSCRIPT_REVIEW_CONFIRMATION_REQUIRED',
+    details: 'Confirm the high-risk transcript uncertainty before saving this answer.',
+    meta: {
+      transcriptReviewDecision: decision,
+    },
+  });
 };
 
 const measureTtsProviderCall = async ({ trace, synthesizeAssistantSpeech, text, voiceName, usageContext }) => {
@@ -126,6 +204,27 @@ export const processRealtimeVoiceTurn = async ({
   trace.mark('backend_request_received');
   const latestQuestion = await trace.measure('load_latest_question', () => getLatestQuestionForSession(session.id));
   const voiceDelivery = analyzeVoiceDelivery({ transcriptText: normalizedAnswer, vad, asrConfidence });
+  const transcriptReviewDecision = resolveTranscriptReviewDecision({
+    normalizedAnswer,
+    transcriptProvenance,
+    transcriptGate,
+    asrConfidence,
+    latestQuestion,
+    transcriptConfirmation,
+    skipTranscriptGate,
+    sessionId: session.id,
+  });
+
+  trace.mark('transcript_review_policy_done', {
+    decisionType: transcriptReviewDecision.decisionType,
+    riskLevel: transcriptReviewDecision.riskLevel,
+    scoringPolicy: transcriptReviewDecision.scoringPolicy,
+    reasonCodes: transcriptReviewDecision.reasonCodes || [],
+  });
+
+  if (!skipTranscriptGate) {
+    assertTranscriptReviewAllowsScoring(transcriptReviewDecision);
+  }
 
   await trace.measure('save_realtime_user_turn', async () => {
     await appendTranscriptTurn(session.id, {
@@ -152,6 +251,15 @@ export const processRealtimeVoiceTurn = async ({
         normalizedTranscriptText: transcriptProvenance?.normalizedText || normalizedAnswer,
         transcriptCorrections: transcriptProvenance?.corrections || [],
         transcriptSegments: transcriptProvenance?.segments || [],
+        transcriptCalibration: transcriptProvenance?.transcriptCalibration || null,
+        transcriptNBest: transcriptProvenance?.nbest || null,
+        transcriptReviewDecision,
+        transcriptReviewItems: transcriptReviewDecision.reviewItems || [],
+        transcriptEvidenceBoundary: {
+          rawTranscriptImmutable: true,
+          clarificationCanReplaceRawTranscript: false,
+          clarificationCanAffectCoaching: true,
+        },
         answeredQuestionId: latestQuestion?.id || null,
         transcriptionPreview: normalizedAnswer,
       },
@@ -180,6 +288,12 @@ export const processRealtimeVoiceTurn = async ({
         },
         transcriptConfirmation,
         transcriptProvenance,
+        transcriptReviewDecision,
+        transcriptEvidenceBoundary: {
+          rawTranscriptImmutable: true,
+          clarificationCanReplaceRawTranscript: false,
+          clarificationCanAffectCoaching: true,
+        },
         answeredQuestionId: latestQuestion?.id || null,
       },
     });
@@ -349,6 +463,11 @@ export const processRealtimeVoiceTurn = async ({
     payload: {
       transcriptionAccepted: true,
       confidenceGate: transcriptGate.confidenceGate,
+      transcriptReviewDecision: {
+        decisionType: transcriptReviewDecision.decisionType,
+        riskLevel: transcriptReviewDecision.riskLevel,
+        scoringPolicy: transcriptReviewDecision.scoringPolicy,
+      },
       voiceDelivery,
       latencyBreakdown,
     },

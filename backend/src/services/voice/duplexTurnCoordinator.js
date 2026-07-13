@@ -15,6 +15,7 @@ import { buildTranscriptConfirmationPrompt } from './transcriptUnderstandingSumm
 import { analyzeTranscriptConfirmationReply } from './transcriptConfirmationReplyClassifier.js';
 import { generateVoiceMicroAcknowledgement } from './voiceAcknowledgementService.js';
 import { sanitizeLiveSessionForClient } from '../session/sessionViewBuilder.js';
+import { evaluateTranscriptReviewDecision } from './transcriptReviewPolicyService.js';
 
 const VOICE_BRIDGE_DELAY_MS = Number(process.env.VOICE_BRIDGE_DELAY_MS || 1200);
 
@@ -413,6 +414,12 @@ export const createDuplexTurnCoordinator = ({
           resolvedTranscriptText: transcriptForPlanning,
           usedClarification: transcriptForPlanning !== String(pending.originalTranscript || '').trim(),
           originalAssessment: pending.assessment || null,
+          transcriptReviewDecision: pending.transcriptReviewDecision || null,
+          evidenceBoundary: {
+            rawTranscriptImmutable: true,
+            clarificationCanReplaceRawTranscript: false,
+            clarificationCanAffectCoaching: true,
+          },
         },
         acknowledgementSource: 'duplex_confirmed_bridge_acknowledgement',
         sentenceSource: 'duplex_confirmed_interview_sentence',
@@ -439,7 +446,13 @@ export const createDuplexTurnCoordinator = ({
       return result;
     };
 
-    const streamTranscriptConfirmationPrompt = async ({ assessment, transcriptText, asrConfidence, vad: confirmationVad }) => {
+    const streamTranscriptConfirmationPrompt = async ({
+      assessment,
+      transcriptText,
+      asrConfidence,
+      vad: confirmationVad,
+      transcriptReviewDecision = null,
+    }) => {
       const confirmationPrompt = buildTranscriptConfirmationPrompt(transcriptText);
       const nextPendingTranscriptConfirmation = {
         id: `pending-${Date.now()}`,
@@ -448,6 +461,7 @@ export const createDuplexTurnCoordinator = ({
         asrConfidence,
         vad: confirmationVad,
         assessment,
+        transcriptReviewDecision,
         confirmationPrompt,
         createdAt: new Date().toISOString(),
         currentQuestionIndex: session?.currentQuestionIndex || null,
@@ -461,6 +475,7 @@ export const createDuplexTurnCoordinator = ({
         confidenceGate: assessment?.confidenceGate || null,
         metrics: assessment?.metrics || null,
         confirmationPrompt,
+        transcriptReviewDecision,
       });
 
       const speechToken = bargeInController?.startAssistantSpeech?.();
@@ -477,7 +492,9 @@ export const createDuplexTurnCoordinator = ({
           confidenceGate: assessment?.confidenceGate || null,
           metrics: assessment?.metrics || null,
           requiresUnderstandingConfirmation: true,
+          transcriptReviewDecision,
         },
+        reviewDecision: transcriptReviewDecision,
         turnType: 'transcript_confirmation',
         countsAsQuestion: false,
         timestamp: new Date().toISOString(),
@@ -631,7 +648,25 @@ export const createDuplexTurnCoordinator = ({
         confidenceStatus: assessment.confidenceGate?.status,
         metrics: assessment.metrics,
       });
-      return streamTranscriptConfirmationPrompt({ assessment, transcriptText: cleanTranscript, asrConfidence, vad });
+      const reviewDecision = evaluateTranscriptReviewDecision({
+        rawTranscript: transcriptProvenance?.rawText || transcriptProvenance?.transcriptCalibration?.rawTranscript || cleanTranscript,
+        calibratedTranscript: transcriptProvenance?.normalizedText
+          || transcriptProvenance?.transcriptCalibration?.calibratedTranscript
+          || cleanTranscript,
+        transcriptCalibration: transcriptProvenance?.transcriptCalibration || null,
+        transcriptGate: assessment,
+        asrConfidence,
+      });
+      return streamTranscriptConfirmationPrompt({
+        assessment: {
+          ...assessment,
+          transcriptReviewDecision: reviewDecision,
+        },
+        transcriptText: cleanTranscript,
+        asrConfidence,
+        vad,
+        transcriptReviewDecision: reviewDecision,
+      });
     }
 
     if (!assessment.ok) {
@@ -642,6 +677,41 @@ export const createDuplexTurnCoordinator = ({
         metrics: assessment.metrics,
       });
       return streamRepairPrompt({ assessment, transcriptText: cleanTranscript, asrConfidence });
+    }
+
+    const transcriptReviewDecision = evaluateTranscriptReviewDecision({
+      rawTranscript: transcriptProvenance?.rawText || transcriptProvenance?.transcriptCalibration?.rawTranscript || cleanTranscript,
+      calibratedTranscript: transcriptProvenance?.normalizedText
+        || transcriptProvenance?.transcriptCalibration?.calibratedTranscript
+        || cleanTranscript,
+      transcriptCalibration: transcriptProvenance?.transcriptCalibration || null,
+      transcriptGate: assessment,
+      asrConfidence,
+    });
+    trace('transcript_review_policy_assessed', {
+      decisionType: transcriptReviewDecision.decisionType,
+      riskLevel: transcriptReviewDecision.riskLevel,
+      scoringPolicy: transcriptReviewDecision.scoringPolicy,
+      reasonCodes: transcriptReviewDecision.reasonCodes || [],
+    });
+    if (transcriptReviewDecision.decisionType === 'immediate_confirmation'
+      && transcriptReviewDecision.scoringPolicy === 'block_scoring_until_confirmed') {
+      return streamTranscriptConfirmationPrompt({
+        assessment: {
+          ...assessment,
+          ok: false,
+          decision: 'confirm_understanding',
+          reason: 'TRANSCRIPT_REVIEW_CONFIRMATION_REQUIRED',
+          requiresUnderstandingConfirmation: true,
+          shouldProcessAnswer: false,
+          countsAsQuestion: false,
+          transcriptReviewDecision,
+        },
+        transcriptText: cleanTranscript,
+        asrConfidence,
+        vad,
+        transcriptReviewDecision,
+      });
     }
 
     sendJson?.({

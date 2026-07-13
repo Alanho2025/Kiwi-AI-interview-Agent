@@ -30,6 +30,7 @@
     "eval:interview": "NODE_ENV=test AI_TEST_MODE=real node eval/runners/runInterviewControllerEval.js",
     "eval:report": "NODE_ENV=test AI_TEST_MODE=real node eval/runners/runReportQaEval.js",
     "eval:baseline": "NODE_ENV=test AI_TEST_MODE=real node eval/runners/runBaselineComparisonEval.js",
+    "eval:voice-transcript-review-policy": "NODE_ENV=test AI_TEST_MODE=real node eval/runners/runVoiceTranscriptReviewPolicyEval.js",
     "eval:voice-robustness": "NODE_ENV=test AI_TEST_MODE=mock node eval/runners/runVoiceRobustnessEval.js",
     "eval:local": "npm run eval:e2e && npm run eval:green && npm run eval:voice-robustness && npm run eval:agent-framework",
     "eval:real": "npm run eval:cv && npm run eval:jd && npm run eval:seek && npm run eval:match && npm run eval:interview && npm run eval:report && npm run eval:baseline",

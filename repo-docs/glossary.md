@@ -31,5 +31,11 @@
 | npm run test:e2e:voice-real-backend | Frontend Playwright real-backend voice flow；使用 test STT/TTS providers 跑 authenticated voice socket，并把 3 秒 next-question SLO 结果写入 artifact | [测试与 evaluation](modules/testing-and-evaluation.md) |
 | npm run test:voice | 后端或前端 voice focused check；具体覆盖取决于从 `backend` 还是 `frontend` 目录运行 | [voice interview](modules/feature-voice-interview.md) |
 | voice confidence gate | 把 ASR transcript 分为 accepted、rejected、needs confirmation 的产品规则层 | [voice interview](modules/feature-voice-interview.md) |
+| contextual glossary | voice STT session 使用的动态词汇上下文；来自已存在 CV/JD/profile/plan，帮助识别专业词，但不能变成用户 spoken evidence | [voice interview](modules/feature-voice-interview.md) |
+| transcriptCalibration | accepted voice transcript 的校准 provenance；记录 raw transcript、calibrated transcript、decision type、N-best metadata 和 guardrail flags | [voice interview](modules/feature-voice-interview.md) |
+| transcriptReviewDecision | voice transcript uncertainty 的後校準決策；分類為 auto_accept、deferred_review、immediate_confirmation 或 reject_unusable，並保存 scoring policy 與 evidence boundary | [voice interview](modules/feature-voice-interview.md) |
+| deferred_review | 中風險 transcript uncertainty；不中斷 live interview，但 report 前需要顯示 review risk，scoring 只能以 reduced evidence confidence 使用 | [voice interview](modules/feature-voice-interview.md) |
+| immediate_confirmation | 高風險 transcript uncertainty；未確認前不得進入 scoring 或 next-question selection，confirmation turn 不計入 interview question | [voice interview](modules/feature-voice-interview.md) |
+| TranscriptRiskSection | report page 的 transcript risk 顯示元件；目前只展示 review evidence 和 boundary copy，不提供持久化 review actions | [voice interview](modules/feature-voice-interview.md) |
 | bounded repair | 报告 QA 后有限次 wording repair；不能掩盖 deterministic blocking flags | [report QA agent](modules/agent-report-qa.md) |
 | retention | 数据保留、audit、cleanup、backup/quarantine 的后台能力；不等同于已完成 account-wide deletion guarantee | [数据与保留](modules/data-persistence-retention.md) |

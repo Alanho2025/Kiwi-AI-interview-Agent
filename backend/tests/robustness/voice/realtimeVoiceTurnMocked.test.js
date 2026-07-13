@@ -133,6 +133,15 @@ describe('mocked realtime voice turn', () => {
         normalizedText: 'I compared 70 30 and selected 70 30.',
         corrections: [{ pattern: 'seventy thirty', replacement: '70 30' }],
         segments: [{ rawText: 'I compared seventy thirty.', normalizedText: 'I compared 70 30.', confidence: 0.9 }],
+        transcriptCalibration: {
+          decisionType: 'static_normalization',
+          rawTranscript: 'I compared seventy thirty and selected seventy thirty.',
+          calibratedTranscript: 'I compared 70 30 and selected 70 30.',
+          guardrail: {
+            answerQualityChanged: false,
+            usedCvJdAsSpokenEvidence: false,
+          },
+        },
       },
       asrConfidence: 0.9,
       vad: validVad,
@@ -150,6 +159,21 @@ describe('mocked realtime voice turn', () => {
         normalizedTranscriptText: 'I compared 70 30 and selected 70 30.',
         answeredQuestionId: 'question-1',
         transcriptCorrections: [expect.objectContaining({ replacement: '70 30' })],
+        transcriptCalibration: expect.objectContaining({
+          decisionType: 'static_normalization',
+          guardrail: {
+            answerQualityChanged: false,
+            usedCvJdAsSpokenEvidence: false,
+          },
+        }),
+        transcriptReviewDecision: expect.objectContaining({
+          decisionType: 'auto_accept',
+          scoringPolicy: 'safe_to_score',
+          guardrail: expect.objectContaining({
+            rawTranscriptPreserved: true,
+            clarificationCanReplaceRawTranscript: false,
+          }),
+        }),
       }),
     }));
     expect(mocks.saveInterviewAnswerWithDetails).toHaveBeenCalledWith(expect.objectContaining({
@@ -168,6 +192,42 @@ describe('mocked realtime voice turn', () => {
     }));
     expect(result.assistantAudio).toMatchObject({ provider: 'mock-tts', contentType: 'audio/mpeg' });
     expect(result.assistantAudio.base64).toEqual(Buffer.from('mock audio').toString('base64'));
+  });
+
+  it('blocks scoring when transcript review policy requires immediate confirmation', async () => {
+    await expect(processRealtimeVoiceTurn({
+      session: baseSession(),
+      userId: 'user-1',
+      transcriptText: 'I chose PostgreSQL over MongoDB for relational constraints.',
+      transcriptProvenance: {
+        rawText: 'I chose MongoDB over PostgreSQL for relational constraints.',
+        normalizedText: 'I chose PostgreSQL over MongoDB for relational constraints.',
+        transcriptCalibration: {
+          decisionType: 'nbest_rerank',
+          rawTranscript: 'I chose MongoDB over PostgreSQL for relational constraints.',
+          calibratedTranscript: 'I chose PostgreSQL over MongoDB for relational constraints.',
+          nbest: { retained: true, candidateCount: 2, selectedIndex: 1 },
+          corrections: [{
+            rawSpan: 'MongoDB over PostgreSQL',
+            correctedSpan: 'PostgreSQL over MongoDB',
+            source: 'provider_nbest',
+            reason: 'technical_choice',
+            confidence: 0.76,
+            scoringImpacting: true,
+          }],
+        },
+      },
+      asrConfidence: 0.91,
+      vad: validVad,
+      inputMode: 'realtime_voice',
+    })).rejects.toMatchObject({
+      statusCode: 400,
+      code: 'TRANSCRIPT_REVIEW_CONFIRMATION_REQUIRED',
+    });
+
+    expect(mocks.appendTranscriptTurn).not.toHaveBeenCalled();
+    expect(mocks.saveInterviewAnswerWithDetails).not.toHaveBeenCalled();
+    expect(mocks.runTask).not.toHaveBeenCalled();
   });
 
   it('uses streaming callback and archives full assistant audio in background', async () => {

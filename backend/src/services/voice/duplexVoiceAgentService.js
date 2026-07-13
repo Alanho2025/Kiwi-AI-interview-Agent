@@ -10,7 +10,7 @@ import { createRoutedRealtimeSpeechSession } from './realtimeSpeechProviderRoute
 import { streamAssistantSpeech } from './ttsStreamQueue.js';
 import { createBargeInController } from './bargeInController.js';
 import { createDuplexTurnCoordinator } from './duplexTurnCoordinator.js';
-import { buildSessionSpeechPhraseList } from './speechPhraseHintService.js';
+import { buildSessionSpeechPhraseContext } from './speechPhraseHintService.js';
 import { AGENT_TOOL_NAMES } from '../../constants/agentToolNames.js';
 import { recordAgentTraceEvent } from '../aiControl/agentTraceService.js';
 
@@ -34,6 +34,8 @@ export const mergeTranscriptSegments = (segments = []) => {
     rawText: String(segment.rawText || segment.text || segment.displayText || '').trim(),
     normalizedText: normalizeTranscriptText(segment),
     corrections: Array.isArray(segment.corrections) ? segment.corrections : [],
+    transcriptCalibration: segment.transcriptCalibration || null,
+    nbest: segment.nbest || null,
     confidence: Number.isFinite(Number(segment.confidence)) ? Number(segment.confidence) : null,
   })).filter((segment) => segment.rawText || segment.normalizedText);
   const joinUnique = (key) => normalizedSegments
@@ -47,6 +49,23 @@ export const mergeTranscriptSegments = (segments = []) => {
     rawText: joinUnique('rawText'),
     normalizedText: joinUnique('normalizedText'),
     corrections: normalizedSegments.flatMap((segment) => segment.corrections),
+    transcriptCalibration: {
+      segments: normalizedSegments.map((segment) => segment.transcriptCalibration).filter(Boolean),
+      decisionTypes: Array.from(new Set(normalizedSegments
+        .map((segment) => segment.transcriptCalibration?.decisionType)
+        .filter(Boolean))),
+      guardrail: {
+        answerQualityChanged: false,
+        usedCvJdAsSpokenEvidence: false,
+      },
+    },
+    nbest: {
+      retained: normalizedSegments.some((segment) => segment.nbest?.retained),
+      candidateCount: normalizedSegments.reduce((sum, segment) => sum + Number(segment.nbest?.candidateCount || 0), 0),
+      selectedIndexes: normalizedSegments
+        .map((segment) => segment.nbest?.selectedIndex)
+        .filter((index) => Number.isFinite(Number(index))),
+    },
     segments: normalizedSegments,
   };
 };
@@ -205,7 +224,8 @@ export const createDuplexVoiceAgentSession = ({
     }
 
     sessionStartPromise = (async () => {
-      const extraPhrases = buildSessionSpeechPhraseList(activeSession);
+      const phraseContext = buildSessionSpeechPhraseContext(activeSession);
+      const extraPhrases = phraseContext.phraseList;
       const captureId = speechCaptureSequence + 1;
       speechCaptureSequence = captureId;
       activeSpeechCaptureId = captureId;
@@ -213,6 +233,7 @@ export const createDuplexVoiceAgentSession = ({
         language,
         sampleRate,
         extraPhrases,
+        contextualGlossary: phraseContext.contextualGlossary,
         usageContext: {
           userId,
           sessionId: activeSession?.id || session?.id,
@@ -267,6 +288,7 @@ export const createDuplexVoiceAgentSession = ({
         sessionId: activeSession?.id || session?.id,
         sttProvider: newSession.providerName,
         phraseCount: extraPhrases.length,
+        contextualGlossaryCount: phraseContext.contextualGlossary.length,
       });
     })();
 

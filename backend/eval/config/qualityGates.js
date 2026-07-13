@@ -16,6 +16,7 @@ export const QUALITY_GATES = Object.freeze({
   endToEndInterview: { minAverage: 0.88, failBelow: 0.7 },
   greenAgent: { minAverage: 0.88, failBelow: 0.7 },
   baselineComparison: { minAverage: 0.78, failBelow: 0.6 },
+  voiceTranscriptReviewPolicy: { minAverage: 0.86, failBelow: 0.75 },
   voiceRobustness: { minAverage: 0.9, failBelow: 0.75 },
   retrieval: { minAverage: 0.8, failBelow: 0.6 },
   agentTrajectory: { minAverage: 0.8, failBelow: 0.65 },

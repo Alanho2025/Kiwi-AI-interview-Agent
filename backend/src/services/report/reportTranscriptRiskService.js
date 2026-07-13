@@ -1,6 +1,7 @@
 import { ensureArray, normalizeText } from '../../utils/commonHelpers.js';
 
 const turnId = (turn = {}, index = 0) => turn.questionId
+  || turn.id
   || turn.metadata?.answeredQuestionId
   || turn.metadata?.questionId
   || `turn-${index + 1}`;
@@ -79,11 +80,51 @@ const detectLowConfidenceEntityRisks = (candidateTurns = []) => candidateTurns.f
   }];
 });
 
+const detectTranscriptReviewDecisionRisks = (candidateTurns = []) => candidateTurns.flatMap((turn, index) => {
+  const decision = turn.metadata?.transcriptReviewDecision || null;
+  if (!decision || decision.decisionType === 'auto_accept') return [];
+
+  const evidence = turnEvidence(turn, index);
+  if (decision.decisionType === 'deferred_review') {
+    return [{
+      code: 'deferred_transcript_review',
+      message: 'A transcript correction was deferred for review before relying on this answer as evidence.',
+      affectedTurnIds: [evidence.turnId],
+      evidence: [
+        {
+          ...evidence,
+          reviewItems: ensureArray(decision.reviewItems).map((item) => item.display).filter(Boolean),
+          reasonCodes: ensureArray(decision.reasonCodes),
+        },
+      ],
+      needsUserConfirmation: false,
+    }];
+  }
+
+  if (decision.decisionType === 'immediate_confirmation' && turn.metadata?.transcriptConfirmation?.confirmedByUser !== true) {
+    return [{
+      code: 'unconfirmed_high_risk_transcript',
+      message: 'A scoring-impacting transcript uncertainty was not confirmed and should not be treated as accepted spoken evidence.',
+      affectedTurnIds: [evidence.turnId],
+      evidence: [
+        {
+          ...evidence,
+          reasonCodes: ensureArray(decision.reasonCodes),
+        },
+      ],
+      needsUserConfirmation: true,
+    }];
+  }
+
+  return [];
+});
+
 export const detectReportTranscriptRisks = ({ transcript = [], session = {} } = {}) => {
   const candidateTurns = ensureArray(transcript).filter((turn) => turn.role === 'user');
   return [
     detectNameRisk({ candidateTurns, session }),
     ...detectMetricRisks(candidateTurns),
     ...detectLowConfidenceEntityRisks(candidateTurns),
+    ...detectTranscriptReviewDecisionRisks(candidateTurns),
   ].filter(Boolean);
 };

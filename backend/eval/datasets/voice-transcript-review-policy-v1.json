@@ -1,0 +1,194 @@
+[
+  {
+    "id": "auto_accept_provider_supported_terms",
+    "description": "Provider N-best supports a bounded technical-term surface correction.",
+    "currentQuestion": {
+      "id": "q_frontend_delivery",
+      "text": "Tell me about a frontend project you delivered.",
+      "expectedSignal": "React delivery and implementation detail"
+    },
+    "asrConfidence": 0.91,
+    "transcriptGate": { "ok": true, "decision": "accept", "reason": "VALID_TRANSCRIPT" },
+    "transcriptCalibration": {
+      "rawTranscript": "I used red act and type scripts for the dashboard.",
+      "calibratedTranscript": "I used React and TypeScript for the dashboard.",
+      "decisionType": "nbest_rerank",
+      "nbest": { "retained": true, "candidateCount": 2, "selectedIndex": 1 },
+      "corrections": [
+        {
+          "rawSpan": "red act and type scripts",
+          "correctedSpan": "React and TypeScript",
+          "source": "jd_rubric",
+          "reason": "tool_or_framework",
+          "glossaryTerm": "React",
+          "confidence": 0.82,
+          "scoringImpacting": false
+        }
+      ]
+    },
+    "expected": {
+      "decisionType": "auto_accept",
+      "reasonCodes": ["glossary_term_surface", "provider_nbest_close_candidate"],
+      "mustNotReasonCodes": ["numeric_or_metric_change", "negation_change", "ownership_change"],
+      "scoringPolicy": "safe_to_score"
+    }
+  },
+  {
+    "id": "defer_cv_jd_only_role_term",
+    "description": "A role term from CV/JD context lacks provider evidence and must not be silently inserted.",
+    "currentQuestion": {
+      "id": "q_platform_work",
+      "text": "What platform work have you done?",
+      "expectedSignal": "real platform experience with clear evidence"
+    },
+    "asrConfidence": 0.84,
+    "transcriptGate": { "ok": true, "decision": "accept", "reason": "VALID_TRANSCRIPT" },
+    "transcriptCalibration": {
+      "rawTranscript": "I worked with container orchestration in my capstone.",
+      "calibratedTranscript": "I worked with Kubernetes orchestration in my capstone.",
+      "decisionType": "contextual_term_candidate",
+      "nbest": { "retained": false, "candidateCount": 0, "selectedIndex": 0 },
+      "corrections": [
+        {
+          "rawSpan": "container orchestration",
+          "correctedSpan": "Kubernetes orchestration",
+          "source": "cv_profile",
+          "reason": "tool_or_framework",
+          "glossaryTerm": "Kubernetes",
+          "confidence": null,
+          "scoringImpacting": true
+        }
+      ]
+    },
+    "expected": {
+      "decisionType": "deferred_review",
+      "reasonCodes": ["no_provider_evidence"],
+      "mustNotReasonCodes": ["numeric_or_metric_change", "negation_change"],
+      "scoringPolicy": "score_with_reduced_evidence_confidence"
+    }
+  },
+  {
+    "id": "confirm_numeric_result_change",
+    "description": "A numeric result change affects scoring evidence and must be confirmed immediately.",
+    "currentQuestion": {
+      "id": "q_result_metric",
+      "text": "What measurable result did your work produce?",
+      "expectedSignal": "metric, baseline, and outcome"
+    },
+    "asrConfidence": 0.78,
+    "transcriptGate": { "ok": true, "decision": "accept", "reason": "VALID_TRANSCRIPT" },
+    "transcriptCalibration": {
+      "rawTranscript": "We reduced response time from 48 hours to 40 hours.",
+      "calibratedTranscript": "We reduced response time from 48 hours to 14 hours.",
+      "decisionType": "nbest_rerank",
+      "nbest": { "retained": true, "candidateCount": 2, "selectedIndex": 1 },
+      "corrections": [
+        {
+          "rawSpan": "40 hours",
+          "correctedSpan": "14 hours",
+          "source": "provider_nbest",
+          "reason": "metric",
+          "confidence": 0.79,
+          "scoringImpacting": true
+        }
+      ]
+    },
+    "expected": {
+      "decisionType": "immediate_confirmation",
+      "reasonCodes": ["numeric_or_metric_change"],
+      "scoringPolicy": "block_scoring_until_confirmed"
+    }
+  },
+  {
+    "id": "confirm_negation_ownership_change",
+    "description": "Negation and ownership reversal changes what the candidate claims to have done.",
+    "currentQuestion": {
+      "id": "q_ownership",
+      "text": "What was your personal ownership in the migration?",
+      "expectedSignal": "candidate ownership and scope"
+    },
+    "asrConfidence": 0.74,
+    "transcriptGate": { "ok": true, "decision": "accept", "reason": "VALID_TRANSCRIPT" },
+    "transcriptCalibration": {
+      "rawTranscript": "I owned the migration and coordinated QA.",
+      "calibratedTranscript": "I did not own the migration; I coordinated QA.",
+      "decisionType": "nbest_rerank",
+      "nbest": { "retained": true, "candidateCount": 2, "selectedIndex": 1 },
+      "corrections": [
+        {
+          "rawSpan": "I owned the migration",
+          "correctedSpan": "I did not own the migration",
+          "source": "provider_nbest",
+          "reason": "ownership",
+          "confidence": 0.72,
+          "scoringImpacting": true
+        }
+      ]
+    },
+    "expected": {
+      "decisionType": "immediate_confirmation",
+      "reasonCodes": ["negation_change", "ownership_change"],
+      "scoringPolicy": "block_scoring_until_confirmed"
+    }
+  },
+  {
+    "id": "confirm_technical_choice_reversal",
+    "description": "A reversed database tradeoff changes the candidate's technical judgement.",
+    "currentQuestion": {
+      "id": "q_database_tradeoff",
+      "text": "How did you decide between MongoDB and PostgreSQL?",
+      "expectedSignal": "database tradeoff reasoning"
+    },
+    "asrConfidence": 0.8,
+    "transcriptGate": { "ok": true, "decision": "accept", "reason": "VALID_TRANSCRIPT" },
+    "transcriptCalibration": {
+      "rawTranscript": "I chose MongoDB over PostgreSQL for relational constraints.",
+      "calibratedTranscript": "I chose PostgreSQL over MongoDB for relational constraints.",
+      "decisionType": "nbest_rerank",
+      "nbest": { "retained": true, "candidateCount": 2, "selectedIndex": 1 },
+      "corrections": [
+        {
+          "rawSpan": "MongoDB over PostgreSQL",
+          "correctedSpan": "PostgreSQL over MongoDB",
+          "source": "provider_nbest",
+          "reason": "technical_choice",
+          "confidence": 0.76,
+          "scoringImpacting": true
+        }
+      ]
+    },
+    "expected": {
+      "decisionType": "immediate_confirmation",
+      "reasonCodes": ["technical_choice_change"],
+      "scoringPolicy": "block_scoring_until_confirmed"
+    }
+  },
+  {
+    "id": "confirm_contentful_low_confidence",
+    "description": "Contentful low-confidence transcript follows the voice product contract and must confirm understanding.",
+    "currentQuestion": {
+      "id": "q_incident",
+      "text": "Tell me about an incident you handled.",
+      "expectedSignal": "incident context, action, and result"
+    },
+    "asrConfidence": 0.39,
+    "transcriptGate": {
+      "ok": false,
+      "decision": "confirm_understanding",
+      "reason": "CONTENTFUL_LOW_CONFIDENCE",
+      "requiresUnderstandingConfirmation": true
+    },
+    "transcriptCalibration": {
+      "rawTranscript": "I explained the production incident to the customer and coordinated rollback with the release manager.",
+      "calibratedTranscript": "I explained the production incident to the customer and coordinated rollback with the release manager.",
+      "decisionType": "provider_raw",
+      "nbest": { "retained": false, "candidateCount": 0, "selectedIndex": 0 },
+      "corrections": []
+    },
+    "expected": {
+      "decisionType": "immediate_confirmation",
+      "reasonCodes": ["low_confidence_contentful"],
+      "scoringPolicy": "block_scoring_until_confirmed"
+    }
+  }
+]

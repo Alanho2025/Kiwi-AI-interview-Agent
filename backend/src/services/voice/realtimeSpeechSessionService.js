@@ -11,6 +11,11 @@ import { buildSpeechPhraseList } from '../../config/speechPhraseList.js';
 import { normalizeTranscript } from './transcriptNormalizer.js';
 import { buildConfidenceGate } from './speechConfidenceGate.js';
 import { recordSpeechUsage } from '../aiUsageTrackingService.js';
+import {
+  calibrateTranscript,
+  extractNBestCandidatesFromAzureJson,
+  mergeStaticNormalizationIntoCalibration,
+} from './transcriptCalibrationService.js';
 
 const DEFAULT_LANGUAGE = 'en-NZ';
 const DEFAULT_SAMPLE_RATE = 16000;
@@ -47,22 +52,56 @@ const getAzureSpeechConfig = ({ language = DEFAULT_LANGUAGE }) => {
   return speechConfig;
 };
 
-const extractConfidence = (result) => {
+const parseAzureJsonResult = (result) => {
   try {
     const jsonResult = result?.properties?.getProperty?.(speechSdk.PropertyId.SpeechServiceResponse_JsonResult);
     if (!jsonResult) return null;
-    const parsed = JSON.parse(jsonResult);
-    const confidence = parsed?.NBest?.[0]?.Confidence;
-    return typeof confidence === 'number' ? confidence : null;
+    return JSON.parse(jsonResult);
   } catch {
     return null;
   }
+};
+
+const extractConfidence = (azureJsonResult, fallback = null) => {
+  const confidence = azureJsonResult?.NBest?.[0]?.Confidence;
+  return typeof confidence === 'number' ? confidence : fallback;
+};
+
+const buildFinalTranscriptPayload = ({ rawText, azureJsonResult, contextualGlossary, language }) => {
+  const nBestCandidates = extractNBestCandidatesFromAzureJson(azureJsonResult);
+  const calibration = calibrateTranscript({
+    rawText,
+    nBestCandidates,
+    glossaryItems: contextualGlossary,
+  });
+  const normalized = normalizeTranscript(calibration.selectedTranscript);
+  const selectedConfidence = calibration.confidence.stt ?? extractConfidence(azureJsonResult);
+  const confidenceGate = buildConfidenceGate(selectedConfidence);
+  const transcriptCalibration = mergeStaticNormalizationIntoCalibration({ calibration, normalized });
+
+  return {
+    type: 'final_transcript',
+    rawText: calibration.rawTranscript,
+    normalizedText: normalized.normalizedText,
+    displayText: normalized.normalizedText || normalized.rawText,
+    changed: normalized.changed || calibration.decisionType !== 'no_change',
+    corrections: normalized.corrections,
+    transcriptCalibration,
+    nbest: calibration.nbest,
+    confidence: selectedConfidence,
+    confidenceStatus: confidenceGate.status,
+    shouldConfirm: confidenceGate.shouldConfirm,
+    shouldRecordAgain: confidenceGate.shouldRecordAgain,
+    language,
+    timestamp: new Date().toISOString(),
+  };
 };
 
 export function createRealtimeSpeechSession({
   language = DEFAULT_LANGUAGE,
   sampleRate = DEFAULT_SAMPLE_RATE,
   extraPhrases = [],
+  contextualGlossary = [],
   usageContext = null,
   onPartialTranscript,
   onFinalTranscript,
@@ -122,24 +161,14 @@ export function createRealtimeSpeechSession({
       return;
     }
     console.log(`[STT-TRACE] Final transcript: "${rawText}"`);
-    const normalized = normalizeTranscript(rawText);
     finalSegmentCount += 1;
-    const confidence = extractConfidence(event.result);
-    const confidenceGate = buildConfidenceGate(confidence);
-    onFinalTranscript?.({
-      type: 'final_transcript',
-      rawText: normalized.rawText,
-      normalizedText: normalized.normalizedText,
-      displayText: normalized.normalizedText || normalized.rawText,
-      changed: normalized.changed,
-      corrections: normalized.corrections,
-      confidence,
-      confidenceStatus: confidenceGate.status,
-      shouldConfirm: confidenceGate.shouldConfirm,
-      shouldRecordAgain: confidenceGate.shouldRecordAgain,
+    const azureJsonResult = parseAzureJsonResult(event.result);
+    onFinalTranscript?.(buildFinalTranscriptPayload({
+      rawText,
+      azureJsonResult,
+      contextualGlossary,
       language,
-      timestamp: new Date().toISOString(),
-    });
+    }));
   };
 
   recognizer.canceled = (_, event) => {
