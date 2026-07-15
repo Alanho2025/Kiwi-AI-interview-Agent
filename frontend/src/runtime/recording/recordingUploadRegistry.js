@@ -1,5 +1,6 @@
 import {
   finalizeRecordingUpload,
+  getRecordingUploadStatus,
   initializeRecordingUpload,
   uploadRecordingChunk,
 } from '../../api/recordingApi.js';
@@ -10,6 +11,7 @@ const recordingApi = {
   initialize: initializeRecordingUpload,
   uploadChunk: uploadRecordingChunk,
   finalize: finalizeRecordingUpload,
+  getStatus: getRecordingUploadStatus,
 };
 
 export const createRecordingUploadRegistry = ({

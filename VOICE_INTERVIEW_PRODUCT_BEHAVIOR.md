@@ -46,6 +46,16 @@ Every voice change must define whether the state should:
 - allow barge-in
 - trigger next question warmup
 
+### Transport readiness and rejected-turn recovery
+
+A WebSocket `open` event only proves that the transport is connected. The frontend must not start VAD or send a voice turn until the backend sends `session_ready` after authentication, session loading, and duplex session creation complete.
+
+- Ordered JSON and binary messages that arrive during backend duplex-session initialization must be buffered until the session is ready; they must not be silently dropped.
+- A non-duplicate `speech_end` that cannot be matched to an active `clientTurnId` must return a retryable `turn_rejected` event with a stable reason code.
+- On `turn_rejected`, the frontend must leave `answer_processing`, clear the stale active-turn marker, keep the interview on the same question, and ask the user to answer again.
+- A rejected transport turn must not save an answer, run scoring, update `currentQuestionIndex`, or count as a question.
+- When the shadow harness is enabled, the rejection should produce a redacted failed `WorkflowRun` with a blocking transcript-eligibility gate. Harness persistence failure must not block voice recovery.
+
 ## STT confidence behavior
 
 Speech confidence is system understanding quality. It is not the same as user answer quality.
@@ -198,6 +208,7 @@ Voice recording is a separate, non-latency-critical path from live STT and next-
 
 - Audio chunks are persisted in browser IndexedDB before upload acknowledgement.
 - Chunk upload is resumable and idempotent.
+- Recovery must compare local pending chunks with the backend's acknowledged `receivedChunks`. A local sequence that overlaps an acknowledged remote sequence must be rebased before upload; the client must not reuse that remote sequence with a different checksum.
 - Report navigation waits only for local recording durability, not for full upload or MP3 conversion.
 - Backend assembly and MP3 conversion run asynchronously through the recording worker.
 - The report page must show recording progress, retryable failure, ready, or unavailable state separately from report readiness.

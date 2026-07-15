@@ -28,11 +28,48 @@ const createMemoryStore = () => {
 
 const createApi = () => ({
   initialize: vi.fn().mockResolvedValue({ uploadId: 'upload-1', state: 'receiving' }),
+  getStatus: vi.fn().mockResolvedValue({
+    uploadId: 'upload-1',
+    state: 'receiving',
+    receivedChunks: 0,
+    receivedBytes: 0,
+  }),
   uploadChunk: vi.fn().mockResolvedValue({ state: 'receiving' }),
   finalize: vi.fn().mockResolvedValue({ state: 'queued' }),
 });
 
 describe('recording upload manager', () => {
+  it('rebases recovered local chunks after remote chunks instead of reusing sequence zero', async () => {
+    const store = createMemoryStore();
+    await store.putManifest({ sessionId: 'session-1', uploadId: 'upload-1', mimeType: 'audio/webm' });
+    await store.putChunk({
+      sessionId: 'session-1',
+      sequence: 0,
+      blob: new Blob(['new-audio']),
+      checksum: 'new-hash',
+      byteLength: 9,
+      mimeType: 'audio/webm',
+      state: 'pending',
+    });
+    const api = createApi();
+    api.getStatus.mockResolvedValue({
+      uploadId: 'upload-1',
+      state: 'receiving',
+      receivedChunks: 1,
+      receivedBytes: 100,
+    });
+    const manager = createRecordingUploadManager({ sessionId: 'session-1', store, api });
+
+    await manager.start();
+
+    expect(api.uploadChunk).toHaveBeenCalledWith(expect.objectContaining({
+      uploadId: 'upload-1',
+      sequence: 1,
+      checksum: 'new-hash',
+    }));
+    expect(api.uploadChunk).not.toHaveBeenCalledWith(expect.objectContaining({ sequence: 0 }));
+  });
+
   it('commits a chunk locally before making it eligible for upload', async () => {
     const store = createMemoryStore();
     const api = createApi();

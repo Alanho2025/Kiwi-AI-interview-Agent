@@ -25,6 +25,7 @@ import { normalizeBenefitPoints } from './normalizers/normalizeBenefit.js';
 import { normalizeSoftSkillPoints } from './normalizers/normalizeSoftSkill.js';
 import { normalizeApplicationInstructionPoints } from './normalizers/normalizeApplicationInstruction.js';
 import { analyzeTextWithSpacy } from '../pythonNlpService.js';
+import { isJobDescriptionSectionHeading } from './jobDescriptionSectionHeadingGuard.js';
 
 const buildRoleSummary = ({ normalizedSections = {}, sections, diagnostics }) => {
   if ((normalizedSections.responsibilities || []).length > 0) return normalizedSections.responsibilities.slice(0, 6);
@@ -196,6 +197,7 @@ const normalizeSourceLabel = (value = '') => String(value || '')
 const normalizeExactSourcePoints = (items = [], evidenceMap = {}) => unique(items.map((item) => {
   const label = normalizeSourceLabel(item?.label || item?.text || item?.normalizedText || item);
   const evidence = normalizeSourceLabel(item?.text || item?.label || item?.normalizedText || item);
+  if (isJobDescriptionSectionHeading(label)) return '';
   if (label && evidence) evidenceMap[label] = unique([...(evidenceMap[label] || []), evidence]);
   return label;
 }).filter(Boolean));

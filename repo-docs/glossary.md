@@ -11,8 +11,12 @@
 | hiringContextHypotheses | `company_understanding_v2` 里基于已审查来源生成的招聘背景假设；默认需要用户确认，不是雇主事实 | [CV/JD 准备机制](modules/feature-cv-jd-preparation.md) |
 | role_intent_decoder_v2 | Role intent 的 v2 preparation artifact；保留 legacy requirement items，同时输出 role purpose、business hypotheses、workflow pain、ideal signals、interview probes 和 diagnostics | [CV/JD 准备机制](modules/feature-cv-jd-preparation.md) |
 | role_fit_diagnostics_v1 | Role-Fit compact diagnostics payload；只传状态、counts、coverage、degraded reasons 和 source limitations，不复制 CV/JD/company 原文 | [match 与问题准备](modules/feature-match-and-question-prep.md) |
+| JD section heading guard | match candidate hygiene 防线；把 `Skills & Experience:`、`Roles & Responsibilities:` 等 JD 标题挡在 role intent、requirement、semantic target 和 UI fallback 外 | [match 与问题准备](modules/feature-match-and-question-prep.md) |
+| evidence strength status cap | Requirement evidence 的展示约束；`met` 才能显示 strong，`partial` 最多 partial，`inferred` 最多 weak，`not_met` 必须 missing | [match 与问题准备](modules/feature-match-and-question-prep.md) |
 | low_confidence_hiring_logic | RoleIntentDecoder 缺少 grounded company support 等情境下的 degraded reason；表示 hiring logic 仍是低信心准备假设 | [CV/JD 准备机制](modules/feature-cv-jd-preparation.md) |
 | matchAnalysisId | 已持久化的 CV-JD match record 标识，让 interview plan 不只依赖前端临时状态 | [match 与问题准备](modules/feature-match-and-question-prep.md) |
+| stepSummary | `performanceTrace` 里按 step 名称聚合的耗时摘要；用于看同一环节出现几次、累计耗时和最慢一次 | [match 与问题准备](modules/feature-match-and-question-prep.md) |
+| slowestSteps | `performanceTrace` 里按 `durationMs` 排序的最慢 measured steps；用于快速定位 CV-JD match latency 热点 | [match 与问题准备](modules/feature-match-and-question-prep.md) |
 | prepared question pool | 访谈前生成的候选问题池；运行时仍会被 ranker、dedupe、follow-up 控制影响 | [interviewer agent](modules/agent-interviewer.md) |
 | accepted answer | 可以进入报告计分的数据；repair、clarification、repeat、system turn 不属于它 | [报告与 QA](modules/feature-report-and-qa.md) |
 | RAG | 本项目的 session/global evidence retrieval；当前用 deterministic hash embedding + pgvector + fusion score | [RAG 检索层](modules/rag-retrieval.md) |

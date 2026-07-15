@@ -140,7 +140,7 @@ const RequirementChecks = ({ items }) => {
   );
 };
 
-const EvidenceStrengthSummary = ({ breakdown = {}, semanticEvidenceMatches = [], semanticEvidenceModel = null }) => {
+const EvidenceStrengthSummary = ({ breakdown = {}, semanticEvidenceMatches = [] }) => {
   const hasBreakdown = Object.values(breakdown || {}).some((value) => Number(value) > 0);
   const visibleMatches = semanticEvidenceMatches
     .map((item) => ({
@@ -158,11 +158,8 @@ const EvidenceStrengthSummary = ({ breakdown = {}, semanticEvidenceMatches = [],
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-sm font-semibold text-primary">Evidence strength diagnostics</p>
-          <p className="mt-1 text-xs text-faint">Semantic matching explains which CV lines support the JD requirements.</p>
+          <p className="mt-1 text-xs text-faint">Closest CV evidence for the main JD requirements.</p>
         </div>
-        {semanticEvidenceModel?.scorer ? (
-          <span className="rounded-lg bg-chip px-2.5 py-1 text-xs font-semibold text-muted">{semanticEvidenceModel.scorer}</span>
-        ) : null}
       </div>
 
       {hasBreakdown ? (
@@ -182,7 +179,7 @@ const EvidenceStrengthSummary = ({ breakdown = {}, semanticEvidenceMatches = [],
             return (
               <div key={item.label} className="rounded-lg bg-transparent p-3">
                 <p className="text-sm font-semibold text-primary">{item.label}</p>
-                <p className="mt-1 text-xs leading-5 text-muted">Semantic similarity: {similarity}%</p>
+                <p className="mt-1 text-xs leading-5 text-muted">Match signal: {similarity}%</p>
                 <p className="mt-1 text-xs leading-5 text-muted">Evidence strength: {strength}</p>
                 {strength === 'weak' && similarity >= 75 ? (
                   <p className="mt-1 text-xs leading-5 text-faint">
@@ -200,10 +197,10 @@ const EvidenceStrengthSummary = ({ breakdown = {}, semanticEvidenceMatches = [],
 };
 
 const roleEvidenceCopy = {
-  direct: { title: 'Direct evidence', tone: 'success', empty: 'No role intent has direct CV proof yet.' },
+  direct: { title: 'Direct evidence', tone: 'success', empty: 'No focus area has direct CV proof yet.' },
   adjacent: { title: 'Adjacent evidence', tone: 'info', empty: 'No transferable evidence was identified.' },
   weak: { title: 'Weak evidence', tone: 'warning', empty: 'No weak evidence signals were identified.' },
-  gap: { title: 'Evidence gaps', tone: 'danger', empty: 'No unsupported role intents were identified.' },
+  gap: { title: 'Evidence gaps', tone: 'danger', empty: 'No unsupported focus areas were identified.' },
 };
 
 const RoleEvidenceMap = ({ groups = {}, coverage = {} }) => {
@@ -215,7 +212,7 @@ const RoleEvidenceMap = ({ groups = {}, coverage = {} }) => {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-sm font-semibold text-primary">Role evidence map</p>
-          <p className="mt-1 text-xs text-faint">Each role intent is tied to traceable CV evidence or shown as a gap.</p>
+          <p className="mt-1 text-xs text-faint">Each focus area is tied to traceable CV evidence or shown as a gap.</p>
         </div>
         <div className="flex flex-wrap gap-2 text-xs font-semibold">
           <span className="rounded-lg bg-emerald-100 px-2.5 py-1 text-emerald-800">Strong {coverage.strong || 0}</span>

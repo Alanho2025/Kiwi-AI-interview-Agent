@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { isJobDescriptionSectionHeading } from './jobDescriptionSectionHeadingGuard.js';
 
 const UNTRUSTED_INSTRUCTION_PATTERN = /\b(ignore (?:all |any |the )?(?:previous|prior|system) instructions?|system prompt|developer message|mark every candidate|override (?:the )?(?:score|match|rules?))\b/i;
 const BOILERPLATE_INTENT_PATTERN = /^(?:why\s+you\s+should\s+care|why\s+work\s+for\s+us|why\s+join\s+us|what\s+we\s+offer|how\s+to\s+apply|about\s+the\s+company|about\s+us|apply\s+now|recruiter|save\s+job|share\s+this\s+job|work\s+type|posted\s+date|salary|location):?$/i;
@@ -33,7 +34,13 @@ const buildLegacyItems = (rubric = {}) => {
   const items = intentCandidates(rubric).flatMap((candidate) => {
     const statement = normalizeText(candidate.statement);
     const key = statement.toLowerCase();
-    if (!statement || seen.has(key) || UNTRUSTED_INSTRUCTION_PATTERN.test(statement) || BOILERPLATE_INTENT_PATTERN.test(statement)) return [];
+    if (
+      !statement
+      || seen.has(key)
+      || UNTRUSTED_INSTRUCTION_PATTERN.test(statement)
+      || BOILERPLATE_INTENT_PATTERN.test(statement)
+      || isJobDescriptionSectionHeading(statement)
+    ) return [];
     seen.add(key);
     return [{
       id: stableId('intent', candidate.section, statement),

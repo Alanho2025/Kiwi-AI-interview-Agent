@@ -13,6 +13,8 @@ import { createDuplexTurnCoordinator } from './duplexTurnCoordinator.js';
 import { buildSessionSpeechPhraseContext } from './speechPhraseHintService.js';
 import { AGENT_TOOL_NAMES } from '../../constants/agentToolNames.js';
 import { recordAgentTraceEvent } from '../aiControl/agentTraceService.js';
+import { isHarnessShadowEnabled } from '../../config/harnessConfig.js';
+import { recordRejectedInterviewNextTurnRun } from '../harness/interviewNextTurnShadowHarness.js';
 
 const DEFAULT_SPEECH_STOP_TIMEOUT_MS = 2500;
 const MAX_PENDING_AUDIO_CHUNKS = 1200;
@@ -161,6 +163,44 @@ export const createDuplexVoiceAgentSession = ({
     pendingTranscriptConfirmation = nextPending || null;
   };
 
+  const rejectVoiceTurn = async ({
+    clientTurnId,
+    code,
+    reasonCode,
+    message,
+    abandonActiveCapture = false,
+  }) => {
+    sendJson({
+      type: 'turn_rejected',
+      code,
+      reason: reasonCode,
+      message,
+      clientTurnId,
+      retryable: true,
+      timestamp: new Date().toISOString(),
+    });
+    void recordRejectedInterviewNextTurnRun({
+      enabled: isHarnessShadowEnabled(),
+      session: { ...activeSession, userId: activeSession?.userId || userId },
+      payload: { inputMode: 'duplex_voice', clientTurnId },
+      failure: {
+        category: 'channel_transport',
+        reasonCode,
+        retryable: true,
+        userImpact: 'turn_retry_required',
+      },
+    }).catch((error) => {
+      logger?.error?.('Failed to record rejected voice turn', {
+        sessionId: activeSession?.id || session?.id,
+        clientTurnId,
+        error,
+      });
+    });
+    if (abandonActiveCapture) {
+      await abandonSpeechCapture({ reasonCode, rejectedClientTurnId: clientTurnId });
+    }
+  };
+
   const sendReady = () => sendJson({
     type: 'session_ready',
     tool: AGENT_TOOL_NAMES.ORCHESTRATE_DUPLEX_VOICE,
@@ -214,6 +254,36 @@ export const createDuplexVoiceAgentSession = ({
     speechSession = null;
     isSpeechSessionStarted = false;
     await current.stop();
+  };
+
+  const abandonSpeechCapture = async ({ reasonCode, rejectedClientTurnId }) => {
+    const abandonedClientTurnId = currentClientTurnId;
+    isCapturingSpeech = false;
+    currentClientTurnId = null;
+    activeSpeechCaptureId = 0;
+    finalTranscriptSegments = [];
+    latestPartialTranscript = null;
+    pendingAudioChunks = [];
+    audioChunksWritten = 0;
+    audioChunksDropped = 0;
+    audioBytesWritten = 0;
+    ignoredPreSpeechAudioChunks = 0;
+    context.lastVad = null;
+    try {
+      await withTimeout(
+        stopSpeechSession(),
+        speechStopTimeoutMs,
+        `Timed out waiting ${speechStopTimeoutMs}ms to abandon mismatched realtime STT capture.`
+      );
+    } catch (error) {
+      logger?.warn?.('Failed to fully stop abandoned duplex speech capture', {
+        sessionId: activeSession?.id || session?.id,
+        abandonedClientTurnId,
+        rejectedClientTurnId,
+        reasonCode,
+        error: error?.message || String(error),
+      });
+    }
   };
 
   const startSpeechSession = async () => {
@@ -543,6 +613,12 @@ export const createDuplexVoiceAgentSession = ({
             expected: null,
             received: incomingClientTurnId,
           });
+          await rejectVoiceTurn({
+            clientTurnId: incomingClientTurnId,
+            code: 'VOICE_TURN_NOT_ACTIVE',
+            reasonCode: 'voice_turn_not_active',
+            message: 'Voice did not receive the start of that answer. Please answer the current question again.',
+          });
           return;
         }
         if (incomingClientTurnId !== currentClientTurnId) {
@@ -550,6 +626,13 @@ export const createDuplexVoiceAgentSession = ({
             sessionId: activeSession?.id || session?.id,
             expected: currentClientTurnId,
             received: incomingClientTurnId,
+          });
+          await rejectVoiceTurn({
+            clientTurnId: incomingClientTurnId,
+            code: 'VOICE_TURN_ID_MISMATCH',
+            reasonCode: 'voice_turn_id_mismatch',
+            message: 'Voice lost track of that answer. Please answer the current question again.',
+            abandonActiveCapture: true,
           });
           return;
         }

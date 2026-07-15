@@ -69,8 +69,19 @@ const sanitizeCandidateActions = (actions = []) => actions
     confidence: Number(candidate.confidence ?? candidate.score ?? 0),
   }));
 
-const buildFailures = ({ workflowRunId, observation = {}, controllerError = null }) => {
+const buildFailures = ({ workflowRunId, observation = {}, controllerError = null, preTaskFailure = null }) => {
   const failures = [];
+  if (preTaskFailure) {
+    failures.push({
+      failureId: `failure:${workflowRunId}:pre_task`,
+      category: preTaskFailure.category || 'channel_transport',
+      reasonCode: preTaskFailure.reasonCode || 'voice_turn_rejected',
+      handled: true,
+      retryable: Boolean(preTaskFailure.retryable),
+      fallbackApplied: false,
+      userImpact: preTaskFailure.userImpact || 'turn_retry_required',
+    });
+  }
   const modelSelectionError = observation.plan?.modelSelectionError;
   if (modelSelectionError) {
     failures.push({
@@ -97,7 +108,17 @@ const buildFailures = ({ workflowRunId, observation = {}, controllerError = null
   return failures;
 };
 
-const buildGateResults = ({ workflowRunId, payload = {}, observation = {}, result = null }) => {
+const buildGateResults = ({ workflowRunId, payload = {}, observation = {}, result = null, preTaskFailure = null }) => {
+  if (preTaskFailure) {
+    return [{
+      gateResultId: `gate:${workflowRunId}:transcript_eligibility`,
+      gateType: 'transcript_eligibility',
+      status: 'block',
+      owner: 'voice_transport',
+      reasonCode: preTaskFailure.reasonCode || 'voice_turn_rejected',
+      enforced: true,
+    }];
+  }
   const selectedAction = observation.plan?.selectedAction || result?.controllerAction || null;
   const candidateActions = sanitizeCandidateActions(observation.plan?.candidateActions);
   const selectedIsAllowed = !selectedAction || candidateActions.length === 0
@@ -191,8 +212,19 @@ const buildTimeline = ({
   hasCandidates,
   usedFallback,
   resumedFromWaiting,
-}) => [
-  ...(resumedFromWaiting
+  preTaskFailure,
+}) => {
+  if (preTaskFailure) {
+    return [
+      { eventType: 'workflow_run_started', at: startedAt, ref: workflowRunId },
+      { eventType: 'context_packet_assembled', at: startedAt, ref: `context_packet:${workflowRunId}` },
+      { eventType: 'voice_turn_rejected', at: completedAt, ref: `failure:${workflowRunId}:pre_task` },
+      { eventType: 'workflow_run_failed', at: completedAt, ref: workflowRunId },
+    ];
+  }
+
+  return [
+    ...(resumedFromWaiting
     ? [{ eventType: 'workflow_run_resumed', at: startedAt, ref: workflowRunId }]
     : [
         { eventType: 'workflow_run_started', at: startedAt, ref: workflowRunId },
@@ -206,7 +238,8 @@ const buildTimeline = ({
         { eventType: 'question_or_terminal_result_recorded', at: completedAt, ref: `result:${workflowRunId}` },
         { eventType: lifecycleStatus === 'failed' ? 'workflow_run_failed' : 'workflow_run_completed', at: completedAt, ref: workflowRunId },
       ]),
-];
+  ];
+};
 
 export const buildHarnessIdempotencyKey = ({ taskType, sessionId, clientTurnId }) => hashValue({
   taskType,
@@ -221,6 +254,7 @@ export const buildInterviewNextTurnWorkflowRun = ({
   observation = {},
   result = null,
   controllerError = null,
+  preTaskFailure = null,
   lifecycleStatus = null,
   startedAt = new Date().toISOString(),
   completedAt = new Date().toISOString(),
@@ -230,8 +264,8 @@ export const buildInterviewNextTurnWorkflowRun = ({
   const contextPacketId = `context_packet:${workflowRunId}`;
   const actionContractId = `action_contract:${workflowRunId}`;
   const clientTurnId = payload.clientTurnId || workflowRunId;
-  const failures = buildFailures({ workflowRunId, observation, controllerError });
-  const gateResults = buildGateResults({ workflowRunId, payload, observation, result });
+  const failures = buildFailures({ workflowRunId, observation, controllerError, preTaskFailure });
+  const gateResults = buildGateResults({ workflowRunId, payload, observation, result, preTaskFailure });
   const memoryWrites = buildMemoryWrites({ workflowRunId, observation });
   const candidateActions = sanitizeCandidateActions(observation.plan?.candidateActions);
   const selectedAction = observation.plan?.selectedAction || result?.controllerAction || null;
@@ -313,6 +347,7 @@ export const buildInterviewNextTurnWorkflowRun = ({
       hasCandidates: candidateActions.length > 0,
       usedFallback,
       resumedFromWaiting,
+      preTaskFailure,
     }),
     latency: {
       controllerMs: Math.max(0, new Date(normalizedCompletedAt).getTime() - new Date(normalizedStartedAt).getTime()),

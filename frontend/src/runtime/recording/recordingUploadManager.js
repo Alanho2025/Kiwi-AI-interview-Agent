@@ -37,6 +37,7 @@ export const createRecordingUploadManager = ({
   let pumpPromise = null;
   let rerunRequested = false;
   let finalizationPromise = null;
+  let manifestSyncPromise = null;
   const listeners = new Set();
 
   const publish = (patch) => {
@@ -44,20 +45,103 @@ export const createRecordingUploadManager = ({
     listeners.forEach((listener) => listener(snapshot));
   };
 
-  const ensureManifest = async () => {
-    let manifest = await store.getManifest(sessionId);
-    if (manifest?.uploadId) return manifest;
-    const initialized = await api.initialize({ sessionId, mimeType: manifest?.mimeType || 'audio/webm' });
-    manifest = await store.putManifest({
+  const asNonNegativeInteger = (value) => {
+    const parsed = Number(value);
+    return Number.isInteger(parsed) && parsed >= 0 ? parsed : 0;
+  };
+
+  const ensureLocalManifest = async ({ mimeType = 'audio/webm' } = {}) => {
+    const existing = await store.getManifest(sessionId);
+    if (existing) return existing;
+    return store.putManifest({
       sessionId,
+      uploadId: null,
+      mimeType,
+      finalized: false,
+      totalChunks: null,
+      nextSequence: 0,
+      totalBytes: 0,
+    });
+  };
+
+  const ensureManifest = async () => {
+    let manifest = await ensureLocalManifest();
+    if (manifest.uploadId) return manifest;
+    const initialized = await api.initialize({ sessionId, mimeType: manifest.mimeType || 'audio/webm' });
+    manifest = await store.putManifest({
+      ...manifest,
       uploadId: initialized.uploadId,
-      mimeType: manifest?.mimeType || 'audio/webm',
-      finalized: Boolean(manifest?.finalized),
-      totalChunks: manifest?.totalChunks ?? null,
-      totalBytes: manifest?.totalBytes ?? 0,
+      mimeType: manifest.mimeType || 'audio/webm',
     });
     publish({ uploadId: initialized.uploadId, state: initialized.state || 'receiving' });
     return manifest;
+  };
+
+  const rebasePendingChunks = async ({ chunks, remoteNextSequence }) => {
+    if (!chunks.length || chunks.every((chunk) => chunk.sequence >= remoteNextSequence)) return chunks;
+
+    const rebased = chunks.map((original, index) => ({
+      original,
+      chunk: {
+        ...original,
+        sequence: remoteNextSequence + index,
+      },
+    }));
+    for (const { original, chunk } of [...rebased].reverse()) {
+      await store.putChunk(chunk);
+      if (original.sequence !== chunk.sequence) {
+        await store.deleteChunk(sessionId, original.sequence);
+      }
+    }
+    return rebased.map(({ chunk }) => chunk);
+  };
+
+  const synchronizeManifest = async () => {
+    if (manifestSyncPromise) return manifestSyncPromise;
+    manifestSyncPromise = Promise.resolve().then(async () => {
+      let manifest = await ensureManifest();
+      let remoteStatus = null;
+      if (manifest.uploadId && api.getStatus) {
+        try {
+          remoteStatus = await api.getStatus(manifest.uploadId);
+        } catch {
+          remoteStatus = null;
+        }
+      }
+
+      const remoteNextSequence = asNonNegativeInteger(
+        remoteStatus?.receivedChunks ?? manifest.remoteReceivedChunks
+      );
+      const remoteReceivedBytes = asNonNegativeInteger(
+        remoteStatus?.receivedBytes ?? manifest.remoteReceivedBytes
+      );
+      const pendingChunks = await store.listChunks(sessionId);
+      const rebasedChunks = await rebasePendingChunks({ chunks: pendingChunks, remoteNextSequence });
+      const localNextSequence = rebasedChunks.reduce(
+        (next, chunk) => Math.max(next, asNonNegativeInteger(chunk.sequence) + 1),
+        0
+      );
+      const pendingBytes = rebasedChunks.reduce(
+        (total, chunk) => total + asNonNegativeInteger(chunk.byteLength || chunk.blob?.size),
+        0
+      );
+      manifest = await store.putManifest({
+        ...manifest,
+        remoteReceivedChunks: remoteNextSequence,
+        remoteReceivedBytes,
+        nextSequence: Math.max(
+          asNonNegativeInteger(manifest.nextSequence),
+          remoteNextSequence,
+          localNextSequence
+        ),
+        totalBytes: Math.max(
+          asNonNegativeInteger(manifest.totalBytes),
+          remoteReceivedBytes + pendingBytes
+        ),
+      });
+      return manifest;
+    }).finally(() => { manifestSyncPromise = null; });
+    return manifestSyncPromise;
   };
 
   const publishUploadError = (error) => {
@@ -74,7 +158,7 @@ export const createRecordingUploadManager = ({
       publish({ state: 'paused_for_voice' });
       return;
     }
-    const manifest = await ensureManifest();
+    const manifest = await synchronizeManifest();
     const chunks = await store.listChunks(sessionId);
     if (manifest.finalized && Number.isInteger(manifest.totalChunks)) {
       const uploadedChunks = Math.max(0, manifest.totalChunks - chunks.length);
@@ -146,31 +230,56 @@ export const createRecordingUploadManager = ({
 
   const enqueueChunk = async ({ sequence, blob, mimeType }) => {
     const checksum = await checksumBlob(blob);
-    await store.putChunk({ sessionId, sequence, blob, mimeType, checksum, byteLength: blob.size, state: 'pending' });
-    const current = await store.getManifest(sessionId);
+    const current = await ensureLocalManifest({ mimeType });
+    const resolvedSequence = Math.max(
+      asNonNegativeInteger(sequence),
+      asNonNegativeInteger(current.nextSequence)
+    );
+    await store.putChunk({
+      sessionId,
+      sequence: resolvedSequence,
+      blob,
+      mimeType,
+      checksum,
+      byteLength: blob.size,
+      state: 'pending',
+    });
     await store.putManifest({
       ...(current || {}),
       sessionId,
       mimeType,
+      nextSequence: resolvedSequence + 1,
       totalBytes: Number(current?.totalBytes || 0) + blob.size,
     });
     publish({ state: 'captured_locally', pendingChunks: snapshot.pendingChunks + 1 });
     void requestRecordingBackgroundSync().catch(() => null);
     if (active) void start();
+    return { sequence: resolvedSequence };
   };
 
   const finalizeLocalCapture = ({ totalChunks, totalBytes }) => {
     if (finalizationPromise) return finalizationPromise;
     finalizationPromise = Promise.resolve().then(async () => {
-      const current = await store.getManifest(sessionId);
+      const current = await ensureLocalManifest();
+      const resolvedTotalChunks = Math.max(
+        asNonNegativeInteger(totalChunks),
+        asNonNegativeInteger(current.nextSequence)
+      );
       await store.putManifest({
-        ...(current || {}),
+        ...current,
         sessionId,
         finalized: true,
-        totalChunks,
-        totalBytes,
+        totalChunks: resolvedTotalChunks,
+        totalBytes: Math.max(
+          asNonNegativeInteger(totalBytes),
+          asNonNegativeInteger(current.totalBytes)
+        ),
       });
-      publish({ state: 'locally_durable', totalChunks, progressPercent: 0 });
+      publish({
+        state: 'locally_durable',
+        totalChunks: resolvedTotalChunks,
+        progressPercent: 0,
+      });
       void start();
       return { state: 'locally_durable' };
     });

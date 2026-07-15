@@ -1,6 +1,6 @@
 # `interview_next_turn` Shadow Harness V0 Spec
 
-- 狀態：approved and implemented locally；等待 Human Gate H1
+- 狀態：H1 已取得 durable voice run；queue/query race 與 coaching-memory provenance gap 已完成 local 修復，等待 Human Gate H1 最終重跑
 - Milestone：M1
 - Execution mode：`shadow`
 - Risk class：High
@@ -22,13 +22,14 @@ M1 完成時，Product Owner 和 developer 必須能直接檢查以下成果；c
 | Deliverable | 能看到什麼 | Required evidence path |
 | --- | --- | --- |
 | Developer run timeline | 單一 turn 的 context refs、candidate/selected/fallback action、gates、state before/after、question、memory writes、failures、latency。 | [Shadow run sample](evidence/m1-shadow-run-sample.json) |
+| Immediate backend trace | Task 完成時立即看到 redacted `queued` trace；durable correlation 完成後看到 `persisted` trace，不必先猜 API 是否已寫入。 | [H1 persistence/trace evidence](evidence/m1-h1-persistence-trace.md) |
 | Before/after replay report | Harness OFF/ON 的 user output、action、state、question、latency、failure、privacy diff。 | [Before/after replay](evidence/m1-before-after-replay.md) |
 | Debug benchmark | 相同 failure tasks 用 current logs 與 harness timeline 的完成率、正確率、耗時比較。 | [Debug benchmark](evidence/m1-debug-benchmark.md) |
 | Canonical verdict | G2/M1 status、pass/fail、未驗證 gate 和 evidence references。 | [Goal](goal.md) |
 
 只建立 schema、collection 或 JSON 不算完成。Timeline 必須真的縮短 root-cause diagnosis，且 replay 必須證明產品沒有 regression。
 
-Local implementation 使用 `HarnessWorkflowRun` 作為非產品 source of truth 的 shadow artifact，`ENABLE_HARNESS_SHADOW=false` 為預設。非 production developer read path 是 `GET /api/interview/harness-runs`；它強制使用 authenticated owner scope，支援 run/session/time filters，並記錄 access。H1 之前 execution mode 保持 `shadow`。
+Local implementation 使用 `HarnessWorkflowRun` 作為非產品 source of truth 的 durable shadow artifact，`ENABLE_HARNESS_SHADOW=false` 為預設。非 production developer read path 是 `GET /api/interview/harness-runs`；它強制使用 authenticated owner scope，支援 run/session/time filters，並記錄 access。`Harness workflow trace` 是 redacted immediate observability surface，不是第二個 persistence source；API 在背景 queue 完成前可短暫查不到資料。H1 之前 execution mode 保持 `shadow`。
 
 ## Requirements
 
@@ -44,12 +45,17 @@ Local implementation 使用 `HarnessWorkflowRun` 作為非產品 source of truth
 | FR-06 | Text 和 voice 共用同一個 run schema，以 `channel` 區分。Voice immediate confirmation 使用同一 run 的 `waiting -> running`。 |
 | FR-07 | Shadow run artifact 可按 `workflowRunId`、`sessionId`、owner、time 查詢；candidate-facing API 不得暴露 internal artifact。 |
 | FR-08 | Harness 由 `ENABLE_HARNESS_SHADOW` 或等價 code-owned flag 控制，預設不得改 current production behavior。 |
+| FR-09 | Frontend 必須等 backend `session_ready` 才把 duplex socket 視為可用；backend session 初始化期間的 ordered messages 不得被丟棄。 |
+| FR-10 | 無 active/matching turn 的非重複 `speech_end` 必須回傳 retryable `turn_rejected`；frontend 回到同題 repair state，shadow harness 記錄 redacted failed run。 |
+| FR-11 | Task 完成後同步輸出 redacted `task_completed/queued` trace，並將 correlation 明示為 pending；correlation 與 durable append 完成後輸出 `durable_persisted/persisted` trace 與實際計數。Trace emission failure 不得改變 product result。 |
 
 ### Non-functional
 
 - Legacy parity：相同 fixture 的 action、question、state、scoring、fallback 和 user-visible output 必須一致。
 - Latency：不得新增同步 model/tool call；必須量測 mapping/recording overhead，不能假設無成本。
 - Reliability：shadow persistence failure 不得讓 interview task fail，但必須留下 structured recording failure signal。
+- Diagnostics consistency：immediate trace 必須明示 `persistenceStatus`；不得把 `queued` 誤稱為 durable，也不得建立與 `HarnessWorkflowRun` 競爭的 pending-run query source。
+- Voice recovery：transport rejection 不得讓 frontend 永久停在 processing；不得保存、評分或計數被拒絕的 turn。
 - Idempotency：duplicate client/voice event 不得建立兩個 canonical product turns 或兩個 countable questions。
 - Rollback：關閉 feature flag 後完全回到 current runtime path，不需要資料 migration rollback。
 - Maintainability：使用現有 validation/persistence/config patterns；新增 dependency 必須另行核准。
@@ -60,6 +66,7 @@ Local implementation 使用 `HarnessWorkflowRun` 作為非產品 source of truth
 - 不保存 raw chain-of-thought、完整 prompt、完整 CV/JD/transcript 或未必要的 candidate-sensitive payload。
 - Artifact 必須有 owner scope、retention class、redaction policy version 和 source-deletion handling。
 - Developer read path 必須有 auth/role/access logging；一般 candidate session API 不得返回 internal gate/failure/memory trace。
+- Immediate backend trace 只允許 run/session/turn refs、action/gate/memory/failure code、計數、status 與 latency；不得輸出 owner ID、raw context、answer、question、prompt 或 memory 內容。
 
 ## Contracts
 
@@ -115,6 +122,7 @@ events:
   - question_or_terminal_result_recorded
   - memory_write_correlated_or_orphaned
   - workflow_run_waiting_resumed_or_completed
+  - voice_turn_rejected
 external_dependencies: []
 ```
 
@@ -129,9 +137,11 @@ runTask(interview_next_turn)
   -> execute current controller unchanged
   -> map candidate / selected / fallback action
   -> map question or terminal state and state-after ref
-  -> correlate gates, failures, trace and memory-write envelopes
-  -> append shadow artifact
+  -> emit redacted task_completed / queued trace
   -> return exact legacy product result
+  -> background correlate gates, failures, trace and memory-write envelopes
+  -> append durable shadow artifact
+  -> emit redacted durable_persisted / persisted trace
 ```
 
 Shadow recorder 不是 controller。Contract validation failure、mapper failure或 shadow persistence failure都不得改寫 current product result；它們必須被分類並可在 developer diagnostics 中發現。
@@ -166,12 +176,32 @@ Scenario: Voice transcript confirmation resumes the same run
   And scoring and next-question action remain blocked
   And confirmed input resumes the same run unless it expired or became non-resumable
 
+Scenario: A pre-task voice transport rejection is recoverable and traceable
+  Given speech_end cannot be matched to an active client turn
+  When the backend rejects the turn before answer processing
+  Then the frontend leaves processing and asks the candidate to answer the same question again
+  And no answer is saved, scored, or counted
+  And a redacted failed WorkflowRun records the block gate, reason code, and voice_turn_rejected event
+
 Scenario: Memory write remains correlated and cannot score
   Given an interview turn produces a reflection or memory update
   When the background write completes
   Then MemoryWrite references the source WorkflowRun and evidence refs
   And canAffectScoring is false
   And an uncorrelated write is explicitly marked as an orphan failure
+
+Scenario: A repeated coaching lesson keeps current run provenance
+  Given an older user coaching record has the same normalized pattern and lesson
+  When the current run writes the repeated lesson
+  Then deduplication keeps the newest record and sourceWorkflowRunId
+  And correlation does not mark the current write orphaned only because its content repeated
+
+Scenario: Backend trace is immediate, redacted, and persistence-aware
+  Given a completed interview task is waiting in the background persistence queue
+  When the shadow recorder schedules durable persistence
+  Then backend logs a task_completed trace with persistenceStatus queued
+  And after durable append it logs durable_persisted with persistenceStatus persisted
+  And neither trace contains owner identity or raw candidate payload
 
 Scenario: Sensitive context is represented by references
   Given CV, JD, transcript, session memory, and retrieval sources
@@ -201,7 +231,7 @@ M1 建議 debug target：在相同 failure tasks 上，median diagnosis time 比
 
 - Unit tests：contract validator、status invariants、refs-only context mapper、failure mapper、idempotency key、redaction。
 - Integration tests：`interview_next_turn` happy path、invalid model fallback、terminal action、background memory/trace correlation。
-- Replay tests：text happy path、invalid/disallowed action、duplicate event、voice confirmation same-run、shadow persistence failure。
+- Replay tests：text happy path、invalid/disallowed action、duplicate event、voice pre-task rejection、voice confirmation same-run、shadow persistence failure、immediate redacted trace、repeated-memory latest provenance。
 - Privacy tests：owner scope、candidate API exclusion、raw payload/chain-of-thought absence、source deletion handling。
 - Performance checks：record mapping/persistence overhead；確認沒有新增同步 model/tool call。
 - Agent evals：M1 不要求 real-provider eval；real AI 不可作唯一 gate。
@@ -234,4 +264,4 @@ M1 建議 debug target：在相同 failure tasks 上，median diagnosis time 比
 - M2/M3 的 promotion、freshness、revalidation 與 enforce thresholds。
 - Candidate-facing progress summary UI。
 
-Evidence status：Product Owner 已核准 G2/M1 implementation。Local automated tests、replay、privacy、rollback 與 deterministic debug proxy 已通過；canonical verdict 是 `READY_FOR_HUMAN_VALIDATION`。H1、live voice provider 與 production shadow 尚未驗證，不能由 local evidence 推定。
+Evidence status：Product Owner 已核准 G2/M1 implementation。H1 已取得 durable voice run並暴露 queue/query race 與 coaching-memory provenance gap；對應 immediate trace/provenance 修復已通過 local automated tests、11/11 replay、privacy、rollback 與 deterministic debug proxy。Canonical verdict 是 `READY_FOR_H1_RERUN`，不是 H1 已通過；修復後真人 run、live voice provider 與 production shadow仍未驗證。

@@ -38,6 +38,55 @@ vi.mock('../../../src/services/voice/ttsStreamQueue.js', () => ({
 const { createDuplexVoiceAgentSession } = await import('../../../src/services/voice/duplexVoiceAgentService.js');
 
 describe('duplex voice buffered turn handling', () => {
+  it('returns a retryable rejection when speech_end has no active client turn', async () => {
+    const sent = [];
+    const duplexSession = createDuplexVoiceAgentSession({
+      socket: {},
+      context: { language: 'en-NZ', sampleRate: 16000 },
+      session: { id: 'session-1', userId: 'user-1' },
+      userId: 'user-1',
+      logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+      sendJson: (payload) => sent.push(payload),
+    });
+
+    await duplexSession.handleJsonMessage({ type: 'speech_end', clientTurnId: 'voice-turn-1-1' });
+
+    expect(sent).toContainEqual(expect.objectContaining({
+      type: 'turn_rejected',
+      code: 'VOICE_TURN_NOT_ACTIVE',
+      clientTurnId: 'voice-turn-1-1',
+      retryable: true,
+    }));
+    expect(processFinalTranscriptMock).not.toHaveBeenCalled();
+  });
+
+  it('abandons a mismatched active capture so the next retry can start cleanly', async () => {
+    const sent = [];
+    const duplexSession = createDuplexVoiceAgentSession({
+      socket: {},
+      context: { language: 'en-NZ', sampleRate: 16000 },
+      session: { id: 'session-1', userId: 'user-1' },
+      userId: 'user-1',
+      logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+      sendJson: (payload) => sent.push(payload),
+    });
+
+    await duplexSession.handleJsonMessage({ type: 'speech_start', clientTurnId: 'voice-turn-1-1' });
+    await duplexSession.handleJsonMessage({ type: 'speech_end', clientTurnId: 'voice-turn-1-2' });
+    await duplexSession.handleJsonMessage({ type: 'speech_start', clientTurnId: 'voice-turn-1-3' });
+
+    expect(sent).toContainEqual(expect.objectContaining({
+      type: 'turn_rejected',
+      code: 'VOICE_TURN_ID_MISMATCH',
+      clientTurnId: 'voice-turn-1-2',
+    }));
+    expect(sent).toContainEqual(expect.objectContaining({
+      type: 'listening_started',
+      clientTurnId: 'voice-turn-1-3',
+    }));
+    expect(processFinalTranscriptMock).not.toHaveBeenCalled();
+  });
+
   beforeEach(() => {
     realtimeState.config = null;
     realtimeState.session = null;

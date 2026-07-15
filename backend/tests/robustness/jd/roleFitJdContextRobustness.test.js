@@ -59,6 +59,54 @@ describe('role-fit JD context robustness', () => {
     expect(profile.review).toMatchObject({ status: 'unreviewed', version: 1 });
   });
 
+  it('does not turn JD section headings into role intent items', () => {
+    const profile = buildRoleFitProfile({
+      rawJD: `AI Automation Engineer
+
+Skills & Experience:
+Comfortable reading and writing code in Python and JavaScript.
+
+Roles & Responsibilities:
+Translate real workflows into working AI tools.`,
+      rubric: {
+        ...rubric,
+        sections: {
+          responsibilities: [
+            'Roles & Responsibilities:',
+            'Translate real workflows into working AI tools.',
+          ],
+          mustHaveRequirements: [
+            'Skills & Experience:',
+            'Comfortable reading and writing code in Python and JavaScript.',
+          ],
+          niceToHaveRequirements: [],
+          softSkills: [],
+        },
+        requirements: [
+          { id: 'heading-skills', label: 'Skills & Experience:', importance: 'high', type: 'hard' },
+          { id: 'heading-roles', label: 'Roles & Responsibilities:', importance: 'high', type: 'hard' },
+          {
+            id: 'code',
+            label: 'Comfortable reading and writing code in Python and JavaScript.',
+            importance: 'high',
+            type: 'hard',
+          },
+        ],
+      },
+    });
+
+    const statements = profile.roleIntent.items.map((item) => item.statement);
+
+    expect(statements).not.toEqual(expect.arrayContaining([
+      'Skills & Experience:',
+      'Roles & Responsibilities:',
+    ]));
+    expect(statements).toEqual(expect.arrayContaining([
+      'Comfortable reading and writing code in Python and JavaScript.',
+      'Translate real workflows into working AI tools.',
+    ]));
+  });
+
   it('marks website-only company context as URL supplied rather than content-grounded', () => {
     const profile = buildRoleFitProfile({
       rawJD: 'Data Engineer at Luma Analytics. Build reliable data pipelines.',

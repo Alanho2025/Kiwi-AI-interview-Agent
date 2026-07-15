@@ -6,9 +6,12 @@ import { fileURLToPath } from 'node:url';
 
 import {
   beginWaitingInterviewNextTurnRun,
+  recordRejectedInterviewNextTurnRun,
   runInterviewNextTurnWithShadowHarness,
 } from '../../src/services/harness/interviewNextTurnShadowHarness.js';
+import { dedupeUserCoachingMemoryRecords } from '../../src/services/aiControl/userCoachingMemoryService.js';
 import { correlateHarnessRunArtifacts } from '../../src/services/harness/harnessRunCorrelationService.js';
+import { buildHarnessRunTrace } from '../../src/services/harness/harnessRunTraceService.js';
 import { validateHarnessWorkflowRun } from '../../src/services/harness/harnessWorkflowRunContract.js';
 
 const backendRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
@@ -142,6 +145,28 @@ const runReplay = async () => {
   assert.equal(invalidActionRun.actionContracts[0]?.fallbackAction, 'ASK_DEEP_DIVE_QUESTION');
   scenarios.push({ id: 'invalid_model_action_fallback_lineage', passed: true });
 
+  let rejectedVoiceRun = null;
+  await recordRejectedInterviewNextTurnRun({
+    enabled: true,
+    session: { ...session, mode: 'voice' },
+    payload: { inputMode: 'duplex_voice', clientTurnId: 'm1-voice-turn-rejected' },
+    failure: {
+      category: 'channel_transport',
+      reasonCode: 'voice_turn_not_active',
+      retryable: true,
+      userImpact: 'turn_retry_required',
+    },
+    appendRun: async (run) => { rejectedVoiceRun = run; },
+    workflowRunIdFactory: () => 'm1-workflow-run-voice-rejected',
+    now: createNowSequence('2026-07-15T00:00:30.000Z'),
+  });
+  assert.deepEqual(validateHarnessWorkflowRun(rejectedVoiceRun), { valid: true, errors: [] });
+  assert.equal(rejectedVoiceRun.lifecycleStatus, 'failed');
+  assert.equal(rejectedVoiceRun.gateResults[0]?.status, 'block');
+  assert.equal(rejectedVoiceRun.failures[0]?.reasonCode, 'voice_turn_not_active');
+  assert.equal(rejectedVoiceRun.timeline.some((event) => event.eventType === 'voice_turn_rejected'), true);
+  scenarios.push({ id: 'voice_pretask_rejection_traceable', passed: true });
+
   const canonicalRuns = new Map();
   const appendCanonicalInMemory = async (run) => {
     const existing = canonicalRuns.get(run.workflowRunId);
@@ -214,6 +239,36 @@ const runReplay = async () => {
   assert.equal(correlated.memoryWrites.every((write) => write.status === 'completed'), true);
   assert.equal(correlated.memoryWrites.every((write) => write.canAffectScoring === false), true);
   scenarios.push({ id: 'background_memory_write_correlated_no_scoring', passed: true });
+
+  const immediateTrace = buildHarnessRunTrace({
+    run: happyRun,
+    traceStage: 'task_completed',
+    persistenceStatus: 'queued',
+  });
+  assert.equal(immediateTrace.workflowRunId, happyRun.workflowRunId);
+  assert.equal(immediateTrace.persistenceStatus, 'queued');
+  assert.equal(JSON.stringify(immediateTrace).includes(session.userId), false);
+  assert.equal(JSON.stringify(immediateTrace).includes(sensitiveAnswer), false);
+  assert.equal(JSON.stringify(immediateTrace).includes(sensitiveQuestion), false);
+  scenarios.push({ id: 'backend_trace_immediate_redacted', passed: true });
+
+  const repeatedLessonRecords = dedupeUserCoachingMemoryRecords([
+    {
+      memoryId: 'm1-memory-old',
+      sourceWorkflowRunId: 'm1-workflow-run-old',
+      pattern: 'useful_progress',
+      lesson: 'Keep building depth on owned decisions.',
+    },
+    {
+      memoryId: 'm1-memory-current',
+      sourceWorkflowRunId: happyRun.workflowRunId,
+      pattern: 'useful_progress',
+      lesson: 'Keep building depth on owned decisions.',
+    },
+  ]);
+  assert.equal(repeatedLessonRecords.length, 1);
+  assert.equal(repeatedLessonRecords[0]?.sourceWorkflowRunId, happyRun.workflowRunId);
+  scenarios.push({ id: 'repeated_memory_keeps_latest_provenance', passed: true });
 
   return { scenarios, happyRun: correlated };
 };

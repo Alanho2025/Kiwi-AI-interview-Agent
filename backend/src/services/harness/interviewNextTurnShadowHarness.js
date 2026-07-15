@@ -8,6 +8,7 @@ import {
   validateHarnessWorkflowRun,
 } from './harnessWorkflowRunContract.js';
 import { correlateHarnessRunArtifacts } from './harnessRunCorrelationService.js';
+import { emitHarnessRunTrace } from './harnessRunTraceService.js';
 
 const noOp = () => {};
 
@@ -31,17 +32,50 @@ const reportRecordingFailure = ({ workflowRunId, error, onRecordingFailure = noO
   };
   logger.error('Harness shadow recording failed', failure);
   onRecordingFailure(failure);
+  return failure;
+};
+
+const emitHarnessRunTraceSafely = ({ run, traceStage, persistenceStatus }) => {
+  try {
+    emitHarnessRunTrace({ run, traceStage, persistenceStatus });
+  } catch (error) {
+    logger.error('Harness workflow trace emission failed', {
+      workflowRunId: run?.workflowRunId || null,
+      sessionId: run?.sessionId || null,
+      traceStage,
+      errorName: error?.name || 'Error',
+    });
+  }
 };
 
 export const scheduleHarnessRunPersistence = async (run) => {
+  emitHarnessRunTraceSafely({
+    run,
+    traceStage: 'task_completed',
+    persistenceStatus: 'queued',
+  });
   enqueueBackgroundJob('persist-harness-workflow-run', async () => {
     try {
       const runToPersist = run.lifecycleStatus === 'completed'
         ? await correlateHarnessRunArtifacts({ run })
         : run;
       await persistCanonicalRun(runToPersist);
+      emitHarnessRunTraceSafely({
+        run: runToPersist,
+        traceStage: 'durable_persisted',
+        persistenceStatus: 'persisted',
+      });
     } catch (error) {
-      reportRecordingFailure({ workflowRunId: run.workflowRunId, error });
+      const failure = reportRecordingFailure({ workflowRunId: run.workflowRunId, error });
+      emitHarnessRunTraceSafely({
+        run: {
+          ...run,
+          qualityStatus: 'invalid',
+          failures: [...(run.failures || []), failure],
+        },
+        traceStage: 'persistence_failed',
+        persistenceStatus: 'failed',
+      });
     }
   }, {
     workflowRunId: run.workflowRunId,
@@ -82,6 +116,37 @@ export const beginWaitingInterviewNextTurnRun = async ({
   });
   await appendRunSafely({ run, appendRun, onRecordingFailure });
   return { workflowRunId, lifecycleStatus: 'waiting' };
+};
+
+export const recordRejectedInterviewNextTurnRun = async ({
+  enabled,
+  session,
+  payload = {},
+  failure = {},
+  appendRun = scheduleHarnessRunPersistence,
+  onRecordingFailure = noOp,
+  workflowRunIdFactory = crypto.randomUUID,
+  now = () => new Date(),
+} = {}) => {
+  if (!enabled) return { workflowRunId: null, lifecycleStatus: 'disabled' };
+
+  const workflowRunId = payload.workflowRunId || workflowRunIdFactory();
+  const at = now().toISOString();
+  const run = buildInterviewNextTurnWorkflowRun({
+    workflowRunId,
+    session,
+    payload,
+    preTaskFailure: failure,
+    lifecycleStatus: 'failed',
+    startedAt: at,
+    completedAt: at,
+  });
+  const validation = validateHarnessWorkflowRun(run);
+  if (!validation.valid) {
+    run.qualityStatus = 'invalid';
+  }
+  await appendRunSafely({ run, appendRun, onRecordingFailure });
+  return { workflowRunId, lifecycleStatus: 'failed' };
 };
 
 export const runInterviewNextTurnWithShadowHarness = async ({

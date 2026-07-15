@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-07-15T09:14:59.210Z",
+  "generatedAt": "2026-07-15T11:05:11.855Z",
   "executionMode": "mock_deterministic_local",
   "verdict": "READY_FOR_HUMAN_VALIDATION",
-  "scenarioCount": 8,
-  "passedScenarioCount": 8,
+  "scenarioCount": 11,
+  "passedScenarioCount": 11,
   "scenarios": [
     {
       "id": "flag_off_rollback",
@@ -22,6 +22,10 @@
       "passed": true
     },
     {
+      "id": "voice_pretask_rejection_traceable",
+      "passed": true
+    },
+    {
       "id": "voice_confirmation_same_run",
       "passed": true
     },
@@ -36,6 +40,14 @@
     {
       "id": "background_memory_write_correlated_no_scoring",
       "passed": true
+    },
+    {
+      "id": "backend_trace_immediate_redacted",
+      "passed": true
+    },
+    {
+      "id": "repeated_memory_keeps_latest_provenance",
+      "passed": true
     }
   ],
   "benchmark": {
@@ -44,9 +56,9 @@
     "iterationsPerSample": 40,
     "sampleCount": 105,
     "correctnessPercent": 100,
-    "legacyMedianMs": 4.5232090000000085,
-    "harnessMedianMs": 0.00045799999998052954,
-    "reductionPercent": 99.98987444533338,
+    "legacyMedianMs": 4.726957999999968,
+    "harnessMedianMs": 0.0009999999999763531,
+    "reductionPercent": 99.9788447453949,
     "targetReductionPercent": 50,
     "passed": true,
     "humanDiagnosisStillRequired": true

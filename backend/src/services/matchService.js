@@ -20,6 +20,7 @@ import { buildSemanticEvidenceContext } from './match/semanticEvidenceService.js
 import { buildUniversalRoleProfile } from './jobDescription/jdUniversalParserService.js';
 import { judgeRequirementEvidenceBatch } from './match/evidenceJudgeService.js';
 import { buildRoleEvidenceMap } from './match/roleEvidenceMapService.js';
+import { markMatchStep, measureMatchStep } from './match/matchPerformanceTraceService.js';
 
 const isSemanticEngineEnabled = (settings = {}) => settings.matchEngine === 'semantic' || process.env.MATCH_ENGINE === 'semantic';
 
@@ -50,12 +51,26 @@ const buildSemanticRequirements = (roleProfile = {}, fallbackRequirements = []) 
   }));
 };
 
-export const compareCvToJobDescription = async (cvInput, rawJD, jdRubric, settings = {}) => {
-  const baseRubric = await normalizeRubric(rawJD, jdRubric);
+export const compareCvToJobDescription = async (cvInput, rawJD, jdRubric, settings = {}, context = {}) => {
+  const performanceTrace = context.performanceTrace || null;
+  const baseRubric = await measureMatchStep(
+    performanceTrace,
+    'normalize_jd_rubric',
+    () => normalizeRubric(rawJD, jdRubric),
+    { hasJdRubric: Boolean(jdRubric) },
+  );
   const semanticEngineEnabled = isSemanticEngineEnabled(settings);
   const universalRoleProfile = semanticEngineEnabled
-    ? await buildUniversalRoleProfile({ rawJD, rubric: baseRubric })
+    ? await measureMatchStep(
+        performanceTrace,
+        'semantic_role_profile',
+        () => buildUniversalRoleProfile({ rawJD, rubric: baseRubric }),
+        { matchEngine: 'semantic' },
+      )
     : null;
+  if (!semanticEngineEnabled) {
+    markMatchStep(performanceTrace, 'semantic_role_profile_skipped', { matchEngine: settings.matchEngine || 'default' });
+  }
   const rubric = semanticEngineEnabled
     ? {
         ...baseRubric,
@@ -72,23 +87,45 @@ export const compareCvToJobDescription = async (cvInput, rawJD, jdRubric, settin
   const parsedCvProfile = cvInput?.cvProfile || buildCvProfile(rawCvText);
   const cvEvidenceProfile = cvInput?.evidenceProfile || parsedCvProfile.evidenceProfile || buildCvEvidenceProfile(parsedCvProfile, rawCvText);
   const baseCvAnalysis = parsedCvProfile.cvAnalysis || buildCvAnalysis({ cvProfile: parsedCvProfile, evidenceProfile: cvEvidenceProfile, normalizedText: rawCvText });
-  const baseSemanticEvidenceContext = await buildSemanticEvidenceContext({ rubric, evidenceProfile: cvEvidenceProfile });
+  const baseSemanticEvidenceContext = await measureMatchStep(
+    performanceTrace,
+    'semantic_evidence_context',
+    () => buildSemanticEvidenceContext({ rubric, evidenceProfile: cvEvidenceProfile }),
+    {
+      requirementCount: Array.isArray(rubric.requirements) ? rubric.requirements.length : 0,
+      cvEvidenceCount: Array.isArray(cvEvidenceProfile.functionalCapabilities) ? cvEvidenceProfile.functionalCapabilities.length : 0,
+    },
+  );
   const evidenceJudgements = semanticEngineEnabled
-    ? await judgeRequirementEvidenceBatch({ requirements: rubric.requirements, semanticEvidenceContext: baseSemanticEvidenceContext })
+    ? await measureMatchStep(
+        performanceTrace,
+        'semantic_evidence_judge',
+        () => judgeRequirementEvidenceBatch({ requirements: rubric.requirements, semanticEvidenceContext: baseSemanticEvidenceContext }),
+        { requirementCount: Array.isArray(rubric.requirements) ? rubric.requirements.length : 0 },
+      )
     : {};
+  if (!semanticEngineEnabled) {
+    markMatchStep(performanceTrace, 'semantic_evidence_judge_skipped', { matchEngine: settings.matchEngine || 'default' });
+  }
   const semanticEvidenceContext = {
     ...baseSemanticEvidenceContext,
     evidenceJudgements,
   };
 
-  const macroScores = buildMacroScores(rubric.macroCriteria, rawCvText, rubric.weights, cvEvidenceProfile, semanticEvidenceContext);
-  const microScores = buildMicroScores(rubric.microCriteria, rawCvText, rubric.weights, cvEvidenceProfile, semanticEvidenceContext);
-  const requirementChecks = buildRequirementChecks(rubric.requirements, rawCvText, cvEvidenceProfile, semanticEvidenceContext);
-  const roleEvidenceMap = buildRoleEvidenceMap({
+  const { macroScores, microScores, requirementChecks } = await measureMatchStep(performanceTrace, 'match_score_build', () => ({
+    macroScores: buildMacroScores(rubric.macroCriteria, rawCvText, rubric.weights, cvEvidenceProfile, semanticEvidenceContext),
+    microScores: buildMicroScores(rubric.microCriteria, rawCvText, rubric.weights, cvEvidenceProfile, semanticEvidenceContext),
+    requirementChecks: buildRequirementChecks(rubric.requirements, rawCvText, cvEvidenceProfile, semanticEvidenceContext),
+  }), {
+    macroCount: Array.isArray(rubric.macroCriteria) ? rubric.macroCriteria.length : 0,
+    microCount: Array.isArray(rubric.microCriteria) ? rubric.microCriteria.length : 0,
+    requirementCount: Array.isArray(rubric.requirements) ? rubric.requirements.length : 0,
+  });
+  const roleEvidenceMap = await measureMatchStep(performanceTrace, 'role_evidence_map_build', () => buildRoleEvidenceMap({
     roleFitProfile: rubric.roleFit,
     requirementChecks,
     semanticEvidenceContext,
-  });
+  }), { requirementCheckCount: requirementChecks.length });
   const baseScoreBreakdown = calculateScoreBreakdown({ rubric, macroScores, microScores, requirementChecks });
   const scoreBreakdown = semanticEngineEnabled
     ? buildCapabilityScoreBreakdown({ rubric, requirementChecks, fallbackScoreBreakdown: baseScoreBreakdown })
@@ -98,7 +135,7 @@ export const compareCvToJobDescription = async (cvInput, rawJD, jdRubric, settin
   const cvAnalysis = buildJdMatchedCvAnalysis({ cvAnalysis: baseCvAnalysis, requirementChecks, microScores });
   const questionPlanHints = buildQuestionPlanHints({ rubric, requirementChecks, microScores, settings, cvEvidenceProfile, transitionProfile, cvAnalysis });
 
-  return buildAnalyzeResult({
+  return measureMatchStep(performanceTrace, 'match_result_build', () => buildAnalyzeResult({
     parsedCvProfile: {
       ...parsedCvProfile,
       evidenceProfile: cvEvidenceProfile,
@@ -119,5 +156,8 @@ export const compareCvToJobDescription = async (cvInput, rawJD, jdRubric, settin
     cvAnalysis,
     semanticEvidenceContext,
     roleEvidenceMap,
+  }), {
+    strengthsCount: strengths.length,
+    gapsCount: gaps.length,
   });
 };

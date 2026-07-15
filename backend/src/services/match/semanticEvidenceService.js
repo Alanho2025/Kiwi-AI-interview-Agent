@@ -1,6 +1,7 @@
 import { normalizeTaxonomyLabel } from '../taxonomyService.js';
 import { rankEvidenceWithSentenceTransformers } from '../pythonNlpService.js';
 import { rankSemanticEvidence } from './semanticMatchService.js';
+import { isJobDescriptionSectionHeading } from '../jobDescription/jobDescriptionSectionHeadingGuard.js';
 
 const TOP_K = 3;
 const SCORE_FLOOR = 0.24;
@@ -25,7 +26,7 @@ const buildRequirementCandidates = (rubric = {}) => {
     ...(rubric.requirements || []).map((item) => ({ id: `requirement:${item.id || normalizeTaxonomyLabel(item.label)}`, label: item.label, text: item.label, sourceType: 'requirement' })),
     ...(rubric.microCriteria || []).map((item) => ({ id: `micro:${item.id || normalizeTaxonomyLabel(item.label)}`, label: item.label, text: item.label, sourceType: 'micro' })),
     ...(rubric.macroCriteria || []).map((item) => ({ id: `macro:${item.id || normalizeTaxonomyLabel(item.label)}`, label: item.label, text: item.label, sourceType: 'macro' })),
-  ].filter((item) => item.label);
+  ].filter((item) => item.label && !isJobDescriptionSectionHeading(item.label));
 
   const seen = new Set();
   return candidates.filter((item) => {

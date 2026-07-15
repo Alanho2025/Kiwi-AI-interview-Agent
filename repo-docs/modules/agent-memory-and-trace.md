@@ -4,7 +4,7 @@ memory 和 trace 不是独立“聊天记忆”产品。它们记录控制器刚
 
 ## 它在哪里被调用
 
-session memory 逻辑在 [agent memory service](../../backend/src/services/aiControl/agentMemoryService.js)，跨 session coaching memory 在 [user coaching memory service](../../backend/src/services/aiControl/userCoachingMemoryService.js)，reflection lesson 在 [reflection writer service](../../backend/src/services/aiControl/reflectionWriterService.js)，trace event 在 [agent trace service](../../backend/src/services/aiControl/agentTraceService.js)。`runTask` 会在 interview turn 中读写这些记录。M1 shadow harness 还会把这些 background write 以 `workflowRunId` 关联回同一次 turn，但不会改变 memory 内容或让 memory 参与 scoring。
+session memory 逻辑在 [agent memory service](../../backend/src/services/aiControl/agentMemoryService.js)，跨 session coaching memory 在 [user coaching memory service](../../backend/src/services/aiControl/userCoachingMemoryService.js)，reflection lesson 在 [reflection writer service](../../backend/src/services/aiControl/reflectionWriterService.js)，trace event 在 [agent trace service](../../backend/src/services/aiControl/agentTraceService.js)。`runTask` 会在 interview turn 中读写这些记录。M1 shadow harness 还会把这些 background write 以 `workflowRunId` 关联回同一次 turn，并由 [harness run trace service](../../backend/src/services/harness/harnessRunTraceService.js) 在 task queued 与 durable persisted 两个阶段输出 redacted backend trace；它不会改变 memory 内容或让 memory 参与 scoring。
 
 ## 一个代表 case
 
@@ -28,12 +28,13 @@ session memory 决定哪些模式值得保留：brief answer、general answer te
 | Session-local memory | `SessionAnalysis.agentMemory`、`reflectionRecords`、`trajectoryRecords`、`agentTraceEvents` | 支撑同一场 interview 的下一问、trace、report grounding 与 diagnostics。 |
 | User-level coaching memory | `UserCoachingMemory.memoryRecords`、`latestSummary` | 保存最近几条 reflection lessons，让下一场 session 可以读取 bounded coaching summary。 |
 | Shadow run correlation | `HarnessWorkflowRun.memoryWrites`、`timeline` | 保存 refs/status/count，不复制 answer、question、prompt 或 memory 内容；不是产品 source of truth。 |
+| Immediate harness trace | Backend `Harness workflow trace` | task 完成时显示 `queued` / correlation `pending`，durable append 后显示 `persisted` 与实际计数；只输出 allowlisted metadata，不替代 `HarnessWorkflowRun`。 |
 
 report 可以读取这些信号展示 RAG used、retrieval sources、latency、cost、reflection summary 和 coaching summary。当前 progress dashboard 还需要额外的跨 session aggregation/profile 层，才能把历史 session 指标转成稳定的 next-practice plan。
 
 ## 怎么检查
 
-重点 tests 在 `backend/tests/robustness/agent/memoryGroundingAndPolicy.test.js`、`voiceMemoryPolicy.test.js`、`backend/tests/robustness/contracts/harnessRunCorrelationService.test.js` 和 trace/eval contract tests。G2/M1 当前只通过 local automated evidence，仍等待 human/browser H1；不能据此宣称 production memory correlation 已验证。
+重点 tests 在 `backend/tests/robustness/agent/memoryGroundingAndPolicy.test.js`、`voiceMemoryPolicy.test.js`、`userCoachingMemoryProvenance.test.js`、`backend/tests/robustness/contracts/harnessRunCorrelationService.test.js`、`harnessRunTraceService.test.js` 和 `harnessPersistenceTrace.test.js`。H1 已證明 durable run 可查，也暴露並修復 repeated-lesson provenance gap；修復後真人/browser rerun 仍未完成，不能據此宣稱 production memory correlation 已验证。
 
 继续读 [访谈控制机制](feature-interview-control.md)，看 memory 和 trace 在下一问选择中的位置。
 

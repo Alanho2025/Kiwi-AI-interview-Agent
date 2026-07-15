@@ -6,7 +6,7 @@ const NICE_TO_HAVE_HEADING_PATTERNS = [/\bbonus\b/i, /\bnice to have\b/i, /\bnic
 const MUST_HAVE_PATTERNS = [/\bmust\b/i, /\bstrong\b/i, /\bexperience\b/i, /\bability to\b/i, /\bproficiency\b/i, /\bsolid foundation\b/i, /\bminimum\b/i, /\bdegree\b/i, /\bbasic experience\b/i, /\bcomfortable working\b/i];
 const MUST_HAVE_HEADING_PATTERNS = [/we are seeking someone with/i, /what we'?re looking for/i, /what we are looking for/i, /requirements/i, /you'?ll need/i, /key requirements/i, /about you/i, /qualifications/i, /experience level/i, /stack/i, /tech stack/i];
 const APPLICATION_PATTERNS = [/right to work/i, /expected salary/i, /notice are you required/i, /medical check/i, /drug screening/i, /apply online/i];
-const HEADING_ONLY_PATTERN = /^(stack|tech stack|technology stack|tools|technologies|experience level|level|seniority|bonus|bonus requirements|nice[- ]?to[- ]?haves?|what we'?re looking for|what we are looking for|what you'?ll do|what you will do|responsibilities|requirements|qualifications|core requirements)$/i;
+const HEADING_ONLY_PATTERN = /^(stack|tech stack|technology stack|tools|technologies|experience level|level|seniority|bonus|bonus requirements|nice[- ]?to[- ]?haves?|what we'?re looking for|what we are looking for|what you'?ll do|what you will do|responsibilities|roles?\s*(?:&|and)\s*responsibilities|requirements|qualifications|core requirements|skills\s*(?:&|and)\s*experience)$/i;
 const FALLBACK_REQUIREMENT_PATTERNS = [
   /\b\d+\+?\s*years?\b/i,
   /\bbachelor'?s\b/i,

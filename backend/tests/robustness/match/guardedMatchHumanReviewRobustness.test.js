@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { buildInterviewEnvironment } from '../../../src/services/aiControl/interviewEnvironmentService.js';
 import { compareCvToJobDescriptionWithSafeguard } from '../../../src/services/match/guardedMatchService.js';
+import { createMatchPerformanceTrace } from '../../../src/services/match/matchPerformanceTraceService.js';
 
 const cvText = `Ava Chen
 Data Engineer
@@ -188,5 +189,61 @@ describe('guarded match human review override', () => {
     expect(environment.candidateContext.candidateIntro).toBe(cvAnalysis.candidateIntro);
     expect(environment.candidateContext.jdRelevantEvidence.length).toBeGreaterThan(0);
     expect(environment.candidateContext.suggestedInterviewHooks).toEqual(expect.arrayContaining(['self introduction and career direction']));
+  });
+
+  it('records fresh guarded match performance steps without requiring a user cache', async () => {
+    const reviewedRubric = {
+      ...blockedJdRubric,
+      safeguard: {
+        ...blockedJdRubric.safeguard,
+        blockMatch: false,
+      },
+      metadata: {
+        ...blockedJdRubric.metadata,
+        safeguard: {
+          ...blockedJdRubric.metadata.safeguard,
+          blockMatch: false,
+        },
+      },
+      roleFit: {
+        id: 'role-fit-1',
+        companyContext: { status: 'ready' },
+        review: { status: 'verified', version: 2 },
+        roleIntent: { items: [{ id: 'intent:python', statement: 'Python', priority: 'high' }] },
+      },
+    };
+    const performanceTrace = createMatchPerformanceTrace({ requestId: 'request-1' });
+
+    const result = await compareCvToJobDescriptionWithSafeguard(
+      cvText,
+      'Data Engineer JD',
+      reviewedRubric,
+      {},
+      { performanceTrace },
+    );
+    const traceSnapshot = performanceTrace.toJSON();
+    const stepNames = traceSnapshot.steps.map((step) => step.step);
+
+    expect(result.cache).toEqual(expect.objectContaining({ hit: false, source: 'fresh_match' }));
+    expect(stepNames).toEqual(expect.arrayContaining([
+      'match_cache_read',
+      'match_cache_miss',
+      'match_compare_first',
+      'normalize_jd_rubric',
+      'semantic_evidence_context',
+      'match_score_build',
+      'role_evidence_map_build',
+      'match_result_build',
+      'match_cache_write_warm',
+    ]));
+    expect(traceSnapshot.stepSummary.match_compare_first).toEqual(expect.objectContaining({
+      count: 1,
+      totalDurationMs: expect.any(Number),
+    }));
+    expect(traceSnapshot.slowestSteps[0]).toEqual(expect.objectContaining({
+      step: expect.any(String),
+      durationMs: expect.any(Number),
+    }));
+    expect(stepNames.some((step) => ['match_critic_skipped', 'match_critic_first_review'].includes(step))).toBe(true);
   });
 });

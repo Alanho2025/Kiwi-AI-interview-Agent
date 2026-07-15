@@ -29,6 +29,25 @@ const STOPWORDS = new Set([
   'what', 'will', 'be', 'is', 'are', 'from', 'as', 'at', 'this', 'that', 'these', 'those', 'into', 'within', 'across',
   'clear', 'clearly', 'experience', 'foundations', 'support', 'work', 'working', 'build', 'enhance'
 ]);
+const LOW_VALUE_OVERLAP_TOKENS = new Set([
+  'ai',
+  'business',
+  'developer',
+  'development',
+  'engineer',
+  'engineering',
+  'focused',
+  'off',
+  'product',
+  'quality',
+  'software',
+  'team',
+  'teams',
+  'tools',
+  'value',
+  'workflow',
+  'workflows',
+]);
 
 const STRICT_TECH_PATTERNS = {
   aws: /\b(aws|amazon web services|ec2|lambda|s3|rds|ecs|eks|cloudwatch|iam)\b/i,
@@ -138,6 +157,14 @@ const directMatchScore = (label, text) => {
   const textTokens = tokenSet(expandedText);
   const direct = labelTokens.length > 0 && labelTokens.every((token) => textTokens.has(token));
   const overlap = labelTokens.filter((token) => textTokens.has(token));
+  if (
+    labelTokens.length >= 4
+    && overlap.length > 0
+    && overlap.length <= 5
+    && overlap.every((token) => LOW_VALUE_OVERLAP_TOKENS.has(token))
+  ) {
+    return { direct: false, overlap: [], ratio: 0, phraseBoost: 0 };
+  }
   const ratio = labelTokens.length ? overlap.length / labelTokens.length : 0;
   const phraseBoost = overlap.length >= 2 ? 0.22 : overlap.length === 1 ? 0.08 : 0;
   return { direct, overlap, ratio, phraseBoost };

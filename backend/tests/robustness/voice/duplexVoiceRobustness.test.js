@@ -9,6 +9,34 @@ import { buildConfidenceGate, validateRealtimeVoiceTranscript } from '../../../s
 import { normalizeTranscript } from '../../../src/services/voice/transcriptNormalizer.js';
 
 describe('duplex voice robustness', () => {
+  it('buffers ordered voice messages until the duplex session is ready', async () => {
+    const socket = new EventEmitter();
+    const handled = [];
+    const duplexSessionRef = { current: null };
+    let resolveSessionReady;
+    const duplexSessionReady = new Promise((resolve) => { resolveSessionReady = resolve; });
+    const queue = createSocketMessageQueue({
+      socket,
+      context: { sessionId: 's1' },
+      duplexSessionRef,
+      duplexSessionReady,
+      safeSend: vi.fn(),
+    });
+
+    socket.emit('message', JSON.stringify({ type: 'speech_start', clientTurnId: 'voice-turn-1-1' }), false);
+    socket.emit('message', JSON.stringify({ type: 'speech_end', clientTurnId: 'voice-turn-1-1' }), false);
+    await Promise.resolve();
+    expect(handled).toEqual([]);
+
+    duplexSessionRef.current = {
+      handleJsonMessage: async (payload) => handled.push(payload.type),
+    };
+    resolveSessionReady(duplexSessionRef.current);
+    await queue.drain();
+
+    expect(handled).toEqual(['speech_start', 'speech_end']);
+  });
+
   it('only accepts the official duplex voice path and rejects unrelated paths', () => {
     expect(buildDuplexSocketContext({
       url: '/api/interview/session-1/voice/duplex?language=en-NZ&sampleRate=16000',

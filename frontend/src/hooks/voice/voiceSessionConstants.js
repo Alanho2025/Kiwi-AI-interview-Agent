@@ -10,5 +10,5 @@ export const LATENCY_ACK_COOLDOWN_MS = 12000;
 export const BARGE_IN_CONFIRMATION_MS = 350;
 export const SPEECH_END_CONFIRMATION_MS = 800;
 
-export const DUPLEX_CONNECTED_STATES = ['ready', 'listening', 'open'];
+export const DUPLEX_CONNECTED_STATES = ['ready', 'listening'];
 export const RECORDING_VOICE_STATES = ['listening', 'user_speaking', 'interrupted'];

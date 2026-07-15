@@ -1,12 +1,12 @@
 # M1 Debug Benchmark
 
-- Generated: 2026-07-15T09:14:59.210Z
+- Generated: 2026-07-15T11:05:11.855Z
 - Benchmark: deterministic lookup proxy over current scattered log/decision/trajectory/memory shapes
 - Failure tasks: 5
 - Correct diagnosis: 100%
-- Legacy median: 4.5232 ms
-- Harness median: 0.0005 ms
-- Reduction: 99.99%
+- Legacy median: 4.7270 ms
+- Harness median: 0.0010 ms
+- Reduction: 99.98%
 - Target: at least 50%
 - Proxy verdict: PASS
 

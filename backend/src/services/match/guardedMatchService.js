@@ -16,6 +16,7 @@ import {
   warmReusableArtifactCaches,
   writeMatchArtifactCache,
 } from './matchArtifactCacheService.js';
+import { markMatchStep, measureMatchStep } from './matchPerformanceTraceService.js';
 
 const attachMatchSafeguard = (matchResult = {}, safeguard = {}, jdSafeguard = null) => ({
   ...matchResult,
@@ -116,21 +117,31 @@ const buildHumanReviewedRubric = (jdRubric = {}, originalSafeguard = {}) => {
   };
 };
 
-const runFreshSafeguardedMatch = async ({ cvInput, rawJD, humanReviewedJdRubric, settings, reviewedJdSafeguard }) => {
-  const firstMatch = await compareCvToJobDescription(cvInput, rawJD, humanReviewedJdRubric, settings);
+const runFreshSafeguardedMatch = async ({ cvInput, rawJD, humanReviewedJdRubric, settings, reviewedJdSafeguard, performanceTrace }) => {
+  const firstMatch = await measureMatchStep(
+    performanceTrace,
+    'match_compare_first',
+    () => compareCvToJobDescription(cvInput, rawJD, humanReviewedJdRubric, settings, { performanceTrace }),
+    { recompareMode: false },
+  );
 
   if (!shouldRunAgenticSafeguard()) {
+    markMatchStep(performanceTrace, 'match_critic_skipped', { reason: 'agentic_safeguards_disabled' });
     return attachCacheMiss(attachMatchSafeguard(firstMatch, buildSkippedSafeguardResult('Agentic safeguards disabled.'), reviewedJdSafeguard));
   }
 
   const maxAttempts = getMaxSafeguardReparseAttempts();
-  const firstReview = await reviewMatchWithDeepSeek({
+  const firstReview = await measureMatchStep(performanceTrace, 'match_critic_first_review', () => reviewMatchWithDeepSeek({
     jdRubric: firstMatch.parsedJdProfile || humanReviewedJdRubric,
     cvProfile: firstMatch.parsedCvProfile,
     matchResult: firstMatch,
-  });
+  }), { maxAttempts });
 
   if (!shouldRecompare({ review: firstReview, attempt: 1, maxAttempts })) {
+    markMatchStep(performanceTrace, 'match_recompare_skipped', {
+      verdict: firstReview.verdict,
+      maxAttempts,
+    });
     return attachCacheMiss(attachMatchSafeguard(firstMatch, {
       ...firstReview,
       compareAttempts: 1,
@@ -138,18 +149,18 @@ const runFreshSafeguardedMatch = async ({ cvInput, rawJD, humanReviewedJdRubric,
     }, reviewedJdSafeguard));
   }
 
-  const secondMatch = await compareCvToJobDescription(cvInput, rawJD, humanReviewedJdRubric, {
+  const secondMatch = await measureMatchStep(performanceTrace, 'match_compare_recompare', () => compareCvToJobDescription(cvInput, rawJD, humanReviewedJdRubric, {
     ...settings,
     recompareMode: true,
     criticFeedback: firstReview,
     previousMatchResult: firstMatch,
-  });
+  }, { performanceTrace }), { recompareMode: true });
 
-  const secondReview = await reviewMatchWithDeepSeek({
+  const secondReview = await measureMatchStep(performanceTrace, 'match_critic_second_review', () => reviewMatchWithDeepSeek({
     jdRubric: secondMatch.parsedJdProfile || humanReviewedJdRubric,
     cvProfile: secondMatch.parsedCvProfile,
     matchResult: secondMatch,
-  });
+  }), { maxAttempts });
 
   return attachCacheMiss(attachMatchSafeguard(secondMatch, {
     ...secondReview,
@@ -159,9 +170,11 @@ const runFreshSafeguardedMatch = async ({ cvInput, rawJD, humanReviewedJdRubric,
   }, reviewedJdSafeguard));
 };
 
-export const compareCvToJobDescriptionWithSafeguard = async (cvInput, rawJD, jdRubric, settings = {}) => {
+export const compareCvToJobDescriptionWithSafeguard = async (cvInput, rawJD, jdRubric, settings = {}, context = {}) => {
+  const performanceTrace = context.performanceTrace || null;
   const userId = settings.userId || cvInput?.userId || '';
   if (!isVerifiedRoleFit(jdRubric)) {
+    markMatchStep(performanceTrace, 'match_role_fit_blocked', { reason: 'role_fit_review_required' });
     return buildRoleFitBlockedResult(jdRubric);
   }
   const jdSafeguard = getJdSafeguard(jdRubric);
@@ -174,6 +187,7 @@ export const compareCvToJobDescriptionWithSafeguard = async (cvInput, rawJD, jdR
     : null;
 
   if (isJdMatchBlocked && !isHumanReviewedJd(jdRubric)) {
+    markMatchStep(performanceTrace, 'match_jd_safeguard_blocked', { reason: 'jd_safeguard_blocked_match' });
     const roleFitDiagnostics = buildBlockedRoleFitDiagnostics({
       jdRubric,
       degradedReason: 'jd_safeguard_blocked_match',
@@ -215,10 +229,17 @@ export const compareCvToJobDescriptionWithSafeguard = async (cvInput, rawJD, jdR
     jdRubric: humanReviewedJdRubric,
     settings,
   });
-  const cachedMatch = await readMatchArtifactCache({ userId, cacheKey: cacheIdentity.cacheKey, settings });
+  const cachedMatch = await measureMatchStep(
+    performanceTrace,
+    'match_cache_read',
+    () => readMatchArtifactCache({ userId, cacheKey: cacheIdentity.cacheKey, settings }),
+    { cacheEligible: Boolean(userId && cacheIdentity.cacheKey) },
+  );
   if (cachedMatch) {
+    markMatchStep(performanceTrace, 'match_cache_hit', { source: cachedMatch.cache?.source || 'match_artifact_cache' });
     return cachedMatch;
   }
+  markMatchStep(performanceTrace, 'match_cache_miss', { cacheEligible: Boolean(userId && cacheIdentity.cacheKey) });
 
   const freshMatch = await runFreshSafeguardedMatch({
     cvInput,
@@ -226,9 +247,10 @@ export const compareCvToJobDescriptionWithSafeguard = async (cvInput, rawJD, jdR
     humanReviewedJdRubric,
     settings,
     reviewedJdSafeguard,
+    performanceTrace,
   });
 
-  await Promise.allSettled([
+  await measureMatchStep(performanceTrace, 'match_cache_write_warm', () => Promise.allSettled([
     writeMatchArtifactCache({ userId, identity: cacheIdentity, matchResult: freshMatch, settings }),
     warmReusableArtifactCaches({
       userId,
@@ -239,7 +261,7 @@ export const compareCvToJobDescriptionWithSafeguard = async (cvInput, rawJD, jdR
       matchResult: freshMatch,
       settings,
     }),
-  ]);
+  ]), { cacheEligible: Boolean(userId && cacheIdentity.cacheKey) });
 
   return freshMatch;
 };

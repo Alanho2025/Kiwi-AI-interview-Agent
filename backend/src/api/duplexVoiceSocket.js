@@ -68,12 +68,25 @@ export async function loadDuplexVoiceDependencies() {
   };
 }
 
-export const createSocketMessageQueue = ({ socket, context, duplexSessionRef, safeSend }) => {
+export const createSocketMessageQueue = ({
+  socket,
+  context,
+  duplexSessionRef,
+  duplexSessionReady = Promise.resolve(duplexSessionRef.current),
+  safeSend,
+}) => {
   let queue = Promise.resolve();
+
+  const getDuplexSession = async () => {
+    const duplexSession = duplexSessionRef.current || await duplexSessionReady;
+    if (!duplexSession) throw new Error('Duplex voice session was not initialized.');
+    return duplexSession;
+  };
 
   const processPayload = async (payload) => {
     if (!payload) return;
-    await duplexSessionRef.current?.handleJsonMessage?.(payload);
+    const duplexSession = await getDuplexSession();
+    await duplexSession.handleJsonMessage?.(payload);
   };
 
   const handleQueueError = (error) => {
@@ -87,7 +100,8 @@ export const createSocketMessageQueue = ({ socket, context, duplexSessionRef, sa
 
   const processMessage = async (message, isBinary) => {
     if (isBinary) {
-      await duplexSessionRef.current?.handleBinaryAudio?.(message);
+      const duplexSession = await getDuplexSession();
+      await duplexSession.handleBinaryAudio?.(message);
       return;
     }
 
@@ -142,12 +156,27 @@ export function attachDuplexVoiceSocketServer(server, dependencies = {}) {
     });
 
     const duplexSessionRef = { current: null };
+    let resolveDuplexSessionReady;
+    let duplexSessionReadySettled = false;
+    const duplexSessionReady = new Promise((resolve) => { resolveDuplexSessionReady = resolve; });
+    const settleDuplexSessionReady = (duplexSession) => {
+      if (duplexSessionReadySettled) return;
+      duplexSessionReadySettled = true;
+      resolveDuplexSessionReady(duplexSession || null);
+    };
     const safeSend = (payload) => sendJson(socket, payload);
-    const messageQueue = createSocketMessageQueue({ socket, context, duplexSessionRef, safeSend });
+    const messageQueue = createSocketMessageQueue({
+      socket,
+      context,
+      duplexSessionRef,
+      duplexSessionReady,
+      safeSend,
+    });
 
     try {
       const userId = context.auth?.id;
       if (!userId) {
+        settleDuplexSessionReady(null);
         safeSend({ type: 'error', code: 'UNAUTHORIZED', message: 'Authentication required for duplex voice.' });
         socket.close(1008, 'unauthorized');
         return;
@@ -171,7 +200,9 @@ export function attachDuplexVoiceSocketServer(server, dependencies = {}) {
         logger,
         sendJson: safeSend,
       });
+      settleDuplexSessionReady(duplexSessionRef.current);
     } catch (error) {
+      settleDuplexSessionReady(null);
       logger.error('Failed to start duplex voice socket', { error, sessionId: context.sessionId });
       safeSend({ type: 'error', code: 'DUPLEX_START_FAILED', message: error?.message || 'Could not start duplex voice.' });
       socket.close(1011, 'duplex-start-failed');

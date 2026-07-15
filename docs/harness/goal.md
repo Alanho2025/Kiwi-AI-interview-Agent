@@ -1,11 +1,11 @@
 # Kiwi Product Harness Goal
 
-- 狀態：G2/M1 local shadow runtime 已實作；等待 Human Gate H1
+- 狀態：G2/M1 H1 已取得 durable voice run；queue/query race 與 coaching-memory provenance gap 已完成 local 修復，等待最終 H1 重跑
 - Product Owner approval：2026-07-15
 - 第一個 implementation milestone：`interview_next_turn` shadow harness
 - Execution mode：`shadow -> observe -> warn -> enforce`
 - Canonical status page：本文件
-- Current final verdict：G2/M1 `READY_FOR_HUMAN_VALIDATION`；G0 `NOT_VERIFIED`
+- Current final verdict：G2/M1 `READY_FOR_H1_RERUN`；G0 `NOT_VERIFIED`
 
 本文件是完整 goal、sub-goal status、final result 與 evidence verdict 的單一 source of truth。詳細 spec/evidence 可以分檔，但每次狀態變更與最終結論必須回寫本頁。
 
@@ -71,7 +71,7 @@ G0  Kiwi product harness is verified better than the current baseline
 | --- | --- | --- | --- | --- |
 | G0 | `not_started` | Product direction 和 goal tree 已定義。 | `docs/harness/evidence/final-scorecard.md` | `NOT_VERIFIED` |
 | G1 / M0 | `verified` | Boundary、spine、四 case pressure test、readiness audit、decision register；spec lint 通過。 | Current docs under `docs/further_plan/`、`docs/references/` | `VERIFIED_DOCS_ONLY` |
-| G2 / M1 | `ready_for_human_validation` | Local shadow runtime、refs-only contracts、text/voice correlation、owner-scoped developer query、rollback、replay 與 deterministic debug proxy 已完成。 | [Shadow run sample](evidence/m1-shadow-run-sample.json)、[before/after replay](evidence/m1-before-after-replay.md)、[debug benchmark](evidence/m1-debug-benchmark.md)、[machine-readable replay](evidence/m1-replay-result.json) | `READY_FOR_HUMAN_VALIDATION` |
+| G2 / M1 | `ready_for_human_validation` | H1 已取得一筆 completed durable voice run，並暴露 queue/query race 與重複 coaching lesson 遺失最新 provenance；即時 redacted backend trace 和 provenance 修復已通過 local gates，修復後真人 rerun 尚未完成。 | [H1 transport evidence](evidence/m1-h1-voice-regression.md)、[H1 persistence/trace evidence](evidence/m1-h1-persistence-trace.md)、[Shadow run sample](evidence/m1-shadow-run-sample.json)、[before/after replay](evidence/m1-before-after-replay.md)、[debug benchmark](evidence/m1-debug-benchmark.md)、[machine-readable replay](evidence/m1-replay-result.json) | `READY_FOR_H1_RERUN` |
 | G3 / M2 | `not_started` | Gate taxonomy 和 replay candidates 已定義。 | `m2-observed-contracts.md` | `NOT_RUN` |
 | G4 / M3 | `not_started` | User-memory target/policy/replay cases 已定義。 | `m3-memory-outcomes.md` | `NOT_RUN` |
 | G5 / M4 | `not_started` | Report QA adapter/gate boundary 已定義。 | `m4-report-publication.md` | `NOT_RUN` |
@@ -84,24 +84,26 @@ G2/M1 evidence 已產生並連結在本表。後續 milestone 的 artifact name 
 | Gate | Evidence | Verdict |
 | --- | --- | --- |
 | Legacy output parity / rollback | Frozen deterministic fixtures 比較 harness OFF/ON；flag OFF 不進 harness path。 | PASS |
-| Contract / correlation / privacy | 七個 shared contract view、same-run voice confirmation、memory source run correlation、refs/hash/version-only payload。 | PASS |
+| Contract / correlation / privacy | 七個 shared contract view、same-run voice confirmation、memory source run correlation、最新 duplicate lesson provenance、refs/hash/version-only payload；backend trace 不含 owner/context/transcript/prompt。 | PASS |
 | Failure / duplicate / fail-open | Invalid model action fallback、duplicate canonical run、shadow persistence failure均有 deterministic scenario。 | PASS |
-| Backend regression | Backend `npm run test:all`：15 groups、590 tests passed；backend lint passed。 | PASS |
-| Frontend regression | Frontend `npm run quality:all`：52 files、301 tests、lint、production build passed。 | PASS |
-| Replay | `npm run eval:harness-m1`：8/8 scenarios passed。 | PASS |
-| Debug improvement | 5 個 fixed failure tasks 的 deterministic lookup proxy：correctness 100%，median 4.5232 ms -> 0.0005 ms，降低 99.99%。 | PROXY_PASS |
-| Human/browser H1 | 實際 session 中，以 developer timeline 定位 action/fallback/memory/failure，並確認候選人體驗不變。 | PENDING |
+| Backend regression | Backend `npm run test:all` 全部 15 groups passed；voice 84/84、contracts 43/43、agent 82/82、recording 17/17；backend lint passed。 | PASS |
+| Frontend regression | Frontend `npm run quality:all`：54 files、304 tests、lint、production build passed。 | PASS |
+| Replay | `npm run eval:harness-m1`：11/11 scenarios passed，包含 immediate redacted trace 與 repeated-memory latest provenance。 | PASS |
+| Debug improvement | 5 個 fixed failure tasks 的 deterministic lookup proxy：correctness 100%，本次 median 4.7270 ms -> 0.0010 ms，降低 99.98%；精確值以 generated benchmark 為準。 | PROXY_PASS |
+| Human/browser H1 | 2026-07-15 後續 voice session 最終產生 durable run，但首次查詢早於持久化約 1.1 秒，且舊 dedupe 行為令 run 成為 `invalid`；[對應修復與證據](evidence/m1-h1-persistence-trace.md) 已通過 local gate，修復後真人 rerun 尚未執行。 | RETEST_REQUIRED |
 | Live voice / production shadow | Real provider latency、production storage/access/retention telemetry。 | NOT_RUN |
 
-`PROXY_PASS` 不是人類 developer 的 wall-clock benchmark。G2 在 H1 前不得升為 `verified`，也不得開始 M2/M3 promotion 或 enforce。
+`PROXY_PASS` 不是人類 developer 的 wall-clock benchmark。Local 修復只讓 G2 恢復 `ready_for_human_validation`；H1 重跑通過前不得升為 `verified`，也不得開始 M2/M3 promotion 或 enforce。
 
 ### Human Gate H1
 
-1. 以 local app 完成至少一個 text interview turn；可再做一個低信心 voice confirmation turn。
-2. 在同一登入 session 開啟 `/api/interview/harness-runs?sessionId=<SESSION_ID>`，確認只返回自己的 redacted timeline。
-3. 只使用 timeline 回答：這一 turn 選了什麼 action、是否 fallback、state 如何改變、memory write 是否完成、failure owner 是誰。
-4. 確認 candidate-facing response 沒有 internal gate、failure、memory trace，且問題、計數和 fallback 體驗未改變。
-5. 將 human diagnosis time、正確性、異常與是否接受 M1 記錄回本頁；通過前保持 `ready_for_human_validation`。
+1. 在 `ENABLE_HARNESS_SHADOW=true` 的 local app 建立新 session，完成至少兩個 voice turns，再進 report；socket 必須在 `session_ready` 後才開始 VAD。
+2. 每個 task 完成後先在 backend 看到 `Harness workflow trace` / `task_completed` / `queued`；背景 correlation 完成後再看到 `durable_persisted` / `persisted`。這兩筆 trace 都不得包含 owner ID、answer、question、prompt 或 context payload。
+3. 在同一登入 session 開啟 `/api/interview/harness-runs?sessionId=<SESSION_ID>`；成功 turn 應最終出現 completed run，而 transport rejection 應出現 failed run，不得再無限卡在 `agent_thinking`。API 是 durable view，背景 queue 尚未完成時可短暫為空。
+4. 若出現 `turn_rejected`，確認 UI 回到同一題的 repair state；該次 turn 不保存、不評分、不計題，failed run 包含 `voice_turn_rejected` 與 block gate。
+5. 確認 recording upload 沒有因恢復後重用遠端 sequence 而產生 checksum conflict。
+6. 只使用 backend trace + durable timeline 回答：這一 turn 選了什麼 action、是否 fallback、state 如何改變、memory write 是否完成、failure owner 是誰；所有實際列出的 memory writes 應為 `completed`，若本次產生三類 write 則三者都不得因重複 lesson 變成 orphan。
+7. 確認 candidate-facing response 沒有 internal gate、failure、memory trace；將 diagnosis time、正確性、異常與是否接受 M1 記錄回本頁。
 
 ## Before/After Verification Scorecard
 
@@ -118,7 +120,7 @@ Comparison：product output + run/action/state + latency + failure + privacy + h
 | Legacy user-output parity | Current fixture output | 100% in M1 shadow | G2 |
 | Run reconstructability | 目前要跨 logs/records 手動拼接 | Required run fields與 source lineage 100% | G2 |
 | Deterministic failure attribution | 目前 failure semantics 分散 | Frozen failure fixtures 100% classified；unclassified 0 | G2-G3 |
-| Debug task completion time | Deterministic proxy 已量測 4.5232 ms；human wall-clock baseline 待 H1 | Proxy 已降低 99.99%；H1 median 仍須至少降低 50% | G2 |
+| Debug task completion time | Deterministic proxy 本次量測 4.7270 ms；human wall-clock baseline 待 H1 | Proxy 本次降低 99.98%；H1 median 仍須至少降低 50% | G2 |
 | Harness-introduced duplicate question | Current baseline | 0 | G2-G3-G6 |
 | Internal trace exposed to candidate | Current baseline | 0 | G2-G6 |
 | Same-depth repeat rate | M3 前 frozen repeated-session baseline | Eligible cases 至少降低 30% | G4 |
@@ -181,5 +183,6 @@ G0 只有在 Product Owner 可以按以下順序查看結果時才可完成：
 - [Pre-Harness Readiness Audit](../references/pre-harness-readiness-audit.md)
 - [M1 Before/After Replay](evidence/m1-before-after-replay.md)
 - [M1 Debug Benchmark](evidence/m1-debug-benchmark.md)
+- [M1 H1 Persistence and Backend Trace](evidence/m1-h1-persistence-trace.md)
 
-Evidence status：G2/M1 local automated evidence 已完成，狀態為 `ready_for_human_validation`。H1、live voice provider 與 production shadow 尚未驗證；G0 仍是 `NOT_VERIFIED`。Current runtime 以 source 和 `repo-docs/` 為準。
+Evidence status：G2/M1 local automated evidence、H1 transport fix、即時 backend trace 和 memory provenance fix 已完成，狀態維持 `ready_for_human_validation`。這不代表 H1 已通過；修復後真人 voice rerun、live voice provider 與 production shadow仍未驗證，G0 仍是 `NOT_VERIFIED`。Current runtime 以 source 和 `repo-docs/` 為準。

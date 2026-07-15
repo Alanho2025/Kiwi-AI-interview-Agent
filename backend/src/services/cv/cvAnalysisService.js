@@ -2,8 +2,9 @@ import { badRequest } from '../../utils/appError.js';
 import { compareCvToJobDescriptionWithSafeguard } from '../match/guardedMatchService.js';
 import { getOwnedCvDocumentOrThrow } from './cvOwnershipService.js';
 import { assertVerifiedCompanyRoleFitReview } from '../company/companyValuesRepository.js';
+import { measureMatchStep } from '../match/matchPerformanceTraceService.js';
 
-export const runCvJdMatchAnalysis = async ({ cvId, userId, rawJD, jdRubric, settings = {} }) => {
+export const runCvJdMatchAnalysis = async ({ cvId, userId, rawJD, jdRubric, settings = {}, performanceTrace = null }) => {
   if (!cvId) {
     throw badRequest('Missing cvId', 'Please provide a CV before starting match analysis.');
   }
@@ -19,16 +20,24 @@ export const runCvJdMatchAnalysis = async ({ cvId, userId, rawJD, jdRubric, sett
     );
   }
 
-  await assertVerifiedCompanyRoleFitReview({
+  await measureMatchStep(performanceTrace, 'role_fit_review_gate', () => assertVerifiedCompanyRoleFitReview({
     userId,
     jdFingerprint: jdRubric.roleFit.jdFingerprint,
     reviewVersion: jdRubric.roleFit.review?.version,
     roleFitProfileId: jdRubric.roleFit.id,
+  }), {
+    hasRoleFitProfileId: Boolean(jdRubric.roleFit.id),
+    reviewVersion: jdRubric.roleFit.review?.version,
   });
 
-  const cvDocument = await getOwnedCvDocumentOrThrow({ cvId, userId });
+  const cvDocument = await measureMatchStep(
+    performanceTrace,
+    'cv_document_load',
+    () => getOwnedCvDocumentOrThrow({ cvId, userId }),
+    { cvId },
+  );
 
-  const matchData = await compareCvToJobDescriptionWithSafeguard({
+  const matchData = await measureMatchStep(performanceTrace, 'guarded_match_analysis', () => compareCvToJobDescriptionWithSafeguard({
     normalizedText: cvDocument.normalizedText,
     cvProfile: cvDocument.cvProfile,
     evidenceProfile: cvDocument.cvProfile?.evidenceProfile,
@@ -37,6 +46,8 @@ export const runCvJdMatchAnalysis = async ({ cvId, userId, rawJD, jdRubric, sett
     ...(settings || {}),
     userId,
     cvId,
+  }, { performanceTrace }), {
+    matchEngine: settings?.matchEngine || process.env.MATCH_ENGINE || 'default',
   });
   return {
     ...matchData,

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   beginWaitingInterviewNextTurnRun,
+  recordRejectedInterviewNextTurnRun,
   runInterviewNextTurnWithShadowHarness,
 } from '../../../src/services/harness/interviewNextTurnShadowHarness.js';
 import {
@@ -11,6 +12,45 @@ import {
 } from '../../fixtures/harness/m1InterviewNextTurnFixtures.js';
 
 describe('M1 interview_next_turn shadow harness', () => {
+  it('records a redacted failed run for a rejected pre-task voice turn', async () => {
+    const appendRun = vi.fn().mockResolvedValue(null);
+
+    const result = await recordRejectedInterviewNextTurnRun({
+      enabled: true,
+      session: { ...buildM1SessionFixture(), mode: 'voice' },
+      payload: { inputMode: 'duplex_voice', clientTurnId: 'voice-turn-1-1' },
+      failure: {
+        category: 'channel_transport',
+        reasonCode: 'voice_turn_not_active',
+        retryable: true,
+        userImpact: 'turn_retry_required',
+      },
+      appendRun,
+      workflowRunIdFactory: () => 'run-voice-rejected-001',
+      now: () => new Date('2026-07-15T00:00:00.000Z'),
+    });
+
+    expect(result).toMatchObject({
+      workflowRunId: 'run-voice-rejected-001',
+      lifecycleStatus: 'failed',
+    });
+    expect(appendRun).toHaveBeenCalledWith(expect.objectContaining({
+      channel: 'voice',
+      lifecycleStatus: 'failed',
+      actionContracts: [],
+      memoryWrites: [],
+      failures: [expect.objectContaining({
+        category: 'channel_transport',
+        reasonCode: 'voice_turn_not_active',
+        retryable: true,
+      })],
+      timeline: expect.arrayContaining([
+        expect.objectContaining({ eventType: 'voice_turn_rejected' }),
+        expect.objectContaining({ eventType: 'workflow_run_failed' }),
+      ]),
+    }));
+  });
+
   it('returns the exact legacy result while recording one canonical run', async () => {
     const appendRun = vi.fn().mockResolvedValue(null);
     const executeController = vi.fn(async ({ observe }) => {

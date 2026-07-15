@@ -8,6 +8,7 @@ const MatchAnalysisRecordSchema = new mongoose.Schema(
     jdStructuredText: { type: String, default: '' },
     jdRubric: { type: mongoose.Schema.Types.Mixed, default: {} },
     matchAnalysis: { type: mongoose.Schema.Types.Mixed, default: {} },
+    performanceTrace: { type: mongoose.Schema.Types.Mixed, default: {} },
     evidenceRefs: { type: [mongoose.Schema.Types.Mixed], default: [] },
     warnings: { type: [String], default: [] },
     retentionUntil: { type: Date },

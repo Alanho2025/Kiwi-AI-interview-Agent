@@ -4,15 +4,15 @@ recording 路径保存整段面试音频，但它不应该阻塞 live STT 或下
 
 ## 读者应该先记住什么
 
-前端用 IndexedDB 保存 chunk，再用 upload manager 做低优先级、single-flight、可恢复上传。后端用 manifest、sequence、checksum、idempotent chunk storage 和 conversion worker 处理最终 MP3。
+前端先用 IndexedDB 保存 chunk，再用 upload manager 做低优先级、single-flight、可恢复上传；初始化 API 离线时也不能阻止本地保存。恢复时 manager 会读取 backend `receivedChunks`，把与远端已确认 sequence 重叠的 local pending chunks 重新编号后再上传。后端用 manifest、sequence、checksum、idempotent chunk storage 和 conversion worker 处理最终 MP3。
 
 ## 一个代表 case
 
 ```text
 输入: MediaRecorder 产生 audio/webm chunks
-动作: IndexedDB enqueue -> initialize upload -> PUT chunk -> finalize -> worker converts MP3
+动作: IndexedDB enqueue -> initialize/status sync -> pending sequence rebase -> PUT chunk -> finalize -> worker converts MP3
 输出: report page 显示 uploading/processing/ready/retryable failure
-边界: 关闭原浏览器 profile 会延迟恢复，直到同一 profile 再打开应用
+边界: 关闭原浏览器 profile 会延迟恢复；远端已接收的 sequence 不可用不同 checksum 覆盖
 ```
 
 ## 代码怎么追
@@ -28,9 +28,8 @@ recording 路径保存整段面试音频，但它不应该阻塞 live STT 或下
 
 ## 怎么检查
 
-后端重点测试在 `backend/tests/robustness/recording`，前端 runtime tests 在 `frontend/src/runtime/recording/__tests__`，浏览器恢复路径由 `frontend/e2e/recording-recovery.playwright.mjs` 覆盖。
+后端重点测试在 `backend/tests/robustness/recording`，前端 runtime tests 在 `frontend/src/runtime/recording/__tests__`；其中 `recordingUploadManager.test.js` 覆盖 API 初始化離線時仍保留 chunk，以及 remote sequence 衝突時的 rebase。瀏覽器恢復路徑由 `frontend/e2e/recording-recovery.playwright.mjs` 覆蓋，但 H1 首次失敗後的真人 browser profile recovery 仍待重跑。
 
 继续读 [数据持久化与保留](data-persistence-retention.md)，看 recording 与 PostgreSQL、MongoDB、local files 的关系。
 
 证据状态：除特别标注外，本页基于当前源码已确认。
-

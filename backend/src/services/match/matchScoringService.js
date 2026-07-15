@@ -29,6 +29,13 @@ const SECTION_EVIDENCE_STRENGTH = {
   personalStatement: 'weak',
 };
 const EVIDENCE_STRENGTH_ORDER = { missing: 0, weak: 1, partial: 2, strong: 3 };
+const EVIDENCE_STRENGTH_BY_ORDER = Object.fromEntries(Object.entries(EVIDENCE_STRENGTH_ORDER).map(([key, value]) => [value, key]));
+const STATUS_EVIDENCE_STRENGTH_CAP = {
+  met: 'strong',
+  partial: 'partial',
+  inferred: 'weak',
+  not_met: 'missing',
+};
 
 const STRICT_TECH_PATTERNS = {
   aws: /\b(aws|amazon web services|ec2|lambda|s3|rds|ecs|eks|cloudwatch|iam)\b/i,
@@ -98,6 +105,12 @@ const evidenceStrengthMax = (values = []) => values.reduce((best, current) => (
   (EVIDENCE_STRENGTH_ORDER[current] || 0) > (EVIDENCE_STRENGTH_ORDER[best] || 0) ? current : best
 ), 'missing');
 
+const capEvidenceStrengthForStatus = (strength = 'missing', status = 'not_met') => {
+  const cap = STATUS_EVIDENCE_STRENGTH_CAP[status] || 'missing';
+  const cappedOrder = Math.min(EVIDENCE_STRENGTH_ORDER[strength] || 0, EVIDENCE_STRENGTH_ORDER[cap] || 0);
+  return EVIDENCE_STRENGTH_BY_ORDER[cappedOrder] || 'missing';
+};
+
 const topSemanticMatch = (semanticMatches = []) => semanticMatches[0] || null;
 
 const statusFromSemanticMatch = (match = null) => {
@@ -125,7 +138,7 @@ const inferEvidenceStrength = ({ matchedSection = '', semanticMatches = [], stat
   if (status === 'not_met') return 'missing';
   const sectionStrength = SECTION_EVIDENCE_STRENGTH[matchedSection] || 'weak';
   const semanticStrength = topSemanticMatch(semanticMatches)?.evidenceStrength || 'missing';
-  return evidenceStrengthMax([sectionStrength, semanticStrength]);
+  return capEvidenceStrengthForStatus(evidenceStrengthMax([sectionStrength, semanticStrength]), status);
 };
 
 const splitCompositeRequirement = (label = '') => {
@@ -353,6 +366,32 @@ const computeRequirementStatus = (requirement, evidenceProfile = {}, semanticEvi
 const isQualificationLabel = (label = '') => /qualification|degree|bachelor|master|diploma|tertiary|computer science|software engineering|information technology/i.test(label);
 
 const isCapabilityOnlyEvidence = (evidence = '') => /^Capability match:/i.test(String(evidence || ''));
+const LOW_VALUE_SECTION_MATCH_PATTERN = /^Matched in (experience|keyCompetencies|personalStatement): ([a-z0-9+#., -]+)$/i;
+const LOW_VALUE_SECTION_MATCH_TOKENS = new Set([
+  'ai',
+  'business',
+  'developer',
+  'development',
+  'engineer',
+  'engineering',
+  'focused',
+  'off',
+  'product',
+  'quality',
+  'team',
+  'teams',
+  'tools',
+  'value',
+  'workflow',
+  'workflows',
+]);
+
+const isLowValueSectionMatchEvidence = (evidence = '') => {
+  const match = String(evidence || '').match(LOW_VALUE_SECTION_MATCH_PATTERN);
+  if (!match) return false;
+  const tokens = match[2].split(',').map((token) => normalizeText(token).trim()).filter(Boolean);
+  return tokens.length > 0 && tokens.length <= 5 && tokens.every((token) => LOW_VALUE_SECTION_MATCH_TOKENS.has(token));
+};
 
 const sanitizeRequirementEvidence = ({ requirement = {}, status = 'not_met', evidence = [] } = {}) => {
   const label = requirement.label || requirement.text || '';
@@ -362,6 +401,7 @@ const sanitizeRequirementEvidence = ({ requirement = {}, status = 'not_met', evi
 
     if (!isQualificationLabel(label) && /Matched in education:/i.test(text)) return false;
     if ((requirement.type === 'hard' || requirement.mustHave === true) && status === 'not_met' && isCapabilityOnlyEvidence(text)) return false;
+    if (status !== 'met' && isLowValueSectionMatchEvidence(text)) return false;
     if (isHardTechnicalRequirement(requirement, label) && !hasStrictTechEvidence(label, text)) return false;
     if (/cloud-native|cloud native/i.test(label) && /Matched in keyCompetencies: engineering, software, developer, development/i.test(text)) return false;
 
@@ -431,7 +471,10 @@ export const buildRequirementChecks = (requirements = [], _cvText, evidenceProfi
     const judgementEvidence = semanticEvidence.map((item) => `Matched evidence (${item.evidenceStrength || 'weak'}, ${Number(item.score || 0).toFixed(2)}): ${item.text}`);
     const rawEvidence = [...(requirement.evidence || []), ...match.evidence, ...judgementEvidence];
     const cleanedEvidence = sanitizeRequirementEvidence({ requirement, status: finalStatus, evidence: rawEvidence });
-    const evidenceStrength = evidenceStrengthMax([match.evidenceStrength, judgement?.evidenceStrength]);
+    const evidenceStrength = capEvidenceStrengthForStatus(
+      evidenceStrengthMax([match.evidenceStrength, judgement?.evidenceStrength]),
+      finalStatus
+    );
     const evidenceNotes = [match.detailNote, judgement?.reason]
       .filter(Boolean)
       .filter((item, index, rows) => rows.indexOf(item) === index);
