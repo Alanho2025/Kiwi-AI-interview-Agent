@@ -9,6 +9,7 @@ const DEFAULT_AGENT_MEMORY = {
   projectUsage: {}, // Tracks { [projectName]: count }
   latestFrictionLevel: 'low',
   lastUpdatedAt: null,
+  userInterviewProjection: null,
 };
 
 const uniqueStrings = (values = []) => [...new Set((Array.isArray(values) ? values : []).filter(Boolean).map((item) => String(item)))];
@@ -87,6 +88,7 @@ export const updateAgentMemory = async ({
     evidenceGaps,
     projectUsage: nextProjectUsage,
     latestFrictionLevel: decisionContext?.evaluatorState?.frictionState?.frictionLevel || 'low',
+    userInterviewProjection: currentMemory.userInterviewProjection || null,
     lastUpdatedAt: new Date().toISOString(),
   };
 

@@ -1,0 +1,64 @@
+{
+  "generatedAt": "2026-07-15T12:54:34.031Z",
+  "verdict": "LOCAL_FUNCTIONAL_PASS_RELEASE_NOT_READY",
+  "releaseReady": false,
+  "evidenceMode": "local_mock_ai_test_stt_tts_plus_browser",
+  "metrics": {
+    "voiceRobustnessCases": 8,
+    "voiceRobustnessAverage": 1,
+    "browserCompletedTurns": 2,
+    "canonicalInterviewRunCount": 2,
+    "duplicateCanonicalInterviewRunCount": 0,
+    "completedMemoryWriteCount": 4,
+    "unsafeMemoryWriteCount": 0,
+    "reportPublicationBlockObserved": true,
+    "reportRepairLineageComplete": true,
+    "candidateInternalTraceExposed": false,
+    "sameRunConfirmationPassed": true,
+    "perTurnNextQuestionFirstAudioMs": [
+      3390,
+      2089
+    ],
+    "latencySloPassCount": 1,
+    "latencySloFailureCount": 1,
+    "maximumFirstAudioMs": 3390,
+    "latencySloMs": 3000
+  },
+  "milestoneEvidence": {
+    "m1": "READY_FOR_HUMAN_VALIDATION",
+    "m2": "LOCAL_OBSERVE_CONTRACTS_PASS",
+    "m3": "LOCAL_MEMORY_OUTCOME_GATE_PASS",
+    "m4": "LOCAL_REPORT_OBSERVE_GATE_PASS"
+  },
+  "runtimeCoverage": {
+    "formalObservedTasks": [
+      "interview_next_turn",
+      "generate_report",
+      "qa_report"
+    ],
+    "docsOrShadowMappingOnly": [
+      "cv_jd_match",
+      "prepare_question_pool"
+    ],
+    "channels": [
+      "text",
+      "voice"
+    ]
+  },
+  "requiredGateFailures": [
+    "synthetic_browser_voice_latency_slo",
+    "human_microphone_validation",
+    "live_speech_provider_validation",
+    "production_observe_validation",
+    "report_publication_enforcement_approval",
+    "memory_product_policy_and_user_controls"
+  ],
+  "releaseBoundary": {
+    "warnOrEnforceEnabled": false,
+    "userMemoryPlanningEnabledByDefault": false,
+    "reportPublicationEnforcementEnabled": false,
+    "candidateVisibilityChanged": false,
+    "liveProviderEvidenceAvailable": false,
+    "productionEvidenceAvailable": false
+  }
+}

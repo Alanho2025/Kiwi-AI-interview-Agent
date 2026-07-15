@@ -375,6 +375,7 @@ export const buildDecisionContext = async ({
       compactContext: useCompactContext,
     },
     agentMemory,
+    userInterviewMemory: agentMemory.userInterviewProjection || null,
     constraints: {
       maxQuestionLength: 'short',
       keepTalkTimeHigh: true,

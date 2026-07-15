@@ -3,7 +3,7 @@
 - Date: 2026-07-15 Pacific/Auckland
 - Goal: G2/M1 `interview_next_turn` shadow foundation
 - Mode: local authenticated voice session, `ENABLE_HARNESS_SHADOW=true`
-- Verdict: `LOCAL_FIX_PASS_H1_RETEST_REQUIRED`
+- Verdict: `AUTOMATED_H1_PASS_HUMAN_LIVE_PENDING`
 
 ## 實際觀察
 
@@ -35,6 +35,19 @@ Mongoose `new` deprecation warning 與空結果、orphan 判定沒有因果關�
 - Backend lint: passed。
 - `npm run eval:harness-m1`: 11/11 passed，包含 `backend_trace_immediate_redacted` 與 `repeated_memory_keeps_latest_provenance`。
 
-## Remaining Human Gate
+## Post-fix Automated Browser H1
 
-需要重啟 backend 後再完成至少兩個 voice turns。每個 turn 應先看到 `task_completed/queued` trace，之後看到 `durable_persisted/persisted`；durable run 應為 completed，所有實際列出的 memory writes 都應為 `completed`。舊 run 的 `invalid/orphaned` 結果不會被回寫修正，也不能作為新程式已通過 H1 的證據。
+同一個 Playwright flow 分別在 harness OFF/ON 完成兩個 voice turns，然後使用實際 UI 的 `End -> Confirm End` 正式結束 session 並載入 report。Question-limit fixture 仍遵守產品允許的 `8/12/15`，測試不是把 limit 偷改成 2，而是在兩個 turns 後走正式 manual-end path。
+
+| Mode | Session | Durable result | Memory correlation | Candidate privacy | First-audio latency |
+| --- | --- | --- | --- | --- | --- |
+| OFF | `1c6081ae-9d75-4bab-b792-5b9c804f4110` | Harness disabled；report loaded | Not applicable | No internal trace | 3492 ms, 2268 ms |
+| ON | `6be66482-73fb-4c20-bd29-a475c1652862` | 2 runs，兩者 completed/valid | 4/4 actual writes completed，`canAffectScoring=false` | No internal trace | 3493 ms, 2069 ms |
+
+ON/OFF 第一 turn 相差 +1 ms、第二 turn相差 -199 ms，這一個 sample 沒有顯示 harness-specific latency regression；但兩組第一 turn 都超過 3 秒產品 SLO，所以不能宣稱 voice latency gate 通過。ON 的每筆 run 都可重建 decision 4、trajectory 1、trace 3 的 correlation。兩 turn 後的 report 是 `needs_review`，原因是 8 題計畫只完成 2 題且 role-fit artifact 不完整，符合此短 fixture 的既有 report policy，不是 harness persistence failure。
+
+執行命令：`npm run test:e2e:harness-h1-voice`。這個 flow 使用真實 browser/frontend/backend/WebSocket/UI，但 STT/TTS 是 test provider、AI 是 mock；artifact 在 ignored `output/playwright/harness-h1-voice-{off,on}.latest.json`。
+
+## Remaining Human And External Gates
+
+真人麥克風 H1、live speech provider latency 和 production shadow storage/access/retention telemetry 仍未執行。舊 run 的 `invalid/orphaned` 結果不會被回寫修正，也不能取代修復後的 evidence。G2/M1 因此維持 `ready_for_human_validation`，不是 `verified`。

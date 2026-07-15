@@ -40,7 +40,7 @@ describe('M1 interview_next_turn shadow harness', () => {
       actionContracts: [],
       memoryWrites: [],
       failures: [expect.objectContaining({
-        category: 'channel_transport',
+        category: 'environment_failure',
         reasonCode: 'voice_turn_not_active',
         retryable: true,
       })],
@@ -75,6 +75,31 @@ describe('M1 interview_next_turn shadow harness', () => {
       workflowRunId: 'run-m1-001',
       idempotencyKey: expect.any(String),
       resultRefs: expect.any(Array),
+    }));
+  });
+
+  it('records observe-mode contracts without changing the controller result', async () => {
+    const appendRun = vi.fn().mockResolvedValue(null);
+    const result = await runInterviewNextTurnWithShadowHarness({
+      enabled: true,
+      executionMode: 'observe',
+      session: buildM1SessionFixture(),
+      payload: { inputMode: 'text', clientTurnId: 'text-turn-m2-observe' },
+      executeController: async ({ observe }) => {
+        observe(buildM1ObservationFixture());
+        return M1_LEGACY_RESULT;
+      },
+      appendRun,
+      workflowRunIdFactory: () => 'run-m2-observe',
+    });
+
+    expect(result).toBe(M1_LEGACY_RESULT);
+    expect(appendRun).toHaveBeenCalledWith(expect.objectContaining({
+      executionMode: 'observe',
+      taskContract: expect.objectContaining({ executionMode: 'observe' }),
+      gateResults: expect.arrayContaining([
+        expect.objectContaining({ executionMode: 'observe' }),
+      ]),
     }));
   });
 

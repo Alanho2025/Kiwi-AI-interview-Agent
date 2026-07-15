@@ -1,5 +1,6 @@
 import { SessionAnalysis } from '../../db/models/sessionAnalysisModel.js';
 import { UserCoachingMemory } from '../../db/models/userCoachingMemoryModel.js';
+import { buildFailureClassification } from './harnessObservedContractPolicy.js';
 
 const matchesRun = (record, workflowRunId, field = 'workflowRunId') => record?.[field] === workflowRunId;
 
@@ -38,11 +39,16 @@ export const correlateHarnessRunArtifacts = async ({
     }) ? 'completed' : 'orphaned',
   }));
   const orphanedWrites = memoryWrites.filter((write) => write.status === 'orphaned');
-  const correlationFailures = orphanedWrites.map((write) => ({
+  const correlationFailures = orphanedWrites.map((write) => buildFailureClassification({
     failureId: `failure:${workflowRunId}:orphaned:${write.memoryType}`,
-    category: 'correlation',
+    workflowRunId,
+    subjectRef: write.memoryWriteId,
+    occurredAt: new Date().toISOString(),
+    stage: 'memory_write_correlation',
+    category: 'memory_policy_failure',
     reasonCode: 'background_memory_write_orphaned',
     handled: true,
+    expected: false,
     retryable: true,
     fallbackApplied: false,
     userImpact: 'none',

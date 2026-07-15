@@ -28,6 +28,7 @@
 | `npm run eval:calibration` | human-vs-judge disagreement；目前 12/12 reviewed，release threshold 為 0.85 |
 | `npm run eval:role-fit-release-gate` | 聚合 calibration、adversarial、cutover/retention contract、browser visual、voice flow；voice 3 秒 SLO 超標只記為 known issue |
 | `npm run eval:e2e-refine-release-gate` | 聚合四個 stakeholder E2E refine artifacts；missing/failed artifact 會 block，voice 3 秒 SLO 仍只列 known issue |
+| `npm run eval:harness-m1` ... `eval:harness-m5` | Harness parity/debug、observed contracts、user-memory outcomes、report publication、voice/release evidence |
 
 ## Frontend checks
 
@@ -38,13 +39,16 @@
 | `npm run test:e2e:question-pipeline` | browser-level question pipeline flow |
 | `npm run test:e2e:role-fit-visual` | Role-Fit report browser visual gate，輸出 desktop/mobile screenshots |
 | `npm run test:e2e:voice-real-backend` | 用 test STT/TTS providers 跑 real backend duplex voice browser flow |
+| `npm run test:e2e:harness-h1-voice` | Harness OFF/ON 各跑两 turn、正式结束/report，并检查 durable run、memory correlation、privacy 和 latency |
 | `npm run test:e2e:recording-recovery` | IndexedDB/background upload recovery |
 | `npm run test:e2e:role-fit-refine` | 串接 review-lock bypass、retention/deletion、low-confidence voice UI、weak-network/barge-in voice 四條 hybrid E2E |
 | `npm run quality:all` | lint + tests + build |
 
 ## Eval runners
 
-`backend/eval/runners` 覆盖 CV parse、JD parse、SEEK benchmark、CV-JD match、interview controller、report QA、baseline comparison、retrieval、agent trajectory、Role-Fit v2 adversarial、human calibration、Role-Fit release gate、E2E refine release gate、company research、voice quality、stability、preparation stability 和 voice robustness。runtime retrieval/trajectory 与舊 safety fixture 有獨立命令和報告，避免把 fixture score 當成真實 retriever 品質。Role-Fit v2 adversarial runner 檢查本地 deterministic coverage，並依 paired calibration summary 決定 release threshold claim；目前 12/12 calibration 完成、threshold 0.85。Role-Fit release gate 和 E2E refine release gate 最新狀態都是 `ready_with_known_issues`，共同 known issue 是 real-backend voice next-question first audio 超過 3 秒。E2E refine gate 新增 direct API review-lock bypass、soft-delete access denial、low-confidence confirmation UI、bounded slow network + barge-in artifact；它仍不取代 production semantic retrieval、live Azure/ElevenLabs provider SLO 或 production retention telemetry。
+`backend/eval/runners` 覆盖 CV parse、JD parse、SEEK benchmark、CV-JD match、interview controller、report QA、baseline comparison、retrieval、agent trajectory、Role-Fit v2 adversarial、human calibration、Role-Fit release gate、E2E refine release gate、company research、voice quality、stability、preparation stability、voice robustness 和 harness M1-M5。runtime retrieval/trajectory 与舊 safety fixture 有獨立命令和報告，避免把 fixture score 當成真實 retriever 品質。Role-Fit v2 adversarial runner 檢查本地 deterministic coverage，並依 paired calibration summary 決定 release threshold claim；目前 12/12 calibration 完成、threshold 0.85。
+
+本轮 harness gate 的最新 mock-safe regression 是 backend 15 groups / 628 tests，以及 frontend 56 files / 309 tests、lint、production build。Harness eval 是 M1 11/11、M2 8/8、M3 wrong suppression 0、M4 critical false negative 0/17、M5 voice robustness 8/8；browser H1 2/2 turns，但 first audio 只有 1/2 达到三秒 SLO。Real AI、真人麦克风、live provider 和 production observe 没有被这些 local 结果取代。
 
 ## 为什么这样测
 

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-15T11:05:11.855Z",
+  "generatedAt": "2026-07-15T12:43:19.065Z",
   "executionMode": "mock_deterministic_local",
   "verdict": "READY_FOR_HUMAN_VALIDATION",
   "scenarioCount": 11,
@@ -56,17 +56,17 @@
     "iterationsPerSample": 40,
     "sampleCount": 105,
     "correctnessPercent": 100,
-    "legacyMedianMs": 4.726957999999968,
-    "harnessMedianMs": 0.0009999999999763531,
-    "reductionPercent": 99.9788447453949,
+    "legacyMedianMs": 4.5872079999999755,
+    "harnessMedianMs": 0.000666999999964446,
+    "reductionPercent": 99.98545956494746,
     "targetReductionPercent": 50,
     "passed": true,
     "humanDiagnosisStillRequired": true
   },
   "unverifiedGates": [
     "human_debug_session",
+    "human_microphone",
     "live_voice_provider",
-    "browser_h1",
     "production_shadow"
   ]
 }

@@ -48,6 +48,13 @@ describe('M1 harness WorkflowRun contract', () => {
     });
     expect(run.contextPackets).toHaveLength(1);
     expect(run.actionContracts).toHaveLength(1);
+    expect(run.actionContracts[0]).toMatchObject({
+      schemaVersion: 'action_contract_v0',
+      workflowRunId: 'run-m1-001',
+      actionType: 'ASK_DEEP_DIVE_QUESTION',
+      idempotency: { required: true, scope: 'client_turn' },
+      fallbackPolicy: { fallbackActionType: 'ASK_DEEP_DIVE_QUESTION', failClosed: false },
+    });
     expect(run.gateResults.map((gate) => gate.gateType)).toEqual(expect.arrayContaining([
       'action_allowed_candidate',
       'question_counting',
@@ -55,8 +62,26 @@ describe('M1 harness WorkflowRun contract', () => {
       'transcript_eligibility',
       'memory_write_policy_shadow',
     ]));
+    expect(run.gateResults).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        schemaVersion: 'gate_result_v0',
+        workflowRunId: 'run-m1-001',
+        gatePolicyVersion: 'interview_observed_gates_v0',
+        executionMode: 'shadow',
+        blockingScope: expect.any(String),
+        reasonCodes: expect.any(Array),
+        nextStep: expect.objectContaining({ type: expect.any(String) }),
+      }),
+    ]));
     expect(run.memoryWrites).toEqual(expect.arrayContaining([
-      expect.objectContaining({ memoryType: 'session_agent_memory', canAffectScoring: false }),
+      expect.objectContaining({
+        schemaVersion: 'memory_write_v0',
+        memoryType: 'session_agent_memory',
+        scope: 'session',
+        sourceWorkflowRunId: 'run-m1-001',
+        canAffectScoring: false,
+        policy: expect.objectContaining({ canAffectScoring: false }),
+      }),
     ]));
     expect(JSON.stringify(run)).not.toContain(M1_SENSITIVE_ANSWER);
     expect(JSON.stringify(run)).not.toContain('private Kiwi billing migration');
@@ -82,9 +107,12 @@ describe('M1 harness WorkflowRun contract', () => {
       selectionSource: 'rule_fallback',
     });
     expect(run.failures).toContainEqual(expect.objectContaining({
-      category: 'model_output',
+      schemaVersion: 'failure_classification_v0',
+      workflowRunId: 'run-m1-invalid-action',
+      category: 'model_output_failure',
       reasonCode: 'model_action_selection_failed',
       handled: true,
+      expected: true,
       retryable: false,
       fallbackApplied: true,
       userImpact: 'none',
@@ -134,5 +162,100 @@ describe('M1 harness WorkflowRun contract', () => {
     expect(run.memoryWriteRefs).toEqual([]);
     expect(run.resultRefs[0]).toContain('terminal_result');
     expect(validateHarnessWorkflowRun(run).valid).toBe(true);
+  });
+
+  it('treats correctly rejected duplicate candidates as a passing novelty gate', () => {
+    const observation = buildM1ObservationFixture();
+    observation.interviewerOutput.questionDecision.rejectedCandidates = [
+      { questionId: 'duplicate-question', reason: 'duplicate_fingerprint' },
+    ];
+    const run = buildInterviewNextTurnWorkflowRun({
+      workflowRunId: 'run-m2-duplicate-rejected',
+      executionMode: 'observe',
+      session: buildM1SessionFixture(),
+      payload: { inputMode: 'text', clientTurnId: 'turn-m2-duplicate-rejected' },
+      observation,
+      result: M1_LEGACY_RESULT,
+    });
+
+    expect(run.executionMode).toBe('observe');
+    expect(run.gateResults.find((gate) => gate.gateType === 'question_novelty')).toMatchObject({
+      status: 'pass',
+      executionMode: 'observe',
+      reasonCodes: ['duplicate_candidates_rejected'],
+      blockingScope: 'none',
+    });
+  });
+
+  it('records voice confirmation as a review gate that blocks scoring and waits on the same run', () => {
+    const run = buildInterviewNextTurnWorkflowRun({
+      workflowRunId: 'run-m2-voice-waiting',
+      executionMode: 'observe',
+      session: { ...buildM1SessionFixture(), mode: 'voice' },
+      payload: { inputMode: 'duplex_voice', clientTurnId: 'turn-m2-voice-waiting' },
+      lifecycleStatus: 'waiting',
+    });
+
+    expect(run.gateResults.find((gate) => gate.gateType === 'transcript_eligibility')).toMatchObject({
+      status: 'review',
+      blockingScope: 'scoring',
+      reasonCodes: ['voice_transcript_confirmation_pending'],
+      nextStep: { type: 'wait_for_review', ref: 'run-m2-voice-waiting' },
+    });
+  });
+
+  it('warns when a non-question repair turn advances the question count', () => {
+    const observation = buildM1ObservationFixture();
+    observation.interviewerOutput.turnKind = 'repair';
+    observation.interviewerOutput.questionType = 'clarification';
+    const run = buildInterviewNextTurnWorkflowRun({
+      workflowRunId: 'run-m2-repair-miscount',
+      executionMode: 'observe',
+      session: buildM1SessionFixture(),
+      payload: { inputMode: 'text', clientTurnId: 'turn-m2-repair-miscount' },
+      observation,
+      result: M1_LEGACY_RESULT,
+    });
+
+    expect(run.gateResults.find((gate) => gate.gateType === 'question_counting')).toMatchObject({
+      status: 'warn',
+      blockingScope: 'task',
+      reasonCodes: ['non_interview_turn_advanced_question_count'],
+    });
+  });
+
+  it('records a refs-only user interview memory read and its non-scoring policy decision', () => {
+    const observation = buildM1ObservationFixture();
+    observation.decisionContext.userInterviewMemory = {
+      schemaVersion: 'user_interview_memory_projection_v0',
+      policyVersion: 'user_interview_memory_v0',
+      generatedAt: '2026-07-15T00:00:00.000Z',
+    };
+    observation.plan.selectionSource = 'user_interview_memory_policy';
+    observation.plan.memoryPolicyDecision = {
+      reasonCode: 'routine_repeat_suppressed_for_coverage_gap',
+      competencyKey: 'system_design',
+      independentSessionCount: 2,
+      canAffectScoring: false,
+    };
+    const run = buildInterviewNextTurnWorkflowRun({
+      workflowRunId: 'run-m3-memory-read',
+      executionMode: 'observe',
+      session: buildM1SessionFixture(),
+      payload: { inputMode: 'text', clientTurnId: 'turn-m3-memory-read' },
+      observation,
+      result: M1_LEGACY_RESULT,
+    });
+
+    expect(run.contextPackets[0].sources).toContainEqual(expect.objectContaining({
+      sourceType: 'user_interview_memory',
+      sourceRef: 'session_memory_projection:session-m1-shadow-001',
+      trustLevel: 'system_derived',
+    }));
+    expect(run.actionContracts[0].memoryPolicyDecision).toMatchObject({
+      reasonCode: 'routine_repeat_suppressed_for_coverage_gap',
+      independentSessionCount: 2,
+      canAffectScoring: false,
+    });
   });
 });

@@ -1,6 +1,14 @@
 import crypto from 'crypto';
 
 import { buildRetentionExpiry } from '../retention/retentionPolicy.js';
+import {
+  buildFailureClassification,
+  buildObservedGateResult,
+  HARNESS_MEMORY_POLICY_VERSION,
+  normalizeLocalHarnessExecutionMode,
+  validateFailureClassification,
+  validateObservedGateResult,
+} from './harnessObservedContractPolicy.js';
 
 export const HARNESS_SCHEMA_VERSION = 'workflow_run_v0';
 export const INTERVIEW_NEXT_TURN_TASK_CONTRACT = 'interview_next_turn_v0';
@@ -22,7 +30,7 @@ const buildSourceRef = ({ sourceType, sourceRef, sourceVersion = 'current', trus
   reviewStatus,
 });
 
-const buildContextSources = (session = {}) => {
+const buildContextSources = (session = {}, userInterviewMemory = null) => {
   const sources = [
     buildSourceRef({ sourceType: 'session', sourceRef: `session:${session.id}`, sourceVersion: session.updatedAt || 'current' }),
     buildSourceRef({ sourceType: 'transcript', sourceRef: `session_transcript:${session.id}`, sourceVersion: String(session.transcript?.length || 0) }),
@@ -38,6 +46,15 @@ const buildContextSources = (session = {}) => {
   const matchAnalysisId = session.interviewPlan?.strategy?.matchAnalysisId;
   if (matchAnalysisId) {
     sources.push(buildSourceRef({ sourceType: 'match_analysis', sourceRef: `match_analysis:${matchAnalysisId}` }));
+  }
+  if (userInterviewMemory?.schemaVersion) {
+    sources.push(buildSourceRef({
+      sourceType: 'user_interview_memory',
+      sourceRef: `session_memory_projection:${session.id}`,
+      sourceVersion: userInterviewMemory.generatedAt || userInterviewMemory.policyVersion || 'current',
+      trustLevel: 'system_derived',
+      reviewStatus: 'system_derived',
+    }));
   }
   return sources;
 };
@@ -69,135 +86,310 @@ const sanitizeCandidateActions = (actions = []) => actions
     confidence: Number(candidate.confidence ?? candidate.score ?? 0),
   }));
 
-const buildFailures = ({ workflowRunId, observation = {}, controllerError = null, preTaskFailure = null }) => {
+const FAILURE_CATEGORY_BY_LEGACY_CATEGORY = {
+  channel_transport: 'environment_failure',
+  controller: 'action_policy_failure',
+  contract_validation: 'verification_failure',
+  correlation: 'memory_policy_failure',
+  harness_recording: 'tool_or_side_effect_failure',
+};
+
+const buildFailures = ({
+  workflowRunId,
+  observation = {},
+  controllerError = null,
+  preTaskFailure = null,
+  occurredAt,
+}) => {
   const failures = [];
   if (preTaskFailure) {
-    failures.push({
+    failures.push(buildFailureClassification({
       failureId: `failure:${workflowRunId}:pre_task`,
-      category: preTaskFailure.category || 'channel_transport',
+      workflowRunId,
+      occurredAt,
+      stage: 'pre_task_channel_eligibility',
+      category: FAILURE_CATEGORY_BY_LEGACY_CATEGORY[preTaskFailure.category] || 'environment_failure',
       reasonCode: preTaskFailure.reasonCode || 'voice_turn_rejected',
       handled: true,
+      expected: true,
       retryable: Boolean(preTaskFailure.retryable),
       fallbackApplied: false,
       userImpact: preTaskFailure.userImpact || 'turn_retry_required',
-    });
+    }));
   }
   const modelSelectionError = observation.plan?.modelSelectionError;
   if (modelSelectionError) {
-    failures.push({
+    failures.push(buildFailureClassification({
       failureId: `failure:${workflowRunId}:model_action_selection`,
-      category: 'model_output',
+      workflowRunId,
+      subjectRef: `action_contract:${workflowRunId}`,
+      occurredAt,
+      stage: 'model_action_selection',
+      category: 'model_output_failure',
       reasonCode: 'model_action_selection_failed',
       handled: true,
+      expected: true,
       retryable: false,
       fallbackApplied: true,
+      fallbackRef: `action_contract:${workflowRunId}`,
       userImpact: 'none',
-    });
+    }));
   }
   if (controllerError) {
-    failures.push({
+    failures.push(buildFailureClassification({
       failureId: `failure:${workflowRunId}:controller_execution`,
-      category: 'controller',
+      workflowRunId,
+      occurredAt,
+      stage: 'controller_execution',
+      category: 'action_policy_failure',
       reasonCode: 'interview_controller_failed',
       handled: false,
+      expected: false,
       retryable: false,
       fallbackApplied: false,
-      userImpact: 'turn_failed',
-    });
+      userImpact: 'action_blocked',
+    }));
   }
   return failures;
 };
 
-const buildGateResults = ({ workflowRunId, payload = {}, observation = {}, result = null, preTaskFailure = null }) => {
+const inferQuestionTurnType = (interviewerOutput = {}) => {
+  const turnKind = interviewerOutput.turnKind || interviewerOutput.questionDecision?.turnKind || '';
+  const scenario = interviewerOutput.scenario || interviewerOutput.questionDecision?.scenario || '';
+  const questionType = interviewerOutput.questionType || '';
+  if (questionType === 'transcript_confirmation' || scenario === 'clarify_audio_or_transcript') return 'transcript_confirmation';
+  if (questionType === 'clarification') return 'clarification';
+  if (turnKind === 'repair' || ['rephrase', 'scaffold'].includes(scenario)) return 'repair_prompt';
+  if (turnKind === 'system' || questionType === 'system') return 'system';
+  return 'interview_question';
+};
+
+const buildQuestionCountingDecision = ({ session = {}, observation = {}, result = null }) => {
+  if (!result) {
+    return { status: 'pass', reasonCodes: ['no_question_result_to_count'], blockingScope: 'none' };
+  }
+  if (result?.isComplete) {
+    return { status: 'pass', reasonCodes: ['terminal_result_not_counted'], blockingScope: 'none' };
+  }
+  const turnType = inferQuestionTurnType(observation.interviewerOutput);
+  const advancedQuestionCount = Number(result?.nextQuestionOrder) > Number(session.currentQuestionIndex ?? -1);
+  if (turnType !== 'interview_question' && advancedQuestionCount) {
+    return {
+      status: 'warn',
+      reasonCodes: ['non_interview_turn_advanced_question_count'],
+      blockingScope: 'task',
+    };
+  }
+  if (turnType !== 'interview_question') {
+    return { status: 'pass', reasonCodes: ['non_interview_turn_not_counted'], blockingScope: 'none' };
+  }
+  return {
+    status: advancedQuestionCount ? 'pass' : 'warn',
+    reasonCodes: [advancedQuestionCount ? 'interview_question_count_preserved' : 'interview_question_did_not_advance_count'],
+    blockingScope: advancedQuestionCount ? 'none' : 'task',
+  };
+};
+
+const buildGateResults = ({
+  workflowRunId,
+  executionMode,
+  evaluatedAt,
+  session = {},
+  payload = {},
+  observation = {},
+  result = null,
+  preTaskFailure = null,
+  lifecycleStatus,
+}) => {
   if (preTaskFailure) {
-    return [{
+    return [buildObservedGateResult({
       gateResultId: `gate:${workflowRunId}:transcript_eligibility`,
+      workflowRunId,
       gateType: 'transcript_eligibility',
+      executionMode,
+      evaluatedAt,
+      evaluatorRef: 'voice_transport',
+      subjectRef: `client_turn:${payload.clientTurnId || workflowRunId}`,
       status: 'block',
-      owner: 'voice_transport',
-      reasonCode: preTaskFailure.reasonCode || 'voice_turn_rejected',
+      reasonCodes: [preTaskFailure.reasonCode || 'voice_turn_rejected'],
+      blockingScope: 'task',
+      humanReadableSummary: 'The voice turn was rejected before interview processing.',
+      nextStep: { type: 'retry', ref: null },
       enforced: true,
-    }];
+      enforcementSource: 'existing_voice_controller',
+    })];
   }
   const selectedAction = observation.plan?.selectedAction || result?.controllerAction || null;
   const candidateActions = sanitizeCandidateActions(observation.plan?.candidateActions);
   const selectedIsAllowed = !selectedAction || candidateActions.length === 0
     || candidateActions.some((candidate) => candidate.action === selectedAction);
   const rejectedCandidates = observation.interviewerOutput?.questionDecision?.rejectedCandidates || [];
+  const selectedDuplicate = Boolean(
+    observation.interviewerOutput?.questionDecision?.deduplication?.selectedWasDuplicate
+    || observation.interviewerOutput?.questionDecision?.deduplication?.duplicateOverride
+  );
   const isVoice = ['duplex_voice', 'realtime_voice'].includes(payload.inputMode);
+  const countingDecision = buildQuestionCountingDecision({ session, observation, result });
+  const waitingForVoiceConfirmation = lifecycleStatus === 'waiting' && isVoice;
 
   return [
-    {
+    buildObservedGateResult({
       gateResultId: `gate:${workflowRunId}:action_allowed_candidate`,
+      workflowRunId,
       gateType: 'action_allowed_candidate',
+      executionMode,
+      evaluatedAt,
+      evaluatorRef: 'interview_controller',
+      subjectRef: `action_contract:${workflowRunId}`,
       status: selectedIsAllowed ? 'pass' : 'warn',
-      owner: 'interview_controller',
-      reasonCode: selectedIsAllowed ? 'selected_action_allowed' : 'selected_action_fell_back',
+      reasonCodes: [selectedIsAllowed ? 'selected_action_allowed' : 'selected_action_fell_back'],
+      blockingScope: selectedIsAllowed ? 'none' : 'action',
+      humanReadableSummary: selectedIsAllowed
+        ? 'The selected action was within the controller candidate set.'
+        : 'The selected action required the existing bounded fallback.',
+      nextStep: { type: selectedIsAllowed ? 'continue' : 'fallback', ref: `action_contract:${workflowRunId}` },
       enforced: false,
-    },
-    {
+    }),
+    buildObservedGateResult({
       gateResultId: `gate:${workflowRunId}:question_counting`,
+      workflowRunId,
       gateType: 'question_counting',
-      status: 'pass',
-      owner: 'interview_controller',
-      reasonCode: result?.isComplete ? 'terminal_result_not_counted' : 'legacy_question_count_preserved',
+      executionMode,
+      evaluatedAt,
+      evaluatorRef: 'interview_controller',
+      subjectRef: result ? `result:${workflowRunId}` : `workflow_run:${workflowRunId}`,
+      ...countingDecision,
+      humanReadableSummary: countingDecision.status === 'pass'
+        ? 'Question counting matched the observed turn type.'
+        : 'Question counting did not match the observed turn type.',
+      nextStep: { type: 'continue', ref: null },
       enforced: false,
-    },
-    {
+    }),
+    buildObservedGateResult({
       gateResultId: `gate:${workflowRunId}:question_novelty`,
+      workflowRunId,
       gateType: 'question_novelty',
-      status: rejectedCandidates.length ? 'warn' : 'pass',
-      owner: 'question_ranker',
-      reasonCode: rejectedCandidates.length ? 'duplicate_candidates_rejected' : 'no_duplicate_rejection_recorded',
+      executionMode,
+      evaluatedAt,
+      evaluatorRef: 'question_ranker',
+      subjectRef: `result:${workflowRunId}`,
+      status: selectedDuplicate ? 'warn' : 'pass',
+      reasonCodes: [selectedDuplicate
+        ? 'duplicate_question_selected'
+        : rejectedCandidates.length ? 'duplicate_candidates_rejected' : 'no_duplicate_rejection_recorded'],
+      blockingScope: selectedDuplicate ? 'action' : 'none',
+      humanReadableSummary: selectedDuplicate
+        ? 'The selected question was flagged as a duplicate.'
+        : 'No duplicate question reached the selected result.',
+      nextStep: { type: selectedDuplicate ? 'fallback' : 'continue', ref: null },
       enforced: false,
-    },
-    {
+    }),
+    buildObservedGateResult({
       gateResultId: `gate:${workflowRunId}:transcript_eligibility`,
+      workflowRunId,
       gateType: 'transcript_eligibility',
-      status: 'pass',
-      owner: isVoice ? 'voice_transcript_policy' : 'text_answer_validation',
-      reasonCode: isVoice ? 'voice_answer_accepted_before_controller' : 'text_answer_validated',
+      executionMode,
+      evaluatedAt,
+      evaluatorRef: isVoice ? 'voice_transcript_policy' : 'text_answer_validation',
+      subjectRef: `client_turn:${payload.clientTurnId || workflowRunId}`,
+      status: waitingForVoiceConfirmation ? 'review' : 'pass',
+      reasonCodes: [waitingForVoiceConfirmation
+        ? 'voice_transcript_confirmation_pending'
+        : isVoice ? 'voice_answer_accepted_before_controller' : 'text_answer_validated'],
+      blockingScope: waitingForVoiceConfirmation ? 'scoring' : 'none',
+      humanReadableSummary: waitingForVoiceConfirmation
+        ? 'The voice transcript is waiting for user confirmation before scoring.'
+        : 'The answer was eligible for the current controller path.',
+      nextStep: waitingForVoiceConfirmation
+        ? { type: 'wait_for_review', ref: workflowRunId }
+        : { type: 'continue', ref: null },
+      humanReviewRef: waitingForVoiceConfirmation ? `user_confirmation:${workflowRunId}` : null,
       enforced: false,
-    },
-    {
+      enforcementSource: waitingForVoiceConfirmation ? 'existing_voice_controller' : 'harness_observe_only',
+    }),
+    buildObservedGateResult({
       gateResultId: `gate:${workflowRunId}:memory_write_policy_shadow`,
+      workflowRunId,
       gateType: 'memory_write_policy_shadow',
+      executionMode,
+      evaluatedAt,
+      evaluatorRef: 'memory_policy',
+      subjectRef: `workflow_run:${workflowRunId}`,
       status: 'pass',
-      owner: 'memory_policy',
-      reasonCode: 'memory_cannot_affect_scoring',
+      reasonCodes: ['memory_cannot_affect_scoring'],
+      blockingScope: 'none',
+      humanReadableSummary: 'Observed memory writes cannot affect candidate scoring.',
+      nextStep: { type: 'continue', ref: null },
       enforced: false,
-    },
+    }),
   ];
 };
 
 const buildMemoryWrites = ({ workflowRunId, observation = {} }) => {
   if (!observation.decisionContext && !observation.plan) return [];
 
-  const writes = [{
+  const buildWrite = ({ memoryType, scope, memoryCategory, sourceRefs, writerRef, allowedReaders }) => ({
+    schemaVersion: 'memory_write_v0',
     memoryWriteId: `memory_write:${workflowRunId}:session_agent_memory`,
-    memoryType: 'session_agent_memory',
+    workflowRunId,
+    sourceTaskType: 'interview_next_turn',
+    sourceTurnId: null,
+    sourceEvidenceRefs: sourceRefs,
+    writerRef,
+    scope,
+    memoryType,
+    memoryCategory,
+    operation: 'upsert',
     status: 'scheduled',
+    auditStatus: 'proposed',
     sourceWorkflowRunId: workflowRunId,
-    sourceRefs: [`state_after:${workflowRunId}`],
+    sourceRefs,
+    policyVersion: HARNESS_MEMORY_POLICY_VERSION,
+    policy: {
+      allowedReaders,
+      canAffectPlanning: scope === 'session',
+      canAffectQuestionSelection: scope === 'session',
+      canAffectQuestionDepth: scope === 'session',
+      canSuppressRoutineRepeat: false,
+      canAffectScoring: false,
+      candidateVisible: false,
+      retentionClass: scope === 'session' ? 'session_source_bounded' : 'derived_user_coaching_memory',
+      sourceDeletePolicy: scope === 'session' ? 'delete' : 'recompute',
+    },
     canAffectScoring: false,
-  }];
+  });
+
+  const writes = [buildWrite({
+    memoryType: 'session_agent_memory',
+    scope: 'session',
+    memoryCategory: 'topic_history',
+    sourceRefs: [`state_after:${workflowRunId}`],
+    writerRef: 'agent_memory_service',
+    allowedReaders: ['decision_context_builder', 'action_planner', 'report_generator'],
+  })];
   if (observation.reflectionRecord) {
     writes.push(
       {
+        ...buildWrite({
+          memoryType: 'session_reflection',
+          scope: 'session',
+          memoryCategory: 'reflection_lesson',
+          sourceRefs: [`trajectory:${workflowRunId}`],
+          writerRef: 'reflection_writer_service',
+          allowedReaders: ['experience_memory_service', 'report_generator'],
+        }),
         memoryWriteId: `memory_write:${workflowRunId}:session_reflection`,
-        memoryType: 'session_reflection',
-        status: 'scheduled',
-        sourceWorkflowRunId: workflowRunId,
-        sourceRefs: [`trajectory:${workflowRunId}`],
-        canAffectScoring: false,
       },
       {
+        ...buildWrite({
+          memoryType: 'user_coaching_memory',
+          scope: 'user_coaching',
+          memoryCategory: 'coaching_summary',
+          sourceRefs: [`reflection:${workflowRunId}`],
+          writerRef: 'user_coaching_memory_service',
+          allowedReaders: ['decision_context_builder', 'report_generator'],
+        }),
         memoryWriteId: `memory_write:${workflowRunId}:user_coaching_memory`,
-        memoryType: 'user_coaching_memory',
-        status: 'scheduled',
-        sourceWorkflowRunId: workflowRunId,
-        sourceRefs: [`reflection:${workflowRunId}`],
-        canAffectScoring: false,
       }
     );
   }
@@ -249,6 +441,7 @@ export const buildHarnessIdempotencyKey = ({ taskType, sessionId, clientTurnId }
 
 export const buildInterviewNextTurnWorkflowRun = ({
   workflowRunId,
+  executionMode = 'shadow',
   session = {},
   payload = {},
   observation = {},
@@ -259,13 +452,32 @@ export const buildInterviewNextTurnWorkflowRun = ({
   startedAt = new Date().toISOString(),
   completedAt = new Date().toISOString(),
 } = {}) => {
+  const normalizedExecutionMode = normalizeLocalHarnessExecutionMode(executionMode);
   const resolvedLifecycleStatus = lifecycleStatus
     || (controllerError ? 'failed' : result ? 'completed' : 'running');
   const contextPacketId = `context_packet:${workflowRunId}`;
   const actionContractId = `action_contract:${workflowRunId}`;
   const clientTurnId = payload.clientTurnId || workflowRunId;
-  const failures = buildFailures({ workflowRunId, observation, controllerError, preTaskFailure });
-  const gateResults = buildGateResults({ workflowRunId, payload, observation, result, preTaskFailure });
+  const normalizedStartedAt = isoString(startedAt);
+  const normalizedCompletedAt = isoString(completedAt);
+  const failures = buildFailures({
+    workflowRunId,
+    observation,
+    controllerError,
+    preTaskFailure,
+    occurredAt: normalizedCompletedAt,
+  });
+  const gateResults = buildGateResults({
+    workflowRunId,
+    executionMode: normalizedExecutionMode,
+    evaluatedAt: normalizedCompletedAt,
+    session,
+    payload,
+    observation,
+    result,
+    preTaskFailure,
+    lifecycleStatus: resolvedLifecycleStatus,
+  });
   const memoryWrites = buildMemoryWrites({ workflowRunId, observation });
   const candidateActions = sanitizeCandidateActions(observation.plan?.candidateActions);
   const selectedAction = observation.plan?.selectedAction || result?.controllerAction || null;
@@ -277,27 +489,59 @@ export const buildInterviewNextTurnWorkflowRun = ({
     || observation.plan?.selectionSource === 'rule_fallback';
   const contextPackets = [{
     contextPacketId,
+    workflowRunId,
+    taskType: 'interview_next_turn',
     schemaVersion: 'context_packet_v0',
+    contractVersion: 'interview_context_v0',
+    purpose: 'select_and_execute_next_interview_action',
+    assembledAt: normalizedStartedAt,
+    assemblerComponent: 'interview_next_turn_shadow_harness',
     storageMode: 'refs_hash_version_only',
     rawSnapshotAllowed: false,
-    sources: buildContextSources(session),
+    redactionPolicyVersion: HARNESS_REDACTION_POLICY_VERSION,
+    sources: buildContextSources(session, observation.decisionContext?.userInterviewMemory),
   }];
   const actionContracts = selectedAction || candidateActions.length
     ? [{
         actionContractId,
         schemaVersion: 'action_contract_v0',
+        workflowRunId,
+        actionType: selectedAction,
+        contractVersion: 'interview_action_v0',
+        allowedTaskTypes: ['interview_next_turn'],
+        allowedCallerRefs: ['master_ai_controller'],
+        riskClass: 'medium',
+        preconditions: ['session_active', 'controller_candidate_set_available'],
+        requiredInputRefs: [contextPacketId],
+        forbiddenBehaviors: ['select_action_outside_candidate_set', 'count_repair_as_interview_question'],
+        postconditions: ['result_or_terminal_state_recorded', 'state_transition_traceable'],
+        sideEffects: {
+          allowedTargets: ['session_transcript', 'interview_question', 'session_analysis'],
+          requiresAuditRef: true,
+        },
+        idempotency: { required: true, scope: 'client_turn' },
+        deadlineMs: null,
+        retryPolicy: { maxAttempts: 0, retryableReasons: [] },
+        fallbackPolicy: { fallbackActionType: fallbackAction, failClosed: false },
+        requiredGateTypes: ['action_allowed_candidate', 'question_counting', 'question_novelty'],
         candidateActions,
         selectedAction,
         fallbackAction,
         selectionSource: observation.plan?.selectionSource || result?.selectionSource || 'controller',
         modelSelectedAction: observation.plan?.modelSelectedAction || null,
+        memoryPolicyDecision: observation.plan?.memoryPolicyDecision
+          ? {
+              reasonCode: observation.plan.memoryPolicyDecision.reasonCode || null,
+              competencyKey: observation.plan.memoryPolicyDecision.competencyKey || null,
+              independentSessionCount: Number(observation.plan.memoryPolicyDecision.independentSessionCount || 0),
+              canAffectScoring: false,
+            }
+          : null,
       }]
     : [];
   const resultRefs = result
     ? [`${result.isComplete ? 'terminal_result' : 'session_question'}:${session.id}:${result.nextQuestionOrder ?? session.currentQuestionIndex ?? 'unknown'}`]
     : [];
-  const normalizedStartedAt = isoString(startedAt);
-  const normalizedCompletedAt = isoString(completedAt);
   const resumedFromWaiting = Boolean(payload.workflowRunId) && resolvedLifecycleStatus !== 'waiting';
 
   return {
@@ -308,7 +552,7 @@ export const buildInterviewNextTurnWorkflowRun = ({
       clientTurnId,
     }),
     taskType: 'interview_next_turn',
-    executionMode: 'shadow',
+    executionMode: normalizedExecutionMode,
     ownerUserId: session.userId,
     sessionId: session.id,
     clientTurnId,
@@ -320,9 +564,23 @@ export const buildInterviewNextTurnWorkflowRun = ({
     publicationStatus: 'not_applicable',
     taskContract: {
       taskContractRef: INTERVIEW_NEXT_TURN_TASK_CONTRACT,
+      schemaVersion: 'task_contract_v0',
+      taskType: 'interview_next_turn',
+      contractVersion: 'v0',
+      ownerComponent: 'master_ai_controller',
+      objective: 'select_and_execute_the_next_valid_interview_action',
       workflowKind: 'agent_task',
-      executionMode: 'shadow',
+      executionMode: normalizedExecutionMode,
       authority: 'current_controller',
+      allowedChannels: ['text', 'voice'],
+      requiredContextTypes: ['session', 'transcript', 'interview_plan'],
+      allowedActionTypes: candidateActions.map((candidate) => candidate.action),
+      requiredGateTypes: gateResults.map((gate) => gate.gateType),
+      forbiddenBehaviors: [
+        'change_candidate_scoring_from_user_memory',
+        'count_repair_or_confirmation_as_interview_question',
+        'expose_internal_trace_to_candidate',
+      ],
     },
     contextPackets,
     actionContracts,
@@ -410,5 +668,19 @@ export const validateHarnessWorkflowRun = (run = {}) => {
   }
   if (!run.taskContract?.taskContractRef) errors.push('taskContract.taskContractRef is required');
   if (!run.stateRefs?.before) errors.push('stateRefs.before is required');
+  (run.gateResults || []).forEach((gate, index) => {
+    validateObservedGateResult(gate).forEach((error) => errors.push(`gateResults[${index}]: ${error}`));
+  });
+  (run.memoryWrites || []).forEach((write, index) => {
+    if (write.schemaVersion !== 'memory_write_v0') errors.push(`memoryWrites[${index}]: schemaVersion must be memory_write_v0`);
+    if (write.workflowRunId !== run.workflowRunId) errors.push(`memoryWrites[${index}]: workflowRunId must match run`);
+    if (!write.policyVersion) errors.push(`memoryWrites[${index}]: policyVersion is required`);
+    if (write.canAffectScoring !== false || write.policy?.canAffectScoring !== false) {
+      errors.push(`memoryWrites[${index}]: canAffectScoring must be false`);
+    }
+  });
+  (run.failures || []).forEach((failure, index) => {
+    validateFailureClassification(failure).forEach((error) => errors.push(`failures[${index}]: ${error}`));
+  });
   return { valid: errors.length === 0, errors };
 };

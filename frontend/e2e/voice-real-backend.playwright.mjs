@@ -17,10 +17,17 @@ const BACKEND_API_BASE_URL = `${BACKEND_BASE_URL}/api`;
 const USER_EMAIL = `voice-real-backend-${Date.now()}@example.test`;
 const USER_NAME = 'Voice Real Backend Candidate';
 const TEST_TRANSCRIPT = 'I built a duplex voice interview agent and measured latency from speech end to first audio.';
+const HARNESS_H1_MODE = process.env.HARNESS_H1 === 'true';
+const HARNESS_SHADOW_ENABLED = process.env.ENABLE_HARNESS_SHADOW === 'true';
+const EXPECTED_TURN_COUNT = HARNESS_H1_MODE ? 2 : 1;
+const QUESTION_LIMIT = HARNESS_H1_MODE ? 8 : 3;
 const E2E_JWT_SECRET = process.env.JWT_SECRET || 'voice-real-backend-e2e-secret';
 const E2E_GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || 'voice-real-backend-client';
 const OUTPUT_ROOT = path.resolve(process.cwd(), '../output/playwright');
-const ARTIFACT_PATH = path.join(OUTPUT_ROOT, 'voice-real-backend.latest.json');
+const ARTIFACT_NAME = HARNESS_H1_MODE
+  ? `harness-h1-voice-${HARNESS_SHADOW_ENABLED ? 'on' : 'off'}.latest.json`
+  : 'voice-real-backend.latest.json';
+const ARTIFACT_PATH = path.join(OUTPUT_ROOT, ARTIFACT_NAME);
 
 process.env.JWT_SECRET = E2E_JWT_SECRET;
 process.env.GOOGLE_CLIENT_ID = E2E_GOOGLE_CLIENT_ID;
@@ -49,6 +56,17 @@ const waitForHttp = async (url, timeoutMs = 300_000) => {
     await sleep(250);
   }
   throw new Error(`Timed out waiting for ${url}`);
+};
+
+const waitForValue = async ({ load, accept, timeoutMs = 120_000, label }) => {
+  const deadline = Date.now() + timeoutMs;
+  let latestValue = null;
+  while (Date.now() < deadline) {
+    latestValue = await load();
+    if (accept(latestValue)) return latestValue;
+    await sleep(250);
+  }
+  throw new Error(`Timed out waiting for ${label}: ${JSON.stringify(latestValue)}`);
 };
 
 const createPcmToneChunk = ({ sampleRate = 16000, durationMs = 80, amplitude = 0.28 } = {}) => {
@@ -191,7 +209,19 @@ const apiPost = async ({ endpoint, token, body }) => {
   return payload.data || payload;
 };
 
-const createVoicePlan = async ({ token }) => {
+const apiGet = async ({ endpoint, token }) => {
+  const response = await fetch(`${BACKEND_API_BASE_URL}${endpoint}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const payload = await response.json().catch(() => ({}));
+  return {
+    ok: response.ok,
+    status: response.status,
+    data: payload.data || payload,
+  };
+};
+
+const createVoicePlan = async ({ token, questionLimit = QUESTION_LIMIT }) => {
   const jdRubric = {
     title: 'Frontend Voice Systems Engineer',
     jobOverview: {
@@ -252,13 +282,13 @@ const createVoicePlan = async ({ token }) => {
         focusArea: 'Technical',
         questionType: 'Technical',
         controlMode: 'question',
-        questionLimit: 3,
+        questionLimit,
         timeLimitMinutes: 30,
       },
       sessionSetup: {
         deliveryMode: 'voice',
         controlMode: 'question',
-        questionLimit: 3,
+        questionLimit,
         timeLimitMinutes: 30,
         questionType: 'Technical',
       },
@@ -368,6 +398,81 @@ const driveVoiceTurnThroughRealSocket = async (page) => {
   return clientTurnId;
 };
 
+const waitForInboundEventCount = async ({ page, type, count }) => {
+  await page.waitForFunction(
+    ({ eventType, expectedCount }) => (
+      window.__kiwiVoiceRealBackendE2E?.inboundTypes
+        ?.filter((value) => value === eventType).length >= expectedCount
+    ),
+    { eventType: type, expectedCount: count },
+    { timeout: 300_000 },
+  );
+};
+
+const endInterviewThroughUi = async (page) => {
+  const endResponsePromise = page.waitForResponse((response) => (
+    response.request().method() === 'POST'
+    && new URL(response.url()).pathname === '/api/interview/end'
+  ), { timeout: 120_000 });
+
+  await page.getByRole('button', { name: 'End', exact: true }).click();
+  await page.getByRole('button', { name: 'Confirm End', exact: true }).click();
+  const endResponse = await endResponsePromise;
+  assert(endResponse.ok(), `Expected manual interview end to succeed, got HTTP ${endResponse.status()}.`);
+};
+
+const loadDurableHarnessRuns = async ({ token, sessionId }) => {
+  const response = await apiGet({
+    endpoint: `/interview/harness-runs?sessionId=${encodeURIComponent(sessionId)}`,
+    token,
+  });
+  if (!response.ok) return [];
+  return response.data?.runs || [];
+};
+
+const waitForDurableHarnessRuns = async ({ token, sessionId, expectedInterviewCount, requireReportRun = false }) => waitForValue({
+  label: `${expectedInterviewCount} interview harness runs${requireReportRun ? ' and a report run' : ''}`,
+  load: () => loadDurableHarnessRuns({ token, sessionId }),
+  accept: (runs) => {
+    const interviewRuns = runs.filter((run) => run.taskType === 'interview_next_turn');
+    const reportRuns = runs.filter((run) => run.taskType === 'generate_report');
+    return interviewRuns.length === expectedInterviewCount
+      && (!requireReportRun || reportRuns.length >= 1)
+      && runs.every((run) => (
+        run.lifecycleStatus === 'completed'
+        && (run.memoryWrites || []).every((write) => write.status !== 'scheduled')
+      ));
+  },
+});
+
+const waitForReport = async ({ token, sessionId }) => waitForValue({
+  label: `report for session ${sessionId}`,
+  load: () => apiGet({ endpoint: `/report/${sessionId}`, token }),
+  accept: (response) => response.ok,
+});
+
+const summarizeHarnessRun = (run = {}) => ({
+  workflowRunId: run.workflowRunId || null,
+  taskType: run.taskType || null,
+  clientTurnId: run.clientTurnId || null,
+  lifecycleStatus: run.lifecycleStatus || null,
+  qualityStatus: run.qualityStatus || null,
+  publicationStatus: run.publicationStatus || null,
+  publicationGate: (run.gateResults || []).find((gate) => gate.gateType === 'report_publication_allowed')?.status || null,
+  selectedAction: run.actionContracts?.[0]?.selectedAction || null,
+  memoryWrites: (run.memoryWrites || []).map((write) => ({
+    memoryType: write.memoryType,
+    status: write.status,
+    canAffectScoring: write.canAffectScoring,
+  })),
+  failures: (run.failures || []).map((failure) => ({
+    category: failure.category,
+    reasonCode: failure.reasonCode,
+  })),
+  correlation: run.correlation || null,
+  controllerMs: Number(run.latency?.controllerMs || 0),
+});
+
 const run = async () => {
   const { chromium } = loadPlaywright();
   await fs.mkdir(OUTPUT_ROOT, { recursive: true });
@@ -420,14 +525,18 @@ const run = async () => {
     await page.getByText('Voice practice mode').waitFor({ timeout: 150_000 });
     await page.getByRole('button', { name: /Start voice interview/i }).click();
 
-    const clientTurnId = await driveVoiceTurnThroughRealSocket(page);
-    await page.waitForFunction(() => window.__kiwiVoiceRealBackendE2E?.inboundTypes?.includes('stt_final'), null, { timeout: 300_000 });
-    await page.waitForFunction(() => window.__kiwiVoiceRealBackendE2E?.inboundTypes?.includes('turn_done'), null, { timeout: 300_000 });
+    const clientTurnIds = [];
+    for (let turnNumber = 1; turnNumber <= EXPECTED_TURN_COUNT; turnNumber += 1) {
+      clientTurnIds.push(await driveVoiceTurnThroughRealSocket(page));
+      await waitForInboundEventCount({ page, type: 'stt_final', count: turnNumber });
+      await waitForInboundEventCount({ page, type: 'turn_done', count: turnNumber });
+    }
     await page.getByText(TEST_TRANSCRIPT).first().waitFor({ timeout: 30_000 });
+    if (HARNESS_H1_MODE) await endInterviewThroughUi(page);
 
     const result = await page.evaluate(() => {
       const state = window.__kiwiVoiceRealBackendE2E || {};
-      const turnDoneEvent = [...(state.events || [])].reverse().find((event) => event.type === 'turn_done');
+      const turnDoneEvents = (state.events || []).filter((event) => event.type === 'turn_done');
       return {
         outboundTypes: state.outboundTypes || [],
         inboundTypes: state.inboundTypes || [],
@@ -439,7 +548,7 @@ const run = async () => {
           latency: event.latency || null,
           at: Math.round(event.at || 0),
         })),
-        turnDoneEvent,
+        turnDoneEvents,
       };
     });
 
@@ -450,6 +559,10 @@ const run = async () => {
     assert(result.outboundTypes.includes('binary_audio'), `Expected voice driver to send PCM audio chunks, got ${result.outboundTypes.join(', ')}`);
     assert(result.inboundTypes.includes('stt_final'), `Expected real backend STT final event, got ${result.inboundTypes.join(', ')}`);
     assert(result.inboundTypes.includes('turn_done'), `Expected real backend turn_done event, got ${result.inboundTypes.join(', ')}`);
+    assert(
+      result.inboundTypes.filter((type) => type === 'turn_done').length >= EXPECTED_TURN_COUNT,
+      `Expected ${EXPECTED_TURN_COUNT} completed voice turns, got ${result.inboundTypes.join(', ')}`,
+    );
     assert(!result.events.some((event) => event.provider && String(event.provider).includes('fallback')), 'Voice real-backend E2E unexpectedly used a fallback STT provider.');
 
     const requiredCalls = [
@@ -457,6 +570,7 @@ const run = async () => {
       `GET /api/session/${sessionId}`,
       'POST /api/interview/start',
       'POST /api/interview/warm-adaptive',
+      ...(HARNESS_H1_MODE ? ['POST /api/interview/end'] : []),
     ];
     const callSet = new Set(apiCalls.map((call) => `${call.method} ${call.path}`));
     const missingCalls = requiredCalls.filter((call) => !callSet.has(call));
@@ -464,10 +578,46 @@ const run = async () => {
 
     const audioTiming = findFirstAudioAfterSpeechEnd(result.events);
     const turnDoneMs = findTurnDoneAfterSpeechEnd(result.events, audioTiming.speechEndEvent);
-    const backendNextQuestionFirstAudioMs = getLatencyStepMs(result.turnDoneEvent?.latency, 'first_audio_sent');
+    const backendNextQuestionFirstAudioMs = getLatencyStepMs(result.turnDoneEvents[0]?.latency, 'first_audio_sent');
     const nextQuestionFirstAudioMs = Number.isFinite(backendNextQuestionFirstAudioMs)
       ? backendNextQuestionFirstAudioMs
       : audioTiming.nextQuestionFirstAudioMs;
+    let reportResponse = null;
+    let harnessRuns = [];
+    let candidateInternalTraceExposed = null;
+    if (HARNESS_H1_MODE) {
+      reportResponse = await waitForReport({ token, sessionId });
+      await page.goto(`${FRONTEND_BASE_URL}/report/${sessionId}`);
+      await page.waitForLoadState('networkidle');
+      const reportText = await page.locator('body').innerText();
+      candidateInternalTraceExposed = [
+        'Harness workflow trace',
+        'workflowRunId',
+        'memory_write:',
+        'background_memory_write_orphaned',
+      ].some((value) => reportText.includes(value));
+      assert(!candidateInternalTraceExposed, 'Candidate report exposed internal harness trace details.');
+
+      if (HARNESS_SHADOW_ENABLED) {
+        harnessRuns = await waitForDurableHarnessRuns({
+          token,
+          sessionId,
+          expectedInterviewCount: EXPECTED_TURN_COUNT,
+          requireReportRun: true,
+        });
+        const interviewHarnessRuns = harnessRuns.filter((run) => run.taskType === 'interview_next_turn');
+        const reportHarnessRuns = harnessRuns.filter((run) => run.taskType === 'generate_report');
+        assert(interviewHarnessRuns.every((run) => run.qualityStatus === 'valid'), 'Expected every H1 interview harness run to be valid.');
+        assert(interviewHarnessRuns.every((run) => (run.memoryWrites || []).every((write) => write.status === 'completed')), 'Expected every H1 interview memory write to be completed.');
+        assert(interviewHarnessRuns.every((run) => (run.failures || []).length === 0), 'Expected no H1 interview harness run failures.');
+        assert(reportHarnessRuns.every((run) => (run.gateResults || []).some((gate) => gate.gateType === 'report_publication_allowed')), 'Expected every report harness run to include publication diagnostics.');
+        const serializedRuns = JSON.stringify(harnessRuns);
+        assert(!serializedRuns.includes(TEST_TRANSCRIPT), 'Harness diagnostics copied the raw test transcript.');
+      }
+    }
+    const perTurnNextQuestionFirstAudioMs = result.turnDoneEvents.map((event) => (
+      getLatencyStepMs(event?.latency, 'first_audio_sent')
+    ));
     const summary = {
       schemaVersion: 'voice_flow_e2e_report_v1',
       generatedAt: new Date().toISOString(),
@@ -480,9 +630,13 @@ const run = async () => {
       frontendBaseUrl: FRONTEND_BASE_URL,
       sessionId,
       userId: user.id,
-      clientTurnId,
+      clientTurnId: clientTurnIds[0],
+      clientTurnIds,
+      expectedTurnCount: EXPECTED_TURN_COUNT,
+      completedTurnCount: result.inboundTypes.filter((type) => type === 'turn_done').length,
       assistantFirstAudioMs: Number.isFinite(audioTiming.assistantFirstAudioMs) ? audioTiming.assistantFirstAudioMs : null,
       nextQuestionFirstAudioMs: Number.isFinite(nextQuestionFirstAudioMs) ? nextQuestionFirstAudioMs : null,
+      perTurnNextQuestionFirstAudioMs,
       turnDoneMs: Number.isFinite(turnDoneMs) ? turnDoneMs : null,
       nextQuestionThreeSecondSloMet: Number.isFinite(nextQuestionFirstAudioMs)
         ? nextQuestionFirstAudioMs <= 3000
@@ -492,6 +646,12 @@ const run = async () => {
       inboundTypes: result.inboundTypes,
       apiCallCount: apiCalls.length,
       browserErrors,
+      harnessH1Mode: HARNESS_H1_MODE,
+      harnessShadowEnabled: HARNESS_SHADOW_ENABLED,
+      durableHarnessRunCount: harnessRuns.length,
+      harnessRuns: harnessRuns.map(summarizeHarnessRun),
+      reportLoaded: Boolean(reportResponse?.ok),
+      candidateInternalTraceExposed,
     };
 
     await fs.writeFile(ARTIFACT_PATH, `${JSON.stringify(summary, null, 2)}\n`);

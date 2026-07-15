@@ -13,7 +13,10 @@ import { createDuplexTurnCoordinator } from './duplexTurnCoordinator.js';
 import { buildSessionSpeechPhraseContext } from './speechPhraseHintService.js';
 import { AGENT_TOOL_NAMES } from '../../constants/agentToolNames.js';
 import { recordAgentTraceEvent } from '../aiControl/agentTraceService.js';
-import { isHarnessShadowEnabled } from '../../config/harnessConfig.js';
+import {
+  getHarnessExecutionMode,
+  isHarnessShadowEnabled,
+} from '../../config/harnessConfig.js';
 import { recordRejectedInterviewNextTurnRun } from '../harness/interviewNextTurnShadowHarness.js';
 
 const DEFAULT_SPEECH_STOP_TIMEOUT_MS = 2500;
@@ -181,6 +184,7 @@ export const createDuplexVoiceAgentSession = ({
     });
     void recordRejectedInterviewNextTurnRun({
       enabled: isHarnessShadowEnabled(),
+      executionMode: getHarnessExecutionMode(),
       session: { ...activeSession, userId: activeSession?.userId || userId },
       payload: { inputMode: 'duplex_voice', clientTurnId },
       failure: {

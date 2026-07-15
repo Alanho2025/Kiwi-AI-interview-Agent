@@ -1,6 +1,6 @@
 # M1 Before/After Replay
 
-- Generated: 2026-07-15T11:05:11.855Z
+- Generated: 2026-07-15T12:43:19.065Z
 - Mode: `mock_deterministic_local`
 - Verdict: `READY_FOR_HUMAN_VALIDATION`
 - Scenarios: 11/11 passed
@@ -25,4 +25,4 @@ Harness OFF and ON returned structurally identical legacy results for the frozen
 
 ## Boundaries
 
-This replay is deterministic and mock-safe. Human debug timing, browser H1, live speech providers, and production shadow remain unverified.
+This replay is deterministic and mock-safe. Automated browser H1 has passed with mock AI and test STT/TTS. Human debug timing, human microphone, live speech providers, and production shadow remain unverified.

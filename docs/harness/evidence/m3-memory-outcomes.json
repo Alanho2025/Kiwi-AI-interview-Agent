@@ -1,0 +1,148 @@
+{
+  "generatedAt": "2026-07-15T12:43:27.379Z",
+  "executionMode": "local_shadow_observe",
+  "verdict": "LOCAL_MEMORY_OUTCOME_GATE_PASS",
+  "thresholds": {
+    "minimumIndependentSessions": 2,
+    "freshnessDays": 90,
+    "sameDepthRepeatReductionTargetPercent": 30,
+    "coverageIncreaseTargetPercent": 20,
+    "wrongSuppressionTarget": 0
+  },
+  "metrics": {
+    "eligibleCaseCount": 5,
+    "baselineSameDepthRepeatCount": 5,
+    "treatmentSameDepthRepeatCount": 0,
+    "sameDepthRepeatReductionPercent": 100,
+    "baselineCoverageCount": 0,
+    "treatmentCoverageCount": 5,
+    "coverageIncreasePercent": 100,
+    "wrongSuppressionCount": 0,
+    "evaluatorOutputChangedByMemory": false
+  },
+  "eligibleResults": [
+    {
+      "topic": "system_design",
+      "gap": "observability",
+      "baseline": {
+        "selectedAction": "ASK_DEEP_DIVE_QUESTION",
+        "targetTopic": "system_design",
+        "probeType": "deepen"
+      },
+      "treatment": {
+        "selectedAction": "SWITCH_TOPIC",
+        "targetTopic": "observability",
+        "probeType": "memory_coverage_shift"
+      },
+      "baselineSameDepthRepeat": true,
+      "treatmentSameDepthRepeat": false,
+      "baselineCoversGap": false,
+      "treatmentCoversGap": true
+    },
+    {
+      "topic": "api_design",
+      "gap": "security",
+      "baseline": {
+        "selectedAction": "ASK_DEEP_DIVE_QUESTION",
+        "targetTopic": "api_design",
+        "probeType": "deepen"
+      },
+      "treatment": {
+        "selectedAction": "SWITCH_TOPIC",
+        "targetTopic": "security",
+        "probeType": "memory_coverage_shift"
+      },
+      "baselineSameDepthRepeat": true,
+      "treatmentSameDepthRepeat": false,
+      "baselineCoversGap": false,
+      "treatmentCoversGap": true
+    },
+    {
+      "topic": "database_design",
+      "gap": "reliability",
+      "baseline": {
+        "selectedAction": "ASK_DEEP_DIVE_QUESTION",
+        "targetTopic": "database_design",
+        "probeType": "deepen"
+      },
+      "treatment": {
+        "selectedAction": "SWITCH_TOPIC",
+        "targetTopic": "reliability",
+        "probeType": "memory_coverage_shift"
+      },
+      "baselineSameDepthRepeat": true,
+      "treatmentSameDepthRepeat": false,
+      "baselineCoversGap": false,
+      "treatmentCoversGap": true
+    },
+    {
+      "topic": "incident_response",
+      "gap": "stakeholder_communication",
+      "baseline": {
+        "selectedAction": "ASK_DEEP_DIVE_QUESTION",
+        "targetTopic": "incident_response",
+        "probeType": "deepen"
+      },
+      "treatment": {
+        "selectedAction": "SWITCH_TOPIC",
+        "targetTopic": "stakeholder_communication",
+        "probeType": "memory_coverage_shift"
+      },
+      "baselineSameDepthRepeat": true,
+      "treatmentSameDepthRepeat": false,
+      "baselineCoversGap": false,
+      "treatmentCoversGap": true
+    },
+    {
+      "topic": "delivery_ownership",
+      "gap": "testing_strategy",
+      "baseline": {
+        "selectedAction": "ASK_DEEP_DIVE_QUESTION",
+        "targetTopic": "delivery_ownership",
+        "probeType": "deepen"
+      },
+      "treatment": {
+        "selectedAction": "SWITCH_TOPIC",
+        "targetTopic": "testing_strategy",
+        "probeType": "memory_coverage_shift"
+      },
+      "baselineSameDepthRepeat": true,
+      "treatmentSameDepthRepeat": false,
+      "baselineCoversGap": false,
+      "treatmentCoversGap": true
+    }
+  ],
+  "wrongSuppressionResults": [
+    {
+      "id": "single_session_not_promoted",
+      "passed": true,
+      "suppressionCount": 0
+    },
+    {
+      "id": "role_mismatch_not_applied",
+      "passed": true,
+      "suppressionCount": 0
+    },
+    {
+      "id": "stale_memory_requires_revalidation",
+      "passed": true,
+      "suppressionCount": 0
+    },
+    {
+      "id": "conflict_requires_revalidation",
+      "passed": true,
+      "suppressionCount": 0
+    }
+  ],
+  "runtimePromotion": {
+    "defaultPlanningEnabled": false,
+    "candidateBehaviorChangedByDefault": false
+  },
+  "remainingGates": [
+    "product_owner_threshold_approval",
+    "user_control_policy",
+    "source_delete_invalidation",
+    "human_repeated_session_validation",
+    "production_observe"
+  ]
+}

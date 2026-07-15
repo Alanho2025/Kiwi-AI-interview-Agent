@@ -24,7 +24,8 @@ text mode 的主路径最适合理解系统，因为它绕开 microphone、STT�
 | Evaluator | [interview evaluator](../../backend/src/services/aiControl/interviewEvaluatorService.js) | 抽取 specificity、evidence gain、misunderstanding、skill denial 等信号 |
 | Action planning | [action planner](../../backend/src/services/aiControl/actionPlanner.js) | 将 evaluator/context 变成 allowed action |
 | Action execution | [interview action executor](../../backend/src/services/aiControl/interviewActionExecutor.js) | 调用 interviewer agent 生成下一问 |
-| M1 shadow harness | [shadow harness](../../backend/src/services/harness/interviewNextTurnShadowHarness.js) | flag 开启时在 current controller 外记录 refs-only `WorkflowRun`；失败时 fail-open，不改变产品结果 |
+| Harness wrapper | [shadow harness](../../backend/src/services/harness/interviewNextTurnShadowHarness.js) | flag 开启时在 current controller 外记录 refs-only `WorkflowRun`；失败时 fail-open，不改变产品结果 |
+| M2 observed policy | [observed contract policy](../../backend/src/services/harness/harnessObservedContractPolicy.js) | 统一 versioned `GateResult` / `FailureClassification`；local mode 只允许 `shadow` / `observe` |
 
 ## 控制器保留的透明度
 
@@ -32,7 +33,9 @@ text mode 的主路径最适合理解系统，因为它绕开 microphone、STT�
 
 G2/M1 新增一条非 production developer query：`GET /api/interview/harness-runs`。它只查询当前 authenticated owner 的 redacted timeline，可按 `workflowRunId`、`sessionId` 和时间过滤；candidate-facing session API 仍不返回 internal action、gate、failure 或 memory trace。`ENABLE_HARNESS_SHADOW` 默认关闭，关闭后完全走原本的 interview runtime。
 
-目前这个 harness 是 shadow observer，不是第二个 controller。Local replay 已证明 flag OFF/ON legacy result parity、fallback lineage、voice confirmation same-run、duplicate/failure fail-open；human/browser session、live voice provider 和 production shadow 仍未验证。
+目前这个 harness 是 shadow/observe observer，不是第二个 controller。M2 会观察 action 是否属于 candidate set、repair/confirmation counting、question novelty、transcript scoring eligibility 和 memory policy；正确过滤 duplicate 是 pass，真的选到 duplicate 才是 violation。Local config 会把 `warn` / `enforce` 降回 `shadow`，不能靠环境变量自行 promotion。
+
+Local replay 已证明 flag OFF/ON legacy result parity、fallback lineage、voice confirmation same-run、duplicate/failure fail-open；修复后 automated browser H1 也完成 harness OFF/ON 各两 turn、正式结束和 report。该 browser run 使用 mock AI 和 test STT/TTS；真人麦克风、live provider、production observe 与 warn/enforce approval 仍未验证。
 
 继续读 [agent registry 与 task runner](agent-registry-and-task-runner.md)，看 `runTask` 如何把不同任务路由到 agent。
 

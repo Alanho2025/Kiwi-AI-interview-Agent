@@ -73,7 +73,7 @@ describe('M1 harness background artifact correlation', () => {
       status: 'orphaned',
     }));
     expect(correlated.failures).toContainEqual(expect.objectContaining({
-      category: 'correlation',
+      category: 'memory_policy_failure',
       reasonCode: 'background_memory_write_orphaned',
       handled: true,
       userImpact: 'none',

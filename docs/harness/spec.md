@@ -1,12 +1,12 @@
 # `interview_next_turn` Shadow Harness V0 Spec
 
-- 狀態：H1 已取得 durable voice run；queue/query race 與 coaching-memory provenance gap 已完成 local 修復，等待 Human Gate H1 最終重跑
+- 狀態：修復後 automated browser H1 已通過；等待真人麥克風、live provider 與 production shadow evidence
 - Milestone：M1
 - Execution mode：`shadow`
 - Risk class：High
 - Product output authority：current controller/runtime
 
-相關文件：[Goal](goal.md)、[Execution Rules](AGENTS.md)、[Contract Spine](../further_plan/product-harness-contract-spine.md)、[Replay Fixtures](../references/pre-harness-replay-fixtures.md)。
+相關文件：[Goal](goal.md)、[Execution Rules](AGENTS.md)、[M2-M5 milestone contract](milestones-m2-m5.md)、[Final scorecard](evidence/final-scorecard.md)、[Contract Spine](../further_plan/product-harness-contract-spine.md)、[Replay Fixtures](../references/pre-harness-replay-fixtures.md)。
 
 ## Overview
 
@@ -264,4 +264,4 @@ M1 建議 debug target：在相同 failure tasks 上，median diagnosis time 比
 - M2/M3 的 promotion、freshness、revalidation 與 enforce thresholds。
 - Candidate-facing progress summary UI。
 
-Evidence status：Product Owner 已核准 G2/M1 implementation。H1 已取得 durable voice run並暴露 queue/query race 與 coaching-memory provenance gap；對應 immediate trace/provenance 修復已通過 local automated tests、11/11 replay、privacy、rollback 與 deterministic debug proxy。Canonical verdict 是 `READY_FOR_H1_RERUN`，不是 H1 已通過；修復後真人 run、live voice provider 與 production shadow仍未驗證。
+Evidence status：Product Owner 已核准 G2/M1 implementation。Queue/query race 與 coaching-memory provenance gap 的修復已通過 local automated tests、11/11 replay、privacy、rollback 與 deterministic debug proxy；修復後 automated browser H1 亦完成 harness OFF/ON 各兩個 voice turns、正式結束與 report 載入。Canonical verdict 是 `AUTOMATED_H1_PASS_HUMAN_LIVE_PENDING`；test provider 的 browser pass 不等於真人麥克風、live voice provider 或 production shadow 已驗證。

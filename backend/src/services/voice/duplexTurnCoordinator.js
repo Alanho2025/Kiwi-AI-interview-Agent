@@ -16,7 +16,10 @@ import { analyzeTranscriptConfirmationReply } from './transcriptConfirmationRepl
 import { generateVoiceMicroAcknowledgement } from './voiceAcknowledgementService.js';
 import { sanitizeLiveSessionForClient } from '../session/sessionViewBuilder.js';
 import { evaluateTranscriptReviewDecision } from './transcriptReviewPolicyService.js';
-import { isHarnessShadowEnabled } from '../../config/harnessConfig.js';
+import {
+  getHarnessExecutionMode,
+  isHarnessShadowEnabled,
+} from '../../config/harnessConfig.js';
 import {
   beginWaitingInterviewNextTurnRun,
   scheduleHarnessRunPersistence,
@@ -462,6 +465,7 @@ export const createDuplexTurnCoordinator = ({
       const confirmationPrompt = buildTranscriptConfirmationPrompt(transcriptText);
       const waitingHarnessRun = await beginWaitingInterviewNextTurnRun({
         enabled: isHarnessShadowEnabled(),
+        executionMode: getHarnessExecutionMode(),
         session,
         payload: {
           inputMode: 'duplex_voice',

@@ -9,6 +9,7 @@ import {
 } from './harnessWorkflowRunContract.js';
 import { correlateHarnessRunArtifacts } from './harnessRunCorrelationService.js';
 import { emitHarnessRunTrace } from './harnessRunTraceService.js';
+import { buildFailureClassification } from './harnessObservedContractPolicy.js';
 
 const noOp = () => {};
 
@@ -20,16 +21,20 @@ const persistCanonicalRun = async (run) => {
 };
 
 const reportRecordingFailure = ({ workflowRunId, error, onRecordingFailure = noOp }) => {
-  const failure = {
+  const failure = buildFailureClassification({
+    failureId: `failure:${workflowRunId}:shadow_persistence`,
     workflowRunId,
-    category: 'harness_recording',
+    occurredAt: new Date().toISOString(),
+    stage: 'shadow_persistence',
+    category: 'tool_or_side_effect_failure',
     reasonCode: 'shadow_persistence_failed',
     handled: true,
+    expected: false,
     retryable: true,
     fallbackApplied: false,
     userImpact: 'none',
     errorName: error?.name || 'Error',
-  };
+  });
   logger.error('Harness shadow recording failed', failure);
   onRecordingFailure(failure);
   return failure;
@@ -95,6 +100,7 @@ const appendRunSafely = async ({ run, appendRun, onRecordingFailure }) => {
 
 export const beginWaitingInterviewNextTurnRun = async ({
   enabled,
+  executionMode = 'shadow',
   session,
   payload = {},
   appendRun = persistCanonicalRun,
@@ -108,6 +114,7 @@ export const beginWaitingInterviewNextTurnRun = async ({
   const startedAt = now().toISOString();
   const run = buildInterviewNextTurnWorkflowRun({
     workflowRunId,
+    executionMode,
     session,
     payload,
     lifecycleStatus: 'waiting',
@@ -120,6 +127,7 @@ export const beginWaitingInterviewNextTurnRun = async ({
 
 export const recordRejectedInterviewNextTurnRun = async ({
   enabled,
+  executionMode = 'shadow',
   session,
   payload = {},
   failure = {},
@@ -134,6 +142,7 @@ export const recordRejectedInterviewNextTurnRun = async ({
   const at = now().toISOString();
   const run = buildInterviewNextTurnWorkflowRun({
     workflowRunId,
+    executionMode,
     session,
     payload,
     preTaskFailure: failure,
@@ -151,6 +160,7 @@ export const recordRejectedInterviewNextTurnRun = async ({
 
 export const runInterviewNextTurnWithShadowHarness = async ({
   enabled,
+  executionMode = 'shadow',
   session,
   payload = {},
   executeController,
@@ -175,6 +185,7 @@ export const runInterviewNextTurnWithShadowHarness = async ({
     const completedAt = now().toISOString();
     const run = buildInterviewNextTurnWorkflowRun({
       workflowRunId,
+      executionMode,
       session,
       payload,
       observation,
@@ -185,16 +196,20 @@ export const runInterviewNextTurnWithShadowHarness = async ({
     const validation = validateHarnessWorkflowRun(run);
     if (!validation.valid) {
       run.qualityStatus = 'invalid';
-      run.failures.push({
+      run.failures.push(buildFailureClassification({
         failureId: `failure:${workflowRunId}:contract_validation`,
-        category: 'contract_validation',
+        workflowRunId,
+        occurredAt: completedAt,
+        stage: 'contract_validation',
+        category: 'verification_failure',
         reasonCode: 'workflow_run_contract_invalid',
         handled: true,
+        expected: false,
         retryable: false,
         fallbackApplied: false,
         userImpact: 'none',
         validationErrors: validation.errors,
-      });
+      }));
       run.failureRefs = run.failures.map((failure) => failure.failureId);
     }
     await appendRunSafely({ run, appendRun, onRecordingFailure });
@@ -203,6 +218,7 @@ export const runInterviewNextTurnWithShadowHarness = async ({
     const completedAt = now().toISOString();
     const failedRun = buildInterviewNextTurnWorkflowRun({
       workflowRunId,
+      executionMode,
       session,
       payload,
       observation,
