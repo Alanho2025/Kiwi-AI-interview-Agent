@@ -24,12 +24,16 @@ text mode 的主路径最适合理解系统，因为它绕开 microphone、STT�
 | Evaluator | [interview evaluator](../../backend/src/services/aiControl/interviewEvaluatorService.js) | 抽取 specificity、evidence gain、misunderstanding、skill denial 等信号 |
 | Action planning | [action planner](../../backend/src/services/aiControl/actionPlanner.js) | 将 evaluator/context 变成 allowed action |
 | Action execution | [interview action executor](../../backend/src/services/aiControl/interviewActionExecutor.js) | 调用 interviewer agent 生成下一问 |
+| M1 shadow harness | [shadow harness](../../backend/src/services/harness/interviewNextTurnShadowHarness.js) | flag 开启时在 current controller 外记录 refs-only `WorkflowRun`；失败时 fail-open，不改变产品结果 |
 
 ## 控制器保留的透明度
 
 系统会写 decision record、trajectory、agent memory 和 question metadata。这个设计让报告和 diagnostics 能解释为什么问某个问题、它测试什么、用到什么证据、是否来自 prepared pool。
 
+G2/M1 新增一条非 production developer query：`GET /api/interview/harness-runs`。它只查询当前 authenticated owner 的 redacted timeline，可按 `workflowRunId`、`sessionId` 和时间过滤；candidate-facing session API 仍不返回 internal action、gate、failure 或 memory trace。`ENABLE_HARNESS_SHADOW` 默认关闭，关闭后完全走原本的 interview runtime。
+
+目前这个 harness 是 shadow observer，不是第二个 controller。Local replay 已证明 flag OFF/ON legacy result parity、fallback lineage、voice confirmation same-run、duplicate/failure fail-open；human/browser session、live voice provider 和 production shadow 仍未验证。
+
 继续读 [agent registry 与 task runner](agent-registry-and-task-runner.md)，看 `runTask` 如何把不同任务路由到 agent。
 
 证据状态：除特别标注外，本页基于当前源码已确认。
-

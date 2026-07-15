@@ -1,0 +1,247 @@
+{
+  "workflowRunId": "m1-workflow-run-happy",
+  "idempotencyKey": "e962904b19398f5827c5cd31decb2c2d5a555e2100a39a7be00d8a981801e856",
+  "taskType": "interview_next_turn",
+  "executionMode": "shadow",
+  "ownerUserId": "m1-replay-user-001",
+  "sessionId": "m1-replay-session-001",
+  "clientTurnId": "m1-text-turn-on",
+  "channel": "text",
+  "lifecycleStatus": "completed",
+  "qualityStatus": "valid",
+  "publicationStatus": "not_applicable",
+  "taskContract": {
+    "taskContractRef": "interview_next_turn_v0",
+    "workflowKind": "agent_task",
+    "executionMode": "shadow",
+    "authority": "current_controller"
+  },
+  "contextPackets": [
+    {
+      "contextPacketId": "context_packet:m1-workflow-run-happy",
+      "schemaVersion": "context_packet_v0",
+      "storageMode": "refs_hash_version_only",
+      "rawSnapshotAllowed": false,
+      "sources": [
+        {
+          "sourceType": "session",
+          "sourceRef": "session:m1-replay-session-001",
+          "sourceVersion": "current",
+          "sourceHash": "32c77622310cc40dab502f50d38a7cda4c4d403dc271b9c2c40a4bf290e2de46",
+          "trustLevel": "owned",
+          "reviewStatus": "not_required"
+        },
+        {
+          "sourceType": "transcript",
+          "sourceRef": "session_transcript:m1-replay-session-001",
+          "sourceVersion": "2",
+          "sourceHash": "d01f8026e95eeef6d390aca3eb2e53d1232b8897b06a85764f4e02bfa5554818",
+          "trustLevel": "owned",
+          "reviewStatus": "not_required"
+        },
+        {
+          "sourceType": "interview_plan",
+          "sourceRef": "interview_plan:m1-replay-session-001",
+          "sourceVersion": "interview-plan-v2",
+          "sourceHash": "91c190c93d278bb8a9a5904017cc44422c7a4001526268a04a103655b5000384",
+          "trustLevel": "owned",
+          "reviewStatus": "not_required"
+        },
+        {
+          "sourceType": "cv_profile",
+          "sourceRef": "cv_file:m1-replay-cv-001",
+          "sourceVersion": "current",
+          "sourceHash": "4bbae472f8295d351376d89ec6456b651a7d14b42b8ed1c02208f558da290c63",
+          "trustLevel": "owned",
+          "reviewStatus": "not_required"
+        },
+        {
+          "sourceType": "jd_rubric",
+          "sourceRef": "jd_fingerprint:m1-replay-jd-fingerprint-001",
+          "sourceVersion": "current",
+          "sourceHash": "72b91d12af7afe8958c2cb833cdb708c014d0236b9e86becca2f99704eb4535b",
+          "trustLevel": "owned",
+          "reviewStatus": "not_required"
+        },
+        {
+          "sourceType": "match_analysis",
+          "sourceRef": "match_analysis:m1-replay-match-001",
+          "sourceVersion": "current",
+          "sourceHash": "040b180cae534e7c8f2f83fce647782fe26ddd41ca082184086affc372f72dc1",
+          "trustLevel": "owned",
+          "reviewStatus": "not_required"
+        }
+      ]
+    }
+  ],
+  "actionContracts": [
+    {
+      "actionContractId": "action_contract:m1-workflow-run-happy",
+      "schemaVersion": "action_contract_v0",
+      "candidateActions": [
+        {
+          "action": "ASK_DEEP_DIVE_QUESTION",
+          "confidence": 0.82
+        },
+        {
+          "action": "SWITCH_TOPIC",
+          "confidence": 0.42
+        }
+      ],
+      "selectedAction": "ASK_DEEP_DIVE_QUESTION",
+      "fallbackAction": "ASK_DEEP_DIVE_QUESTION",
+      "selectionSource": "model_assisted",
+      "modelSelectedAction": "ASK_DEEP_DIVE_QUESTION"
+    }
+  ],
+  "gateResults": [
+    {
+      "gateResultId": "gate:m1-workflow-run-happy:action_allowed_candidate",
+      "gateType": "action_allowed_candidate",
+      "status": "pass",
+      "owner": "interview_controller",
+      "reasonCode": "selected_action_allowed",
+      "enforced": false
+    },
+    {
+      "gateResultId": "gate:m1-workflow-run-happy:question_counting",
+      "gateType": "question_counting",
+      "status": "pass",
+      "owner": "interview_controller",
+      "reasonCode": "legacy_question_count_preserved",
+      "enforced": false
+    },
+    {
+      "gateResultId": "gate:m1-workflow-run-happy:question_novelty",
+      "gateType": "question_novelty",
+      "status": "pass",
+      "owner": "question_ranker",
+      "reasonCode": "no_duplicate_rejection_recorded",
+      "enforced": false
+    },
+    {
+      "gateResultId": "gate:m1-workflow-run-happy:transcript_eligibility",
+      "gateType": "transcript_eligibility",
+      "status": "pass",
+      "owner": "text_answer_validation",
+      "reasonCode": "text_answer_validated",
+      "enforced": false
+    },
+    {
+      "gateResultId": "gate:m1-workflow-run-happy:memory_write_policy_shadow",
+      "gateType": "memory_write_policy_shadow",
+      "status": "pass",
+      "owner": "memory_policy",
+      "reasonCode": "memory_cannot_affect_scoring",
+      "enforced": false
+    }
+  ],
+  "memoryWrites": [
+    {
+      "memoryWriteId": "memory_write:m1-workflow-run-happy:session_agent_memory",
+      "memoryType": "session_agent_memory",
+      "status": "completed",
+      "sourceWorkflowRunId": "m1-workflow-run-happy",
+      "sourceRefs": [
+        "state_after:m1-workflow-run-happy"
+      ],
+      "canAffectScoring": false
+    }
+  ],
+  "failures": [],
+  "stateRefs": {
+    "before": {
+      "stateName": "state_before",
+      "stateRef": "state_before:m1-replay-session-001:f239ef66c2abfea39c8e0edf9fd330da63c2f2afcbf60dcac56a475ead5ae3dc",
+      "stateHash": "f239ef66c2abfea39c8e0edf9fd330da63c2f2afcbf60dcac56a475ead5ae3dc",
+      "stateVersion": "session_state_v0"
+    },
+    "after": {
+      "stateName": "state_after",
+      "stateRef": "state_after:m1-replay-session-001:586ffa374eb823ade7b10220235fdd6d5422a2024205377a80f128519e56d452",
+      "stateHash": "586ffa374eb823ade7b10220235fdd6d5422a2024205377a80f128519e56d452",
+      "stateVersion": "session_state_v0"
+    }
+  },
+  "contextPacketRefs": [
+    "context_packet:m1-workflow-run-happy"
+  ],
+  "actionContractRefs": [
+    "action_contract:m1-workflow-run-happy"
+  ],
+  "gateResultRefs": [
+    "gate:m1-workflow-run-happy:action_allowed_candidate",
+    "gate:m1-workflow-run-happy:question_counting",
+    "gate:m1-workflow-run-happy:question_novelty",
+    "gate:m1-workflow-run-happy:transcript_eligibility",
+    "gate:m1-workflow-run-happy:memory_write_policy_shadow"
+  ],
+  "memoryWriteRefs": [
+    "memory_write:m1-workflow-run-happy:session_agent_memory"
+  ],
+  "failureRefs": [],
+  "resultRefs": [
+    "session_question:m1-replay-session-001:3"
+  ],
+  "timeline": [
+    {
+      "eventType": "workflow_run_started",
+      "at": "2026-07-15T00:00:00.000Z",
+      "ref": "m1-workflow-run-happy"
+    },
+    {
+      "eventType": "context_packet_assembled",
+      "at": "2026-07-15T00:00:00.000Z",
+      "ref": "context_packet:m1-workflow-run-happy"
+    },
+    {
+      "eventType": "candidate_actions_recorded",
+      "at": "2026-07-15T00:00:01.250Z",
+      "ref": "action_contract:m1-workflow-run-happy"
+    },
+    {
+      "eventType": "action_selected",
+      "at": "2026-07-15T00:00:01.250Z",
+      "ref": "action_contract:m1-workflow-run-happy"
+    },
+    {
+      "eventType": "question_or_terminal_result_recorded",
+      "at": "2026-07-15T00:00:01.250Z",
+      "ref": "result:m1-workflow-run-happy"
+    },
+    {
+      "eventType": "workflow_run_completed",
+      "at": "2026-07-15T00:00:01.250Z",
+      "ref": "m1-workflow-run-happy"
+    },
+    {
+      "eventType": "memory_write_correlated_or_orphaned",
+      "at": "2026-07-15T09:14:58.656Z",
+      "ref": "m1-workflow-run-happy",
+      "status": "completed",
+      "completedCount": 1,
+      "orphanedCount": 0
+    }
+  ],
+  "latency": {
+    "controllerMs": 1250
+  },
+  "privacy": {
+    "rawSnapshotAllowed": false,
+    "redactionPolicyVersion": "harness_redaction_v0",
+    "retentionClass": "session_source_bounded",
+    "sourceDeletionHandling": "follow_session_retention_policy"
+  },
+  "startedAt": "2026-07-15T00:00:00.000Z",
+  "completedAt": "2026-07-15T00:00:01.250Z",
+  "retentionUntil": "2026-07-22T00:00:00.000Z",
+  "deletedAt": null,
+  "containsSensitiveData": true,
+  "accessScope": "developer_private",
+  "schemaVersion": "workflow_run_v0",
+  "correlation": {
+    "decisionRecordCount": 1,
+    "trajectoryRecordCount": 1,
+    "traceEventCount": 1
+  }
+}

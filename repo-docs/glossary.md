@@ -18,6 +18,7 @@
 | RAG | 本项目的 session/global evidence retrieval；当前用 deterministic hash embedding + pgvector + fusion score | [RAG 检索层](modules/rag-retrieval.md) |
 | agent | 这里指一组有输入、决策、输出和 fallback 的服务；并非全部都在 `agentRegistry` 中注册 | [agent registry](modules/agent-registry-and-task-runner.md) |
 | runTask | 后端 AI task runner；按 `taskType` 把 interview next turn、report generation、report QA 等任务接到 retrieval、controller、agent 和 persistence | [agent registry](modules/agent-registry-and-task-runner.md) |
+| workflowRunId | M1 shadow harness 为一次 canonical product turn 建立的 correlation ID；用于关联 action、gate、state、memory、failure 和 late background events，不取代 session/domain record | [访谈控制机制](modules/feature-interview-control.md) |
 | SessionAnalysis | MongoDB artifact record；保存 controller state、decision/evaluator/trajectory records、RAG index status、agent memory、report artifacts 等 | [数据与保留](modules/data-persistence-retention.md) |
 | SessionReport | MongoDB report record；保存最新报告、QA result、状态、版本和 repair history | [报告与 QA](modules/feature-report-and-qa.md) |
 | interviewEvaluator | 正式 registry 里的 evaluator callable；把最新答案转成 specificity、evidence、misunderstanding、coverage 等 planner signals | [interview evaluator](modules/agent-interview-evaluator.md) |

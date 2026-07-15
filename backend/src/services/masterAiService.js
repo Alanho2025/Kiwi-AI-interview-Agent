@@ -44,6 +44,11 @@ import { cleanupQuestionArtifactsAfterReport } from './questions/questionArtifac
 import { indexReportSessionArtifactsSafely } from './reportIndexingGuardService.js';
 import { buildAssessmentKey, buildQuestionFingerprint } from './questions/questionDeduplicationService.js';
 import { buildRetentionExpiry } from './retention/retentionPolicy.js';
+import { isHarnessShadowEnabled } from '../config/harnessConfig.js';
+import {
+  runInterviewNextTurnWithShadowHarness,
+  scheduleHarnessRunPersistence,
+} from './harness/interviewNextTurnShadowHarness.js';
 
 const persistControllerSnapshot = async ({ sessionId, decisionContext = null, evidenceBundle = null } = {}) => {
   await SessionAnalysis.findOneAndUpdate(
@@ -243,13 +248,21 @@ export const buildPreparedQuestionStateDiagnostic = ({ markResult, sessionId, pr
       }
 );
 
-const runInterviewController = async ({ session, payload = {}, onSentence = null, trace = null }) => {
+const runInterviewController = async ({
+  session,
+  payload = {},
+  onSentence = null,
+  trace = null,
+  workflowRunId = null,
+  harnessObserver = () => {},
+}) => {
   enqueueBackgroundJob('trace-answer-evaluated-start', () => recordAgentTraceEvent({
     sessionId: session.id,
+    workflowRunId,
     eventType: 'answer_evaluated',
     mode: session.mode || payload.inputMode || 'text',
     payload: { inputMode: payload.inputMode || 'text' },
-  }), { sessionId: session.id });
+  }), { sessionId: session.id, workflowRunId });
   if (hasReachedTimeLimit(session)) {
     return {
       isComplete: true,
@@ -375,7 +388,10 @@ const runInterviewController = async ({ session, payload = {}, onSentence = null
     latestAnswerUnderstanding,
   };
   const evaluatorOutput = await measureAdaptiveStep(trace, 'adaptive.turn_evaluation', () => evaluateInterviewTurn({ environment }));
-  enqueueBackgroundJob('persist-evaluator-record', () => persistEvaluatorRecord({ sessionId: session.id, evaluation: evaluatorOutput }), { sessionId: session.id });
+  enqueueBackgroundJob('persist-evaluator-record', () => persistEvaluatorRecord({ sessionId: session.id, evaluation: evaluatorOutput }), {
+    sessionId: session.id,
+    workflowRunId,
+  });
 
   let evidenceBundle;
   if (warmContext) {
@@ -398,6 +414,7 @@ const runInterviewController = async ({ session, payload = {}, onSentence = null
       sessionId: session.id,
       record: {
         taskType: 'interview_next_turn',
+        workflowRunId,
         agent: 'master_controller',
 tool: AGENT_TOOL_NAMES.RETRIEVE_INTERVIEW_EVIDENCE,
 decisionType: AGENT_DECISION_TYPES.BUILD_CONTEXT,
@@ -412,6 +429,7 @@ decisionType: AGENT_DECISION_TYPES.BUILD_CONTEXT,
       sessionId: session.id,
       record: {
         taskType: 'interview_next_turn',
+        workflowRunId,
         agent: 'interview_evaluator',
 tool: AGENT_TOOL_NAMES.EVALUATE_CANDIDATE_ANSWER,
 decisionType: AGENT_DECISION_TYPES.BUILD_CONTEXT,
@@ -422,7 +440,7 @@ decisionType: AGENT_DECISION_TYPES.BUILD_CONTEXT,
         confidence: evaluatorOutput.evidenceGainScore,
       },
     });
-  }, { sessionId: session.id });
+  }, { sessionId: session.id, workflowRunId });
 
   const fallbackPlan = await measureAdaptiveStep(trace, 'adaptive.action_selection', () => selectNextAction(decisionContext));
   
@@ -507,6 +525,7 @@ decisionType: AGENT_DECISION_TYPES.BUILD_CONTEXT,
         
         // Update agent memory with semantic understanding
         await updateAgentMemory({
+          workflowRunId,
           sessionId: session.id,
           questionId: payload.currentQuestionId,
           answer: payload.answer,
@@ -517,6 +536,7 @@ decisionType: AGENT_DECISION_TYPES.BUILD_CONTEXT,
         // Record background quality completion
         await recordAgentTraceEvent({
           sessionId: session.id,
+          workflowRunId,
           eventType: 'voice_background_quality_completed',
           mode: 'duplex_voice',
           payload: {
@@ -538,13 +558,14 @@ decisionType: AGENT_DECISION_TYPES.BUILD_CONTEXT,
           error: error.message,
         });
       }
-    }, { sessionId: session.id, priority: 'low' });
+    }, { sessionId: session.id, workflowRunId, priority: 'low' });
   }
   
   enqueueBackgroundJob('persist-action-selection-record', () => createDecisionRecord({
     sessionId: session.id,
     record: {
       taskType: 'interview_next_turn',
+      workflowRunId,
       agent: 'master_controller',
 tool: AGENT_TOOL_NAMES.PLAN_INTERVIEW_ACTION,
 decisionType: AGENT_DECISION_TYPES.SELECT_ACTION,
@@ -566,7 +587,7 @@ decisionType: AGENT_DECISION_TYPES.SELECT_ACTION,
       modelSelectedAction: plan.modelSelectedAction || null,
       modelSelectionError: plan.modelSelectionError || null,
     },
-  }), { sessionId: session.id });
+  }), { sessionId: session.id, workflowRunId });
 
   const interviewerOutput = await measureAdaptiveStep(trace, 'adaptive.action_execution', () => executeInterviewAction({
     selectedAction: plan.selectedAction,
@@ -585,6 +606,7 @@ decisionType: AGENT_DECISION_TYPES.SELECT_ACTION,
   }
   enqueueBackgroundJob('trace-followup-decision', () => recordAgentTraceEvent({
     sessionId: session.id,
+    workflowRunId,
     eventType: 'followup_decision',
     mode: session.mode || payload.inputMode || 'text',
     payload: {
@@ -595,12 +617,13 @@ decisionType: AGENT_DECISION_TYPES.SELECT_ACTION,
       candidateActions: plan.candidateActions || [],
       retrievalSources: decisionContext.retrievalState?.latestSources || [],
     },
-  }), { sessionId: session.id });
+  }), { sessionId: session.id, workflowRunId });
 
   enqueueBackgroundJob('persist-action-execution-record', () => createDecisionRecord({
     sessionId: session.id,
     record: {
       taskType: 'interview_next_turn',
+      workflowRunId,
       agent: 'master_controller',
 tool: getToolNameForAction(plan.selectedAction),
 decisionType: AGENT_DECISION_TYPES.EXECUTE_ACTION,
@@ -614,9 +637,10 @@ decisionType: AGENT_DECISION_TYPES.EXECUTE_ACTION,
       selectionSource: plan.selectionSource || 'rule_fallback',
       candidateActions: plan.candidateActions,
     },
-  }), { sessionId: session.id });
+  }), { sessionId: session.id, workflowRunId });
 
   const trajectoryStep = buildTrajectoryStep({
+    workflowRunId,
     session,
     environment: decisionContext.environment,
     decisionContext,
@@ -626,11 +650,15 @@ decisionType: AGENT_DECISION_TYPES.EXECUTE_ACTION,
     actorOutput: interviewerOutput,
     evaluatorOutput,
   });
-  enqueueBackgroundJob('persist-trajectory-step', () => persistTrajectoryStep({ sessionId: session.id, step: trajectoryStep }), { sessionId: session.id });
+  enqueueBackgroundJob('persist-trajectory-step', () => persistTrajectoryStep({ sessionId: session.id, step: trajectoryStep }), {
+    sessionId: session.id,
+    workflowRunId,
+  });
 
   let reflectionRecord = null;
   if (shouldWriteReflection({ evaluatorState: evaluatorOutput, decisionContext, trajectoryStep })) {
     reflectionRecord = buildReflectionRecord({
+      workflowRunId,
       sessionId: session.id,
       userId: session.userId,
       evaluatorState: evaluatorOutput,
@@ -641,16 +669,26 @@ decisionType: AGENT_DECISION_TYPES.EXECUTE_ACTION,
       await persistReflectionRecord({ sessionId: session.id, reflectionRecord });
       await rebuildBoundedMemory({ sessionId: session.id });
       await persistUserCoachingMemory({ userId: session.userId, reflectionRecord });
-    }, { sessionId: session.id, userId: session.userId });
+    }, { sessionId: session.id, userId: session.userId, workflowRunId });
   }
 
   enqueueBackgroundJob('update-agent-memory', () => updateAgentMemory({
+    workflowRunId,
     sessionId: session.id,
     latestAnswer: payload.answer || decisionContext.latestAnswer,
     decisionContext,
     latestDecision: plan,
     outcome: interviewerOutput,
-  }), { sessionId: session.id });
+  }), { sessionId: session.id, workflowRunId });
+
+  harnessObserver({
+    decisionContext,
+    fallbackPlan,
+    plan,
+    interviewerOutput,
+    trajectoryStep,
+    reflectionRecord,
+  });
 
   if (interviewerOutput?.isComplete || !interviewerOutput?.nextQuestion) {
     return {
@@ -924,7 +962,20 @@ export const runTask = async ({ taskType, sessionId, payload = {}, onSentence = 
     if (!session) {
       throw new Error('Session not found');
     }
-    return runInterviewController({ session, payload, onSentence, trace });
+    return runInterviewNextTurnWithShadowHarness({
+      enabled: isHarnessShadowEnabled(),
+      session,
+      payload,
+      executeController: ({ observe, workflowRunId }) => runInterviewController({
+        session,
+        payload,
+        onSentence,
+        trace,
+        workflowRunId,
+        harnessObserver: observe,
+      }),
+      appendRun: scheduleHarnessRunPersistence,
+    });
   }
 
   if (taskType === 'generate_report') {

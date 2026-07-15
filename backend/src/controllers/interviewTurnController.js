@@ -17,7 +17,7 @@ import { tryGenerateReportForCompletedSession } from './interviewControllerUtils
 import { buildLiveInterviewTurnResponse } from '../services/interview/liveInterviewPayloadService.js';
 
 export const replyInterview = asyncHandler(async (req, res) => {
-  const { sessionId, answer } = req.body;
+  const { sessionId, answer, clientTurnId = null } = req.body;
   requireSessionId(sessionId);
   const user = await resolveUserFromRequest(req);
 
@@ -31,7 +31,7 @@ export const replyInterview = asyncHandler(async (req, res) => {
     const nextTurnResult = await runTask({
       taskType: 'interview_next_turn',
       sessionId,
-      payload: { answer: cleanAnswer },
+      payload: { answer: cleanAnswer, clientTurnId },
     });
 
     const elapsedSession = applyElapsedSeconds(session);

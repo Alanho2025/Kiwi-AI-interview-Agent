@@ -3,6 +3,7 @@ import { ensureArray, normalizeText } from '../../utils/commonHelpers.js';
 
 const toCoachingRecord = (reflection = {}) => ({
   memoryId: reflection.reflectionId,
+  sourceWorkflowRunId: reflection.sourceWorkflowRunId || null,
   pattern: reflection.pattern,
   lesson: reflection.lesson,
   recommendedNextStrategy: reflection.recommendedNextStrategy,

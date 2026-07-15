@@ -44,6 +44,7 @@ const buildLatestPatterns = ({ latestAnswer = '', selectedAction = '', decisionC
 };
 
 export const updateAgentMemory = async ({
+  workflowRunId = null,
   sessionId,
   latestAnswer = '',
   decisionContext = {},
@@ -78,6 +79,7 @@ export const updateAgentMemory = async ({
   });
 
   const nextMemory = {
+    sourceWorkflowRunId: workflowRunId,
     recentPatterns,
     topicHistory,
     failedStrategies,

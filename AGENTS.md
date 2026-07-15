@@ -25,6 +25,12 @@ When behavior-bearing code, config, data, scripts, or tests change, compare the 
 - Do not rely on memory for voice interview behavior. Treat `VOICE_INTERVIEW_PRODUCT_BEHAVIOR.md` as the product contract.
 - If an implementation idea conflicts with the product behavior document, stop and explain the conflict before changing code.
 
+## Harness Product Updates
+
+- For any change to product-agent contracts, run/context correlation, action or gate policy, cross-session memory, report publication, harness observability, replay, or harness rollout, first read `docs/harness/AGENTS.md`, `docs/harness/goal.md`, and `docs/harness/spec.md`.
+- Treat `docs/harness/AGENTS.md` as additional execution instructions for harness work across `backend/`, `frontend/`, tests, scripts, and docs; its location does not limit it to the `docs/harness/` subtree.
+- Root rules and `VOICE_INTERVIEW_PRODUCT_BEHAVIOR.md` take precedence if a harness instruction conflicts with repository or voice product rules.
+
 ## Approval First
 
 - Ask for approval before making any non-trivial code change.

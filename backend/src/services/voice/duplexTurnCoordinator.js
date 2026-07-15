@@ -16,6 +16,11 @@ import { analyzeTranscriptConfirmationReply } from './transcriptConfirmationRepl
 import { generateVoiceMicroAcknowledgement } from './voiceAcknowledgementService.js';
 import { sanitizeLiveSessionForClient } from '../session/sessionViewBuilder.js';
 import { evaluateTranscriptReviewDecision } from './transcriptReviewPolicyService.js';
+import { isHarnessShadowEnabled } from '../../config/harnessConfig.js';
+import {
+  beginWaitingInterviewNextTurnRun,
+  scheduleHarnessRunPersistence,
+} from '../harness/interviewNextTurnShadowHarness.js';
 
 const VOICE_BRIDGE_DELAY_MS = Number(process.env.VOICE_BRIDGE_DELAY_MS || 1200);
 
@@ -411,6 +416,7 @@ export const createDuplexTurnCoordinator = ({
           confirmationReply,
           confirmationDecision,
           pendingConfirmationId: pending.id,
+          workflowRunId: pending.harnessWorkflowRunId || null,
           resolvedTranscriptText: transcriptForPlanning,
           usedClarification: transcriptForPlanning !== String(pending.originalTranscript || '').trim(),
           originalAssessment: pending.assessment || null,
@@ -454,8 +460,18 @@ export const createDuplexTurnCoordinator = ({
       transcriptReviewDecision = null,
     }) => {
       const confirmationPrompt = buildTranscriptConfirmationPrompt(transcriptText);
+      const waitingHarnessRun = await beginWaitingInterviewNextTurnRun({
+        enabled: isHarnessShadowEnabled(),
+        session,
+        payload: {
+          inputMode: 'duplex_voice',
+          clientTurnId,
+        },
+        appendRun: scheduleHarnessRunPersistence,
+      });
       const nextPendingTranscriptConfirmation = {
         id: `pending-${Date.now()}`,
+        harnessWorkflowRunId: waitingHarnessRun.workflowRunId,
         originalTranscript: transcriptText,
         transcriptProvenance,
         asrConfidence,

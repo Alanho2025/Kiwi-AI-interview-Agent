@@ -69,7 +69,8 @@
     "eval:voice-quality": "NODE_ENV=test AI_TEST_MODE=mock node eval/runners/runVoiceQualityEval.js",
     "eval:stability": "NODE_ENV=test AI_TEST_MODE=mock node eval/runners/runStabilityEval.js",
     "eval:prep-stability": "NODE_ENV=test AI_TEST_MODE=mock node eval/runners/runPreparationStabilityEval.js",
-    "eval:agent-framework": "npm run eval:retrieval && npm run eval:agent-trajectory && npm run eval:role-fit-v2-adversarial && npm run eval:calibration && npm run eval:company-research && npm run eval:voice-quality && npm run eval:stability"
+    "eval:agent-framework": "npm run eval:retrieval && npm run eval:agent-trajectory && npm run eval:role-fit-v2-adversarial && npm run eval:calibration && npm run eval:company-research && npm run eval:voice-quality && npm run eval:stability",
+    "eval:harness-m1": "NODE_ENV=test AI_TEST_MODE=mock node eval/runners/runHarnessM1Replay.js"
   },
   "dependencies": {
     "cors": "^2.8.6",

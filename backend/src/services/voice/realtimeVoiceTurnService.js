@@ -325,6 +325,7 @@ export const processRealtimeVoiceTurn = async ({
       inputMode,
       vad,
       clientTurnId,
+      workflowRunId: transcriptConfirmation?.workflowRunId || null,
       currentQuestionId: latestQuestion?.id || null,
     },
     onSentence: tracedOnSentence,
