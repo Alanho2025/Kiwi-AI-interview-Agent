@@ -314,6 +314,22 @@ const computeRequirementStatus = (requirement, evidenceProfile = {}, semanticEvi
     label: requirement.label,
   });
 
+  const PRIMARY_TECH = new Set(['java', 'angular', 'go', 'c++', 'c#', '.net', 'kubernetes']);
+  const isHard = requirement.type === 'hard' || requirement.mustHave === true;
+  if (isHard) {
+    const hasMissingPrimaryTech = childMatches.some((item) => {
+      const labelLower = item.label.toLowerCase();
+      const matchesPrimary = [...PRIMARY_TECH].some((tech) => 
+        new RegExp(`\\b${tech.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(labelLower)
+      );
+      return matchesPrimary && item.status === 'not_met';
+    });
+    if (hasMissingPrimaryTech) {
+      finalStatus = 'not_met';
+    }
+  }
+
+
   return {
     ...baseMatch,
     finalStatus,

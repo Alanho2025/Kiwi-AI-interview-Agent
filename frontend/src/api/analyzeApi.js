@@ -17,11 +17,20 @@ import { apiClient } from './client.js';
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-export const paraphraseJD = (rawJD) => apiClient('/job-description/paraphrase', { method: 'POST', body: { rawJD } });
+export const paraphraseJD = ({ rawJD, companyWebsiteUrl, userCompanyContext }) => apiClient('/job-description/paraphrase', {
+  method: 'POST',
+  body: { rawJD, companyWebsiteUrl, userCompanyContext },
+});
 export const startCompanyValuesEnrichment = ({ rawJD, jdRubric, companyWebsiteUrl }) =>
   apiClient('/job-description/company-values/enrichment', {
     method: 'POST',
     body: { rawJD, jdRubric, companyWebsiteUrl },
   });
+export const confirmRoleFitReview = ({ jdFingerprint, baseVersion, jdRubric }) =>
+  apiClient(`/job-description/role-fit/reviews/${encodeURIComponent(jdFingerprint)}`, {
+    method: 'PUT',
+    body: { baseVersion, jdRubric },
+  });
 export const matchCV = (cvId, rawJD, jdRubric, settings) => apiClient('/analyze/match', { method: 'POST', body: { cvId, rawJD, jdRubric, settings } });
 export const generateInterviewPlan = (payload) => apiClient('/analyze/interview-plan', { method: 'POST', body: payload });
+export const getSavedJDs = () => apiClient('/job-description/saved', { method: 'GET' });

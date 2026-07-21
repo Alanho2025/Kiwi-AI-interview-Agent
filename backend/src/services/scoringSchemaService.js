@@ -295,6 +295,26 @@ export const buildJdRubricSchema = ({
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
+export const isNonTechnicalHardRequirement = (item = {}, parsedJdProfile = {}) => {
+  const category = item.category || '';
+  const label = (item.label || '').toLowerCase();
+  if (category === 'availability_or_location' || category === 'compliance_or_safety') return true;
+  const softCategories = new Set([
+    'soft_skill', 'communication', 'leadership', 'customer_or_stakeholder',
+    'culture_fit', 'learning_agility', 'creativity_or_ideas', 'motivation_or_attitude',
+    'cross_functional_coordination', 'responsibility', 'company_context'
+  ]);
+  if (softCategories.has(category)) return true;
+  if (/\b(visa|work right|work rights|work permit|legally|citizen|resident|residency|location|located|wfh|remote|hybrid|working hours|time zone|timezone|overlap|cbd|onsite|on-site|travel to|nz work rights|permitted to work)\b/i.test(label)) {
+    return true;
+  }
+  const roleLevel = String(parsedJdProfile?.roleLevel || parsedJdProfile?.universalRoleProfile?.seniority || '').toLowerCase();
+  if ((roleLevel === 'graduate' || roleLevel === 'junior') && category === 'experience') {
+    return true;
+  }
+  return false;
+};
+
 export const buildAnalyzeOutput = ({
   candidateName = 'Candidate',
   jobTitle = 'Target Role',
@@ -308,13 +328,20 @@ export const buildAnalyzeOutput = ({
   requirementChecks = [],
   scoreBreakdown = {},
   explanation = buildExplanationObject(),
-  evidenceMap = [],
+  _evidenceMap = [],
+  roleEvidenceMap = {},
+  roleFitDiagnostics = {},
   sourceSnapshots = [],
   matchingDetails = {},
   legacy = {},
 } = {}) => {
-  const hardGateFailed = requirementChecks.some((item) => item.type === 'hard' && item.status === 'not_met');
+  const hardGateFailed = requirementChecks.some((item) => 
+    item.type === 'hard' && 
+    item.status === 'not_met' && 
+    !isNonTechnicalHardRequirement(item, parsedJdProfile)
+  );
   const resolvedDecision = decision || deriveDecision({ overallScore, confidence, hardGateFailed });
+
 
   return {
     schemaVersion: 'v3',
@@ -331,7 +358,9 @@ export const buildAnalyzeOutput = ({
     requirementChecks,
     scoreBreakdown,
     explanation,
-    evidenceMap,
+    evidenceMap: [],
+    roleEvidenceMap,
+    roleFitDiagnostics,
     sourceSnapshots,
     strengths: explanation.strengths.map((item) => item.label),
     gaps: explanation.gaps.map((item) => item.label),

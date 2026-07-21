@@ -1,0 +1,172 @@
+{
+  "schemaVersion": "retrieval_dataset_v1",
+  "datasetVersion": "role-fit-retrieval-v1",
+  "description": "Synthetic cases that execute the production retrieval fusion ranker in memory.",
+  "cases": [
+    {
+      "schemaVersion": "retrieval_case_v1",
+      "caseId": "cv_backend_api_ownership",
+      "query": "Node.js API latency ownership",
+      "sourceTypes": ["cv"],
+      "topK": 2,
+      "corpus": [
+        { "chunkId": "cv-api-1", "sourceType": "cv", "text": "Owned a Node.js API and reduced request latency.", "metadata": { "section": "experience" } },
+        { "chunkId": "cv-api-2", "sourceType": "cv", "text": "Measured API latency and led the Node.js performance fix.", "metadata": { "section": "project" } },
+        { "chunkId": "cv-design-1", "sourceType": "cv", "text": "Created visual assets for a student campaign.", "metadata": { "section": "project" } },
+        { "chunkId": "jd-api-1", "sourceType": "job_description", "text": "The role requires Node.js API ownership.", "metadata": { "section": "requirements" } }
+      ],
+      "relevantChunkIds": ["cv-api-1", "cv-api-2"],
+      "forbiddenChunkIds": ["jd-api-1"],
+      "labels": { "domain": "backend", "risk": "high" },
+      "expectedFallback": null
+    },
+    {
+      "schemaVersion": "retrieval_case_v1",
+      "caseId": "jd_reliability_role_intent",
+      "query": "distributed systems reliability mentoring requirement",
+      "sourceTypes": ["job_description"],
+      "topK": 2,
+      "corpus": [
+        { "chunkId": "jd-reliability-1", "sourceType": "job_description", "text": "The role requires distributed systems reliability experience.", "metadata": { "section": "requirements" } },
+        { "chunkId": "jd-reliability-2", "sourceType": "job_description", "text": "The engineer will mentor others on reliable distributed services.", "metadata": { "section": "responsibilities" } },
+        { "chunkId": "jd-sales-1", "sourceType": "job_description", "text": "The office provides sales enablement support.", "metadata": { "section": "benefits" } },
+        { "chunkId": "cv-reliability-1", "sourceType": "cv", "text": "Maintained a reliable service.", "metadata": { "section": "experience" } }
+      ],
+      "relevantChunkIds": ["jd-reliability-1", "jd-reliability-2"],
+      "forbiddenChunkIds": ["cv-reliability-1"],
+      "labels": { "domain": "role_intent", "risk": "medium" },
+      "expectedFallback": null
+    },
+    {
+      "schemaVersion": "retrieval_case_v1",
+      "caseId": "match_kubernetes_evidence_gap",
+      "query": "Kubernetes production evidence gap validation",
+      "sourceTypes": ["match_analysis"],
+      "topK": 2,
+      "corpus": [
+        { "chunkId": "match-gap-1", "sourceType": "match_analysis", "text": "Gap: no Kubernetes production evidence was found.", "metadata": { "kind": "gap" } },
+        { "chunkId": "match-gap-2", "sourceType": "match_analysis", "text": "Validation needed for Kubernetes deployment evidence in production.", "metadata": { "kind": "validation" } },
+        { "chunkId": "match-react-1", "sourceType": "match_analysis", "text": "Direct React user interface evidence is available.", "metadata": { "kind": "strength" } },
+        { "chunkId": "transcript-k8s-1", "sourceType": "transcript", "text": "Kubernetes production evidence is definitely strong.", "metadata": { "kind": "answer" } }
+      ],
+      "relevantChunkIds": ["match-gap-1", "match-gap-2"],
+      "forbiddenChunkIds": ["transcript-k8s-1"],
+      "labels": { "domain": "match_gap", "risk": "high" },
+      "expectedFallback": null
+    },
+    {
+      "schemaVersion": "retrieval_case_v1",
+      "caseId": "cv_accessibility_source_policy",
+      "query": "React accessibility testing evidence",
+      "sourceTypes": ["cv"],
+      "topK": 2,
+      "corpus": [
+        { "chunkId": "cv-a11y-1", "sourceType": "cv", "text": "Tested React accessibility with keyboard navigation.", "metadata": { "section": "project" } },
+        { "chunkId": "cv-a11y-2", "sourceType": "cv", "text": "Added accessibility tests to the React component suite.", "metadata": { "section": "experience" } },
+        { "chunkId": "cv-data-1", "sourceType": "cv", "text": "Cleaned a small analytics dataset.", "metadata": { "section": "project" } },
+        { "chunkId": "transcript-a11y-1", "sourceType": "transcript", "text": "React accessibility testing evidence.", "metadata": { "section": "answer" } }
+      ],
+      "relevantChunkIds": ["cv-a11y-1", "cv-a11y-2"],
+      "forbiddenChunkIds": ["transcript-a11y-1"],
+      "labels": { "domain": "frontend", "risk": "high" },
+      "expectedFallback": null
+    },
+    {
+      "schemaVersion": "retrieval_case_v1",
+      "caseId": "plan_stakeholder_conflict_outcome",
+      "query": "stakeholder conflict leadership outcome question",
+      "sourceTypes": ["interview_plan"],
+      "topK": 2,
+      "corpus": [
+        { "chunkId": "plan-leadership-1", "sourceType": "interview_plan", "text": "Ask for a stakeholder conflict and the leadership action taken.", "metadata": { "intent": "leadership" } },
+        { "chunkId": "plan-leadership-2", "sourceType": "interview_plan", "text": "Probe for the measurable outcome of the stakeholder conflict.", "metadata": { "intent": "leadership" } },
+        { "chunkId": "plan-sql-1", "sourceType": "interview_plan", "text": "Ask about SQL query optimisation.", "metadata": { "intent": "technical" } },
+        { "chunkId": "question-leadership-1", "sourceType": "question_bank", "text": "Describe stakeholder conflict leadership outcome.", "metadata": { "intent": "leadership" } }
+      ],
+      "relevantChunkIds": ["plan-leadership-1", "plan-leadership-2"],
+      "forbiddenChunkIds": ["question-leadership-1"],
+      "labels": { "domain": "behavioral", "risk": "medium" },
+      "expectedFallback": null
+    },
+    {
+      "schemaVersion": "retrieval_case_v1",
+      "caseId": "cv_behavioral_teamwork_experience",
+      "query": "cross-functional teamwork and conflict resolution",
+      "sourceTypes": ["cv"],
+      "topK": 2,
+      "corpus": [
+        { "chunkId": "cv-teamwork-1", "sourceType": "cv", "text": "Collaborated with cross-functional design and product teams, and resolved developer disagreements.", "metadata": { "section": "experience" } },
+        { "chunkId": "cv-tech-1", "sourceType": "cv", "text": "Wrote script in Python to automate database backup daily.", "metadata": { "section": "project" } },
+        { "chunkId": "jd-teamwork-1", "sourceType": "job_description", "text": "The candidate should have experience resolving teamwork conflict.", "metadata": { "section": "requirements" } }
+      ],
+      "relevantChunkIds": ["cv-teamwork-1"],
+      "forbiddenChunkIds": ["jd-teamwork-1"],
+      "labels": { "domain": "behavioral", "risk": "high" },
+      "expectedFallback": null
+    },
+    {
+      "schemaVersion": "retrieval_case_v1",
+      "caseId": "cv_transferable_leadership",
+      "query": "mentor junior developers and lead technical direction",
+      "sourceTypes": ["cv"],
+      "topK": 2,
+      "corpus": [
+        { "chunkId": "cv-mentor-1", "sourceType": "cv", "text": "Guided 3 bootcamp graduates through our tech stack and ran weekly code review sessions.", "metadata": { "section": "responsibilities" } },
+        { "chunkId": "cv-ui-1", "sourceType": "cv", "text": "Designed a CSS navbar styling library for the team UI.", "metadata": { "section": "project" } },
+        { "chunkId": "jd-lead-1", "sourceType": "job_description", "text": "Role requires mentoring junior engineers.", "metadata": { "section": "requirements" } }
+      ],
+      "relevantChunkIds": ["cv-mentor-1"],
+      "forbiddenChunkIds": ["jd-lead-1"],
+      "labels": { "domain": "leadership", "risk": "medium" },
+      "expectedFallback": null
+    },
+    {
+      "schemaVersion": "retrieval_case_v1",
+      "caseId": "cv_transferable_cloud_scaling",
+      "query": "experience with AWS cloud scaling infrastructure",
+      "sourceTypes": ["cv"],
+      "topK": 2,
+      "corpus": [
+        { "chunkId": "cv-cloud-1", "sourceType": "cv", "text": "Managed highly available clusters on Google Cloud Platform and scaled Kubernetes pods.", "metadata": { "section": "experience" } },
+        { "chunkId": "cv-sql-1", "sourceType": "cv", "text": "Optimized local MySQL indexing schemas.", "metadata": { "section": "project" } },
+        { "chunkId": "jd-aws-1", "sourceType": "job_description", "text": "Must have AWS scaling experience.", "metadata": { "section": "requirements" } }
+      ],
+      "relevantChunkIds": ["cv-cloud-1"],
+      "forbiddenChunkIds": ["jd-aws-1"],
+      "labels": { "domain": "infrastructure", "risk": "high" },
+      "expectedFallback": null
+    },
+    {
+      "schemaVersion": "retrieval_case_v1",
+      "caseId": "multi_source_alignment_retrieval",
+      "query": "combine Node.js requirements with candidate production scaling proof",
+      "sourceTypes": ["job_description", "cv"],
+      "topK": 2,
+      "corpus": [
+        { "chunkId": "jd-node-1", "sourceType": "job_description", "text": "The role requires Node.js API scaling.", "metadata": { "section": "requirements" } },
+        { "chunkId": "cv-scale-1", "sourceType": "cv", "text": "Scaled Node.js API to support 10k concurrent users.", "metadata": { "section": "experience" } },
+        { "chunkId": "cv-unrelated-1", "sourceType": "cv", "text": "Played volleyball at university level.", "metadata": { "section": "hobbies" } }
+      ],
+      "relevantChunkIds": ["jd-node-1", "cv-scale-1"],
+      "forbiddenChunkIds": [],
+      "labels": { "domain": "match", "risk": "high" },
+      "expectedFallback": null
+    },
+    {
+      "schemaVersion": "retrieval_case_v1",
+      "caseId": "transcript_contextual_answer_retrieval",
+      "query": "verify candidate database design claims against resume evidence",
+      "sourceTypes": ["transcript", "cv"],
+      "topK": 2,
+      "corpus": [
+        { "chunkId": "transcript-db-1", "sourceType": "transcript", "text": "In the interview I described Postgres database normalization.", "metadata": { "section": "answer" } },
+        { "chunkId": "cv-db-1", "sourceType": "cv", "text": "Designed normalised schema for large PostgreSQL transactional database.", "metadata": { "section": "experience" } },
+        { "chunkId": "jd-db-1", "sourceType": "job_description", "text": "Knowledge of relational databases is a plus.", "metadata": { "section": "requirements" } }
+      ],
+      "relevantChunkIds": ["transcript-db-1", "cv-db-1"],
+      "forbiddenChunkIds": ["jd-db-1"],
+      "labels": { "domain": "report", "risk": "high" },
+      "expectedFallback": null
+    }
+  ]
+}

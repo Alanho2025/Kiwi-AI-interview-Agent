@@ -1,0 +1,99 @@
+{
+  "schemaVersion": "trajectory_dataset_v1",
+  "datasetVersion": "role-fit-trajectory-v1",
+  "description": "Synthetic cases executed by the production action planner and trajectory builder.",
+  "cases": [
+    {
+      "schemaVersion": "trajectory_case_v1",
+      "caseId": "vague_answer_requires_probe",
+      "state": {
+        "taskType": "interview_next_turn",
+        "currentStage": "technical_core",
+        "currentTopic": "backend_project",
+        "candidateState": { "specificityLevel": "low" },
+        "coverageState": { "missingTopics": ["system_design"], "coveredTopics": [], "weakAreas": ["backend_project"] },
+        "matchState": { "validationTargets": [] }
+      },
+      "allowedActions": ["ASK_PROBING_QUESTION"],
+      "expectedAction": "ASK_PROBING_QUESTION",
+      "expectedTool": "generate_interview_question",
+      "expectedArgs": { "targetTopic": "backend_project", "forceEvidence": true },
+      "expectedObservationClass": "planner_action_selected",
+      "expectedTerminalCondition": null,
+      "latencyBudgetMs": 50,
+      "labels": { "domain": "interview", "risk": "high" }
+    },
+    {
+      "schemaVersion": "trajectory_case_v1",
+      "caseId": "misunderstanding_requires_rephrase",
+      "state": {
+        "taskType": "interview_next_turn",
+        "currentStage": "technical_core",
+        "currentTopic": "system_design",
+        "candidateState": { "specificityLevel": "medium" },
+        "evaluatorState": { "misunderstandingFlag": true, "suggestedNextMode": "rephrase", "currentTopic": "system_design" },
+        "coverageState": { "missingTopics": ["system_design"], "coveredTopics": [], "weakAreas": [] },
+        "matchState": { "validationTargets": [] }
+      },
+      "allowedActions": ["REPHRASE_QUESTION"],
+      "expectedAction": "REPHRASE_QUESTION",
+      "expectedTool": "generate_interview_question",
+      "expectedArgs": { "targetTopic": "system_design", "probeType": "rephrase", "forceEvidence": true },
+      "expectedObservationClass": "planner_action_selected",
+      "expectedTerminalCondition": null,
+      "latencyBudgetMs": 50,
+      "labels": { "domain": "repair", "risk": "high" }
+    },
+    {
+      "schemaVersion": "trajectory_case_v1",
+      "caseId": "fresh_anchor_uses_pool",
+      "state": {
+        "taskType": "interview_next_turn",
+        "currentStage": "technical_core",
+        "currentTopic": "api",
+        "interviewStructure": { "mustBeFreshQuestion": true, "nextTurnIndex": 3, "requiredCategory": "technical" },
+        "coverageState": { "missingTopics": ["testing"] },
+        "matchState": { "validationTargets": [] }
+      },
+      "allowedActions": ["ASK_POOL_QUESTION"],
+      "expectedAction": "ASK_POOL_QUESTION",
+      "expectedTool": "generate_interview_question",
+      "expectedArgs": { "targetTopic": "technical", "probeType": "fresh_anchor", "forceEvidence": false, "freshOnly": true, "category": "technical" },
+      "expectedObservationClass": "planner_action_selected",
+      "expectedTerminalCondition": null,
+      "latencyBudgetMs": 50,
+      "labels": { "domain": "coverage", "risk": "medium" }
+    },
+    {
+      "schemaVersion": "trajectory_case_v1",
+      "caseId": "final_turn_wraps_stage",
+      "state": {
+        "taskType": "interview_next_turn",
+        "currentStage": "reflection_close",
+        "interviewStructure": { "isFinalPlannedTurn": true },
+        "evaluatorState": { "misunderstandingFlag": false }
+      },
+      "allowedActions": ["WRAP_STAGE"],
+      "expectedAction": "WRAP_STAGE",
+      "expectedTool": "generate_interview_question",
+      "expectedArgs": { "targetTopic": "candidate_questions", "probeType": "close_interview", "forceEvidence": false },
+      "expectedObservationClass": "planner_action_selected",
+      "expectedTerminalCondition": "interview_stage_wrap",
+      "latencyBudgetMs": 50,
+      "labels": { "domain": "state_transition", "risk": "high" }
+    },
+    {
+      "schemaVersion": "trajectory_case_v1",
+      "caseId": "report_task_uses_report_tool",
+      "state": { "taskType": "generate_report" },
+      "allowedActions": ["GENERATE_REPORT_DRAFT"],
+      "expectedAction": "GENERATE_REPORT_DRAFT",
+      "expectedTool": "draft_interview_report",
+      "expectedArgs": { "targetTopic": "report", "probeType": null, "forceEvidence": true },
+      "expectedObservationClass": "planner_action_selected",
+      "expectedTerminalCondition": "report_draft_requested",
+      "latencyBudgetMs": 50,
+      "labels": { "domain": "report", "risk": "high" }
+    }
+  ]
+}

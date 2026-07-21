@@ -32,6 +32,7 @@ import { startCompanyValuesEnrichment } from '../services/company/companyValuesE
 import { buildJdQuestionFilter } from '../services/questions/jdQuestionFilterService.js';
 import { generateCvQuestionSeeds, getCvQuestionSeeds } from '../services/questions/cvQuestionSeedService.js';
 import { prepareInterviewQuestionPool } from '../services/questions/questionPoolPreparationService.js';
+import { buildProofStrategyClientSummary } from '../services/questions/proofStrategyClientSummaryService.js';
 
 export const matchCV = asyncHandler(async (req, res) => {
   const { cvId, rawJD, jdRubric, settings } = req.body;
@@ -289,6 +290,10 @@ export const generateInterviewPlan = asyncHandler(async (req, res) => {
       sources: sourceCounts,
       readiness: questionPoolReadiness?.readiness || questionPoolReadiness?.status || 'degraded',
       degradedReason: questionPoolReadiness?.degradedReason || (preparedQuestionPool.length ? null : 'question_pool_preparation_failed'),
+      proofStrategy: buildProofStrategyClientSummary({
+        readiness: questionPoolReadiness || {},
+        poolItems: preparedQuestionPool,
+      }),
     },
   }));
 });

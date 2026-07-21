@@ -16,6 +16,8 @@ import { SessionAnalysis } from '../../db/models/sessionAnalysisModel.js';
 import { InterviewPlan } from '../../db/models/interviewPlanModel.js';
 import { SessionReport } from '../../db/models/sessionReportModel.js';
 import { SessionTranscript } from '../../db/models/sessionTranscriptModel.js';
+import { CompanyValuesProfile } from '../../db/models/companyValuesProfileModel.js';
+import { buildInterviewProofStrategy } from '../questions/roleSpecificPracticePlannerService.js';
 import { validateAnalyzeOutput } from '../schemaValidationService.js';
 import { buildInterviewPlanPayload, retentionDate } from './sessionShared.js';
 
@@ -277,7 +279,8 @@ const buildSessionAnalysisDocument = ({ id, userId, cvFileId, jdText, rubric, no
   decision: normalizedAnalysis.decision || {},
   confidence: normalizedAnalysis.confidence || 0,
   explanation: normalizedAnalysis.explanation || {},
-  evidenceMap: normalizedAnalysis.evidenceMap || [],
+  evidenceMap: [],
+  roleEvidenceMap: normalizedAnalysis.roleEvidenceMap || {},
   sourceSnapshots: normalizedAnalysis.sourceSnapshots || [],
   retrievalSnapshots: [{ matchAnalysisId, evidenceRefs: evidenceRefs || [] }],
   analysisStatus: 'completed',
@@ -315,6 +318,19 @@ export const persistInterviewPlan = async ({ id, userId, normalizedAnalysis, set
     resolvedTargetRole,
   });
 
+  const jdFingerprint = normalizedAnalysis.parsedJdProfile?.metadata?.jdFingerprint;
+  let proofStrategy = buildInterviewProofStrategy();
+  if (jdFingerprint) {
+    const companyProfile = await CompanyValuesProfile.findOne({ userId: String(userId), jdFingerprint }).lean();
+    if (companyProfile?.roleFitProfile && normalizedAnalysis.roleEvidenceMap) {
+      proofStrategy = buildInterviewProofStrategy({
+        roleFitProfile: companyProfile.roleFitProfile,
+        roleEvidenceMap: normalizedAnalysis.roleEvidenceMap,
+        roleEvidenceMapId: matchAnalysisId || normalizedAnalysis.roleEvidenceMap?.matchAnalysisId || '',
+      });
+    }
+  }
+
   await InterviewPlan.findOneAndUpdate(
     { sessionId: id },
     {
@@ -327,6 +343,9 @@ export const persistInterviewPlan = async ({ id, userId, normalizedAnalysis, set
         evidenceRefs,
         source: 'legacy_plan_plus_db_pool',
         dbBackedPoolExpected: true,
+      },
+      roleFit: {
+        proofStrategy,
       },
       retentionUntil: retentionDate(),
     },

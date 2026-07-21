@@ -1,4 +1,5 @@
 import { extractCapabilities } from './cvCapabilityExtractor.js';
+import { buildTraceableCvEvidenceItem } from './cvEvidenceProfileBuilder.js';
 import { ensureArray, unique } from '../../utils/commonHelpers.js';
 
 const normalizeTextField = (...values) => values
@@ -113,7 +114,8 @@ export const normalizeCvEvidence = (profile = {}) => {
   ]);
 
   return {
-    schemaVersion: existing.schemaVersion || 'cv_evidence_profile_v1',
+    schemaVersion: 'cv_evidence_profile_v2',
+    accessScope: 'private',
     sections: {
       ...(existing.sections || {}),
       personalStatement,
@@ -129,7 +131,8 @@ export const normalizeCvEvidence = (profile = {}) => {
     functionalCapabilities: unique([...(existing.functionalCapabilities || []), ...capabilityResult.functionalCapabilities]),
     behaviouralCapabilities: unique([...(existing.behaviouralCapabilities || []), ...capabilityResult.behaviouralCapabilities]),
     achievements: unique([...(existing.achievements || []), ...achievements]),
-    evidenceItems: unique(evidenceItems.map((item) => JSON.stringify(item))).map((item) => JSON.parse(item)),
+    evidenceItems: unique(evidenceItems.map((item) => JSON.stringify(item)))
+      .map((item) => buildTraceableCvEvidenceItem(JSON.parse(item))),
     quantifiedEvidence: unique([
       ...ensureArray(existing.quantifiedEvidence),
       ...filterEvidence(allEvidenceTexts, (text) => /\d|%|percent|reduced|improved|increased|decreased/.test(text)),

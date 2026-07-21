@@ -17,6 +17,19 @@ const splitListText = (value = '') => String(value || '')
 const joinListText = (items = []) => normalizeList(items).join('\n');
 const fieldClass = 'mt-2 w-full rounded-xl border border-theme glass px-3 py-2 text-sm text-primary outline-none transition focus:[border-color:var(--accent)] focus:ring-2 focus:ring-1 focus:ring-accent/15';
 
+const buildHumanEditedRoleIntent = ({ statement, existing, index }) => ({
+  id: `intent:user-edit:${index + 1}`,
+  statement,
+  priority: existing?.priority || 'medium',
+  category: existing?.category || 'human_reviewed_intent',
+  sourceLabel: 'Human-reviewed role intent',
+  confidence: Number.isFinite(Number(existing?.confidence)) ? Math.min(Number(existing.confidence), 0.5) : 0.5,
+  sourceConfidence: 'unsupported',
+  reviewConfidence: 'user_modified',
+  uncertainty: 'User-edited during JD review. Treat this as preparation guidance, not verified employer truth.',
+  sourceTrace: { sourceType: 'human_review', section: 'roleIntent', rawSnippet: statement },
+});
+
 const SummarySection = ({ title, items = [], emptyText = 'No clear items detected in this section.' }) => (
   <div className="rounded-lg border border-gray-100 glass p-4">
     <h5 className="text-sm font-semibold text-primary">{title}</h5>
@@ -58,16 +71,16 @@ const TechnicalGroups = ({ groups }) => {
   );
 };
 
-const EditableTextField = ({ label, value, onChange, placeholder = '' }) => (
+const EditableTextField = ({ label, value, onChange, placeholder = '', required = false }) => (
   <label className="block text-xs font-semibold text-muted">
-    {label}
+    {label} {required && <span className="text-red-500">*</span>}
     <input className={fieldClass} value={value || ''} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} />
   </label>
 );
 
-const EditableListField = ({ label, value = [], onChange, placeholder = '' }) => (
+const EditableListField = ({ label, value = [], onChange, placeholder = '', required = false }) => (
   <label className="block text-xs font-semibold text-muted">
-    {label}
+    {label} {required && <span className="text-red-500">*</span>}
     <textarea
       className={`${fieldClass} min-h-[92px] resize-y leading-5`}
       value={joinListText(value)}
@@ -78,12 +91,25 @@ const EditableListField = ({ label, value = [], onChange, placeholder = '' }) =>
   </label>
 );
 
+const EditableLongTextField = ({ label, value = '', onChange, placeholder = '', required = false }) => (
+  <label className="block text-xs font-semibold text-muted">
+    {label} {required && <span className="text-red-500">*</span>}
+    <textarea
+      className={`${fieldClass} min-h-[92px] resize-y leading-5`}
+      value={value}
+      placeholder={placeholder}
+      onChange={(event) => onChange(event.target.value)}
+    />
+  </label>
+);
+
 const mapTechnicalGroupLabelsToObjects = (labels = []) => labels.map((label) => ({ label })).filter((item) => item.label);
 
 const EditableJDReviewPanel = ({ rubric, onRubricChange }) => {
   const sections = rubric?.sections || {};
   const overview = rubric?.jobOverview || {};
   const technicalSkills = sections.technicalSkills || {};
+  const roleFit = rubric?.roleFit || {};
 
   const patchRubric = (patcher) => {
     onRubricChange(patcher(rubric || {}));
@@ -125,6 +151,38 @@ const EditableJDReviewPanel = ({ rubric, onRubricChange }) => {
     }));
   };
 
+  const updateCompanyUnderstanding = (summary) => {
+    patchRubric((current) => ({
+      ...current,
+      roleFit: {
+        ...(current.roleFit || {}),
+        companyUnderstanding: {
+          ...(current.roleFit?.companyUnderstanding || {}),
+          summary,
+        },
+      },
+    }));
+  };
+
+  const updateRoleIntent = (statements) => {
+    patchRubric((current) => {
+      const existingItems = current.roleFit?.roleIntent?.items || [];
+      const items = statements.map((statement, index) => {
+        const existing = existingItems.find((item) => item.statement === statement) || existingItems[index];
+        return existing?.statement === statement
+          ? existing
+          : buildHumanEditedRoleIntent({ statement, existing, index });
+      });
+      return {
+        ...current,
+        roleFit: {
+          ...(current.roleFit || {}),
+          roleIntent: { ...(current.roleFit?.roleIntent || {}), items },
+        },
+      };
+    });
+  };
+
   const technicalGroupEntries = Object.entries(technicalSkills).length
     ? Object.entries(technicalSkills)
     : [['softwareDevelopment', []], ['data', []], ['aiMl', []], ['itInfrastructure', []]];
@@ -140,20 +198,36 @@ const EditableJDReviewPanel = ({ rubric, onRubricChange }) => {
       </div>
 
       <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <EditableTextField label="Role title" value={overview.title || rubric?.title || ''} onChange={(value) => updateOverview('title', value)} />
-        <EditableTextField label="Company" value={overview.companyName || ''} onChange={(value) => updateOverview('companyName', value)} />
-        <EditableTextField label="Company website URL (optional)" value={overview.companyWebsiteUrl || ''} onChange={(value) => updateOverview('companyWebsiteUrl', value)} placeholder="https://example.com" />
+        <EditableTextField label="Role title" required={true} value={overview.title || rubric?.title || ''} onChange={(value) => updateOverview('title', value)} />
+        <EditableTextField label="Company" required={true} value={overview.companyName || ''} onChange={(value) => updateOverview('companyName', value)} />
         <EditableTextField label="Location" value={overview.location || ''} onChange={(value) => updateOverview('location', value)} />
         <EditableTextField label="Employment type" value={overview.employmentType || ''} onChange={(value) => updateOverview('employmentType', value)} />
       </div>
 
       <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
-        <EditableListField label="Responsibilities" value={sections.responsibilities} onChange={(value) => updateSection('responsibilities', value)} />
-        <EditableListField label="Must-have requirements" value={sections.mustHaveRequirements} onChange={(value) => updateSection('mustHaveRequirements', value)} />
+        <EditableListField label="Responsibilities" required={true} value={sections.responsibilities} onChange={(value) => updateSection('responsibilities', value)} />
+        <EditableListField label="Must-have requirements" required={true} value={sections.mustHaveRequirements} onChange={(value) => updateSection('mustHaveRequirements', value)} />
         <EditableListField label="Nice-to-have requirements" value={sections.niceToHaveRequirements} onChange={(value) => updateSection('niceToHaveRequirements', value)} />
         <EditableListField label="Qualifications" value={sections.qualifications} onChange={(value) => updateSection('qualifications', value)} />
         <EditableListField label="Soft skills" value={sections.softSkills} onChange={(value) => updateSection('softSkills', value)} />
         <EditableListField label="Benefits" value={sections.benefits} onChange={(value) => updateSection('benefits', value)} />
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+        <EditableLongTextField
+          label="Company understanding"
+          required={true}
+          value={roleFit.companyUnderstanding?.summary || ''}
+          onChange={updateCompanyUnderstanding}
+          placeholder="Review the company context used for matching."
+        />
+        <EditableListField
+          label="Role intent priorities"
+          required={true}
+          value={(roleFit.roleIntent?.items || []).map((item) => item.statement)}
+          onChange={updateRoleIntent}
+          placeholder="One role intent per line."
+        />
       </div>
 
       <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -221,6 +295,10 @@ const AnalysisStatusBlock = ({
 export function JobContextCard({
   rawJD,
   setRawJD,
+  companyWebsiteUrl = '',
+  setCompanyWebsiteUrl,
+  userCompanyContext = '',
+  setUserCompanyContext,
   structuredJD,
   structuredJDRubric,
   onStructuredJDRubricChange,
@@ -231,6 +309,9 @@ export function JobContextCard({
   requiresJdHumanReview = false,
   isJdEdited = false,
   onConfirmJDSummary,
+  savedJDs = [],
+  isLoadingSavedJDs = false,
+  onSelectSavedJD,
 }) {
   const viewModel = structuredJDRubric ? buildJobDescriptionViewModel(structuredJDRubric) : null;
 
@@ -239,21 +320,64 @@ export function JobContextCard({
       <CardHeader className="items-start">
         <div>
           <CardTitle>Job Context</CardTitle>
-          <p className="mt-1 text-sm text-faint">Paste the job description so AI can tailor interview questions and coaching tips.</p>
+          <p className="mt-1 text-sm text-faint">Paste the job description or its URL so AI can tailor interview questions and coaching tips.</p>
         </div>
         <div className="shrink-0 text-xs text-gray-400">NZ-focused analysis</div>
       </CardHeader>
       <CardContent className="space-y-4">
+        {savedJDs.length > 0 && (
+          <div className="rounded-xl border border-gray-150 glass/50 p-4 mb-2">
+            <h4 className="text-sm font-medium text-primary mb-2 flex items-center justify-between">
+              <span>Choose from Saved Job Descriptions</span>
+              {isLoadingSavedJDs && <Loader2 className="h-3.5 w-3.5 animate-spin text-accent" />}
+            </h4>
+            <select
+              className="w-full rounded-xl border border-theme glass px-3 py-2 text-sm text-primary outline-none transition focus:[border-color:var(--accent)]"
+              onChange={(e) => {
+                if (e.target.value) {
+                  onSelectSavedJD(e.target.value);
+                  e.target.value = ''; // Reset selection
+                }
+              }}
+              defaultValue=""
+            >
+              <option value="" disabled>-- Select a saved JD --</option>
+              {savedJDs.map((jd) => (
+                <option key={jd.jdFingerprint} value={jd.jdFingerprint}>
+                  {jd.companyName ? `[${jd.companyName}] ` : ''}{jd.title} ({new Date(jd.updatedAt).toLocaleDateString()})
+                </option>
+              ))}
+            </select>
+            <p className="mt-1.5 text-xs text-faint">Loading a saved JD pulls its validated analysis directly, allowing you to skip parsing and review.</p>
+          </div>
+        )}
+
         <div>
-          <h4 className="mb-3 text-sm font-medium text-primary">Paste Job Description (JD)</h4>
-          <TextArea rows={structuredJD ? 6 : 12} placeholder="Copy the job requirements from SEEK or LinkedIn here..." value={rawJD} onChange={(e) => setRawJD(e.target.value)} maxLength={6000} />
+          <h4 className="mb-3 text-sm font-medium text-primary">Paste Job Description (JD) or URL</h4>
+          <TextArea rows={structuredJD ? 6 : 12} placeholder="Paste the job listing URL (e.g. https://www.seek.co.nz/job/...) or copy-paste job requirements here..." value={rawJD} onChange={(e) => setRawJD(e.target.value)} maxLength={6000} />
           <div className="mt-2 flex items-start justify-between gap-3">
-            <p className="text-xs text-faint">Tip: include responsibilities, tech stack, and must-have skills.</p>
+            <p className="text-xs text-faint">Tip: include responsibilities, tech stack, or paste a link to fetch automatically.</p>
             <p className="shrink-0 text-xs text-gray-400">{rawJD.length}/6000</p>
           </div>
         </div>
 
-        <Button variant="secondary" onClick={onSummarize} disabled={!rawJD.trim() || isSummarizing} className="flex w-full items-center justify-center gap-2">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <EditableTextField
+            label="Company website URL"
+            value={companyWebsiteUrl}
+            onChange={setCompanyWebsiteUrl}
+            placeholder="https://company.example"
+          />
+          <EditableLongTextField
+            label="Manual company context"
+            value={userCompanyContext}
+            onChange={setUserCompanyContext}
+            placeholder="Add a short company summary when no website is available."
+          />
+        </div>
+        <p className="text-xs text-faint">Provide either a company website or manual company context.</p>
+
+        <Button variant="secondary" onClick={onSummarize} disabled={!rawJD.trim() || (!companyWebsiteUrl.trim() && !userCompanyContext.trim()) || isSummarizing} className="flex w-full items-center justify-center gap-2">
           {isSummarizing ? <><Loader2 className="h-4 w-4 animate-spin" /> Summarising...</> : <><FileText className="h-4 w-4" /> Summarise JD</>}
         </Button>
 

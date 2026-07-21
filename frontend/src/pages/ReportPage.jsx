@@ -30,6 +30,7 @@ import { CommercialStressTestSection } from '../components/report/CommercialStre
 import { CommunicationAuthenticitySection } from '../components/report/CommunicationAuthenticitySection.jsx';
 import { EvidenceSourcesSection } from '../components/report/EvidenceSourcesSection.jsx';
 import { TranscriptRiskSection } from '../components/report/TranscriptRiskSection.jsx';
+import { RoleFitReportSection } from '../components/report/RoleFitReportSection.jsx';
 import { LoadingInsightPanel } from '../components/common/LoadingInsightPanel.jsx';
 import { useReportData } from '../hooks/useReportData.js';
 import { buildReportViewModel } from '../utils/reportView/index.js';
@@ -145,6 +146,7 @@ export function ReportPage() {
             <CompanyMotivationFitSection fit={viewModel.companyMotivationFit} />
             <CommunicationProfileSection profile={viewModel.communicationProfile} />
             <TranscriptRiskSection risks={viewModel.transcriptRisks} />
+            <RoleFitReportSection roleFit={viewModel.roleFit} />
             <EvidenceSourcesSection items={viewModel.evidenceSources} />
             <CoachingSection improvementPriorities={viewModel.improvementPriorities} coachingAdvice={viewModel.coachingAdvice} />
             <QuoteAnalysisSection quoteAnalyses={viewModel.quoteAnalyses} />

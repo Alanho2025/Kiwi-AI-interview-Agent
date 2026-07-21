@@ -1,5 +1,18 @@
 # Version History
 
+## 2026-07-11 - Role-Fit Closed Loop v2 Final Goal
+
+- Upgraded the product from requirement-centered CV-JD practice into a Role-Fit closed loop: reviewed company context, hiring-logic role intent, candidate evidence graph, proof strategy, interview question metadata, and answer-alignment report now share a traceable contract.
+- Added source-confidence and review-confidence separation so user review no longer overwrites source trust.
+- Added bounded same-origin website evidence capture, SSRF/content guards, URL-only degraded diagnostics, and manual-vs-website conflict diagnostics.
+- Added deterministic CompanyUnderstanding v2 and RoleIntentDecoder v2 fields for business model, users/products, operating context, role purpose, workflow pain points, hiring risks, ideal signals, interview probes, and uncertainty.
+- Added Candidate Evidence Graph v2 and Role Evidence Map v2 with proof angles, fit limits, how-to-say-it guidance, avoid-using guidance, and hiring-logic links.
+- Added Proof Strategy preparation UX and metadata-aware question ranking while keeping live interview payloads free of recommended evidence hints.
+- Added Answer Alignment v2 with six dimensions, evidence-use diagnosis, report QA blocking flags, and plain-language report UI/TXT/PDF export behavior.
+- Completed the 12-case Role-Fit V2 adversarial suite and 12/12 human calibration dataset; release threshold is 0.85 and calibration status is `calibrated`.
+- Added Role-Fit release gate aggregation, browser visual evidence, and real-backend voice flow evidence. Current release gate status is `ready_with_known_issues`; the known issue is real-backend voice next-question first audio exceeding the 3-second target.
+- Added `docs/2026-07-11-role-fit-v2-implementation-narrative.md` to explain how the original product was implemented into the current Role-Fit system and where the actual build differed from the plan.
+
 ## 2026-06-23 - Report Integrity, Resumable Recording, Question Deduplication, and Documentation Reconciliation
 
 - Added transcript-based and preparation-time question deduplication with safe `no_unique_question_remaining` completion.

@@ -30,6 +30,7 @@ import { groundCandidateFeedbackClaims } from '../report/claimGroundingService.j
 import { buildReportTurnDataset } from '../report/reportTurnDatasetService.js';
 import { buildReportScores, computeInterviewPerformanceScore } from '../report/reportScoreService.js';
 import { detectReportTranscriptRisks } from '../report/reportTranscriptRiskService.js';
+import { buildRoleFitReportSummary } from '../report/answerAlignmentService.js';
 
 const formatStarrElementName = (element = '') => String(element || 'resultOrReaction')
   .replace(/^resultOrReaction$/i, 'result')
@@ -218,6 +219,12 @@ export const runReportGeneratorAgent = async ({ session = {}, analysisResult = {
   const evidenceSummary = buildEvidenceSummary(analysedAnswers);
   const interviewMetrics = buildInterviewMetrics(turnDataset, session.totalQuestions || 0);
   const deterministicTurnBreakdowns = buildDeterministicTurnBreakdowns(turnDataset.questionAnswerPairs, analysedAnswers);
+  const roleFit = buildRoleFitReportSummary({
+    questionAnswerPairs: turnDataset.questionAnswerPairs,
+    interviewPlan,
+    analysisResult,
+    session,
+  });
   const reportScores = buildReportScores({
     cvJdScore: analysisResult.overallScore || 0,
     interviewScore: computeInterviewPerformanceScore(evidenceSummary, {
@@ -294,6 +301,7 @@ export const runReportGeneratorAgent = async ({ session = {}, analysisResult = {
     companyMotivationFit,
     scores: reportScores,
     transcriptRisks,
+    roleFit,
   });
 
   const validated = validateReportOutput({

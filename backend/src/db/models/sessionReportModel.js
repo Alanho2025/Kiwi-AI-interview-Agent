@@ -14,6 +14,7 @@ import mongoose from 'mongoose';
 const SessionReportSchema = new mongoose.Schema(
   {
     sessionId: { type: String, required: true, unique: true, index: true },
+    userId: { type: String, required: true, index: true },
     report: { type: mongoose.Schema.Types.Mixed, default: {} },
     qaResult: { type: mongoose.Schema.Types.Mixed, default: {} },
     latestStatus: {
@@ -27,6 +28,11 @@ const SessionReportSchema = new mongoose.Schema(
     scoreExplanations: { type: mongoose.Schema.Types.Mixed, default: null },
     trustSummary: { type: mongoose.Schema.Types.Mixed, default: null },
     calibrationStatus: { type: mongoose.Schema.Types.Mixed, default: null },
+    retentionUntil: { type: Date },
+    deletedAt: { type: Date },
+    containsSensitiveData: { type: Boolean, default: true },
+    accessScope: { type: String, default: 'private' },
+    schemaVersion: { type: String, default: 'v7' },
   },
   { timestamps: true }
 );

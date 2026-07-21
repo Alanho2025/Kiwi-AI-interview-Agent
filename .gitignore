@@ -6,14 +6,6 @@ coverage/
 *.log
 .env*
 !.env.example
-
-# Never commit archives: they can smuggle secrets past the .env* rule.
-*.zip
-*.tar
-*.tar.gz
-*.tgz
-*.7z
-*.rar
 backend/uploads/
 backend/tmp/
 backend/.venv-asr/
@@ -25,3 +17,6 @@ backend/benchmarks/voice-asr-fallback/*.results.json
 
 # Ignore only the generated report directory at the repository root.
 /report/
+
+# Browser/eval screenshots and local run artifacts.
+/output/

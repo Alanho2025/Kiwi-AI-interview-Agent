@@ -38,4 +38,32 @@ describe('report export text formatting', () => {
     expect(text).not.toContain('[object Object]');
     expect(text).not.toContain('NaN');
   });
+
+  it('includes role focus and answer alignment without internal IDs', () => {
+    const text = formatReportAsText({
+      sessionId: 'session-role-fit-export',
+      report: {
+        roleFit: {
+          status: 'ready',
+          roleIntentCoverage: {
+            total: 1,
+            covered: 1,
+            items: [{ label: 'Reliable production delivery', status: 'covered' }],
+          },
+          answerAlignments: [{
+            question: 'Tell me about a delivery improvement.',
+            label: 'strong',
+            score: 88,
+            diagnosis: { mainIssue: 'Clear ownership and result.' },
+          }],
+        },
+      },
+      qaResult: {},
+    });
+
+    expect(text).toContain('HOW YOUR ANSWERS MATCHED THIS ROLE');
+    expect(text).toContain('Reliable production delivery: Clearly demonstrated');
+    expect(text).toContain('Strong match for this answer (88/100)');
+    expect(text).not.toMatch(/proofPointId|coverageId|evidenceId/);
+  });
 });

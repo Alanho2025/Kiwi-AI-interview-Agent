@@ -8,6 +8,13 @@ const EVIDENCE_STRENGTH_RANK = { strong: 3, partial: 2, weak: 1, missing: 0 };
 
 const buildRequirementCandidates = (rubric = {}) => {
   const candidates = [
+    ...(rubric.roleFit?.roleIntent?.items || []).map((item) => ({
+      id: item.id || `role-intent:${normalizeTaxonomyLabel(item.statement)}`,
+      label: item.statement,
+      text: item.statement,
+      category: item.category || 'role_intent',
+      sourceType: 'role_intent',
+    })),
     ...(rubric.universalRoleProfile?.requirements || []).map((item) => ({
       id: item.id || `universal:${normalizeTaxonomyLabel(item.text || item.label)}`,
       label: item.text || item.label,
@@ -30,30 +37,41 @@ const buildRequirementCandidates = (rubric = {}) => {
 };
 
 const buildEvidenceCandidates = (evidenceProfile = {}) => {
-  const items = evidenceProfile.evidenceItems || [];
+  const items = evidenceProfile.evidenceItems || evidenceProfile.candidateEvidenceGraph?.evidenceItems || [];
   return items
     .map((item, index) => ({
-      id: item.id || `evidence:${index}`,
-      text: item.text || '',
-      sourceType: item.sourceType || '',
-      section: item.section || '',
-      chunkId: item.chunkId || item.id || `cv_${index + 1}`,
+      id: item.id || item.evidenceId || `evidence:${index}`,
+      text: item.text || item.rawSnippet || item.title || '',
+      sourceType: item.sourceType || item.sourceTrace?.sourceType || item.source || '',
+      candidateEvidenceSource: item.candidateEvidenceSource || item.source || '',
+      title: item.title || '',
+      section: item.section || item.sourceTrace?.section || '',
+      chunkId: item.chunkId || item.id || item.evidenceId || `cv_${index + 1}`,
       projectTitle: item.projectTitle || '',
       evidenceStrength: item.evidenceStrength || 'weak',
       tools: item.tools || [],
       domain: item.domain || '',
       responsibilitySignal: Boolean(item.responsibilitySignal),
       achievementSignal: Boolean(item.achievementSignal),
+      sourceTrace: item.sourceTrace || null,
+      signals: item.signals || {},
+      proofAngles: item.proofAngles || [],
+      strengthSignals: item.strengthSignals || {},
+      howToSayIt: item.howToSayIt || [],
+      avoidUsingFor: item.avoidUsingFor || [],
+      fitLimits: item.fitLimits || [],
     }))
     .filter((item) => item.text.trim());
 };
 
-const toMatchMap = (ranked = {}) => {
+const toMatchMap = (ranked = {}, evidence = []) => {
   const byLabel = {};
+  const evidenceById = new Map(evidence.flatMap((item) => [[item.id, item], [item.chunkId, item]]));
   const matches = (ranked.matches || []).map((item) => {
     const filteredMatches = (item.matches || [])
       .filter((match) => Number(match.score) >= SCORE_FLOOR)
       .map((match) => ({
+        ...(evidenceById.get(match.evidenceId || match.id || match.chunkId) || {}),
         ...match,
         score: Number(Number(match.score || 0).toFixed(4)),
       }))
@@ -89,7 +107,7 @@ export const buildSemanticEvidenceContext = async ({ rubric = {}, evidenceProfil
     ? null
     : await rankEvidenceWithSentenceTransformers({ requirements, evidence, topK: TOP_K });
   const ranked = pythonRanked || await rankSemanticEvidence({ requirements, evidence, topK: TOP_K, minScore: SCORE_FLOOR });
-  const { byLabel, matches } = toMatchMap(ranked);
+  const { byLabel, matches } = toMatchMap(ranked, evidence);
 
   return {
     model: ranked.model,

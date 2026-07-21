@@ -160,19 +160,27 @@ describe('interview/report route integration', () => {
         return {
           nextQuestion: 'Tell me about a reporting workflow you improved.',
           interviewerTurn: { text: 'Tell me about a reporting workflow you improved.' },
-          rationale: 'Probe concrete evidence.',
-          retrievalSnapshot: { items: [] },
+          rationale: 'private-proof-point-reason',
+          retrievalSnapshot: { items: [{ evidenceId: 'private-evidence-live' }] },
           isComplete: false,
           nextQuestionOrder: 2,
-          evaluatorOutput: { score: 0.8 },
-          reactTrace: { tools: ['ask_interview_question'] },
+          evaluatorOutput: { score: 0.8, proofPointId: 'private-proof-point-live' },
+          reactTrace: { tools: ['ask_interview_question'], thoughtSummary: 'private-thought-live' },
         };
       }
       if (taskType === 'generate_report') {
+        const roleFit = {
+          schemaVersion: 'role_fit_report_v1',
+          status: 'ready',
+          roleIntentCoverage: { total: 1, covered: 1, partial: 0, missing: 0, items: [] },
+          answerAlignments: [{ question: 'Reporting workflow', score: 82, label: 'strong' }],
+          evidenceUsageMap: { totalUses: 1, items: [] },
+          questionReasoning: [],
+        };
         return {
-          report: { sessionId: session.id, scores: { overall: 82 }, summary: 'Grounded report.' },
+          report: { sessionId: session.id, scores: { overall: 82 }, summary: 'Grounded report.', roleFit },
           qaResult: { passed: true },
-          stored: { latestStatus: 'ready', report: { summary: 'Grounded report.' } },
+          stored: { latestStatus: 'ready', report: { summary: 'Grounded report.', roleFit } },
         };
       }
       return {};
@@ -226,6 +234,7 @@ describe('interview/report route integration', () => {
     expect(replied.response.status).toBe(200);
     expect(replied.payload.data.nextQuestion).toContain('reporting workflow');
     expect(replied.payload.data.session.currentQuestionIndex).toBe(2);
+    expect(JSON.stringify(replied.payload.data)).not.toMatch(/private-proof-point|private-evidence-live|private-thought-live/);
     expect(serviceMocks.saveInterviewAnswer).toHaveBeenCalledWith(session.id, 'I built weekly SQL reports and reduced manual reconciliation.');
     expect(serviceMocks.runTask).toHaveBeenCalledWith(expect.objectContaining({
       taskType: 'interview_next_turn',
@@ -241,6 +250,11 @@ describe('interview/report route integration', () => {
 
     expect(report.response.status).toBe(200);
     expect(report.payload.data.report.summary).toBe('Grounded report.');
+    expect(report.payload.data.report.roleFit).toMatchObject({
+      schemaVersion: 'role_fit_report_v1',
+      status: 'ready',
+      roleIntentCoverage: { total: 1, covered: 1 },
+    });
     expect(report.payload.data.executionCost.summary.totalCost).toBe(0.00042);
     expect(report.payload.data.commercialStressTest.totalLlmTokens).toBe(120);
     expect(serviceMocks.getOwnedSessionById).toHaveBeenCalledWith(session.id, 'user-1');

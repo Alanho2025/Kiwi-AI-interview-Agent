@@ -1,0 +1,130 @@
+{
+  "schemaVersion": "generation_grounding_dataset_v1",
+  "datasetVersion": "role-fit-generation-v1",
+  "description": "Synthetic claim-level grounding cases kept separate from retrieval ranking.",
+  "cases": [
+    {
+      "schemaVersion": "generation_grounding_case_v1",
+      "caseId": "candidate_api_evidence",
+      "input": { "objective": "Summarize backend ownership evidence.", "query": "Node.js API ownership result" },
+      "retrieval": {
+        "chunkIds": ["cv-api-1", "jd-api-1"],
+        "contexts": ["Built a Node.js API and reduced response time by 30 percent.", "The role requires API ownership."],
+        "contextSources": { "cv-api-1": "cv", "jd-api-1": "job_description" },
+        "configFingerprint": "runtime-retrieval-v1"
+      },
+      "output": {
+        "text": "Built a Node.js API and reduced response time by 30 percent.",
+        "claimRefs": ["cv-api-1"],
+        "claims": [
+          { "text": "Built a Node.js API", "claimClass": "candidate_evidence", "evidenceChunkIds": ["cv-api-1"] },
+          { "text": "reduced response time by 30 percent", "claimClass": "candidate_evidence", "evidenceChunkIds": ["cv-api-1"] }
+        ]
+      },
+      "reference": {
+        "requiredClaims": ["Built a Node.js API", "reduced response time by 30 percent"],
+        "forbiddenClaims": ["deployed Kubernetes in production"],
+        "claimSourcePolicy": { "candidate_evidence": ["cv"], "role_requirement": ["job_description"], "match_gap": ["match_analysis"] }
+      },
+      "labels": { "domain": "backend", "risk": "high" }
+    },
+    {
+      "schemaVersion": "generation_grounding_case_v1",
+      "caseId": "role_requirement_not_candidate_claim",
+      "input": { "objective": "State the role requirement without upgrading candidate evidence.", "query": "Kubernetes role requirement" },
+      "retrieval": {
+        "chunkIds": ["jd-k8s-1", "cv-web-1"],
+        "contexts": ["The role requires Kubernetes production experience.", "Deployed a web demo to a managed platform."],
+        "contextSources": { "jd-k8s-1": "job_description", "cv-web-1": "cv" },
+        "configFingerprint": "runtime-retrieval-v1"
+      },
+      "output": {
+        "text": "The role requires Kubernetes production experience.",
+        "claimRefs": ["jd-k8s-1"],
+        "claims": [
+          { "text": "The role requires Kubernetes production experience", "claimClass": "role_requirement", "evidenceChunkIds": ["jd-k8s-1"] }
+        ]
+      },
+      "reference": {
+        "requiredClaims": ["The role requires Kubernetes production experience"],
+        "forbiddenClaims": ["The candidate deployed Kubernetes in production"],
+        "claimSourcePolicy": { "candidate_evidence": ["cv"], "role_requirement": ["job_description"], "match_gap": ["match_analysis"] }
+      },
+      "labels": { "domain": "role_intent", "risk": "high" }
+    },
+    {
+      "schemaVersion": "generation_grounding_case_v1",
+      "caseId": "match_gap_statement",
+      "input": { "objective": "Report a validation gap.", "query": "cloud production evidence gap" },
+      "retrieval": {
+        "chunkIds": ["match-cloud-1", "cv-api-2"],
+        "contexts": ["No cloud production evidence was found; validation is required.", "Maintained a local API project."],
+        "contextSources": { "match-cloud-1": "match_analysis", "cv-api-2": "cv" },
+        "configFingerprint": "runtime-retrieval-v1"
+      },
+      "output": {
+        "text": "No cloud production evidence was found; validation is required.",
+        "claimRefs": ["match-cloud-1"],
+        "claims": [
+          { "text": "No cloud production evidence was found", "claimClass": "match_gap", "evidenceChunkIds": ["match-cloud-1"] },
+          { "text": "validation is required", "claimClass": "match_gap", "evidenceChunkIds": ["match-cloud-1"] }
+        ]
+      },
+      "reference": {
+        "requiredClaims": ["No cloud production evidence was found", "validation is required"],
+        "forbiddenClaims": ["The candidate has cloud production experience"],
+        "claimSourcePolicy": { "candidate_evidence": ["cv"], "role_requirement": ["job_description"], "match_gap": ["match_analysis"] }
+      },
+      "labels": { "domain": "match_gap", "risk": "high" }
+    },
+    {
+      "schemaVersion": "generation_grounding_case_v1",
+      "caseId": "irrelevant_context_not_used",
+      "input": { "objective": "Summarize accessibility evidence despite retrieval noise.", "query": "React accessibility testing" },
+      "retrieval": {
+        "chunkIds": ["cv-a11y-1", "transcript-food-1"],
+        "contexts": ["Tested React accessibility with keyboard navigation.", "The speaker discussed a preferred lunch menu."],
+        "contextSources": { "cv-a11y-1": "cv", "transcript-food-1": "transcript" },
+        "configFingerprint": "runtime-retrieval-v1"
+      },
+      "output": {
+        "text": "Tested React accessibility with keyboard navigation.",
+        "claimRefs": ["cv-a11y-1"],
+        "claims": [
+          { "text": "Tested React accessibility with keyboard navigation", "claimClass": "candidate_evidence", "evidenceChunkIds": ["cv-a11y-1"] }
+        ]
+      },
+      "reference": {
+        "requiredClaims": ["Tested React accessibility with keyboard navigation"],
+        "forbiddenClaims": ["The candidate designed a lunch menu"],
+        "claimSourcePolicy": { "candidate_evidence": ["cv"], "role_requirement": ["job_description"], "match_gap": ["match_analysis"] }
+      },
+      "labels": { "domain": "frontend", "risk": "medium" }
+    },
+    {
+      "schemaVersion": "generation_grounding_case_v1",
+      "caseId": "mixed_requirement_and_evidence",
+      "input": { "objective": "Keep requirement and evidence claims separate.", "query": "mentoring requirement leadership evidence" },
+      "retrieval": {
+        "chunkIds": ["jd-mentor-1", "cv-lead-1"],
+        "contexts": ["The role requires mentoring junior engineers.", "Led weekly code reviews for two project teammates."],
+        "contextSources": { "jd-mentor-1": "job_description", "cv-lead-1": "cv" },
+        "configFingerprint": "runtime-retrieval-v1"
+      },
+      "output": {
+        "text": "The role requires mentoring junior engineers. Led weekly code reviews for two project teammates.",
+        "claimRefs": ["jd-mentor-1", "cv-lead-1"],
+        "claims": [
+          { "text": "The role requires mentoring junior engineers", "claimClass": "role_requirement", "evidenceChunkIds": ["jd-mentor-1"] },
+          { "text": "Led weekly code reviews for two project teammates", "claimClass": "candidate_evidence", "evidenceChunkIds": ["cv-lead-1"] }
+        ]
+      },
+      "reference": {
+        "requiredClaims": ["The role requires mentoring junior engineers", "Led weekly code reviews for two project teammates"],
+        "forbiddenClaims": ["The candidate formally managed junior engineers"],
+        "claimSourcePolicy": { "candidate_evidence": ["cv"], "role_requirement": ["job_description"], "match_gap": ["match_analysis"] }
+      },
+      "labels": { "domain": "behavioral", "risk": "high" }
+    }
+  ]
+}

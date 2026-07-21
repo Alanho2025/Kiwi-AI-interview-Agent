@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { loadAnalyzeDraft, persistAnalyzeDraft } from '../analyzeDraft.js';
 import { resolveDraftWorkflowStep, WORKFLOW_STEP_IDS } from '../analyzePageBuilder.js';
 
 const verifiedCv = {
@@ -25,6 +26,10 @@ const buildReadyDraft = (overrides = {}) => ({
 });
 
 describe('analyze draft workflow state', () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
   it('keeps a fully reviewed current draft in session setup', () => {
     expect(resolveDraftWorkflowStep(buildReadyDraft())).toBe(WORKFLOW_STEP_IDS.SESSION_SETUP);
   });
@@ -44,5 +49,27 @@ describe('analyze draft workflow state', () => {
     });
 
     expect(resolveDraftWorkflowStep(draft)).toBe(WORKFLOW_STEP_IDS.JD_INPUT);
+  });
+
+  it('preserves company context and role-fit review drafts across page restoration', () => {
+    persistAnalyzeDraft(buildReadyDraft({
+      companyWebsiteUrl: 'https://luma.example',
+      userCompanyContext: 'Luma builds trusted analytics products.',
+      structuredJDRubric: {
+        ...verifiedJdRubric,
+        roleFit: {
+          review: { status: 'unreviewed', version: 2 },
+          companyUnderstanding: { summary: 'Luma builds trusted analytics products.' },
+          roleIntent: { items: [{ id: 'intent:react', statement: 'Production React delivery' }] },
+        },
+      },
+    }));
+
+    const restored = loadAnalyzeDraft();
+
+    expect(restored.companyWebsiteUrl).toBe('https://luma.example');
+    expect(restored.userCompanyContext).toBe('Luma builds trusted analytics products.');
+    expect(restored.structuredJDRubric.roleFit.review.version).toBe(2);
+    expect(restored.structuredJDRubric.roleFit.roleIntent.items[0].statement).toBe('Production React delivery');
   });
 });

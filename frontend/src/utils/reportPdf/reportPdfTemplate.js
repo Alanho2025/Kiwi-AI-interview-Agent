@@ -495,6 +495,55 @@ const drawQuoteAnalyses = (layout, quoteAnalyses = []) => {
   });
 };
 
+const drawRoleFit = (layout, roleFit = {}) => {
+  if (roleFit.status === 'legacy') return;
+  if (!roleFit.available) {
+    layout.sectionTitle('Role-Specific Coaching');
+    drawCallout(
+      layout,
+      'Coaching unavailable',
+      'Role-specific coaching was unavailable. Your existing interview feedback is still available.',
+      COLOR.amber
+    );
+    return;
+  }
+
+  const coverage = roleFit.roleIntentCoverage || {};
+  layout.sectionTitle(
+    'How Your Answers Matched This Role',
+    `${coverage.covered || 0} of ${coverage.total || 0} focus areas clearly demonstrated.`
+  );
+  (coverage.items || []).forEach((item) => {
+    drawItemCard(
+      layout,
+      item.label || 'Role focus',
+      titleCase(item.status === 'covered' ? 'clearly demonstrated' : item.status === 'partial' ? 'partly demonstrated' : item.status === 'missing' ? 'needs stronger evidence' : 'not assessed'),
+      { color: item.status === 'covered' ? COLOR.brand : COLOR.amber }
+    );
+  });
+  (roleFit.answerAlignments || []).forEach((alignment, index) => {
+    const label = alignment.label === 'strong'
+      ? 'Strong match for this answer'
+      : alignment.label === 'partial'
+        ? 'Partly matched this focus'
+        : alignment.label === 'weak'
+          ? 'Needs a clearer connection'
+          : alignment.label === 'off_target'
+            ? 'Did not yet answer this focus'
+            : 'Not assessed';
+    drawItemCard(
+      layout,
+      `Answer ${index + 1}: ${alignment.question || 'Interview question'}`,
+      alignment.diagnosis?.mainIssue || '',
+      {
+        meta: `${titleCase(label)} - ${Number(alignment.score || 0)}/100`,
+        action: alignment.betterAnswerPlan?.direction || '',
+        color: alignment.label === 'strong' ? COLOR.brand : COLOR.amber,
+      }
+    );
+  });
+};
+
 export const buildTurnFrameworkMeta = (turn = {}) => {
   const dimensions = turn.frameworkBreakdown?.dimensions;
   if (Array.isArray(dimensions) && dimensions.length) {
@@ -587,6 +636,7 @@ export const generateReportPDF = async (reportData) => {
     drawCover(layout, reportData, vm);
     drawInsights(layout, vm);
     drawCommunicationProfile(layout, vm.communicationProfile);
+    drawRoleFit(layout, vm.roleFit);
     drawCoaching(layout, vm);
     drawQuoteAnalyses(layout, vm.quoteAnalyses);
     drawTurnBreakdowns(layout, vm.turnBreakdowns);

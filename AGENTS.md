@@ -6,6 +6,18 @@
 - The product flow includes CV upload, JD parsing, CV-JD matching, interview planning, text or voice interview sessions, report generation, and AI evaluation runners.
 - Treat text interview mode as the safest low-dependency demo path. Voice mode depends on browser microphone permission, authenticated WebSocket access, valid Azure Speech credentials, and a live interview session.
 
+## Repo docs
+
+The living project guide is in `repo-docs/`. This repo's `repo-docs/` guide is reader-facing Chinese documentation. When updating reader-facing guide pages, use `repo-docs-zh` when available; keep Chinese reader handles in the prose and preserve exact source identifiers for lookup. Start with `repo-docs/README.md`; when `repo-docs/walkthroughs/one-real-run.md` exists, use it as the main behavior trace.
+
+Repo-docs sync triggers before the final response: repo questions; architecture, onboarding, or "how does this work" answers; behavior-bearing code/config/data/script/test edits; user uncertainty or correction about stable project behavior; stable project knowledge discovered or clarified in conversation; and knowledge about to be written to memory.
+
+When a trigger happens, run a foreground repo-docs sync gate before answering: use the `repo-docs` skill in Sync mode when available, or manually read the relevant guide pages, inspect current source, and decide `none`, `answer-only`, `foreground patch`, or `background sync`. Ordinary repo questions may be `answer-only` when the guide is current enough and the answer can cite inspected guide/source evidence. Patch the smallest owning guide page before the final response only when the current answer or edit would otherwise mislead, the guide says the opposite, or the missing stable knowledge is a small local patch.
+
+If the needed guide work is broader and not required for the current answer to be correct, delegate it to a background `repo-docs` sync agent when the platform supports a real tracked handoff. The handoff must name the trigger, durable facts or changed source areas, candidate guide pages, verification to run, and the expected `repo-docs/change-log.md` update. If no background agent is available, answer from inspected source and mention the pending docs gap when it matters.
+
+When behavior-bearing code, config, data, scripts, or tests change, compare the change with the guide before finishing unless the user asked not to touch docs. Record meaningful guide updates in `repo-docs/change-log.md` with verification and `Synced through <sha>` when git is available.
+
 ## Required Reading Before Work
 
 - Before making any code change, read `docs/clean-code-rules.md` first.
@@ -113,13 +125,3 @@ Do not default to the smallest safe change if the user clearly asks for a broade
 Before editing, convert the user's plan into an implementation checklist. Complete every item unless there is a concrete technical blocker. If any item is skipped or changed, explain why in the final response.
 
 Preserve existing behaviour unless the user explicitly asks to change it.
-
-## Skills Library
-
-The following specialized capabilities (Procedural Memories) are available as Agent Skills in the `.agents/skills/` directory. They should only be loaded on demand according to their respective triggers to prevent context bloat:
-
-- **`parse-cv`**: Extract structured profile data from uploaded candidate CVs.
-- **`parse-jd`**: Extract role requirements from Job Descriptions and separate marketing noise.
-- **`match-cv-jd`**: Generate interview prep plans and gap analysis from parsed profiles.
-- **`manage-voice-interview`**: State machine controller for conducting real-time voice interviews.
-- **`generate-interview-report`**: Final aggregator for interview transcripts, producing grounded scores and coaching.

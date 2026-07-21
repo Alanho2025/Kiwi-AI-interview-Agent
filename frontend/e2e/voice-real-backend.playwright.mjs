@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { spawn } from 'node:child_process';
+import fs from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import process from 'node:process';
@@ -18,6 +19,8 @@ const USER_NAME = 'Voice Real Backend Candidate';
 const TEST_TRANSCRIPT = 'I built a duplex voice interview agent and measured latency from speech end to first audio.';
 const E2E_JWT_SECRET = process.env.JWT_SECRET || 'voice-real-backend-e2e-secret';
 const E2E_GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || 'voice-real-backend-client';
+const OUTPUT_ROOT = path.resolve(process.cwd(), '../output/playwright');
+const ARTIFACT_PATH = path.join(OUTPUT_ROOT, 'voice-real-backend.latest.json');
 
 process.env.JWT_SECRET = E2E_JWT_SECRET;
 process.env.GOOGLE_CLIENT_ID = E2E_GOOGLE_CLIENT_ID;
@@ -57,6 +60,42 @@ const createPcmToneChunk = ({ sampleRate = 16000, durationMs = 80, amplitude = 0
     buffer.writeInt16LE(value, index * 2);
   }
   return buffer;
+};
+
+const findFirstAudioAfterSpeechEnd = (events = []) => {
+  const speechEndEvent = events.find((event) => event.direction === 'out' && event.type === 'speech_end');
+  if (!speechEndEvent) return { speechEndEvent: null, firstAudioEvent: null, assistantFirstAudioMs: null };
+  const audioEvents = events.filter((event) => (
+    event.direction === 'in'
+    && event.at >= speechEndEvent.at
+    && ['tts_audio_chunk', 'audio_chunk'].includes(event.type)
+  ));
+  const firstAudioEvent = audioEvents[0] || null;
+  return {
+    speechEndEvent,
+    firstAudioEvent,
+    nextQuestionAudioEvent: audioEvents[1] || firstAudioEvent,
+    assistantFirstAudioMs: firstAudioEvent ? Math.max(0, firstAudioEvent.at - speechEndEvent.at) : null,
+    nextQuestionFirstAudioMs: audioEvents.length
+      ? Math.max(0, (audioEvents[1] || firstAudioEvent).at - speechEndEvent.at)
+      : null,
+  };
+};
+
+const findTurnDoneAfterSpeechEnd = (events = [], speechEndEvent = null) => {
+  if (!speechEndEvent) return null;
+  const turnDoneEvent = events.find((event) => (
+    event.direction === 'in'
+    && event.type === 'turn_done'
+    && event.at >= speechEndEvent.at
+  ));
+  return turnDoneEvent ? Math.max(0, turnDoneEvent.at - speechEndEvent.at) : null;
+};
+
+const getLatencyStepMs = (latency = null, stepName = '') => {
+  const step = latency?.steps?.find((item) => item?.step === stepName || item?.name === stepName);
+  if (Number.isFinite(Number(step?.msFromStart))) return Number(step.msFromStart);
+  return null;
 };
 
 const dynamicImport = async (absolutePath) => import(pathToFileURL(absolutePath).href);
@@ -260,6 +299,7 @@ const installRealBackendVoiceDriver = async (context) => {
             type: payloadType,
             text: payload.text || payload.displayText || payload.normalizedText || null,
             provider: payload.provider || payload.transcription?.asrSource || null,
+            latency: payload.latency || null,
             at: performance.now(),
           });
         } catch {
@@ -330,6 +370,7 @@ const driveVoiceTurnThroughRealSocket = async (page) => {
 
 const run = async () => {
   const { chromium } = loadPlaywright();
+  await fs.mkdir(OUTPUT_ROOT, { recursive: true });
   let backendServer = null;
   let frontendServer = null;
   let browser = null;
@@ -395,6 +436,7 @@ const run = async () => {
           type: event.type,
           provider: event.provider || null,
           text: event.text || null,
+          latency: event.latency || null,
           at: Math.round(event.at || 0),
         })),
         turnDoneEvent,
@@ -420,7 +462,15 @@ const run = async () => {
     const missingCalls = requiredCalls.filter((call) => !callSet.has(call));
     assert(missingCalls.length === 0, `Missing real backend API calls: ${missingCalls.join(', ')}`);
 
-    console.log(JSON.stringify({
+    const audioTiming = findFirstAudioAfterSpeechEnd(result.events);
+    const turnDoneMs = findTurnDoneAfterSpeechEnd(result.events, audioTiming.speechEndEvent);
+    const backendNextQuestionFirstAudioMs = getLatencyStepMs(result.turnDoneEvent?.latency, 'first_audio_sent');
+    const nextQuestionFirstAudioMs = Number.isFinite(backendNextQuestionFirstAudioMs)
+      ? backendNextQuestionFirstAudioMs
+      : audioTiming.nextQuestionFirstAudioMs;
+    const summary = {
+      schemaVersion: 'voice_flow_e2e_report_v1',
+      generatedAt: new Date().toISOString(),
       passed: true,
       resultType: 'real_backend_voice_browser_flow',
       fallbackResult: false,
@@ -431,12 +481,21 @@ const run = async () => {
       sessionId,
       userId: user.id,
       clientTurnId,
+      assistantFirstAudioMs: Number.isFinite(audioTiming.assistantFirstAudioMs) ? audioTiming.assistantFirstAudioMs : null,
+      nextQuestionFirstAudioMs: Number.isFinite(nextQuestionFirstAudioMs) ? nextQuestionFirstAudioMs : null,
+      turnDoneMs: Number.isFinite(turnDoneMs) ? turnDoneMs : null,
+      nextQuestionThreeSecondSloMet: Number.isFinite(nextQuestionFirstAudioMs)
+        ? nextQuestionFirstAudioMs <= 3000
+        : null,
       requiredCalls,
       outboundTypes: result.outboundTypes,
       inboundTypes: result.inboundTypes,
       apiCallCount: apiCalls.length,
       browserErrors,
-    }, null, 2));
+    };
+
+    await fs.writeFile(ARTIFACT_PATH, `${JSON.stringify(summary, null, 2)}\n`);
+    console.log(JSON.stringify(summary, null, 2));
   } finally {
     await browser?.close?.();
     frontendServer?.kill?.('SIGTERM');

@@ -63,7 +63,7 @@ export const buildMatchAnalysisIndexPayload = (analysis = {}) => {
     requirementChecks: pickScoreItems(analysis.requirementChecks),
     macroScores: pickScoreItems(analysis.macroScores),
     microScores: pickScoreItems(analysis.microScores),
-    evidenceMap: analysis.evidenceMap || [],
+    roleEvidenceMap: analysis.roleEvidenceMap || {},
     sourceSnapshots: analysis.sourceSnapshots || [],
     retrievalSnapshots: analysis.retrievalSnapshots || [],
   };

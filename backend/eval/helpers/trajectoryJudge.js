@@ -95,7 +95,12 @@ export const judgeTrajectoryCase = (scenario = {}) => {
   };
 };
 
-export const runAgentTrajectoryEval = async ({ datasetPath, reportRoot, label = 'Agent Trajectory Eval' } = {}) => {
+export const runAgentTrajectoryEval = async ({
+  datasetPath,
+  reportRoot,
+  label = 'Agent Trajectory Safety Eval',
+  reportBaseName = 'agent-trajectory-safety-eval.latest',
+} = {}) => {
   const scenarios = JSON.parse(await fs.readFile(datasetPath, 'utf8'));
   const results = scenarios.map((scenario) => judgeTrajectoryCase(scenario));
   const average = results.length
@@ -112,8 +117,8 @@ export const runAgentTrajectoryEval = async ({ datasetPath, reportRoot, label = 
 
   if (reportRoot) {
     await fs.mkdir(reportRoot, { recursive: true });
-    await fs.writeFile(path.join(reportRoot, 'agent-trajectory-eval.latest.json'), `${JSON.stringify(summary, null, 2)}\n`);
-    await fs.writeFile(path.join(reportRoot, 'agent-trajectory-eval.latest.md'), `${renderMarkdown(summary)}\n`);
+    await fs.writeFile(path.join(reportRoot, `${reportBaseName}.json`), `${JSON.stringify(summary, null, 2)}\n`);
+    await fs.writeFile(path.join(reportRoot, `${reportBaseName}.md`), `${renderMarkdown(summary)}\n`);
   }
 
   return summary;

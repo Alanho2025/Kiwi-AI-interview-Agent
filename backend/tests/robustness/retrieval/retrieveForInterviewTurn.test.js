@@ -6,7 +6,8 @@ const mocks = vi.hoisted(() => ({
   postgresQuery: vi.fn(),
 }));
 
-vi.mock('../../../src/services/embeddingService.js', () => ({
+vi.mock('../../../src/services/embeddingService.js', async (importOriginal) => ({
+  ...(await importOriginal()),
   embedText: mocks.embedText,
   normalizeForRetrieval: mocks.normalizeForRetrieval,
 }));

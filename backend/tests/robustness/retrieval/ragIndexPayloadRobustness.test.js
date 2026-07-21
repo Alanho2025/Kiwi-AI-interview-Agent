@@ -45,7 +45,7 @@ describe('RAG index payload builders', () => {
       status: 'met',
       evidence: ['SQL project'],
     });
-    expect(payload.evidenceMap).toEqual([{ type: 'strength', label: 'SQL' }]);
+    expect(payload).not.toHaveProperty('evidenceMap');
   });
 
   it('builds a controller_decision payload from controller memory records', () => {
@@ -67,6 +67,22 @@ describe('RAG index payload builders', () => {
     expect(payload.dynamicSlotRecords).toHaveLength(1);
     expect(payload.reflectionRecords).toHaveLength(1);
     expect(payload.agentMemory).toEqual({ weakAreas: ['examples'] });
+  });
+
+  it('indexes Role Evidence Map instead of duplicating the legacy evidence map for new analysis', () => {
+    const roleEvidenceMap = {
+      schemaVersion: 'role_evidence_map_v1',
+      items: [{ roleIntentId: 'intent:api', classification: 'direct', sourceEvidence: [] }],
+    };
+
+    const payload = buildMatchAnalysisIndexPayload({
+      schemaVersion: 'v3',
+      roleEvidenceMap,
+      evidenceMap: [{ type: 'strength', label: 'legacy duplicate' }],
+    });
+
+    expect(payload.roleEvidenceMap).toEqual(roleEvidenceMap);
+    expect(payload).not.toHaveProperty('evidenceMap');
   });
 
   it('builds a prepared_question_pool payload without raw CV or JD text', () => {

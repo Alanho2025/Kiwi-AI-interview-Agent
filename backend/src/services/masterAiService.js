@@ -43,6 +43,7 @@ import { markQuestionPoolItemAsked, reconcileQuestionPoolFromTranscript } from '
 import { cleanupQuestionArtifactsAfterReport } from './questions/questionArtifactCleanupService.js';
 import { indexReportSessionArtifactsSafely } from './reportIndexingGuardService.js';
 import { buildAssessmentKey, buildQuestionFingerprint } from './questions/questionDeduplicationService.js';
+import { buildRetentionExpiry } from './retention/retentionPolicy.js';
 
 const persistControllerSnapshot = async ({ sessionId, decisionContext = null, evidenceBundle = null } = {}) => {
   await SessionAnalysis.findOneAndUpdate(
@@ -74,7 +75,7 @@ const persistControllerSnapshot = async ({ sessionId, decisionContext = null, ev
   );
 };
 
-const persistReportArtifact = async ({ sessionId, report, qaResult, repairHistory = [] }) => {
+const persistReportArtifact = async ({ sessionId, userId, report, qaResult, repairHistory = [] }) => {
   const latestStatus = qaResult?.passed 
     ? (repairHistory.length > 0 ? 'ready_after_repair' : 'ready')
     : (repairHistory.length > 0 ? 'repair_failed' : 'needs_review');
@@ -99,11 +100,17 @@ const persistReportArtifact = async ({ sessionId, report, qaResult, repairHistor
     { sessionId },
     {
       sessionId,
+      userId,
       report,
       qaResult,
       latestStatus,
       repairHistory,
       qaAttemptCount: repairHistory.length + 1,
+      retentionUntil: buildRetentionExpiry(),
+      deletedAt: null,
+      containsSensitiveData: true,
+      accessScope: 'private',
+      schemaVersion: 'v7',
       $push: {
         reportVersions: {
           version: Date.now(),
@@ -861,6 +868,7 @@ decisionType: AGENT_DECISION_TYPES.EXECUTE_ACTION,
 
   const stored = await persistReportArtifact({
     sessionId: session.id,
+    userId: session.userId,
     report: executionResult.report,
     qaResult: executionResult.qaResult,
     repairHistory: executionResult.repairHistory || [],
@@ -960,7 +968,7 @@ export const runTask = async ({ taskType, sessionId, payload = {}, onSentence = 
       operation: 'local_parse',
       metadata: { source: 'manual_report_qa' },
     });
-    const updated = await persistReportArtifact({ sessionId: session.id, report: stored.report, qaResult });
+    const updated = await persistReportArtifact({ sessionId: session.id, userId: session.userId, report: stored.report, qaResult });
     return { report: stored.report, qaResult, stored: updated };
   }
 

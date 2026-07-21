@@ -9,6 +9,7 @@
 import { compareCvToJobDescription } from '../matchService.js';
 import { shouldRunAgenticSafeguard, buildSkippedSafeguardResult, getMaxSafeguardReparseAttempts } from '../agenticSafeguards/safeguardShared.js';
 import { reviewMatchWithDeepSeek } from './matchCriticAgent.js';
+import { buildRoleFitDiagnostics } from '../roleFit/roleFitDiagnosticsService.js';
 import {
   buildMatchArtifactCacheIdentity,
   readMatchArtifactCache,
@@ -41,6 +42,57 @@ const isHumanReviewedJd = (jdRubric = {}) =>
   jdRubric?.metadata?.humanReviewStatus === 'verified'
   || jdRubric?.diagnostics?.humanReviewStatus === 'verified'
   || jdRubric?.metadata?.inputTrustLevel === 'human_reviewed';
+
+const isVerifiedRoleFit = (jdRubric = {}) => Boolean(
+  jdRubric.roleFit?.companyContext?.status === 'ready'
+  && jdRubric.roleFit?.review?.status === 'verified'
+);
+
+const buildBlockedRoleFitDiagnostics = ({ jdRubric = {}, degradedReason }) => buildRoleFitDiagnostics({
+  roleFitProfile: jdRubric.roleFit || {},
+  roleEvidenceMap: {},
+  proofStrategy: { artifactStatus: 'degraded', degradedReason },
+});
+
+const buildRoleFitBlockedResult = (jdRubric = {}) => {
+  const roleFitDiagnostics = buildBlockedRoleFitDiagnostics({
+    jdRubric,
+    degradedReason: 'role_fit_review_required',
+  });
+
+  return {
+    schemaVersion: 'v3',
+    candidateName: 'Candidate',
+    jobTitle: jdRubric.title || jdRubric.jobTitle || 'Target Role',
+    overallScore: 0,
+    matchScore: 0,
+    confidence: 0,
+    decision: { label: 'manual_review', reasonCodes: ['role_fit_review_required'] },
+    parsedCvProfile: {},
+    parsedJdProfile: jdRubric,
+    macroScores: [],
+    microScores: [],
+    requirementChecks: [],
+    scoreBreakdown: {},
+    explanation: {
+      strengths: [],
+      gaps: [],
+      risks: [{ label: 'Review company and role understanding before matching.', evidence: [], detail: 'The role-fit draft has not been verified.' }],
+      summary: 'Review company and role understanding before matching.',
+    },
+    evidenceMap: [],
+    roleEvidenceMap: {},
+    roleFitDiagnostics,
+    sourceSnapshots: [],
+    strengths: [],
+    gaps: [],
+    riskFlags: ['Review company and role understanding before matching.'],
+    interviewFocus: [],
+    planPreview: 'Verify the role-fit draft before matching.',
+    matchingDetails: { roleFitDiagnostics },
+    cache: { hit: false, skipped: true, reason: 'role_fit_review_required' },
+  };
+};
 
 const buildHumanReviewedRubric = (jdRubric = {}, originalSafeguard = {}) => {
   const reviewedSafeguard = {
@@ -109,6 +161,9 @@ const runFreshSafeguardedMatch = async ({ cvInput, rawJD, humanReviewedJdRubric,
 
 export const compareCvToJobDescriptionWithSafeguard = async (cvInput, rawJD, jdRubric, settings = {}) => {
   const userId = settings.userId || cvInput?.userId || '';
+  if (!isVerifiedRoleFit(jdRubric)) {
+    return buildRoleFitBlockedResult(jdRubric);
+  }
   const jdSafeguard = getJdSafeguard(jdRubric);
   const isJdMatchBlocked = Boolean(jdSafeguard.blockMatch);
   const humanReviewedJdRubric = isJdMatchBlocked && isHumanReviewedJd(jdRubric)
@@ -119,6 +174,11 @@ export const compareCvToJobDescriptionWithSafeguard = async (cvInput, rawJD, jdR
     : null;
 
   if (isJdMatchBlocked && !isHumanReviewedJd(jdRubric)) {
+    const roleFitDiagnostics = buildBlockedRoleFitDiagnostics({
+      jdRubric,
+      degradedReason: 'jd_safeguard_blocked_match',
+    });
+
     return {
       schemaVersion: 'v3',
       candidateName: 'Candidate',
@@ -136,12 +196,13 @@ export const compareCvToJobDescriptionWithSafeguard = async (cvInput, rawJD, jdR
       explanation: { strengths: [], gaps: [], risks: [{ label: 'JD needs review before matching.', evidence: [], detail: 'Agentic safeguard blocked this JD from matching.' }], summary: 'JD needs review before matching.' },
       evidenceMap: [],
       sourceSnapshots: [],
+      roleFitDiagnostics,
       strengths: [],
       gaps: [],
       riskFlags: ['JD needs review before matching.'],
       interviewFocus: [],
       planPreview: 'Review the JD extraction before starting interview planning.',
-      matchingDetails: {},
+      matchingDetails: { roleFitDiagnostics },
       safeguard: jdSafeguard,
       cache: { hit: false, skipped: true, reason: 'jd_safeguard_blocked_match' },
     };

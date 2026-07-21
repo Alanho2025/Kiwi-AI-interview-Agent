@@ -217,5 +217,108 @@
       "applicationKeywords": ["cover letter", "academic transcript", "medical and drug screening", "permanent residency"]
     },
     "weights": {"title": 0.15, "companyName": 0.10, "employmentType": 0.05, "roleFamily": 0.12, "roleLevel": 0.10, "skills": 0.05, "requirements": 0.28, "application": 0.10, "noiseControl": 0.05}
+  },
+  {
+    "id": "seek_caruso_senior_software_engineer_agentic",
+    "fixture": "seek-caruso-senior-software-engineer-agentic.txt",
+    "expected": {
+      "title": "Senior Software Engineer (Agentic)",
+      "companyName": "Caruso",
+      "employmentType": "Full time",
+      "roleFamily": "software_development",
+      "roleLevel": "senior",
+      "skills": {
+        "softwareDevelopment": ["Go", "TypeScript", "Next.js", "React", "GraphQL", "gRPC", "Protobuf"],
+        "itInfrastructure": ["AWS", "Fargate", "Lambda", "Kinesis", "Terraform", "Docker"],
+        "data": ["MySQL", "DynamoDB"]
+      },
+      "requirements": {
+        "mustHaveKeywords": ["commercial experience", "agentic", "work in New Zealand"],
+        "niceToHaveKeywords": []
+      }
+    },
+    "weights": {"title": 0.12, "companyName": 0.08, "employmentType": 0.05, "roleFamily": 0.12, "roleLevel": 0.08, "skills": 0.27, "requirements": 0.22, "noiseControl": 0.06}
+  },
+  {
+    "id": "seek_humankind_junior_intermediate_frontend_developer",
+    "fixture": "seek-humankind-junior-intermediate-frontend-developer.txt",
+    "expected": {
+      "title": "Junior-Intermediate Frontend Developer",
+      "companyName": "Humankind",
+      "employmentType": "Full time",
+      "roleFamily": "software_development",
+      "roleLevel": "junior",
+      "skills": {
+        "softwareDevelopment": ["HTML", "CSS", "JavaScript", "React", "Angular", "Vue", "APIs"],
+        "commonEngineering": ["UX"]
+      },
+      "requirements": {
+        "mustHaveKeywords": ["1-3 years", "Auckland-based", "NZ work rights"],
+        "niceToHaveKeywords": ["Python", "Django", "Aviation"]
+      }
+    },
+    "weights": {"title": 0.12, "companyName": 0.08, "employmentType": 0.05, "roleFamily": 0.12, "roleLevel": 0.08, "skills": 0.27, "requirements": 0.22, "noiseControl": 0.06}
+  },
+  {
+    "id": "seek_talent_army_software_engineer",
+    "fixture": "seek-talent-army-software-engineer.txt",
+    "expected": {
+      "title": "Software Engineer",
+      "companyName": "Talent Army",
+      "employmentType": "Full time",
+      "roleFamily": "software_development",
+      "roleLevel": "mid",
+      "skills": {
+        "softwareDevelopment": ["React", "TypeScript"],
+        "commonEngineering": ["remote"]
+      },
+      "requirements": {
+        "mustHaveKeywords": ["2-5 years", "commercial experience", "SaaS", "remote"],
+        "niceToHaveKeywords": ["Kubernetes", "PHP", "Laravel", "testing", "CI/CD"]
+      }
+    },
+    "weights": {"title": 0.12, "companyName": 0.08, "employmentType": 0.05, "roleFamily": 0.12, "roleLevel": 0.08, "skills": 0.27, "requirements": 0.22, "noiseControl": 0.06}
+  },
+  {
+    "id": "seek_serato_graduate_programme",
+    "fixture": "seek-serato-graduate-programme.txt",
+    "expected": {
+      "title": "2026 Serato Graduate Programme - Software Development",
+      "companyName": "Serato Limited",
+      "employmentType": "Full time",
+      "roleFamily": "software_development",
+      "roleLevel": "graduate",
+      "skills": {
+        "softwareDevelopment": ["Python"],
+        "commonEngineering": ["Agentic Engineering", "Agile", "TDD"]
+      },
+      "requirements": {
+        "mustHaveKeywords": ["GPA", "work in New Zealand"],
+        "niceToHaveKeywords": ["C++"]
+      }
+    },
+    "weights": {"title": 0.12, "companyName": 0.08, "employmentType": 0.05, "roleFamily": 0.12, "roleLevel": 0.08, "skills": 0.27, "requirements": 0.22, "noiseControl": 0.06}
+  },
+  {
+    "id": "seek_hi_tech_ai_product_engineer",
+    "fixture": "seek-hi-tech-ai-product-engineer.txt",
+    "expected": {
+      "title": "AI Product Engineer (Typescript/Angular/Java)",
+      "companyName": "HI Technology & Innovation",
+      "employmentType": "Full time",
+      "roleFamily": "product",
+      "roleLevel": "mid",
+      "skills": {
+        "softwareDevelopment": ["TypeScript", "Angular", "Java", "Python", "APIs"],
+        "itInfrastructure": ["Google Cloud Storage"],
+        "data": ["Firebase", "PostgreSQL"]
+      },
+      "requirements": {
+        "mustHaveKeywords": ["Java", "TypeScript", "Angular", "AI coding agents"],
+        "niceToHaveKeywords": ["US west coast"]
+      }
+    },
+    "weights": {"title": 0.12, "companyName": 0.08, "employmentType": 0.05, "roleFamily": 0.12, "roleLevel": 0.08, "skills": 0.27, "requirements": 0.22, "noiseControl": 0.06}
   }
 ]
+

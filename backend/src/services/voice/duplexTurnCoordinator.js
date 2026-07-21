@@ -14,6 +14,7 @@ import warmContextService from './voiceTurnWarmContextService.js';
 import { buildTranscriptConfirmationPrompt } from './transcriptUnderstandingSummary.js';
 import { analyzeTranscriptConfirmationReply } from './transcriptConfirmationReplyClassifier.js';
 import { generateVoiceMicroAcknowledgement } from './voiceAcknowledgementService.js';
+import { sanitizeLiveSessionForClient } from '../session/sessionViewBuilder.js';
 
 const VOICE_BRIDGE_DELAY_MS = Number(process.env.VOICE_BRIDGE_DELAY_MS || 1200);
 
@@ -427,7 +428,7 @@ export const createDuplexTurnCoordinator = ({
       sendJson?.({
         type: 'turn_done',
         tool: AGENT_TOOL_NAMES.ORCHESTRATE_DUPLEX_VOICE,
-        session: result?.updatedSession || session,
+        session: sanitizeLiveSessionForClient(result?.updatedSession || session),
         transcription: result?.transcription || null,
         latency: result?.latency || null,
         isComplete: Boolean(result?.agentResult?.isComplete),
@@ -689,7 +690,7 @@ export const createDuplexTurnCoordinator = ({
     sendJson?.({
       type: 'turn_done',
       tool: AGENT_TOOL_NAMES.ORCHESTRATE_DUPLEX_VOICE,
-      session: updatedSession,
+      session: sanitizeLiveSessionForClient(updatedSession),
       transcription: result?.transcription || null,
       latency: result?.latency || null,
       isComplete: Boolean(result?.agentResult?.isComplete),

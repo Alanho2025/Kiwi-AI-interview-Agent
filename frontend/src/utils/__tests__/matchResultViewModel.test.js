@@ -63,4 +63,39 @@ describe('buildMatchResultViewModel', () => {
       interviewProbe: 'Ask about client updates',
     });
   });
+
+  it('groups the grounded role evidence map and exposes high-priority coverage', () => {
+    const viewModel = buildMatchResultViewModel({
+      roleEvidenceMap: {
+        intentCoverage: { highPriorityTotal: 2, strong: 1, partial: 1, missing: 0 },
+        items: [
+          {
+            roleIntentId: 'intent:sql',
+            roleIntent: 'Production SQL experience',
+            priority: 'high',
+            classification: 'direct',
+            score: 88,
+            sourceEvidence: [{ text: 'Built SQL pipelines.', sourceTrace: { section: 'experience' } }],
+            limitation: '',
+          },
+          {
+            roleIntentId: 'intent:stakeholder',
+            roleIntent: 'Stakeholder communication',
+            priority: 'high',
+            classification: 'adjacent',
+            score: 68,
+            sourceEvidence: [{ text: 'Presented internal project updates.', sourceTrace: { section: 'projects' } }],
+            limitation: 'External stakeholder scope is not explicit.',
+          },
+        ],
+      },
+    });
+
+    expect(viewModel.roleIntentCoverage).toEqual({ highPriorityTotal: 2, strong: 1, partial: 1, missing: 0 });
+    expect(viewModel.roleEvidenceGroups.direct[0]).toMatchObject({
+      label: 'Production SQL experience',
+      sourceSection: 'experience',
+    });
+    expect(viewModel.roleEvidenceGroups.adjacent[0].limitation).toMatch(/External stakeholder/i);
+  });
 });

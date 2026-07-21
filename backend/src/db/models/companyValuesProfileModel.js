@@ -43,6 +43,8 @@ const CompanyValuesProfileSchema = new mongoose.Schema(
     location: String,
     websiteUrl: String,
     manualWebsiteUrl: String,
+    rawJD: { type: String, default: '' },
+    sourceUrl: { type: String, default: '' },
 
     status: {
       type: String,
@@ -62,6 +64,16 @@ const CompanyValuesProfileSchema = new mongoose.Schema(
     mission: String,
     cultureNotes: [String],
 
+    roleFitProfile: { type: mongoose.Schema.Types.Mixed, default: null },
+    jdRubric: { type: mongoose.Schema.Types.Mixed, default: null },
+    roleFitReviewVersion: { type: Number, default: 0 },
+    roleFitReviewStatus: {
+      type: String,
+      enum: ['unreviewed', 'edited', 'verified'],
+      default: 'unreviewed',
+    },
+    roleFitReviewedAt: Date,
+
     searchQueries: [String],
     searchResults: [SearchResultSchema],
     fetchedPages: [FetchedPageSchema],
@@ -71,6 +83,11 @@ const CompanyValuesProfileSchema = new mongoose.Schema(
 
     startedAt: Date,
     completedAt: Date,
+    retentionUntil: { type: Date },
+    deletedAt: { type: Date },
+    containsSensitiveData: { type: Boolean, default: true },
+    accessScope: { type: String, default: 'private' },
+    schemaVersion: { type: String, default: 'v2' },
   },
   { timestamps: true }
 );

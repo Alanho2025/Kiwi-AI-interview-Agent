@@ -1,6 +1,6 @@
 # Kiwi AI Interview Agent
 
-Kiwi AI Interview Agent is a CV and job-description grounded interview coaching platform. It helps a candidate upload a CV, review parsed CV evidence, paste and review a structured job description, generate a CV-JD match analysis, run a text or voice mock interview, and receive an evidence-grounded feedback report with QA checks.
+Kiwi AI Interview Agent is a CV, job-description, and Role-Fit grounded interview coaching platform. It helps a candidate upload a CV, review parsed CV evidence, add company context, review the hiring logic inferred from the JD, generate a CV-JD/Role-Fit match analysis, run a text or voice mock interview, and receive an evidence-grounded answer-alignment report with QA checks.
 
 This repository is prepared for academic marking. The project is not a simple chatbot. It is a compound AI system that combines a React frontend, an Express backend, PostgreSQL, MongoDB, RAG retrieval, LLM-backed reasoning, routed Azure/ElevenLabs speech providers, WebSocket voice interaction, report QA and bounded repair, diagnostics, and robustness tests.
 
@@ -13,6 +13,9 @@ This repository is prepared for academic marking. The project is not a simple ch
 | Key services and functions | `docs/implementation-functions.md` |
 | Testing and evaluation plan | `docs/testing-and-evaluation.md` |
 | Code-to-document alignment | `docs/code-document-alignment.md` |
+| Role-Fit v2 implementation narrative | `docs/2026-07-11-role-fit-v2-implementation-narrative.md` |
+| Role-Fit v2 goal/spec/trace | `docs/2026-07-11-role-fit-v2-goal.md`, `docs/2026-07-11-role-fit-v2-spec.md`, `docs/2026-07-11-role-fit-v2-implementation-trace.md` |
+| Living repo-docs guide, sync check, and change-log source for repo questions | `repo-docs/README.md` |
 | Collaboration and AI-agent rules | `AGENTS.md` |
 
 ## Product problem
@@ -20,6 +23,8 @@ This repository is prepared for academic marking. The project is not a simple ch
 Generic interview practice tools often ask broad questions and give broad feedback. They do not reliably use the candidate's actual CV, the target job description, previous answers, or evidence from the interview transcript.
 
 Kiwi AI Interview Agent addresses this gap by turning CV evidence and JD requirements into a controlled interview workflow. It supports personalised question preparation, adaptive follow-up, voice or text delivery, and evidence-grounded reporting.
+
+The current Role-Fit v2 path goes further than requirement extraction. It links reviewed company context, hiring-logic hypotheses, candidate evidence angles, proof strategy, question metadata, and per-answer alignment coaching into one auditable chain.
 
 ## Commercial logic
 
@@ -35,18 +40,19 @@ Google login
   -> parse CV into profile and match evidence
   -> user reviews parsed CV match fields
   -> paste JD
-  -> parse JD into a guarded structured rubric
-  -> user reviews structured JD rubric
-  -> run CV-JD match analysis
-  -> build JD question filter and match evidence
-  -> generate interview plan and prepared question pool
+  -> add company website URL or manual company context
+  -> parse JD into a guarded structured rubric with Role-Fit company understanding and role intent
+  -> user reviews structured JD and Role-Fit interpretation
+  -> run CV-JD match analysis with Role Evidence Map v2
+  -> build JD question filter, candidate evidence graph, proof strategy, and match evidence
+  -> generate interview plan and prepared question pool with Role-Fit metadata
   -> start text or voice interview
   -> adaptive controller selects follow-up or next question
   -> transcript and question metadata are stored
   -> interview ends by question limit, time limit, or manual end
   -> accepted question/answer pairs form the canonical report-turn dataset
-  -> report is generated from CV, JD, plan, pool, and transcript evidence
-  -> report QA checks grounding, score consistency, rubric use, rewrites, and transcript risks
+  -> report is generated from CV, JD, plan, pool, transcript evidence, and Role-Fit artifacts
+  -> report QA checks grounding, score consistency, rubric use, Role-Fit coverage, rewrites, and transcript risks
   -> failed QA may run at most two grounded wording-repair attempts
   -> versioned report is stored as ready, ready after repair, needs review, or repair failed
 ```
@@ -73,6 +79,10 @@ The system uses LLMs, but it does not rely on one large prompt alone. It builds 
 - Pasted JD parsing into a structured rubric
 - JD safeguard checks and human review
 - CV-JD match analysis with strengths, gaps, evidence references, and fit signals
+- Role-Fit company understanding with bounded website evidence snippets, manual-context fallback, source confidence, review confidence, and conflict diagnostics
+- Role Intent Decoder v2 with role purpose, business problem hypotheses, workflow pain points, ideal candidate signals, interview probe mapping, uncertainty, and compact diagnostics
+- Candidate Evidence Graph v2 and Role Evidence Map v2 with proof angles, fit limits, how-to-say-it guidance, and hiring-logic links
+- Proof Strategy preparation review that shows role focus, best evidence angle, risk, and gap before the interview without leaking proof IDs into the live interview
 - Interview setup with question-limited or time-limited modes
 - Technical, behavioural, or combined interview focus
 - Text interview flow with pause, resume, repeat, reply, end, and transcript export
@@ -82,7 +92,7 @@ The system uses LLMs, but it does not rely on one large prompt alone. It builds 
 - Adaptive follow-up based on candidate answers and coverage state
 - Prepared-pool and live transcript-based question deduplication, including a safe wrap-up when no unique question remains
 - Evidence-grounded report generation
-- Canonical accepted-answer report dataset, question-specific rubrics, evidence sources, transcript-risk warnings, score breakdowns, and communication authenticity feedback
+- Canonical accepted-answer report dataset, question-specific rubrics, Role-Fit answer alignment, evidence sources, transcript-risk warnings, score breakdowns, and communication authenticity feedback
 - Bounded report QA repair with post-rewrite grounding, report versions, repair history, and explicit report statuses
 - Resumable voice recording through IndexedDB, idempotent chunk upload, background recovery, asynchronous MP3 conversion, status polling, and download
 - Backend robustness tests, frontend tests, Playwright E2E, and AI eval runners
@@ -329,6 +339,7 @@ npm run test:recording
 npm run test:report
 npm run test:voice
 npm run eval:local
+npm run eval:role-fit-release-gate
 npm run eval:real
 npm run eval:all
 npm run quality:local
@@ -342,7 +353,9 @@ cd frontend
 npm run lint
 npm run test:all
 npm run test:e2e:question-pipeline
+npm run test:e2e:role-fit-visual
 npm run test:e2e:voice-latency
+npm run test:e2e:voice-real-backend
 npm run test:e2e:recording-recovery
 npm run build
 npm run quality:all
@@ -369,11 +382,12 @@ For the most stable marker demo:
 13. Open the report page.
 14. Show evidence badges, source snippets, turn rubrics, transcript-risk warnings, score breakdown, coaching, QA status, and commercial stress-test information where available.
 
-Voice mode is product-wired, but it should only be demonstrated when credentials for the configured Azure/ElevenLabs speech-provider order, browser microphone permission, authenticated WebSocket access, and a live in-progress interview session are all working in the same environment.
+Voice mode is product-wired, but it should only be demonstrated when credentials for the configured Azure/ElevenLabs speech-provider order, browser microphone permission, authenticated WebSocket access, and a live in-progress interview session are all working in the same environment. The current real-backend voice E2E runs with test speech providers; it verifies the flow, while the next-question 3-second SLO is tracked as a known issue when exceeded.
 
 ## Honest limitations
 
 - Voice mode is wired, but live quality depends on the configured speech-provider credentials, browser audio permissions, WebSocket connection health, and microphone conditions. Provider fallback occurs when a speech session starts; an active STT turn is not switched mid-recording.
+- The Role-Fit v2 release gate is `ready_with_known_issues`: calibration, adversarial, cutover/retention contract, browser visual, and voice flow gates pass, but real-backend voice measured next-question first audio above the 3-second target.
 - Recording upload is resumable and MP3 conversion is asynchronous. Report viewing does not prove that recording conversion has finished; the report page exposes recording state separately.
 - Some preparation steps are resilient by design. If CV seeds, JD filters, or prepared question pool creation fail, the system may fall back instead of blocking the interview.
 - The deterministic local embedding is acceptable for MVP retrieval experiments, but a production semantic retrieval plan would need a stronger embedding model.

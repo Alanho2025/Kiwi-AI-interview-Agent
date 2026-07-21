@@ -36,6 +36,99 @@ const buildReport = (turn) => ({
 });
 
 describe('report framework QA', () => {
+  it('blocks every deterministic Role-Fit integrity failure', async () => {
+    const report = buildReport({
+      rubricType: 'starr',
+      frameworkKey: 'behavioural_starr',
+      starApplicable: true,
+      starBreakdown: {
+        situation: 'clear', task: 'clear', action: 'clear', resultOrReaction: 'clear', reflection: 'clear',
+      },
+    });
+    report.roleFit = {
+      status: 'limited',
+      ownership: { verified: false },
+      knownRoleIntentIds: ['intent-known'],
+      knownEvidenceIds: ['evidence-known'],
+      requiredCoverageIds: ['cov-required'],
+      companyClaims: [{ claim: 'The company is entering healthcare.', reviewed: false }],
+      roleIntentCoverage: { items: [] },
+      answerAlignments: [{
+        turnId: 'answer-1',
+        questionId: 'question-1',
+        proofPointId: '',
+        testedRoleIntentIds: ['intent-missing'],
+        detectedEvidenceUsed: [{ evidenceId: 'evidence-missing' }],
+        score: 90,
+        label: 'strong',
+        groundingStatus: 'blocked',
+      }],
+    };
+
+    const qa = await runReportQaAgent({
+      report,
+      analysisResult: { decision: { label: 'manual_review' }, explanation: {} },
+    });
+
+    expect(qa.qualityFlags).toEqual(expect.arrayContaining([
+      'role_intent_reference_missing',
+      'answer_alignment_without_proof_point',
+      'alignment_claim_not_grounded',
+      'company_claim_not_in_reviewed_profile',
+      'evidence_id_not_found',
+      'must_cover_intent_unreported',
+      'role_fit_artifact_not_owned',
+    ]));
+    expect(qa.passed).toBe(false);
+  });
+
+  it('blocks invalid Answer Alignment v2 dimensions and wrong-example diagnoses', async () => {
+    const report = buildReport({
+      rubricType: 'starr',
+      frameworkKey: 'behavioural_starr',
+      starApplicable: true,
+      starBreakdown: {
+        situation: 'clear', task: 'clear', action: 'clear', resultOrReaction: 'clear', reflection: 'clear',
+      },
+    });
+    report.roleFit = {
+      status: 'limited',
+      ownership: { verified: true },
+      knownRoleIntentIds: ['intent-known'],
+      knownEvidenceIds: ['evidence-known'],
+      requiredCoverageIds: ['cov-required'],
+      roleIntentCoverage: { items: [{ coverageId: 'cov-required' }] },
+      answerAlignments: [{
+        schemaVersion: 'answer_alignment_v2',
+        turnId: 'answer-1',
+        questionId: 'question-1',
+        proofPointId: 'cov-required',
+        testedRoleIntentIds: ['intent-known'],
+        detectedEvidenceUsed: [{ evidenceId: 'evidence-known' }],
+        score: 105,
+        label: 'partial',
+        groundingStatus: 'grounded',
+        scoreBreakdown: {
+          questionAlignment: 20,
+          evidenceFit: 20,
+        },
+        evidenceUseDiagnosis: { status: 'wrong_example' },
+      }],
+    };
+
+    const qa = await runReportQaAgent({
+      report,
+      analysisResult: { decision: { label: 'manual_review' }, explanation: {} },
+    });
+
+    expect(qa.qualityFlags).toEqual(expect.arrayContaining([
+      'answer_alignment_score_out_of_range',
+      'answer_alignment_missing_v2_dimensions',
+      'answer_alignment_wrong_evidence_use',
+    ]));
+    expect(qa.passed).toBe(false);
+  });
+
   it('flags deterministic report integrity mismatches', async () => {
     const report = buildReport({
       question: 'How did you validate that the feedback helped?',

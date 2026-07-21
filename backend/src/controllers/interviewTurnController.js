@@ -14,6 +14,7 @@ import { asyncHandler } from '../middleware/asyncHandler.js';
 import { logger, getRequestLogMeta } from '../utils/logger.js';
 import { withSessionTurnLock } from '../utils/sessionTurnLock.js';
 import { tryGenerateReportForCompletedSession } from './interviewControllerUtils.js';
+import { buildLiveInterviewTurnResponse } from '../services/interview/liveInterviewPayloadService.js';
 
 export const replyInterview = asyncHandler(async (req, res) => {
   const { sessionId, answer } = req.body;
@@ -65,18 +66,11 @@ export const replyInterview = asyncHandler(async (req, res) => {
     hasReport: Boolean(generatedReport?.stored?.report),
   }));
 
-  res.json(formatSuccess('Reply processed', {
-    nextQuestion: agentResult.nextQuestion,
-    interviewerTurn: agentResult.interviewerTurn || null,
-    rationale: agentResult.rationale,
-    retrievalSnapshot: agentResult.retrievalSnapshot,
-    isComplete: Boolean(agentResult.isComplete),
-    completedBecause: agentResult.completedBecause || null,
-    reportStatus: generatedReport?.stored?.latestStatus || null,
-    evaluator: agentResult.evaluatorOutput || null,
-    reactTrace: agentResult.reactTrace || null,
-    session: updatedSession,
-  }));
+  res.json(formatSuccess('Reply processed', buildLiveInterviewTurnResponse({
+    agentResult,
+    updatedSession,
+    generatedReport,
+  })));
 });
 
 export const repeatQuestion = asyncHandler(async (req, res) => {

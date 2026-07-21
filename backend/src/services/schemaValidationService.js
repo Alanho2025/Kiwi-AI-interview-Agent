@@ -66,6 +66,8 @@ export const validateAnalyzeOutput = (payload = {}) => {
       }
       : buildExplanationObject(),
     evidenceMap: ensureArray(safePayload.evidenceMap),
+    roleEvidenceMap: isObject(safePayload.roleEvidenceMap) ? safePayload.roleEvidenceMap : {},
+    roleFitDiagnostics: isObject(safePayload.roleFitDiagnostics) ? safePayload.roleFitDiagnostics : {},
     sourceSnapshots: ensureArray(safePayload.sourceSnapshots),
     matchingDetails: isObject(safePayload.matchingDetails) ? safePayload.matchingDetails : {},
     legacy: {
@@ -103,6 +105,7 @@ export const validateInterviewPlan = (plan = {}) => ({
   questionPool: ensureArray(plan.questionPool),
   fallbackRules: isObject(plan.fallbackRules) ? plan.fallbackRules : {},
   settingsSnapshot: isObject(plan.settingsSnapshot) ? plan.settingsSnapshot : {},
+  roleFit: isObject(plan.roleFit) ? plan.roleFit : {},
 });
 
 export const validatePreparedQuestionPoolItem = (item = {}) => {
@@ -160,6 +163,7 @@ export const validateReportOutput = (report = {}) => ({
   voiceDeliverySummary: normalizeVoiceDeliverySummary(report.voiceDeliverySummary || {}),
   companyMotivationFit: normalizeCompanyMotivationFit(report.companyMotivationFit || {}),
   transcriptRisks: ensureArray(report.transcriptRisks),
+  roleFit: isObject(report.roleFit) ? report.roleFit : {},
   authenticityMetrics: isObject(report.authenticityMetrics) ? report.authenticityMetrics : {},
   metadata: isObject(report.metadata) ? report.metadata : {},
   candidateFeedback: isObject(report.candidateFeedback)

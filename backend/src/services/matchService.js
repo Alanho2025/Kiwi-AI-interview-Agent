@@ -19,6 +19,7 @@ import { buildTransitionProfile } from './match/transitionAwareScoring.js';
 import { buildSemanticEvidenceContext } from './match/semanticEvidenceService.js';
 import { buildUniversalRoleProfile } from './jobDescription/jdUniversalParserService.js';
 import { judgeRequirementEvidenceBatch } from './match/evidenceJudgeService.js';
+import { buildRoleEvidenceMap } from './match/roleEvidenceMapService.js';
 
 const isSemanticEngineEnabled = (settings = {}) => settings.matchEngine === 'semantic' || process.env.MATCH_ENGINE === 'semantic';
 
@@ -83,6 +84,11 @@ export const compareCvToJobDescription = async (cvInput, rawJD, jdRubric, settin
   const macroScores = buildMacroScores(rubric.macroCriteria, rawCvText, rubric.weights, cvEvidenceProfile, semanticEvidenceContext);
   const microScores = buildMicroScores(rubric.microCriteria, rawCvText, rubric.weights, cvEvidenceProfile, semanticEvidenceContext);
   const requirementChecks = buildRequirementChecks(rubric.requirements, rawCvText, cvEvidenceProfile, semanticEvidenceContext);
+  const roleEvidenceMap = buildRoleEvidenceMap({
+    roleFitProfile: rubric.roleFit,
+    requirementChecks,
+    semanticEvidenceContext,
+  });
   const baseScoreBreakdown = calculateScoreBreakdown({ rubric, macroScores, microScores, requirementChecks });
   const scoreBreakdown = semanticEngineEnabled
     ? buildCapabilityScoreBreakdown({ rubric, requirementChecks, fallbackScoreBreakdown: baseScoreBreakdown })
@@ -112,5 +118,6 @@ export const compareCvToJobDescription = async (cvInput, rawJD, jdRubric, settin
     cvEvidenceProfile,
     cvAnalysis,
     semanticEvidenceContext,
+    roleEvidenceMap,
   });
 };

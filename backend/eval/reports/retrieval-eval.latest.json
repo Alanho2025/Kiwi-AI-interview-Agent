@@ -1,220 +1,1009 @@
 {
-  "label": "Retrieval Eval",
-  "generatedAt": "2026-06-02T20:48:45.430Z",
-  "casesRun": 8,
-  "average": 0.97,
-  "results": [
-    {
-      "id": "direct_skill_match",
-      "score": 1,
-      "subScores": {
-        "relevance": 1,
-        "blockedEvidence": 1,
-        "sourceCoverage": 1,
-        "degradedFallback": 1
+  "schemaVersion": "role_fit_rag_eval_report_v1",
+  "generatedAt": "2026-07-11T05:44:56.864Z",
+  "casesRun": 15,
+  "average": 0.9833,
+  "configFingerprints": {
+    "retrieval": "sha256:dfce6a0be5f2fffc4cebddc015c355175ff5ac2566c014c88d409882c4de05aa",
+    "generationRetrieval": [
+      "runtime-retrieval-v1"
+    ]
+  },
+  "calibration": {
+    "status": "pending_human_review",
+    "thresholdDecision": "not_set"
+  },
+  "retrieval": {
+    "schemaVersion": "retrieval_eval_report_v1",
+    "datasetVersion": "role-fit-retrieval-v1",
+    "configFingerprint": "sha256:dfce6a0be5f2fffc4cebddc015c355175ff5ac2566c014c88d409882c4de05aa",
+    "generatedAt": "2026-07-11T05:44:56.863Z",
+    "casesRun": 10,
+    "average": 0.975,
+    "metrics": {
+      "precisionAtK": 0.85,
+      "recallAtK": 1,
+      "mrr": 1,
+      "ndcg": 1,
+      "forbiddenEvidenceRetrievalRate": 0,
+      "sourcePolicyAccuracy": 1
+    },
+    "slices": {
+      "domain:backend": {
+        "casesRun": 1,
+        "average": 1,
+        "metrics": {
+          "precisionAtK": 1,
+          "recallAtK": 1,
+          "mrr": 1,
+          "ndcg": 1,
+          "forbiddenEvidenceRetrievalRate": 0,
+          "sourcePolicyAccuracy": 1
+        }
       },
-      "failedChecks": [],
-      "diagnostics": {
-        "relevantHits": [
-          "Python",
-          "SQL",
-          "data analysis"
-        ],
-        "blockedHits": [],
-        "queryTokenOverlap": [
-          "python",
-          "data",
-          "analysis"
-        ],
-        "sourceTypes": [
-          "cv",
-          "jd"
-        ]
+      "risk:high": {
+        "casesRun": 7,
+        "average": 0.9762,
+        "metrics": {
+          "precisionAtK": 0.8571,
+          "recallAtK": 1,
+          "mrr": 1,
+          "ndcg": 1,
+          "forbiddenEvidenceRetrievalRate": 0,
+          "sourcePolicyAccuracy": 1
+        }
+      },
+      "domain:role_intent": {
+        "casesRun": 1,
+        "average": 1,
+        "metrics": {
+          "precisionAtK": 1,
+          "recallAtK": 1,
+          "mrr": 1,
+          "ndcg": 1,
+          "forbiddenEvidenceRetrievalRate": 0,
+          "sourcePolicyAccuracy": 1
+        }
+      },
+      "risk:medium": {
+        "casesRun": 3,
+        "average": 0.9722,
+        "metrics": {
+          "precisionAtK": 0.8333,
+          "recallAtK": 1,
+          "mrr": 1,
+          "ndcg": 1,
+          "forbiddenEvidenceRetrievalRate": 0,
+          "sourcePolicyAccuracy": 1
+        }
+      },
+      "domain:match_gap": {
+        "casesRun": 1,
+        "average": 1,
+        "metrics": {
+          "precisionAtK": 1,
+          "recallAtK": 1,
+          "mrr": 1,
+          "ndcg": 1,
+          "forbiddenEvidenceRetrievalRate": 0,
+          "sourcePolicyAccuracy": 1
+        }
+      },
+      "domain:frontend": {
+        "casesRun": 1,
+        "average": 1,
+        "metrics": {
+          "precisionAtK": 1,
+          "recallAtK": 1,
+          "mrr": 1,
+          "ndcg": 1,
+          "forbiddenEvidenceRetrievalRate": 0,
+          "sourcePolicyAccuracy": 1
+        }
+      },
+      "domain:behavioral": {
+        "casesRun": 2,
+        "average": 0.9584,
+        "metrics": {
+          "precisionAtK": 0.75,
+          "recallAtK": 1,
+          "mrr": 1,
+          "ndcg": 1,
+          "forbiddenEvidenceRetrievalRate": 0,
+          "sourcePolicyAccuracy": 1
+        }
+      },
+      "domain:leadership": {
+        "casesRun": 1,
+        "average": 0.9167,
+        "metrics": {
+          "precisionAtK": 0.5,
+          "recallAtK": 1,
+          "mrr": 1,
+          "ndcg": 1,
+          "forbiddenEvidenceRetrievalRate": 0,
+          "sourcePolicyAccuracy": 1
+        }
+      },
+      "domain:infrastructure": {
+        "casesRun": 1,
+        "average": 0.9167,
+        "metrics": {
+          "precisionAtK": 0.5,
+          "recallAtK": 1,
+          "mrr": 1,
+          "ndcg": 1,
+          "forbiddenEvidenceRetrievalRate": 0,
+          "sourcePolicyAccuracy": 1
+        }
+      },
+      "domain:match": {
+        "casesRun": 1,
+        "average": 1,
+        "metrics": {
+          "precisionAtK": 1,
+          "recallAtK": 1,
+          "mrr": 1,
+          "ndcg": 1,
+          "forbiddenEvidenceRetrievalRate": 0,
+          "sourcePolicyAccuracy": 1
+        }
+      },
+      "domain:report": {
+        "casesRun": 1,
+        "average": 1,
+        "metrics": {
+          "precisionAtK": 1,
+          "recallAtK": 1,
+          "mrr": 1,
+          "ndcg": 1,
+          "forbiddenEvidenceRetrievalRate": 0,
+          "sourcePolicyAccuracy": 1
+        }
       }
     },
-    {
-      "id": "paraphrased_skill_match",
-      "score": 1,
-      "subScores": {
-        "relevance": 0.67,
-        "blockedEvidence": 1,
-        "sourceCoverage": 1,
-        "degradedFallback": 1
-      },
-      "failedChecks": [],
-      "diagnostics": {
-        "relevantHits": [
-          "backend services",
-          "Express API"
-        ],
-        "blockedHits": [],
-        "queryTokenOverlap": [
-          "backend"
-        ],
+    "results": [
+      {
+        "schemaVersion": "retrieval_case_result_v1",
+        "caseId": "cv_backend_api_ownership",
+        "datasetVersion": "role-fit-retrieval-v1",
+        "labels": {
+          "domain": "backend",
+          "risk": "high"
+        },
+        "query": "Node.js API latency ownership",
         "sourceTypes": [
-          "cv",
-          "jd"
-        ]
-      }
-    },
-    {
-      "id": "weak_evidence_not_upgraded",
-      "score": 0.8,
-      "subScores": {
-        "relevance": 1,
-        "blockedEvidence": 1,
-        "sourceCoverage": 1,
-        "degradedFallback": 1
+          "cv"
+        ],
+        "configFingerprint": "sha256:f490a089ed96b16f073c17496960df746ef51881052b6e85422652d9a1cafff3",
+        "latencyMs": 39.8268,
+        "rankedChunks": [
+          {
+            "chunkId": "cv-api-1",
+            "sourceType": "cv",
+            "sourceId": null,
+            "text": "Owned a Node.js API and reduced request latency.",
+            "metadata": {
+              "section": "experience"
+            },
+            "scores": {
+              "semantic": 0.505287,
+              "keyword": 0.75,
+              "metadata": 0,
+              "fusion": 0.540408
+            }
+          },
+          {
+            "chunkId": "cv-api-2",
+            "sourceType": "cv",
+            "sourceId": null,
+            "text": "Measured API latency and led the Node.js performance fix.",
+            "metadata": {
+              "section": "project"
+            },
+            "scores": {
+              "semantic": 0.42622,
+              "keyword": 0.75,
+              "metadata": 0,
+              "fusion": 0.496921
+            }
+          }
+        ],
+        "metrics": {
+          "precisionAtK": 1,
+          "recallAtK": 1,
+          "mrr": 1,
+          "ndcg": 1,
+          "forbiddenEvidenceRetrievalRate": 0,
+          "sourcePolicyAccuracy": 1
+        },
+        "score": 1,
+        "expectedFallback": null
       },
-      "failedChecks": [
-        "query_has_some_overlap_or_timeout"
-      ],
-      "diagnostics": {
-        "relevantHits": [
-          "Vercel",
-          "Render",
-          "Node.js"
-        ],
-        "blockedHits": [
-          "Kubernetes",
-          "cloud-native engineering"
-        ],
-        "queryTokenOverlap": [],
+      {
+        "schemaVersion": "retrieval_case_result_v1",
+        "caseId": "jd_reliability_role_intent",
+        "datasetVersion": "role-fit-retrieval-v1",
+        "labels": {
+          "domain": "role_intent",
+          "risk": "medium"
+        },
+        "query": "distributed systems reliability mentoring requirement",
         "sourceTypes": [
-          "cv",
-          "jd"
-        ]
-      }
-    },
-    {
-      "id": "irrelevant_evidence_blocked",
-      "score": 1,
-      "subScores": {
-        "relevance": 1,
-        "blockedEvidence": 1,
-        "sourceCoverage": 1,
-        "degradedFallback": 1
+          "job_description"
+        ],
+        "configFingerprint": "sha256:f490a089ed96b16f073c17496960df746ef51881052b6e85422652d9a1cafff3",
+        "latencyMs": 31.4613,
+        "rankedChunks": [
+          {
+            "chunkId": "jd-reliability-1",
+            "sourceType": "job_description",
+            "sourceId": null,
+            "text": "The role requires distributed systems reliability experience.",
+            "metadata": {
+              "section": "requirements"
+            },
+            "scores": {
+              "semantic": 0.628289,
+              "keyword": 0.6,
+              "metadata": 0,
+              "fusion": 0.555559
+            }
+          },
+          {
+            "chunkId": "jd-reliability-2",
+            "sourceType": "job_description",
+            "sourceId": null,
+            "text": "The engineer will mentor others on reliable distributed services.",
+            "metadata": {
+              "section": "responsibilities"
+            },
+            "scores": {
+              "semantic": 0.33432,
+              "keyword": 0.2,
+              "metadata": 0,
+              "fusion": 0.253876
+            }
+          }
+        ],
+        "metrics": {
+          "precisionAtK": 1,
+          "recallAtK": 1,
+          "mrr": 1,
+          "ndcg": 1,
+          "forbiddenEvidenceRetrievalRate": 0,
+          "sourcePolicyAccuracy": 1
+        },
+        "score": 1,
+        "expectedFallback": null
       },
-      "failedChecks": [],
-      "diagnostics": {
-        "relevantHits": [
-          "Vitest tests",
-          "React project"
-        ],
-        "blockedHits": [
-          "baking brownies",
-          "taking photos"
-        ],
-        "queryTokenOverlap": [
-          "software",
-          "testing"
-        ],
+      {
+        "schemaVersion": "retrieval_case_result_v1",
+        "caseId": "match_kubernetes_evidence_gap",
+        "datasetVersion": "role-fit-retrieval-v1",
+        "labels": {
+          "domain": "match_gap",
+          "risk": "high"
+        },
+        "query": "Kubernetes production evidence gap validation",
         "sourceTypes": [
-          "cv",
-          "jd"
-        ]
-      }
-    },
-    {
-      "id": "cv_jd_gap_detected",
-      "score": 1,
-      "subScores": {
-        "relevance": 1,
-        "blockedEvidence": 1,
-        "sourceCoverage": 1,
-        "degradedFallback": 1
+          "match_analysis"
+        ],
+        "configFingerprint": "sha256:f490a089ed96b16f073c17496960df746ef51881052b6e85422652d9a1cafff3",
+        "latencyMs": 28.2911,
+        "rankedChunks": [
+          {
+            "chunkId": "match-gap-1",
+            "sourceType": "match_analysis",
+            "sourceId": null,
+            "text": "Gap: no Kubernetes production evidence was found.",
+            "metadata": {
+              "kind": "gap"
+            },
+            "scores": {
+              "semantic": 0.697072,
+              "keyword": 0.8,
+              "metadata": 0,
+              "fusion": 0.66339
+            }
+          },
+          {
+            "chunkId": "match-gap-2",
+            "sourceType": "match_analysis",
+            "sourceId": null,
+            "text": "Validation needed for Kubernetes deployment evidence in production.",
+            "metadata": {
+              "kind": "validation"
+            },
+            "scores": {
+              "semantic": 0.498532,
+              "keyword": 0.8,
+              "metadata": 0,
+              "fusion": 0.554193
+            }
+          }
+        ],
+        "metrics": {
+          "precisionAtK": 1,
+          "recallAtK": 1,
+          "mrr": 1,
+          "ndcg": 1,
+          "forbiddenEvidenceRetrievalRate": 0,
+          "sourcePolicyAccuracy": 1
+        },
+        "score": 1,
+        "expectedFallback": null
       },
-      "failedChecks": [],
-      "diagnostics": {
-        "relevantHits": [
-          "Azure Speech",
-          "WebSocket"
-        ],
-        "blockedHits": [
-          "Azure cloud infrastructure",
-          "IAM",
-          "production monitoring"
-        ],
-        "queryTokenOverlap": [
-          "azure",
-          "cloud",
-          "infrastructure"
-        ],
+      {
+        "schemaVersion": "retrieval_case_result_v1",
+        "caseId": "cv_accessibility_source_policy",
+        "datasetVersion": "role-fit-retrieval-v1",
+        "labels": {
+          "domain": "frontend",
+          "risk": "high"
+        },
+        "query": "React accessibility testing evidence",
         "sourceTypes": [
-          "cv",
-          "jd"
-        ]
-      }
-    },
-    {
-      "id": "nz_guidance_only_when_needed",
-      "score": 1,
-      "subScores": {
-        "relevance": 1,
-        "blockedEvidence": 1,
-        "sourceCoverage": 1,
-        "degradedFallback": 1
+          "cv"
+        ],
+        "configFingerprint": "sha256:f490a089ed96b16f073c17496960df746ef51881052b6e85422652d9a1cafff3",
+        "latencyMs": 27.5901,
+        "rankedChunks": [
+          {
+            "chunkId": "cv-a11y-1",
+            "sourceType": "cv",
+            "sourceId": null,
+            "text": "Tested React accessibility with keyboard navigation.",
+            "metadata": {
+              "section": "project"
+            },
+            "scores": {
+              "semantic": 0.546099,
+              "keyword": 0.5,
+              "metadata": 0,
+              "fusion": 0.475354
+            }
+          },
+          {
+            "chunkId": "cv-a11y-2",
+            "sourceType": "cv",
+            "sourceId": null,
+            "text": "Added accessibility tests to the React component suite.",
+            "metadata": {
+              "section": "experience"
+            },
+            "scores": {
+              "semantic": 0.449291,
+              "keyword": 0.5,
+              "metadata": 0,
+              "fusion": 0.42211
+            }
+          }
+        ],
+        "metrics": {
+          "precisionAtK": 1,
+          "recallAtK": 1,
+          "mrr": 1,
+          "ndcg": 1,
+          "forbiddenEvidenceRetrievalRate": 0,
+          "sourcePolicyAccuracy": 1
+        },
+        "score": 1,
+        "expectedFallback": null
       },
-      "failedChecks": [],
-      "diagnostics": {
-        "relevantHits": [
-          "NZ interviews",
-          "collaboration",
-          "evidence-based answers"
-        ],
-        "blockedHits": [],
-        "queryTokenOverlap": [
-          "zealand"
-        ],
+      {
+        "schemaVersion": "retrieval_case_result_v1",
+        "caseId": "plan_stakeholder_conflict_outcome",
+        "datasetVersion": "role-fit-retrieval-v1",
+        "labels": {
+          "domain": "behavioral",
+          "risk": "medium"
+        },
+        "query": "stakeholder conflict leadership outcome question",
         "sourceTypes": [
-          "cv",
-          "jd",
-          "nzGuide"
-        ]
-      }
-    },
-    {
-      "id": "star_example_retrieved_for_coaching",
-      "score": 1,
-      "subScores": {
-        "relevance": 1,
-        "blockedEvidence": 1,
-        "sourceCoverage": 1,
-        "degradedFallback": 1
+          "interview_plan"
+        ],
+        "configFingerprint": "sha256:f490a089ed96b16f073c17496960df746ef51881052b6e85422652d9a1cafff3",
+        "latencyMs": 27.4618,
+        "rankedChunks": [
+          {
+            "chunkId": "plan-leadership-2",
+            "sourceType": "interview_plan",
+            "sourceId": null,
+            "text": "Probe for the measurable outcome of the stakeholder conflict.",
+            "metadata": {
+              "intent": "leadership"
+            },
+            "scores": {
+              "semantic": 0.590582,
+              "keyword": 0.6,
+              "metadata": 0,
+              "fusion": 0.53482
+            }
+          },
+          {
+            "chunkId": "plan-leadership-1",
+            "sourceType": "interview_plan",
+            "sourceId": null,
+            "text": "Ask for a stakeholder conflict and the leadership action taken.",
+            "metadata": {
+              "intent": "leadership"
+            },
+            "scores": {
+              "semantic": 0.586292,
+              "keyword": 0.6,
+              "metadata": 0,
+              "fusion": 0.532461
+            }
+          }
+        ],
+        "metrics": {
+          "precisionAtK": 1,
+          "recallAtK": 1,
+          "mrr": 1,
+          "ndcg": 1,
+          "forbiddenEvidenceRetrievalRate": 0,
+          "sourcePolicyAccuracy": 1
+        },
+        "score": 1,
+        "expectedFallback": null
       },
-      "failedChecks": [],
-      "diagnostics": {
-        "relevantHits": [
-          "STAR",
-          "Result"
+      {
+        "schemaVersion": "retrieval_case_result_v1",
+        "caseId": "cv_behavioral_teamwork_experience",
+        "datasetVersion": "role-fit-retrieval-v1",
+        "labels": {
+          "domain": "behavioral",
+          "risk": "high"
+        },
+        "query": "cross-functional teamwork and conflict resolution",
+        "sourceTypes": [
+          "cv"
         ],
-        "blockedHits": [],
-        "queryTokenOverlap": [
-          "star",
-          "answer"
+        "configFingerprint": "sha256:f490a089ed96b16f073c17496960df746ef51881052b6e85422652d9a1cafff3",
+        "latencyMs": 27.2907,
+        "rankedChunks": [
+          {
+            "chunkId": "cv-teamwork-1",
+            "sourceType": "cv",
+            "sourceId": null,
+            "text": "Collaborated with cross-functional design and product teams, and resolved developer disagreements.",
+            "metadata": {
+              "section": "experience"
+            },
+            "scores": {
+              "semantic": 0.350877,
+              "keyword": 0.5,
+              "metadata": 0,
+              "fusion": 0.367982
+            }
+          },
+          {
+            "chunkId": "cv-tech-1",
+            "sourceType": "cv",
+            "sourceId": null,
+            "text": "Wrote script in Python to automate database backup daily.",
+            "metadata": {
+              "section": "project"
+            },
+            "scores": {
+              "semantic": 0.200328,
+              "keyword": 0,
+              "metadata": 0,
+              "fusion": 0.11018
+            }
+          }
         ],
+        "metrics": {
+          "precisionAtK": 0.5,
+          "recallAtK": 1,
+          "mrr": 1,
+          "ndcg": 1,
+          "forbiddenEvidenceRetrievalRate": 0,
+          "sourcePolicyAccuracy": 1
+        },
+        "score": 0.9167,
+        "expectedFallback": null
+      },
+      {
+        "schemaVersion": "retrieval_case_result_v1",
+        "caseId": "cv_transferable_leadership",
+        "datasetVersion": "role-fit-retrieval-v1",
+        "labels": {
+          "domain": "leadership",
+          "risk": "medium"
+        },
+        "query": "mentor junior developers and lead technical direction",
+        "sourceTypes": [
+          "cv"
+        ],
+        "configFingerprint": "sha256:f490a089ed96b16f073c17496960df746ef51881052b6e85422652d9a1cafff3",
+        "latencyMs": 27.085,
+        "rankedChunks": [
+          {
+            "chunkId": "cv-mentor-1",
+            "sourceType": "cv",
+            "sourceId": null,
+            "text": "Guided 3 bootcamp graduates through our tech stack and ran weekly code review sessions.",
+            "metadata": {
+              "section": "responsibilities"
+            },
+            "scores": {
+              "semantic": 0.13639,
+              "keyword": 0.142857,
+              "metadata": 0,
+              "fusion": 0.125014
+            }
+          },
+          {
+            "chunkId": "cv-ui-1",
+            "sourceType": "cv",
+            "sourceId": null,
+            "text": "Designed a CSS navbar styling library for the team UI.",
+            "metadata": {
+              "section": "project"
+            },
+            "scores": {
+              "semantic": 0.194284,
+              "keyword": 0,
+              "metadata": 0,
+              "fusion": 0.106856
+            }
+          }
+        ],
+        "metrics": {
+          "precisionAtK": 0.5,
+          "recallAtK": 1,
+          "mrr": 1,
+          "ndcg": 1,
+          "forbiddenEvidenceRetrievalRate": 0,
+          "sourcePolicyAccuracy": 1
+        },
+        "score": 0.9167,
+        "expectedFallback": null
+      },
+      {
+        "schemaVersion": "retrieval_case_result_v1",
+        "caseId": "cv_transferable_cloud_scaling",
+        "datasetVersion": "role-fit-retrieval-v1",
+        "labels": {
+          "domain": "infrastructure",
+          "risk": "high"
+        },
+        "query": "experience with AWS cloud scaling infrastructure",
+        "sourceTypes": [
+          "cv"
+        ],
+        "configFingerprint": "sha256:f490a089ed96b16f073c17496960df746ef51881052b6e85422652d9a1cafff3",
+        "latencyMs": 26.9235,
+        "rankedChunks": [
+          {
+            "chunkId": "cv-cloud-1",
+            "sourceType": "cv",
+            "sourceId": null,
+            "text": "Managed highly available clusters on Google Cloud Platform and scaled Kubernetes pods.",
+            "metadata": {
+              "section": "experience"
+            },
+            "scores": {
+              "semantic": 0.342573,
+              "keyword": 0.166667,
+              "metadata": 0,
+              "fusion": 0.246749
+            }
+          },
+          {
+            "chunkId": "cv-sql-1",
+            "sourceType": "cv",
+            "sourceId": null,
+            "text": "Optimized local MySQL indexing schemas.",
+            "metadata": {
+              "section": "project"
+            },
+            "scores": {
+              "semantic": 0.177521,
+              "keyword": 0,
+              "metadata": 0,
+              "fusion": 0.097637
+            }
+          }
+        ],
+        "metrics": {
+          "precisionAtK": 0.5,
+          "recallAtK": 1,
+          "mrr": 1,
+          "ndcg": 1,
+          "forbiddenEvidenceRetrievalRate": 0,
+          "sourcePolicyAccuracy": 1
+        },
+        "score": 0.9167,
+        "expectedFallback": null
+      },
+      {
+        "schemaVersion": "retrieval_case_result_v1",
+        "caseId": "multi_source_alignment_retrieval",
+        "datasetVersion": "role-fit-retrieval-v1",
+        "labels": {
+          "domain": "match",
+          "risk": "high"
+        },
+        "query": "combine Node.js requirements with candidate production scaling proof",
+        "sourceTypes": [
+          "job_description",
+          "cv"
+        ],
+        "configFingerprint": "sha256:f490a089ed96b16f073c17496960df746ef51881052b6e85422652d9a1cafff3",
+        "latencyMs": 27.3089,
+        "rankedChunks": [
+          {
+            "chunkId": "jd-node-1",
+            "sourceType": "job_description",
+            "sourceId": null,
+            "text": "The role requires Node.js API scaling.",
+            "metadata": {
+              "section": "requirements"
+            },
+            "scores": {
+              "semantic": 0.297449,
+              "keyword": 0.25,
+              "metadata": 0,
+              "fusion": 0.251097
+            }
+          },
+          {
+            "chunkId": "cv-scale-1",
+            "sourceType": "cv",
+            "sourceId": null,
+            "text": "Scaled Node.js API to support 10k concurrent users.",
+            "metadata": {
+              "section": "experience"
+            },
+            "scores": {
+              "semantic": 0.188655,
+              "keyword": 0.125,
+              "metadata": 0,
+              "fusion": 0.14751
+            }
+          }
+        ],
+        "metrics": {
+          "precisionAtK": 1,
+          "recallAtK": 1,
+          "mrr": 1,
+          "ndcg": 1,
+          "forbiddenEvidenceRetrievalRate": 0,
+          "sourcePolicyAccuracy": 1
+        },
+        "score": 1,
+        "expectedFallback": null
+      },
+      {
+        "schemaVersion": "retrieval_case_result_v1",
+        "caseId": "transcript_contextual_answer_retrieval",
+        "datasetVersion": "role-fit-retrieval-v1",
+        "labels": {
+          "domain": "report",
+          "risk": "high"
+        },
+        "query": "verify candidate database design claims against resume evidence",
         "sourceTypes": [
           "transcript",
-          "starGuide"
-        ]
+          "cv"
+        ],
+        "configFingerprint": "sha256:f490a089ed96b16f073c17496960df746ef51881052b6e85422652d9a1cafff3",
+        "latencyMs": 28.9925,
+        "rankedChunks": [
+          {
+            "chunkId": "transcript-db-1",
+            "sourceType": "transcript",
+            "sourceId": null,
+            "text": "In the interview I described Postgres database normalization.",
+            "metadata": {
+              "section": "answer"
+            },
+            "scores": {
+              "semantic": 0.258893,
+              "keyword": 0.125,
+              "metadata": 0,
+              "fusion": 0.186141
+            }
+          },
+          {
+            "chunkId": "cv-db-1",
+            "sourceType": "cv",
+            "sourceId": null,
+            "text": "Designed normalised schema for large PostgreSQL transactional database.",
+            "metadata": {
+              "section": "experience"
+            },
+            "scores": {
+              "semantic": 0.196472,
+              "keyword": 0.125,
+              "metadata": 0,
+              "fusion": 0.15181
+            }
+          }
+        ],
+        "metrics": {
+          "precisionAtK": 1,
+          "recallAtK": 1,
+          "mrr": 1,
+          "ndcg": 1,
+          "forbiddenEvidenceRetrievalRate": 0,
+          "sourcePolicyAccuracy": 1
+        },
+        "score": 1,
+        "expectedFallback": null
+      }
+    ]
+  },
+  "generation": {
+    "schemaVersion": "generation_grounding_eval_report_v1",
+    "datasetVersion": "role-fit-generation-v1",
+    "generatedAt": "2026-07-11T05:44:56.836Z",
+    "casesRun": 5,
+    "average": 1,
+    "metrics": {
+      "claimFaithfulness": 1,
+      "requiredClaimCoverage": 1,
+      "responseRelevancy": 1,
+      "noiseSensitivity": 0,
+      "unsupportedClaimFailureRate": 0
+    },
+    "slices": {
+      "domain:backend": {
+        "casesRun": 1,
+        "average": 1,
+        "metrics": {
+          "claimFaithfulness": 1,
+          "requiredClaimCoverage": 1,
+          "responseRelevancy": 1,
+          "noiseSensitivity": 0,
+          "unsupportedClaimFailureRate": 0
+        }
+      },
+      "risk:high": {
+        "casesRun": 4,
+        "average": 1,
+        "metrics": {
+          "claimFaithfulness": 1,
+          "requiredClaimCoverage": 1,
+          "responseRelevancy": 1,
+          "noiseSensitivity": 0,
+          "unsupportedClaimFailureRate": 0
+        }
+      },
+      "domain:role_intent": {
+        "casesRun": 1,
+        "average": 1,
+        "metrics": {
+          "claimFaithfulness": 1,
+          "requiredClaimCoverage": 1,
+          "responseRelevancy": 1,
+          "noiseSensitivity": 0,
+          "unsupportedClaimFailureRate": 0
+        }
+      },
+      "domain:match_gap": {
+        "casesRun": 1,
+        "average": 1,
+        "metrics": {
+          "claimFaithfulness": 1,
+          "requiredClaimCoverage": 1,
+          "responseRelevancy": 1,
+          "noiseSensitivity": 0,
+          "unsupportedClaimFailureRate": 0
+        }
+      },
+      "domain:frontend": {
+        "casesRun": 1,
+        "average": 1,
+        "metrics": {
+          "claimFaithfulness": 1,
+          "requiredClaimCoverage": 1,
+          "responseRelevancy": 1,
+          "noiseSensitivity": 0,
+          "unsupportedClaimFailureRate": 0
+        }
+      },
+      "risk:medium": {
+        "casesRun": 1,
+        "average": 1,
+        "metrics": {
+          "claimFaithfulness": 1,
+          "requiredClaimCoverage": 1,
+          "responseRelevancy": 1,
+          "noiseSensitivity": 0,
+          "unsupportedClaimFailureRate": 0
+        }
+      },
+      "domain:behavioral": {
+        "casesRun": 1,
+        "average": 1,
+        "metrics": {
+          "claimFaithfulness": 1,
+          "requiredClaimCoverage": 1,
+          "responseRelevancy": 1,
+          "noiseSensitivity": 0,
+          "unsupportedClaimFailureRate": 0
+        }
       }
     },
-    {
-      "id": "retrieval_timeout_degraded_fallback",
-      "score": 1,
-      "subScores": {
-        "relevance": 1,
-        "blockedEvidence": 1,
-        "sourceCoverage": 1,
-        "degradedFallback": 1
+    "results": [
+      {
+        "schemaVersion": "generation_grounding_case_result_v1",
+        "caseId": "candidate_api_evidence",
+        "datasetVersion": "role-fit-generation-v1",
+        "configFingerprint": "runtime-retrieval-v1",
+        "labels": {
+          "domain": "backend",
+          "risk": "high"
+        },
+        "metrics": {
+          "claimFaithfulness": 1,
+          "requiredClaimCoverage": 1,
+          "responseRelevancy": 1,
+          "noiseSensitivity": 0,
+          "unsupportedClaimFailureRate": 0
+        },
+        "score": 1,
+        "claims": [
+          {
+            "text": "Built a Node.js API",
+            "claimClass": "candidate_evidence",
+            "evidenceChunkIds": [
+              "cv-api-1"
+            ],
+            "supported": true
+          },
+          {
+            "text": "reduced response time by 30 percent",
+            "claimClass": "candidate_evidence",
+            "evidenceChunkIds": [
+              "cv-api-1"
+            ],
+            "supported": true
+          }
+        ],
+        "unsupportedClaims": [],
+        "forbiddenClaimsFound": []
       },
-      "failedChecks": [],
-      "diagnostics": {
-        "relevantHits": [],
-        "blockedHits": [],
-        "queryTokenOverlap": [],
-        "sourceTypes": []
+      {
+        "schemaVersion": "generation_grounding_case_result_v1",
+        "caseId": "role_requirement_not_candidate_claim",
+        "datasetVersion": "role-fit-generation-v1",
+        "configFingerprint": "runtime-retrieval-v1",
+        "labels": {
+          "domain": "role_intent",
+          "risk": "high"
+        },
+        "metrics": {
+          "claimFaithfulness": 1,
+          "requiredClaimCoverage": 1,
+          "responseRelevancy": 1,
+          "noiseSensitivity": 0,
+          "unsupportedClaimFailureRate": 0
+        },
+        "score": 1,
+        "claims": [
+          {
+            "text": "The role requires Kubernetes production experience",
+            "claimClass": "role_requirement",
+            "evidenceChunkIds": [
+              "jd-k8s-1"
+            ],
+            "supported": true
+          }
+        ],
+        "unsupportedClaims": [],
+        "forbiddenClaimsFound": []
+      },
+      {
+        "schemaVersion": "generation_grounding_case_result_v1",
+        "caseId": "match_gap_statement",
+        "datasetVersion": "role-fit-generation-v1",
+        "configFingerprint": "runtime-retrieval-v1",
+        "labels": {
+          "domain": "match_gap",
+          "risk": "high"
+        },
+        "metrics": {
+          "claimFaithfulness": 1,
+          "requiredClaimCoverage": 1,
+          "responseRelevancy": 1,
+          "noiseSensitivity": 0,
+          "unsupportedClaimFailureRate": 0
+        },
+        "score": 1,
+        "claims": [
+          {
+            "text": "No cloud production evidence was found",
+            "claimClass": "match_gap",
+            "evidenceChunkIds": [
+              "match-cloud-1"
+            ],
+            "supported": true
+          },
+          {
+            "text": "validation is required",
+            "claimClass": "match_gap",
+            "evidenceChunkIds": [
+              "match-cloud-1"
+            ],
+            "supported": true
+          }
+        ],
+        "unsupportedClaims": [],
+        "forbiddenClaimsFound": []
+      },
+      {
+        "schemaVersion": "generation_grounding_case_result_v1",
+        "caseId": "irrelevant_context_not_used",
+        "datasetVersion": "role-fit-generation-v1",
+        "configFingerprint": "runtime-retrieval-v1",
+        "labels": {
+          "domain": "frontend",
+          "risk": "medium"
+        },
+        "metrics": {
+          "claimFaithfulness": 1,
+          "requiredClaimCoverage": 1,
+          "responseRelevancy": 1,
+          "noiseSensitivity": 0,
+          "unsupportedClaimFailureRate": 0
+        },
+        "score": 1,
+        "claims": [
+          {
+            "text": "Tested React accessibility with keyboard navigation",
+            "claimClass": "candidate_evidence",
+            "evidenceChunkIds": [
+              "cv-a11y-1"
+            ],
+            "supported": true
+          }
+        ],
+        "unsupportedClaims": [],
+        "forbiddenClaimsFound": []
+      },
+      {
+        "schemaVersion": "generation_grounding_case_result_v1",
+        "caseId": "mixed_requirement_and_evidence",
+        "datasetVersion": "role-fit-generation-v1",
+        "configFingerprint": "runtime-retrieval-v1",
+        "labels": {
+          "domain": "behavioral",
+          "risk": "high"
+        },
+        "metrics": {
+          "claimFaithfulness": 1,
+          "requiredClaimCoverage": 1,
+          "responseRelevancy": 1,
+          "noiseSensitivity": 0,
+          "unsupportedClaimFailureRate": 0
+        },
+        "score": 1,
+        "claims": [
+          {
+            "text": "The role requires mentoring junior engineers",
+            "claimClass": "role_requirement",
+            "evidenceChunkIds": [
+              "jd-mentor-1"
+            ],
+            "supported": true
+          },
+          {
+            "text": "Led weekly code reviews for two project teammates",
+            "claimClass": "candidate_evidence",
+            "evidenceChunkIds": [
+              "cv-lead-1"
+            ],
+            "supported": true
+          }
+        ],
+        "unsupportedClaims": [],
+        "forbiddenClaimsFound": []
       }
-    }
-  ]
+    ]
+  }
 }
