@@ -47,6 +47,8 @@ CV 侧接收上传或 recent CV selection，抽取文本并构建 private `cv_ev
 | review 怎么保存 | [company values repository](../../backend/src/services/company/companyValuesRepository.js) | 以 owner + `jdFingerprint` 保存 draft，并用 optimistic version 原子确认 |
 | review 后 CV seed 怎么更新 | [CV seed service](../../backend/src/services/questions/cvQuestionSeedService.js) | 生成后续问题准备材料 |
 | 前端 review state 在哪里 | [Analyze page](../../frontend/src/pages/AnalyzePage.jsx) 和 [CV review view model](../../frontend/src/utils/cvReviewViewModel.js) | 页面组合 review UI 与状态 |
+| 详细 CV 解析与审核管道 | [CV Parsing & Review Pipeline](../../docs/cv-parsing-review-pipeline.md) | 包含详细上傳、Spacy NLP 分析、栏位映射及 Human Review 写入数据库的完整流程 |
+| 详细 JD 解析与审核管道 | [JD Parsing & Review Pipeline](../../docs/jd-parsing-review-pipeline.md) | 包含详细網頁抓取、Safeguard 防禦、事实意图解碼及 Human Review 写入数据库的完整流程 |
 
 ## 容易误读的边界
 

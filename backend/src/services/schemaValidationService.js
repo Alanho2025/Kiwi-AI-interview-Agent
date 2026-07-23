@@ -62,9 +62,14 @@ export const validateAnalyzeOutput = (payload = {}) => {
         strengths: ensureArray(safePayload.explanation.strengths),
         gaps: ensureArray(safePayload.explanation.gaps),
         risks: ensureArray(safePayload.explanation.risks),
-        summary: ensureString(safePayload.explanation.summary),
+        summary: ensureString(safePayload.explanation.summary || safePayload.summary),
       }
-      : buildExplanationObject(),
+      : {
+        strengths: [],
+        gaps: [],
+        risks: [],
+        summary: ensureString(safePayload.summary || safePayload.explanation?.summary),
+      },
     evidenceMap: ensureArray(safePayload.evidenceMap),
     roleEvidenceMap: isObject(safePayload.roleEvidenceMap) ? safePayload.roleEvidenceMap : {},
     roleFitDiagnostics: isObject(safePayload.roleFitDiagnostics) ? safePayload.roleFitDiagnostics : {},
@@ -74,6 +79,11 @@ export const validateAnalyzeOutput = (payload = {}) => {
       interviewFocus: ensureArray(safePayload.interviewFocus || safePayload.legacy?.interviewFocus),
       planPreview: ensureString(safePayload.planPreview || safePayload.legacy?.planPreview),
     },
+    // Jobsync additions
+    recommendation: ensureString(safePayload.recommendation, 'partial'),
+    atsKeywords: ensureArray(safePayload.atsKeywords),
+    tailoringTips: ensureArray(safePayload.tailoringTips),
+    matchMode: ensureString(safePayload.matchMode, 'detail'),
   });
 };
 

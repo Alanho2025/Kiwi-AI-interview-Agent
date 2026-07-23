@@ -1,5 +1,22 @@
 # Version History
 
+## 2026-07-16 - Product Harness G0-G6 Local Shadow/Observe Foundation
+
+- Added Product Harness foundation (Milestones M1 to M5) to enable queryable `WorkflowRun` correlation across text/voice context, actions, gates, memory, and failures.
+- Implemented local shadow/observe support: M1 automated H1, M2 observed contracts, M3 default-off user interview projection, M4 report publication observe adapter, M5 release aggregator.
+- Verified local implementation with `npm run eval:harness-m1` through `m5` scripts. All automated tests pass, but live provider, real mic, and production shadow gates remain open/unverified (status: `LOCAL_HARNESS_FOUNDATION_COMPLETE_G0_NOT_VERIFIED`).
+
+## 2026-07-15 - CV-JD Match Latency Tracing and Safeguard Heading Guard
+
+- Added request-scoped CV-JD match performance tracing (`performanceTrace.steps` / `slowestSteps`) and persisted sanitized step summary under `MatchAnalysisRecord.performanceTrace` without caching raw CV/JD content.
+- Fixed match scoring to prevent low-value keywords or debug terms from contaminating match findings (added `jobDescriptionSectionHeadingGuard` to exclude headers like "Skills & Experience" and "Roles & Responsibilities" from scoring).
+
+## 2026-07-13 - Voice Transcript Calibration and High-Risk Confirmation
+
+- Added deterministic `transcriptReviewPolicyService` and high-risk confirmation gates to block wrongful score degradation on low-confidence voice turns until verified by the user.
+- Added context-aware STT calibration (vocabulary/glossary context alignment without auto-injecting terms as spoken evidence) and n-best alternatives provenance tracking.
+- Implemented real LLM judge eval script `npm run eval:voice-transcript-review-policy` (average rating 0.97).
+
 ## 2026-07-12 - E2E Refine Gate and Voice Interrupt Hardening
 
 - Added stakeholder E2E refine scripts for review-lock API bypass, retention/deletion lifecycle access denial, low-confidence voice confirmation UI, and weak-network/barge-in voice flow.

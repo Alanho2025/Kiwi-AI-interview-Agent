@@ -42,6 +42,37 @@ const hasHardGateFailure = (requirementChecks = [], rubric = {}) => requirementC
   !isNonTechnicalHardRequirement(item, rubric)
 );
 
+export const buildAtsKeywords = (requirementChecks = []) => {
+  return requirementChecks
+    .filter((item) => item.status === 'not_met')
+    .map((item) => item.label)
+    .filter(Boolean);
+};
+
+export const buildTailoringTips = (gaps = [], risks = []) => {
+  const tips = [];
+  const seen = new Set();
+  for (const item of [...gaps, ...risks]) {
+    const label = item.label || '';
+    if (!label || seen.has(label)) continue;
+    seen.add(label);
+    if (/missing evidence/i.test(label)) {
+      const cleanLabel = label.replace(/missing evidence for /i, '');
+      tips.push(`Update your Resume to explicitly mention your experience with ${cleanLabel}.`);
+    } else {
+      tips.push(`Highlight any project or commercial work involving "${label}" to address this gap.`);
+    }
+  }
+  return tips.length ? tips : ['Ensure all key requirements in the job description are explicitly covered in your resume.'];
+};
+
+const deriveRecommendation = (score) => {
+  if (score >= 80) return 'strong';
+  if (score >= 65) return 'good';
+  if (score >= 50) return 'partial';
+  return 'weak';
+};
+
 export const buildAnalyzeResult = ({
   parsedCvProfile,
   rubric,
@@ -116,6 +147,10 @@ export const buildAnalyzeResult = ({
     },
   };
 
+  const atsKeywords = buildAtsKeywords(requirementChecks);
+  const tailoringTips = buildTailoringTips(gaps, _risks || []);
+  const recommendation = deriveRecommendation(scoreBreakdown.overallScore);
+
   return validateAnalyzeOutput(
     buildAnalyzeOutput({
       candidateName: parsedCvProfile.candidateName,
@@ -147,6 +182,11 @@ export const buildAnalyzeResult = ({
         interviewFocus,
         planPreview: `Interview emphasis: ${interviewFocus.join(', ') || 'role-specific problem solving'}.`,
       },
+      // Jobsync additions
+      recommendation,
+      atsKeywords,
+      tailoringTips,
+      matchMode: 'detail',
     })
   );
 };

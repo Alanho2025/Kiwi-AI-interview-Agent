@@ -22,6 +22,7 @@ match 层把 reviewed CV 和 reviewed JD 变成两类下游资产：可展示的
 | 机制 | 源码入口 | 下游影响 |
 | --- | --- | --- |
 | match API orchestration | [analyze controller](../../backend/src/controllers/analyzeController.js) | 连接 match、audit、usage、JD filter、plan |
+| 详细 CV-JD 匹配与评分管道 | [CV-JD Matching & Scoring Pipeline](../../docs/cv-jd-matching-pipeline.md) | 包含详细數據加載、向量相似度與文字重疊比對、動態領域評分權重、置信度扣分公式、質量評測及 hrtime 高解析度時延追蹤 |
 | CV-JD comparison | [CV analysis service](../../backend/src/services/cv/cvAnalysisService.js) 和 [match services](../../backend/src/services/match) | 产出 strengths、gaps、score、evidence |
 | JD heading / candidate hygiene | [JD section heading guard](../../backend/src/services/jobDescription/jobDescriptionSectionHeadingGuard.js)、[semantic evidence service](../../backend/src/services/match/semanticEvidenceService.js) 和 [frontend match view model](../../frontend/src/utils/matchResultViewModel.js) | 防止 JD 标题进入 role intent、requirement、semantic target 或旧结果 UI |
 | candidate evidence strategy | [CV evidence builder](../../backend/src/services/cv/cvEvidenceProfileBuilder.js) | 生成 `candidate_evidence_graph_v2`，保留 stable evidence ID、source trace、proof angles、strength signals 与使用限制 |
