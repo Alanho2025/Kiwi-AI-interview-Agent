@@ -43,3 +43,12 @@ export const createMatchAnalysisRecord = async ({ userId, cvFileId, jdStructured
   });
   return { matchAnalysisId, evidenceRefs };
 };
+
+export const updateMatchAnalysisPerformanceTrace = async ({ userId, matchAnalysisId, performanceTrace = {} } = {}) => {
+  if (!userId || !matchAnalysisId || !performanceTrace?.schemaVersion) return null;
+  await MatchAnalysisRecord.updateOne(
+    { userId, matchAnalysisId, deletedAt: { $exists: false } },
+    { $set: { performanceTrace } },
+  );
+  return performanceTrace;
+};

@@ -1,3 +1,5 @@
+import { isJobDescriptionSectionHeading } from './jobDescriptionSectionHeadingGuard.js';
+
 const clampScore = (value) => Math.max(0, Math.min(100, Math.round(Number(value) || 0)));
 
 const toPercent = (value) => {
@@ -220,6 +222,37 @@ const scoreExplanationByBand = {
   },
 };
 
+const evidenceStrengthOrder = { missing: 0, weak: 1, partial: 2, strong: 3 };
+const evidenceStrengthByOrder = Object.fromEntries(Object.entries(evidenceStrengthOrder).map(([key, value]) => [value, key]));
+const evidenceStrengthCapByStatus = {
+  met: 'strong',
+  partial: 'partial',
+  inferred: 'weak',
+  not_met: 'missing',
+};
+
+const capEvidenceStrengthForStatus = (strength = '', status = '') => {
+  if (!strength) return '';
+  const cap = evidenceStrengthCapByStatus[status] || 'missing';
+  const cappedOrder = Math.min(evidenceStrengthOrder[strength] ?? 0, evidenceStrengthOrder[cap] ?? 0);
+  return evidenceStrengthByOrder[cappedOrder] || 'missing';
+};
+
+const isLowValueEvidenceText = (value = '') => (
+  /^Matched in (experience|keyCompetencies|personalStatement): (engineer|engineering|ai|focused|teams?|workflows?|value|off)(?:,\s*(engineer|engineering|ai|focused|teams?|workflows?|value|off))*$/i.test(String(value || '').trim())
+  || /^Capability match:/i.test(String(value || '').trim())
+);
+
+const sanitizeRequirementEvidence = ({ status = '', evidence = '' } = {}) => {
+  if (status === 'not_met' && isLowValueEvidenceText(evidence)) return '';
+  return evidence;
+};
+
+const sanitizeLimitation = (value = '') => String(value || '')
+  .replace(/The available evidence is below the grounded match threshold\./i, 'The CV does not show enough direct proof for this focus area.')
+  .replace(/role intent/gi, 'focus area')
+  .trim();
+
 const statusLabels = {
   met: { label: 'Matched', tone: 'success', reason: 'Supported by CV evidence.' },
   partial: { label: 'Partly matched', tone: 'warning', reason: 'Some evidence exists, but it may need stronger proof.' },
@@ -263,6 +296,7 @@ const buildEvidenceItem = (item, fallbackDetail) => ({
 const buildRoleEvidenceGroups = (roleEvidenceMap = {}) => {
   const groups = { direct: [], adjacent: [], weak: [], gap: [] };
   (roleEvidenceMap.items || []).forEach((item) => {
+    if (isJobDescriptionSectionHeading(item.roleIntent || item.label)) return;
     const classification = groups[item.classification] ? item.classification : 'gap';
     const sourceEvidence = (item.sourceEvidence || [])[0] || {};
     groups[classification].push({
@@ -273,10 +307,22 @@ const buildRoleEvidenceGroups = (roleEvidenceMap = {}) => {
       score: clampScore(item.score),
       evidence: sourceEvidence.text || '',
       sourceSection: sourceEvidence.sourceTrace?.section || '',
-      limitation: item.limitation || '',
+      limitation: sanitizeLimitation(item.limitation || ''),
     });
   });
   return groups;
+};
+
+const buildRoleIntentCoverageFromGroups = (groups = {}) => {
+  const highPriorityItems = Object.values(groups)
+    .flat()
+    .filter((item) => item.priority === 'high');
+  return {
+    highPriorityTotal: highPriorityItems.length,
+    strong: highPriorityItems.filter((item) => item.classification === 'direct').length,
+    partial: highPriorityItems.filter((item) => ['adjacent', 'weak'].includes(item.classification)).length,
+    missing: highPriorityItems.filter((item) => item.classification === 'gap').length,
+  };
 };
 
 const buildScoreExplanation = ({ key, label, strengths, gaps, risks, requirementChecks }) => {
@@ -321,6 +367,7 @@ export const buildMatchResultViewModel = (analysisResult = {}, matchRate = 0) =>
     ? filterSemanticEvidenceMatches(matchingDetails.semanticEvidenceMatches, rawRequirementChecks)
     : [];
   const roleEvidenceMap = analysisResult?.roleEvidenceMap || matchingDetails.roleEvidenceMap || {};
+  const roleEvidenceGroups = buildRoleEvidenceGroups(roleEvidenceMap);
 
   const scoreCards = Object.entries(scoreReason).map(([key, copy]) => {
     const score = clampScore(scoreBreakdown[key]);
@@ -341,6 +388,7 @@ export const buildMatchResultViewModel = (analysisResult = {}, matchRate = 0) =>
       const status = statusLabels[item.status] || statusLabels.not_met;
       const originalLabel = item.label || 'Requirement';
       const label = shortenRequirementLabel(originalLabel);
+      const evidence = getEvidence(item);
       return {
         id: item.id || originalLabel,
         label,
@@ -349,8 +397,8 @@ export const buildMatchResultViewModel = (analysisResult = {}, matchRate = 0) =>
         tone: status.tone,
         meta: `${sentenceCase(item.type || 'requirement')} · ${sentenceCase(item.importance || 'medium')} importance`,
         reason: getDetail(item) || status.reason,
-        evidence: getEvidence(item),
-        evidenceStrength: extractEvidenceStrength(item),
+        evidence: sanitizeRequirementEvidence({ status: item.status, evidence }),
+        evidenceStrength: capEvidenceStrengthForStatus(extractEvidenceStrength(item), item.status),
         missingEvidence: extractNoteField(item, 'missingEvidence'),
         interviewProbe: extractNoteField(item, 'interviewProbe'),
       };
@@ -378,12 +426,7 @@ export const buildMatchResultViewModel = (analysisResult = {}, matchRate = 0) =>
       : matchingDetails.evidenceStrengthBreakdown || {},
     semanticEvidenceMatches: filteredSemanticEvidenceMatches,
     semanticEvidenceModel: matchingDetails.semanticEvidenceModel || null,
-    roleIntentCoverage: roleEvidenceMap.intentCoverage || {
-      highPriorityTotal: 0,
-      strong: 0,
-      partial: 0,
-      missing: 0,
-    },
-    roleEvidenceGroups: buildRoleEvidenceGroups(roleEvidenceMap),
+    roleIntentCoverage: buildRoleIntentCoverageFromGroups(roleEvidenceGroups),
+    roleEvidenceGroups,
   };
 };

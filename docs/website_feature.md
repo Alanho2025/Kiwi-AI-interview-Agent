@@ -45,6 +45,9 @@ This MVP is focused on delivering a working end-to-end interview experience. The
 - Supports question-limited and time-limited session setup
 - Ends the interview by configured completion rules
 - Prevents prepared and live assessment-equivalent duplicate questions while preserving distinct follow-ups
+- Supports same-run confirmation for high-risk or low-confidence voice transcript turns to avoid wrongful score degradation
+- Supports CV-JD matching performance latency tracing with step-by-step duration reporting
+- Integrates a developer-facing Product Harness mapping `interview_next_turn` tasks to a queryable `WorkflowRun` trace (reconstructing context, actions, gates, memory writes, and failure modes)
 - Generates a grounded feedback report from countable questions and accepted answers after the interview
 - Supports question-specific rubrics, transcript-risk warnings, evidence-source rows, report QA, at most two grounded wording-repair attempts, and a commercial stress-test cost summary
 - Supports resumable voice-recording upload and asynchronous MP3 conversion without blocking report navigation
@@ -65,6 +68,8 @@ This MVP is focused on delivering a working end-to-end interview experience. The
 - Does not currently implement JD file upload; current JD flow is pasted text
 - Does not guarantee live voice readiness without configured speech-provider credentials and browser/device setup
 - Does not provide account-wide deletion or encryption-at-rest guarantees; retention cleanup exists but is operationally gated and disabled by default
+- Product Harness does not yet enforce active blocks or memory projection in production (currently runs in shadow/observe mode, G0 status is `NOT_VERIFIED`)
+- Does not have developer/operator UI dashboard for Harness analytics (currently CLI-based and raw timeline queries)
 
 ---
 

@@ -7,6 +7,7 @@ import { CvQuestionSeed } from '../db/models/cvQuestionSeedModel.js';
 import { DocumentChunk } from '../db/models/documentChunkModel.js';
 import { DocumentContent } from '../db/models/documentContentModel.js';
 import { EvaluationGroundTruth } from '../db/models/evaluationGroundTruthModel.js';
+import { HarnessWorkflowRun } from '../db/models/harnessWorkflowRunModel.js';
 import { InterviewPlan } from '../db/models/interviewPlanModel.js';
 import { InterviewQuestionPoolItem } from '../db/models/interviewQuestionPoolItemModel.js';
 import { JdArtifactCache } from '../db/models/jdArtifactCacheModel.js';
@@ -33,6 +34,7 @@ export const buildMongoRetentionModelRegistry = () => new Map([
   ['documentchunks', DocumentChunk],
   ['documentcontents', DocumentContent],
   ['evaluationgroundtruths', EvaluationGroundTruth],
+  ['harnessworkflowruns', HarnessWorkflowRun],
   ['interviewplans', InterviewPlan],
   ['interviewquestionpoolitems', InterviewQuestionPoolItem],
   ['jdartifactcaches', JdArtifactCache],

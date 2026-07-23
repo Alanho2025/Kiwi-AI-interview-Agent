@@ -162,6 +162,27 @@ describe('grounded role evidence map robustness', () => {
     expect(map.items.find((entry) => entry.roleIntentId === 'intent:stakeholder').limitation).toMatch(/direct|outcome|scope/i);
   });
 
+  it('filters JD section headings before building role evidence map items', () => {
+    const map = buildRoleEvidenceMap({
+      roleFitProfile: {
+        roleIntent: {
+          items: [
+            { id: 'intent:skills-heading', statement: 'Skills & Experience:', priority: 'high' },
+            { id: 'intent:roles-heading', statement: 'Roles & Responsibilities:', priority: 'high' },
+            { id: 'intent:automation', statement: 'Translate real workflows into working AI tools', priority: 'high' },
+          ],
+        },
+      },
+      requirementChecks: [],
+      semanticEvidenceContext: {},
+    });
+
+    expect(map.items.map((item) => item.roleIntent)).toEqual([
+      'Translate real workflows into working AI tools',
+    ]);
+    expect(map.intentCoverage.highPriorityTotal).toBe(1);
+  });
+
   it('ranks responsibility role intents even when they are not duplicated as requirements', async () => {
     const context = await buildSemanticEvidenceContext({
       rubric: {
@@ -180,6 +201,47 @@ describe('grounded role evidence map robustness', () => {
     });
 
     expect(getSemanticMatchesForLabel(context, 'Own reliable customer data delivery').length).toBeGreaterThan(0);
+  });
+
+  it('does not rank JD section headings as semantic evidence targets', async () => {
+    const context = await buildSemanticEvidenceContext({
+      rubric: {
+        roleFit: {
+          roleIntent: {
+            items: [
+              { id: 'intent:skills-heading', statement: 'Skills & Experience:', priority: 'high' },
+              { id: 'intent:roles-heading', statement: 'Roles & Responsibilities:', priority: 'high' },
+              { id: 'intent:workflow-tools', statement: 'Translate real workflows into working AI tools', priority: 'high' },
+            ],
+          },
+        },
+        universalRoleProfile: {
+          requirements: [
+            { id: 'req-heading', text: 'Skills & Experience:', label: 'Skills & Experience:' },
+            { id: 'req-workflow', text: 'Translate real workflows into working AI tools', label: 'Translate real workflows into working AI tools' },
+          ],
+        },
+        requirements: [
+          { id: 'legacy-heading', label: 'Roles & Responsibilities:' },
+          { id: 'legacy-workflow', label: 'Translate real workflows into working AI tools' },
+        ],
+        microCriteria: [{ label: 'Skills & Experience:' }],
+        macroCriteria: [{ label: 'Roles & Responsibilities:' }],
+      },
+      evidenceProfile: {
+        evidenceItems: [{
+          ...tracedEvidence,
+          id: 'evidence:workflow-tools',
+          text: 'Built AI workflow tools that turned manual business processes into prototypes.',
+        }],
+      },
+    });
+
+    expect(context.matches.map((item) => item.label)).not.toEqual(expect.arrayContaining([
+      'Skills & Experience:',
+      'Roles & Responsibilities:',
+    ]));
+    expect(getSemanticMatchesForLabel(context, 'Translate real workflows into working AI tools').length).toBeGreaterThan(0);
   });
 
   it('keeps the grounded role evidence map in the validated match result', async () => {

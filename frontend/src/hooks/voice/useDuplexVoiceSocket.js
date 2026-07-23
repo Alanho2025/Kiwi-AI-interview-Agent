@@ -13,6 +13,7 @@ const DEFAULT_LANGUAGE = 'en-NZ';
 const DEFAULT_SAMPLE_RATE = 16000;
 const DEFAULT_VOICE_NAME = 'en-NZ-MollyNeural';
 const AUDIO_CHUNK_TRACE_EVERY = 25;
+const SOCKET_READY_TIMEOUT_MS = 10000;
 
 export const buildDuplexSocketUrl = ({
   sessionId,
@@ -39,6 +40,7 @@ export function useDuplexVoiceSocket({
   onBargeInAck,
   onSpeechDone,
   onTranscriptRejected,
+  onTurnRejected,
   onTranscriptConfirmationRequested,
   onTranscriptConfirmationResolved,
 } = {}) {
@@ -64,6 +66,7 @@ export function useDuplexVoiceSocket({
     onBargeInAck,
     onSpeechDone,
     onTranscriptRejected,
+    onTurnRejected,
     onTranscriptConfirmationRequested,
     onTranscriptConfirmationResolved,
   });
@@ -75,6 +78,7 @@ export function useDuplexVoiceSocket({
     onBargeInAck,
     onSpeechDone,
     onTranscriptRejected,
+    onTurnRejected,
     onTranscriptConfirmationRequested,
     onTranscriptConfirmationResolved,
   };
@@ -152,6 +156,14 @@ export function useDuplexVoiceSocket({
     const socket = new WebSocket(buildDuplexSocketUrl({ sessionId, language, sampleRate, voiceName }));
     socket.binaryType = 'arraybuffer';
     socketRef.current = socket;
+    let connectionSettled = false;
+    let readyTimeoutId = null;
+    const settleConnection = (callback, value) => {
+      if (connectionSettled) return;
+      connectionSettled = true;
+      if (readyTimeoutId) window.clearTimeout(readyTimeoutId);
+      callback(value);
+    };
 
     socket.onopen = () => {
       console.info('[FRONTEND-WS-TRACE] open', {
@@ -170,7 +182,13 @@ export function useDuplexVoiceSocket({
         voiceName,
         at: Date.now(),
       });
-      resolve(socket);
+      readyTimeoutId = window.setTimeout(() => {
+        const error = new Error('Timed out waiting for duplex voice session readiness.');
+        setSocketError(error.message);
+        setSocketState('error');
+        settleConnection(reject, error);
+        try { socket.close(); } catch {}
+      }, SOCKET_READY_TIMEOUT_MS);
     };
 
     socket.onmessage = (event) => {
@@ -191,6 +209,7 @@ export function useDuplexVoiceSocket({
       });
       if (payload.type === 'session_ready') {
         setSocketState('ready');
+        settleConnection(resolve, socket);
         return;
       }
       if (payload.type === 'pong') {
@@ -300,6 +319,18 @@ export function useDuplexVoiceSocket({
         callbacksRef.current.onTranscriptRejected?.(payload);
         return;
       }
+      if (payload.type === 'turn_rejected') {
+        console.warn('[FRONTEND-WS-TRACE] turn_rejected', {
+          socketTraceSession: socketTraceSessionRef.current,
+          speechTurnTrace: speechTurnTraceRef.current,
+          code: payload.code,
+          reason: payload.reason,
+          clientTurnId: payload.clientTurnId,
+          at: Date.now(),
+        });
+        callbacksRef.current.onTurnRejected?.(payload);
+        return;
+      }
       if (payload.type === 'barge_in_ack') {
         callbacksRef.current.onBargeInAck?.(payload);
         return;
@@ -331,7 +362,7 @@ export function useDuplexVoiceSocket({
       });
       setSocketError('Duplex voice socket connection failed.');
       setSocketState('error');
-      reject(new Error('Duplex voice socket connection failed.'));
+      settleConnection(reject, new Error('Duplex voice socket connection failed.'));
     };
 
     socket.onclose = () => {
@@ -347,6 +378,7 @@ export function useDuplexVoiceSocket({
       chunksSentRef.current = 0;
       ignoredPreSpeechChunksRef.current = 0;
       setSocketState((current) => (current === 'error' ? current : 'closed'));
+      settleConnection(reject, new Error('Duplex voice socket closed before it became ready.'));
     };
   }), [closeSocket]);
 

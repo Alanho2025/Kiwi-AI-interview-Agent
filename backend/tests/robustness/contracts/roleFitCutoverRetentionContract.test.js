@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 import { CompanyValuesProfile } from '../../../src/db/models/companyValuesProfileModel.js';
 import { InterviewQuestionPoolItem } from '../../../src/db/models/interviewQuestionPoolItemModel.js';
+import { MatchAnalysisRecord } from '../../../src/db/models/matchAnalysisRecordModel.js';
 import { SessionAnalysis } from '../../../src/db/models/sessionAnalysisModel.js';
 import { SessionReport } from '../../../src/db/models/sessionReportModel.js';
 import { buildMongoRetentionModelRegistry } from '../../../src/repositories/mongoRetentionModelRegistry.js';
@@ -21,12 +22,13 @@ const expectPrivateRetentionContract = (model) => {
 
 describe('role-fit cutover and retention contract', () => {
   it('stores all Role-Fit-bearing runtime documents under the private retention contract', () => {
-    for (const model of [CompanyValuesProfile, InterviewQuestionPoolItem, SessionAnalysis, SessionReport]) {
+    for (const model of [CompanyValuesProfile, InterviewQuestionPoolItem, MatchAnalysisRecord, SessionAnalysis, SessionReport]) {
       expectPrivateRetentionContract(model);
     }
 
     expect(CompanyValuesProfile.schema.path('userId')).toBeTruthy();
     expect(InterviewQuestionPoolItem.schema.path('userId')).toBeTruthy();
+    expect(MatchAnalysisRecord.schema.path('performanceTrace')).toBeTruthy();
     expect(SessionAnalysis.schema.path('userId')).toBeTruthy();
     expect(SessionReport.schema.path('userId')).toBeTruthy();
     expect(SessionAnalysis.schema.path('roleEvidenceMap')).toBeTruthy();

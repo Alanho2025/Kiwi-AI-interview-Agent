@@ -18,10 +18,14 @@ const isAcceptedAnswer = (turn = {}) => {
   const metadata = turn.metadata || {};
   const turnType = normalizeKey(metadata.turnType || metadata.turnKind || metadata.sourceType);
   const transcriptStatus = normalizeKey(metadata.transcriptStatus);
+  const transcriptReviewDecision = metadata.transcriptReviewDecision || {};
 
   if (metadata.countsAsAnswer === false || metadata.countsAsQuestion === false) return false;
   if (EXCLUDED_USER_TURN_TYPES.has(turnType)) return false;
   if (metadata.transcriptAcceptance?.accepted === false) return false;
+  if (transcriptReviewDecision.decisionType === 'immediate_confirmation'
+    && transcriptReviewDecision.scoringPolicy === 'block_scoring_until_confirmed'
+    && metadata.transcriptConfirmation?.confirmedByUser !== true) return false;
   if (['rejected', 'pending', 'unconfirmed'].includes(transcriptStatus)) return false;
 
   return !turnType
@@ -80,4 +84,3 @@ export const buildReportTurnDataset = (transcript = []) => {
     repairTurnCount: repairQuestionCount + excludedUserTurnCount,
   };
 };
-

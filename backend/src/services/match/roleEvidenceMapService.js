@@ -1,4 +1,5 @@
 import { normalizeTaxonomyLabel } from '../taxonomyService.js';
+import { isJobDescriptionSectionHeading } from '../jobDescription/jobDescriptionSectionHeadingGuard.js';
 
 const STATUS_SCORE = { met: 100, partial: 65, inferred: 35, not_met: 0 };
 const WEIGHTS = {
@@ -174,12 +175,14 @@ const buildIntentCoverage = (items = []) => {
 };
 
 export const buildRoleEvidenceMap = ({ roleFitProfile = {}, requirementChecks = [], semanticEvidenceContext = {} } = {}) => {
-  const items = (roleFitProfile.roleIntent?.items || []).map((roleIntent) => buildMapItem({
-    roleFitProfile,
-    roleIntent,
-    requirementChecks,
-    semanticEvidenceContext,
-  }));
+  const items = (roleFitProfile.roleIntent?.items || [])
+    .filter((roleIntent) => !isJobDescriptionSectionHeading(roleIntent.statement))
+    .map((roleIntent) => buildMapItem({
+      roleFitProfile,
+      roleIntent,
+      requirementChecks,
+      semanticEvidenceContext,
+    }));
 
   return {
     schemaVersion: 'role_evidence_map_v2',

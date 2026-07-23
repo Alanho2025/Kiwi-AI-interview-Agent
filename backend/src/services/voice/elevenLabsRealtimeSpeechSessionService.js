@@ -2,19 +2,30 @@ import { createElevenLabsRealtimeSttProvider } from '../../../benchmarks/voice-a
 import { normalizeTranscript } from './transcriptNormalizer.js';
 import { buildConfidenceGate } from './speechConfidenceGate.js';
 import { recordAiUsageEvent } from '../aiUsageTrackingService.js';
+import {
+  calibrateTranscript,
+  mergeStaticNormalizationIntoCalibration,
+} from './transcriptCalibrationService.js';
 
 const DEFAULT_SAMPLE_RATE = 16000;
 
-const mapFinalTranscript = ({ text, language }) => {
-  const normalized = normalizeTranscript(text);
+const mapFinalTranscript = ({ text, language, contextualGlossary = [] }) => {
+  const calibration = calibrateTranscript({
+    rawText: text,
+    nBestCandidates: [],
+    glossaryItems: contextualGlossary,
+  });
+  const normalized = normalizeTranscript(calibration.selectedTranscript);
   const confidenceGate = buildConfidenceGate(null);
   return {
     type: 'final_transcript',
-    rawText: normalized.rawText,
+    rawText: calibration.rawTranscript,
     normalizedText: normalized.normalizedText,
     displayText: normalized.normalizedText || normalized.rawText,
     changed: normalized.changed,
     corrections: normalized.corrections,
+    transcriptCalibration: mergeStaticNormalizationIntoCalibration({ calibration, normalized }),
+    nbest: calibration.nbest,
     confidence: null,
     confidenceStatus: confidenceGate.status,
     shouldConfirm: confidenceGate.shouldConfirm,
@@ -51,6 +62,7 @@ export function createElevenLabsRealtimeSpeechSession({
   language = 'en-NZ',
   sampleRate = DEFAULT_SAMPLE_RATE,
   extraPhrases = [],
+  contextualGlossary = [],
   usageContext = null,
   onPartialTranscript,
   onFinalTranscript,
@@ -76,7 +88,11 @@ export function createElevenLabsRealtimeSpeechSession({
           timestamp: new Date().toISOString(),
         }),
         onFinal: (payload) => {
-          const mapped = mapFinalTranscript({ text: payload.text || payload.displayText || payload.rawText, language });
+          const mapped = mapFinalTranscript({
+            text: payload.text || payload.displayText || payload.rawText,
+            language,
+            contextualGlossary,
+          });
           if (!mapped.displayText) return;
           finalSegmentCount += 1;
           onFinalTranscript?.(mapped);

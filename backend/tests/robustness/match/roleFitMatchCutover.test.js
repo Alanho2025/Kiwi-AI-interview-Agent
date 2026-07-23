@@ -19,6 +19,7 @@ vi.mock('../../../src/services/cv/cvOwnershipService.js', () => ({
 }));
 
 import { runCvJdMatchAnalysis } from '../../../src/services/cv/cvAnalysisService.js';
+import { createMatchPerformanceTrace } from '../../../src/services/match/matchPerformanceTraceService.js';
 
 describe('Role-Fit match cutover', () => {
   beforeEach(() => {
@@ -71,5 +72,37 @@ describe('Role-Fit match cutover', () => {
     });
     expect(mocks.getOwnedCv).toHaveBeenCalledWith({ cvId: 'cv-1', userId: 'user-1' });
     expect(mocks.compare).toHaveBeenCalled();
+  });
+
+  it('records service-level performance trace steps for a verified match request', async () => {
+    const jdRubric = {
+      roleFit: {
+        id: 'role-fit-1',
+        jdFingerprint: 'jd-fingerprint',
+        review: { version: 3, status: 'verified' },
+      },
+    };
+    const performanceTrace = createMatchPerformanceTrace({ requestId: 'request-1', cvId: 'cv-1' });
+
+    await runCvJdMatchAnalysis({
+      cvId: 'cv-1',
+      userId: 'user-1',
+      rawJD: 'Backend engineer JD',
+      jdRubric,
+      performanceTrace,
+    });
+
+    expect(performanceTrace.toJSON().steps.map((step) => step.step)).toEqual(expect.arrayContaining([
+      'role_fit_review_gate',
+      'cv_document_load',
+      'guarded_match_analysis',
+    ]));
+    expect(mocks.compare).toHaveBeenCalledWith(
+      expect.any(Object),
+      'Backend engineer JD',
+      jdRubric,
+      expect.objectContaining({ userId: 'user-1', cvId: 'cv-1' }),
+      { performanceTrace },
+    );
   });
 });

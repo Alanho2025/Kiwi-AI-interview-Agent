@@ -1,13 +1,23 @@
 # E2E Refine Implementation Goal
 
-狀態：draft for review；尚未進入實作
-日期：2026-07-11
+狀態：final goal mode；已實作並以本地 hybrid E2E gate 驗證
+日期：2026-07-12
 對照來源：[E2E 測試差距分析](e2e-testing-gaps-analysis.md)、[語音轉寫校準計畫](voice-transcript-calibration-plan.md)、[候選人成長追蹤計畫](candidate-progress-tracking-plan.md)
 對應 spec：[E2E Refine Implementation Spec](e2e-refine-implementation-spec.md)
 
 ## 文件定位
 
 這份 goal 不是要重寫所有 E2E，也不是把 mock 全部拿掉。它的目標是把目前偏「前端流程與 mock visual」的 E2E，補成 stakeholder 能信任的 hybrid E2E release gate：保留快速 mock visual tests，同時新增少量真後端、真資料狀態、真 WebSocket 和可量測 artifact 的高風險路徑。
+
+## 實作結果摘要
+
+本 goal 已作為 final goal 推進完成。實作後新增四條可重跑 E2E refine scripts，並新增 backend aggregate release gate：
+
+- Review lock bypass：`frontend/e2e/review-lock-bypass.playwright.mjs`。未 verified Role-Fit input 直接打 `/api/analyze/match` 會被現有 review contract 擋成 `409 Role-fit review conflict`；繞過 match 直接拿 `manual_review` payload 打 `/api/analyze/interview-plan` 會被新增的 `matchPlanGateService` 擋成 `400`，不會產生 usable plan/session。
+- Low-confidence voice UI：`frontend/e2e/voice-low-confidence-ui.playwright.mjs`。真 frontend + 真 backend WebSocket + test STT/TTS provider；contentful low-confidence transcript 會顯示 `Please confirm what KiwiCoach heard`，題號不前進，且不產生 `turn_done`。
+- Retention/deletion lifecycle：`frontend/e2e/retention-deletion-lifecycle.playwright.mjs`。test DB synthetic session/CV soft delete 後，API/report/export/match reuse 都被拒絕；browser route 的 access-denial 結果允許 `Session not found.` 或 redirect `/analysis`，因為兩者都代表使用者無法再讀取 deleted session。
+- Weak network + barge-in voice：`frontend/e2e/voice-network-barge-in.playwright.mjs`。CDP bounded slow network 下跑真 backend duplex voice；實作時發現 backend duplex socket queue 會把 `barge_in` 排在 TTS streaming 後面，已修成 interrupt control message 可繞過一般序列隊列，E2E 現在觀察到 `barge_in_ack.interrupted === true`。
+- Aggregate gate：`backend/eval/helpers/e2eRefineReleaseGateEvaluator.js` + `backend/eval/runners/runE2eRefineReleaseGateEval.js`，輸出 `backend/eval/reports/e2e-refine-release-gate.latest.{json,md}`。最新狀態是 `ready_with_known_issues`；release blockers 為 none；known issue 為 `voice_next_question_3s_slo_exceeded`。
 
 ## 現況摘要
 
@@ -20,14 +30,14 @@
 - `frontend/e2e/voice-real-backend.playwright.mjs`：真 backend + test STT/TTS provider 的 duplex voice browser flow，latest artifact 通過，但 `nextQuestionFirstAudioMs` 約 4415ms，3 秒 SLO 是 known issue。
 - `frontend/e2e/recording-recovery.playwright.mjs`：browser IndexedDB recording upload recovery，但 backend API 是 mock。
 - `backend/eval/reports/role-fit-release-gate.latest.json`：目前 release status 是 `ready_with_known_issues`；calibration、adversarial、cutover/retention source contract、browser visual、voice flow pass；voice 3 秒 SLO 超標是唯一 known issue。
-- Backend 已有多個 robustness groups：low-confidence transcript confirmation、turn counting、guarded match review、retention policy / cleanup services 等，但不是所有都在 browser E2E 或 package `test:all` 裡。
+- Backend 已有多個 robustness groups：low-confidence transcript confirmation、turn counting、guarded match review、retention policy / cleanup services 等；retention robustness 已決定納入 backend `test:all`，但仍不是 browser/API lifecycle E2E。
 
 ## further_plan 對照結論
 
 | further_plan gap | 現在已補到哪裡 | 仍需要修改 |
 | --- | --- | --- |
 | API mocks 掩蓋 RAG / AI / scoring regression | Backend `eval:retrieval`、`eval:role-fit-v2-adversarial`、`eval:calibration` 和 Role-Fit release gate 已補 local deterministic evidence；browser visual 仍主要驗渲染 | 新增 hybrid E2E：用真 backend API / test DB seed 跑 review lock、match/plan/report access 的關鍵路徑；browser E2E 不直接承擔 real LLM quality |
-| Retention / deletion 缺 E2E | Backend 有 retention robustness tests；Role-Fit release gate 只宣稱 local source/model/registry contract，`productionTelemetryAvailable=false` | 新增 test DB + tmp file storage 的 retention/deletion lifecycle E2E；把 retention robustness group 納入明確 script 或 release gate 前置 |
+| Retention / deletion 缺 E2E | Backend 有 retention robustness tests，並納入 `test:all`；Role-Fit release gate 只宣稱 local source/model/registry contract，`productionTelemetryAvailable=false` | 新增 test DB + tmp file storage 的 retention/deletion lifecycle E2E；保留 `test:retention` 作 focused gate |
 | Low-confidence STT repair UI 未驗證 | Backend voice tests 已驗證 confidence gate、confirmation、不計題數；frontend unit tests 有 voice hook coverage | 新增 browser E2E：test STT confidence 低但 transcript contentful，UI 顯示 confirmation，題號不前進；確認後才保存 accepted answer |
 | 弱網 / barge-in 缺實網驗證 | real-backend voice E2E 已跑 through backend socket；barge-in 有 backend/frontend unit tests | 新增 CDP network emulation + barge-in E2E；3 秒 SLO 仍可 known issue，但 flow 不可 crash、不可卡死、不可把 interrupted/system turn 算題 |
 | Locking bypass 未驗證 | Frontend happy path 會點 Mark CV/JD reviewed；backend service tests 擋 legacy review marker | 新增 hybrid E2E：繞過前端直接 POST `/api/analyze/match` / `/api/analyze/interview-plan`，未 verified Role-Fit / CV review 必須被拒絕或回傳 safe manual-review response |
@@ -67,6 +77,8 @@
 | E2E-R4 | Weak network + barge-in voice E2E | CDP 弱網下 voice flow 有 artifact；barge-in ack / audio stop / no question count pollution 被驗證 |
 | E2E-R5 | Aggregated E2E refine release gate | 新 artifact 被 aggregator 聚合；missing non-SLO artifact blocks；voice 3 秒超標仍列 known issue |
 
+以上 phase 均已完成 first slice。E2E-R2 的「確認後才進 accepted answer」保留在 backend robustness / transcript-confirmation tests 內驗證；本輪 browser E2E 鎖定更高風險的第一步：低信心內容不得直接被接受或跳題。E2E-R3 不跑 production cleanup saga，只跑 test DB soft delete + access denial；cleanup saga 仍由 backend retention robustness scripts 覆蓋。
+
 ## Definition of Done
 
 1. 新增或更新的 E2E scripts 都能在本地 test env 以 synthetic data 執行。
@@ -92,14 +104,14 @@
 
 ## Open Decisions
 
-1. Retention/deletion E2E 是否只驗 soft delete + access denial，還是要跑完整 retention cleanup saga？建議 first slice 先做 soft delete + access denial，cleanup saga 用 backend robustness 明確 script 補齊。
-2. Review lock bypass 的 API contract 要回 `400/403`，還是允許 `200 manual_review` 但 score=0？Spec 建議以「不產生 usable match / plan」為產品結果，實作時再依現有 service contract 固化 status code。
-3. 弱網 E2E 的 CDP throttle 是否納入 default local gate？建議預設跑一次 bounded slow network，packet loss / live provider 作 optional diagnostic。
-4. 是否把 retention robustness group 加入 `backend npm run test:all`？目前 `backend/tests/README.md` 明確說不包含 retention；建議先新增 `npm run test:retention`，是否納入 `test:all` 另行決策。
+1. Retention/deletion E2E：已決定 first slice 驗 soft delete + access denial；完整 retention cleanup saga 維持在 backend robustness / cleanup scripts，不宣稱 production compliance。
+2. Review lock bypass：已固化為產品結果「不產生 usable match / plan」。目前實作 contract 是 unverified match `409`；manual-review plan bypass `400`；verified path `200`。
+3. 弱網 E2E：bounded CDP slow network 已納入 `npm run test:e2e:role-fit-refine` aggregate；packet loss / live provider 仍是 optional diagnostic。
+4. Retention robustness group 已加入 backend `npm run test:all`；仍保留 `npm run test:retention` 作 focused command。
 
 ## Review Checklist
 
-- 這份 goal 是否正確保留「voice 要跑，但 3 秒 SLO 是 known issue」？
-- 是否同意 E2E 不直接驗 real LLM quality，而是透過 backend eval + artifact 聚合補足？
-- 是否同意 retention first slice 不宣稱 production compliance？
-- 是否同意 candidate progress dashboard 和 transcript calibration product work 另開 goal？
+- 已保留「voice 要跑，但 3 秒 SLO 是 known issue」：aggregate gate 會列 `voice_next_question_3s_slo_exceeded`，但不列 release blocker。
+- 已確認 E2E 不直接驗 real LLM quality：real semantic / provider quality 仍由 backend eval、manual calibration、real-provider eval gate 承擔；本 E2E gate 驗產品 contract 和資料/狀態流。
+- 已確認 retention first slice 不宣稱 production compliance。
+- 已確認 candidate progress dashboard 和 transcript calibration product work 另開 goal。

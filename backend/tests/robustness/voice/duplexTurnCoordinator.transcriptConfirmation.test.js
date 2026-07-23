@@ -267,4 +267,63 @@ describe('duplexTurnCoordinator transcript confirmation flow', () => {
 
         vi.useRealTimers();
     });
+
+    it('requests confirmation for high-risk transcript review decisions before scoring', async () => {
+        vi.useFakeTimers();
+
+        const { options, sentMessages, getPending } = createBaseOptions({ pendingConfirmation: null });
+
+        const { createDuplexTurnCoordinator } = await import(
+            '../../../src/services/voice/duplexTurnCoordinator.js'
+        );
+
+        const coordinator = createDuplexTurnCoordinator(options);
+
+        const result = await coordinator.processFinalTranscript({
+            transcriptText: 'I chose PostgreSQL over MongoDB for relational constraints.',
+            transcriptProvenance: {
+                rawText: 'I chose MongoDB over PostgreSQL for relational constraints.',
+                normalizedText: 'I chose PostgreSQL over MongoDB for relational constraints.',
+                transcriptCalibration: {
+                    decisionType: 'nbest_rerank',
+                    rawTranscript: 'I chose MongoDB over PostgreSQL for relational constraints.',
+                    calibratedTranscript: 'I chose PostgreSQL over MongoDB for relational constraints.',
+                    nbest: { retained: true, candidateCount: 2, selectedIndex: 1 },
+                    corrections: [{
+                        rawSpan: 'MongoDB over PostgreSQL',
+                        correctedSpan: 'PostgreSQL over MongoDB',
+                        source: 'provider_nbest',
+                        reason: 'technical_choice',
+                        confidence: 0.76,
+                        scoringImpacting: true,
+                    }],
+                },
+            },
+            asrConfidence: 0.92,
+            vad: {
+                speechDurationMs: 12000,
+                sttSegmentCount: 2,
+            },
+        });
+
+        expect(result.transcriptConfirmationRequested).toBe(true);
+        expect(processRealtimeVoiceTurnMock).not.toHaveBeenCalled();
+        expect(getPending()).toEqual(expect.objectContaining({
+            transcriptReviewDecision: expect.objectContaining({
+                decisionType: 'immediate_confirmation',
+                reasonCodes: expect.arrayContaining(['technical_choice_change']),
+            }),
+        }));
+        expect(sentMessages).toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                type: 'transcript_confirmation_requested',
+                countsAsQuestion: false,
+                reviewDecision: expect.objectContaining({
+                    decisionType: 'immediate_confirmation',
+                }),
+            }),
+        ]));
+
+        vi.useRealTimers();
+    });
 });

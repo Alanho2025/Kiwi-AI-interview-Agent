@@ -3,6 +3,7 @@ import { SessionAnalysis } from '../../db/models/sessionAnalysisModel.js';
 import { getToolNameForAction } from '../../constants/agentToolNames.js';
 
 export const buildTrajectoryStep = ({
+  workflowRunId = null,
   session = {},
   environment = {},
   decisionContext = {},
@@ -14,6 +15,7 @@ export const buildTrajectoryStep = ({
 } = {}) => ({
   trajectoryId: crypto.randomUUID(),
   createdAt: new Date().toISOString(),
+  workflowRunId,
   sessionId: session.id,
   section: actorOutput.stage || decisionContext.currentStage || environment?.questionContext?.latestQuestionStage || 'opening',
   sectionKey: decisionContext.sectionState?.sectionKey || null,

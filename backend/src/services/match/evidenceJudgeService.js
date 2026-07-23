@@ -1,9 +1,9 @@
 import { callDeepSeekJson } from '../agenticSafeguards/deepseekJsonClient.js';
 import { normalizeTaxonomyLabel } from '../taxonomyService.js';
+import { isJobDescriptionSectionHeading } from '../jobDescription/jobDescriptionSectionHeadingGuard.js';
 
 const HARD_DIRECT_CATEGORIES = new Set(['qualification', 'certification', 'compliance_or_safety', 'availability_or_location']);
 const STATUS_ORDER = { not_met: 0, inferred: 1, partial: 2, met: 3 };
-const JD_SECTION_HEADING_PATTERN = /^(about the hiring team|about the team|about the role|what the role entails|responsibilities|requirements|qualifications|preferred qualifications|nice to have|benefits|business unit|company overview|about us|hiring team|role entails)$/i;
 const DEGREE_LEVEL_PATTERN = /\b(bachelor|bachelor's|master|master's|degree|diploma|tertiary|university)\b/i;
 const RELATED_COMPUTING_FIELD_PATTERN = /\b(computer science|software engineering|information technology|information systems|data science|artificial intelligence|\bai\b|machine learning|computer engineering|software development|computing|technology)\b/i;
 
@@ -114,7 +114,7 @@ const buildReason = ({ requirement = {}, status = 'not_met', evidence = [] } = {
 const buildMissingEvidence = ({ requirement = {}, status = 'not_met' } = {}) => {
   if (status === 'met') return '';
   const rawEvidenceNeeded = String(requirement.evidenceNeeded || '').replace(/\s+/g, ' ').trim();
-  if (rawEvidenceNeeded && !JD_SECTION_HEADING_PATTERN.test(rawEvidenceNeeded)) return rawEvidenceNeeded;
+  if (rawEvidenceNeeded && !isJobDescriptionSectionHeading(rawEvidenceNeeded)) return rawEvidenceNeeded;
   return `The candidate should show direct examples for ${requirement.text || requirement.label}.`;
 };
 

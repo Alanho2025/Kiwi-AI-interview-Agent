@@ -1,0 +1,52 @@
+{
+  "generatedAt": "2026-07-15T12:43:23.090Z",
+  "executionMode": "observe",
+  "verdict": "LOCAL_OBSERVE_CONTRACTS_PASS",
+  "scenarioCount": 8,
+  "passedScenarioCount": 8,
+  "scenarios": [
+    {
+      "id": "shared_contracts_validate_in_observe_mode",
+      "passed": true
+    },
+    {
+      "id": "memory_writes_preserve_scoring_isolation",
+      "passed": true
+    },
+    {
+      "id": "model_failure_uses_bounded_fallback_lineage",
+      "passed": true
+    },
+    {
+      "id": "correctly_rejected_duplicate_is_not_a_violation",
+      "passed": true
+    },
+    {
+      "id": "selected_duplicate_is_observed_without_blocking",
+      "passed": true
+    },
+    {
+      "id": "repair_counting_violation_is_classified",
+      "passed": true
+    },
+    {
+      "id": "voice_confirmation_waits_and_blocks_scoring_only",
+      "passed": true
+    },
+    {
+      "id": "observed_contracts_do_not_copy_candidate_payload",
+      "passed": true
+    }
+  ],
+  "promotion": {
+    "warnEnabled": false,
+    "enforceEnabled": false,
+    "productionEnabled": false
+  },
+  "remainingGates": [
+    "human_h1",
+    "production_observe",
+    "warn_approval",
+    "enforce_approval"
+  ]
+}

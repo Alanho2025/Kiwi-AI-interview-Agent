@@ -90,6 +90,23 @@ export function useDuplexSocketController({
         payload?.message || 'Please answer again so KiwiCoach can score the right content.'
       ));
     },
+    onTurnRejected: (payload) => {
+      console.warn('[FRONTEND-STT-TRACE] Voice turn rejected before answer processing.', payload);
+      stopLatencyAcknowledgement();
+      setIsProcessingTurn(false);
+      setIsVoiceTakingLong(false);
+      setPendingTranscript(null);
+      setEditableTranscript('');
+      setLastAsrConfidence(null);
+      setLastTranscriptRejection(payload);
+      speechStartSentRef.current = false;
+      setVoiceState('repair_prompt');
+      setVoiceStatus(buildVoiceStatus(
+        'warning',
+        'Voice turn was not received',
+        payload?.message || 'Please answer the current question again.'
+      ));
+    },
     onTurnDone: (payload) => {
       console.log('[FRONTEND-STT-TRACE] Turn done received. Final transcript:', payload?.transcription?.text);
       stopLatencyAcknowledgement();

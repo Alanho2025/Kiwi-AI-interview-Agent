@@ -111,6 +111,7 @@ export const runReportQaRepairLoop = async ({
     }
 
     logger.info(`Starting QA repair loop attempt ${attempt}`, { sessionId: session.id });
+    const startedAt = new Date().toISOString();
 
     const rewriteResult = await rewriteReportWithQaPrompt({
       report: currentReport,
@@ -143,6 +144,7 @@ export const runReportQaRepairLoop = async ({
       analysisResult: session.analysisResult || {},
       retrievalBundle,
     });
+    const completedAt = new Date().toISOString();
 
     repairHistory.push({
       attempt,
@@ -151,7 +153,9 @@ export const runReportQaRepairLoop = async ({
       rewriteMetadata: rewriteResult.rewriteMetadata,
       qaAfter: newQaResult,
       status: newQaResult.passed ? 'repaired' : 'repair_failed',
-      createdAt: new Date().toISOString(),
+      startedAt,
+      completedAt,
+      createdAt: completedAt,
     });
 
     currentReport = groundedReport;

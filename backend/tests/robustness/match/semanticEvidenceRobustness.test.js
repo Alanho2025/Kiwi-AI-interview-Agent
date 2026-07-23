@@ -131,6 +131,36 @@ Communication`;
     expect(result.matchingDetails.universalRoleProfile.industry).toMatch(/customer service|general/i);
   });
 
+  it('does not present generic one-token overlap as strong workflow evidence', async () => {
+    process.env.MATCH_ENGINE = 'semantic';
+    process.env.AI_TEST_MODE = 'mock';
+
+    const cvText = `Alan Ho
+NPI Engineer
+
+Experience
+- Worked as an engineer on product quality investigations.`;
+    const rubric = buildRubric([
+      {
+        id: 'req_workflow_automation',
+        label: 'Ability to deconstruct complex business workflows and re-engineer them for automation',
+        category: 'workflow_automation',
+        mustHave: true,
+        type: 'hard',
+        importance: 'high',
+      },
+    ]);
+
+    const result = await compareCvToJobDescription(cvText, 'AI automation JD', rubric, { matchEngine: 'semantic' });
+    const requirement = result.requirementChecks[0];
+    const evidenceText = (requirement.evidence || []).join(' ');
+
+    expect(requirement.status).toBe('not_met');
+    expect(requirement.notes).toMatch(/evidenceStrength=missing/i);
+    expect(requirement.notes).not.toMatch(/evidenceStrength=strong/i);
+    expect(evidenceText).not.toMatch(/Matched in experience: engineer/i);
+  });
+
   it('keeps direct qualification requirements gated when semantic evidence is only adjacent', async () => {
     process.env.MATCH_ENGINE = 'semantic';
     const cvText = `Sam Taylor

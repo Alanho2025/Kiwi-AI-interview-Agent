@@ -50,6 +50,9 @@ Used for recent CV lists, preview cards, and safe UI rendering.
 - Retention audit and approved cleanup: `backend/src/scripts/runRetentionAudit.js`, `backend/src/scripts/runRetentionCleanup.js`
 - Retention worker and quarantine/backup path: `backend/src/services/retention/retentionWorker.js`, `backend/src/services/retention/`
 - Frontend CV review view model: `frontend/src/utils/cvReviewViewModel.js`
+- Detailed Parsing & Review Pipeline: [cv-parsing-review-pipeline.md](file:///Users/heminghan/Kiwi-AI-interview-Agent/docs/cv-parsing-review-pipeline.md)
+- Detailed JD Parsing & Review Pipeline: [jd-parsing-review-pipeline.md](file:///Users/heminghan/Kiwi-AI-interview-Agent/docs/jd-parsing-review-pipeline.md)
+- Detailed CV-JD Matching & Scoring Pipeline: [cv-jd-matching-pipeline.md](file:///Users/heminghan/Kiwi-AI-interview-Agent/docs/cv-jd-matching-pipeline.md)
 
 ## Current implementation status
 

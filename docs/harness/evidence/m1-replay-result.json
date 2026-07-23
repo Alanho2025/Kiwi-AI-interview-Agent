@@ -1,0 +1,72 @@
+{
+  "generatedAt": "2026-07-15T12:43:19.065Z",
+  "executionMode": "mock_deterministic_local",
+  "verdict": "READY_FOR_HUMAN_VALIDATION",
+  "scenarioCount": 11,
+  "passedScenarioCount": 11,
+  "scenarios": [
+    {
+      "id": "flag_off_rollback",
+      "passed": true
+    },
+    {
+      "id": "text_happy_path_legacy_parity",
+      "passed": true
+    },
+    {
+      "id": "refs_only_privacy",
+      "passed": true
+    },
+    {
+      "id": "invalid_model_action_fallback_lineage",
+      "passed": true
+    },
+    {
+      "id": "voice_pretask_rejection_traceable",
+      "passed": true
+    },
+    {
+      "id": "voice_confirmation_same_run",
+      "passed": true
+    },
+    {
+      "id": "duplicate_canonical_run_count_zero",
+      "passed": true
+    },
+    {
+      "id": "shadow_persistence_failure_preserves_product_result",
+      "passed": true
+    },
+    {
+      "id": "background_memory_write_correlated_no_scoring",
+      "passed": true
+    },
+    {
+      "id": "backend_trace_immediate_redacted",
+      "passed": true
+    },
+    {
+      "id": "repeated_memory_keeps_latest_provenance",
+      "passed": true
+    }
+  ],
+  "benchmark": {
+    "benchmarkKind": "deterministic_lookup_proxy",
+    "failureTaskCount": 5,
+    "iterationsPerSample": 40,
+    "sampleCount": 105,
+    "correctnessPercent": 100,
+    "legacyMedianMs": 4.5872079999999755,
+    "harnessMedianMs": 0.000666999999964446,
+    "reductionPercent": 99.98545956494746,
+    "targetReductionPercent": 50,
+    "passed": true,
+    "humanDiagnosisStillRequired": true
+  },
+  "unverifiedGates": [
+    "human_debug_session",
+    "human_microphone",
+    "live_voice_provider",
+    "production_shadow"
+  ]
+}

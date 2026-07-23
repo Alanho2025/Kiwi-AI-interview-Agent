@@ -1,0 +1,516 @@
+{
+  "label": "Voice Transcript Review Policy Eval",
+  "generatedAt": "2026-07-13T01:41:48.724Z",
+  "casesRun": 6,
+  "evaluationMethod": "Deterministic expected-policy checks plus DeepSeek semantic judge when AI_TEST_MODE=real.",
+  "llmJudgeMode": "real",
+  "judgeModels": [
+    "deepseek-chat"
+  ],
+  "average": 0.97,
+  "deterministicPassRate": 1,
+  "llmAcceptRate": 1,
+  "weakestCases": [],
+  "results": [
+    {
+      "id": "auto_accept_provider_supported_terms",
+      "description": "Provider N-best supports a bounded technical-term surface correction.",
+      "score": 0.97,
+      "deterministicScore": 1,
+      "llmScore": 0.95,
+      "passed": true,
+      "failedChecks": [],
+      "decision": {
+        "decisionType": "auto_accept",
+        "riskLevel": "low",
+        "reasonCodes": [
+          "glossary_term_surface",
+          "provider_nbest_close_candidate"
+        ],
+        "scoringPolicy": "safe_to_score",
+        "evidenceImpact": "none",
+        "sourceEvidence": {
+          "providerNBest": true,
+          "staticNormalization": false,
+          "contextualGlossary": true,
+          "currentQuestionExpectedSignal": false,
+          "jdMustHave": false,
+          "matchGap": false,
+          "cvJdContextOnly": false
+        }
+      },
+      "expected": {
+        "decisionType": "auto_accept",
+        "reasonCodes": [
+          "glossary_term_surface",
+          "provider_nbest_close_candidate"
+        ],
+        "mustNotReasonCodes": [
+          "numeric_or_metric_change",
+          "negation_change",
+          "ownership_change"
+        ],
+        "scoringPolicy": "safe_to_score"
+      },
+      "diagnostics": {
+        "deterministicChecks": [
+          {
+            "label": "decision_type_matches_expected",
+            "passed": true
+          },
+          {
+            "label": "scoring_policy_matches_expected",
+            "passed": true
+          },
+          {
+            "label": "reason_code_glossary_term_surface",
+            "passed": true
+          },
+          {
+            "label": "reason_code_provider_nbest_close_candidate",
+            "passed": true
+          },
+          {
+            "label": "must_not_reason_code_numeric_or_metric_change",
+            "passed": true
+          },
+          {
+            "label": "must_not_reason_code_negation_change",
+            "passed": true
+          },
+          {
+            "label": "must_not_reason_code_ownership_change",
+            "passed": true
+          },
+          {
+            "label": "raw_transcript_preserved",
+            "passed": true
+          },
+          {
+            "label": "cv_jd_not_spoken_evidence",
+            "passed": true
+          }
+        ],
+        "judge": {
+          "recommendedDecisionType": "auto_accept",
+          "acceptable": true,
+          "score": 0.95,
+          "rationale": "Correction is a glossary term surface fix with provider n-best evidence; no change to predicate, metric, or ownership.",
+          "gapNotes": [],
+          "usage": {
+            "promptTokens": 674,
+            "completionTokens": 65,
+            "promptCacheHitTokens": 640,
+            "promptCacheMissTokens": 34
+          },
+          "judgeModel": "deepseek-chat"
+        },
+        "rawTranscript": "I used red act and type scripts for the dashboard.",
+        "calibratedTranscript": "I used React and TypeScript for the dashboard."
+      }
+    },
+    {
+      "id": "defer_cv_jd_only_role_term",
+      "description": "A role term from CV/JD context lacks provider evidence and must not be silently inserted.",
+      "score": 0.97,
+      "deterministicScore": 1,
+      "llmScore": 0.95,
+      "passed": true,
+      "failedChecks": [],
+      "decision": {
+        "decisionType": "deferred_review",
+        "riskLevel": "medium",
+        "reasonCodes": [
+          "glossary_term_surface",
+          "no_provider_evidence",
+          "scoring_impacting_term"
+        ],
+        "scoringPolicy": "score_with_reduced_evidence_confidence",
+        "evidenceImpact": "evidence_confidence_only",
+        "sourceEvidence": {
+          "providerNBest": false,
+          "staticNormalization": false,
+          "contextualGlossary": true,
+          "currentQuestionExpectedSignal": false,
+          "jdMustHave": false,
+          "matchGap": false,
+          "cvJdContextOnly": true
+        }
+      },
+      "expected": {
+        "decisionType": "deferred_review",
+        "reasonCodes": [
+          "no_provider_evidence"
+        ],
+        "mustNotReasonCodes": [
+          "numeric_or_metric_change",
+          "negation_change"
+        ],
+        "scoringPolicy": "score_with_reduced_evidence_confidence"
+      },
+      "diagnostics": {
+        "deterministicChecks": [
+          {
+            "label": "decision_type_matches_expected",
+            "passed": true
+          },
+          {
+            "label": "scoring_policy_matches_expected",
+            "passed": true
+          },
+          {
+            "label": "reason_code_no_provider_evidence",
+            "passed": true
+          },
+          {
+            "label": "must_not_reason_code_numeric_or_metric_change",
+            "passed": true
+          },
+          {
+            "label": "must_not_reason_code_negation_change",
+            "passed": true
+          },
+          {
+            "label": "raw_transcript_preserved",
+            "passed": true
+          },
+          {
+            "label": "cv_jd_not_spoken_evidence",
+            "passed": true
+          }
+        ],
+        "judge": {
+          "recommendedDecisionType": "deferred_review",
+          "acceptable": true,
+          "score": 0.95,
+          "rationale": "Correction is plausible from CV context but changes a specific tool name, which may affect evidence confidence; deferred review allows scoring with reduced confidence without interrupting.",
+          "gapNotes": [],
+          "usage": {
+            "promptTokens": 687,
+            "completionTokens": 72,
+            "promptCacheHitTokens": 640,
+            "promptCacheMissTokens": 47
+          },
+          "judgeModel": "deepseek-chat"
+        },
+        "rawTranscript": "I worked with container orchestration in my capstone.",
+        "calibratedTranscript": "I worked with Kubernetes orchestration in my capstone."
+      }
+    },
+    {
+      "id": "confirm_numeric_result_change",
+      "description": "A numeric result change affects scoring evidence and must be confirmed immediately.",
+      "score": 0.97,
+      "deterministicScore": 1,
+      "llmScore": 0.95,
+      "passed": true,
+      "failedChecks": [],
+      "decision": {
+        "decisionType": "immediate_confirmation",
+        "riskLevel": "high",
+        "reasonCodes": [
+          "spelling_or_format",
+          "provider_nbest_close_candidate",
+          "numeric_or_metric_change",
+          "scoring_impacting_term"
+        ],
+        "scoringPolicy": "block_scoring_until_confirmed",
+        "evidenceImpact": "scoring_material",
+        "sourceEvidence": {
+          "providerNBest": true,
+          "staticNormalization": false,
+          "contextualGlossary": false,
+          "currentQuestionExpectedSignal": false,
+          "jdMustHave": false,
+          "matchGap": false,
+          "cvJdContextOnly": false
+        }
+      },
+      "expected": {
+        "decisionType": "immediate_confirmation",
+        "reasonCodes": [
+          "numeric_or_metric_change"
+        ],
+        "scoringPolicy": "block_scoring_until_confirmed"
+      },
+      "diagnostics": {
+        "deterministicChecks": [
+          {
+            "label": "decision_type_matches_expected",
+            "passed": true
+          },
+          {
+            "label": "scoring_policy_matches_expected",
+            "passed": true
+          },
+          {
+            "label": "reason_code_numeric_or_metric_change",
+            "passed": true
+          },
+          {
+            "label": "raw_transcript_preserved",
+            "passed": true
+          },
+          {
+            "label": "cv_jd_not_spoken_evidence",
+            "passed": true
+          }
+        ],
+        "judge": {
+          "recommendedDecisionType": "immediate_confirmation",
+          "acceptable": true,
+          "score": 0.95,
+          "rationale": "The change from 40 to 14 hours is a numeric metric shift with scoring impact, and the n-best confidence is below 0.80, so immediate confirmation is appropriate.",
+          "gapNotes": [],
+          "usage": {
+            "promptTokens": 687,
+            "completionTokens": 78,
+            "promptCacheHitTokens": 640,
+            "promptCacheMissTokens": 47
+          },
+          "judgeModel": "deepseek-chat"
+        },
+        "rawTranscript": "We reduced response time from 48 hours to 40 hours.",
+        "calibratedTranscript": "We reduced response time from 48 hours to 14 hours."
+      }
+    },
+    {
+      "id": "confirm_negation_ownership_change",
+      "description": "Negation and ownership reversal changes what the candidate claims to have done.",
+      "score": 0.97,
+      "deterministicScore": 1,
+      "llmScore": 0.95,
+      "passed": true,
+      "failedChecks": [],
+      "decision": {
+        "decisionType": "immediate_confirmation",
+        "riskLevel": "high",
+        "reasonCodes": [
+          "spelling_or_format",
+          "provider_nbest_close_candidate",
+          "negation_change",
+          "ownership_change",
+          "scoring_impacting_term"
+        ],
+        "scoringPolicy": "block_scoring_until_confirmed",
+        "evidenceImpact": "scoring_material",
+        "sourceEvidence": {
+          "providerNBest": true,
+          "staticNormalization": false,
+          "contextualGlossary": false,
+          "currentQuestionExpectedSignal": false,
+          "jdMustHave": false,
+          "matchGap": false,
+          "cvJdContextOnly": false
+        }
+      },
+      "expected": {
+        "decisionType": "immediate_confirmation",
+        "reasonCodes": [
+          "negation_change",
+          "ownership_change"
+        ],
+        "scoringPolicy": "block_scoring_until_confirmed"
+      },
+      "diagnostics": {
+        "deterministicChecks": [
+          {
+            "label": "decision_type_matches_expected",
+            "passed": true
+          },
+          {
+            "label": "scoring_policy_matches_expected",
+            "passed": true
+          },
+          {
+            "label": "reason_code_negation_change",
+            "passed": true
+          },
+          {
+            "label": "reason_code_ownership_change",
+            "passed": true
+          },
+          {
+            "label": "raw_transcript_preserved",
+            "passed": true
+          },
+          {
+            "label": "cv_jd_not_spoken_evidence",
+            "passed": true
+          }
+        ],
+        "judge": {
+          "recommendedDecisionType": "immediate_confirmation",
+          "acceptable": true,
+          "score": 0.95,
+          "rationale": "Negation and ownership change with low confidence requires live confirmation.",
+          "gapNotes": [],
+          "usage": {
+            "promptTokens": 688,
+            "completionTokens": 54,
+            "promptCacheHitTokens": 640,
+            "promptCacheMissTokens": 48
+          },
+          "judgeModel": "deepseek-chat"
+        },
+        "rawTranscript": "I owned the migration and coordinated QA.",
+        "calibratedTranscript": "I did not own the migration; I coordinated QA."
+      }
+    },
+    {
+      "id": "confirm_technical_choice_reversal",
+      "description": "A reversed database tradeoff changes the candidate's technical judgement.",
+      "score": 0.97,
+      "deterministicScore": 1,
+      "llmScore": 0.95,
+      "passed": true,
+      "failedChecks": [],
+      "decision": {
+        "decisionType": "immediate_confirmation",
+        "riskLevel": "high",
+        "reasonCodes": [
+          "spelling_or_format",
+          "provider_nbest_close_candidate",
+          "technical_choice_change",
+          "scoring_impacting_term"
+        ],
+        "scoringPolicy": "block_scoring_until_confirmed",
+        "evidenceImpact": "scoring_material",
+        "sourceEvidence": {
+          "providerNBest": true,
+          "staticNormalization": false,
+          "contextualGlossary": false,
+          "currentQuestionExpectedSignal": false,
+          "jdMustHave": false,
+          "matchGap": false,
+          "cvJdContextOnly": false
+        }
+      },
+      "expected": {
+        "decisionType": "immediate_confirmation",
+        "reasonCodes": [
+          "technical_choice_change"
+        ],
+        "scoringPolicy": "block_scoring_until_confirmed"
+      },
+      "diagnostics": {
+        "deterministicChecks": [
+          {
+            "label": "decision_type_matches_expected",
+            "passed": true
+          },
+          {
+            "label": "scoring_policy_matches_expected",
+            "passed": true
+          },
+          {
+            "label": "reason_code_technical_choice_change",
+            "passed": true
+          },
+          {
+            "label": "raw_transcript_preserved",
+            "passed": true
+          },
+          {
+            "label": "cv_jd_not_spoken_evidence",
+            "passed": true
+          }
+        ],
+        "judge": {
+          "recommendedDecisionType": "immediate_confirmation",
+          "acceptable": true,
+          "score": 0.95,
+          "rationale": "The correction reverses a technical choice and is scoring-impacting, so immediate confirmation is appropriate.",
+          "gapNotes": [],
+          "usage": {
+            "promptTokens": 684,
+            "completionTokens": 60,
+            "promptCacheHitTokens": 640,
+            "promptCacheMissTokens": 44
+          },
+          "judgeModel": "deepseek-chat"
+        },
+        "rawTranscript": "I chose MongoDB over PostgreSQL for relational constraints.",
+        "calibratedTranscript": "I chose PostgreSQL over MongoDB for relational constraints."
+      }
+    },
+    {
+      "id": "confirm_contentful_low_confidence",
+      "description": "Contentful low-confidence transcript follows the voice product contract and must confirm understanding.",
+      "score": 0.97,
+      "deterministicScore": 1,
+      "llmScore": 0.95,
+      "passed": true,
+      "failedChecks": [],
+      "decision": {
+        "decisionType": "immediate_confirmation",
+        "riskLevel": "high",
+        "reasonCodes": [
+          "low_confidence_contentful"
+        ],
+        "scoringPolicy": "block_scoring_until_confirmed",
+        "evidenceImpact": "scoring_material",
+        "sourceEvidence": {
+          "providerNBest": false,
+          "staticNormalization": false,
+          "contextualGlossary": false,
+          "currentQuestionExpectedSignal": false,
+          "jdMustHave": false,
+          "matchGap": false,
+          "cvJdContextOnly": false
+        }
+      },
+      "expected": {
+        "decisionType": "immediate_confirmation",
+        "reasonCodes": [
+          "low_confidence_contentful"
+        ],
+        "scoringPolicy": "block_scoring_until_confirmed"
+      },
+      "diagnostics": {
+        "deterministicChecks": [
+          {
+            "label": "decision_type_matches_expected",
+            "passed": true
+          },
+          {
+            "label": "scoring_policy_matches_expected",
+            "passed": true
+          },
+          {
+            "label": "reason_code_low_confidence_contentful",
+            "passed": true
+          },
+          {
+            "label": "raw_transcript_preserved",
+            "passed": true
+          },
+          {
+            "label": "cv_jd_not_spoken_evidence",
+            "passed": true
+          }
+        ],
+        "judge": {
+          "recommendedDecisionType": "immediate_confirmation",
+          "acceptable": true,
+          "score": 0.95,
+          "rationale": "Low ASR confidence (0.39) and contentful transcript warrant confirmation to ensure scoring fairness.",
+          "gapNotes": [],
+          "usage": {
+            "promptTokens": 647,
+            "completionTokens": 62,
+            "promptCacheHitTokens": 640,
+            "promptCacheMissTokens": 7
+          },
+          "judgeModel": "deepseek-chat"
+        },
+        "rawTranscript": "I explained the production incident to the customer and coordinated rollback with the release manager.",
+        "calibratedTranscript": "I explained the production incident to the customer and coordinated rollback with the release manager."
+      }
+    }
+  ],
+  "thresholds": {
+    "minAverage": 0.86,
+    "failBelow": 0.75
+  }
+}

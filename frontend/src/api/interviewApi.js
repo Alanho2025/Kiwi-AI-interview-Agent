@@ -18,7 +18,14 @@ import { apiClient } from './client.js';
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
 export const startInterview = (sessionId) => apiClient('/interview/start', { method: 'POST', body: { sessionId } });
-export const replyInterview = (sessionId, answer) => apiClient('/interview/reply', { method: 'POST', body: { sessionId, answer } });
+export const replyInterview = (sessionId, answer) => apiClient('/interview/reply', {
+  method: 'POST',
+  body: {
+    sessionId,
+    answer,
+    clientTurnId: globalThis.crypto?.randomUUID?.() || `text-turn-${Date.now()}`,
+  },
+});
 export const warmAdaptiveInterviewSession = (sessionId) => apiClient('/interview/warm-adaptive', { method: 'POST', body: { sessionId } });
 export const repeatQuestion = (sessionId) => apiClient('/interview/repeat', { method: 'POST', body: { sessionId } });
 /**

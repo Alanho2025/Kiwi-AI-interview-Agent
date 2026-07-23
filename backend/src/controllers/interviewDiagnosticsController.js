@@ -4,11 +4,17 @@ import { asyncHandler } from '../middleware/asyncHandler.js';
 import { resolveUserFromRequest } from '../services/authService.js';
 import { loadOwnedSessionOrThrow, requireSessionId } from '../services/interview/interviewSessionService.js';
 import { getInterviewQuestionDiagnostics } from '../services/questions/interviewQuestionDiagnosticsService.js';
+import { queryOwnedHarnessRunTimelines } from '../services/harness/harnessRunQueryService.js';
+import { getRequestLogMeta, logger } from '../utils/logger.js';
+
+const assertDeveloperDiagnosticsAvailable = () => {
+  if (process.env.NODE_ENV === 'production') {
+    throw forbidden('Developer diagnostics are disabled in production.');
+  }
+};
 
 export const getQuestionDiagnostics = asyncHandler(async (req, res) => {
-  if (process.env.NODE_ENV === 'production') {
-    throw forbidden('Question diagnostics are disabled in production.');
-  }
+  assertDeveloperDiagnosticsAvailable();
 
   const sessionId = req.params.sessionId || req.query.sessionId;
   requireSessionId(sessionId);
@@ -20,4 +26,26 @@ export const getQuestionDiagnostics = asyncHandler(async (req, res) => {
     sessionId,
     diagnostics,
   }));
+});
+
+export const getHarnessRunDiagnostics = asyncHandler(async (req, res) => {
+  assertDeveloperDiagnosticsAvailable();
+  const user = await resolveUserFromRequest(req);
+  const runs = await queryOwnedHarnessRunTimelines({
+    ownerUserId: user.id,
+    workflowRunId: req.query.workflowRunId || null,
+    sessionId: req.query.sessionId || null,
+    startedAfter: req.query.startedAfter || null,
+    startedBefore: req.query.startedBefore || null,
+    limit: req.query.limit || 25,
+  });
+
+  logger.info('Harness run diagnostics accessed', getRequestLogMeta(req, {
+    ownerUserId: user.id,
+    workflowRunId: req.query.workflowRunId || null,
+    sessionId: req.query.sessionId || null,
+    resultCount: runs.length,
+  }));
+
+  res.json(formatSuccess('Harness run diagnostics loaded', { runs }));
 });

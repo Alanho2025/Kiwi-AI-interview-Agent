@@ -1,0 +1,389 @@
+{
+  "generatedAt": "2026-07-15T12:54:28.961Z",
+  "executionMode": "local_observe",
+  "verdict": "LOCAL_REPORT_OBSERVE_GATE_PASS",
+  "metrics": {
+    "criticalFixtureCount": 17,
+    "criticalFalseNegativeCount": 0,
+    "unsupportedClaimPublishableCount": 0,
+    "productResultIdentityPreserved": true,
+    "candidatePayloadLeakCount": 0,
+    "qaOnlySilentRepairCount": 0,
+    "legacyInlineRepairObserved": true,
+    "explicitRepairActionCount": 1,
+    "explicitRepairActionsComplete": true,
+    "explicitRepairLineageComplete": true,
+    "explicitRepairChildRunsComplete": false
+  },
+  "criticalResults": [
+    {
+      "id": "critical_rubric_question_mismatch",
+      "qualityFlags": [
+        "rubric_question_mismatch"
+      ],
+      "gateStatus": "block",
+      "publicationStatus": "needs_review",
+      "enforced": false,
+      "repairLineage": {
+        "attemptCount": 0,
+        "legacyInlineRepairObserved": false,
+        "explicitRepairActionCount": 0,
+        "explicitRepairActionsComplete": true,
+        "explicitRepairLineageComplete": true,
+        "explicitChildRunsComplete": false
+      },
+      "passed": true
+    },
+    {
+      "id": "critical_evidence_total_mismatch",
+      "qualityFlags": [
+        "evidence_total_mismatch"
+      ],
+      "gateStatus": "block",
+      "publicationStatus": "needs_review",
+      "enforced": false,
+      "repairLineage": {
+        "attemptCount": 0,
+        "legacyInlineRepairObserved": false,
+        "explicitRepairActionCount": 0,
+        "explicitRepairActionsComplete": true,
+        "explicitRepairLineageComplete": true,
+        "explicitChildRunsComplete": false
+      },
+      "passed": true
+    },
+    {
+      "id": "critical_score_metric_mismatch",
+      "qualityFlags": [
+        "score_metric_mismatch"
+      ],
+      "gateStatus": "block",
+      "publicationStatus": "needs_review",
+      "enforced": false,
+      "repairLineage": {
+        "attemptCount": 0,
+        "legacyInlineRepairObserved": false,
+        "explicitRepairActionCount": 0,
+        "explicitRepairActionsComplete": true,
+        "explicitRepairLineageComplete": true,
+        "explicitChildRunsComplete": false
+      },
+      "passed": true
+    },
+    {
+      "id": "critical_invalid_answer_rewrite",
+      "qualityFlags": [
+        "invalid_answer_rewrite"
+      ],
+      "gateStatus": "block",
+      "publicationStatus": "needs_review",
+      "enforced": false,
+      "repairLineage": {
+        "attemptCount": 0,
+        "legacyInlineRepairObserved": false,
+        "explicitRepairActionCount": 0,
+        "explicitRepairActionsComplete": true,
+        "explicitRepairLineageComplete": true,
+        "explicitChildRunsComplete": false
+      },
+      "passed": true
+    },
+    {
+      "id": "critical_uninformative_evidence_references",
+      "qualityFlags": [
+        "uninformative_evidence_references"
+      ],
+      "gateStatus": "block",
+      "publicationStatus": "needs_review",
+      "enforced": false,
+      "repairLineage": {
+        "attemptCount": 0,
+        "legacyInlineRepairObserved": false,
+        "explicitRepairActionCount": 0,
+        "explicitRepairActionsComplete": true,
+        "explicitRepairLineageComplete": true,
+        "explicitChildRunsComplete": false
+      },
+      "passed": true
+    },
+    {
+      "id": "critical_turn_export_count_mismatch",
+      "qualityFlags": [
+        "turn_export_count_mismatch"
+      ],
+      "gateStatus": "block",
+      "publicationStatus": "needs_review",
+      "enforced": false,
+      "repairLineage": {
+        "attemptCount": 0,
+        "legacyInlineRepairObserved": false,
+        "explicitRepairActionCount": 0,
+        "explicitRepairActionsComplete": true,
+        "explicitRepairLineageComplete": true,
+        "explicitChildRunsComplete": false
+      },
+      "passed": true
+    },
+    {
+      "id": "critical_unacknowledged_transcript_conflict",
+      "qualityFlags": [
+        "unacknowledged_transcript_conflict"
+      ],
+      "gateStatus": "block",
+      "publicationStatus": "needs_review",
+      "enforced": false,
+      "repairLineage": {
+        "attemptCount": 0,
+        "legacyInlineRepairObserved": false,
+        "explicitRepairActionCount": 0,
+        "explicitRepairActionsComplete": true,
+        "explicitRepairLineageComplete": true,
+        "explicitChildRunsComplete": false
+      },
+      "passed": true
+    },
+    {
+      "id": "critical_role_intent_reference_missing",
+      "qualityFlags": [
+        "role_intent_reference_missing"
+      ],
+      "gateStatus": "block",
+      "publicationStatus": "needs_review",
+      "enforced": false,
+      "repairLineage": {
+        "attemptCount": 0,
+        "legacyInlineRepairObserved": false,
+        "explicitRepairActionCount": 0,
+        "explicitRepairActionsComplete": true,
+        "explicitRepairLineageComplete": true,
+        "explicitChildRunsComplete": false
+      },
+      "passed": true
+    },
+    {
+      "id": "critical_answer_alignment_without_proof_point",
+      "qualityFlags": [
+        "answer_alignment_without_proof_point"
+      ],
+      "gateStatus": "block",
+      "publicationStatus": "needs_review",
+      "enforced": false,
+      "repairLineage": {
+        "attemptCount": 0,
+        "legacyInlineRepairObserved": false,
+        "explicitRepairActionCount": 0,
+        "explicitRepairActionsComplete": true,
+        "explicitRepairLineageComplete": true,
+        "explicitChildRunsComplete": false
+      },
+      "passed": true
+    },
+    {
+      "id": "critical_alignment_claim_not_grounded",
+      "qualityFlags": [
+        "alignment_claim_not_grounded"
+      ],
+      "gateStatus": "block",
+      "publicationStatus": "needs_review",
+      "enforced": false,
+      "repairLineage": {
+        "attemptCount": 0,
+        "legacyInlineRepairObserved": false,
+        "explicitRepairActionCount": 0,
+        "explicitRepairActionsComplete": true,
+        "explicitRepairLineageComplete": true,
+        "explicitChildRunsComplete": false
+      },
+      "passed": true
+    },
+    {
+      "id": "critical_answer_alignment_score_out_of_range",
+      "qualityFlags": [
+        "answer_alignment_score_out_of_range"
+      ],
+      "gateStatus": "block",
+      "publicationStatus": "needs_review",
+      "enforced": false,
+      "repairLineage": {
+        "attemptCount": 0,
+        "legacyInlineRepairObserved": false,
+        "explicitRepairActionCount": 0,
+        "explicitRepairActionsComplete": true,
+        "explicitRepairLineageComplete": true,
+        "explicitChildRunsComplete": false
+      },
+      "passed": true
+    },
+    {
+      "id": "critical_answer_alignment_missing_v2_dimensions",
+      "qualityFlags": [
+        "answer_alignment_missing_v2_dimensions"
+      ],
+      "gateStatus": "block",
+      "publicationStatus": "needs_review",
+      "enforced": false,
+      "repairLineage": {
+        "attemptCount": 0,
+        "legacyInlineRepairObserved": false,
+        "explicitRepairActionCount": 0,
+        "explicitRepairActionsComplete": true,
+        "explicitRepairLineageComplete": true,
+        "explicitChildRunsComplete": false
+      },
+      "passed": true
+    },
+    {
+      "id": "critical_answer_alignment_wrong_evidence_use",
+      "qualityFlags": [
+        "answer_alignment_wrong_evidence_use"
+      ],
+      "gateStatus": "block",
+      "publicationStatus": "needs_review",
+      "enforced": false,
+      "repairLineage": {
+        "attemptCount": 0,
+        "legacyInlineRepairObserved": false,
+        "explicitRepairActionCount": 0,
+        "explicitRepairActionsComplete": true,
+        "explicitRepairLineageComplete": true,
+        "explicitChildRunsComplete": false
+      },
+      "passed": true
+    },
+    {
+      "id": "critical_company_claim_not_in_reviewed_profile",
+      "qualityFlags": [
+        "company_claim_not_in_reviewed_profile"
+      ],
+      "gateStatus": "block",
+      "publicationStatus": "needs_review",
+      "enforced": false,
+      "repairLineage": {
+        "attemptCount": 0,
+        "legacyInlineRepairObserved": false,
+        "explicitRepairActionCount": 0,
+        "explicitRepairActionsComplete": true,
+        "explicitRepairLineageComplete": true,
+        "explicitChildRunsComplete": false
+      },
+      "passed": true
+    },
+    {
+      "id": "critical_evidence_id_not_found",
+      "qualityFlags": [
+        "evidence_id_not_found"
+      ],
+      "gateStatus": "block",
+      "publicationStatus": "needs_review",
+      "enforced": false,
+      "repairLineage": {
+        "attemptCount": 0,
+        "legacyInlineRepairObserved": false,
+        "explicitRepairActionCount": 0,
+        "explicitRepairActionsComplete": true,
+        "explicitRepairLineageComplete": true,
+        "explicitChildRunsComplete": false
+      },
+      "passed": true
+    },
+    {
+      "id": "critical_must_cover_intent_unreported",
+      "qualityFlags": [
+        "must_cover_intent_unreported"
+      ],
+      "gateStatus": "block",
+      "publicationStatus": "needs_review",
+      "enforced": false,
+      "repairLineage": {
+        "attemptCount": 0,
+        "legacyInlineRepairObserved": false,
+        "explicitRepairActionCount": 0,
+        "explicitRepairActionsComplete": true,
+        "explicitRepairLineageComplete": true,
+        "explicitChildRunsComplete": false
+      },
+      "passed": true
+    },
+    {
+      "id": "critical_role_fit_artifact_not_owned",
+      "qualityFlags": [
+        "role_fit_artifact_not_owned"
+      ],
+      "gateStatus": "block",
+      "publicationStatus": "needs_review",
+      "enforced": false,
+      "repairLineage": {
+        "attemptCount": 0,
+        "legacyInlineRepairObserved": false,
+        "explicitRepairActionCount": 0,
+        "explicitRepairActionsComplete": true,
+        "explicitRepairLineageComplete": true,
+        "explicitChildRunsComplete": false
+      },
+      "passed": true
+    }
+  ],
+  "representativeResults": [
+    {
+      "id": "unsupported_high_confidence_claim",
+      "qualityFlags": [
+        "unsupported_high_confidence_feedback"
+      ],
+      "gateStatus": "review",
+      "publicationStatus": "needs_review",
+      "enforced": false,
+      "repairLineage": {
+        "attemptCount": 0,
+        "legacyInlineRepairObserved": false,
+        "explicitRepairActionCount": 0,
+        "explicitRepairActionsComplete": true,
+        "explicitRepairLineageComplete": true,
+        "explicitChildRunsComplete": false
+      },
+      "passed": true
+    },
+    {
+      "id": "qa_pass",
+      "qualityFlags": [],
+      "gateStatus": "pass",
+      "publicationStatus": "ready",
+      "enforced": false,
+      "repairLineage": {
+        "attemptCount": 0,
+        "legacyInlineRepairObserved": false,
+        "explicitRepairActionCount": 0,
+        "explicitRepairActionsComplete": true,
+        "explicitRepairLineageComplete": true,
+        "explicitChildRunsComplete": false
+      },
+      "passed": true
+    },
+    {
+      "id": "legacy_inline_repair",
+      "qualityFlags": [],
+      "gateStatus": "pass",
+      "publicationStatus": "ready_after_repair",
+      "enforced": false,
+      "repairLineage": {
+        "attemptCount": 1,
+        "legacyInlineRepairObserved": true,
+        "explicitRepairActionCount": 1,
+        "explicitRepairActionsComplete": true,
+        "explicitRepairLineageComplete": true,
+        "explicitChildRunsComplete": false
+      },
+      "passed": true
+    }
+  ],
+  "runtimePromotion": {
+    "publicationEnforcementEnabled": false,
+    "candidateVisibilityChanged": false,
+    "currentControllerRemainsAuthority": true
+  },
+  "remainingGates": [
+    "product_owner_publication_visibility_decision",
+    "false_block_fixture_and_human_calibration",
+    "production_observe",
+    "enforcement_approval"
+  ]
+}

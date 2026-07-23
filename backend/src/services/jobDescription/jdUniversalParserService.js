@@ -1,6 +1,7 @@
 import { callDeepSeekJson } from '../agenticSafeguards/deepseekJsonClient.js';
 import { normalizeTaxonomyLabel } from '../taxonomyService.js';
 import { unique } from './jobDescriptionShared.js';
+import { isJobDescriptionSectionHeading } from './jobDescriptionSectionHeadingGuard.js';
 
 export const ROLE_DOMAINS = [
   'software_it',
@@ -176,7 +177,6 @@ const CAPABILITY_BY_PATTERN = [
   [/service|deliverable|assessment service|case|consultancy|intervention/i, 'service_delivery'],
 ];
 
-const JD_SECTION_HEADING_PATTERN = /^(about the hiring team|about the team|about the role|what the role entails|responsibilities|requirements|qualifications|preferred qualifications|selection criteria|key deliverables|key relationships|nice to have|bonus if you have experience with|benefits|why img|why us|business unit|company overview|about us|about you|hiring team|role entails)$/i;
 const COMPANY_CONTEXT_PATTERN = /\b(this organisation|this organization|we are|we're|our company|our team|business unit|hiring team|about the hiring team|about us|well-established|one stop shop|across heavy diesel|growing business|auckland based technology business|investing heavily|strong engineering and product focus)\b/i;
 const CANDIDATE_REQUIREMENT_PATTERN = /\b(you will|you'll|you are|you have|you bring|you can|you should|candidate|engineer who|engineers who|looking for|must|required|responsible for|experience with|strong experience|ability to|proficient|familiar|knowledge of|what we're looking for|about you|selection criteria)\b/i;
 
@@ -190,7 +190,7 @@ const isCompanyContextRequirement = (text = '', category = '') => {
 
 const cleanEvidenceNeeded = (value = '', requirementText = '') => {
   const text = String(value || '').replace(/\s+/g, ' ').trim();
-  if (!text || JD_SECTION_HEADING_PATTERN.test(text)) {
+  if (!text || isJobDescriptionSectionHeading(text)) {
     return `The CV should show direct evidence for ${requirementText}.`;
   }
   return text;
@@ -257,7 +257,7 @@ const inferMustHave = ({ item = {}, category = '', importance = 'medium' } = {})
 
 const normalizeRequirement = (item = {}, index = 0) => {
   const text = String(item.text || item.label || item.normalizedCapability || '').trim();
-  if (!text || JD_SECTION_HEADING_PATTERN.test(text)) return null;
+  if (!text || isJobDescriptionSectionHeading(text)) return null;
   const category = inferCategory(text, item.category);
   if (isCompanyContextRequirement(text, category)) return null;
   const importance = ['high', 'medium', 'low'].includes(item.importance) ? item.importance : 'medium';

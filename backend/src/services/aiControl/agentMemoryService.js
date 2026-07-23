@@ -9,6 +9,7 @@ const DEFAULT_AGENT_MEMORY = {
   projectUsage: {}, // Tracks { [projectName]: count }
   latestFrictionLevel: 'low',
   lastUpdatedAt: null,
+  userInterviewProjection: null,
 };
 
 const uniqueStrings = (values = []) => [...new Set((Array.isArray(values) ? values : []).filter(Boolean).map((item) => String(item)))];
@@ -44,6 +45,7 @@ const buildLatestPatterns = ({ latestAnswer = '', selectedAction = '', decisionC
 };
 
 export const updateAgentMemory = async ({
+  workflowRunId = null,
   sessionId,
   latestAnswer = '',
   decisionContext = {},
@@ -78,6 +80,7 @@ export const updateAgentMemory = async ({
   });
 
   const nextMemory = {
+    sourceWorkflowRunId: workflowRunId,
     recentPatterns,
     topicHistory,
     failedStrategies,
@@ -85,6 +88,7 @@ export const updateAgentMemory = async ({
     evidenceGaps,
     projectUsage: nextProjectUsage,
     latestFrictionLevel: decisionContext?.evaluatorState?.frictionState?.frictionLevel || 'low',
+    userInterviewProjection: currentMemory.userInterviewProjection || null,
     lastUpdatedAt: new Date().toISOString(),
   };
 

@@ -14,13 +14,14 @@ export const buildLatencyBreakdown = (latency = {}) => ({
   totalTurnMs: latency.totalMs || null,
 });
 
-export const recordAgentTraceEvent = async ({ sessionId, eventType, mode = 'text', payload = {} } = {}) => {
+export const recordAgentTraceEvent = async ({ sessionId, workflowRunId = null, eventType, mode = 'text', payload = {} } = {}) => {
   if (!sessionId || !eventType) return null;
   const event = {
     eventId: `${eventType}_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`,
     eventType,
     createdAt: new Date().toISOString(),
     sessionId,
+    workflowRunId,
     mode,
     ...payload,
   };

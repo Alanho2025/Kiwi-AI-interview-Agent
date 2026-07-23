@@ -44,6 +44,17 @@ import { cleanupQuestionArtifactsAfterReport } from './questions/questionArtifac
 import { indexReportSessionArtifactsSafely } from './reportIndexingGuardService.js';
 import { buildAssessmentKey, buildQuestionFingerprint } from './questions/questionDeduplicationService.js';
 import { buildRetentionExpiry } from './retention/retentionPolicy.js';
+import {
+  getHarnessExecutionMode,
+  isHarnessShadowEnabled,
+  isUserInterviewMemoryPlanningEnabled,
+} from '../config/harnessConfig.js';
+import {
+  runInterviewNextTurnWithShadowHarness,
+  scheduleHarnessRunPersistence,
+} from './harness/interviewNextTurnShadowHarness.js';
+import { refreshUserInterviewMemoryProjection } from './aiControl/userInterviewMemoryService.js';
+import { runReportTaskWithHarness } from './harness/reportWorkflowHarness.js';
 
 const persistControllerSnapshot = async ({ sessionId, decisionContext = null, evidenceBundle = null } = {}) => {
   await SessionAnalysis.findOneAndUpdate(
@@ -243,13 +254,21 @@ export const buildPreparedQuestionStateDiagnostic = ({ markResult, sessionId, pr
       }
 );
 
-const runInterviewController = async ({ session, payload = {}, onSentence = null, trace = null }) => {
+const runInterviewController = async ({
+  session,
+  payload = {},
+  onSentence = null,
+  trace = null,
+  workflowRunId = null,
+  harnessObserver = () => {},
+}) => {
   enqueueBackgroundJob('trace-answer-evaluated-start', () => recordAgentTraceEvent({
     sessionId: session.id,
+    workflowRunId,
     eventType: 'answer_evaluated',
     mode: session.mode || payload.inputMode || 'text',
     payload: { inputMode: payload.inputMode || 'text' },
-  }), { sessionId: session.id });
+  }), { sessionId: session.id, workflowRunId });
   if (hasReachedTimeLimit(session)) {
     return {
       isComplete: true,
@@ -375,7 +394,10 @@ const runInterviewController = async ({ session, payload = {}, onSentence = null
     latestAnswerUnderstanding,
   };
   const evaluatorOutput = await measureAdaptiveStep(trace, 'adaptive.turn_evaluation', () => evaluateInterviewTurn({ environment }));
-  enqueueBackgroundJob('persist-evaluator-record', () => persistEvaluatorRecord({ sessionId: session.id, evaluation: evaluatorOutput }), { sessionId: session.id });
+  enqueueBackgroundJob('persist-evaluator-record', () => persistEvaluatorRecord({ sessionId: session.id, evaluation: evaluatorOutput }), {
+    sessionId: session.id,
+    workflowRunId,
+  });
 
   let evidenceBundle;
   if (warmContext) {
@@ -398,6 +420,7 @@ const runInterviewController = async ({ session, payload = {}, onSentence = null
       sessionId: session.id,
       record: {
         taskType: 'interview_next_turn',
+        workflowRunId,
         agent: 'master_controller',
 tool: AGENT_TOOL_NAMES.RETRIEVE_INTERVIEW_EVIDENCE,
 decisionType: AGENT_DECISION_TYPES.BUILD_CONTEXT,
@@ -412,6 +435,7 @@ decisionType: AGENT_DECISION_TYPES.BUILD_CONTEXT,
       sessionId: session.id,
       record: {
         taskType: 'interview_next_turn',
+        workflowRunId,
         agent: 'interview_evaluator',
 tool: AGENT_TOOL_NAMES.EVALUATE_CANDIDATE_ANSWER,
 decisionType: AGENT_DECISION_TYPES.BUILD_CONTEXT,
@@ -422,7 +446,7 @@ decisionType: AGENT_DECISION_TYPES.BUILD_CONTEXT,
         confidence: evaluatorOutput.evidenceGainScore,
       },
     });
-  }, { sessionId: session.id });
+  }, { sessionId: session.id, workflowRunId });
 
   const fallbackPlan = await measureAdaptiveStep(trace, 'adaptive.action_selection', () => selectNextAction(decisionContext));
   
@@ -507,6 +531,7 @@ decisionType: AGENT_DECISION_TYPES.BUILD_CONTEXT,
         
         // Update agent memory with semantic understanding
         await updateAgentMemory({
+          workflowRunId,
           sessionId: session.id,
           questionId: payload.currentQuestionId,
           answer: payload.answer,
@@ -517,6 +542,7 @@ decisionType: AGENT_DECISION_TYPES.BUILD_CONTEXT,
         // Record background quality completion
         await recordAgentTraceEvent({
           sessionId: session.id,
+          workflowRunId,
           eventType: 'voice_background_quality_completed',
           mode: 'duplex_voice',
           payload: {
@@ -538,13 +564,14 @@ decisionType: AGENT_DECISION_TYPES.BUILD_CONTEXT,
           error: error.message,
         });
       }
-    }, { sessionId: session.id, priority: 'low' });
+    }, { sessionId: session.id, workflowRunId, priority: 'low' });
   }
   
   enqueueBackgroundJob('persist-action-selection-record', () => createDecisionRecord({
     sessionId: session.id,
     record: {
       taskType: 'interview_next_turn',
+      workflowRunId,
       agent: 'master_controller',
 tool: AGENT_TOOL_NAMES.PLAN_INTERVIEW_ACTION,
 decisionType: AGENT_DECISION_TYPES.SELECT_ACTION,
@@ -566,7 +593,7 @@ decisionType: AGENT_DECISION_TYPES.SELECT_ACTION,
       modelSelectedAction: plan.modelSelectedAction || null,
       modelSelectionError: plan.modelSelectionError || null,
     },
-  }), { sessionId: session.id });
+  }), { sessionId: session.id, workflowRunId });
 
   const interviewerOutput = await measureAdaptiveStep(trace, 'adaptive.action_execution', () => executeInterviewAction({
     selectedAction: plan.selectedAction,
@@ -585,6 +612,7 @@ decisionType: AGENT_DECISION_TYPES.SELECT_ACTION,
   }
   enqueueBackgroundJob('trace-followup-decision', () => recordAgentTraceEvent({
     sessionId: session.id,
+    workflowRunId,
     eventType: 'followup_decision',
     mode: session.mode || payload.inputMode || 'text',
     payload: {
@@ -595,12 +623,13 @@ decisionType: AGENT_DECISION_TYPES.SELECT_ACTION,
       candidateActions: plan.candidateActions || [],
       retrievalSources: decisionContext.retrievalState?.latestSources || [],
     },
-  }), { sessionId: session.id });
+  }), { sessionId: session.id, workflowRunId });
 
   enqueueBackgroundJob('persist-action-execution-record', () => createDecisionRecord({
     sessionId: session.id,
     record: {
       taskType: 'interview_next_turn',
+      workflowRunId,
       agent: 'master_controller',
 tool: getToolNameForAction(plan.selectedAction),
 decisionType: AGENT_DECISION_TYPES.EXECUTE_ACTION,
@@ -614,9 +643,10 @@ decisionType: AGENT_DECISION_TYPES.EXECUTE_ACTION,
       selectionSource: plan.selectionSource || 'rule_fallback',
       candidateActions: plan.candidateActions,
     },
-  }), { sessionId: session.id });
+  }), { sessionId: session.id, workflowRunId });
 
   const trajectoryStep = buildTrajectoryStep({
+    workflowRunId,
     session,
     environment: decisionContext.environment,
     decisionContext,
@@ -626,11 +656,15 @@ decisionType: AGENT_DECISION_TYPES.EXECUTE_ACTION,
     actorOutput: interviewerOutput,
     evaluatorOutput,
   });
-  enqueueBackgroundJob('persist-trajectory-step', () => persistTrajectoryStep({ sessionId: session.id, step: trajectoryStep }), { sessionId: session.id });
+  enqueueBackgroundJob('persist-trajectory-step', () => persistTrajectoryStep({ sessionId: session.id, step: trajectoryStep }), {
+    sessionId: session.id,
+    workflowRunId,
+  });
 
   let reflectionRecord = null;
   if (shouldWriteReflection({ evaluatorState: evaluatorOutput, decisionContext, trajectoryStep })) {
     reflectionRecord = buildReflectionRecord({
+      workflowRunId,
       sessionId: session.id,
       userId: session.userId,
       evaluatorState: evaluatorOutput,
@@ -641,16 +675,26 @@ decisionType: AGENT_DECISION_TYPES.EXECUTE_ACTION,
       await persistReflectionRecord({ sessionId: session.id, reflectionRecord });
       await rebuildBoundedMemory({ sessionId: session.id });
       await persistUserCoachingMemory({ userId: session.userId, reflectionRecord });
-    }, { sessionId: session.id, userId: session.userId });
+    }, { sessionId: session.id, userId: session.userId, workflowRunId });
   }
 
   enqueueBackgroundJob('update-agent-memory', () => updateAgentMemory({
+    workflowRunId,
     sessionId: session.id,
     latestAnswer: payload.answer || decisionContext.latestAnswer,
     decisionContext,
     latestDecision: plan,
     outcome: interviewerOutput,
-  }), { sessionId: session.id });
+  }), { sessionId: session.id, workflowRunId });
+
+  harnessObserver({
+    decisionContext,
+    fallbackPlan,
+    plan,
+    interviewerOutput,
+    trajectoryStep,
+    reflectionRecord,
+  });
 
   if (interviewerOutput?.isComplete || !interviewerOutput?.nextQuestion) {
     return {
@@ -762,9 +806,14 @@ decisionType: AGENT_DECISION_TYPES.EXECUTE_ACTION,
   };
 };
 
-const runReportController = async ({ session }) => {
+const runReportController = async ({
+  session,
+  workflowRunId = null,
+  harnessObserver = () => {},
+}) => {
   await recordAgentTraceEvent({
     sessionId: session.id,
+    workflowRunId,
     eventType: 'report_generation_started',
     mode: session.mode || 'text',
     payload: { taskType: 'generate_report' },
@@ -791,6 +840,7 @@ const runReportController = async ({ session }) => {
     sessionId: session.id,
     record: {
       taskType: 'generate_report',
+      workflowRunId,
       agent: 'master_controller',
 tool: AGENT_TOOL_NAMES.RETRIEVE_INTERVIEW_EVIDENCE,
 decisionType: AGENT_DECISION_TYPES.BUILD_CONTEXT,
@@ -813,6 +863,7 @@ decisionType: AGENT_DECISION_TYPES.BUILD_CONTEXT,
     sessionId: session.id,
     record: {
       taskType: 'generate_report',
+      workflowRunId,
       agent: 'master_controller',
 tool: AGENT_TOOL_NAMES.PLAN_INTERVIEW_ACTION,
 decisionType: AGENT_DECISION_TYPES.SELECT_ACTION,
@@ -855,6 +906,7 @@ decisionType: AGENT_DECISION_TYPES.SELECT_ACTION,
     sessionId: session.id,
     record: {
       taskType: 'generate_report',
+      workflowRunId,
       agent: 'master_controller',
 tool: getToolNameForAction(plan.selectedAction),
 decisionType: AGENT_DECISION_TYPES.EXECUTE_ACTION,
@@ -876,6 +928,7 @@ decisionType: AGENT_DECISION_TYPES.EXECUTE_ACTION,
   await cleanupQuestionArtifactsForCompletedReport({ session });
   await recordAgentTraceEvent({
     sessionId: session.id,
+    workflowRunId,
     eventType: 'report_generation_completed',
     mode: session.mode || 'text',
     payload: {
@@ -885,7 +938,68 @@ decisionType: AGENT_DECISION_TYPES.EXECUTE_ACTION,
     },
   });
 
+  harnessObserver({
+    qaResult: executionResult.qaResult,
+    repairHistory: executionResult.repairHistory || [],
+    storedStatus: stored?.latestStatus || null,
+    selectedAction: plan.selectedAction,
+  });
+
   return { report: executionResult.report, qaResult: executionResult.qaResult, stored, controllerAction: plan.selectedAction };
+};
+
+const runReportQaController = async ({
+  session,
+  workflowRunId = null,
+  harnessObserver = () => {},
+}) => {
+  const stored = await SessionReport.findOne({ sessionId: session.id }).lean();
+  if (!stored?.report) {
+    throw new Error('Report not found');
+  }
+
+  await indexReportSessionArtifactsSafely({ sessionId: session.id });
+  const retrievalBundle = await agentRegistry.retrieval({
+    query: `${session.targetRole} report qa evidence`,
+    sessionId: session.id,
+    sourceTypes: ['cv_profile', 'jd_rubric', 'interview_plan', 'prepared_question_pool', 'transcript'],
+    topK: 8,
+    objective: 'qa_existing_report',
+    targetTopic: 'report',
+  });
+
+  const qaResult = await agentRegistry.reportQa({
+    report: stored.report,
+    analysisResult: session.analysisResult || {},
+    retrievalBundle,
+  });
+  await recordLocalUsage({
+    userId: session.userId,
+    sessionId: session.id,
+    stage: 'report_qa',
+    operation: 'local_parse',
+    metadata: { source: 'manual_report_qa' },
+  });
+  const updated = await persistReportArtifact({
+    sessionId: session.id,
+    userId: session.userId,
+    report: stored.report,
+    qaResult,
+  });
+  await recordAgentTraceEvent({
+    sessionId: session.id,
+    workflowRunId,
+    eventType: 'report_qa_completed',
+    mode: session.mode || 'text',
+    payload: { qaPassed: qaResult?.passed, qualityFlagCount: qaResult?.qualityFlags?.length || 0 },
+  });
+  harnessObserver({
+    qaResult,
+    repairHistory: [],
+    storedStatus: updated?.latestStatus || null,
+    selectedAction: 'QA_REPORT',
+  });
+  return { report: stored.report, qaResult, stored: updated };
 };
 
 
@@ -905,12 +1019,30 @@ export const warmAdaptiveSession = async ({ sessionId, trace = null } = {}) => {
   ));
   const environment = await measureAdaptiveStep(trace, 'warm_adaptive.environment_build', () => buildInterviewEnvironment({ session, retrievalBundle }));
   await measureAdaptiveStep(trace, 'warm_adaptive.evidence_bundle', () => buildEvidenceBundle({ session, retrievalBundle }));
+  const userInterviewMemoryProjection = await measureAdaptiveStep(
+    trace,
+    'warm_adaptive.user_interview_memory_projection',
+    () => refreshUserInterviewMemoryProjection({
+      userId: session.userId,
+      currentSessionId: session.id,
+      currentRoleKey: session.analysisResult?.matchingDetails?.questionPlanHints?.roleCanonical || session.targetRole,
+      planningEnabled: isUserInterviewMemoryPlanningEnabled(),
+    })
+  );
 
   return {
     warmed: true,
     sessionId: session.id,
     retrievalCount: Array.isArray(retrievalBundle?.items) ? retrievalBundle.items.length : 0,
     hasEnvironment: Boolean(environment),
+    userInterviewMemoryProjection: userInterviewMemoryProjection
+      ? {
+          schemaVersion: userInterviewMemoryProjection.schemaVersion,
+          planningEnabled: userInterviewMemoryProjection.planningEnabled,
+          promotedCompetencyCount: userInterviewMemoryProjection.routineRepeatSuppressions.length,
+          revalidationCount: userInterviewMemoryProjection.revalidationDue.length,
+        }
+      : null,
   };
 };
 
@@ -924,7 +1056,21 @@ export const runTask = async ({ taskType, sessionId, payload = {}, onSentence = 
     if (!session) {
       throw new Error('Session not found');
     }
-    return runInterviewController({ session, payload, onSentence, trace });
+    return runInterviewNextTurnWithShadowHarness({
+      enabled: isHarnessShadowEnabled(),
+      executionMode: getHarnessExecutionMode(),
+      session,
+      payload,
+      executeController: ({ observe, workflowRunId }) => runInterviewController({
+        session,
+        payload,
+        onSentence,
+        trace,
+        workflowRunId,
+        harnessObserver: observe,
+      }),
+      appendRun: scheduleHarnessRunPersistence,
+    });
   }
 
   if (taskType === 'generate_report') {
@@ -932,7 +1078,18 @@ export const runTask = async ({ taskType, sessionId, payload = {}, onSentence = 
     if (!session) {
       throw new Error('Session not found');
     }
-    return runReportController({ session });
+    return runReportTaskWithHarness({
+      enabled: isHarnessShadowEnabled(),
+      executionMode: getHarnessExecutionMode(),
+      taskType,
+      session,
+      executeController: ({ workflowRunId, observe }) => runReportController({
+        session,
+        workflowRunId,
+        harnessObserver: observe,
+      }),
+      appendRun: scheduleHarnessRunPersistence,
+    });
   }
 
   if (taskType === 'qa_report') {
@@ -941,35 +1098,18 @@ export const runTask = async ({ taskType, sessionId, payload = {}, onSentence = 
       throw new Error('Session not found');
     }
 
-    const stored = await SessionReport.findOne({ sessionId }).lean();
-    if (!stored?.report) {
-      throw new Error('Report not found');
-    }
-
-    await indexReportSessionArtifactsSafely({ sessionId: session.id });
-    const retrievalBundle = await agentRegistry.retrieval({
-      query: `${session.targetRole} report qa evidence`,
-      sessionId: session.id,
-      sourceTypes: ['cv_profile', 'jd_rubric', 'interview_plan', 'prepared_question_pool', 'transcript'],
-      topK: 8,
-      objective: 'qa_existing_report',
-      targetTopic: 'report',
+    return runReportTaskWithHarness({
+      enabled: isHarnessShadowEnabled(),
+      executionMode: getHarnessExecutionMode(),
+      taskType,
+      session,
+      executeController: ({ workflowRunId, observe }) => runReportQaController({
+        session,
+        workflowRunId,
+        harnessObserver: observe,
+      }),
+      appendRun: scheduleHarnessRunPersistence,
     });
-
-    const qaResult = await agentRegistry.reportQa({
-      report: stored.report,
-      analysisResult: session.analysisResult || {},
-      retrievalBundle,
-    });
-    await recordLocalUsage({
-      userId: session.userId,
-      sessionId: session.id,
-      stage: 'report_qa',
-      operation: 'local_parse',
-      metadata: { source: 'manual_report_qa' },
-    });
-    const updated = await persistReportArtifact({ sessionId: session.id, userId: session.userId, report: stored.report, qaResult });
-    return { report: stored.report, qaResult, stored: updated };
   }
 
   throw new Error(`Unsupported task type: ${taskType}`);

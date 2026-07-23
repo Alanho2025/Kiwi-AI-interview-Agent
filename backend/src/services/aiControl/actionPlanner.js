@@ -42,6 +42,61 @@ const resolveTargetTopic = ({
   return 'role_fit';
 };
 
+const buildUserInterviewMemoryPlan = ({
+  userInterviewMemory = null,
+  currentTopic = '',
+  coverageState = {},
+} = {}) => {
+  if (!userInterviewMemory?.planningEnabled || userInterviewMemory.policy?.canAffectScoring !== false) return null;
+  const suppression = ensureArray(userInterviewMemory.routineRepeatSuppressions)
+    .find((item) => item.canSuppressRoutineRepeat && topicsMatch(item.competencyKey, currentTopic));
+  if (!suppression) return null;
+
+  const nextCoverageTopic = ensureArray(coverageState.missingTopics)
+    .find((topic) => topic && !topicsMatch(topic, currentTopic));
+  if (nextCoverageTopic) {
+    return {
+      selectedAction: AGENT_ACTION_TYPES.SWITCH_TOPIC,
+      rationale: 'Cross-session evidence already supports this competency at the current depth, so the controller should use the turn for an uncovered topic.',
+      confidence: 0.9,
+      selectionSource: 'user_interview_memory_policy',
+      actionInput: {
+        targetTopic: nextCoverageTopic,
+        probeType: 'memory_coverage_shift',
+        forceEvidence: false,
+        freshOnly: true,
+      },
+      allowModelSelection: false,
+      memoryPolicyDecision: {
+        reasonCode: 'routine_repeat_suppressed_for_coverage_gap',
+        competencyKey: suppression.competencyKey,
+        independentSessionCount: suppression.independentSessionCount,
+        canAffectScoring: false,
+      },
+    };
+  }
+
+  return {
+    selectedAction: AGENT_ACTION_TYPES.ASK_DEEP_DIVE_QUESTION,
+    rationale: 'Cross-session evidence already supports the routine question depth, so the controller should ask a materially deeper question instead of repeating it.',
+    confidence: 0.88,
+    selectionSource: 'user_interview_memory_policy',
+    actionInput: {
+      targetTopic: currentTopic,
+      probeType: 'memory_depth_progression',
+      targetDepth: suppression.recommendedNextDepth,
+      forceEvidence: true,
+    },
+    allowModelSelection: false,
+    memoryPolicyDecision: {
+      reasonCode: 'routine_repeat_replaced_with_deeper_question',
+      competencyKey: suppression.competencyKey,
+      independentSessionCount: suppression.independentSessionCount,
+      canAffectScoring: false,
+    },
+  };
+};
+
 const MODEL_SELECTION_BLOCKED_ACTIONS = new Set([
   AGENT_ACTION_TYPES.GENERATE_REPORT_DRAFT,
   AGENT_ACTION_TYPES.WRAP_STAGE,
@@ -344,6 +399,15 @@ export const selectNextAction = (decisionContext = {}) => {
       confidence: 0.88,
       actionInput: { targetTopic: activeMatchState.validationTargets[0], probeType: 'validation', forceEvidence: true },
     });
+  }
+
+  const userInterviewMemoryPlan = buildUserInterviewMemoryPlan({
+    userInterviewMemory: decisionContext.userInterviewMemory,
+    currentTopic: targetTopic,
+    coverageState,
+  });
+  if (userInterviewMemoryPlan) {
+    return finalizePlan(userInterviewMemoryPlan);
   }
 
   const projectUsage = agentMemory.projectUsage || {};

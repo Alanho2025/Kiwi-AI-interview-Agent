@@ -1,7 +1,7 @@
 # E2E Refine Implementation Spec
 
-狀態：draft for review；尚未進入實作
-日期：2026-07-11
+狀態：final goal mode；已實作並驗證
+日期：2026-07-12
 Goal：[E2E Refine Implementation Goal](e2e-refine-implementation-goal.md)
 
 ## Overview
@@ -9,6 +9,28 @@ Goal：[E2E Refine Implementation Goal](e2e-refine-implementation-goal.md)
 ### Goal
 
 在現有 Kiwi AI Interview Agent 測試版圖上，新增 stakeholder-grade E2E refine gate。這個 gate 不取代 backend robustness 或 eval runners，而是補上目前 browser E2E 和真資料狀態之間的缺口：direct API bypass、low-confidence voice UI、retention/deletion lifecycle、weak-network voice、barge-in interruption。
+
+### Implementation Result
+
+本 spec 已完成 first implementation slice。實際檔案與 script 如下：
+
+- `frontend/e2e/review-lock-bypass.playwright.mjs`
+- `frontend/e2e/retention-deletion-lifecycle.playwright.mjs`
+- `frontend/e2e/voice-low-confidence-ui.playwright.mjs`
+- `frontend/e2e/voice-network-barge-in.playwright.mjs`
+- `frontend/e2e/helpers/e2eArtifactHelpers.mjs`
+- `frontend/e2e/helpers/e2eBackendHarness.mjs`
+- `frontend/e2e/helpers/e2eVoiceHarness.mjs`
+- `backend/src/services/match/matchPlanGateService.js`
+- `backend/eval/helpers/e2eRefineReleaseGateEvaluator.js`
+- `backend/eval/runners/runE2eRefineReleaseGateEval.js`
+
+實作和原 draft 不完全相同的地方：
+
+- Review lock 不只看 `/api/analyze/match`。現有 match service 對 missing/stale Role-Fit review 回 `409`；另外新增 interview-plan gate，防止使用者直接帶 `manual_review` analysis payload 產生 session。
+- Retention browser assertion 不再只接受 `Session not found.` 文案。現有 frontend 404 load path 可能 redirect 到 `/analysis`；E2E 把 not-found view、load error status、redirect `/analysis` 都視為 browser access-denial。
+- Weak-network/barge-in E2E 先發現 backend duplex WebSocket queue 將所有 message 序列化，導致 `barge_in` 真實上無法 interrupt streaming TTS。實作已讓 `barge_in` / `cancel_assistant_audio` 這類 interrupt control payload 繞過一般 queue，並以 robustness test 與 E2E 鎖住。
+- Low-confidence browser E2E first slice 驗 confirmation visible、question count unchanged、no `turn_done` before confirmation；確認後 accepted answer 的完整 saga 仍由 backend transcript-confirmation robustness tests 覆蓋。
 
 ### Users
 
@@ -39,7 +61,7 @@ Goal：[E2E Refine Implementation Goal](e2e-refine-implementation-goal.md)
 | Voice smoke | `voice-realtime-latency.playwright.mjs` mock WebSocket / mock VAD | 穩定但不是真 backend | 保留作 browser orchestration smoke |
 | Voice real backend | `voice-real-backend.playwright.mjs` 用 test STT/TTS 跑真 backend socket | 已補真 backend flow；未補 low-confidence UI、weak network、barge-in E2E | 擴充或新增 sibling scripts |
 | Recording recovery | `recording-recovery.playwright.mjs` 驗 IndexedDB recovery，但 backend mocked | 沒驗真 recording_uploads/chunks 或 deletion | 新增 retention/deletion lifecycle hybrid E2E |
-| Retention | `backend/tests/robustness/retention/*` 存在，但 `test:all` 不包含 retention；release gate 只做 source/model/registry contract | 沒有 browser/API lifecycle gate | 新增 `test:retention` 或明確 release precheck；新增 hybrid E2E |
+| Retention | `backend/tests/robustness/retention/*` 存在，並決定納入 backend `test:all`；release gate 只做 source/model/registry contract | 沒有 browser/API lifecycle gate | 保留 `test:retention` focused command；新增 hybrid E2E |
 | Review lock | Frontend happy path 會 Mark CV/JD reviewed；backend service tests 擋 legacy review marker | 沒有 direct API bypass E2E | 新增 review-lock bypass hybrid E2E |
 | Voice low confidence | Backend confidence gate / transcript confirmation tests 存在 | 沒有 browser UI 和 question counter E2E | 新增 voice low-confidence UI E2E |
 | Weak network / barge-in | Backend/frontend unit tests 有 barge-in；real-backend voice E2E 沒 throttle / interruption | 不能回答弱網與插話體驗 | 新增 CDP network + barge-in E2E |
@@ -85,11 +107,11 @@ Goal：[E2E Refine Implementation Goal](e2e-refine-implementation-goal.md)
 ```yaml
 scripts:
   frontend:
-    test:e2e:review-lock: "node e2e/specs/review-lock-bypass.spec.js"
-    test:e2e:voice-low-confidence: "node e2e/specs/voice-low-confidence-ui.spec.js"
-    test:e2e:voice-network-barge-in: "node e2e/specs/voice-network-barge-in.spec.js"
-    test:e2e:retention-deletion: "node e2e/specs/retention-deletion-lifecycle.spec.js"
-    test:e2e:stakeholder-refine: "runs the four scripts above in stable order"
+    test:e2e:review-lock: "node e2e/review-lock-bypass.playwright.mjs"
+    test:e2e:voice-low-confidence: "node e2e/voice-low-confidence-ui.playwright.mjs"
+    test:e2e:voice-network-barge-in: "node e2e/voice-network-barge-in.playwright.mjs"
+    test:e2e:retention-deletion: "node e2e/retention-deletion-lifecycle.playwright.mjs"
+    test:e2e:role-fit-refine: "runs the four scripts above in stable order"
   backend:
     test:retention: "NODE_ENV=test AI_TEST_MODE=mock node tests/helpers/runVitestGroups.js tests/robustness/retention"
     eval:e2e-refine-release-gate: "NODE_ENV=test AI_TEST_MODE=mock node eval/runners/runE2eRefineReleaseGateEval.js"
@@ -161,8 +183,17 @@ Scenario: Unreviewed Role-Fit input cannot create a usable match
   And the JD rubric has Role-Fit review status "unreviewed" or "edited"
   When the test sends POST /api/analyze/match directly without using the UI review buttons
   Then the response must not create a usable matchAnalysisId
-  And the result must be rejected or marked manual_review with score 0
+  And the current implementation rejects the request with 409 when verified Role-Fit review is missing or stale
   And the artifact records "review_lock_bypass_blocked"
+```
+
+```gherkin
+Scenario: Manual-review payload cannot bypass plan creation
+  Given a synthetic authenticated user
+  And the test builds an analysisResult with decision.label "manual_review"
+  When the test sends POST /api/analyze/interview-plan directly
+  Then the current implementation returns 400
+  And no interview session is created
 ```
 
 ```gherkin
@@ -205,7 +236,7 @@ Scenario: Soft-deleted session cannot be read through UI or API
   When the test calls DELETE /api/session/:sessionId
   Then GET /api/session/:sessionId returns 404 or an equivalent not-found response
   And GET /api/report/:sessionId cannot return sensitive report content
-  And the browser route for that session shows a not-found or deleted state
+  And the browser route for that session shows a not-found/deleted state or redirects to a safe analysis route
 ```
 
 ```gherkin
@@ -294,6 +325,7 @@ Scenario: Candidate speech interrupts assistant audio without counting as a ques
 
 - Use CDP `Network.emulateNetworkConditions` for bounded slow network.
 - Barge-in can be driven by explicit WebSocket `barge_in` event first; VAD-driven barge-in can be added after stable event-level coverage.
+- Interrupt control messages must not wait behind streaming `speak_text`; otherwise real backend cannot emit `barge_in_ack.interrupted=true` until after TTS is already done.
 - Required assertions:
   - `barge_in_ack.interrupted === true`
   - no further active audio chunks are played for interrupted token
@@ -346,9 +378,9 @@ Scenario: Candidate speech interrupts assistant audio without counting as a ques
 - Do not change production retention behavior solely to satisfy E2E; fix service contract with backend robustness tests first.
 - If CDP network emulation is unstable in local environment, keep event-level barge-in E2E as required and mark network throttle as diagnostic until stabilized.
 
-## Unresolved Decisions for Human Review
+## Resolved Decisions
 
-1. Should `test:retention` be added to `backend test:all`, or remain explicit because it may be slower and has broader data lifecycle scope?
-2. Should unsafe `/api/analyze/match` return hard `403/400`, or is `200 manual_review score=0` acceptable if downstream plan creation is blocked?
-3. Should weak-network test be required in every local run, or only in release gate / CI?
-4. Should E2E-R3 include full retention cleanup saga in first implementation, or split it after soft-delete access denial passes?
+1. Unsafe `/api/analyze/match` currently returns `409` for missing/stale Role-Fit review; unsafe manual-review `/api/analyze/interview-plan` returns `400`. The product contract is no usable match/plan.
+2. Weak-network CDP throttle is included in `npm run test:e2e:role-fit-refine`; packet loss and live provider checks remain optional diagnostics.
+3. E2E-R3 first implementation covers soft delete + access denial. Full retention cleanup saga remains in backend robustness/cleanup scripts.
+4. `tests/robustness/retention` is included in backend `npm run test:all`, while `npm run test:retention` remains available as a focused command.

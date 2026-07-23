@@ -3,6 +3,7 @@ import { ensureArray, normalizeText } from '../../utils/commonHelpers.js';
 
 const toCoachingRecord = (reflection = {}) => ({
   memoryId: reflection.reflectionId,
+  sourceWorkflowRunId: reflection.sourceWorkflowRunId || null,
   pattern: reflection.pattern,
   lesson: reflection.lesson,
   recommendedNextStrategy: reflection.recommendedNextStrategy,
@@ -12,14 +13,15 @@ const toCoachingRecord = (reflection = {}) => ({
   updatedAt: reflection.createdAt || new Date().toISOString(),
 });
 
-const dedupe = (records = []) => {
+export const dedupeUserCoachingMemoryRecords = (records = []) => {
   const seen = new Set();
-  return ensureArray(records).filter((item) => {
+  return ensureArray(records).reduceRight((deduped, item) => {
     const key = `${normalizeText(item.pattern)}|${normalizeText(item.lesson)}`;
-    if (seen.has(key)) return false;
+    if (seen.has(key)) return deduped;
     seen.add(key);
-    return true;
-  });
+    deduped.unshift(item);
+    return deduped;
+  }, []);
 };
 
 const buildSummary = (records = []) => {
@@ -40,7 +42,10 @@ export const getUserCoachingMemory = async (userId) => {
 export const persistUserCoachingMemory = async ({ userId, reflectionRecord = {}, maxRecords = 8 } = {}) => {
   if (!userId || !reflectionRecord?.reflectionId) return null;
   const existing = await getUserCoachingMemory(userId);
-  const nextRecords = dedupe([...existing.memoryRecords, toCoachingRecord(reflectionRecord)]).slice(-maxRecords);
+  const nextRecords = dedupeUserCoachingMemoryRecords([
+    ...existing.memoryRecords,
+    toCoachingRecord(reflectionRecord),
+  ]).slice(-maxRecords);
   const latestSummary = buildSummary(nextRecords);
   await UserCoachingMemory.findOneAndUpdate(
     { userId },

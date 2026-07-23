@@ -56,6 +56,9 @@ export function AnalyzeActionsCard({
   })();
 
   const helperText = (() => {
+    if (analysisStatus === 'success' && generatedSessionId) {
+      return 'Your interview plan is ready.';
+    }
     if (analysisStatus === 'success' && isVoiceSession && !isVoiceReady) {
       return 'Run the voice check before opening the voice interview.';
     }
@@ -131,7 +134,7 @@ export function AnalyzeActionsCard({
   };
 
   return (
-    <div className="sticky bottom-0 z-20 -mx-4 flex flex-col gap-4 border-t border-theme glass/95 p-4 shadow-[0_-8px_20px_rgba(15,23,42,0.08)] backdrop-blur sm:static sm:mx-0 sm:rounded-2xl sm:border sm:p-6 sm:shadow-sm">
+    <div className="sticky bottom-0 z-20 -mx-4 flex flex-col gap-4 border-t border-theme glass/95 p-4 shadow-[0_-8px_20px_rgba(15,23,42,0.08)] backdrop-blur print:static print:mx-0 print:border print:shadow-none print:backdrop-blur-0 sm:static sm:mx-0 sm:rounded-2xl sm:border sm:p-6 sm:shadow-sm">
       <div>
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-faint">Setup checklist</p>
         <div className="mt-3 space-y-2">

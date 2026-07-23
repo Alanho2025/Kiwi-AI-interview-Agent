@@ -64,10 +64,11 @@ export const shouldWriteReflection = ({ evaluatorState = {}, decisionContext = {
   return false;
 };
 
-export const buildReflectionRecord = ({ sessionId, userId, evaluatorState = {}, decisionContext = {}, trajectoryStep = {} } = {}) => {
+export const buildReflectionRecord = ({ workflowRunId = null, sessionId, userId, evaluatorState = {}, decisionContext = {}, trajectoryStep = {} } = {}) => {
   const core = buildLesson({ evaluatorState, decisionContext, trajectoryStep });
   return {
     reflectionId: crypto.randomUUID(),
+    sourceWorkflowRunId: workflowRunId,
     sessionId,
     userId,
     createdAt: new Date().toISOString(),
