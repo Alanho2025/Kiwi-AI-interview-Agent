@@ -9,6 +9,12 @@ import {
   validateFailureClassification,
   validateObservedGateResult,
 } from './harnessObservedContractPolicy.js';
+import {
+  buildHarnessExecutionControlContext,
+  buildObservedWriteGateDecisions,
+  completeHarnessExecutionControls,
+  validateHarnessExecutionControls,
+} from './harnessExecutableControls.js';
 
 export const HARNESS_SCHEMA_VERSION = 'workflow_run_v0';
 export const INTERVIEW_NEXT_TURN_TASK_CONTRACT = 'interview_next_turn_v0';
@@ -449,6 +455,9 @@ export const buildInterviewNextTurnWorkflowRun = ({
   controllerError = null,
   preTaskFailure = null,
   lifecycleStatus = null,
+  executionControlContext = null,
+  capabilityEvents = [],
+  usageEvents = [],
   startedAt = new Date().toISOString(),
   completedAt = new Date().toISOString(),
 } = {}) => {
@@ -543,6 +552,35 @@ export const buildInterviewNextTurnWorkflowRun = ({
     ? [`${result.isComplete ? 'terminal_result' : 'session_question'}:${session.id}:${result.nextQuestionOrder ?? session.currentQuestionIndex ?? 'unknown'}`]
     : [];
   const resumedFromWaiting = Boolean(payload.workflowRunId) && resolvedLifecycleStatus !== 'waiting';
+  const writeGateDecisions = buildObservedWriteGateDecisions({
+    workflowRunId,
+    taskType: 'interview_next_turn',
+    ownerUserId: session.userId,
+    sessionId: session.id,
+    publicationStatus: 'not_applicable',
+    memoryWrites,
+    evaluatedAt: normalizedCompletedAt,
+  });
+  const executionControls = completeHarnessExecutionControls({
+    context: executionControlContext || buildHarnessExecutionControlContext({
+      workflowRunId,
+      taskType: 'interview_next_turn',
+      session,
+      executionMode: normalizedExecutionMode,
+      evaluatedAt: normalizedStartedAt,
+    }),
+    completedAt: normalizedCompletedAt,
+    lifecycleStatus: resolvedLifecycleStatus,
+    qualityStatus: resolvedLifecycleStatus === 'waiting' || resolvedLifecycleStatus === 'running'
+      ? 'pending'
+      : controllerError ? 'invalid' : 'valid',
+    publicationStatus: 'not_applicable',
+    domainResultRef: resultRefs[0] || null,
+    controllerError,
+    capabilityEvents,
+    usageEvents,
+    writeGateDecisions,
+  });
 
   return {
     workflowRunId,
@@ -564,9 +602,8 @@ export const buildInterviewNextTurnWorkflowRun = ({
     publicationStatus: 'not_applicable',
     taskContract: {
       taskContractRef: INTERVIEW_NEXT_TURN_TASK_CONTRACT,
-      schemaVersion: 'task_contract_v0',
+      ...executionControls.taskContract,
       taskType: 'interview_next_turn',
-      contractVersion: 'v0',
       ownerComponent: 'master_ai_controller',
       objective: 'select_and_execute_the_next_valid_interview_action',
       workflowKind: 'agent_task',
@@ -597,16 +634,20 @@ export const buildInterviewNextTurnWorkflowRun = ({
     memoryWriteRefs: memoryWrites.map((write) => write.memoryWriteId),
     failureRefs: failures.map((failure) => failure.failureId),
     resultRefs,
-    timeline: buildTimeline({
-      workflowRunId,
-      startedAt: normalizedStartedAt,
-      completedAt: normalizedCompletedAt,
-      lifecycleStatus: resolvedLifecycleStatus,
-      hasCandidates: candidateActions.length > 0,
-      usedFallback,
-      resumedFromWaiting,
-      preTaskFailure,
-    }),
+    executionControls,
+    timeline: [
+      ...buildTimeline({
+        workflowRunId,
+        startedAt: normalizedStartedAt,
+        completedAt: normalizedCompletedAt,
+        lifecycleStatus: resolvedLifecycleStatus,
+        hasCandidates: candidateActions.length > 0,
+        usedFallback,
+        resumedFromWaiting,
+        preTaskFailure,
+      }),
+      ...executionControls.events,
+    ],
     latency: {
       controllerMs: Math.max(0, new Date(normalizedCompletedAt).getTime() - new Date(normalizedStartedAt).getTime()),
     },
@@ -682,5 +723,10 @@ export const validateHarnessWorkflowRun = (run = {}) => {
   (run.failures || []).forEach((failure, index) => {
     validateFailureClassification(failure).forEach((error) => errors.push(`failures[${index}]: ${error}`));
   });
+  if (run.executionControls) {
+    validateHarnessExecutionControls(run.executionControls)
+      .errors
+      .forEach((error) => errors.push(`executionControls: ${error}`));
+  }
   return { valid: errors.length === 0, errors };
 };

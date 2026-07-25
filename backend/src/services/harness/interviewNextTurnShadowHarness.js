@@ -10,6 +10,11 @@ import {
 import { correlateHarnessRunArtifacts } from './harnessRunCorrelationService.js';
 import { emitHarnessRunTrace } from './harnessRunTraceService.js';
 import { buildFailureClassification } from './harnessObservedContractPolicy.js';
+import {
+  buildHarnessExecutionControlContext,
+  createObservedCapabilityRegistry,
+} from './harnessExecutableControls.js';
+import { runWithUsageContextPatch } from '../deepseekService.js';
 
 const noOp = () => {};
 
@@ -163,11 +168,13 @@ export const runInterviewNextTurnWithShadowHarness = async ({
   executionMode = 'shadow',
   session,
   payload = {},
+  capabilityRegistry = null,
   executeController,
   appendRun = persistCanonicalRun,
   onRecordingFailure = noOp,
   workflowRunIdFactory = crypto.randomUUID,
   now = () => new Date(),
+  withUsageContext = runWithUsageContextPatch,
 } = {}) => {
   if (!enabled) {
     return executeController({ observe: noOp, workflowRunId: null });
@@ -175,13 +182,45 @@ export const runInterviewNextTurnWithShadowHarness = async ({
 
   const workflowRunId = payload.workflowRunId || workflowRunIdFactory();
   const startedAt = now().toISOString();
+  const executionControlContext = buildHarnessExecutionControlContext({
+    workflowRunId,
+    taskType: 'interview_next_turn',
+    session,
+    executionMode,
+    ...(capabilityRegistry
+      ? { availableCapabilityIds: Object.keys(capabilityRegistry) }
+      : {}),
+    evaluatedAt: startedAt,
+  });
+  const capabilityObservation = capabilityRegistry
+    ? createObservedCapabilityRegistry({
+        workflowRunId,
+        registry: capabilityRegistry,
+        now,
+        withUsageContext,
+      })
+    : {
+        registry: null,
+        events: [],
+        usageEvents: [],
+        recordUsage: noOp,
+      };
   let observation = {};
   const observe = (nextObservation = {}) => {
     observation = nextObservation;
   };
 
   try {
-    const result = await executeController({ observe, workflowRunId });
+    const result = await withUsageContext({
+      userId: session.userId,
+      sessionId: session.id,
+      workflowRunId,
+      harnessUsageCollector: capabilityObservation.recordUsage,
+    }, () => executeController({
+      observe,
+      workflowRunId,
+      capabilityRegistry: capabilityObservation.registry,
+    }));
     const completedAt = now().toISOString();
     const run = buildInterviewNextTurnWorkflowRun({
       workflowRunId,
@@ -190,6 +229,9 @@ export const runInterviewNextTurnWithShadowHarness = async ({
       payload,
       observation,
       result,
+      executionControlContext,
+      capabilityEvents: capabilityObservation.events,
+      usageEvents: capabilityObservation.usageEvents,
       startedAt,
       completedAt,
     });
@@ -223,6 +265,9 @@ export const runInterviewNextTurnWithShadowHarness = async ({
       payload,
       observation,
       controllerError: error,
+      executionControlContext,
+      capabilityEvents: capabilityObservation.events,
+      usageEvents: capabilityObservation.usageEvents,
       startedAt,
       completedAt,
     });

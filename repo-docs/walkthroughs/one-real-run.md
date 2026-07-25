@@ -51,7 +51,9 @@ text mode 是低依赖主路径。用户提交答案后，controller 先确认 s
 
 报告 QA 是第二道门。它检查 section、evidence references、score/metric 一致性、rubric 对齐、rewrite 质量、transcript risk 是否可见。失败时报告可以进入 `needs_review` 或 `repair_failed`，bounded repair 最多只适合改 wording，不能掩盖 deterministic integrity flags。
 
-可追源码：报告 API 在 [report controller](../../backend/src/controllers/reportController.js)，报告 agent 在 [report generator](../../backend/src/services/agents/reportGeneratorAgent.js)，QA agent 在 [report QA agent](../../backend/src/services/agents/reportQaAgent.js)，修复编排在 [QA repair orchestrator](../../backend/src/services/report/reportQaRepairOrchestratorService.js)。继续看 [报告与 QA](../modules/feature-report-and-qa.md)。
+报告载入后，Report Trust Status 会把 persisted status 映射为 candidate-safe explanation：通过、修复后通过、需要复核或验证未完成。需要时页面提供重新检查/重新生成，但不会显示 raw QA flags 或 internal trace；下载与 TXT/PDF export 行为没有因这个 status card 改变。
+
+可追源码：报告 API 在 [report controller](../../backend/src/controllers/reportController.js)，安全状态映射在 [publication summary service](../../backend/src/services/report/reportPublicationSummaryService.js)，状态 UI 在 [Report Trust Status](../../frontend/src/components/report/ReportTrustStatusCard.jsx)，报告 agent 在 [report generator](../../backend/src/services/agents/reportGeneratorAgent.js)，QA agent 在 [report QA agent](../../backend/src/services/agents/reportQaAgent.js)，修复编排在 [QA repair orchestrator](../../backend/src/services/report/reportQaRepairOrchestratorService.js)。继续看 [报告与 QA](../modules/feature-report-and-qa.md)。
 
 ```text
 输入: completed session + match/plan/transcript evidence
@@ -66,4 +68,3 @@ text mode 是低依赖主路径。用户提交答案后，controller 先确认 s
 如果这条解释是错的，最容易被证伪的地方是：`backend/src/controllers/analyzeController.js` 不再创建 match/question artifacts，`backend/src/services/masterAiService.js` 不再做 retrieval/evaluator/action planning，或 report QA 不再写状态。对应 evidence ledger 在 [source evidence 审计表](../references/source-evidence.md)。
 
 证据状态：除特别标注外，本页基于当前源码已确认。
-

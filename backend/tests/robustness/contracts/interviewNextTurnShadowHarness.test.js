@@ -96,7 +96,30 @@ describe('M1 interview_next_turn shadow harness', () => {
     expect(result).toBe(M1_LEGACY_RESULT);
     expect(appendRun).toHaveBeenCalledWith(expect.objectContaining({
       executionMode: 'observe',
-      taskContract: expect.objectContaining({ executionMode: 'observe' }),
+      taskContract: expect.objectContaining({
+        executionMode: 'observe',
+        schemaVersion: 'task_contract_v1',
+        allowedCapabilityRefs: [
+          'capability:retrieval:v1',
+          'capability:interviewer:v1',
+          'capability:interviewEvaluator:v1',
+        ],
+      }),
+      executionControls: expect.objectContaining({
+        schemaVersion: 'harness_execution_controls_v1',
+        preflight: expect.objectContaining({
+          status: 'review',
+          controllerAction: 'continue_observe',
+        }),
+        budgetLedger: expect.objectContaining({
+          budgetStatus: 'unavailable',
+          stopReason: 'usage_not_correlated',
+        }),
+        resultEnvelope: expect.objectContaining({
+          lifecycleStatus: 'completed',
+          validationStatus: 'valid',
+        }),
+      }),
       gateResults: expect.arrayContaining([
         expect.objectContaining({ executionMode: 'observe' }),
       ]),

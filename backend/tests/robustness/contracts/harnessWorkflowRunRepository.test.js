@@ -54,4 +54,47 @@ describe('M1 harness WorkflowRun repository', () => {
     await expect(repository.findOwnedRuns({ sessionId: 'session-owned' }))
       .rejects.toThrow('ownerUserId is required');
   });
+
+  it('persists completed M6 execution controls when a waiting run resumes', async () => {
+    const model = {
+      findOneAndUpdate: vi.fn().mockResolvedValue({ workflowRunId: 'run-m6-resumed' }),
+    };
+    const repository = createHarnessWorkflowRunRepository({ model });
+    const executionControls = {
+      schemaVersion: 'harness_execution_controls_v1',
+      resultEnvelope: { validationStatus: 'valid' },
+    };
+
+    await repository.finalizeCanonicalRun({
+      workflowRunId: 'run-m6-resumed',
+      lifecycleStatus: 'completed',
+      qualityStatus: 'valid',
+      completedAt: new Date('2026-07-26T00:00:00.000Z'),
+      taskContract: {},
+      contextPackets: [],
+      actionContracts: [],
+      gateResults: [],
+      memoryWrites: [],
+      failures: [],
+      stateRefs: {},
+      contextPacketRefs: [],
+      actionContractRefs: [],
+      gateResultRefs: [],
+      memoryWriteRefs: [],
+      failureRefs: [],
+      resultRefs: [],
+      latency: {},
+      privacy: {},
+      executionControls,
+      timeline: [],
+    });
+
+    expect(model.findOneAndUpdate).toHaveBeenCalledWith(
+      { workflowRunId: 'run-m6-resumed' },
+      expect.objectContaining({
+        $set: expect.objectContaining({ executionControls }),
+      }),
+      { new: true },
+    );
+  });
 });

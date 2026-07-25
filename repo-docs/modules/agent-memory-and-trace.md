@@ -32,12 +32,15 @@ M3 新增的 user interview projection 从同一 user 的既有 `SessionAnalysis
 | User interview projection | 当前 `SessionAnalysis.agentMemory.userInterviewProjection` | 保存同 user 历史 trajectory 的 refs/derived status；default off planning slice，不复制 raw answer/question。 |
 | Shadow run correlation | `HarnessWorkflowRun.memoryWrites`、`timeline` | 保存 refs/status/count，不复制 answer、question、prompt 或 memory 内容；不是产品 source of truth。 |
 | Immediate harness trace | Backend `Harness workflow trace` | task 完成时显示 `queued` / correlation `pending`，durable append 后显示 `persisted` 与实际计数；只输出 allowlisted metadata，不替代 `HarnessWorkflowRun`。 |
+| M6 execution controls | `HarnessWorkflowRun.executionControls` | 保存 preflight/postflight、actual registry capability lifecycle、DeepSeek workflow/capability usage、budget availability 和 observed write decisions；capability event 不复制 call arguments/result payload。Owner-scoped non-production developer diagnostics 会返回这份 redacted view。 |
 
 report 可以读取这些信号展示 RAG used、retrieval sources、latency、cost、reflection summary 和 coaching summary。当前 progress dashboard 还需要额外的跨 session aggregation/profile 层，才能把历史 session 指标转成稳定的 next-practice plan。
 
+M6 的 fixed registry observation 仍由现有 controller 调用同一组 capability function，不是第二个 orchestrator。Budget ledger 会把 DeepSeek usage 关联到当前 workflow，并在 registry call 内标出 capability；如果 mock/provider 没有回传 usage，或 ceiling 尚未核准，就明确标为 `unavailable` / `review`，不会假装在预算内。Report/session-memory write decision 也只做 observe；cross-session/user coaching memory 继续 defer 给 M3 policy。
+
 ## 怎么检查
 
-重点 tests 在 `backend/tests/robustness/agent/memoryGroundingAndPolicy.test.js`、`voiceMemoryPolicy.test.js`、`userCoachingMemoryProvenance.test.js`、`userInterviewMemoryProjection.test.js`、`userInterviewMemoryPlanning.test.js`，以及 `backend/tests/robustness/contracts/harnessRunCorrelationService.test.js`、`harnessRunTraceService.test.js` 和 `harnessPersistenceTrace.test.js`。M3 deterministic eval 的五个 eligible cases 中 same-depth repeat 从 5 降到 0、untouched coverage 从 0 升到 5、wrong suppression 为 0，且 evaluator output 不变；真人 repeated sessions 仍未验证。Automated browser H1 的两笔 interview runs 和四笔 memory writes 也已持久化，但使用 test STT/TTS 与 mock AI，不能推定 production correlation。
+重点 tests 在 `backend/tests/robustness/agent/memoryGroundingAndPolicy.test.js`、`voiceMemoryPolicy.test.js`、`userCoachingMemoryProvenance.test.js`、`userInterviewMemoryProjection.test.js`、`userInterviewMemoryPlanning.test.js`，以及 `backend/tests/robustness/contracts/harnessRunCorrelationService.test.js`、`harnessRunTraceService.test.js`、`harnessPersistenceTrace.test.js` 和 `harnessExecutableControls.test.js`。M3 deterministic eval 的五个 eligible cases 中 same-depth repeat 从 5 降到 0、untouched coverage 从 0 升到 5、wrong suppression 为 0，且 evaluator output 不变；真人 repeated sessions 仍未验证。Automated browser H1 的两笔 interview runs 和四笔 memory writes 也已持久化，但使用 test STT/TTS 与 mock AI，不能推定 production correlation。M6 lifecycle privacy test 只证明 local envelope 不复制 payload，不能替代 production operator access/retention review。
 
 继续读 [访谈控制机制](feature-interview-control.md)，看 memory 和 trace 在下一问选择中的位置。
 

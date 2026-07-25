@@ -28,7 +28,8 @@ report generator 会建立 accepted-answer dataset、turn rubrics、scores、tra
 | QA agent | [report QA agent](../../backend/src/services/agents/reportQaAgent.js) | quality flags、consistency checks、blocking flags |
 | Repair loop | [QA repair orchestrator](../../backend/src/services/report/reportQaRepairOrchestratorService.js) | bounded wording repair |
 | M4 report harness | [report workflow harness](../../backend/src/services/harness/reportWorkflowHarness.js)、[publication policy](../../backend/src/services/harness/reportPublicationPolicy.js) | 记录 refs-only run、QA gate、failure 和 repair lineage；目前 observe only |
-| UI/export | [Role-Fit report section](../../frontend/src/components/report/RoleFitReportSection.jsx)、[report components](../../frontend/src/components/report) | plain-language role focus、answer alignment、evidence、risks、turn breakdown、TXT/PDF |
+| Candidate status API | [publication summary service](../../backend/src/services/report/reportPublicationSummaryService.js)、[report controller](../../backend/src/controllers/reportController.js) | 把 persisted report status 映射为 allowlisted `report_publication_summary_v1`，不复制 QA flags 或内部推理 |
+| UI/export | [Report Trust Status](../../frontend/src/components/report/ReportTrustStatusCard.jsx)、[Role-Fit report section](../../frontend/src/components/report/RoleFitReportSection.jsx)、[report components](../../frontend/src/components/report) | 显示安全的 verification explanation、recheck/regenerate action、role focus、evidence、risks、turn breakdown；TXT/PDF 行为不变 |
 
 ## Publication harness 当前边界
 
@@ -36,9 +37,13 @@ report generator 会建立 accepted-answer dataset、turn rubrics、scores、tra
 
 `qa_report` 只验证和持久化 QA，不会 silent rewrite。现有 `generate_report` 仍包含 bounded inline wording repair；harness 会记录 `legacyInlineRepairObserved=true` 和 `explicitChildRunsComplete=false`。在 repair 变成 explicit action/child run、完成 false-block 人工校准并决定 visibility/download/export policy 前，不能进入 enforcement。
 
+Candidate 现在会在报告页看到独立的 Report Trust Status。`ready`、`ready_after_repair`、`needs_review`、`repair_failed` 分别映射为已检查、修复后已检查、需要复核、验证未完成的安全说明；需要时可重新检查或重新生成。API 只回传 allowlisted summary，不回传 raw QA flags、prompt、candidate evidence text 或 internal trace。这个 UI 没有改变 persisted status authority，也没有改变下载、TXT/PDF export 或 candidate visibility。
+
+M6 同时记录 report write decision，但目前会诚实标示 `sideEffectStatus=completed_before_observe_gate`：现有 controller 先持久化，harness 再观察。该 decision 仍是 `enforced=false`，因此不能用来宣称 publication 已被 pre-write gate 阻挡。
+
 ## 怎么检查
 
-报告测试集中在 `backend/tests/robustness/report`、`backend/tests/robustness/contracts/reportPublicationPolicy.test.js`、`reportWorkflowHarness.test.js` 和 frontend report view/API tests。它们测试的不是“报告看起来有文字”，而是 accepted-answer-only、Answer Alignment v2 六分项、alignment score 0-100、evidence-use diagnosis、Role-Fit diagnostics、evidence IDs、must-cover coverage、QA blocking、turn export count、rewrite safety，以及 UI/TXT/PDF legacy/unavailable behavior。M4 eval 覆盖现有 17 个 critical flags，false negative 为 0；unsupported noncritical claim 仍会进入 review，不会标成 publishable。2026-07-11 已新增 `npm run test:e2e:role-fit-visual`，用 browser mock API 截取 Role-Fit report desktop/mobile screenshots；component tests 和 visual gate 分開記錄。
+报告测试集中在 `backend/tests/robustness/report`、`backend/tests/robustness/contracts/reportPublicationPolicy.test.js`、`reportWorkflowHarness.test.js`、`reportPublicationSummary.test.js` 和 frontend report view/API tests。它们测试的不是“报告看起来有文字”，而是 accepted-answer-only、Answer Alignment v2 六分项、alignment score 0-100、evidence-use diagnosis、Role-Fit diagnostics、evidence IDs、must-cover coverage、QA blocking、candidate-safe status、turn export count、rewrite safety，以及 UI/TXT/PDF legacy/unavailable behavior。M4 eval 覆盖现有 17 个 critical flags，false negative 为 0；unsupported noncritical claim 仍会进入 review，不会标成 publishable。`npm run test:e2e:role-fit-visual` 现在会同时截取 Role-Fit 和 Report Trust Status 的 desktop/mobile screenshots；component tests 和 visual gate 分开记录。
 
 继续读 [report generator agent](agent-report-generator.md) 和 [report QA agent](agent-report-qa.md)。
 

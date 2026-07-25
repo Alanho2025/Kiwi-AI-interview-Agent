@@ -220,6 +220,18 @@ const installApiMocks = async (page) => {
       await route.fulfill(jsonResponse(success({ uploadId: 'visual-recording-upload', state: 'receiving' })));
       return;
     }
+    if (
+      method === 'GET'
+      && url.pathname === '/api/recordings/session-audio/uploads/visual-recording-upload/status'
+    ) {
+      await route.fulfill(jsonResponse(success({
+        uploadId: 'visual-recording-upload',
+        available: true,
+        serverDurable: true,
+        state: 'ready',
+      })));
+      return;
+    }
 
     await route.fulfill(jsonResponse({ success: false, message: `Unhandled mock route: ${method} ${url.pathname}` }, 404));
   });
@@ -230,6 +242,8 @@ const installApiMocks = async (page) => {
 const captureReport = async (page, suffix, viewport) => {
   await page.setViewportSize(viewport);
   await page.goto(`${BASE_URL}/report/${SESSION_ID}`);
+  const trustStatus = page.getByRole('status', { name: 'Report verification status' });
+  await trustStatus.getByText('Report checks complete').waitFor({ timeout: 10000 });
   await page.getByText('How your answers matched this role').waitFor({ timeout: 10000 });
   await page.getByText('Answer-by-answer role fit').waitFor({ timeout: 10000 });
   await page.getByText(/Question alignment: 18/i).waitFor({ timeout: 10000 });
@@ -244,7 +258,21 @@ const captureReport = async (page, suffix, viewport) => {
   await roleFitSection.screenshot({ path: screenshotPath });
   const screenshotStat = await fs.stat(screenshotPath);
   assert(screenshotStat.size > 10_000, `Expected non-empty ${suffix} screenshot, got ${screenshotStat.size} bytes`);
-  return { suffix, path: screenshotPath, bytes: screenshotStat.size, viewport };
+  const trustScreenshotPath = path.join(OUTPUT_ROOT, `report-trust-status-${suffix}.png`);
+  await trustStatus.screenshot({ path: trustScreenshotPath });
+  const trustScreenshotStat = await fs.stat(trustScreenshotPath);
+  assert(
+    trustScreenshotStat.size > 2_000,
+    `Expected non-empty ${suffix} report trust screenshot, got ${trustScreenshotStat.size} bytes`,
+  );
+  return {
+    suffix,
+    path: screenshotPath,
+    bytes: screenshotStat.size,
+    trustStatusPath: trustScreenshotPath,
+    trustStatusBytes: trustScreenshotStat.size,
+    viewport,
+  };
 };
 
 export const run = async () => {
@@ -300,6 +328,7 @@ export const run = async () => {
         'role_fit_section_visible',
         'answer_alignment_visible',
         'question_reasoning_visible',
+        'candidate_safe_report_trust_status_visible',
         'desktop_screenshot_non_empty',
         'mobile_screenshot_non_empty',
       ],

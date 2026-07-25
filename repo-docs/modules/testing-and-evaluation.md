@@ -37,7 +37,7 @@
 | `npm run test:all` | hooks、utils、components、API wrapper |
 | `npm run test:voice` | voice panel、voice session hook、VAD、latency trace |
 | `npm run test:e2e:question-pipeline` | browser-level question pipeline flow |
-| `npm run test:e2e:role-fit-visual` | Role-Fit report browser visual gate，輸出 desktop/mobile screenshots |
+| `npm run test:e2e:role-fit-visual` | Role-Fit 与 Report Trust Status browser visual gate，输出 desktop/mobile screenshots |
 | `npm run test:e2e:voice-real-backend` | 用 test STT/TTS providers 跑 real backend duplex voice browser flow |
 | `npm run test:e2e:harness-h1-voice` | Harness OFF/ON 各跑两 turn、正式结束/report，并检查 durable run、memory correlation、privacy 和 latency |
 | `npm run test:e2e:recording-recovery` | IndexedDB/background upload recovery |
@@ -48,7 +48,7 @@
 
 `backend/eval/runners` 覆盖 CV parse、JD parse、SEEK benchmark、CV-JD match、interview controller、report QA、baseline comparison、retrieval、agent trajectory、Role-Fit v2 adversarial、human calibration、Role-Fit release gate、E2E refine release gate、company research、voice quality、stability、preparation stability、voice robustness 和 harness M1-M5。runtime retrieval/trajectory 与舊 safety fixture 有獨立命令和報告，避免把 fixture score 當成真實 retriever 品質。Role-Fit v2 adversarial runner 檢查本地 deterministic coverage，並依 paired calibration summary 決定 release threshold claim；目前 12/12 calibration 完成、threshold 0.85。
 
-本轮 harness gate 的最新 mock-safe regression 是 backend 15 groups / 628 tests，以及 frontend 56 files / 309 tests、lint、production build。Harness eval 是 M1 11/11、M2 8/8、M3 wrong suppression 0、M4 critical false negative 0/17、M5 voice robustness 8/8；browser H1 2/2 turns，但 first audio 只有 1/2 达到三秒 SLO。Real AI、真人麦克风、live provider 和 production observe 没有被这些 local 结果取代。
+本轮 M6 first slice 的最新 mock-safe regression 是 backend `npm run test:all` 所有 groups 通过，随后 latest contract group 75/75；frontend `npm run quality:all` 61 files / 329 tests、lint、production build。`npm run test:e2e:role-fit-visual` 通过，并新增 Report Trust Status desktop/mobile screenshots。M6 focused contract 覆盖 fixed capability、preflight/postflight、DeepSeek usage correlation、budget unavailable、developer query、write decision、candidate-safe publication summary 与 privacy。既有 harness eval 仍是 M1 11/11、M2 8/8、M3 wrong suppression 0、M4 critical false negative 0/17、M5 voice robustness 8/8；browser H1 2/2 turns，但 first audio 只有 1/2 达到三秒 SLO。Real AI、真人麦克风、live provider、cancellation/late-result suppression 和 production observe 没有被这些 local 结果取代。
 
 ## 为什么这样测
 

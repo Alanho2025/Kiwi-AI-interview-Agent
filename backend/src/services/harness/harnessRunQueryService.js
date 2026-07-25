@@ -20,6 +20,7 @@ const toDeveloperTimeline = (run = {}) => ({
   memoryWrites: run.memoryWrites || [],
   failures: run.failures || [],
   resultRefs: run.resultRefs || [],
+  executionControls: run.executionControls || {},
   timeline: run.timeline || [],
   correlation: run.correlation || {},
   latency: run.latency || {},

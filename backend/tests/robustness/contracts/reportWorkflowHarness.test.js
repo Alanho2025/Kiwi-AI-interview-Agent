@@ -48,6 +48,36 @@ describe('M4 report workflow harness', () => {
       lifecycleStatus: 'completed',
       qualityStatus: 'blocked',
       publicationStatus: 'needs_review',
+      taskContract: expect.objectContaining({
+        schemaVersion: 'task_contract_v1',
+        allowedCapabilityRefs: [
+          'capability:retrieval:v1',
+          'capability:reportGenerator:v1',
+          'capability:reportQa:v1',
+        ],
+      }),
+      executionControls: expect.objectContaining({
+        preflight: expect.objectContaining({
+          status: 'review',
+          controllerAction: 'continue_observe',
+        }),
+        budgetLedger: expect.objectContaining({
+          budgetStatus: 'unavailable',
+        }),
+        resultEnvelope: expect.objectContaining({
+          publicationStatus: 'needs_review',
+          validationStatus: 'partial',
+          nextStep: { type: 'wait_for_review', ref: null },
+        }),
+        writeGateDecisions: [
+          expect.objectContaining({
+            decisionType: 'report_write',
+            decision: 'review',
+            enforced: false,
+            sideEffectStatus: 'completed_before_observe_gate',
+          }),
+        ],
+      }),
       gateResults: [expect.objectContaining({
         gateType: 'report_publication_allowed',
         status: 'block',
@@ -197,5 +227,50 @@ describe('M4 report workflow harness', () => {
 
     expect(result).toBe(productResult);
     expect(appendRun).not.toHaveBeenCalled();
+  });
+
+  it('records actual fixed-registry capability calls without payloads', async () => {
+    const appendRun = vi.fn().mockResolvedValue(null);
+    const capabilityRegistry = {
+      retrieval: vi.fn().mockResolvedValue({ privateEvidence: 'private retrieval result' }),
+      reportGenerator: vi.fn().mockResolvedValue({ privateReport: 'private report result' }),
+      reportQa: vi.fn().mockResolvedValue({ passed: true }),
+    };
+    let tick = 0;
+
+    await runReportTaskWithHarness({
+      enabled: true,
+      executionMode: 'observe',
+      taskType: 'generate_report',
+      session,
+      capabilityRegistry,
+      executeController: async ({ capabilityRegistry: observedRegistry }) => {
+        await observedRegistry.retrieval({ query: 'private candidate query' });
+        await observedRegistry.reportGenerator({ transcript: 'private candidate transcript' });
+        await observedRegistry.reportQa({ report: 'private candidate report' });
+        return {
+          report: { summary: 'private generated report summary' },
+          qaResult: { passed: true, qualityFlags: [] },
+          stored: { latestStatus: 'ready' },
+        };
+      },
+      appendRun,
+      workflowRunIdFactory: () => 'report-run-capability-observation',
+      now: () => new Date(Date.parse('2026-07-26T00:00:00.000Z') + (tick++ * 100)),
+    });
+
+    const run = appendRun.mock.calls[0][0];
+    expect(run.executionControls.capabilityCalls).toHaveLength(6);
+    expect(run.executionControls.capabilityCalls.map((event) => event.eventType))
+      .toEqual([
+        'capability_call_started',
+        'capability_call_completed',
+        'capability_call_started',
+        'capability_call_completed',
+        'capability_call_started',
+        'capability_call_completed',
+      ]);
+    expect(JSON.stringify(run.executionControls.capabilityCalls))
+      .not.toMatch(/private candidate|private retrieval result|private report result/);
   });
 });

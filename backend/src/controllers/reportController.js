@@ -22,6 +22,12 @@ import { createUploadedFileRecord } from '../services/fileRepositoryService.js';
 import { createAuditLog } from '../services/auditService.js';
 import { logger, getRequestLogMeta } from '../utils/logger.js';
 import { getSessionExecutionCost } from '../services/aiUsageTrackingService.js';
+import { buildCandidateReportPublicationSummary } from '../services/report/reportPublicationSummaryService.js';
+
+const attachCandidatePublicationSummary = (value = {}, latestStatus = value?.latestStatus) => ({
+  ...value,
+  publicationSummary: buildCandidateReportPublicationSummary({ latestStatus }),
+});
 
 export const generateReport = asyncHandler(async (req, res) => {
   const sessionId = requireBodyField(req, 'sessionId', 'sessionId is required');
@@ -34,7 +40,10 @@ export const generateReport = asyncHandler(async (req, res) => {
   const executionCost = await getSessionExecutionCost({ userId: user.id, sessionId });
   result.executionCost = executionCost;
   result.commercialStressTest = executionCost?.commercialStressTest || null;
-  res.json(formatSuccess('Report generated', result));
+  res.json(formatSuccess(
+    'Report generated',
+    attachCandidatePublicationSummary(result, result.stored?.latestStatus),
+  ));
 });
 
 export const qaReport = asyncHandler(async (req, res) => {
@@ -48,7 +57,10 @@ export const qaReport = asyncHandler(async (req, res) => {
   const executionCost = await getSessionExecutionCost({ userId: user.id, sessionId });
   result.executionCost = executionCost;
   result.commercialStressTest = executionCost?.commercialStressTest || null;
-  res.json(formatSuccess('Report QA completed', result));
+  res.json(formatSuccess(
+    'Report QA completed',
+    attachCandidatePublicationSummary(result, result.stored?.latestStatus),
+  ));
 });
 
 export const getReport = asyncHandler(async (req, res) => {
@@ -71,7 +83,10 @@ export const getReport = asyncHandler(async (req, res) => {
     executionCost,
     commercialStressTest: executionCost?.commercialStressTest || null,
   };
-  res.json(formatSuccess('Report retrieved', reportWithCost));
+  res.json(formatSuccess(
+    'Report retrieved',
+    attachCandidatePublicationSummary(reportWithCost),
+  ));
 });
 
 /**

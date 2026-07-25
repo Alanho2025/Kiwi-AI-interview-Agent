@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "m6_capability_coverage_v1",
+  "generatedAt": "2026-07-26T11:00:23+12:00",
+  "sourceRevision": "6e453bc + current_worktree",
+  "status": "local_pass",
+  "formalTasks": [
+    "interview_next_turn",
+    "generate_report",
+    "qa_report"
+  ],
+  "registeredCapabilities": [
+    "retrieval",
+    "interviewer",
+    "reportGenerator",
+    "reportQa",
+    "interviewEvaluator"
+  ],
+  "coverage": {
+    "policyMetadata": "5/5",
+    "runtimeSource": "Object.keys(agentRegistry)",
+    "payloadCopiedToLifecycleEvents": false
+  },
+  "remainingGates": [
+    "production denial telemetry",
+    "enforcement thresholds",
+    "live provider usage completeness"
+  ]
+}

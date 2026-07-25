@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "m6_operator_privacy_v1",
+  "generatedAt": "2026-07-26T11:00:23+12:00",
+  "sourceRevision": "6e453bc + current_worktree",
+  "status": "local_partial",
+  "operator": {
+    "executionControlsPersisted": true,
+    "existingOwnerScopedDeveloperQuery": true,
+    "developerQueryReturnsExecutionControls": true,
+    "productionRoleAndBreakGlass": false,
+    "productionRetentionPolicy": false
+  },
+  "candidate": {
+    "summarySchema": "report_publication_summary_v1",
+    "rawQaFlagsExposed": false,
+    "internalTraceExposed": false,
+    "exportBehaviorChanged": false
+  },
+  "verification": {
+    "frontendTests": "61 files / 329 tests",
+    "frontendLint": "pass",
+    "frontendBuild": "pass",
+    "browserVisual": "pass"
+  }
+}

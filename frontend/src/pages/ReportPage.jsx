@@ -25,6 +25,7 @@ import { ReportActionBar } from '../components/report/ReportActionBar.jsx';
 import { RecordingStatusCard } from '../components/report/RecordingStatusCard.jsx';
 import { ReportDetailSections } from '../components/report/ReportDetailSections.jsx';
 import { ReportHeroCard } from '../components/report/ReportHeroCard.jsx';
+import { ReportTrustStatusCard } from '../components/report/ReportTrustStatusCard.jsx';
 import { ScoreBreakdownCard } from '../components/report/ScoreBreakdownCard.jsx';
 import { CommercialStressTestSection } from '../components/report/CommercialStressTestSection.jsx';
 import { CommunicationAuthenticitySection } from '../components/report/CommunicationAuthenticitySection.jsx';
@@ -35,6 +36,7 @@ import { LoadingInsightPanel } from '../components/common/LoadingInsightPanel.js
 import { useReportData } from '../hooks/useReportData.js';
 import { buildReportViewModel } from '../utils/reportView/index.js';
 import { useTour } from '../contexts/TourContext.jsx';
+import { resolveReportPublicationSummary } from '../utils/reportPublicationSummary.js';
 
 const REPORT_TOUR_STEPS = [
   {
@@ -80,6 +82,9 @@ export function ReportPage() {
     recordingStatus,
   } = useReportData(sessionId);
   const viewModel = buildReportViewModel(reportData);
+  const publicationSummary = reportData
+    ? resolveReportPublicationSummary(reportData)
+    : null;
   const { startTour, globalTourStep, advanceGlobalTour } = useTour();
 
   useEffect(() => {
@@ -96,6 +101,12 @@ export function ReportPage() {
       <AppHeader />
       <main className="mx-auto max-w-6xl space-y-4 sm:space-y-6 px-4 py-6 sm:px-6 sm:py-8">
         <StatusBanner {...status} />
+        <ReportTrustStatusCard
+          summary={publicationSummary}
+          loading={loading}
+          onRecheck={() => handleQa('')}
+          onRegenerate={handleGenerate}
+        />
         <ReportActionBar 
           loading={loading} 
           onGenerate={handleGenerate} 

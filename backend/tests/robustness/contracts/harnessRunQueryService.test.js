@@ -23,6 +23,30 @@ describe('M1 developer harness run query', () => {
         memoryWrites: [],
         failures: [],
         resultRefs: ['session_question:session-query-1:2'],
+        executionControls: {
+          schemaVersion: 'harness_execution_controls_v1',
+          preflight: {
+            status: 'review',
+            reasonCodes: ['numeric_budget_not_frozen'],
+          },
+          budgetLedger: {
+            actualModelCalls: 2,
+            actualInputTokens: 180,
+            actualOutputTokens: 45,
+            actualEstimatedCost: 0.003,
+            budgetStatus: 'unavailable',
+          },
+          resultEnvelope: {
+            validationStatus: 'valid',
+            nextStep: { type: 'continue', ref: null },
+          },
+          capabilityCalls: [{
+            capabilityId: 'interviewer',
+            status: 'completed',
+            durationMs: 250,
+          }],
+          writeGateDecisions: [],
+        },
         timeline: [],
         privacy: { rawSnapshotAllowed: false },
         schemaVersion: 'workflow_run_v0',
@@ -46,6 +70,18 @@ describe('M1 developer harness run query', () => {
         workflowRunId: 'run-query-1',
         contextPackets: [{ contextPacketId: 'context-query-1', sources: [] }],
         actionContracts: [{ selectedAction: 'ASK_PROBING_QUESTION' }],
+        executionControls: expect.objectContaining({
+          schemaVersion: 'harness_execution_controls_v1',
+          budgetLedger: expect.objectContaining({
+            actualModelCalls: 2,
+            actualInputTokens: 180,
+          }),
+          capabilityCalls: [{
+            capabilityId: 'interviewer',
+            status: 'completed',
+            durationMs: 250,
+          }],
+        }),
         privacy: { rawSnapshotAllowed: false },
       }),
     ]);
