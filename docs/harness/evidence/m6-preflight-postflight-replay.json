@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "m6_preflight_postflight_replay_v1",
+  "generatedAt": "2026-07-26T11:00:23+12:00",
+  "sourceRevision": "6e453bc + current_worktree",
+  "status": "local_pass_shadow_observe",
+  "checks": {
+    "taskIdentity": true,
+    "ownerAndContextRefs": true,
+    "actualRegistryCoverage": true,
+    "budgetAvailability": true,
+    "postflightResultEnvelope": true,
+    "controllerResultPreserved": true,
+    "featureFlagOffBypass": true
+  },
+  "remainingGates": [
+    "live provider replay",
+    "production rollback exercise",
+    "warn and enforce approval"
+  ]
+}

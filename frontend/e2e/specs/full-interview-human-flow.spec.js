@@ -135,6 +135,24 @@ const buildJdRubric = ({ degraded = false } = {}) => ({
     warnings: degraded ? ['JD is low-detail and needs human review.'] : [],
     missingSections: degraded ? ['technicalSkills'] : [],
   },
+  roleFit: {
+    companyUnderstanding: {
+      summary: degraded
+        ? 'Ambiguous Co supports a mixed customer-facing product team.'
+        : 'Human Flow Ltd builds customer-facing software products.',
+    },
+    roleIntent: {
+      items: [{
+        id: degraded ? 'intent:technical-evidence' : 'intent:react-ownership',
+        statement: degraded ? 'Show relevant technical evidence.' : 'Own React delivery and validate outcomes.',
+        priority: 'high',
+        category: 'requirement',
+        sourceLabel: 'JD must-have requirement',
+        sourceConfidence: degraded ? 'low' : 'high',
+        reviewConfidence: 'unreviewed',
+      }],
+    },
+  },
   metadata: { confidence: degraded ? 0.56 : 0.95 },
 });
 
@@ -401,8 +419,13 @@ const completePreparationFlow = async (page, { scenario }) => {
   await page.getByRole('button', { name: /Mark edited CV as reviewed|Mark CV as reviewed/ }).click();
   await page.getByText('CV parse reviewed').waitFor({ timeout: 10000 });
 
-  await page.getByPlaceholder('Copy the job requirements from SEEK or LinkedIn here...').fill(
+  await page.getByLabel('Paste Job Description (JD) or URL').fill(
     degraded ? 'Low-detail JD. We need strong technical skills and communication.' : 'Frontend Developer role requiring React, testing evidence, and communication.'
+  );
+  await page.getByLabel('Manual company context').fill(
+    degraded
+      ? 'Ambiguous Co supports a mixed customer-facing product team.'
+      : 'Human Flow Ltd builds customer-facing software products.'
   );
   await page.getByRole('button', { name: /Summarise JD/ }).click();
   await page.getByRole('heading', { name: 'JD Summary' }).waitFor({ timeout: 10000 });

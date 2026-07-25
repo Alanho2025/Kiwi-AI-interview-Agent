@@ -34,6 +34,7 @@ const HarnessWorkflowRunSchema = new mongoose.Schema(
     correlation: { type: mongoose.Schema.Types.Mixed, default: {} },
     latency: { type: mongoose.Schema.Types.Mixed, default: {} },
     privacy: { type: mongoose.Schema.Types.Mixed, default: {} },
+    executionControls: { type: mongoose.Schema.Types.Mixed, default: {} },
     startedAt: { type: Date, required: true, index: true },
     completedAt: { type: Date, default: null },
     retentionUntil: { type: Date, required: true },

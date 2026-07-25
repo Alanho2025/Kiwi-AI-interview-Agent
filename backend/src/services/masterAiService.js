@@ -25,7 +25,7 @@ import { selectActionWithModel } from './aiControl/modelActionSelectorService.js
 import { resolveVoiceAgentDecisionOnce } from './aiControl/voiceAgentDecisionService.js';
 import { updateAgentMemory } from './aiControl/agentMemoryService.js';
 import { executeInterviewAction } from './aiControl/interviewActionExecutor.js';
-import { evaluateInterviewTurn, persistEvaluatorRecord } from './aiControl/interviewEvaluatorService.js';
+import { persistEvaluatorRecord } from './aiControl/interviewEvaluatorService.js';
 import { buildTrajectoryStep, persistTrajectoryStep } from './aiControl/trajectoryService.js';
 import { executeReportAction } from './aiControl/reportActionExecutor.js';
 import { buildEvidenceBundle } from './aiControl/evidenceBundleService.js';
@@ -261,6 +261,7 @@ const runInterviewController = async ({
   trace = null,
   workflowRunId = null,
   harnessObserver = () => {},
+  capabilityRegistry = agentRegistry,
 }) => {
   enqueueBackgroundJob('trace-answer-evaluated-start', () => recordAgentTraceEvent({
     sessionId: session.id,
@@ -334,7 +335,7 @@ const runInterviewController = async ({
   } else {
     // Fall back to original flow
     await measureAdaptiveStep(trace, 'adaptive.indexing_check', () => ensureSessionArtifactsIndexed(session.id));
-    initialRetrievalBundle = await measureAdaptiveStep(trace, 'adaptive.retrieval', () => agentRegistry.retrieval(
+    initialRetrievalBundle = await measureAdaptiveStep(trace, 'adaptive.retrieval', () => capabilityRegistry.retrieval(
       buildInterviewRetrievalInput({ session, payload, objective: 'bootstrap_interview_context' })
     ));
     baseEnvironment = await measureAdaptiveStep(trace, 'adaptive.environment_build', () => buildInterviewEnvironment({ session, retrievalBundle: initialRetrievalBundle }));
@@ -393,7 +394,11 @@ const runInterviewController = async ({
     ...baseEnvironment,
     latestAnswerUnderstanding,
   };
-  const evaluatorOutput = await measureAdaptiveStep(trace, 'adaptive.turn_evaluation', () => evaluateInterviewTurn({ environment }));
+  const evaluatorOutput = await measureAdaptiveStep(
+    trace,
+    'adaptive.turn_evaluation',
+    () => capabilityRegistry.interviewEvaluator({ environment }),
+  );
   enqueueBackgroundJob('persist-evaluator-record', () => persistEvaluatorRecord({ sessionId: session.id, evaluation: evaluatorOutput }), {
     sessionId: session.id,
     workflowRunId,
@@ -599,7 +604,7 @@ decisionType: AGENT_DECISION_TYPES.SELECT_ACTION,
     selectedAction: plan.selectedAction,
     decisionContext,
     actionInput: plan.actionInput,
-    agentRegistry,
+    agentRegistry: capabilityRegistry,
     session,
     onSentence,
   }));
@@ -810,6 +815,7 @@ const runReportController = async ({
   session,
   workflowRunId = null,
   harnessObserver = () => {},
+  capabilityRegistry = agentRegistry,
 }) => {
   await recordAgentTraceEvent({
     sessionId: session.id,
@@ -819,7 +825,7 @@ const runReportController = async ({
     payload: { taskType: 'generate_report' },
   });
   const indexingStatus = await indexReportSessionArtifactsSafely({ sessionId: session.id });
-  const retrievalBundle = await agentRegistry.retrieval({
+  const retrievalBundle = await capabilityRegistry.retrieval({
     query: buildDefaultRetrievalQuery({ session, mode: 'report' }),
     sessionId: session.id,
     sourceTypes: ['cv_profile', 'jd_rubric', 'interview_plan', 'prepared_question_pool', 'transcript'],
@@ -881,7 +887,7 @@ decisionType: AGENT_DECISION_TYPES.SELECT_ACTION,
   const executionResult = await executeReportAction({
     selectedAction: plan.selectedAction,
     decisionContext,
-    agentRegistry,
+    agentRegistry: capabilityRegistry,
     session,
     retrievalBundle,
   });
@@ -952,6 +958,7 @@ const runReportQaController = async ({
   session,
   workflowRunId = null,
   harnessObserver = () => {},
+  capabilityRegistry = agentRegistry,
 }) => {
   const stored = await SessionReport.findOne({ sessionId: session.id }).lean();
   if (!stored?.report) {
@@ -959,7 +966,7 @@ const runReportQaController = async ({
   }
 
   await indexReportSessionArtifactsSafely({ sessionId: session.id });
-  const retrievalBundle = await agentRegistry.retrieval({
+  const retrievalBundle = await capabilityRegistry.retrieval({
     query: `${session.targetRole} report qa evidence`,
     sessionId: session.id,
     sourceTypes: ['cv_profile', 'jd_rubric', 'interview_plan', 'prepared_question_pool', 'transcript'],
@@ -968,7 +975,7 @@ const runReportQaController = async ({
     targetTopic: 'report',
   });
 
-  const qaResult = await agentRegistry.reportQa({
+  const qaResult = await capabilityRegistry.reportQa({
     report: stored.report,
     analysisResult: session.analysisResult || {},
     retrievalBundle,
@@ -1061,13 +1068,15 @@ export const runTask = async ({ taskType, sessionId, payload = {}, onSentence = 
       executionMode: getHarnessExecutionMode(),
       session,
       payload,
-      executeController: ({ observe, workflowRunId }) => runInterviewController({
+      capabilityRegistry: agentRegistry,
+      executeController: ({ observe, workflowRunId, capabilityRegistry }) => runInterviewController({
         session,
         payload,
         onSentence,
         trace,
         workflowRunId,
         harnessObserver: observe,
+        capabilityRegistry,
       }),
       appendRun: scheduleHarnessRunPersistence,
     });
@@ -1083,10 +1092,12 @@ export const runTask = async ({ taskType, sessionId, payload = {}, onSentence = 
       executionMode: getHarnessExecutionMode(),
       taskType,
       session,
-      executeController: ({ workflowRunId, observe }) => runReportController({
+      capabilityRegistry: agentRegistry,
+      executeController: ({ workflowRunId, observe, capabilityRegistry }) => runReportController({
         session,
         workflowRunId,
         harnessObserver: observe,
+        capabilityRegistry,
       }),
       appendRun: scheduleHarnessRunPersistence,
     });
@@ -1103,10 +1114,12 @@ export const runTask = async ({ taskType, sessionId, payload = {}, onSentence = 
       executionMode: getHarnessExecutionMode(),
       taskType,
       session,
-      executeController: ({ workflowRunId, observe }) => runReportQaController({
+      capabilityRegistry: agentRegistry,
+      executeController: ({ workflowRunId, observe, capabilityRegistry }) => runReportQaController({
         session,
         workflowRunId,
         harnessObserver: observe,
+        capabilityRegistry,
       }),
       appendRun: scheduleHarnessRunPersistence,
     });

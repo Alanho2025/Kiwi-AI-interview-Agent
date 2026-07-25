@@ -14,6 +14,13 @@ import {
 } from './harnessObservedContractPolicy.js';
 import { buildReportPublicationDecision } from './reportPublicationPolicy.js';
 import { scheduleHarnessRunPersistence } from './interviewNextTurnShadowHarness.js';
+import {
+  buildHarnessExecutionControlContext,
+  buildObservedWriteGateDecisions,
+  completeHarnessExecutionControls,
+  createObservedCapabilityRegistry,
+} from './harnessExecutableControls.js';
+import { runWithUsageContextPatch } from '../deepseekService.js';
 
 const hashRef = (value) => crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex');
 
@@ -193,6 +200,9 @@ export const buildReportWorkflowRun = ({
   observation = {},
   result = {},
   controllerError = null,
+  executionControlContext = null,
+  capabilityEvents = [],
+  usageEvents = [],
   startedAt,
   completedAt,
 } = {}) => {
@@ -278,6 +288,35 @@ export const buildReportWorkflowRun = ({
     ? [`session_report:${session.id}:${reportVersion}`]
     : [];
   const lifecycleStatus = controllerError ? 'failed' : 'completed';
+  const qualityStatus = controllerError ? 'invalid' : publicationDecision.qualityStatus;
+  const publicationStatus = controllerError ? 'draft' : publicationDecision.publicationStatus;
+  const writeGateDecisions = buildObservedWriteGateDecisions({
+    workflowRunId,
+    taskType,
+    ownerUserId: session.userId,
+    sessionId: session.id,
+    publicationStatus,
+    memoryWrites: [],
+    evaluatedAt: completedAt,
+  });
+  const executionControls = completeHarnessExecutionControls({
+    context: executionControlContext || buildHarnessExecutionControlContext({
+      workflowRunId,
+      taskType,
+      session,
+      executionMode: normalizedMode,
+      evaluatedAt: startedAt,
+    }),
+    completedAt,
+    lifecycleStatus,
+    qualityStatus,
+    publicationStatus,
+    domainResultRef: resultRefs[0] || null,
+    controllerError,
+    capabilityEvents,
+    usageEvents,
+    writeGateDecisions,
+  });
 
   return {
     workflowRunId,
@@ -289,13 +328,12 @@ export const buildReportWorkflowRun = ({
     clientTurnId: null,
     channel: session.mode === 'voice' ? 'voice' : 'text',
     lifecycleStatus,
-    qualityStatus: controllerError ? 'invalid' : publicationDecision.qualityStatus,
-    publicationStatus: controllerError ? 'draft' : publicationDecision.publicationStatus,
+    qualityStatus,
+    publicationStatus,
     taskContract: {
-      schemaVersion: 'task_contract_v0',
+      ...executionControls.taskContract,
       taskContractRef: `${taskType}_v0`,
       taskType,
-      contractVersion: 'v0',
       ownerComponent: 'master_ai_controller',
       objective: taskType === 'qa_report' ? 'verify_report_quality' : 'generate_grounded_report',
       workflowKind: 'agent_task',
@@ -323,6 +361,7 @@ export const buildReportWorkflowRun = ({
     memoryWriteRefs: [],
     failureRefs: failures.map((failure) => failure.failureId),
     resultRefs,
+    executionControls,
     timeline: [
       { eventType: 'workflow_run_started', at: startedAt, ref: workflowRunId },
       { eventType: 'context_packet_assembled', at: startedAt, ref: contextPacketId },
@@ -334,6 +373,7 @@ export const buildReportWorkflowRun = ({
         ref: publicationDecision.gateResult.gateResultId,
       },
       { eventType: controllerError ? 'workflow_run_failed' : 'workflow_run_completed', at: completedAt, ref: workflowRunId },
+      ...executionControls.events,
     ],
     latency: { controllerMs: Math.max(0, new Date(completedAt).getTime() - new Date(startedAt).getTime()) },
     privacy: {
@@ -359,18 +399,52 @@ export const runReportTaskWithHarness = async ({
   executionMode = 'shadow',
   taskType,
   session,
+  capabilityRegistry = null,
   executeController,
   appendRun = scheduleHarnessRunPersistence,
   workflowRunIdFactory = crypto.randomUUID,
   now = () => new Date(),
+  withUsageContext = runWithUsageContextPatch,
 } = {}) => {
   if (!enabled) return executeController({ workflowRunId: null, observe: noOp });
   const workflowRunId = workflowRunIdFactory();
   const startedAt = now().toISOString();
+  const executionControlContext = buildHarnessExecutionControlContext({
+    workflowRunId,
+    taskType,
+    session,
+    executionMode,
+    ...(capabilityRegistry
+      ? { availableCapabilityIds: Object.keys(capabilityRegistry) }
+      : {}),
+    evaluatedAt: startedAt,
+  });
+  const capabilityObservation = capabilityRegistry
+    ? createObservedCapabilityRegistry({
+        workflowRunId,
+        registry: capabilityRegistry,
+        now,
+        withUsageContext,
+      })
+    : {
+        registry: null,
+        events: [],
+        usageEvents: [],
+        recordUsage: noOp,
+      };
   let observation = {};
   const observe = (value = {}) => { observation = value; };
   try {
-    const result = await executeController({ workflowRunId, observe });
+    const result = await withUsageContext({
+      userId: session.userId,
+      sessionId: session.id,
+      workflowRunId,
+      harnessUsageCollector: capabilityObservation.recordUsage,
+    }, () => executeController({
+      workflowRunId,
+      observe,
+      capabilityRegistry: capabilityObservation.registry,
+    }));
     const completedAt = now().toISOString();
     const run = buildReportWorkflowRun({
       workflowRunId,
@@ -379,6 +453,9 @@ export const runReportTaskWithHarness = async ({
       session,
       observation,
       result,
+      executionControlContext,
+      capabilityEvents: capabilityObservation.events,
+      usageEvents: capabilityObservation.usageEvents,
       startedAt,
       completedAt,
     });
@@ -400,6 +477,9 @@ export const runReportTaskWithHarness = async ({
       taskType,
       session,
       controllerError: error,
+      executionControlContext,
+      capabilityEvents: capabilityObservation.events,
+      usageEvents: capabilityObservation.usageEvents,
       startedAt,
       completedAt,
     });

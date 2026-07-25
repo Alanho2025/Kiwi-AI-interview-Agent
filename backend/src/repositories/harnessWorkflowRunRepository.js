@@ -57,6 +57,7 @@ export const createHarnessWorkflowRunRepository = ({ model = HarnessWorkflowRun 
         resultRefs: run.resultRefs,
         latency: run.latency,
         privacy: run.privacy,
+        executionControls: run.executionControls || {},
         correlation: run.correlation || {},
       },
       $push: {

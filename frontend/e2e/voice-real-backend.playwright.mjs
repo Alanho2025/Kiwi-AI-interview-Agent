@@ -409,6 +409,17 @@ const waitForInboundEventCount = async ({ page, type, count }) => {
   );
 };
 
+const waitForOutboundEventCount = async ({ page, type, count }) => {
+  await page.waitForFunction(
+    ({ eventType, expectedCount }) => (
+      window.__kiwiVoiceRealBackendE2E?.outboundTypes
+        ?.filter((value) => value === eventType).length >= expectedCount
+    ),
+    { eventType: type, expectedCount: count },
+    { timeout: 15_000 },
+  );
+};
+
 const endInterviewThroughUi = async (page) => {
   const endResponsePromise = page.waitForResponse((response) => (
     response.request().method() === 'POST'
@@ -524,6 +535,7 @@ const run = async () => {
     await page.goto(`${FRONTEND_BASE_URL}/interview/${sessionId}`);
     await page.getByText('Voice practice mode').waitFor({ timeout: 150_000 });
     await page.getByRole('button', { name: /Start voice interview/i }).click();
+    await waitForOutboundEventCount({ page, type: 'speak_text', count: 1 });
 
     const clientTurnIds = [];
     for (let turnNumber = 1; turnNumber <= EXPECTED_TURN_COUNT; turnNumber += 1) {
@@ -562,6 +574,12 @@ const run = async () => {
     assert(
       result.inboundTypes.filter((type) => type === 'turn_done').length >= EXPECTED_TURN_COUNT,
       `Expected ${EXPECTED_TURN_COUNT} completed voice turns, got ${result.inboundTypes.join(', ')}`,
+    );
+    const initialQuestionIndex = result.events.findIndex((event) => event.direction === 'out' && event.type === 'speak_text');
+    const firstAnswerIndex = result.events.findIndex((event) => event.direction === 'out' && event.type === 'speech_start');
+    assert(
+      initialQuestionIndex >= 0 && firstAnswerIndex > initialQuestionIndex,
+      'Voice flow must send the interviewer question before accepting the first answer.',
     );
     assert(!result.events.some((event) => event.provider && String(event.provider).includes('fallback')), 'Voice real-backend E2E unexpectedly used a fallback STT provider.');
 

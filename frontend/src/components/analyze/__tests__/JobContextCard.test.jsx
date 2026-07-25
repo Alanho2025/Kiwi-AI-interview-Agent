@@ -59,6 +59,32 @@ const renderCard = (overrides = {}) => {
 };
 
 describe('JobContextCard role-fit editing', () => {
+  it('requires company context before the user can summarise a JD', () => {
+    renderCard({
+      structuredJD: '',
+      structuredJDRubric: null,
+      companyWebsiteUrl: '',
+      userCompanyContext: '',
+    });
+
+    expect(screen.getByLabelText('Paste Job Description (JD) or URL')).toHaveValue('Data Engineer at Luma Analytics');
+    expect(screen.getByRole('button', { name: /Summarise JD/i })).toBeDisabled();
+  });
+
+  it('accepts manual company context as the Role-Fit preparation requirement', () => {
+    const props = renderCard({
+      structuredJD: '',
+      structuredJDRubric: null,
+      companyWebsiteUrl: '',
+      userCompanyContext: 'Luma builds analytics products for operations teams.',
+    });
+
+    const summariseButton = screen.getByRole('button', { name: /Summarise JD/i });
+    expect(summariseButton).toBeEnabled();
+    fireEvent.click(summariseButton);
+    expect(props.onSummarize).toHaveBeenCalledTimes(1);
+  });
+
   it('keeps source confidence separate from human review confidence for edited role intent', () => {
     const props = renderCard();
 

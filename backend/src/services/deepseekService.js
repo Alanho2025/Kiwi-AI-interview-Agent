@@ -137,6 +137,11 @@ export const extractUsage = (data) => {
 /** Return the current request's usage context store. */
 export const getUsageContextStore = () => usageContextStorage.getStore();
 
+export const runWithUsageContextPatch = (context = {}, execute) => {
+  const currentContext = getUsageContextStore() || {};
+  return usageContextStorage.run({ ...currentContext, ...context }, execute);
+};
+
 /**
  * Express middleware that wraps downstream handlers in an AsyncLocalStorage run context.
  * Usage: api.use(usageContextMiddleware);
@@ -162,7 +167,7 @@ export const autoRecordUsage = async (usage, action = 'callDeepSeek', metadata =
       import('./aiUsageTrackingService.js'),
     ]);
 
-    await Promise.all([
+    const [, llmUsageEvent] = await Promise.all([
       recordTokenUsage({
         userId: ctx.userId,
         sessionId: ctx.sessionId || null,
@@ -180,6 +185,16 @@ export const autoRecordUsage = async (usage, action = 'callDeepSeek', metadata =
         metadata,
       }),
     ]);
+    if (typeof ctx.harnessUsageCollector === 'function') {
+      ctx.harnessUsageCollector({
+        provider: 'deepseek',
+        model: 'deepseek-chat',
+        capabilityId: ctx.harnessCapabilityId || null,
+        promptTokens: usage.promptTokens,
+        completionTokens: usage.completionTokens,
+        estimatedCost: llmUsageEvent?.estimatedCost ?? null,
+      });
+    }
   } catch (err) {
     console.warn('Failed to record AI usage:', err?.message);
   }

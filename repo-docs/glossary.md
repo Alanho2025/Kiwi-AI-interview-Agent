@@ -26,16 +26,18 @@
 | agent | 这里指一组有输入、决策、输出和 fallback 的服务；并非全部都在 `agentRegistry` 中注册 | [agent registry](modules/agent-registry-and-task-runner.md) |
 | runTask | 后端 AI task runner；按 `taskType` 把 interview next turn、report generation、report QA 等任务接到 retrieval、controller、agent 和 persistence | [agent registry](modules/agent-registry-and-task-runner.md) |
 | workflowRunId | M1 shadow harness 为一次 canonical product turn 建立的 correlation ID；用于关联 action、gate、state、memory、failure 和 late background events，不取代 session/domain record | [访谈控制机制](modules/feature-interview-control.md) |
+| enforced=false | Harness gate 只记录 decision，不会改变 controller、write、visibility 或 export 行为；升级 enforcement 需要所属 domain 的 gate、证据和批准 | [报告与 QA](modules/feature-report-and-qa.md) |
 | SessionAnalysis | MongoDB artifact record；保存 controller state、decision/evaluator/trajectory records、RAG index status、agent memory、report artifacts 等 | [数据与保留](modules/data-persistence-retention.md) |
 | SessionReport | MongoDB report record；保存最新报告、QA result、状态、版本和 repair history | [报告与 QA](modules/feature-report-and-qa.md) |
 | interviewEvaluator | 正式 registry 里的 evaluator callable；把最新答案转成 specificity、evidence、misunderstanding、coverage 等 planner signals | [interview evaluator](modules/agent-interview-evaluator.md) |
 | npm run test:all | package-level broad test command；backend 包含 configured robustness groups including retention，frontend 覆盖 hooks/utils/components，real AI eval 不包含在常规 mock-safe 检查里 | [测试与 evaluation](modules/testing-and-evaluation.md) |
+| npm run quality:all | Frontend aggregate quality gate；依序执行 lint、component/unit tests 和 production build，不等同于 browser、human 或 live-provider validation | [测试与 evaluation](modules/testing-and-evaluation.md) |
 | npm run test:retention | 后端 focused retention lifecycle robustness check；覆盖 audit、backup/quarantine、transaction adapters、policy 和 cleanup planning | [测试与 evaluation](modules/testing-and-evaluation.md) |
 | npm run test:questions | 后端 focused question pipeline robustness check，覆盖 pool、dedupe、ranker、turn orchestration 和 metadata | [测试与 evaluation](modules/testing-and-evaluation.md) |
 | npm run test:report | 后端 focused report robustness check，覆盖 report dataset、QA、grounding、rewrite 和 score consistency | [测试与 evaluation](modules/testing-and-evaluation.md) |
 | npm run test:retrieval | 后端 focused retrieval robustness check，覆盖 RAG payload、quality assessor 和 retrieve-for-turn | [RAG 检索层](modules/rag-retrieval.md) |
 | npm run eval:retrieval | 版本化 synthetic runtime benchmark；共用 production fusion ranker，并分开输出 ranked retrieval 与 claim grounding；不是 real-provider 或已人工校准的 production gate | [测试与 evaluation](modules/testing-and-evaluation.md) |
-| npm run test:e2e:role-fit-visual | Frontend Playwright visual gate；用 mock API 打开 Role-Fit report，验证 Answer Alignment / role-fit evidence UI 并输出 desktop/mobile screenshots | [报告与 QA](modules/feature-report-and-qa.md) |
+| npm run test:e2e:role-fit-visual | Frontend Playwright visual gate；用 mock API 打开报告，验证 Answer Alignment、Role-Fit evidence 与 Report Trust Status，并输出 desktop/mobile screenshots | [报告与 QA](modules/feature-report-and-qa.md) |
 | npm run test:e2e:voice-real-backend | Frontend Playwright real-backend voice flow；使用 test STT/TTS providers 跑 authenticated voice socket，并把 3 秒 next-question SLO 结果写入 artifact | [测试与 evaluation](modules/testing-and-evaluation.md) |
 | npm run test:voice | 后端或前端 voice focused check；具体覆盖取决于从 `backend` 还是 `frontend` 目录运行 | [voice interview](modules/feature-voice-interview.md) |
 | voice confidence gate | 把 ASR transcript 分为 accepted、rejected、needs confirmation 的产品规则层 | [voice interview](modules/feature-voice-interview.md) |

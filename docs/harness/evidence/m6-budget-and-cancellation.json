@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "m6_budget_cancellation_v1",
+  "generatedAt": "2026-07-26T11:00:23+12:00",
+  "sourceRevision": "6e453bc + current_worktree",
+  "status": "partial",
+  "implemented": {
+    "elapsedTime": true,
+    "deepSeekWorkflowCorrelation": true,
+    "deepSeekCapabilityCorrelation": true,
+    "unavailableUsageIsExplicit": true,
+    "pretendsWithinBudget": false
+  },
+  "unavailable": [
+    "approvedNumericCeilings",
+    "mockOrProviderCallsWithoutUsage",
+    "liveProviderCoverageEvidence"
+  ],
+  "notImplemented": [
+    "harnessCancellationPropagation",
+    "lateResultSuppression",
+    "numericBudgetEnforcement"
+  ],
+  "promotionAllowed": false
+}

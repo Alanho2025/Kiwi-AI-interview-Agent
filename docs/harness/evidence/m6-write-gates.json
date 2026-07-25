@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "m6_write_gates_v1",
+  "generatedAt": "2026-07-26T11:00:23+12:00",
+  "sourceRevision": "6e453bc + current_worktree",
+  "status": "observe_only",
+  "decisions": {
+    "reportWrite": {
+      "recorded": true,
+      "enforced": false,
+      "sideEffectStatus": "completed_before_observe_gate"
+    },
+    "sessionMemory": {
+      "recorded": true,
+      "enforced": false
+    },
+    "crossSessionMemory": {
+      "decision": "defer",
+      "owner": "M3 policy"
+    }
+  },
+  "candidateBehaviorChanged": false,
+  "remainingGates": [
+    "pre-write enforcement adapter",
+    "false-block calibration",
+    "visibility and export approval",
+    "production rollback"
+  ]
+}

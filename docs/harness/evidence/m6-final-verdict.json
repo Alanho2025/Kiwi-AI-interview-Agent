@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "m6_final_verdict_v1",
+  "generatedAt": "2026-07-26T11:00:23+12:00",
+  "sourceRevision": "6e453bc + current_worktree",
+  "goalStatus": "in_progress",
+  "verdict": "LOCAL_M6_SHADOW_OBSERVE_SLICE_PASS_ENFORCEMENT_PENDING",
+  "g0Verdict": "LOCAL_HARNESS_FOUNDATION_COMPLETE_G0_NOT_VERIFIED",
+  "localPassed": [
+    "fixed capability observation",
+    "preflight and postflight envelope",
+    "DeepSeek usage correlation and explicit unavailable budget state",
+    "owner scoped developer execution control view",
+    "observed write decisions",
+    "candidate-safe report trust status",
+    "local automated regression and browser visual"
+  ],
+  "machineGatesOpen": [
+    "approved numeric ceilings and live usage completeness",
+    "cancellation and late-result suppression",
+    "pre-write domain enforcement",
+    "production operator policy",
+    "warn and enforce thresholds"
+  ],
+  "humanLiveProductionGatesOpen": [
+    "human copy and accessibility review",
+    "live provider and real cancellation",
+    "production shadow telemetry",
+    "visibility and export policy approval"
+  ]
+}
