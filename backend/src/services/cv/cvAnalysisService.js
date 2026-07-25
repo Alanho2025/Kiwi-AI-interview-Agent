@@ -1,10 +1,31 @@
-import { badRequest } from '../../utils/appError.js';
+import { AppError, badRequest } from '../../utils/appError.js';
+import { validateText } from '../../utils/textProcessing.js';
 import { compareCvToJobDescriptionWithSafeguard } from '../match/guardedMatchService.js';
 import { getOwnedCvDocumentOrThrow } from './cvOwnershipService.js';
 import { assertVerifiedCompanyRoleFitReview } from '../company/companyValuesRepository.js';
 import { measureMatchStep } from '../match/matchPerformanceTraceService.js';
 
-export const runCvJdMatchAnalysis = async ({ cvId, userId, rawJD, jdRubric, settings = {}, performanceTrace = null }) => {
+const assertUsableMatchText = (text, label, settings = {}) => {
+  const minCharLimit = process.env.NODE_ENV === 'test' && !settings.enableLengthValidation ? 10 : 200;
+  const validation = validateText(text, minCharLimit, 50000, label);
+  if (!validation.isValid) {
+    throw new AppError(validation.error.message, {
+      statusCode: 400,
+      code: validation.error.code,
+      details: validation.error.message,
+    });
+  }
+};
+
+export const runCvJdMatchExecution = async ({
+  cvId,
+  userId,
+  rawJD,
+  jdRubric,
+  settings = {},
+  performanceTrace = null,
+  progressReporter = null,
+}) => {
   if (!cvId) {
     throw badRequest('Missing cvId', 'Please provide a CV before starting match analysis.');
   }
@@ -20,6 +41,21 @@ export const runCvJdMatchAnalysis = async ({ cvId, userId, rawJD, jdRubric, sett
     );
   }
 
+  progressReporter?.stageStarted?.('input_validation');
+  const cvDocument = await measureMatchStep(
+    performanceTrace,
+    'cv_document_load',
+    () => getOwnedCvDocumentOrThrow({ cvId, userId }),
+    { cvId },
+  );
+
+  assertUsableMatchText(cvDocument.normalizedText, 'CV', settings);
+  if (typeof rawJD === 'string' && rawJD.trim()) {
+    assertUsableMatchText(rawJD, 'JD', settings);
+  }
+  progressReporter?.stageCompleted?.('input_validation');
+
+  progressReporter?.stageStarted?.('role_fit_gate');
   await measureMatchStep(performanceTrace, 'role_fit_review_gate', () => assertVerifiedCompanyRoleFitReview({
     userId,
     jdFingerprint: jdRubric.roleFit.jdFingerprint,
@@ -29,13 +65,7 @@ export const runCvJdMatchAnalysis = async ({ cvId, userId, rawJD, jdRubric, sett
     hasRoleFitProfileId: Boolean(jdRubric.roleFit.id),
     reviewVersion: jdRubric.roleFit.review?.version,
   });
-
-  const cvDocument = await measureMatchStep(
-    performanceTrace,
-    'cv_document_load',
-    () => getOwnedCvDocumentOrThrow({ cvId, userId }),
-    { cvId },
-  );
+  progressReporter?.stageCompleted?.('role_fit_gate');
 
   const matchData = await measureMatchStep(performanceTrace, 'guarded_match_analysis', () => compareCvToJobDescriptionWithSafeguard({
     normalizedText: cvDocument.normalizedText,
@@ -50,6 +80,8 @@ export const runCvJdMatchAnalysis = async ({ cvId, userId, rawJD, jdRubric, sett
     matchEngine: settings?.matchEngine || process.env.MATCH_ENGINE || 'default',
   });
   return {
+    cvDocument,
+    matchData: {
     ...matchData,
     sourceSnapshots: [
       ...(matchData.sourceSnapshots || []),
@@ -61,5 +93,11 @@ export const runCvJdMatchAnalysis = async ({ cvId, userId, rawJD, jdRubric, sett
         capabilityCount: cvDocument.cvProfile?.evidenceProfile?.functionalCapabilities?.length || 0,
       },
     ],
+    },
   };
+};
+
+export const runCvJdMatchAnalysis = async (input) => {
+  const execution = await runCvJdMatchExecution(input);
+  return execution.matchData;
 };

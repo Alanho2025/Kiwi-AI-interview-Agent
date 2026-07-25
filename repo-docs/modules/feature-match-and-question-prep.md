@@ -8,11 +8,24 @@ match 层把 reviewed CV 和 reviewed JD 变成两类下游资产：可展示的
 
 2026-07-15 的 match output hygiene 修复后，JD section heading（例如 `Skills & Experience:`、`Roles & Responsibilities:`）会在 JD parser、RoleIntentDecoder、semantic evidence target 和 Role Evidence Map 四层被过滤，不能再被当成 role intent 或 requirement 评分。Requirement evidence 还会按最终 status 约束 strength：`met` 才能保留 `strong`，`partial` 最多 `partial`，`inferred` 最多 `weak`，`not_met` 必须是 `missing`；泛化的一词 overlap（例如只匹配到 `engineer`）不能显示成 strong proof。Analyze 前端也会对旧缓存结果做同样的 heading 防御过滤，并隐藏 scorer/debug 术语，PDF/print 下 action card 不再 sticky 覆盖 match 内容。
 
+2026-07-23 的 JobSync 优化先落地为后端切片。所有 match 会先清理 HTML、统一空白和 bullet，并对过短、过长或疑似损坏的 CV/JD 返回 `TOO_SHORT`、`TOO_LONG` 或 `CORRUPTED`。当时还加入 provisional `settings.matchMode = fast` branch，以及 `atsKeywords`、`tailoringTips` 和 `matchMode` output。
+
+2026-07-26 的实现把产品收敛为「一个完整 Match 直接服务 interview preparation」：runtime fast branch、专用 parser 和 ATS/tailoring output 已移除；legacy `settings.matchMode` 即使传入也不会改变 scorer。`POST /api/analyze/match/stream` 现在只观察同一条 canonical pipeline，输出 ordered candidate-safe SSE；Match record 持久化并完成 JD question filter boundary 后才发出 `match_completed`。前端随后单独请求 interview plan，plan preparing 或 failed 都不会隐藏已完成的 Match，plan-only retry 也不会重跑 Match。方向与实现边界见 [Match → Interview Preparation Goal](../../docs/jobsync-match-optimization-goal.md)、[Spec](../../docs/jobsync-match-optimization-spec.md) 和 [UI plan](../../docs/UI_match_plan.md)。
+
+| JobSync 优化项 | 当前状态 | 边界 |
+| --- | --- | --- |
+| 输入清理与损坏防御 | 后端已接入 | focused tests 覆盖 HTML、空白、bullet、长度与连续特殊字元；未在本轮执行真实损坏 PDF 上传 |
+| Fast Match | runtime branch 与专用 parser 已移除 | legacy `matchMode` 被忽略；没有 mode selector 或较弱 scorer |
+| ATS keywords / tailoring tips | runtime output 已移除 | Analyze 不显示 ATS、CV rewrite 或 `Improve your CV for this role` |
+| Current Match streaming | 已实现 canonical SSE route、safe stage reporter 和 frontend parser/reducer | 不串流 partial score；同一 service 仍负责 JSON compatibility route |
+| Match → interview preparation UI | 已分离 Match / plan state，并提高 preparation priorities 层级 | 只显示 bounded focus、gap、题数、hint 和 risk；不暴露完整题库或 private artifacts |
+| Match latency | 已移除重复 CV load，并把 secondary CV/JD reusable-cache warming 移出 response critical path | scorer、evidence judge、critic/recompare、canonical cache write、persistence 和 question filter 不跳过；尚无 real-provider 加速百分比 |
+
 ## 一个代表 case
 
 ```text
 输入: cvId + rawJD/jdRubric + settings
-动作: runCvJdMatchAnalysis -> createMatchAnalysisRecord -> buildJdQuestionFilter -> updateMatchAnalysisPerformanceTrace
+动作: executeCanonicalMatch -> runCvJdMatchExecution -> createMatchAnalysisRecord -> buildJdQuestionFilter
 输出: matchAnalysisId + source-linked evidenceRefs + roleEvidenceMap + performanceTrace + prepared question pool readiness
 边界: 新 match 未带 owner-scoped persisted Role-Fit review 时直接阻挡；旧 `humanReviewStatus` client marker 不再能开启新 match
 ```
@@ -21,9 +34,12 @@ match 层把 reviewed CV 和 reviewed JD 变成两类下游资产：可展示的
 
 | 机制 | 源码入口 | 下游影响 |
 | --- | --- | --- |
-| match API orchestration | [analyze controller](../../backend/src/controllers/analyzeController.js) | 连接 match、audit、usage、JD filter、plan |
+| match API orchestration | [analyze controller](../../backend/src/controllers/analyzeController.js) 和 [canonical Match execution](../../backend/src/services/match/matchAnalysisExecutionService.js) | JSON/SSE 共用 Match、persistence、JD filter 和 trace boundary；plan 保持独立请求 |
+| candidate-safe Match stream | [Match stream event service](../../backend/src/services/match/matchStreamEventService.js) 和 [frontend stream API](../../frontend/src/api/matchStreamApi.js) | 输出 ordered allowlisted stages 和单一 terminal event，不暴露内部 critic/provider 文案 |
 | 详细 CV-JD 匹配与评分管道 | [CV-JD Matching & Scoring Pipeline](../../docs/cv-jd-matching-pipeline.md) | 包含详细數據加載、向量相似度與文字重疊比對、動態領域評分權重、置信度扣分公式、質量評測及 hrtime 高解析度時延追蹤 |
 | CV-JD comparison | [CV analysis service](../../backend/src/services/cv/cvAnalysisService.js) 和 [match services](../../backend/src/services/match) | 产出 strengths、gaps、score、evidence |
+| input guard 与 single-path cleanup | [文字处理工具](../../backend/src/utils/textProcessing.js)、[match service](../../backend/src/services/matchService.js) 和 [match result builder](../../backend/src/services/match/matchResultBuilder.js) | request-scoped input guard 保留；runtime fast/ATS/tailoring branch/output 已移除 |
+| Match / plan frontend state | [Match analysis flow hook](../../frontend/src/hooks/useMatchAnalysisFlow.js) 和 [Analyze page](../../frontend/src/pages/AnalyzePage.jsx) | Match completed 后保留结果；plan preparing/failed/ready 单独转换，failed 只 retry plan |
 | JD heading / candidate hygiene | [JD section heading guard](../../backend/src/services/jobDescription/jobDescriptionSectionHeadingGuard.js)、[semantic evidence service](../../backend/src/services/match/semanticEvidenceService.js) 和 [frontend match view model](../../frontend/src/utils/matchResultViewModel.js) | 防止 JD 标题进入 role intent、requirement、semantic target 或旧结果 UI |
 | candidate evidence strategy | [CV evidence builder](../../backend/src/services/cv/cvEvidenceProfileBuilder.js) | 生成 `candidate_evidence_graph_v2`，保留 stable evidence ID、source trace、proof angles、strength signals 与使用限制 |
 | grounded evidence 分级 | [Role Evidence Map service](../../backend/src/services/match/roleEvidenceMapService.js) | 使用 semantic relevance、requirement/intent fit、specificity、ownership 与 outcome signals 分级，并输出 `fitType`、`proofAngle`、`evidenceGuidance`、`hiringLogicLinks` |
@@ -50,7 +66,9 @@ Analyze 页面只取得 focus area、gap、题数、preparation hint 和 risk �
 
 ## 怎么检查
 
-后端相关测试集中在 `backend/tests/robustness/cv`、`match`、`questions`、`server` 和 `voice`。Candidate Evidence Graph 的 proof angle / guidance / private artifact contract 在 `cvParsingRobustness.test.js`；Role Evidence Map 的 source-trace gate、v2 schema、v1 compatibility marker、evidence guidance、hiring-logic links、JD heading filtering 和 semantic target hygiene 在 `roleEvidenceMapRobustness.test.js`；match latency trace shape 在 `matchPerformanceTraceService.test.js`，service/controller-adjacent step coverage 在 `roleFitMatchCutover.test.js` 和 `guardedMatchHumanReviewRobustness.test.js`。generic one-token evidence、status/strength consistency 和 universal requirement normalization 在 `semanticEvidenceRobustness.test.js`；role intent heading filtering 在 `roleFitJdContextRobustness.test.js`。compact diagnostics contract 在 `roleFitDiagnosticsContract.test.js`、`roleEvidenceMapRobustness.test.js`、`guardedMatchHumanReviewRobustness.test.js`、`roleSpecificPracticePlanner.test.js` 和 `sessionViewRoleFitRedaction.test.js`。proof strategy coverage、preparation guidance、rank adjustment、v2/v3 compatibility、session payload sanitization、真实 transcript ledger shape 和 no-hint live payload 分别由 question/server/voice targeted tests 覆盖。前端 plain-language review 由 `ProofStrategyReviewPanel.test.jsx` 覆盖；Analyze match output copy、heading fallback filtering、status/strength cap 和 print-safe action card 分别由 `AnalysisStatusCard.test.jsx`、`AnalyzeActionsCard.test.jsx` 和 `matchResultViewModel.test.js` 覆盖。
+后端相关测试集中在 `backend/tests/robustness/cv`、`match`、`questions`、`server` 和 `voice`。Candidate Evidence Graph 的 proof angle / guidance / private artifact contract 在 `cvParsingRobustness.test.js`；Role Evidence Map 的 source-trace gate、v2 schema、v1 compatibility marker、evidence guidance、hiring-logic links、JD heading filtering 和 semantic target hygiene 在 `roleEvidenceMapRobustness.test.js`。`jobsyncOptimization.test.js` 现在锁定 input guard、legacy `matchMode` 不改变 canonical semantics，以及 ATS/tailoring output 不再出现；`matchStreamEventService.test.js`、`matchAnalysisExecutionService.test.js`、`roleFitMatchCutover.test.js` 和 `guardedMatchLatency.test.js` 分别覆盖 ordered terminal contract、persistence/question-filter boundary、坏输入在 matcher 前阻挡、CV load reuse 与 non-critical reusable-cache warming。2026-07-26 focused Match gate为 11 files / 57 tests。前端 `matchStreamApi.test.js`、`useMatchAnalysisFlow.test.jsx`、`AnalysisStatusCard.test.jsx`、`AnalyzeActionsCard.test.jsx` 和 `ProofStrategyReviewPanel.test.jsx` 覆盖 stream parser、stale sequence、Match/plan 分离、plan-only retry、真实 stage UI 和 candidate-safe priorities。
+
+Analyze 已沿用这条边界：Match completed 后先显示完整结果；question preparation 尚在执行时只显示 `Preparing your interview focus`；ready 后显示 focus、gap、题数、hint 和 risk。它没有增加 `Improve your CV for this role`、ATS/tailoring 区块，也不会把完整 prepared question text、evidence ID、coverage 或 rank trace 暴露给候选人。Mocked API Playwright human flow 已从 Match stream 走到 preparation ready，并进入 Voice Interview 起始页；这不是 real-provider、真实麦克风或 production 证据。
 
 继续读 [interviewer agent](agent-interviewer.md)，看运行时如何从 prepared pool、follow-up 和 fallback 中选择下一问。
 

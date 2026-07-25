@@ -61,4 +61,41 @@ describe('AnalysisStatusCard match output copy', () => {
     expect(screen.queryByText(/role intent/i)).not.toBeInTheDocument();
     expect(screen.getByText(/Closest CV evidence/i)).toBeInTheDocument();
   });
+
+  it('renders backend-driven Match stages without a fake percentage', () => {
+    render(<AnalysisStatusCard
+      status="matching"
+      progressStages={{
+        input_validation: {
+          id: 'input_validation',
+          label: 'Checking your inputs',
+          status: 'completed',
+        },
+        evidence_match: {
+          id: 'evidence_match',
+          label: 'Matching your CV evidence',
+          status: 'started',
+        },
+      }}
+      currentStage="evidence_match"
+    />);
+
+    expect(screen.getByText('Checking your inputs')).toBeInTheDocument();
+    expect(screen.getByText('Matching your CV evidence')).toBeInTheDocument();
+    expect(screen.queryByText(/%/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/critic|embedding|provider/i)).not.toBeInTheDocument();
+  });
+
+  it('keeps the completed Match visible while interview preparation is running', () => {
+    render(<AnalysisStatusCard
+      status="success"
+      analysisResult={analysisResult}
+      planStatus="preparing"
+      questionPoolInfo={null}
+    />);
+
+    expect(screen.getByText('Match analysis complete')).toBeInTheDocument();
+    expect(screen.getByText('Preparing your interview focus')).toBeInTheDocument();
+    expect(screen.getByText('41')).toBeInTheDocument();
+  });
 });

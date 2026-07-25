@@ -234,7 +234,8 @@ describe('guarded match human review override', () => {
       'match_score_build',
       'role_evidence_map_build',
       'match_result_build',
-      'match_cache_write_warm',
+      'match_cache_write',
+      'match_reusable_cache_warm_scheduled',
     ]));
     expect(traceSnapshot.stepSummary.match_compare_first).toEqual(expect.objectContaining({
       count: 1,

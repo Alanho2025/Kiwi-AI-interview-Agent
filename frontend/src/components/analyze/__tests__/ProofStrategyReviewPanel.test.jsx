@@ -26,7 +26,8 @@ describe('ProofStrategyReviewPanel', () => {
       },
     }} />);
 
-    expect(screen.getByText('Your interview focus is ready')).toBeInTheDocument();
+    expect(screen.getByText('Your interview preparation priorities')).toBeInTheDocument();
+    expect(screen.getByText('Ready')).toBeInTheDocument();
     expect(screen.getByText('4 focus areas')).toBeInTheDocument();
     expect(screen.getByText('2 gaps to explore')).toBeInTheDocument();
     expect(screen.getByText('React delivery experience')).toBeInTheDocument();
@@ -51,7 +52,7 @@ describe('ProofStrategyReviewPanel', () => {
       },
     }} />);
 
-    expect(screen.getByText('Interview focus needs a quick review')).toBeInTheDocument();
+    expect(screen.getByText('Interview preparation needs a quick review')).toBeInTheDocument();
     expect(screen.getByText(/Check the job and company details/i)).toBeInTheDocument();
     expect(screen.queryByText('missing_role_fit_artifacts')).not.toBeInTheDocument();
   });

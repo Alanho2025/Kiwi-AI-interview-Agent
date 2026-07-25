@@ -64,6 +64,22 @@ const jsonResponse = (data, status = 200) => ({
   body: JSON.stringify(data),
 });
 
+const sseResponse = (events = []) => ({
+  status: 200,
+  headers: {
+    'content-type': 'text/event-stream',
+    'cache-control': 'no-cache',
+  },
+  body: events
+    .map((event) => `event: ${event.type}\ndata: ${JSON.stringify({
+      schemaVersion: 'match_stream_event_v1',
+      requestId: `human-flow-${event.sequence}`,
+      occurredAt: new Date().toISOString(),
+      ...event,
+    })}\n\n`)
+    .join(''),
+});
+
 const success = (data = {}, message = 'ok') => ({
   success: true,
   message,
@@ -266,6 +282,10 @@ const installApiMocks = async (page, { scenario }) => {
       await route.fulfill(jsonResponse(success([])));
       return;
     }
+    if (method === 'GET' && url.pathname === '/api/job-description/saved') {
+      await route.fulfill(jsonResponse(success({ savedJDs: [] })));
+      return;
+    }
     if (method === 'POST' && url.pathname === '/api/upload/cv') {
       await route.fulfill(jsonResponse(success(buildCvFile({ degraded }))));
       return;
@@ -292,8 +312,28 @@ const installApiMocks = async (page, { scenario }) => {
       })));
       return;
     }
-    if (method === 'POST' && url.pathname === '/api/analyze/match') {
-      await route.fulfill(jsonResponse(success(buildMatchResult({ degraded }))));
+    if (method === 'POST' && url.pathname === '/api/analyze/match/stream') {
+      const result = buildMatchResult({ degraded });
+      await route.fulfill(sseResponse([
+        {
+          type: 'match_started',
+          sequence: 1,
+          stage: null,
+          data: null,
+        },
+        {
+          type: 'stage_progress',
+          sequence: 2,
+          stage: { id: 'evidence_match', label: 'Matching your CV evidence', status: 'completed' },
+          data: null,
+        },
+        {
+          type: 'match_completed',
+          sequence: 3,
+          stage: { id: 'complete', label: 'Match analysis complete', status: 'completed' },
+          data: { result },
+        },
+      ]));
       return;
     }
     if (method === 'POST' && url.pathname === '/api/analyze/interview-plan') {
@@ -456,7 +496,7 @@ const runScenario = async (browser, scenario) => {
     const requiredCalls = [
       'POST /api/upload/cv',
       'POST /api/job-description/paraphrase',
-      'POST /api/analyze/match',
+      'POST /api/analyze/match/stream',
       'POST /api/analyze/interview-plan',
       `GET /api/session/${sessionId}`,
       'POST /api/interview/start',

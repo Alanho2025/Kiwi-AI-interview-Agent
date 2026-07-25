@@ -22,10 +22,7 @@ import { judgeRequirementEvidenceBatch } from './match/evidenceJudgeService.js';
 import { buildRoleEvidenceMap } from './match/roleEvidenceMapService.js';
 import { markMatchStep, measureMatchStep } from './match/matchPerformanceTraceService.js';
 import { AppError } from '../utils/appError.js';
-import { removeHtmlTags, normalizeWhitespace, normalizeBullets, validateText, parseJobMatch } from '../utils/textProcessing.js';
-import { callDeepSeek } from './deepseekService.js';
-import { validateAnalyzeOutput } from './schemaValidationService.js';
-import { buildAnalyzeOutput } from './scoringSchemaService.js';
+import { removeHtmlTags, normalizeWhitespace, normalizeBullets, validateText } from '../utils/textProcessing.js';
 
 const isSemanticEngineEnabled = (settings = {}) => settings.matchEngine === 'semantic' || process.env.MATCH_ENGINE === 'semantic';
 
@@ -83,57 +80,6 @@ export const compareCvToJobDescription = async (cvInput, rawJD, jdRubric, settin
   );
 
   const parsedCvProfile = typeof cvInput === 'object' && cvInput?.cvProfile ? cvInput.cvProfile : buildCvProfile(cleanCvText);
-
-  if (settings.matchMode === 'fast') {
-    let rawResponse = '';
-    if (process.env.AI_TEST_MODE === 'mock') {
-      rawResponse = 'SCORES: match=80 recommendation=strong\n\n## Summary\nMina Patel has good experience with Python and SQL, making her a strong fit.';
-    } else {
-      const systemPrompt = `You are a fast ATS match assistant. Return a score first.
-The VERY FIRST line of your response MUST be:
-SCORES: match=<0-100> recommendation=<strong|good|partial|weak>
-
-Then a blank line, then a single "## Summary" section containing a 2-3 sentence overall fit assessment.`;
-      const prompt = `CV:\n${cleanCvText}\n\nJD:\n${cleanJD || (baseRubric?.title || '')}`;
-      const { content } = await callDeepSeek(prompt, systemPrompt, { usageMetadata: { stage: 'cv_jd_match', feature: 'fast_match' } });
-      rawResponse = content;
-    }
-
-    const { scores, body } = parseJobMatch(rawResponse);
-    const overallScore = scores ? scores.matchScore : 50;
-    const recommendation = scores ? scores.recommendation : 'partial';
-
-    return validateAnalyzeOutput(
-      buildAnalyzeOutput({
-        candidateName: parsedCvProfile.candidateName || 'Candidate',
-        jobTitle: baseRubric.title || baseRubric.jobTitle || 'Target Role',
-        overallScore,
-        confidence: 0.8,
-        decision: { label: recommendation === 'strong' ? 'strong_match' : recommendation === 'good' ? 'good_match' : 'manual_review', reasonCodes: [] },
-        parsedCvProfile: {
-          ...parsedCvProfile,
-          evidenceProfile: cvInput?.evidenceProfile || parsedCvProfile.evidenceProfile || buildCvEvidenceProfile(parsedCvProfile, cleanCvText),
-          cvAnalysis: parsedCvProfile.cvAnalysis || {},
-        },
-        parsedJdProfile: baseRubric,
-        macroScores: [],
-        microScores: [],
-        requirementChecks: [],
-        scoreBreakdown: { macro: overallScore, micro: overallScore, requirements: overallScore },
-        explanation: { strengths: [], gaps: [], risks: [], summary: body },
-        evidenceMap: [],
-        roleEvidenceMap: undefined,
-        roleFitDiagnostics: undefined,
-        sourceSnapshots: [{ sourceType: 'jd_rubric', title: baseRubric.title, criteriaCount: 0 }],
-        matchingDetails: {},
-        legacy: { interviewFocus: [], planPreview: body },
-        recommendation,
-        atsKeywords: [],
-        tailoringTips: [],
-        matchMode: 'fast',
-      })
-    );
-  }
 
   const semanticEngineEnabled = isSemanticEngineEnabled(settings);
   const universalRoleProfile = semanticEngineEnabled

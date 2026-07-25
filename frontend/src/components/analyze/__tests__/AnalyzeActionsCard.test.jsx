@@ -32,4 +32,33 @@ describe('AnalyzeActionsCard', () => {
     expect(actionCard.className).toContain('print:static');
     expect(actionCard.className).toContain('print:shadow-none');
   });
+
+  it('shows plan preparation separately after the Match completes', () => {
+    render(<AnalyzeActionsCard
+      {...readyProps}
+      generatedSessionId={null}
+      planStatus="preparing"
+      sessionMode="voice"
+      isVoiceReady
+    />);
+
+    expect(screen.getByRole('button', { name: 'Preparing interview session...' })).toBeDisabled();
+    expect(screen.getByText(/saved Match is ready/i)).toBeInTheDocument();
+  });
+
+  it('offers a plan-only retry without rerunning Match', () => {
+    const onRetryPlan = vi.fn();
+    render(<AnalyzeActionsCard
+      {...readyProps}
+      generatedSessionId={null}
+      planStatus="failed"
+      onRetryPlan={onRetryPlan}
+      sessionMode="voice"
+      isVoiceReady
+    />);
+
+    screen.getByRole('button', { name: 'Retry interview preparation' }).click();
+    expect(onRetryPlan).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('button', { name: /Generate match analysis/i })).not.toBeInTheDocument();
+  });
 });

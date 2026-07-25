@@ -70,7 +70,7 @@ describe('Jobsync Match Optimization - Tests & Edge Cases', () => {
     });
   });
 
-  describe('Integrated Match Service Guards & Modes', () => {
+  describe('Integrated Match Service Guards & Single Canonical Path', () => {
     const validCv = 'Mina Patel\nSoftware Developer\n' + 'Experience '.repeat(40) + '\nSkills: Python, SQL, React.';
     const validJd = 'Software Engineer Job description ' + 'Requirements '.repeat(40) + '\nMust have Python, SQL.';
     const rubric = buildRubric([
@@ -96,33 +96,26 @@ describe('Jobsync Match Optimization - Tests & Edge Cases', () => {
         .rejects.toThrow(/corrupted/i);
     });
 
-    it('runs Fast Matching Mode when settings.matchMode is fast', async () => {
+    it('ignores the rejected legacy matchMode and still runs the canonical Match', async () => {
       const result = await compareCvToJobDescription(validCv, validJd, rubric, { matchMode: 'fast' });
-      
-      // Fast mode returns simplified metrics
-      expect(result).toHaveProperty('matchScore');
-      expect(result).toHaveProperty('recommendation');
-      expect(result).toHaveProperty('summary');
-      expect(result.matchMode).toBe('fast');
-      
-      // Fast mode skips semantic mapping and roleFit diagnostics
-      expect(result.roleEvidenceMap).toEqual({});
-      expect(result.matchingDetails.questionPlanHints).toBeUndefined();
-    });
 
-    it('runs Detailed Matching Mode by default and returns ATS keywords and tailoring tips', async () => {
-      const result = await compareCvToJobDescription(validCv, validJd, rubric);
-      
-      // Detail mode remains fully functional and returns extra fields
       expect(result).toHaveProperty('matchScore');
       expect(result).toHaveProperty('recommendation');
       expect(result).toHaveProperty('roleEvidenceMap');
-      
-      // Extra ATS optimize fields
-      expect(result).toHaveProperty('atsKeywords');
-      expect(result).toHaveProperty('tailoringTips');
-      expect(Array.isArray(result.atsKeywords)).toBe(true);
-      expect(Array.isArray(result.tailoringTips)).toBe(true);
+      expect(result.matchingDetails.questionPlanHints).toBeDefined();
+      expect(result).not.toHaveProperty('matchMode');
+    });
+
+    it('returns the canonical interview-preparation result without ATS tailoring fields', async () => {
+      const result = await compareCvToJobDescription(validCv, validJd, rubric);
+
+      expect(result).toHaveProperty('matchScore');
+      expect(result).toHaveProperty('recommendation');
+      expect(result).toHaveProperty('roleEvidenceMap');
+      expect(result.matchingDetails.questionPlanHints).toBeDefined();
+      expect(result).not.toHaveProperty('atsKeywords');
+      expect(result).not.toHaveProperty('tailoringTips');
+      expect(result).not.toHaveProperty('matchMode');
     });
   });
 });

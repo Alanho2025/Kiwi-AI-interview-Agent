@@ -53,13 +53,22 @@ const buildSlowestSteps = (steps = [], limit = 8) => steps
   .sort((left, right) => right.durationMs - left.durationMs)
   .slice(0, limit);
 
-export const createMatchPerformanceTrace = (metadata = {}) => {
+export const createMatchPerformanceTrace = (metadata = {}, { onStep = null } = {}) => {
   const startedAtMs = nowMs();
   const startedAt = new Date().toISOString();
   const steps = [];
   const baseMetadata = sanitizeMetadata(metadata);
 
-  const pushStep = (step, startedStepAtMs, ok, extra = {}) => {
+  const notifyStep = (event) => {
+    if (typeof onStep !== 'function') return;
+    try {
+      onStep(event);
+    } catch {
+      // Progress reporting is observational and must never change Match authority.
+    }
+  };
+
+  const pushStep = (step, startedStepAtMs, ok, extra = {}, { includeErrorInObserver = true } = {}) => {
     const currentMs = nowMs();
     const record = {
       step,
@@ -69,6 +78,18 @@ export const createMatchPerformanceTrace = (metadata = {}) => {
       ...sanitizeMetadata(extra),
     };
     steps.push(record);
+    const observerMetadata = sanitizeMetadata(extra);
+    if (!includeErrorInObserver) {
+      delete observerMetadata.error;
+    }
+    notifyStep({
+      phase: 'completed',
+      step,
+      ok,
+      durationMs: record.durationMs,
+      msFromStart: record.msFromStart,
+      metadata: observerMetadata,
+    });
     return record;
   };
 
@@ -81,11 +102,23 @@ export const createMatchPerformanceTrace = (metadata = {}) => {
       ...sanitizeMetadata(extra),
     };
     steps.push(record);
+    notifyStep({
+      phase: 'completed',
+      step,
+      ok: true,
+      msFromStart: record.msFromStart,
+      metadata: sanitizeMetadata(extra),
+    });
     return record;
   };
 
   const measure = async (step, fn, extra = {}) => {
     const startedStepAtMs = nowMs();
+    notifyStep({
+      phase: 'started',
+      step,
+      metadata: sanitizeMetadata(extra),
+    });
     try {
       const result = await fn();
       pushStep(step, startedStepAtMs, true, extra);
@@ -94,7 +127,7 @@ export const createMatchPerformanceTrace = (metadata = {}) => {
       pushStep(step, startedStepAtMs, false, {
         ...extra,
         error: error?.message || String(error),
-      });
+      }, { includeErrorInObserver: false });
       throw error;
     }
   };

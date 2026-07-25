@@ -15,6 +15,7 @@ import { cn } from '../../utils/formatters.js';
 import { buildMatchResultViewModel } from '../../utils/matchResultViewModel.js';
 import { LoadingInsightPanel } from '../common/LoadingInsightPanel.jsx';
 import { ProofStrategyReviewPanel } from './ProofStrategyReviewPanel.jsx';
+import { MatchProgressPanel } from './MatchProgressPanel.jsx';
 
 const toneStyles = {
   success: {
@@ -293,11 +294,19 @@ const MatchSummary = ({ viewModel }) => {
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-export function AnalysisStatusCard({ status, matchRate, analysisResult, questionPoolInfo }) {
+export function AnalysisStatusCard({
+  status,
+  matchRate,
+  analysisResult,
+  questionPoolInfo,
+  progressStages = {},
+  currentStage = null,
+  planStatus = 'idle',
+}) {
   const matchViewModel = buildMatchResultViewModel(analysisResult, matchRate);
 
   return (
-    <Card>
+    <Card data-qa="qa:card:match-analysis">
       <CardHeader>
         <div>
           <CardTitle>Match Analysis</CardTitle>
@@ -317,11 +326,9 @@ export function AnalysisStatusCard({ status, matchRate, analysisResult, question
         )}
 
         {status === 'matching' && (
-          <LoadingInsightPanel
-            stage="match"
-            skeletonLayout="match"
-            title="KiwiCoach is comparing your CV with the JD..."
-            message="Checking role fit, skill evidence, and must-have requirement coverage."
+          <MatchProgressPanel
+            progressStages={progressStages}
+            currentStage={currentStage}
           />
         )}
 
@@ -354,6 +361,36 @@ export function AnalysisStatusCard({ status, matchRate, analysisResult, question
             <MatchSummary viewModel={matchViewModel} />
 
             <ProofStrategyReviewPanel questionPoolInfo={questionPoolInfo} />
+
+            {planStatus === 'preparing' ? (
+              <section
+                className="rounded-2xl border border-sky-100 bg-sky-50/70 p-5"
+                aria-live="polite"
+                data-qa="qa:panel:interview-preparation-progress"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 h-4 w-4 animate-spin rounded-full border-2 border-sky-200 border-t-sky-600" />
+                  <div>
+                    <p className="text-sm font-semibold text-primary">Preparing your interview focus</p>
+                    <p className="mt-1 text-sm leading-6 text-muted">
+                      Your saved Match remains available while KiwiCoach prepares the practice session.
+                    </p>
+                  </div>
+                </div>
+              </section>
+            ) : null}
+
+            {planStatus === 'failed' ? (
+              <section
+                className="rounded-2xl border border-amber-100 bg-amber-50/70 p-5"
+                data-qa="qa:panel:interview-preparation-failed"
+              >
+                <p className="text-sm font-semibold text-amber-900">Interview preparation needs another try</p>
+                <p className="mt-1 text-sm leading-6 text-amber-800">
+                  Your Match is saved. Retry preparation without rerunning the Match.
+                </p>
+              </section>
+            ) : null}
 
             <div className="grid gap-3 lg:grid-cols-3">
               {matchViewModel.scoreCards.map((item) => <ScoreExplanationCard key={item.key} item={item} />)}

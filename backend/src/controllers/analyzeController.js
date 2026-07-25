@@ -9,12 +9,9 @@
  * - Prefer composition and small helpers over repeated inline logic.
  */
 
+import crypto from 'node:crypto';
+
 import { formatSuccess } from '../utils/responseFormatter.js';
-import { runCvJdMatchAnalysis } from '../services/cv/cvAnalysisService.js';
-import {
-  createMatchAnalysisRecord,
-  updateMatchAnalysisPerformanceTrace,
-} from '../services/cv/matchAnalysisRecordService.js';
 import { getOwnedCvDocumentOrThrow, getOwnedMatchAnalysisOrThrow } from '../services/cv/cvOwnershipService.js';
 import { createSession, getOwnedSessionById } from '../services/sessionService.js';
 import * as authService from '../services/authService.js';
@@ -32,132 +29,117 @@ import {
   getCompanyValuesProfileByFingerprint,
 } from '../services/company/companyValuesRepository.js';
 import { startCompanyValuesEnrichment } from '../services/company/companyValuesEnrichmentService.js';
-import { buildJdQuestionFilter } from '../services/questions/jdQuestionFilterService.js';
 import { generateCvQuestionSeeds, getCvQuestionSeeds } from '../services/questions/cvQuestionSeedService.js';
 import { prepareInterviewQuestionPool } from '../services/questions/questionPoolPreparationService.js';
 import { buildProofStrategyClientSummary } from '../services/questions/proofStrategyClientSummaryService.js';
 import { assertUsableMatchForInterviewPlan } from '../services/match/matchPlanGateService.js';
-import { createMatchPerformanceTrace } from '../services/match/matchPerformanceTraceService.js';
+import { executeCanonicalMatch } from '../services/match/matchAnalysisExecutionService.js';
+import {
+  createMatchSseWriter,
+  createMatchStreamReporter,
+} from '../services/match/matchStreamEventService.js';
 
 export const matchCV = asyncHandler(async (req, res) => {
   const { cvId, rawJD, jdRubric, settings } = req.body;
   const user = await authService.resolveUserFromRequest(req);
-  const performanceTrace = createMatchPerformanceTrace({
-    requestId: req.requestContext?.requestId,
-    cvId,
-    matchEngine: settings?.matchEngine || process.env.MATCH_ENGINE || 'default',
-  });
 
   if (!cvId || (!rawJD && !jdRubric)) {
     throw badRequest('Missing input', 'A selected CV and JD input are required');
   }
 
-  const matchData = await runCvJdMatchAnalysis({
+  const matchData = await executeCanonicalMatch({
     cvId,
     userId: user.id,
     rawJD,
     jdRubric,
     settings,
-    performanceTrace,
+    requestId: req.requestContext?.requestId,
+    requestMeta: getRequestLogMeta(req, {}),
   });
-  const cvDocument = await performanceTrace.measure(
-    'match_record_cv_reload',
-    () => getOwnedCvDocumentOrThrow({ cvId, userId: user.id }),
-    { cvId },
-  );
-  const persisted = await performanceTrace.measure(
-    'match_record_persist',
-    () => createMatchAnalysisRecord({ userId: user.id, cvFileId: cvId, jdStructuredText: rawJD || '', jdRubric, matchData, cvDocument }),
-    { hasWarnings: Boolean((matchData?.warnings || []).length || (cvDocument.parseWarnings || []).length) },
-  );
-  let jdQuestionFilterStatus = 'created';
-  try {
-    await performanceTrace.measure('jd_question_filter_build', () => buildJdQuestionFilter({
-      userId: user.id,
-      cvFileId: cvId,
-      jdFingerprint: matchData?.parsedJdProfile?.metadata?.jdFingerprint || jdRubric?.metadata?.jdFingerprint || '',
-      rawJD,
-      jdRubric: jdRubric || matchData?.parsedJdProfile || null,
-      analysisResult: matchData,
-      matchAnalysisId: persisted.matchAnalysisId,
-      settings,
-    }), { matchAnalysisId: persisted.matchAnalysisId });
-  } catch (error) {
-    jdQuestionFilterStatus = 'failed';
-    logger.warn('JD question filter generation failed', getRequestLogMeta(req, {
-      userId: user.id,
-      cvId,
-      matchAnalysisId: persisted.matchAnalysisId,
-      error: error.message,
-    }));
+
+  res.json(formatSuccess('Match analysis completed', matchData));
+});
+
+const INPUT_ERROR_CODES = new Set(['NO_CONTENT', 'TOO_SHORT', 'TOO_LONG', 'CORRUPTED']);
+
+const buildSafeStreamFailure = (error, failedStage = 'evidence_match') => {
+  const code = INPUT_ERROR_CODES.has(error?.code)
+    ? error.code
+    : error?.code === 'PERSISTENCE_FAILED'
+      ? 'PERSISTENCE_FAILED'
+      : error?.code === 'BAD_REQUEST'
+        ? 'ROLE_FIT_REVIEW_REQUIRED'
+        : 'MATCH_FAILED';
+  const repairTarget = INPUT_ERROR_CODES.has(code)
+    ? /^CV\b/i.test(error?.message || '') ? 'cv' : /^JD\b/i.test(error?.message || '') ? 'jd' : 'match'
+    : code === 'ROLE_FIT_REVIEW_REQUIRED' ? 'jd' : null;
+
+  return {
+    code,
+    message: error?.expose === false
+      ? 'Match analysis could not finish. Try again.'
+      : error?.details || error?.message || 'Match analysis could not finish. Try again.',
+    retryable: !INPUT_ERROR_CODES.has(code) && code !== 'ROLE_FIT_REVIEW_REQUIRED',
+    failedStage,
+    repairTarget,
+  };
+};
+
+export const matchCVStream = asyncHandler(async (req, res) => {
+  const { cvId, rawJD, jdRubric, settings } = req.body;
+  const user = await authService.resolveUserFromRequest(req);
+
+  if (!cvId || (!rawJD && !jdRubric)) {
+    throw badRequest('Missing input', 'A selected CV and JD input are required');
   }
-  const preliminaryTrace = performanceTrace.toJSON({
-    matchAnalysisId: persisted.matchAnalysisId,
-    cacheHit: Boolean(matchData?.cache?.hit),
-    cacheSource: matchData?.cache?.source || null,
-    compareAttempts: matchData?.safeguard?.compareAttempts || null,
-    jdQuestionFilterStatus,
+
+  const requestId = req.get('X-Match-Request-Id')
+    || req.requestContext?.requestId
+    || crypto.randomUUID();
+
+  res.status(200);
+  res.set({
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache, no-transform',
+    Connection: 'keep-alive',
+    'X-Accel-Buffering': 'no',
   });
-  await performanceTrace.measure('usage_record', () => recordLocalUsage({
-    userId: user.id,
-    stage: 'cv_jd_match',
-    operation: 'local_match',
-    metadata: {
-      cvId,
-      matchAnalysisId: persisted.matchAnalysisId,
-      rawJdLength: String(rawJD || '').length,
-      hasJdRubric: Boolean(jdRubric),
-      durationMs: preliminaryTrace.totalMs,
-      cacheHit: Boolean(matchData?.cache?.hit),
-      cacheSource: matchData?.cache?.source || null,
-      compareAttempts: matchData?.safeguard?.compareAttempts || null,
-      matchEngine: settings?.matchEngine || process.env.MATCH_ENGINE || 'default',
-      jdQuestionFilterStatus,
-      slowestStep: preliminaryTrace.slowestSteps?.[0]?.step || null,
-      slowestStepMs: preliminaryTrace.slowestSteps?.[0]?.durationMs || null,
-    },
-  }), { matchAnalysisId: persisted.matchAnalysisId });
-  const finalPerformanceTrace = performanceTrace.toJSON({
-    matchAnalysisId: persisted.matchAnalysisId,
-    cacheHit: Boolean(matchData?.cache?.hit),
-    cacheSource: matchData?.cache?.source || null,
-    compareAttempts: matchData?.safeguard?.compareAttempts || null,
-    jdQuestionFilterStatus,
+  res.flushHeaders?.();
+
+  const reporter = createMatchStreamReporter({
+    requestId,
+    writeEvent: createMatchSseWriter(res),
   });
+  reporter.start();
+
   try {
-    await updateMatchAnalysisPerformanceTrace({
+    const matchData = await executeCanonicalMatch({
+      cvId,
       userId: user.id,
-      matchAnalysisId: persisted.matchAnalysisId,
-      performanceTrace: finalPerformanceTrace,
+      rawJD,
+      jdRubric,
+      settings,
+      requestId,
+      requestMeta: getRequestLogMeta(req, {}),
+      progressReporter: reporter,
+    });
+    reporter.complete({
+      matchAnalysisId: matchData.matchAnalysisId,
+      evidenceRefs: matchData.evidenceRefs,
+      result: matchData,
+      performanceTrace: matchData.performanceTrace,
     });
   } catch (error) {
-    logger.warn('Match performance trace persistence failed', getRequestLogMeta(req, {
+    logger.warn('CV and JD match stream failed', getRequestLogMeta(req, {
       userId: user.id,
       cvId,
-      matchAnalysisId: persisted.matchAnalysisId,
-      error: error.message,
+      requestId,
+      code: error?.code || 'MATCH_FAILED',
     }));
+    reporter.fail(buildSafeStreamFailure(error));
+  } finally {
+    res.end();
   }
-  logger.info('CV and JD match completed', getRequestLogMeta(req, {
-    strengthsCount: matchData?.strengths?.length || 0,
-    gapsCount: matchData?.gaps?.length || 0,
-    durationMs: finalPerformanceTrace.totalMs,
-    cacheHit: finalPerformanceTrace.cacheHit,
-    performanceTrace: {
-      schemaVersion: finalPerformanceTrace.schemaVersion,
-      totalMs: finalPerformanceTrace.totalMs,
-      steps: finalPerformanceTrace.steps,
-      stepSummary: finalPerformanceTrace.stepSummary,
-      slowestSteps: finalPerformanceTrace.slowestSteps,
-    },
-  }));
-
-  res.json(formatSuccess('Match analysis completed', {
-    ...matchData,
-    matchAnalysisId: persisted.matchAnalysisId,
-    evidenceRefs: persisted.evidenceRefs,
-    performanceTrace: finalPerformanceTrace,
-  }));
 });
 
 const extractTargetRole = ({ jdText = '', jdRubric = null, analysisResult = null } = {}) => {

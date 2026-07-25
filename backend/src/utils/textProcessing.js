@@ -102,33 +102,3 @@ export const validateText = (
 
   return { isValid: true };
 };
-
-const SCORES_RE = /SCORES:\s*match=(\d+)\s+recommendation=(strong|good|partial|weak)/i;
-
-const RECOMMENDATION_LABELS = {
-  strong: 'strong',
-  good: 'good',
-  partial: 'partial',
-  weak: 'weak',
-};
-
-export function parseJobMatch(raw) {
-  const text = String(raw || '').replace(/<thinking>[\s\S]*?<\/thinking>/gi, '').trim();
-  const match = text.match(SCORES_RE);
-
-  let scores;
-  if (match) {
-    const matchScore = Math.max(0, Math.min(100, Number(match[1])));
-    scores = {
-      matchScore,
-      recommendation: RECOMMENDATION_LABELS[match[2].toLowerCase()] || 'partial',
-    };
-  }
-
-  let body = match
-    ? text.replace(match[0], '')
-    : text.replace(/^\s*SCORES:[^\n]*(\n|$)/i, '');
-  body = body.replace(/^\s+/, '');
-
-  return { scores, body };
-}
