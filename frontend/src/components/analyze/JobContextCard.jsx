@@ -353,8 +353,17 @@ export function JobContextCard({
         )}
 
         <div>
-          <h4 className="mb-3 text-sm font-medium text-primary">Paste Job Description (JD) or URL</h4>
-          <TextArea rows={structuredJD ? 6 : 12} placeholder="Paste the job listing URL (e.g. https://www.seek.co.nz/job/...) or copy-paste job requirements here..." value={rawJD} onChange={(e) => setRawJD(e.target.value)} maxLength={6000} />
+          <label htmlFor="job-description-input" className="mb-3 block text-sm font-medium text-primary">
+            Paste Job Description (JD) or URL
+          </label>
+          <TextArea
+            id="job-description-input"
+            rows={structuredJD ? 6 : 12}
+            placeholder="Paste the job listing URL (e.g. https://www.seek.co.nz/job/...) or copy-paste job requirements here..."
+            value={rawJD}
+            onChange={(e) => setRawJD(e.target.value)}
+            maxLength={6000}
+          />
           <div className="mt-2 flex items-start justify-between gap-3">
             <p className="text-xs text-faint">Tip: include responsibilities, tech stack, or paste a link to fetch automatically.</p>
             <p className="shrink-0 text-xs text-gray-400">{rawJD.length}/6000</p>
