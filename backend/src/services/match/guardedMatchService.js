@@ -17,6 +17,7 @@ import {
   writeMatchArtifactCache,
 } from './matchArtifactCacheService.js';
 import { markMatchStep, measureMatchStep } from './matchPerformanceTraceService.js';
+import { logger } from '../../utils/logger.js';
 
 const attachMatchSafeguard = (matchResult = {}, safeguard = {}, jdSafeguard = null) => ({
   ...matchResult,
@@ -250,18 +251,35 @@ export const compareCvToJobDescriptionWithSafeguard = async (cvInput, rawJD, jdR
     performanceTrace,
   });
 
-  await measureMatchStep(performanceTrace, 'match_cache_write_warm', () => Promise.allSettled([
-    writeMatchArtifactCache({ userId, identity: cacheIdentity, matchResult: freshMatch, settings }),
-    warmReusableArtifactCaches({
+  await measureMatchStep(
+    performanceTrace,
+    'match_cache_write',
+    () => writeMatchArtifactCache({
       userId,
       identity: cacheIdentity,
-      cvInput,
-      rawJD,
-      jdRubric: humanReviewedJdRubric,
       matchResult: freshMatch,
       settings,
     }),
-  ]), { cacheEligible: Boolean(userId && cacheIdentity.cacheKey) });
+    { cacheEligible: Boolean(userId && cacheIdentity.cacheKey) },
+  );
+
+  markMatchStep(performanceTrace, 'match_reusable_cache_warm_scheduled', {
+    cacheEligible: Boolean(userId && cacheIdentity.cacheKey),
+  });
+  void warmReusableArtifactCaches({
+    userId,
+    identity: cacheIdentity,
+    cvInput,
+    rawJD,
+    jdRubric: humanReviewedJdRubric,
+    matchResult: freshMatch,
+    settings,
+  }).catch((error) => {
+    logger.warn('Reusable Match artifact cache warming failed', {
+      cacheKey: cacheIdentity.cacheKey,
+      error: error.message,
+    });
+  });
 
   return freshMatch;
 };

@@ -33,8 +33,12 @@ export function AnalyzeActionsCard({
   onStartInterview,
   sessionMode = 'text',
   isVoiceReady = false,
+  planStatus = 'idle',
+  onRetryPlan,
 }) {
-  const isGenerating = analysisStatus === 'matching' || analysisStatus === 'summarizing';
+  const isPreparingPlan = planStatus === 'preparing';
+  const planFailed = planStatus === 'failed';
+  const isGenerating = analysisStatus === 'matching' || analysisStatus === 'summarizing' || isPreparingPlan;
   const hasRawJD = Boolean(rawJD?.trim());
   const isVoiceSession = sessionMode === 'voice';
   const setupReady = !isVoiceSession || isVoiceReady;
@@ -44,6 +48,7 @@ export function AnalyzeActionsCard({
   const thresholdPercent = Math.round(jdConfidenceThreshold * 100);
 
   const buttonLabel = (() => {
+    if (isPreparingPlan) return 'Preparing interview session...';
     if (analysisStatus === 'summarizing') return 'Parsing job description...';
     if (analysisStatus === 'matching') return 'Generating match analysis...';
     if (!selectedCV) return 'Upload or choose a CV first';
@@ -61,6 +66,12 @@ export function AnalyzeActionsCard({
     }
     if (analysisStatus === 'success' && isVoiceSession && !isVoiceReady) {
       return 'Run the voice check before opening the voice interview.';
+    }
+    if (analysisStatus === 'success' && isPreparingPlan) {
+      return 'Your saved Match is ready. We’re preparing the question focus.';
+    }
+    if (analysisStatus === 'success' && planFailed) {
+      return 'Your Match is saved. Retry interview preparation without running Match again.';
     }
     if (!selectedCV) {
       return 'Upload a new CV or choose one from your recent CV list.';
@@ -121,8 +132,16 @@ export function AnalyzeActionsCard({
     },
     {
       label: 'Match analysis',
-      detail: generatedSessionId ? 'Your interview plan is ready.' : 'Generate the match after all inputs are reviewed.',
-      complete: Boolean(generatedSessionId),
+      detail: generatedSessionId
+        ? 'Your interview plan is ready.'
+        : analysisStatus === 'success'
+          ? isPreparingPlan
+            ? 'Match complete. Interview preparation is running.'
+            : planFailed
+              ? 'Match complete. Interview preparation needs another try.'
+              : 'Match analysis is saved.'
+          : 'Generate the match after all inputs are reviewed.',
+      complete: analysisStatus === 'success',
       blocked: false,
     },
   ];
@@ -134,7 +153,10 @@ export function AnalyzeActionsCard({
   };
 
   return (
-    <div className="sticky bottom-0 z-20 -mx-4 flex flex-col gap-4 border-t border-theme glass/95 p-4 shadow-[0_-8px_20px_rgba(15,23,42,0.08)] backdrop-blur print:static print:mx-0 print:border print:shadow-none print:backdrop-blur-0 sm:static sm:mx-0 sm:rounded-2xl sm:border sm:p-6 sm:shadow-sm">
+    <div
+      className="sticky bottom-0 z-20 -mx-4 flex flex-col gap-4 border-t border-theme glass/95 p-4 shadow-[0_-8px_20px_rgba(15,23,42,0.08)] backdrop-blur print:static print:mx-0 print:border print:shadow-none print:backdrop-blur-0 sm:static sm:mx-0 sm:rounded-2xl sm:border sm:p-6 sm:shadow-sm"
+      data-qa="qa:card:analysis-actions"
+    >
       <div>
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-faint">Setup checklist</p>
         <div className="mt-3 space-y-2">
@@ -158,6 +180,17 @@ export function AnalyzeActionsCard({
           disabled={!canContinue}
         >
           {isVoiceSession ? 'Continue to voice interview' : 'Start text interview'}
+        </Button>
+      ) : planFailed && analysisStatus === 'success' ? (
+        <Button
+          variant="primary"
+          size="lg"
+          className="w-full"
+          onClick={onRetryPlan}
+          disabled={!onRetryPlan}
+          data-qa="qa:button:retry-interview-preparation"
+        >
+          Retry interview preparation
         </Button>
       ) : (
         <Button

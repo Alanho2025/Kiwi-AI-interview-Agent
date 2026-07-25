@@ -21,7 +21,7 @@ import { AnalyzeActionsCard } from '../components/analyze/AnalyzeActionsCard.jsx
 import { AnalysisWorkflowShell } from '../components/analyze/AnalysisWorkflowShell.jsx';
 import { StatusBanner } from '../components/common/StatusBanner.jsx';
 import { uploadCV, getRecentCVs, selectCV, saveReviewedCvProfile, deleteCv } from '../api/uploadApi.js';
-import { confirmRoleFitReview, paraphraseJD, matchCV, generateInterviewPlan, startCompanyValuesEnrichment, getSavedJDs } from '../api/analyzeApi.js';
+import { confirmRoleFitReview, paraphraseJD, startCompanyValuesEnrichment, getSavedJDs } from '../api/analyzeApi.js';
 import { getSession } from '../api/sessionApi.js';
 import {
   DEFAULT_ANALYZE_MODE,
@@ -35,6 +35,7 @@ import { stampHumanReviewMetadata } from '../utils/jdHumanReview.js';
 import { buildCvReviewFormModel, buildReviewedCvProfilePayload } from '../utils/cvReviewViewModel.js';
 import { buildSessionSetupPayload, saveSessionDefaults } from '../utils/sessionSettings.js';
 import { DEFAULT_VOICE_DEVICE_CHECK } from '../hooks/useVoiceDeviceCheck.js';
+import { useMatchAnalysisFlow } from '../hooks/useMatchAnalysisFlow.js';
 import { useTour } from '../contexts/TourContext.jsx';
 
 import {
@@ -69,11 +70,20 @@ export function AnalyzePage() {
   const [jdReviewStatus, setJdReviewStatus] = useState('unreviewed');
   const [settings, setSettings] = useState(DEFAULT_ANALYZE_SETTINGS);
   const [sessionMode, setSessionMode] = useState(DEFAULT_ANALYZE_MODE);
-  const [analysisStatus, setAnalysisStatus] = useState('idle');
-  const [analysisResult, setAnalysisResult] = useState(null);
-  const [matchRate, setMatchRate] = useState(null);
-  const [generatedSessionId, setGeneratedSessionId] = useState(null);
-  const [questionPoolInfo, setQuestionPoolInfo] = useState(null);
+  const {
+    analysisStatus,
+    analysisResult,
+    matchRate,
+    generatedSessionId,
+    questionPoolInfo,
+    planStatus,
+    progressStages,
+    currentStage,
+    run: runMatchAnalysis,
+    retryPlan,
+    reset: resetMatchAnalysis,
+    hydrate: hydrateMatchAnalysis,
+  } = useMatchAnalysisFlow();
   const [isSummarizingJD, setIsSummarizingJD] = useState(false);
   const [isSavingCVReview, setIsSavingCVReview] = useState(false);
   const [deletingCvId, setDeletingCvId] = useState('');
@@ -137,6 +147,7 @@ export function AnalyzePage() {
   const canUseCurrentJDSummary = Boolean(hasCurrentJDSummary && jdReviewStatus === 'verified');
   const isCvHumanVerified = Boolean(selectedCV?.id && cvReviewStatus === 'verified' && cvHumanReviewedFileId === selectedCV.id);
   const isSessionSetupReady = sessionMode !== 'voice' || isVoiceReady;
+  const displayedAnalysisStatus = isSummarizingJD ? 'summarizing' : analysisStatus;
   const workflowStepOrder = [
     WORKFLOW_STEP_IDS.CV_UPLOAD,
     WORKFLOW_STEP_IDS.CV_REVIEW,
@@ -190,8 +201,16 @@ export function AnalyzePage() {
     {
       id: WORKFLOW_STEP_IDS.MATCH_RESULT,
       label: 'Match Result',
-      detail: generatedSessionId ? 'Interview plan is ready.' : 'Generate match analysis.',
-      complete: Boolean(generatedSessionId),
+      detail: generatedSessionId
+        ? 'Interview plan is ready.'
+        : analysisResult
+          ? planStatus === 'preparing'
+            ? 'Match complete. Preparing the interview session.'
+            : planStatus === 'failed'
+              ? 'Match complete. Interview preparation needs another try.'
+              : 'Match analysis is saved.'
+          : 'Generate match analysis.',
+      complete: Boolean(analysisResult),
       blocked: !isJdHumanVerified || !isSessionSetupReady,
     },
   ];
@@ -207,11 +226,7 @@ export function AnalyzePage() {
   }, [globalTourStep, startTour, advanceGlobalTour]);
 
   const resetAnalysisState = () => {
-    setAnalysisStatus('idle');
-    setAnalysisResult(null);
-    setMatchRate(null);
-    setGeneratedSessionId(null);
-    setQuestionPoolInfo(null);
+    resetMatchAnalysis();
   };
 
   const handleWorkflowStepChange = (stepId) => {
@@ -295,13 +310,14 @@ export function AnalyzePage() {
     setSettings(restoredSettings);
     setSessionMode(sanitizeAnalyzeMode(setup.sessionMode || session?.mode || DEFAULT_ANALYZE_MODE));
     setVoiceDeviceCheck(DEFAULT_VOICE_DEVICE_CHECK);
-    setAnalysisResult(restoredAnalysisResult);
-    setMatchRate(restoredAnalysisResult?.matchScore || null);
-    setGeneratedSessionId(session?.id || null);
-    setAnalysisStatus('success');
+    hydrateMatchAnalysis({
+      analysisResult: restoredAnalysisResult,
+      generatedSessionId: session?.id || null,
+      questionPoolInfo: setup.questionPoolInfo || null,
+    });
     setActiveWorkflowStep(WORKFLOW_STEP_IDS.MATCH_RESULT);
     setPageStatus(buildStatusMessage('success', 'Match analysis complete', 'Review the score breakdown before starting the interview session.'));
-  }, []);
+  }, [hydrateMatchAnalysis]);
 
   useEffect(() => {
     let isActive = true;
@@ -460,12 +476,10 @@ export function AnalyzePage() {
     }
 
     setIsSummarizingJD(true);
-    setAnalysisStatus('summarizing');
 
     try {
       const jdResponse = await paraphraseJD({ rawJD, companyWebsiteUrl, userCompanyContext });
       applyStructuredJD(jdResponse, rawJD);
-      setAnalysisStatus('idle');
       setActiveWorkflowStep(WORKFLOW_STEP_IDS.JD_REVIEW);
       const confidence = getJDParseConfidence(jdResponse.structuredJDRubric);
       if (confidence < JD_CONFIDENCE_THRESHOLD) {
@@ -479,7 +493,6 @@ export function AnalyzePage() {
       }
     } catch (error) {
       setPageStatus(buildStatusMessage('error', 'JD summary failed', error.message));
-      setAnalysisStatus('error');
     } finally {
       setIsSummarizingJD(false);
     }
@@ -637,38 +650,69 @@ export function AnalyzePage() {
     }
 
     isGeneratingPlanRef.current = true;
-    setAnalysisStatus('matching');
     setActiveWorkflowStep(WORKFLOW_STEP_IDS.MATCH_RESULT);
 
     try {
       const finalStructuredJDRubric = stampHumanReviewMetadata(structuredJDRubric, isJdHumanVerified ? 'verified' : 'unreviewed');
       const finalStructuredJD = formatStructuredJobDescription(finalStructuredJDRubric);
 
-      const matchResponse = await matchCV(selectedCV.id, rawJD, finalStructuredJDRubric, settings);
-      setAnalysisResult(matchResponse);
-      setMatchRate(matchResponse?.matchScore || null);
-
-      const planResponse = await generateInterviewPlan({
-        cvId: selectedCV.id,
-        rawJD,
-        jdText: finalStructuredJD,
-        jdRubric: finalStructuredJDRubric,
-        settings,
-        sessionSetup: buildSessionSetupPayload(settings, sessionMode),
-        mode: sessionMode,
-        matchAnalysisId: matchResponse.matchAnalysisId || null,
+      await runMatchAnalysis({
+        matchInput: {
+          cvId: selectedCV.id,
+          rawJD,
+          jdRubric: finalStructuredJDRubric,
+          settings,
+        },
+        planInput: {
+          cvId: selectedCV.id,
+          rawJD,
+          jdText: finalStructuredJD,
+          jdRubric: finalStructuredJDRubric,
+          settings,
+          sessionSetup: buildSessionSetupPayload(settings, sessionMode),
+          mode: sessionMode,
+        },
       });
 
-      setGeneratedSessionId(planResponse.sessionId);
-      setQuestionPoolInfo(planResponse.questionPool);
-      setAnalysisStatus('success');
       setActiveWorkflowStep(WORKFLOW_STEP_IDS.MATCH_RESULT);
       const modeLabel = sessionMode === 'voice' ? 'voice' : 'text';
       setPageStatus(buildStatusMessage('success', 'Match analysis complete', `Review the score breakdown before continuing to the ${modeLabel} interview session.`));
     } catch (error) {
       console.error(error);
-      setAnalysisStatus('error');
-      setPageStatus(buildStatusMessage('error', 'Analysis failed', error.message));
+      if (error.phase === 'plan') {
+        setPageStatus(buildStatusMessage(
+          'error',
+          'Interview preparation failed',
+          `${error.message} Your Match is saved and does not need to run again.`,
+        ));
+      } else {
+        setPageStatus(buildStatusMessage('error', 'Analysis failed', error.message));
+      }
+    } finally {
+      isGeneratingPlanRef.current = false;
+    }
+  };
+
+  const handleRetryPlan = async () => {
+    if (isGeneratingPlanRef.current) {
+      return;
+    }
+
+    isGeneratingPlanRef.current = true;
+    try {
+      await retryPlan();
+      const modeLabel = sessionMode === 'voice' ? 'voice' : 'text';
+      setPageStatus(buildStatusMessage(
+        'success',
+        'Interview preparation ready',
+        `Your saved Match is unchanged. Continue to the ${modeLabel} interview session when you are ready.`,
+      ));
+    } catch (error) {
+      setPageStatus(buildStatusMessage(
+        'error',
+        'Interview preparation failed',
+        `${error.message} Your Match is still saved.`,
+      ));
     } finally {
       isGeneratingPlanRef.current = false;
     }
@@ -760,6 +804,9 @@ export function AnalyzePage() {
                   matchRate={matchRate}
                   analysisResult={analysisResult}
                   questionPoolInfo={questionPoolInfo}
+                  planStatus={planStatus}
+                  progressStages={progressStages}
+                  currentStage={currentStage}
                 />
               ) : null}
             </div>
@@ -775,7 +822,7 @@ export function AnalyzePage() {
 
               <div id="tour-analyze-actions">
                 <AnalyzeActionsCard
-                  analysisStatus={analysisStatus}
+                  analysisStatus={displayedAnalysisStatus}
                   generatedSessionId={generatedSessionId}
                   selectedCV={selectedCV}
                   rawJD={rawJD}
@@ -786,9 +833,11 @@ export function AnalyzePage() {
                   canUseJDSummary={canUseCurrentJDSummary}
                   isCvHumanVerified={isCvHumanVerified}
                   onGeneratePlan={handleGeneratePlan}
+                  onRetryPlan={handleRetryPlan}
                   onStartInterview={handleStartInterview}
                   sessionMode={sessionMode}
                   isVoiceReady={isVoiceReady}
+                  planStatus={planStatus}
                 />
               </div>
             </div>

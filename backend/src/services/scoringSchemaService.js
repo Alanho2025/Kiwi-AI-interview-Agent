@@ -334,11 +334,7 @@ export const buildAnalyzeOutput = ({
   sourceSnapshots = [],
   matchingDetails = {},
   legacy = {},
-  // Jobsync additions
   recommendation = 'partial',
-  atsKeywords = [],
-  tailoringTips = [],
-  matchMode = 'detail',
 } = {}) => {
   const hardGateFailed = requirementChecks.some((item) => 
     item.type === 'hard' && 
@@ -374,10 +370,6 @@ export const buildAnalyzeOutput = ({
     planPreview: legacy.planPreview || explanation.summary,
     summary: explanation.summary,
     matchingDetails,
-    // Jobsync additions
     recommendation,
-    atsKeywords,
-    tailoringTips,
-    matchMode,
   };
 };

@@ -104,4 +104,53 @@ describe('match performance trace service', () => {
     }));
     expect(snapshot.slowestSteps.every((step) => Number.isFinite(step.durationMs))).toBe(true);
   });
+
+  it('notifies an allowlisted observer when a measured step starts and completes', async () => {
+    const events = [];
+    const trace = createMatchPerformanceTrace(
+      { requestId: 'request-stream-1' },
+      { onStep: (event) => events.push(event) },
+    );
+
+    await measureMatchStep(trace, 'match_compare_first', async () => 'result', {
+      rawJD: undefined,
+      requirementCount: 3,
+    });
+
+    expect(events).toEqual([
+      expect.objectContaining({
+        phase: 'started',
+        step: 'match_compare_first',
+        metadata: { requirementCount: 3 },
+      }),
+      expect.objectContaining({
+        phase: 'completed',
+        step: 'match_compare_first',
+        ok: true,
+        metadata: { requirementCount: 3 },
+      }),
+    ]);
+    expect(JSON.stringify(events)).not.toContain('rawJD');
+  });
+
+  it('notifies the observer of failed steps without swallowing the error', async () => {
+    const events = [];
+    const trace = createMatchPerformanceTrace({}, {
+      onStep: (event) => events.push(event),
+    });
+
+    await expect(trace.measure('match_critic_first_review', async () => {
+      throw new Error('private provider detail');
+    })).rejects.toThrow('private provider detail');
+
+    expect(events).toEqual([
+      expect.objectContaining({ phase: 'started', step: 'match_critic_first_review' }),
+      expect.objectContaining({
+        phase: 'completed',
+        step: 'match_critic_first_review',
+        ok: false,
+      }),
+    ]);
+    expect(events[1].metadata).not.toHaveProperty('error');
+  });
 });

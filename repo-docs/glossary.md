@@ -15,6 +15,9 @@
 | evidence strength status cap | Requirement evidence 的展示约束；`met` 才能显示 strong，`partial` 最多 partial，`inferred` 最多 weak，`not_met` 必须 missing | [match 与问题准备](modules/feature-match-and-question-prep.md) |
 | low_confidence_hiring_logic | RoleIntentDecoder 缺少 grounded company support 等情境下的 degraded reason；表示 hiring logic 仍是低信心准备假设 | [CV/JD 准备机制](modules/feature-cv-jd-preparation.md) |
 | matchAnalysisId | 已持久化的 CV-JD match record 标识，让 interview plan 不只依赖前端临时状态 | [match 与问题准备](modules/feature-match-and-question-prep.md) |
+| matchMode | 2026-07-23 provisional backend field；2026-07-26 runtime branch/output 已移除，legacy request value 只会被忽略，不能选择较弱 scorer | [match 与问题准备](modules/feature-match-and-question-prep.md) |
+| match_completed | `match_stream_event_v1` 的唯一成功 terminal event；只在 canonical Match 已持久化并完成 JD question-filter boundary 后发出，前端收到后才请求 interview preparation | [match 与问题准备](modules/feature-match-and-question-prep.md) |
+| Improve your CV for this role | 被明确排除的 Analyze 产品方向；Kiwi 的 Match 主线服务 interview preparation，不在 Match result 增加 CV rewrite、ATS keyword 或 tailoring workflow | [match 与问题准备](modules/feature-match-and-question-prep.md) |
 | stepSummary | `performanceTrace` 里按 step 名称聚合的耗时摘要；用于看同一环节出现几次、累计耗时和最慢一次 | [match 与问题准备](modules/feature-match-and-question-prep.md) |
 | slowestSteps | `performanceTrace` 里按 `durationMs` 排序的最慢 measured steps；用于快速定位 CV-JD match latency 热点 | [match 与问题准备](modules/feature-match-and-question-prep.md) |
 | prepared question pool | 访谈前生成的候选问题池；运行时仍会被 ranker、dedupe、follow-up 控制影响 | [interviewer agent](modules/agent-interviewer.md) |

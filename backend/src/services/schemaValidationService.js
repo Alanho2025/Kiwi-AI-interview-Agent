@@ -79,11 +79,7 @@ export const validateAnalyzeOutput = (payload = {}) => {
       interviewFocus: ensureArray(safePayload.interviewFocus || safePayload.legacy?.interviewFocus),
       planPreview: ensureString(safePayload.planPreview || safePayload.legacy?.planPreview),
     },
-    // Jobsync additions
     recommendation: ensureString(safePayload.recommendation, 'partial'),
-    atsKeywords: ensureArray(safePayload.atsKeywords),
-    tailoringTips: ensureArray(safePayload.tailoringTips),
-    matchMode: ensureString(safePayload.matchMode, 'detail'),
   });
 };
 

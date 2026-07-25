@@ -18,7 +18,10 @@ vi.mock('../../../src/services/cv/cvOwnershipService.js', () => ({
   getOwnedCvDocumentOrThrow: mocks.getOwnedCv,
 }));
 
-import { runCvJdMatchAnalysis } from '../../../src/services/cv/cvAnalysisService.js';
+import {
+  runCvJdMatchAnalysis,
+  runCvJdMatchExecution,
+} from '../../../src/services/cv/cvAnalysisService.js';
 import { createMatchPerformanceTrace } from '../../../src/services/match/matchPerformanceTraceService.js';
 
 describe('Role-Fit match cutover', () => {
@@ -104,5 +107,85 @@ describe('Role-Fit match cutover', () => {
       expect.objectContaining({ userId: 'user-1', cvId: 'cv-1' }),
       { performanceTrace },
     );
+  });
+
+  it('returns the already loaded owned CV for persistence reuse', async () => {
+    const jdRubric = {
+      roleFit: {
+        id: 'role-fit-1',
+        jdFingerprint: 'jd-fingerprint',
+        review: { version: 3, status: 'verified' },
+      },
+    };
+
+    const execution = await runCvJdMatchExecution({
+      cvId: 'cv-1',
+      userId: 'user-1',
+      rawJD: 'Backend engineer JD',
+      jdRubric,
+    });
+
+    expect(execution.cvDocument.fileId).toBe('cv-1');
+    expect(execution.matchData).toEqual(expect.objectContaining({ sourceSnapshots: expect.any(Array) }));
+    expect(mocks.getOwnedCv).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects corrupted owned CV text before invoking the matcher', async () => {
+    mocks.getOwnedCv.mockResolvedValueOnce({
+      fileId: 'cv-1',
+      normalizedText: `Candidate experience ${'#'.repeat(25)} ${'delivery '.repeat(10)}`,
+      cvProfile: { candidateName: 'Candidate', skills: [], evidenceProfile: {} },
+      parseWarnings: [],
+    });
+    const jdRubric = {
+      roleFit: {
+        id: 'role-fit-1',
+        jdFingerprint: 'jd-fingerprint',
+        review: { version: 3, status: 'verified' },
+      },
+    };
+
+    await expect(runCvJdMatchExecution({
+      cvId: 'cv-1',
+      userId: 'user-1',
+      rawJD: 'Backend engineer JD with enough reviewed role context.',
+      jdRubric,
+    })).rejects.toMatchObject({
+      statusCode: 400,
+      code: 'CORRUPTED',
+    });
+
+    expect(mocks.compare).not.toHaveBeenCalled();
+  });
+
+  it('reports input and role-review progress around the real boundaries', async () => {
+    const progressReporter = {
+      stageStarted: vi.fn(),
+      stageCompleted: vi.fn(),
+    };
+    const jdRubric = {
+      roleFit: {
+        id: 'role-fit-1',
+        jdFingerprint: 'jd-fingerprint',
+        review: { version: 3, status: 'verified' },
+      },
+    };
+
+    await runCvJdMatchExecution({
+      cvId: 'cv-1',
+      userId: 'user-1',
+      rawJD: 'Backend engineer JD',
+      jdRubric,
+      progressReporter,
+    });
+
+    expect(progressReporter.stageStarted.mock.calls).toEqual([
+      ['input_validation'],
+      ['role_fit_gate'],
+    ]);
+    expect(progressReporter.stageCompleted.mock.calls).toEqual([
+      ['input_validation'],
+      ['role_fit_gate'],
+    ]);
   });
 });
