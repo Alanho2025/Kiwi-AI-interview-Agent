@@ -17,6 +17,7 @@
 | --- | --- | --- |
 | Auth | [auth middleware](../../backend/src/middleware/authMiddleware.js) | cookie/Bearer token 转成 `req.user` |
 | CSRF | [CSRF middleware](../../backend/src/middleware/csrfMiddleware.js) | cookie-auth unsafe request 需要 double-submit token |
+| Browser CORS | [API composition](../../backend/src/api.js) | 只允許 configured frontend origin；browser preflight 使用的 custom header 必須明確列入 allowlist，Match stream 使用 `X-Match-Request-Id` |
 | Rate limit | [rate limit middleware](../../backend/src/middleware/rateLimitMiddleware.js) | auth/upload/AI/export route abuse |
 | WebSocket security | [WebSocket security helpers](../../backend/src/api/webSocketSecurity.js) | socket cookie auth、origin、upgrade limit；只有 `TRUST_PROXY_HOPS=1` 才使用 right-most valid forwarded client IP，其他情況保留 direct socket address |
 | Body field | [controller helpers](../../backend/src/utils/controllerHelpers.js) | 缺少必需字段时给一致错误 |
