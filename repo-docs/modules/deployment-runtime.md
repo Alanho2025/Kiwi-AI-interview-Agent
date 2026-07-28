@@ -1,6 +1,6 @@
 # EC2 deployment runtime
 
-這一層回答的是「正式 frontend 流量如何到達 EC2 backend」，不是「有 Dockerfile 就代表已上線」。截至 2026-07-28，EC2 staging 的 Docker backend、PostgreSQL/MongoDB readiness、Caddy HTTPS 與 Vercel origin CORS 已由 operator 手動驗證；Vercel Production alias、真人 Google login、SSE、Voice WebSocket、recording worker cutover 與 rollback drill 仍需各自驗證。
+這一層回答的是「正式 frontend 流量如何到達 EC2 backend」，不是「有 Dockerfile 就代表已上線」。截至 2026-07-28，EC2 staging 的 Docker backend、PostgreSQL/MongoDB readiness、Caddy HTTPS 與 Vercel origin CORS 已由 operator 手動驗證；Match streaming 的 `X-Match-Request-Id` preflight 需要跟著 client header allowlist 另行驗證。Vercel Production alias、真人 Google login、SSE、Voice WebSocket、recording worker cutover 與 rollback drill 也仍需各自驗證。
 
 ## 流量與資料怎麼走
 
@@ -37,7 +37,7 @@ Frontend 使用 build-time `VITE_API_BASE_URL` 建立 HTTP、SSE 與 WebSocket U
 
 [Server tests](../../backend/tests/robustness/server/serverGracefulShutdown.test.js) 覆蓋 clean shutdown、重複 signal 與 timeout force-close；[proxy tests](../../backend/tests/robustness/server/webSocketProxyAddress.test.js) 覆蓋 direct、trusted proxy、spoofed header 與 invalid forwarded value；recording/retention tests 覆蓋 worker instance 與 in-flight drain。
 
-這些測試證明 local contract。2026-07-28 的 operator evidence 補上 EC2 public HTTPS、backend process、資料庫 readiness 與 Vercel CORS；它仍不證明 Vercel Production alias、真人登入、SSE、live Voice、recording worker 或 rollback 已通過。實際操作順序與 rollback 見 [EC2 第一版部署手冊](../../deploy/ec2/README.md)。
+這些測試證明 local contract。2026-07-28 的 operator evidence 補上 EC2 public HTTPS、backend process、資料庫 readiness 與 Vercel origin CORS；它不等於每個 browser preflight header 都已放行，Match streaming 的 `X-Match-Request-Id` 需要單獨驗證。它仍不證明 Vercel Production alias、真人登入、SSE、live Voice、recording worker 或 rollback 已通過。實際操作順序與 rollback 見 [EC2 第一版部署手冊](../../deploy/ec2/README.md)。
 
 繼續讀 [驗證與保護層](validations-and-guards.md) 看入口安全門，或讀 [Voice recording](feature-recording.md) 看 recording worker 的資料生命週期。
 
