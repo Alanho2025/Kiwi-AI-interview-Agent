@@ -1,6 +1,6 @@
 # EC2 deployment runtime
 
-這一層回答的是「正式 frontend 流量如何到達 EC2 backend」，不是「有 Dockerfile 就代表已上線」。截至 2026-07-28，EC2 staging 的 Docker backend、PostgreSQL/MongoDB readiness、Caddy HTTPS 與 Vercel origin CORS 已由 operator 手動驗證；Match streaming 的 `X-Match-Request-Id` preflight 需要跟著 client header allowlist 另行驗證。Vercel Production alias、真人 Google login、SSE、Voice WebSocket、recording worker cutover 與 rollback drill 也仍需各自驗證。
+這一層回答的是「frontend 流量如何到達 EC2 backend」，不是「有 Dockerfile 就代表已上線」。截至 2026-07-29，staging 已有一個完整的 `main` -> GitHub Actions -> AWS OIDC/SSM -> EC2 實例：[main CI run #30355476925](https://github.com/Alanho2025/Kiwi-AI-interview-Agent/actions/runs/30355476925) 的 CI gates 與 `Deploy EC2 staging` 都成功。Operator 也在 browser 實測 Vercel frontend 對 EC2 的 Match、Voice interview 與 Report output。這些是 staging flow 的實際證據；recording/retention worker cutover、rollback、backup/restore、instance recovery 與長期監控仍未驗證，不能宣稱 production release readiness。
 
 ## 流量與資料怎麼走
 
@@ -21,13 +21,14 @@ Frontend 使用 build-time `VITE_API_BASE_URL` 建立 HTTP、SSE 與 WebSocket U
 | 邊界 | Local implementation | 仍需部署時確認 |
 | --- | --- | --- |
 | Container ingress | [Compose config](../../deploy/ec2/compose.yaml) 只發布 `127.0.0.1:8080` | EC2 Security Group 不可公開 `8080` |
-| HTTPS 與 WebSocket | [Caddy config](../../deploy/ec2/Caddyfile) reverse proxy 到 loopback backend | DNS、certificate issuance、live WebSocket upgrade |
+| HTTPS 與 WebSocket | [Caddy config](../../deploy/ec2/Caddyfile) reverse proxy 到 loopback backend | staging HTTPS 與 browser Voice WebSocket 已驗證；certificate renewal、instance recovery 與長期連線行為仍待確認 |
+| Browser CORS | [API composition](../../backend/src/api.js) 明確 allowlist origin 與 `X-Match-Request-Id` | staging live `OPTIONS /api/analyze/match/stream` 已對 Vercel origin 回傳該 header；其他 origin/header 組合未逐一驗證 |
 | Secret | Compose 從 `/etc/kiwi/backend.env` 讀取，不把 secret 放進 repository | production values、file mode、operator access |
 | Upload persistence | `/srv/kiwi/uploads` mount 到 `/app/uploads` | host UID/GID `1000` 可寫、backup 與 restore |
 | Proxy client IP | [WebSocket security helper](../../backend/src/api/webSocketSecurity.js) 只在 `TRUST_PROXY_HOPS=1` 時讀 right-most valid `X-Forwarded-For` | backend 只能由 trusted local Caddy 進入 |
 | Shutdown | [shutdown coordinator](../../backend/src/services/serverGracefulShutdownService.js) 停止 ingress、drain sockets/workers、關閉 databases，再 bounded exit | EC2 reboot、container update 與 active Voice session smoke |
 | Worker cutover | recording/retention start helper 回傳可停止 instance，`stop()` 等待 active run | Shadow 時 recording worker off；Render worker 停止後才在 EC2 開啟 |
-| Git push deployment | [CI workflow](../../.github/workflows/ci.yml) 只在 `main` 的 CI summary 成功後，以 GitHub OIDC 取得短期 role、用 SSM 指定 exact `github.sha` | IAM OIDC provider、least-privilege role、GitHub repository variables、首次 main deploy 與 failure/rollback drill |
+| Git push deployment | [CI workflow](../../.github/workflows/ci.yml) 只在 `main` 的 CI summary 成功後，以 GitHub OIDC 取得短期 role、用 SSM 指定 exact `github.sha` | 首次 successful main deploy 已完成；host 的 root SSH config 必須選用 read-only GitHub deploy key；rollback drill 仍未完成 |
 
 ## 一個代表 case
 
@@ -37,7 +38,7 @@ Frontend 使用 build-time `VITE_API_BASE_URL` 建立 HTTP、SSE 與 WebSocket U
 
 [Server tests](../../backend/tests/robustness/server/serverGracefulShutdown.test.js) 覆蓋 clean shutdown、重複 signal 與 timeout force-close；[proxy tests](../../backend/tests/robustness/server/webSocketProxyAddress.test.js) 覆蓋 direct、trusted proxy、spoofed header 與 invalid forwarded value；recording/retention tests 覆蓋 worker instance 與 in-flight drain。
 
-這些測試證明 local contract。2026-07-28 的 operator evidence 補上 EC2 public HTTPS、backend process、資料庫 readiness 與 Vercel origin CORS；它不等於每個 browser preflight header 都已放行，Match streaming 的 `X-Match-Request-Id` 需要單獨驗證。它仍不證明 Vercel Production alias、真人登入、SSE、live Voice、recording worker 或 rollback 已通過。實際操作順序與 rollback 見 [EC2 第一版部署手冊](../../deploy/ec2/README.md)。
+這些測試證明 local contract。外部證據再補上 [main CI run #30355476925](https://github.com/Alanho2025/Kiwi-AI-interview-Agent/actions/runs/30355476925) 的 exact-SHA SSM deploy、live Match preflight，以及 operator 的 Match、Voice interview、Report browser flow。這仍不證明 recording worker、retention worker、Render worker 停用、rollback、backup/restore 或 incident recovery。已取得 host 後的實際操作順序與 rollback 見 [EC2 第一版部署手冊](../../deploy/ec2/README.md)；要從 AWS Console 複製 VPC、EC2、EIP、SSM 與 GitHub OIDC，見 [可複製的 AWS Console 部署手冊](../../deploy/ec2/AWS_CONSOLE_SETUP.md)。
 
 繼續讀 [驗證與保護層](validations-and-guards.md) 看入口安全門，或讀 [Voice recording](feature-recording.md) 看 recording worker 的資料生命週期。
 
