@@ -16,8 +16,22 @@ import api from './src/api.js';
 import { attachRealtimeVoiceSocketServer } from './src/api/realtimeVoiceSocket.js';
 import { attachDuplexVoiceSocketServer } from './src/api/duplexVoiceSocket.js';
 import { bootstrapDatabases } from './src/db/bootstrap.js';
+import { disconnectMongo } from './src/db/mongo.js';
+import { closePostgres } from './src/db/postgres.js';
+import { startRecordingConversionWorker } from './src/services/recording/recordingConversionWorker.js';
+import { startRetentionWorker } from './src/services/retention/retentionWorker.js';
+import {
+  createGracefulShutdown,
+  registerShutdownSignals,
+} from './src/services/serverGracefulShutdownService.js';
 import { logger } from './src/utils/logger.js';
-import { getBooleanEnv, getServerPort, loadEnv } from './src/config/env.js';
+import {
+  getBooleanEnv,
+  getServerPort,
+  getShutdownTimeoutMs,
+  getTrustedProxyHops,
+  loadEnv,
+} from './src/config/env.js';
 
 loadEnv();
 
@@ -37,8 +51,9 @@ async function startServer() {
     const app = express();
     const PORT = getServerPort();
 
-    if (process.env.NODE_ENV === 'production') {
-      app.set('trust proxy', 1);
+    const trustedProxyHops = getTrustedProxyHops();
+    if (process.env.NODE_ENV === 'production' && trustedProxyHops === 1) {
+      app.set('trust proxy', trustedProxyHops);
     }
 
     app.locals.startupStatus = startup;
@@ -57,23 +72,46 @@ async function startServer() {
     app.use('/', api);
 
     const server = http.createServer(app);
-    attachRealtimeVoiceSocketServer(server);
-    attachDuplexVoiceSocketServer(server);
+    const webSocketServers = [
+      attachRealtimeVoiceSocketServer(server),
+      attachDuplexVoiceSocketServer(server),
+    ];
+    const workers = [];
+    const shutdownController = createGracefulShutdown({
+      closeDatabases: async () => {
+        const results = await Promise.allSettled([
+          closePostgres(),
+          disconnectMongo(),
+        ]);
+        const failures = results
+          .filter((result) => result.status === 'rejected')
+          .map((result) => result.reason);
+        if (failures.length > 0) {
+          throw new AggregateError(failures, 'Database connections did not close cleanly');
+        }
+      },
+      httpServer: server,
+      logger,
+      timeoutMs: getShutdownTimeoutMs(),
+      webSocketServers,
+      workers,
+    });
+    registerShutdownSignals({ shutdown: shutdownController.shutdown });
 
     server.listen(PORT, '0.0.0.0', () => {
       logger.info('API server started', { port: PORT, url: `http://localhost:${PORT}` });
       if (!startup.mongo?.ok) {
         logger.warn('Running in degraded mode because Mongo is unavailable', { port: PORT });
       }
-      if (startup.mongo?.ok && startup.postgres?.ok && getBooleanEnv('RETENTION_WORKER_ENABLED', false)) {
-        import('./src/services/retention/retentionWorker.js')
-          .then(({ startRetentionWorker }) => startRetentionWorker())
-          .catch((error) => logger.error('Retention worker failed to start', { error }));
-      }
-      if (startup.postgres?.ok && getBooleanEnv('RECORDING_WORKER_ENABLED', true)) {
-        import('./src/services/recording/recordingConversionWorker.js')
-          .then(({ startRecordingConversionWorker }) => startRecordingConversionWorker())
-          .catch((error) => logger.error('Recording conversion worker failed to start', { error }));
+      try {
+        if (startup.mongo?.ok && startup.postgres?.ok && getBooleanEnv('RETENTION_WORKER_ENABLED', false)) {
+          workers.push(startRetentionWorker());
+        }
+        if (startup.postgres?.ok && getBooleanEnv('RECORDING_WORKER_ENABLED', true)) {
+          workers.push(startRecordingConversionWorker());
+        }
+      } catch (error) {
+        logger.error('Background worker failed to start', { error });
       }
     });
   } catch (error) {

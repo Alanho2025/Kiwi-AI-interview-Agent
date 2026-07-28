@@ -25,25 +25,35 @@ export const createRetentionWorker = ({
     }),
   });
   let interval = null;
-  let running = false;
+  let activeRunPromise = null;
 
-  const runOnce = async () => {
-    if (running) return { skipped: true, reason: 'already_running' };
-    running = true;
-    try {
-      const jobs = await jobRepository.listReadyJobs({ limit: config.batchSize });
-      const results = [];
-      for (const job of jobs) {
-        try {
-          results.push(await service.execute({ jobId: job.id }));
-        } catch (error) {
-          logger.error('Retention cleanup job failed', { jobId: job.id, state: job.state, error });
-        }
+  const performRun = async () => {
+    const jobs = await jobRepository.listReadyJobs({ limit: config.batchSize });
+    const results = [];
+    for (const job of jobs) {
+      try {
+        results.push(await service.execute({ jobId: job.id }));
+      } catch (error) {
+        logger.error('Retention cleanup job failed', { jobId: job.id, state: job.state, error });
       }
-      return { skipped: false, processed: jobs.length, results };
-    } finally {
-      running = false;
     }
+    return { skipped: false, processed: jobs.length, results };
+  };
+
+  const runOnce = () => {
+    if (activeRunPromise) {
+      return Promise.resolve({ skipped: true, reason: 'already_running' });
+    }
+
+    const execution = performRun();
+    activeRunPromise = execution;
+    const clearActiveRun = () => {
+      if (activeRunPromise === execution) {
+        activeRunPromise = null;
+      }
+    };
+    void execution.then(clearActiveRun, clearActiveRun);
+    return execution;
   };
 
   const start = () => {
@@ -56,12 +66,19 @@ export const createRetentionWorker = ({
     return true;
   };
 
-  const stop = () => {
+  const stop = async () => {
     if (interval) clearInterval(interval);
     interval = null;
+    if (activeRunPromise) {
+      await activeRunPromise;
+    }
   };
 
   return { runOnce, start, stop };
 };
 
-export const startRetentionWorker = () => createRetentionWorker().start();
+export const startRetentionWorker = (options = {}) => {
+  const worker = createRetentionWorker(options);
+  worker.start();
+  return worker;
+};
