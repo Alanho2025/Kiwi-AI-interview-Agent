@@ -85,6 +85,27 @@ const validVad = {
   finalSegmentReceived: true,
 };
 
+const scopeEligibleSession = () => ({
+  ...baseSession(),
+  transcript: [{
+    role: 'ai',
+    text: 'How do you use AI?',
+    questionId: 'question-1',
+    metadata: {
+      turnType: 'interview_question',
+      countsAsQuestion: true,
+      rootQuestionId: 'question-1',
+      preparedQuestionId: 'prepared-question-1',
+      catalogQuestionId: 'catalog-question-1',
+      ambiguityMode: 'open_scope_probe',
+      clarificationContextVersion: 'scope-context-2026.2',
+      clarificationContext: {
+        responseText: 'Focus on one AI-assisted project and explain your process, checks, and result.',
+      },
+    },
+  }],
+});
+
 describe('mocked realtime voice turn', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -228,6 +249,41 @@ describe('mocked realtime voice turn', () => {
     expect(mocks.appendTranscriptTurn).not.toHaveBeenCalled();
     expect(mocks.saveInterviewAnswerWithDetails).not.toHaveBeenCalled();
     expect(mocks.runTask).not.toHaveBeenCalled();
+  });
+
+  it('persists a scope request as a non-answer and does not create an interview response row', async () => {
+    mocks.runTask.mockResolvedValue({
+      displayText: 'Focus on one AI-assisted project and explain your process, checks, and result.',
+      nextQuestion: 'Focus on one AI-assisted project and explain your process, checks, and result.',
+      nextQuestionOrder: 2,
+      isComplete: false,
+    });
+
+    await processRealtimeVoiceTurn({
+      session: scopeEligibleSession(),
+      userId: 'user-1',
+      transcriptText: 'Should I focus on personal AI use or a project I built?',
+      asrConfidence: 0.9,
+      vad: validVad,
+      inputMode: 'realtime_voice',
+    });
+    await flushBackgroundJobs();
+
+    expect(mocks.appendTranscriptTurn).toHaveBeenCalledWith(
+      'voice-session-1',
+      expect.objectContaining({
+        role: 'user',
+        metadata: expect.objectContaining({
+          turnType: 'question_scope_clarification_request',
+          countsAsQuestion: false,
+          countsAsAnswer: false,
+          rootQuestionId: 'question-1',
+          clarificationContextVersion: 'scope-context-2026.2',
+        }),
+      }),
+    );
+    expect(mocks.saveInterviewAnswerWithDetails).not.toHaveBeenCalled();
+    expect(mocks.runTask).toHaveBeenCalled();
   });
 
   it('uses streaming callback and archives full assistant audio in background', async () => {

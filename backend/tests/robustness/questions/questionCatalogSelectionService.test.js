@@ -47,6 +47,32 @@ describe('question catalog session snapshots and reservations', () => {
     expect(JSON.stringify(result.items[0])).not.toMatch(/candidateName|rawJD|transcript|private report/i);
   });
 
+  it('snapshots only a versioned candidate-safe clarification response for future approved catalogs', () => {
+    const source = catalogItem('ai_assisted_delivery');
+    const result = buildCatalogQuestionSnapshots({
+      catalogItems: [{
+        ...source,
+        ambiguityPolicy: {
+          mode: 'open_scope_probe',
+          clarificationContextVersion: 'scope-2026.2-v1',
+          clarificationResponseText: 'Please focus on one AI-assisted project and explain your process, checks, and result.',
+          internalScopeOptions: ['personal use', 'project delivery'],
+        },
+      }],
+      context: softwareContext,
+    });
+
+    expect(result.items[0]).toMatchObject({
+      ambiguityMode: 'open_scope_probe',
+      clarificationContextVersion: 'scope-2026.2-v1',
+      clarificationContext: {
+        responseText: 'Please focus on one AI-assisted project and explain your process, checks, and result.',
+      },
+    });
+    expect(JSON.stringify(result.items[0])).not.toContain('internalScopeOptions');
+    expect(JSON.stringify(result.items[0])).not.toContain('personal use');
+  });
+
   it('uses level-specific catalog wording instead of merely relabelling the same AI workflow question', () => {
     const catalogItems = [catalogItem('ai_assisted_delivery')];
     const junior = buildCatalogQuestionSnapshots({

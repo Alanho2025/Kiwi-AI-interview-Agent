@@ -44,7 +44,14 @@ const getAnsweredQuestionCount = (session = {}) => (session?.transcript || [])
   .filter((turn) => {
     if (turn?.role !== 'user' || !String(turn?.text || '').trim()) return false;
     if (turn?.metadata?.countsAsQuestion === false) return false;
-    if (['transcript_confirmation', 'clarification', 'repair_prompt', 'system'].includes(turn?.metadata?.turnType)) return false;
+    if ([
+      'transcript_confirmation',
+      'clarification',
+      'question_scope_clarification_request',
+      'question_scope_clarification',
+      'repair_prompt',
+      'system',
+    ].includes(turn?.metadata?.turnType)) return false;
     return true;
   })
   .length;

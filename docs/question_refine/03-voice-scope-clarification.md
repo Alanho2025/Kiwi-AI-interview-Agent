@@ -1,8 +1,8 @@
 # QI-CP3 — Voice Scope Clarification and Ambiguity Handling
 
-> **Status: Draft for human review.**
+> **Status: Local implementation complete; ready for CP3 human review.**
 > **Depends on: CP2 approved pool metadata and recommendation contract.**
-> **Execution mode: no Voice runtime change until this checkpoint receives explicit implementation approval.**
+> **Execution mode: Product Owner authorized local CP3 implementation. Candidate-visible activation and CP4 remain gated.**
 
 Master authority: [Voice Question Intelligence Master Plan](../voice-question-intelligence-master-plan.md). This checkpoint must be read with `VOICE_INTERVIEW_PRODUCT_BEHAVIOR.md`; the voice product contract wins on conflict.
 
@@ -153,6 +153,17 @@ Before human review, provide:
 - redacted developer trace showing action, reason, context version and no raw private payload.
 
 CP3 reviewer listens to or browser-validates the cases above, confirms that the response sounds natural, and verifies no candidate sees internal policy or answer hints. Possible decision: `approved`, `revise`, `blocked`, `deferred`. Approval permits CP4 drafting or explicitly approved CP3 implementation; it does not promote candidate-visible enforcement.
+
+### Local implementation evidence — 2026-07-29
+
+- `ANSWER_QUESTION_SCOPE` now has a deterministic Voice controller lane before the generic evaluator/rephrase path.
+- The request and response keep the same `rootQuestionId`; both are non-countable, excluded from report answer-pair datasets, and the request does not create a PostgreSQL `interview_responses` answer row.
+- Only `bounded_scenario` or `open_scope_probe` items with a prepared `clarificationContextVersion` and candidate-safe `responseText` can produce a semantic scope response.
+- Missing context fails closed to a deterministic rephrase; a repeated request uses a bounded scaffold; a substantive `I'll assume ...` answer remains countable and receives `scopeFraming=explicit_assumption`.
+- The redacted trace contains only action, reason, context version, root reference and count flags. It does not contain candidate text or the prepared response.
+- Focused and broader local mock-safe suites cover resolver, controller persistence, question counting, catalog snapshot propagation, report exclusion, harness mapping and Voice confidence precedence.
+
+The approved `2026.1` catalog intentionally remains unchanged and all its items currently use `ambiguityPolicy.mode = none`. Therefore the local engine is fail-closed, but a real valid-scope Voice/browser replay cannot be performed until a separately reviewed catalog version supplies selected eligible items with versioned clarification context. This is a CP3 content/human-review dependency, not permission to mutate the approved CP1 digest.
 
 ## 8. Stop conditions and rollback
 

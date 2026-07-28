@@ -203,6 +203,24 @@ describe('question metadata persistence guards', () => {
     expect(getNextQuestionOrder({ currentQuestionIndex: 3 }, { countsAsQuestion: false })).toBe(3);
   });
 
+  it('classifies semantic scope clarification as its own non-countable turn type', () => {
+    const metadata = masterAiService.buildQuestionTranscriptMetadata({
+      questionType: 'question_scope_clarification',
+      turnKind: 'repair',
+      scenario: 'question_scope_clarification',
+      parentQuestionId: 'question-3',
+      clarificationContextVersion: 'scope-2026.2-v1',
+      text: 'Please focus on one AI-assisted project.',
+    });
+
+    expect(metadata).toMatchObject({
+      turnType: 'question_scope_clarification',
+      countsAsQuestion: false,
+      parentQuestionId: 'question-3',
+      clarificationContextVersion: 'scope-2026.2-v1',
+    });
+  });
+
   it('reports a diagnostic warning when prepared asked-state reconciliation misses its row', () => {
     expect(masterAiService.buildPreparedQuestionStateDiagnostic({
       markResult: null,

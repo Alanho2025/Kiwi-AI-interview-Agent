@@ -198,6 +198,10 @@ export const buildCatalogQuestionSnapshots = ({ catalogItems = [], context = {} 
       selectionPolicy,
       coverageSlot: selectionPolicy.coverageSlot || null,
       ambiguityMode: catalogItem.ambiguityPolicy?.mode || 'none',
+      clarificationContextVersion: catalogItem.ambiguityPolicy?.clarificationContextVersion || null,
+      clarificationContext: catalogItem.ambiguityPolicy?.clarificationResponseText
+        ? { responseText: normalizeText(catalogItem.ambiguityPolicy.clarificationResponseText) }
+        : null,
       reportDimensions: ensureArray(catalogItem.reportDimensions),
       containsSensitiveData: true,
       accessScope: 'private',

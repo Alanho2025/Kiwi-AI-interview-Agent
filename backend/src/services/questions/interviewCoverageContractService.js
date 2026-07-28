@@ -4,6 +4,7 @@ const NON_COUNTABLE_TURN_TYPES = new Set([
   'repair_prompt',
   'transcript_confirmation',
   'clarification',
+  'question_scope_clarification',
   'repeat_request',
   'system',
   'barge_in_acknowledgement',

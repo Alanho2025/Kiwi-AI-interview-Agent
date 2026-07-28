@@ -71,6 +71,8 @@ const mapRootCandidateToQuestion = ({ candidate = null, targetTopic = '', catego
     selectionPolicy: candidate.selectionPolicy || null,
     coverageSlot: candidate.coverageSlot || null,
     ambiguityMode: candidate.ambiguityMode || null,
+    clarificationContextVersion: candidate.clarificationContextVersion || null,
+    clarificationContext: candidate.clarificationContext || null,
     reportDimensions: candidate.reportDimensions || [],
     rankTrace: candidate.rankTrace || {
       questionId: candidate.questionId || null,
@@ -522,6 +524,8 @@ export const runInterviewerAgent = async ({
     selectionPolicy: selectedQuestion.selectionPolicy || null,
     coverageSlot: selectedQuestion.coverageSlot || null,
     ambiguityMode: selectedQuestion.ambiguityMode || null,
+    clarificationContextVersion: selectedQuestion.clarificationContextVersion || null,
+    clarificationContext: selectedQuestion.clarificationContext || null,
     reportDimensions: selectedQuestion.reportDimensions || [],
     preparedQuestionId: selectedQuestion.preparedQuestionId || null,
     rankTrace: selectedQuestion.rankTrace || null,

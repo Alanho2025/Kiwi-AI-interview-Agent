@@ -12,7 +12,11 @@
 import { AGENT_DECISION_TYPES } from '../constants/agentDecisionTypes.js';
 import { AGENT_TOOL_NAMES, getToolNameForAction } from '../constants/agentToolNames.js';
 import { agentRegistry } from './agentRegistryService.js';
-import { getSessionById, appendTranscriptTurn, createInterviewQuestion } from './sessionService.js';
+import {
+  getSessionById,
+  appendTranscriptTurn,
+  createInterviewQuestion,
+} from './sessionService.js';
 import { getNextQuestionOrder, hasReachedQuestionLimit, hasReachedTimeLimit } from './interviewStateService.js';
 import { ensureSessionArtifactsIndexed } from './ragIndexService.js';
 import { SessionAnalysis } from '../db/models/sessionAnalysisModel.js';
@@ -60,6 +64,14 @@ import {
 } from './harness/interviewNextTurnShadowHarness.js';
 import { refreshUserInterviewMemoryProjection } from './aiControl/userInterviewMemoryService.js';
 import { runReportTaskWithHarness } from './harness/reportWorkflowHarness.js';
+import {
+  isActionableQuestionScopeObservation,
+  resolveQuestionScopeObservation,
+} from './voice/questionScopeClarificationService.js';
+import {
+  executeQuestionScopeControllerTurn,
+  persistExplicitAssumptionFraming,
+} from './voice/questionScopeControllerService.js';
 
 const scheduleCatalogCoverageTrace = ({ sessionId, coverageOutcome }) => {
   enqueueBackgroundJob('record-catalog-coverage-completion', () => recordAgentTraceEvent({
@@ -276,6 +288,7 @@ const resolveQuestionTurnType = (interviewerOutput = {}) => {
   const scenario = interviewerOutput.scenario || interviewerOutput.questionDecision?.scenario || '';
   const questionType = interviewerOutput.questionType || '';
   if (questionType === 'transcript_confirmation' || scenario === 'clarify_audio_or_transcript') return 'transcript_confirmation';
+  if (questionType === 'question_scope_clarification' || scenario === 'question_scope_clarification') return 'question_scope_clarification';
   if (questionType === 'clarification') return 'clarification';
   if (turnKind === 'repair' || ['rephrase', 'scaffold'].includes(scenario)) return 'repair_prompt';
   if (turnKind === 'system' || questionType === 'system') return 'system';
@@ -320,6 +333,10 @@ export const buildQuestionTranscriptMetadata = (interviewerOutput = {}) => {
       : null,
     coverageSlot: interviewerOutput.coverageSlot || catalogDecision.coverageSlot || null,
     ambiguityMode: interviewerOutput.ambiguityMode || null,
+    clarificationContextVersion: interviewerOutput.clarificationContextVersion || null,
+    clarificationContext: interviewerOutput.clarificationContext?.responseText
+      ? { responseText: interviewerOutput.clarificationContext.responseText }
+      : null,
     reportDimensions: Array.isArray(interviewerOutput.reportDimensions) ? interviewerOutput.reportDimensions : [],
     turnType,
     countsAsQuestion,
@@ -354,13 +371,21 @@ const runInterviewController = async ({
   harnessObserver = () => {},
   capabilityRegistry = agentRegistry,
 }) => {
-  enqueueBackgroundJob('trace-answer-evaluated-start', () => recordAgentTraceEvent({
-    sessionId: session.id,
-    workflowRunId,
-    eventType: 'answer_evaluated',
-    mode: session.mode || payload.inputMode || 'text',
-    payload: { inputMode: payload.inputMode || 'text' },
-  }), { sessionId: session.id, workflowRunId });
+  const isVoiceMode = ['duplex_voice', 'realtime_voice'].includes(payload.inputMode);
+  const questionScopeObservation = isVoiceMode
+    ? resolveQuestionScopeObservation({
+        session,
+        candidateText: payload.answer || '',
+      })
+    : { kind: 'none', reason: 'not_voice_mode' };
+
+  if (questionScopeObservation.kind === 'explicit_assumption') {
+    await persistExplicitAssumptionFraming({
+      sessionId: session.id,
+      observation: questionScopeObservation,
+    });
+  }
+
   if (hasReachedTimeLimit(session)) {
     return attachCatalogCoverageToCompletion({ session, result: {
       isComplete: true,
@@ -370,6 +395,16 @@ const runInterviewController = async ({
       rationale: 'Interview completed after the planned time limit.',
       retrievalSnapshot: null,
     } });
+  }
+
+  if (isActionableQuestionScopeObservation(questionScopeObservation)) {
+    return executeQuestionScopeControllerTurn({
+      session,
+      observation: questionScopeObservation,
+      onSentence,
+      workflowRunId,
+      harnessObserver,
+    });
   }
 
   if (hasReachedQuestionLimit(session)) {
@@ -383,7 +418,14 @@ const runInterviewController = async ({
     } });
   }
 
-  const isVoiceMode = ['duplex_voice', 'realtime_voice'].includes(payload.inputMode);
+  enqueueBackgroundJob('trace-answer-evaluated-start', () => recordAgentTraceEvent({
+    sessionId: session.id,
+    workflowRunId,
+    eventType: 'answer_evaluated',
+    mode: session.mode || payload.inputMode || 'text',
+    payload: { inputMode: payload.inputMode || 'text' },
+  }), { sessionId: session.id, workflowRunId });
+
   const singleBlockingLlmVoicePath = shouldUseSingleBlockingLlmVoicePath({ inputMode: payload.inputMode });
   const clientTurnId = payload.clientTurnId || null;
   

@@ -7,6 +7,8 @@ const EXCLUDED_USER_TURN_TYPES = new Set([
   'transcript_confirmation',
   'transcript_confirmation_response',
   'clarification',
+  'question_scope_clarification_request',
+  'question_scope_clarification',
   'repeat_request',
   'system',
   'bridge_acknowledgement',

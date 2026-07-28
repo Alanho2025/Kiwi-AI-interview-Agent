@@ -164,6 +164,7 @@ const inferQuestionTurnType = (interviewerOutput = {}) => {
   const scenario = interviewerOutput.scenario || interviewerOutput.questionDecision?.scenario || '';
   const questionType = interviewerOutput.questionType || '';
   if (questionType === 'transcript_confirmation' || scenario === 'clarify_audio_or_transcript') return 'transcript_confirmation';
+  if (questionType === 'question_scope_clarification' || scenario === 'question_scope_clarification') return 'question_scope_clarification';
   if (questionType === 'clarification') return 'clarification';
   if (turnKind === 'repair' || ['rephrase', 'scaffold'].includes(scenario)) return 'repair_prompt';
   if (turnKind === 'system' || questionType === 'system') return 'system';
@@ -333,6 +334,10 @@ const buildGateResults = ({
 
 const buildMemoryWrites = ({ workflowRunId, observation = {} }) => {
   if (!observation.decisionContext && !observation.plan) return [];
+  if (
+    observation.interviewerOutput?.questionType === 'question_scope_clarification'
+    || observation.interviewerOutput?.scenario === 'question_scope_clarification'
+  ) return [];
 
   const buildWrite = ({ memoryType, scope, memoryCategory, sourceRefs, writerRef, allowedReaders }) => ({
     schemaVersion: 'memory_write_v0',

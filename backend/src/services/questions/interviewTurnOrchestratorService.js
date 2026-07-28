@@ -181,6 +181,10 @@ const toRootCandidate = (item = {}) => ({
   selectionPolicy: item.selectionPolicy || null,
   coverageSlot: item.coverageSlot || null,
   ambiguityMode: item.ambiguityMode || null,
+  clarificationContextVersion: item.clarificationContextVersion || null,
+  clarificationContext: item.clarificationContext?.responseText
+    ? { responseText: normalizeText(item.clarificationContext.responseText) }
+    : null,
   reportDimensions: item.reportDimensions || [],
 });
 

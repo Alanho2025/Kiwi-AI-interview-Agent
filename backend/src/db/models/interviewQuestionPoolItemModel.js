@@ -70,6 +70,7 @@ const InterviewQuestionPoolItemSchema = new mongoose.Schema(
     coverageSlot: { type: String, default: '', index: true },
     ambiguityMode: { type: String, default: 'none' },
     clarificationContextVersion: { type: String, default: null },
+    clarificationContext: { type: mongoose.Schema.Types.Mixed, default: null },
     reportDimensions: { type: [String], default: [] },
     retentionUntil: { type: Date },
     deletedAt: { type: Date },

@@ -224,6 +224,41 @@ describe('M1 harness WorkflowRun contract', () => {
     });
   });
 
+  it('treats question-scope clarification as a passing non-countable voice turn', () => {
+    const session = { ...buildM1SessionFixture(), mode: 'voice' };
+    const observation = buildM1ObservationFixture();
+    observation.plan = {
+      selectedAction: 'ANSWER_QUESTION_SCOPE',
+      fallbackAction: 'ANSWER_QUESTION_SCOPE',
+      candidateActions: [{ action: 'ANSWER_QUESTION_SCOPE', confidence: 1 }],
+    };
+    observation.interviewerOutput = {
+      questionType: 'question_scope_clarification',
+      turnKind: 'repair',
+      scenario: 'question_scope_clarification',
+      rootQuestionId: 'q-current',
+    };
+    const run = buildInterviewNextTurnWorkflowRun({
+      workflowRunId: 'run-cp3-scope',
+      executionMode: 'observe',
+      session,
+      payload: { inputMode: 'duplex_voice', clientTurnId: 'turn-cp3-scope' },
+      observation,
+      result: {
+        isComplete: false,
+        controllerAction: 'ANSWER_QUESTION_SCOPE',
+        nextQuestionOrder: session.currentQuestionIndex,
+      },
+    });
+
+    expect(run.gateResults.find((gate) => gate.gateType === 'question_counting')).toMatchObject({
+      status: 'pass',
+      reasonCodes: ['non_interview_turn_not_counted'],
+      blockingScope: 'none',
+    });
+    expect(run.memoryWrites).toEqual([]);
+  });
+
   it('records a refs-only user interview memory read and its non-scoring policy decision', () => {
     const observation = buildM1ObservationFixture();
     observation.decisionContext.userInterviewMemory = {
