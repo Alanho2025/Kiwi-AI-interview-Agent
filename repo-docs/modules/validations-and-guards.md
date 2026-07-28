@@ -18,7 +18,7 @@
 | Auth | [auth middleware](../../backend/src/middleware/authMiddleware.js) | cookie/Bearer token 转成 `req.user` |
 | CSRF | [CSRF middleware](../../backend/src/middleware/csrfMiddleware.js) | cookie-auth unsafe request 需要 double-submit token |
 | Rate limit | [rate limit middleware](../../backend/src/middleware/rateLimitMiddleware.js) | auth/upload/AI/export route abuse |
-| WebSocket security | [WebSocket security helpers](../../backend/src/api/webSocketSecurity.js) | socket cookie auth、origin、upgrade limit |
+| WebSocket security | [WebSocket security helpers](../../backend/src/api/webSocketSecurity.js) | socket cookie auth、origin、upgrade limit；只有 `TRUST_PROXY_HOPS=1` 才使用 right-most valid forwarded client IP，其他情況保留 direct socket address |
 | Body field | [controller helpers](../../backend/src/utils/controllerHelpers.js) | 缺少必需字段时给一致错误 |
 | Schema normalization | [schema validation service](../../backend/src/services/schemaValidationService.js) | report、analysis、prepared question pool 输出形状 |
 | Human review gates | [Analyze page](../../frontend/src/pages/AnalyzePage.jsx) | CV/JD 进入 match 前的用户确认 |
@@ -32,7 +32,7 @@
 
 ## 仍要保守表达的地方
 
-隐私和 compliance copy 不能写成已完全满足。Role-fit review 与 match 已加入 owner/version gate，CV evidence profile 标记为 private；当前代码也有 auth、CSRF、rate limits、audit logs、redaction helpers 和 retention pipeline，但 account-wide deletion、encryption-at-rest guarantees、route-complete ownership tests 和 deployment policy 仍是 hardening area。
+隐私和 compliance copy 不能写成已完全满足。Role-fit review 与 match 已加入 owner/version gate，CV evidence profile 标记为 private；当前代码也有 auth、CSRF、rate limits、audit logs、redaction helpers、retention pipeline 與 EC2 local deployment candidate，但 account-wide deletion、encryption-at-rest guarantees、route-complete ownership tests 和 live deployment verification 仍是 hardening area。
 
 继续读 [测试与 eval 版图](testing-and-evaluation.md)，看哪些 guards 已被自动测试。
 

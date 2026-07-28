@@ -36,8 +36,14 @@ RUN if [ "$INSTALL_OPEN_SOURCE_NLP" = "true" ]; then \
     else \
     echo "Skipping optional open-source NLP dependencies. Set INSTALL_OPEN_SOURCE_NLP=true to install and warm them."; \
     fi
-# Copy application source
-COPY . .
+# Copy application source without transferring ownership to root.
+COPY --chown=node:node . .
+
+# Local uploads are the only writable application data in the first EC2 release.
+RUN mkdir -p /app/uploads \
+    && chown node:node /app/uploads
+
+USER node
 
 # Run the app
 EXPOSE 8080

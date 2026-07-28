@@ -64,6 +64,14 @@ export const getBooleanEnv = (name, defaultValue = false) => {
  */
 export const getServerPort = () => Number(getEnv('PORT') || 3000);
 
+export const getTrustedProxyHops = () =>
+  String(getEnv('TRUST_PROXY_HOPS')).trim() === '1' ? 1 : 0;
+
+export const getShutdownTimeoutMs = () => {
+  const configured = Number(getEnv('SHUTDOWN_TIMEOUT_MS') || 30000);
+  return Number.isFinite(configured) && configured > 0 ? configured : 30000;
+};
+
 export const assertRequiredEnv = (names = []) => {
   const missing = names.filter((name) => !getEnv(name));
   if (missing.length > 0) {

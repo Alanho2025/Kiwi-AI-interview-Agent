@@ -4,7 +4,9 @@
  * - Keep cookie auth and Origin checks consistent across socket endpoints.
  */
 
-import { getAllowedOrigins } from '../config/env.js';
+import net from 'node:net';
+
+import { getAllowedOrigins, getTrustedProxyHops } from '../config/env.js';
 import { verifyAuthToken } from '../services/authTokenService.js';
 
 export const parseCookies = (cookieHeader = '') =>
@@ -55,6 +57,25 @@ export const rejectUpgrade = (socket, statusCode = 403, reason = 'Forbidden') =>
   socket.destroy();
 };
 
+const getRightMostForwardedAddress = (forwardedFor) => {
+  const addresses = String(forwardedFor || '')
+    .split(',')
+    .map((address) => address.trim())
+    .filter(Boolean);
+  const candidate = addresses.at(-1) || '';
+  return net.isIP(candidate) ? candidate : '';
+};
+
+export const resolveWebSocketClientAddress = (request = {}) => {
+  const directAddress = request.socket?.remoteAddress || 'unknown';
+  if (getTrustedProxyHops() !== 1) {
+    return directAddress;
+  }
+
+  return getRightMostForwardedAddress(request.headers?.['x-forwarded-for'])
+    || directAddress;
+};
+
 export const createWebSocketUpgradeLimiter = ({
   windowMs = 60 * 1000,
   max = 30,
@@ -66,7 +87,7 @@ export const createWebSocketUpgradeLimiter = ({
   const hitsByAddress = new Map();
 
   return (request) => {
-    const address = request.socket?.remoteAddress || 'unknown';
+    const address = resolveWebSocketClientAddress(request);
     const now = Date.now();
     const current = hitsByAddress.get(address) || { count: 0, resetAt: now + windowMs };
 

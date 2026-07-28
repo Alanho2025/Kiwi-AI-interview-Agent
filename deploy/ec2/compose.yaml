@@ -1,0 +1,15 @@
+name: kiwi
+
+services:
+  backend:
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile
+    env_file:
+      - ${KIWI_BACKEND_ENV_FILE:-/etc/kiwi/backend.env}
+    ports:
+      - "127.0.0.1:8080:8080"
+    restart: unless-stopped
+    stop_grace_period: 40s
+    volumes:
+      - /srv/kiwi/uploads:/app/uploads

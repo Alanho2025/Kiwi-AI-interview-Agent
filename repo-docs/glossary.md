@@ -49,3 +49,5 @@
 | TranscriptRiskSection | report page 的 transcript risk 顯示元件；目前只展示 review evidence 和 boundary copy，不提供持久化 review actions | [voice interview](modules/feature-voice-interview.md) |
 | bounded repair | 报告 QA 后有限次 wording repair；不能掩盖 deterministic blocking flags | [report QA agent](modules/agent-report-qa.md) |
 | retention | 数据保留、audit、cleanup、backup/quarantine 的后台能力；不等同于已完成 account-wide deletion guarantee | [数据与保留](modules/data-persistence-retention.md) |
+| TRUST_PROXY_HOPS=1 | Backend 明確信任前方正好一層 reverse proxy；WebSocket limiter 才可使用 right-most valid `X-Forwarded-For`，未啟用時只使用 direct socket address | [EC2 deployment runtime](modules/deployment-runtime.md) |
+| stop() | Recording 或 retention worker 的 graceful shutdown 方法；停止下一輪 interval，並等待目前 active run 結束 | [EC2 deployment runtime](modules/deployment-runtime.md) |

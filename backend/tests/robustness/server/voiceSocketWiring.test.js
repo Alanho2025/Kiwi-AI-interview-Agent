@@ -17,7 +17,7 @@ describe('voice socket server wiring', () => {
 
     expect(source).toContain("import { attachRealtimeVoiceSocketServer } from './src/api/realtimeVoiceSocket.js';");
     expect(source).toContain("import { attachDuplexVoiceSocketServer } from './src/api/duplexVoiceSocket.js';");
-    expect(source).toMatch(/attachRealtimeVoiceSocketServer\(server\);/);
-    expect(source).toMatch(/attachDuplexVoiceSocketServer\(server\);/);
+    expect(source).toMatch(/attachRealtimeVoiceSocketServer\(server\)/);
+    expect(source).toMatch(/attachDuplexVoiceSocketServer\(server\)/);
   });
 });

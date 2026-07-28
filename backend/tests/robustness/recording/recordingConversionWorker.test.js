@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createRecordingConversionWorker } from '../../../src/services/recording/recordingConversionWorker.js';
+import {
+  createRecordingConversionWorker,
+  startRecordingConversionWorker,
+} from '../../../src/services/recording/recordingConversionWorker.js';
 
 const buildWorker = ({ conversionError = null, attempts = 1 } = {}) => {
   const job = {
@@ -66,5 +69,62 @@ describe('recording conversion worker', () => {
     await context.worker.runOnce();
 
     expect(context.repository.markFailed).toHaveBeenCalledWith(expect.objectContaining({ status: 'failed' }));
+  });
+
+  it('returns a stoppable worker instance from the production start helper', () => {
+    const context = buildWorker();
+
+    const worker = startRecordingConversionWorker({
+      config: {
+        maxProcessingAttempts: 3,
+        workerEnabled: false,
+        workerIntervalMs: 1000,
+        workerLeaseMs: 30000,
+      },
+      convertToMp3: context.convertToMp3,
+      repository: context.repository,
+      storage: context.storage,
+    });
+
+    expect(worker).toMatchObject({
+      runOnce: expect.any(Function),
+      start: expect.any(Function),
+      stop: expect.any(Function),
+    });
+  });
+
+  it('waits for an in-flight conversion before stop resolves', async () => {
+    let releaseClaim;
+    const repository = {
+      claimReadyJob: vi.fn(() => new Promise((resolve) => {
+        releaseClaim = resolve;
+      })),
+    };
+    const worker = createRecordingConversionWorker({
+      repository,
+      storage: {},
+      convertToMp3: vi.fn(),
+      config: {
+        maxProcessingAttempts: 3,
+        workerEnabled: true,
+        workerIntervalMs: 1000,
+        workerLeaseMs: 30000,
+      },
+    });
+    const activeRun = worker.runOnce();
+    let stopResolved = false;
+
+    const stopping = worker.stop().then(() => {
+      stopResolved = true;
+    });
+    await Promise.resolve();
+
+    expect(stopResolved).toBe(false);
+
+    releaseClaim(null);
+    await activeRun;
+    await stopping;
+
+    expect(stopResolved).toBe(true);
   });
 });
