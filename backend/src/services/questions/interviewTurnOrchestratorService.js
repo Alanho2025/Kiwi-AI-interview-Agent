@@ -3,6 +3,7 @@ import { ensureArray, normalizeKey, normalizeText, tokenize, unique } from '../.
 import { getPreparedQuestionPool } from './questionPoolComposerService.js';
 import { rankPreparedQuestionPool, selectBestPreparedQuestion } from './questionPoolRankerService.js';
 import { resolveFollowUpAssessmentContract } from './questionAssessmentContractService.js';
+import { buildFollowUpVsNextRootComparison } from './questionCatalogSelectionService.js';
 
 export const ROOT_SCENARIOS = new Set([
   'root_cv_evidence',
@@ -171,6 +172,16 @@ const toRootCandidate = (item = {}) => ({
   roleDomain: item.roleDomain || 'general',
   requirementCategory: item.requirementCategory || null,
   capabilityGroup: item.capabilityGroup || null,
+  catalogQuestionId: item.catalogQuestionId || null,
+  catalogVersion: item.catalogVersion || null,
+  catalogLifecycle: item.catalogLifecycle || null,
+  targetLevel: item.targetLevel || null,
+  testedSignals: item.testedSignals || [],
+  eligibilityReason: item.eligibilityReason || [],
+  selectionPolicy: item.selectionPolicy || null,
+  coverageSlot: item.coverageSlot || null,
+  ambiguityMode: item.ambiguityMode || null,
+  reportDimensions: item.reportDimensions || [],
 });
 
 const buildEvidencePackage = ({ selectedCandidate = null, decisionContext = {}, answerSignals = {} } = {}) => ({
@@ -265,7 +276,7 @@ export const buildInterviewTurnPlan = async ({
   const answerSignalBuildMs = Date.now() - answerSignalStartedAt;
   const mode = normalizeMode(decisionContext?.interviewStructure?.focusAreaKey || session?.settings?.focusArea || actionInput.category || 'combined');
   const requestedTurnKind = resolveTurnKind({ actionType, session, answerSignals, decisionContext });
-  const turnKind = requestedTurnKind === 'follow_up' && !latestTurn(session, 'ai') ? 'root_question' : requestedTurnKind;
+  let turnKind = requestedTurnKind === 'follow_up' && !latestTurn(session, 'ai') ? 'root_question' : requestedTurnKind;
   const category = mode === 'technical' ? 'technical' : mode === 'behavioural' ? 'behavioural' : actionInput.category || null;
   let rootPool = poolItems;
   if (!rootPool) {
@@ -285,22 +296,39 @@ export const buildInterviewTurnPlan = async ({
   });
   const rootCandidateRankMs = Date.now() - rankStartedAt;
   const roleFitQuestionRankingEnabled = ensureArray(session?.interviewPlan?.roleFit?.proofStrategy?.mustCover).length > 0;
+  const followUpContextStartedAt = Date.now();
+  const requestedFollowUpContext = turnKind === 'follow_up'
+    ? buildFollowUpContext({ session, selectedCandidate: rankedRootCandidates[0], answerSignals, decisionContext })
+    : null;
+  const followUpContextBuildMs = Date.now() - followUpContextStartedAt;
+  const requestedFollowUpScenario = requestedFollowUpContext
+    ? scenarioForFollowUp({ actionType, answerSignals, actionInput, decisionContext })
+    : null;
+  const requestedFollowUpIntent = requestedFollowUpScenario
+    ? followUpIntentForScenario(requestedFollowUpScenario)
+    : null;
+  const followUpComparison = requestedFollowUpContext
+    ? buildFollowUpVsNextRootComparison({
+        answerSignals,
+        nextRootCandidate: rankedRootCandidates[0],
+        reservationPlan: { reservations: rankedRootCandidates.coverageReservations || [] },
+        targetLevel: String(session?.settings?.seniorityLevel || session?.settings?.level || 'junior').toLowerCase(),
+        followUpIntent: requestedFollowUpIntent,
+      })
+    : null;
+  if (turnKind === 'follow_up' && followUpComparison?.decision === 'next_root') turnKind = 'root_question';
   const selectedRootCandidate = turnKind === 'root_question' ? selectBestPreparedQuestion(rankedRootCandidates) : null;
   const topRootCandidates = rankedRootCandidates.slice(0, 3).map(toRootCandidate);
   const alternativeRootCandidates = turnKind === 'root_question'
     ? rankedRootCandidates.filter((candidate) => candidate.questionId !== selectedRootCandidate?.questionId).map(toRootCandidate)
     : [];
-  const followUpContextStartedAt = Date.now();
-  const followUpContext = turnKind === 'follow_up'
-    ? buildFollowUpContext({ session, selectedCandidate: rankedRootCandidates[0], answerSignals, decisionContext })
-    : null;
-  const followUpContextBuildMs = Date.now() - followUpContextStartedAt;
+  const followUpContext = turnKind === 'follow_up' ? requestedFollowUpContext : null;
   const scenario = turnKind === 'repair'
     ? scenarioForRepair({ actionType })
     : turnKind === 'follow_up'
-      ? scenarioForFollowUp({ actionType, answerSignals, actionInput, decisionContext })
+      ? requestedFollowUpScenario
       : scenarioForRoot({ actionType, selectedCandidate: selectedRootCandidate, actionInput, decisionContext });
-  const followUpIntent = turnKind === 'follow_up' ? followUpIntentForScenario(scenario) : null;
+  const followUpIntent = turnKind === 'follow_up' ? requestedFollowUpIntent : null;
   const assessmentContract = turnKind === 'follow_up'
     ? resolveFollowUpAssessmentContract({
         intent: followUpIntent,
@@ -329,6 +357,7 @@ export const buildInterviewTurnPlan = async ({
       followUpIntent,
     } : null,
     followUpIntent,
+    followUpComparison,
     evidenceTarget: followUpContext?.evidenceTarget || null,
     evidencePackage,
     rankTrace: selectedRootCandidate?.rankTrace || null,

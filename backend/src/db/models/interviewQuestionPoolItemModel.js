@@ -59,6 +59,18 @@ const InterviewQuestionPoolItemSchema = new mongoose.Schema(
     evidenceMapStrength: { type: Number, default: 0 },
     coveragePriority: { type: String, default: '' },
     roleFitReason: { type: String, default: '' },
+    catalogQuestionId: { type: String, default: '', index: true },
+    catalogVersion: { type: String, default: '' },
+    catalogLifecycle: { type: String, default: '' },
+    targetLevel: { type: String, default: '' },
+    questionType: { type: String, default: '' },
+    testedSignals: { type: [String], default: [] },
+    eligibilityReason: { type: [String], default: [] },
+    selectionPolicy: { type: mongoose.Schema.Types.Mixed, default: {} },
+    coverageSlot: { type: String, default: '', index: true },
+    ambiguityMode: { type: String, default: 'none' },
+    clarificationContextVersion: { type: String, default: null },
+    reportDimensions: { type: [String], default: [] },
     retentionUntil: { type: Date },
     deletedAt: { type: Date },
     containsSensitiveData: { type: Boolean, default: true },
@@ -71,6 +83,7 @@ InterviewQuestionPoolItemSchema.index({ sessionId: 1, status: 1 });
 InterviewQuestionPoolItemSchema.index({ sessionId: 1, category: 1, status: 1 });
 InterviewQuestionPoolItemSchema.index({ sessionId: 1, topic: 1 });
 InterviewQuestionPoolItemSchema.index({ matchAnalysisId: 1 });
+InterviewQuestionPoolItemSchema.index({ sessionId: 1, coverageSlot: 1, status: 1 });
 applyRuntimeRetentionIndex(InterviewQuestionPoolItemSchema);
 
 export const InterviewQuestionPoolItem = mongoose.models.InterviewQuestionPoolItem || mongoose.model('InterviewQuestionPoolItem', InterviewQuestionPoolItemSchema);

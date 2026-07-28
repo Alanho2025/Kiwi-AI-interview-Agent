@@ -4,7 +4,9 @@ import {
   buildRecentActivity,
   buildSessionHistoryRows,
   dedupeSessionsById,
+  parseStoredSessionDefaults,
   resolveSessionOpenPath,
+  seniorityOptions,
 } from '../sessionDisplay.js';
 
 const buildSession = (overrides = {}) => ({
@@ -68,5 +70,12 @@ describe('sessionDisplay', () => {
     expect(resolveSessionOpenPath(buildSession({ status: 'ready', hasReport: false }))).toBe('/analysis?sessionId=session-1');
     expect(resolveSessionOpenPath(buildSession({ status: 'in_progress', hasReport: false }))).toBe('/interview/session-1');
     expect(resolveSessionOpenPath(buildSession({ status: 'completed', hasReport: true }))).toBe('/report/session-1');
+  });
+
+  it('upgrades legacy Advanced defaults to the displayed Senior level', () => {
+    expect(seniorityOptions).toContain('Senior');
+    expect(parseStoredSessionDefaults(JSON.stringify({ seniorityLevel: 'Advanced' }))).toMatchObject({
+      seniorityLevel: 'Senior',
+    });
   });
 });

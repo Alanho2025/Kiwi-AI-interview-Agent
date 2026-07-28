@@ -226,4 +226,83 @@ describe('interviewTurnOrchestratorService', () => {
     }));
     expect(plan.latency.roleFitQuestionRankingMs).toBe(plan.latency.rootCandidateRankMs);
   });
+
+  it('chooses an urgent reserved root instead of consuming the remaining budget on a follow-up', async () => {
+    const plan = await buildInterviewTurnPlan({
+      session: {
+        ...baseSession,
+        currentQuestionIndex: 6,
+        questionLimit: 8,
+        transcript: [
+          {
+            role: 'ai',
+            questionId: 'root-react',
+            text: 'How did you apply React?',
+            metadata: { topic: 'React', questionFamily: 'role_specific', turnKind: 'root_question', countsAsQuestion: true },
+          },
+          { role: 'user', text: 'I built the React UI but did not explain how I tested it or handled a difficult trade-off.' },
+        ],
+      },
+      actionType: AGENT_ACTION_TYPES.ASK_DEEP_DIVE_QUESTION,
+      decisionContext: {
+        ...baseDecisionContext,
+        environment: { latestAnswer: { text: 'I built the React UI but did not explain how I tested it or handled a difficult trade-off.', tokenCount: 18 } },
+      },
+      poolItems: [{
+        ...poolItems[0],
+        questionId: 'catalog-ai-workflow',
+        topic: 'ai assisted delivery',
+        text: 'How do you use AI while keeping ownership and verification?',
+        sourceType: 'question_catalog',
+        sourceStage: 'catalog',
+        catalogQuestionId: 'ai_assisted_delivery',
+        catalogVersion: '2026.1',
+        catalogLifecycle: 'approved',
+        questionFamily: 'ai_assisted_delivery',
+        coverageSlot: 'software_ai_workflow',
+        selectionPolicy: { minAsked: 1, maxAsked: 1, reservationPriority: 90 },
+      }],
+    });
+
+    expect(plan.turnKind).toBe('root_question');
+    expect(plan.selectedRootCandidate).toEqual(expect.objectContaining({
+      questionId: 'catalog-ai-workflow',
+      catalogQuestionId: 'ai_assisted_delivery',
+      catalogVersion: '2026.1',
+      coverageSlot: 'software_ai_workflow',
+    }));
+    expect(plan.followUpComparison).toEqual(expect.objectContaining({
+      decision: 'next_root',
+      reason: 'pending_coverage_reservation',
+    }));
+  });
+
+  it('honours the general follow-up-versus-next-root decision when no reservation is urgent', async () => {
+    const plan = await buildInterviewTurnPlan({
+      session: {
+        ...baseSession,
+        settings: { ...baseSession.settings, seniorityLevel: 'Intermediate' },
+        currentQuestionIndex: 2,
+        questionLimit: 8,
+      },
+      actionType: AGENT_ACTION_TYPES.ASK_DEEP_DIVE_QUESTION,
+      decisionContext: {
+        ...baseDecisionContext,
+        environment: {
+          latestAnswer: {
+            text: 'I implemented the React screen, ran tests, measured the result, and documented the decision.',
+            tokenCount: 14,
+          },
+        },
+      },
+      poolItems,
+    });
+
+    expect(plan.followUpComparison).toEqual(expect.objectContaining({
+      decision: 'next_root',
+      reason: 'next_root_opportunity_cost',
+    }));
+    expect(plan.turnKind).toBe('root_question');
+    expect(plan.selectedRootCandidate).not.toBeNull();
+  });
 });

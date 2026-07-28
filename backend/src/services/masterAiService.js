@@ -39,7 +39,12 @@ import { persistUserCoachingMemory } from './aiControl/userCoachingMemoryService
 import { rebuildBoundedMemory } from './aiControl/experienceMemoryService.js';
 import { enqueueBackgroundJob } from '../jobs/backgroundJobQueue.js';
 import { recordLocalUsage } from './aiUsageTrackingService.js';
-import { markQuestionPoolItemAsked, reconcileQuestionPoolFromTranscript } from './questions/questionPoolComposerService.js';
+import {
+  getPreparedQuestionPool,
+  markQuestionPoolItemAsked,
+  reconcileQuestionPoolFromTranscript,
+} from './questions/questionPoolComposerService.js';
+import { buildCatalogCoverageOutcome } from './questions/questionCatalogSelectionService.js';
 import { cleanupQuestionArtifactsAfterReport } from './questions/questionArtifactCleanupService.js';
 import { indexReportSessionArtifactsSafely } from './reportIndexingGuardService.js';
 import { buildAssessmentKey, buildQuestionFingerprint } from './questions/questionDeduplicationService.js';
@@ -55,6 +60,71 @@ import {
 } from './harness/interviewNextTurnShadowHarness.js';
 import { refreshUserInterviewMemoryProjection } from './aiControl/userInterviewMemoryService.js';
 import { runReportTaskWithHarness } from './harness/reportWorkflowHarness.js';
+
+const scheduleCatalogCoverageTrace = ({ sessionId, coverageOutcome }) => {
+  enqueueBackgroundJob('record-catalog-coverage-completion', () => recordAgentTraceEvent({
+    sessionId,
+    eventType: 'catalog_coverage_completed',
+    mode: 'voice',
+    payload: {
+      status: coverageOutcome.status,
+      completedBecause: coverageOutcome.completedBecause,
+      reservations: (coverageOutcome.reservations || []).map((reservation) => ({
+        coverageSlot: reservation.coverageSlot,
+        minAsked: reservation.minAsked,
+        askedCount: reservation.askedCount,
+        status: reservation.status,
+        degradedReason: reservation.degradedReason,
+      })),
+    },
+  }), { sessionId });
+};
+
+const buildCandidateSafeCatalogCoverage = (coverageOutcome = {}) => {
+  const reservations = coverageOutcome.reservations || [];
+  return {
+    status: coverageOutcome.status || 'not_applicable',
+    completedBecause: coverageOutcome.completedBecause || null,
+    requiredCoverageCount: reservations.length,
+    coveredCoverageCount: reservations.filter((reservation) => reservation.status === 'covered').length,
+    degradedCoverageCount: reservations.filter((reservation) => reservation.status === 'degraded').length,
+  };
+};
+
+export const attachCatalogCoverageToCompletion = async ({
+  session = {},
+  result = {},
+  loadPool = getPreparedQuestionPool,
+  recordCoverageTrace = null,
+} = {}) => {
+  if (session.mode !== 'voice' || !result.isComplete) return result;
+  try {
+    const poolItems = await loadPool({ sessionId: session.id, status: null });
+    const coverageOutcome = buildCatalogCoverageOutcome({
+      poolItems,
+      session,
+      completedBecause: result.completedBecause || null,
+    });
+    if (recordCoverageTrace) recordCoverageTrace(coverageOutcome);
+    else scheduleCatalogCoverageTrace({ sessionId: session.id, coverageOutcome });
+    return {
+      ...result,
+      catalogCoverage: buildCandidateSafeCatalogCoverage(coverageOutcome),
+    };
+  } catch {
+    return {
+      ...result,
+      catalogCoverage: {
+        status: 'coverage_observation_degraded',
+        completedBecause: result.completedBecause || null,
+        degradedReason: 'catalog_coverage_read_failed',
+        requiredCoverageCount: 0,
+        coveredCoverageCount: 0,
+        degradedCoverageCount: 0,
+      },
+    };
+  }
+};
 
 const persistControllerSnapshot = async ({ sessionId, decisionContext = null, evidenceBundle = null } = {}) => {
   await SessionAnalysis.findOneAndUpdate(
@@ -215,6 +285,8 @@ const resolveQuestionTurnType = (interviewerOutput = {}) => {
 export const buildQuestionTranscriptMetadata = (interviewerOutput = {}) => {
   const turnType = resolveQuestionTurnType(interviewerOutput);
   const countsAsQuestion = turnType === 'interview_question';
+  const catalogDecision = interviewerOutput.questionDecision || {};
+  const selectionPolicy = interviewerOutput.selectionPolicy || catalogDecision.selectionPolicy || null;
   const questionFields = {
     ...interviewerOutput,
     turnKind: interviewerOutput.turnKind || interviewerOutput.questionDecision?.turnKind || 'root_question',
@@ -230,6 +302,25 @@ export const buildQuestionTranscriptMetadata = (interviewerOutput = {}) => {
     roleDomain: interviewerOutput.roleDomain || 'general',
     requirementCategory: interviewerOutput.requirementCategory || null,
     capabilityGroup: interviewerOutput.capabilityGroup || null,
+    catalogQuestionId: interviewerOutput.catalogQuestionId || catalogDecision.catalogQuestionId || null,
+    catalogVersion: interviewerOutput.catalogVersion || catalogDecision.catalogVersion || null,
+    catalogLifecycle: interviewerOutput.catalogLifecycle || null,
+    targetLevel: interviewerOutput.targetLevel || null,
+    testedSignals: Array.isArray(interviewerOutput.testedSignals) ? interviewerOutput.testedSignals : [],
+    eligibilityReason: Array.isArray(interviewerOutput.eligibilityReason)
+      ? interviewerOutput.eligibilityReason
+      : (Array.isArray(catalogDecision.eligibilityReason) ? catalogDecision.eligibilityReason : []),
+    selectionPolicy: selectionPolicy
+      ? {
+          minAsked: Number(selectionPolicy.minAsked) || 0,
+          maxAsked: Number(selectionPolicy.maxAsked) || 0,
+          reservationPriority: Number(selectionPolicy.reservationPriority) || 0,
+          coverageSlot: selectionPolicy.coverageSlot || null,
+        }
+      : null,
+    coverageSlot: interviewerOutput.coverageSlot || catalogDecision.coverageSlot || null,
+    ambiguityMode: interviewerOutput.ambiguityMode || null,
+    reportDimensions: Array.isArray(interviewerOutput.reportDimensions) ? interviewerOutput.reportDimensions : [],
     turnType,
     countsAsQuestion,
     parentQuestionId: interviewerOutput.parentQuestionId || interviewerOutput.questionDecision?.parentQuestionId || null,
@@ -271,25 +362,25 @@ const runInterviewController = async ({
     payload: { inputMode: payload.inputMode || 'text' },
   }), { sessionId: session.id, workflowRunId });
   if (hasReachedTimeLimit(session)) {
-    return {
+    return attachCatalogCoverageToCompletion({ session, result: {
       isComplete: true,
       completedBecause: 'time_limit_reached',
       nextQuestion: null,
       nextQuestionOrder: session.currentQuestionIndex,
       rationale: 'Interview completed after the planned time limit.',
       retrievalSnapshot: null,
-    };
+    } });
   }
 
   if (hasReachedQuestionLimit(session)) {
-    return {
+    return attachCatalogCoverageToCompletion({ session, result: {
       isComplete: true,
       completedBecause: 'question_limit_reached',
       nextQuestion: null,
       nextQuestionOrder: session.currentQuestionIndex,
       rationale: 'Interview completed after the planned question limit.',
       retrievalSnapshot: null,
-    };
+    } });
   }
 
   const isVoiceMode = ['duplex_voice', 'realtime_voice'].includes(payload.inputMode);
@@ -702,7 +793,7 @@ decisionType: AGENT_DECISION_TYPES.EXECUTE_ACTION,
   });
 
   if (interviewerOutput?.isComplete || !interviewerOutput?.nextQuestion) {
-    return {
+    return attachCatalogCoverageToCompletion({ session, result: {
       ...interviewerOutput,
       isComplete: true,
       completedBecause: interviewerOutput?.completedBecause || 'question_limit_reached',
@@ -711,7 +802,7 @@ decisionType: AGENT_DECISION_TYPES.EXECUTE_ACTION,
       evaluatorOutput,
       reactTrace: interviewerOutput?.reactTrace || null,
       reflectionRecord,
-    };
+    } });
   }
 
   const transcriptMetadata = buildQuestionTranscriptMetadata(interviewerOutput);

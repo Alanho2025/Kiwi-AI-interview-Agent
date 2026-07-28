@@ -22,6 +22,8 @@
 | stepSummary | `performanceTrace` 里按 step 名称聚合的耗时摘要；用于看同一环节出现几次、累计耗时和最慢一次 | [match 与问题准备](modules/feature-match-and-question-prep.md) |
 | slowestSteps | `performanceTrace` 里按 `durationMs` 排序的最慢 measured steps；用于快速定位 CV-JD match latency 热点 | [match 与问题准备](modules/feature-match-and-question-prep.md) |
 | prepared question pool | 访谈前生成的候选问题池；运行时仍会被 ranker、dedupe、follow-up 控制影响 | [interviewer agent](modules/agent-interviewer.md) |
+| Question Catalog `2026.1` | 首个经 CP1 content 与 CP2 Voice policy 双重人工核准的 reusable question 版本；global catalog 不含 CV/JD/transcript 或 user/session data，只有 `approved` item 可复制进新 Voice session 的 private prepared pool | [match 与问题准备](modules/feature-match-and-question-prep.md) |
+| Senior | 新 Voice session 的最高 seniority 设置值；backend canonical key 为 `senior`。旧 `Advanced` input/display defaults 会在兼容读取时映射为 `Senior`，不重写历史 session | [match 与问题准备](modules/feature-match-and-question-prep.md) |
 | accepted answer | 可以进入报告计分的数据；repair、clarification、repeat、system turn 不属于它 | [报告与 QA](modules/feature-report-and-qa.md) |
 | RAG | 本项目的 session/global evidence retrieval；当前用 deterministic hash embedding + pgvector + fusion score | [RAG 检索层](modules/rag-retrieval.md) |
 | agent | 这里指一组有输入、决策、输出和 fallback 的服务；并非全部都在 `agentRegistry` 中注册 | [agent registry](modules/agent-registry-and-task-runner.md) |

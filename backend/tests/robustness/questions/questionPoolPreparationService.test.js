@@ -6,6 +6,7 @@ import {
   generateBoundedReserveQuestions,
   prepareInterviewQuestionPool,
 } from '../../../src/services/questions/questionPoolPreparationService.js';
+import { QUESTION_CATALOG_SEED } from '../../../src/data/questionCatalogSeed2026_1.js';
 
 const root = (id, topic, text = `Tell me about ${topic}?`) => ({
   questionId: id,
@@ -184,5 +185,106 @@ describe('question pool preparation readiness', () => {
       expect.objectContaining({ topic: 'teamwork', category: 'behavioural' }),
     ]));
     expect(goals.some((goal) => goal.topic.toLowerCase() === 'react')).toBe(false);
+  });
+
+  it('loads only approved catalog content during preparation and reports an unavailable catalog without blocking the legacy pool', async () => {
+    const existingItems = ['react', 'database', 'testing', 'automation', 'deployment']
+      .map((topic, index) => root(`q${index}`, topic));
+    const catalogItem = {
+      ...QUESTION_CATALOG_SEED.find((item) => item.catalogQuestionId === 'ai_assisted_delivery'),
+      lifecycle: 'approved',
+    };
+    const composePool = vi.fn(async () => existingItems);
+
+    const ready = await prepareInterviewQuestionPool({
+      userId: 'user-1',
+      sessionId: 'session-1',
+      deliveryMode: 'voice',
+      settings: { questionLimit: 8, seniorityLevel: 'senior', focusArea: 'combined' },
+      composePool,
+      proofStrategy: {},
+      loadCatalogItems: async () => ({ status: 'ready', items: [catalogItem] }),
+    });
+    const unavailable = await prepareInterviewQuestionPool({
+      userId: 'user-1',
+      sessionId: 'session-1',
+      deliveryMode: 'voice',
+      settings: { questionLimit: 8, seniorityLevel: 'senior', focusArea: 'combined' },
+      composePool,
+      proofStrategy: {},
+      loadCatalogItems: async () => ({ status: 'catalog_unavailable', items: [] }),
+    });
+
+    expect(composePool).toHaveBeenCalledWith(expect.objectContaining({ catalogItems: [catalogItem] }));
+    expect(ready.catalogStatus).toBe('ready');
+    expect(unavailable.catalogStatus).toBe('catalog_unavailable');
+    expect(unavailable.items).toEqual(existingItems);
+  });
+
+  it('returns a reviewable Voice catalog coverage plan without claiming pending coverage was asked', async () => {
+    const catalogSnapshot = {
+      ...root('catalog-ai-workflow', 'ai assisted delivery'),
+      catalogQuestionId: 'ai_assisted_delivery',
+      catalogLifecycle: 'approved',
+      questionFamily: 'ai_assisted_delivery',
+      coverageSlot: 'software_ai_workflow',
+      selectionPolicy: { minAsked: 1, maxAsked: 1, reservationPriority: 90 },
+    };
+    const result = await prepareInterviewQuestionPool({
+      userId: 'user-1',
+      sessionId: 'session-1',
+      deliveryMode: 'voice',
+      analysisResult: {
+        jobTitle: 'Software Engineer',
+        parsedJdProfile: { roleFamily: 'software_development' },
+      },
+      settings: { questionLimit: 8, seniorityLevel: 'intermediate', focusArea: 'combined' },
+      composePool: async () => [
+        ...['react', 'database', 'testing', 'automation'].map((topic, index) => root(`q${index}`, topic)),
+        catalogSnapshot,
+      ],
+      proofStrategy: {},
+      loadCatalogItems: async () => ({
+        status: 'ready',
+        items: [{
+          ...QUESTION_CATALOG_SEED.find((item) => item.catalogQuestionId === 'ai_assisted_delivery'),
+          lifecycle: 'approved',
+        }],
+      }),
+    });
+
+    expect(result.catalogCoverage).toEqual(expect.objectContaining({
+      status: 'pending',
+      reservations: [
+        expect.objectContaining({
+          coverageSlot: 'software_ai_workflow',
+          status: 'pending',
+          askedCount: 0,
+        }),
+      ],
+    }));
+  });
+
+  it('does not load or compose catalog content for text sessions', async () => {
+    const existingItems = ['react', 'database', 'testing', 'automation', 'deployment']
+      .map((topic, index) => root(`q${index}`, topic));
+    const loadCatalogItems = vi.fn(async () => ({ status: 'ready', items: [QUESTION_CATALOG_SEED[0]] }));
+    const composePool = vi.fn(async () => existingItems);
+
+    const result = await prepareInterviewQuestionPool({
+      userId: 'user-1',
+      sessionId: 'session-1',
+      deliveryMode: 'text',
+      settings: { questionLimit: 8, seniorityLevel: 'senior', focusArea: 'combined' },
+      composePool,
+      proofStrategy: {},
+      loadCatalogItems,
+    });
+
+    expect(loadCatalogItems).not.toHaveBeenCalled();
+    expect(composePool).toHaveBeenCalledWith(expect.objectContaining({ catalogItems: [] }));
+    expect(result.catalogStatus).toBe('not_applicable');
+    expect(result.catalogCoverage).toEqual({ status: 'not_applicable', reservations: [] });
+    expect(result.items).toEqual(existingItems);
   });
 });

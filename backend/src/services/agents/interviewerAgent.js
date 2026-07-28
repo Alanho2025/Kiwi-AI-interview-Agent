@@ -62,6 +62,16 @@ const mapRootCandidateToQuestion = ({ candidate = null, targetTopic = '', catego
     roleDomain: candidate.roleDomain || 'general',
     requirementCategory: candidate.requirementCategory || null,
     capabilityGroup: candidate.capabilityGroup || null,
+    catalogQuestionId: candidate.catalogQuestionId || null,
+    catalogVersion: candidate.catalogVersion || null,
+    catalogLifecycle: candidate.catalogLifecycle || null,
+    targetLevel: candidate.targetLevel || null,
+    testedSignals: candidate.testedSignals || [],
+    eligibilityReason: candidate.eligibilityReason || [],
+    selectionPolicy: candidate.selectionPolicy || null,
+    coverageSlot: candidate.coverageSlot || null,
+    ambiguityMode: candidate.ambiguityMode || null,
+    reportDimensions: candidate.reportDimensions || [],
     rankTrace: candidate.rankTrace || {
       questionId: candidate.questionId || null,
       selectionSource: 'prepared_question_pool',
@@ -450,6 +460,12 @@ export const runInterviewerAgent = async ({
   questionDecision.microPlanEvidenceUsed = microPlan?.evidenceUsed || [];
   questionDecision.riskFlags = microPlan?.riskFlags || [];
   questionDecision.deduplication = deduplication;
+  questionDecision.catalogQuestionId = selectedQuestion.catalogQuestionId || null;
+  questionDecision.catalogVersion = selectedQuestion.catalogVersion || null;
+  questionDecision.coverageSlot = selectedQuestion.coverageSlot || null;
+  questionDecision.selectionPolicy = selectedQuestion.selectionPolicy || null;
+  questionDecision.eligibilityReason = selectedQuestion.eligibilityReason || [];
+  questionDecision.followUpComparison = turnPlan.followUpComparison || null;
   questionDecision.latency = {
     ...(turnPlan.latency || {}),
     ...llmTiming,
@@ -497,6 +513,16 @@ export const runInterviewerAgent = async ({
     roleDomain: selectedQuestion.roleDomain || 'general',
     requirementCategory: selectedQuestion.requirementCategory || null,
     capabilityGroup: selectedQuestion.capabilityGroup || null,
+    catalogQuestionId: selectedQuestion.catalogQuestionId || null,
+    catalogVersion: selectedQuestion.catalogVersion || null,
+    catalogLifecycle: selectedQuestion.catalogLifecycle || null,
+    targetLevel: selectedQuestion.targetLevel || null,
+    testedSignals: selectedQuestion.testedSignals || [],
+    eligibilityReason: selectedQuestion.eligibilityReason || [],
+    selectionPolicy: selectedQuestion.selectionPolicy || null,
+    coverageSlot: selectedQuestion.coverageSlot || null,
+    ambiguityMode: selectedQuestion.ambiguityMode || null,
+    reportDimensions: selectedQuestion.reportDimensions || [],
     preparedQuestionId: selectedQuestion.preparedQuestionId || null,
     rankTrace: selectedQuestion.rankTrace || null,
     retrievalSnapshot: retrievalBundle,

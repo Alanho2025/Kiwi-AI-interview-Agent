@@ -7,6 +7,7 @@ import { getCvQuestionSeeds } from './cvQuestionSeedService.js';
 import { getJdQuestionFilter } from './jdQuestionFilterService.js';
 import { buildAssessmentKey, buildQuestionFingerprint } from './questionDeduplicationService.js';
 import { buildRoleFitQuestionPool } from './roleSpecificPracticePlannerService.js';
+import { buildCatalogQuestionSnapshots } from './questionCatalogSelectionService.js';
 import {
   buildModeCompatibility,
   clampWeight,
@@ -22,8 +23,11 @@ const sourcePriority = {
   jd_requirement: 4,
   cv_seed: 3,
   common_template: 2,
+  catalog: 4,
   fallback: 1,
 };
+
+const isVoiceDeliveryMode = (value = '') => normalizeKey(value) === 'voice';
 
 const resolveRoleDomain = (analysisResult = {}) => analysisResult?.parsedJdProfile?.universalRoleProfile?.roleDomain
   || analysisResult?.parsedJdProfile?.roleDomain
@@ -338,7 +342,7 @@ export const ensureMinimumFallbacks = (items, context) => {
   return [...items, ...additions];
 };
 
-export const buildInterviewQuestionPoolItems = ({ userId, sessionId, cvFileId = null, matchAnalysisId = null, jdFingerprint = '', analysisResult = {}, settings = {}, cvSeeds = [], jdFilter = null } = {}) => {
+export const buildInterviewQuestionPoolItems = ({ userId, sessionId, cvFileId = null, matchAnalysisId = null, jdFingerprint = '', analysisResult = {}, settings = {}, cvSeeds = [], jdFilter = null, catalogItems = [], explicitCandidateSignals = [], deliveryMode = 'text' } = {}) => {
   const context = {
     userId,
     sessionId,
@@ -355,11 +359,21 @@ export const buildInterviewQuestionPoolItems = ({ userId, sessionId, cvFileId = 
     .map((seed) => mapSeedQuestion(seed, decisionsBySeedId.get(seed.seedId), context));
   const requirementItems = buildRequirementItems(analysisResult, context);
   const gapItems = buildGapItems(analysisResult, context);
-  const deduped = dedupePool([...baseItems, ...requirementItems, ...seedItems, ...gapItems]);
+  const catalogSnapshots = buildCatalogQuestionSnapshots({
+    catalogItems: isVoiceDeliveryMode(deliveryMode) ? catalogItems : [],
+    context: { ...context, analysisResult, settings, explicitCandidateSignals },
+  });
+  const deduped = dedupePool([
+    ...baseItems,
+    ...requirementItems,
+    ...seedItems,
+    ...gapItems,
+    ...catalogSnapshots.items,
+  ]);
   return validatePreparedQuestionPool(ensureMinimumFallbacks(deduped, context));
 };
 
-export const composeInterviewQuestionPool = async ({ userId, sessionId, cvFileId = null, matchAnalysisId = null, jdFingerprint = '', analysisResult = {}, settings = {} } = {}) => {
+export const composeInterviewQuestionPool = async ({ userId, sessionId, cvFileId = null, matchAnalysisId = null, jdFingerprint = '', analysisResult = {}, settings = {}, catalogItems = [], explicitCandidateSignals = [], deliveryMode = 'text' } = {}) => {
   if (!userId || !sessionId) return [];
   const [cvSeeds, jdFilter, companyProfile] = await Promise.all([
     cvFileId ? getCvQuestionSeeds({ userId, cvFileId, status: 'active' }) : Promise.resolve([]),
@@ -374,8 +388,11 @@ export const composeInterviewQuestionPool = async ({ userId, sessionId, cvFileId
     jdFingerprint,
     analysisResult,
     settings,
+    deliveryMode,
     cvSeeds,
     jdFilter,
+    catalogItems,
+    explicitCandidateSignals,
   });
 
   const roleEvidenceMap = analysisResult?.roleEvidenceMap || {};

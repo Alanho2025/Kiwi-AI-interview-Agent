@@ -52,6 +52,14 @@ match 层把 reviewed CV 和 reviewed JD 变成两类下游资产：可展示的
 
 ## Phase 3 当前行为
 
+### 2026-07-29 Voice question intelligence（CP1/CP2 已批准并激活）
+
+Voice preparation 现在有一个独立的、版本化 `QuestionCatalogItem` 边界。`2026.1` seed 覆盖行为、动机、AI 和 ML question families，保存 minimal research URL、role/level eligibility、expected signals、`not eligible` counterexample 和 lifecycle；AI-delivery alias 也带 version、lifecycle、review date 与 source metadata。它不保存 CV/JD/transcript、user/session ID、report 或 raw model reasoning。所有新 seed 都是 `draft`：activation 同时要求 CP1 content governance manifest 与 CP2 executable-policy manifest 通过，同一 reviewer 的版本、完整 ID/scenario set、日期、理由和 digest 都必须匹配。CP1 digest 覆盖 question items、AI-delivery taxonomy 与 ML aliases；CP2 digest 覆盖 role/level/count matrix、AI/ML coverage 和 follow-up-vs-root outputs。两份完整 human-review Markdown 均由 source/runtime policy 自动生成，并由 byte-for-byte drift test 约束。环境 reviewer 名称本身不能激活内容。通过后，内容才会在**新 Voice session** preparation 时复制为 private `InterviewQuestionPoolItem` snapshot。Text session 不读取 catalog；Mongo/catalog 不可用时 preparation 保留旧 pool，并标记 `catalog_unavailable`，不会阻塞 Voice next-turn hot path。
+
+Snapshot 会保留 catalog ID、version、target level、eligibility reason、selection policy、coverage slot 和 report dimensions。每个 catalog family 有 stored Junior／Intermediate／Senior wording；不支援某个 level 的 item 仍由 `targetLevels` hard gate 排除。ranker 在分数比较前排除非 `approved` snapshot，并在只剩关键题数时保护 AI/ML coverage reservation；non-tech AI judgement 还要求明确 AI 或 digital-work signal。follow-up 与 next root 使用同一尺度比较，`next_root` decision 会真的切换 lane，不再只在 reservation urgent 时生效。Voice 完成时，未满足的 required coverage 会写入 redacted developer trace；candidate result 只收到 status 与 counts。
+
+Career-transition 与 NZ study/work family 只会从 CV 的明确 summary、experience、education 或 project 叙述导出私有 eligibility signal，不能从姓名、地址、国籍或模型猜测推断，且不会把原文带入 catalog/snapshot metadata。`Senior` 是新 UI/payload 和 backend 的 canonical value，legacy `Advanced` 可读并映射为 `Senior`。Product Owner 已以 `heminghan` 核准 CP1/CP2；staging Mongo database `test` 已 seed 并激活 `2026.1`，唯读复核为 21 个 unique IDs、21 个 `approved` lifecycle 和 21 个相同 reviewer。Database activation 本身不代表 deployed runtime；只有部署含本实现的 SHA 后，新 Voice session 才会读取这些内容。report dimension 的 candidate coaching 属于后续 CP4，而非本切片。
+
 2026-07-10 的 Phase 3 checkpoint 已完成 proof strategy、role-fit question metadata、must-cover reconciliation、coverage/gap ranking 和 evidence overuse penalty。2026-07-11 的 V2-4 slice 又把 Role Evidence Map v2 的 proof angle、evidence guidance 和 hiring-logic links 接到 proof strategy、question item、rank trace 和 Analyze preparation summary。新 question item explicit write 与 model default 都是 v3；pre-cutover 的 v2/无版本 snapshot 仍通过 bounded reader 完成旧 session。新 match/result/RAG/report 主路徑優先使用 `roleEvidenceMap`，不再把 legacy match evidence summary 當第二份資料來源。
 
 | 验收项 | 当前状态 | 主要边界 |
@@ -61,6 +69,9 @@ match 层把 reviewed CV 和 reviewed JD 变成两类下游资产：可展示的
 | live payload 不含 evidence hints | 已通过 | HTTP、SSE 与 WebSocket 使用 allowlisted session/turn view；proof/evidence/rank/ReAct private fields 不进入 client payload |
 | preparation guidance 与 rank trace | 已通过 first slice | Analyze summary 只显示 focus、hint 和 risk；rank trace 保留 proof-angle / hiring-logic adjustment；active session sanitizer 移除 private preparation fields |
 | compact diagnostics propagation | 已通过 | match result、blocked result、proof strategy、session analysis/setup 和 report 都带 `role_fit_diagnostics_v1`；session sanitizer 只保留 compact diagnostics |
+| CP1/CP2 activation integrity | 已批准并完成 staging activation | 两个 manifest 都为 `approved` 且 reviewer/version/digest/完整集合一致；Mongo `test` 的 `2026.1` 为 21/21 approved，CP1 digest `374784f7…a08de`、CP2 digest `36311aef…d8116` |
+| CP2 AI/ML coverage boundary | 已通过 local fixtures 与 human policy review | 8/15 questions、三种 level、Software、AI Solution、ML 与 non-tech policy 已覆盖；真实 Voice/browser/provider calibration 仍未执行 |
+| completion coverage privacy | 已通过 local contract | developer trace 可见 slot-level degraded reason；candidate completion 只返回 status/counts |
 
 Analyze 页面只取得 focus area、gap、题数、preparation hint 和 risk 的安全摘要，并以非技术使用者能理解的英文说明是否可开始练习或需要检查输入；不会显示 schema、coverage ID、proof point、evidence ID、ranking 术语、semantic scorer 名称或 `role intent` 这类内部标签。
 

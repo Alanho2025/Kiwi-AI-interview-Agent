@@ -3,10 +3,12 @@
  * Extracted from sessionShared.js for better maintainability
  */
 
+const isSeniorLevel = (level = '') => ['senior', 'advanced'].includes(String(level).trim().toLowerCase());
+
 export const buildOpeningQuestion = ({ roleLabel = 'the role', companyName = '', level = 'junior' } = {}) => {
     const companyClause = companyName ? ` with ${companyName}` : '';
     const roleContext = companyName ? `the ${roleLabel} role at ${companyName}` : `the ${roleLabel} role`;
-    if (String(level) === 'advanced') {
+    if (isSeniorLevel(level)) {
         return `Hi, thanks for joining today${companyClause}. To get us started, could you introduce yourself and walk me through the parts of your background that best prepare you for ${roleContext}?`;
     }
     if (String(level) === 'intermediate') {
@@ -36,11 +38,11 @@ export const buildWrapUpQuestion = () => ({
 
 export const buildTechnicalPrompt = ({ skill, level, roleLabel, followUpDepth }) => {
     if (followUpDepth > 0) {
-        if (level === 'advanced') return `What trade-off, risk, or debugging judgement did you handle yourself around ${skill}, and how did you know your approach worked?`;
+        if (isSeniorLevel(level)) return `What trade-off, risk, or debugging judgement did you handle yourself around ${skill}, and how did you know your approach worked?`;
         if (level === 'intermediate') return `What was your exact approach with ${skill}, and how did you judge whether it worked?`;
         return `What was your exact approach with ${skill}, and what result came from it?`;
     }
-    if (level === 'advanced') return `Tell me about a production-level example where you made an important design, trade-off, or implementation decision using ${skill} for a ${roleLabel} problem.`;
+    if (isSeniorLevel(level)) return `Tell me about a production-level example where you made an important design, trade-off, or implementation decision using ${skill} for a ${roleLabel} problem.`;
     if (level === 'intermediate') return `Tell me about a project where you used ${skill} and explain the key decisions you made.`;
     return `Tell me about a project where you used ${skill} in a practical way.`;
 };
@@ -111,11 +113,11 @@ export const buildRoleCompetencyPrompt = ({ target = {}, skill = '', level = 'ju
 
 export const buildBehaviouralPrompt = ({ topic, level, followUpDepth }) => {
     if (followUpDepth > 0) {
-        return level === 'advanced'
+        return isSeniorLevel(level)
             ? 'What was the situation, what decision did you personally drive, and what changed because of it?'
             : 'What was the situation, what did you do, and what was the outcome?';
     }
-    if (level === 'advanced') return `Tell me about a time when you had to show ${topic} in a situation with judgement, ambiguity, or stakeholder pressure.`;
+    if (isSeniorLevel(level)) return `Tell me about a time when you had to show ${topic} in a situation with judgement, ambiguity, or stakeholder pressure.`;
     if (level === 'intermediate') return `Tell me about a time when you had to show ${topic} in a real work or project situation.`;
     return `Tell me about a time when you had to show ${topic}.`;
 };
