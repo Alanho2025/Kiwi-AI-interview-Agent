@@ -48,6 +48,23 @@ curl --fail --silent --show-error http://127.0.0.1:8080/health
 curl --fail --silent --show-error http://127.0.0.1:8080/api/health
 ```
 
+## GitHub push 自動更新 EC2
+
+`main` 的 CI 全數通過後，[CI workflow](../../.github/workflows/ci.yml) 的 `Deploy EC2 staging` job 才會執行。它使用 GitHub OIDC 換取短期 AWS credentials，透過 SSM Run Command 在指定 host 執行下列邊界內的工作：
+
+1. 拒絕 `/opt/kiwi` 有未提交變更的 host，避免覆蓋人工修改。
+2. 精準 checkout CI 已驗證的 `github.sha`，不是部署執行當下可能已更新的 branch head。
+3. 重新解析 Compose、reload `kiwi-compose.service`，再以 `/api/health` 檢查 PostgreSQL 與 MongoDB readiness。
+
+首次啟用前，operator 必須完成下列外部設定；repository 不保存 AWS access key：
+
+- IAM OIDC provider：`https://token.actions.githubusercontent.com`，audience 為 `sts.amazonaws.com`。
+- deploy role 的 trust policy 只允許 `repo:Alanho2025/Kiwi-AI-interview-Agent:ref:refs/heads/main`。
+- deploy role 只允許對指定 EC2 instance 使用 `ssm:SendCommand` 的 `AWS-RunShellScript` document，以及讀取該 command 的結果。
+- GitHub Actions repository variables：`AWS_EC2_DEPLOY_ROLE_ARN`、`AWS_EC2_DEPLOY_INSTANCE_ID`。
+
+Host 端腳本是 [deploy-from-github.sh](deploy-from-github.sh)。它不讀取或列印 `/etc/kiwi/backend.env` 的內容；若發現範例值會直接拒絕部署。SSM deploy 失敗時 GitHub Actions job 會失敗，現有 container 不應被宣稱為已更新。Rollback 仍需由 operator 選擇已知可用的 commit 並重新部署；這個第一版未自動回退。
+
 ## 啟用 Caddy
 
 先把 `Caddyfile` 的 `api.your-domain.com` 換成正式 API domain：
