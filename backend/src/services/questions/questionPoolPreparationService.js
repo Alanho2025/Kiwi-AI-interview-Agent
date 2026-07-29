@@ -5,6 +5,11 @@ import { ensureArray, normalizeKey, normalizeText } from '../../utils/commonHelp
 import { callDeepSeek } from '../deepseekService.js';
 import { buildModeCompatibility, stableQuestionId } from './questionArtifactHelpers.js';
 import { composeInterviewQuestionPool } from './questionPoolComposerService.js';
+import { loadApprovedQuestionCatalogItems } from './questionCatalogRepository.js';
+import {
+  resolveCatalogReservationPlan,
+  resolveCatalogSelectionContext,
+} from './questionCatalogSelectionService.js';
 import { assessProofStrategyQuestionCoverage } from './roleFitQuestionCoverageService.js';
 import {
   buildAssessmentKey,
@@ -15,6 +20,40 @@ import {
 
 const RESERVE_BUFFER_SIZE = 2;
 const MAX_RESERVE_QUESTIONS = 3;
+const isVoiceDeliveryMode = (value = '') => normalizeKey(value) === 'voice';
+
+const buildCatalogPreparationCoverage = ({
+  deliveryMode = 'text',
+  catalogLoad = {},
+  items = [],
+  settings = {},
+  analysisResult = {},
+} = {}) => {
+  if (!isVoiceDeliveryMode(deliveryMode)) return { status: 'not_applicable', reservations: [] };
+  if (catalogLoad.status !== 'ready') return { status: catalogLoad.status || 'catalog_unavailable', reservations: [] };
+  const selectionContext = resolveCatalogSelectionContext({ analysisResult, settings });
+  const plan = resolveCatalogReservationPlan({
+    poolItems: items,
+    selectionContext,
+    catalogStatus: 'ready',
+    session: {
+      analysisResult,
+      settings,
+      currentQuestionIndex: 1,
+      questionLimit: settings.questionLimit || settings.totalQuestions || 8,
+      transcript: [],
+    },
+  });
+  const reservations = plan.reservations.filter((reservation) => reservation.minAsked > 0);
+  return {
+    status: reservations.some((reservation) => reservation.status === 'degraded')
+      ? 'degraded'
+      : reservations.length
+        ? 'pending'
+        : 'not_required',
+    reservations,
+  };
+};
 
 const extractJsonObject = (text = '') => {
   const fenced = String(text || '').match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
@@ -213,14 +252,44 @@ const loadPersistedProofStrategy = async (sessionId) => {
 
 export const prepareInterviewQuestionPool = async ({
   settings = {},
+  deliveryMode = 'text',
   composePool = composeInterviewQuestionPool,
+  loadCatalogItems = loadApprovedQuestionCatalogItems,
   generateReserveQuestions = null,
   persistReserveQuestions = null,
   proofStrategy = null,
   loadProofStrategy = loadPersistedProofStrategy,
   ...context
 } = {}) => {
-  const items = await composePool({ settings, ...context });
+  let catalogLoad = { status: 'not_applicable', items: [] };
+  if (isVoiceDeliveryMode(deliveryMode)) {
+    catalogLoad = { status: 'catalog_unavailable', items: [] };
+    try {
+      catalogLoad = await loadCatalogItems({
+        analysisResult: context.analysisResult,
+        settings,
+      }) || catalogLoad;
+    } catch (error) {
+      catalogLoad = {
+        status: 'catalog_unavailable',
+        items: [],
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+  const items = await composePool({
+    settings,
+    deliveryMode,
+    catalogItems: ensureArray(catalogLoad.items),
+    ...context,
+  });
+  const catalogCoverage = buildCatalogPreparationCoverage({
+    deliveryMode,
+    catalogLoad,
+    items,
+    settings,
+    analysisResult: context.analysisResult,
+  });
   const resolvedProofStrategy = proofStrategy
     || (context.sessionId ? await loadProofStrategy(context.sessionId) : null);
   const initialReadiness = assessQuestionPoolReadiness({ items, settings, proofStrategy: resolvedProofStrategy });
@@ -231,6 +300,9 @@ export const prepareInterviewQuestionPool = async ({
       readiness: initialReadiness,
       rejectedReserveQuestions: [],
       reserveGenerationError: null,
+      catalogStatus: catalogLoad.status || 'catalog_unavailable',
+      catalogLoadError: catalogLoad.error || null,
+      catalogCoverage,
     };
   }
 
@@ -274,6 +346,9 @@ export const prepareInterviewQuestionPool = async ({
       }),
       rejectedReserveQuestions: novelty.rejected,
       reserveGenerationError: null,
+      catalogStatus: catalogLoad.status || 'catalog_unavailable',
+      catalogLoadError: catalogLoad.error || null,
+      catalogCoverage,
     };
   } catch (error) {
     return {
@@ -281,6 +356,9 @@ export const prepareInterviewQuestionPool = async ({
       readiness: initialReadiness,
       rejectedReserveQuestions: [],
       reserveGenerationError: error instanceof Error ? error.message : String(error),
+      catalogStatus: catalogLoad.status || 'catalog_unavailable',
+      catalogLoadError: catalogLoad.error || null,
+      catalogCoverage,
     };
   }
 };

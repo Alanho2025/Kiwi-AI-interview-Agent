@@ -22,6 +22,7 @@ export const AGENT_TOOL_NAMES = Object.freeze({
   HANDLE_VOICE_BARGE_IN: 'handle_voice_barge_in',
   VALIDATE_SPEECH_CONFIDENCE: 'validate_speech_confidence',
   NORMALIZE_VOICE_TRANSCRIPT: 'normalize_voice_transcript',
+  ANSWER_QUESTION_SCOPE: 'answer_question_scope',
   SUMMARIZE_VOICE_LATENCY: 'summarize_voice_latency',
 });
 
@@ -31,6 +32,7 @@ export const getToolNameForAction = (actionType = '') => {
   if (action.includes('QA')) return AGENT_TOOL_NAMES.REVIEW_REPORT_QUALITY;
   if (action.includes('REPORT')) return AGENT_TOOL_NAMES.DRAFT_INTERVIEW_REPORT;
   if (action.includes('SHIFT_SECTION')) return AGENT_TOOL_NAMES.TRANSITION_INTERVIEW_SECTION;
+  if (action.includes('ANSWER_QUESTION_SCOPE')) return AGENT_TOOL_NAMES.ANSWER_QUESTION_SCOPE;
   if (action.includes('RETRIEVE')) return AGENT_TOOL_NAMES.RETRIEVE_INTERVIEW_EVIDENCE;
   return AGENT_TOOL_NAMES.GENERATE_INTERVIEW_QUESTION;
 };

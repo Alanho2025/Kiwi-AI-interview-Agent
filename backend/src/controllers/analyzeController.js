@@ -218,6 +218,8 @@ export const generateInterviewPlan = asyncHandler(async (req, res) => {
   });
   let preparedQuestionPool = [];
   let questionPoolReadiness = null;
+  let questionPoolCatalogStatus = session.mode === 'voice' ? 'catalog_unavailable' : 'not_applicable';
+  let questionPoolCatalogCoverage = { status: 'not_applicable', reservations: [] };
   try {
     const preparation = await prepareInterviewQuestionPool({
       userId: user.id,
@@ -228,9 +230,12 @@ export const generateInterviewPlan = asyncHandler(async (req, res) => {
       analysisResult: resolvedAnalysis,
       jdRubric: jdRubric || resolvedAnalysis?.parsedJdProfile || null,
       settings,
+      deliveryMode: session.mode || mode || sessionSetup?.deliveryMode || 'text',
     });
     preparedQuestionPool = preparation.items;
     questionPoolReadiness = preparation.readiness;
+    questionPoolCatalogStatus = preparation.catalogStatus || questionPoolCatalogStatus;
+    questionPoolCatalogCoverage = preparation.catalogCoverage || questionPoolCatalogCoverage;
   } catch (error) {
     logger.warn('Prepared interview question pool composition failed', getRequestLogMeta(req, {
       userId: user.id,
@@ -351,6 +356,12 @@ export const generateInterviewPlan = asyncHandler(async (req, res) => {
       sources: sourceCounts,
       readiness: questionPoolReadiness?.readiness || questionPoolReadiness?.status || 'degraded',
       degradedReason: questionPoolReadiness?.degradedReason || (preparedQuestionPool.length ? null : 'question_pool_preparation_failed'),
+      ...(session.mode === 'voice'
+        ? {
+            catalogStatus: questionPoolCatalogStatus,
+            catalogCoverageStatus: questionPoolCatalogCoverage.status,
+          }
+        : {}),
       proofStrategy: buildProofStrategyClientSummary({
         readiness: questionPoolReadiness || {},
         poolItems: preparedQuestionPool,

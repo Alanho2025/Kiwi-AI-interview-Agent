@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import * as masterAiService from '../../../src/services/masterAiService.js';
 import { getNextQuestionOrder } from '../../../src/services/interviewStateService.js';
@@ -101,6 +101,88 @@ describe('question metadata persistence guards', () => {
     });
   });
 
+  it('persists safe catalog provenance without copying private interview context', () => {
+    const metadata = masterAiService.buildQuestionTranscriptMetadata({
+      questionFamily: 'ai_assisted_delivery',
+      catalogQuestionId: 'ai_assisted_delivery',
+      catalogVersion: '2026.1',
+      coverageSlot: 'software_ai_workflow',
+      selectionPolicy: { minAsked: 1, maxAsked: 1 },
+      eligibilityReason: ['role_family:software', 'level:senior'],
+      userId: 'must-not-persist',
+      rawJobDescription: 'must-not-persist',
+    });
+
+    expect(metadata).toMatchObject({
+      catalogQuestionId: 'ai_assisted_delivery',
+      catalogVersion: '2026.1',
+      coverageSlot: 'software_ai_workflow',
+      selectionPolicy: { minAsked: 1, maxAsked: 1 },
+      eligibilityReason: ['role_family:software', 'level:senior'],
+    });
+    expect(JSON.stringify(metadata)).not.toContain('must-not-persist');
+  });
+
+  it('attaches a bounded catalog coverage outcome when an interview completes early', async () => {
+    const recordCoverageTrace = vi.fn();
+    const completed = await masterAiService.attachCatalogCoverageToCompletion({
+      session: {
+        id: 'session-1',
+        mode: 'voice',
+        currentQuestionIndex: 5,
+        questionLimit: 8,
+        settings: { seniorityLevel: 'Senior', questionLimit: 8 },
+        analysisResult: {
+          jobTitle: 'Senior Software Engineer',
+          parsedJdProfile: { roleFamily: 'software_development' },
+        },
+        transcript: [],
+      },
+      result: {
+        isComplete: true,
+        completedBecause: 'time_limit_reached',
+        nextQuestion: null,
+      },
+      loadPool: async () => [{
+        questionId: 'catalog-ai-workflow',
+        catalogQuestionId: 'ai_assisted_delivery',
+        catalogLifecycle: 'approved',
+        questionFamily: 'ai_assisted_delivery',
+        coverageSlot: 'software_ai_workflow',
+        selectionPolicy: { minAsked: 1, maxAsked: 1, reservationPriority: 90 },
+      }],
+      recordCoverageTrace,
+    });
+
+    expect(completed).toEqual(expect.objectContaining({
+      catalogCoverage: expect.objectContaining({
+        status: 'coverage_degraded',
+        completedBecause: 'time_limit_reached',
+        requiredCoverageCount: 1,
+        degradedCoverageCount: 1,
+      }),
+    }));
+    expect(completed.catalogCoverage).not.toHaveProperty('reservations');
+    expect(recordCoverageTrace).toHaveBeenCalledWith(expect.objectContaining({
+      status: 'coverage_degraded',
+      reservations: [
+        expect.objectContaining({ coverageSlot: 'software_ai_workflow', status: 'degraded' }),
+      ],
+    }));
+  });
+
+  it('does not load catalog coverage for text interview completion', async () => {
+    const loadPool = vi.fn();
+    const result = { isComplete: true, completedBecause: 'question_limit_reached' };
+
+    await expect(masterAiService.attachCatalogCoverageToCompletion({
+      session: { id: 'session-1', mode: 'text' },
+      result,
+      loadPool,
+    })).resolves.toEqual(result);
+    expect(loadPool).not.toHaveBeenCalled();
+  });
+
   it('classifies repair prompts as non-countable and keeps their parent question order', () => {
     const metadata = masterAiService.buildQuestionTranscriptMetadata({
       turnKind: 'repair',
@@ -119,6 +201,24 @@ describe('question metadata persistence guards', () => {
       scenario: 'rephrase',
     } })).toBe(false);
     expect(getNextQuestionOrder({ currentQuestionIndex: 3 }, { countsAsQuestion: false })).toBe(3);
+  });
+
+  it('classifies semantic scope clarification as its own non-countable turn type', () => {
+    const metadata = masterAiService.buildQuestionTranscriptMetadata({
+      questionType: 'question_scope_clarification',
+      turnKind: 'repair',
+      scenario: 'question_scope_clarification',
+      parentQuestionId: 'question-3',
+      clarificationContextVersion: 'scope-2026.2-v1',
+      text: 'Please focus on one AI-assisted project.',
+    });
+
+    expect(metadata).toMatchObject({
+      turnType: 'question_scope_clarification',
+      countsAsQuestion: false,
+      parentQuestionId: 'question-3',
+      clarificationContextVersion: 'scope-2026.2-v1',
+    });
   });
 
   it('reports a diagnostic warning when prepared asked-state reconciliation misses its row', () => {

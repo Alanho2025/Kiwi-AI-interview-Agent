@@ -25,6 +25,11 @@ import {
   buildTranscriptReviewItem,
   evaluateTranscriptReviewDecision,
 } from './transcriptReviewPolicyService.js';
+import {
+  isActionableQuestionScopeObservation,
+  resolveQuestionScopeObservation,
+} from './questionScopeClarificationService.js';
+import { buildQuestionScopeRequestMetadata } from './questionScopeControllerService.js';
 
 const toBase64 = (buffer) => Buffer.from(buffer).toString('base64');
 
@@ -226,6 +231,15 @@ export const processRealtimeVoiceTurn = async ({
     assertTranscriptReviewAllowsScoring(transcriptReviewDecision);
   }
 
+  const questionScopeObservation = resolveQuestionScopeObservation({
+    session,
+    candidateText: normalizedAnswer,
+  });
+  const isQuestionScopeRequest = isActionableQuestionScopeObservation(questionScopeObservation);
+  const questionScopeRequestMetadata = isQuestionScopeRequest
+    ? buildQuestionScopeRequestMetadata(questionScopeObservation)
+    : null;
+
   await trace.measure('save_realtime_user_turn', async () => {
     await appendTranscriptTurn(session.id, {
       role: 'user',
@@ -243,8 +257,16 @@ export const processRealtimeVoiceTurn = async ({
           reason: transcriptGate.reason,
           metrics: transcriptGate.metrics,
         },
-        turnType: 'user_answer',
-        countsAsQuestion: true,
+        turnType: questionScopeRequestMetadata?.turnType || 'user_answer',
+        countsAsQuestion: questionScopeRequestMetadata?.countsAsQuestion ?? true,
+        countsAsAnswer: questionScopeRequestMetadata?.countsAsAnswer ?? true,
+        parentQuestionId: questionScopeRequestMetadata?.parentQuestionId || null,
+        rootQuestionId: questionScopeRequestMetadata?.rootQuestionId || null,
+        preparedQuestionId: questionScopeRequestMetadata?.preparedQuestionId || null,
+        catalogQuestionId: questionScopeRequestMetadata?.catalogQuestionId || null,
+        ambiguityMode: questionScopeRequestMetadata?.ambiguityMode || null,
+        clarificationContextVersion: questionScopeRequestMetadata?.clarificationContextVersion || null,
+        scopeResponseReason: questionScopeRequestMetadata?.scopeResponseReason || null,
         transcriptConfirmation,
         voiceDelivery,
         rawTranscriptText: transcriptProvenance?.rawText || normalizedAnswer,
@@ -265,38 +287,40 @@ export const processRealtimeVoiceTurn = async ({
       },
     });
 
-    await saveInterviewAnswerWithDetails({
-      sessionId: session.id,
-      questionId: latestQuestion?.id,
-      transcriptText: normalizedAnswer,
-      responseMode: 'voice',
-      vad,
-      inputMode,
-      asrProvider: asrSource,
-      asrLanguage: language,
-      asrConfidence,
-      providerPayload: {
-        source: asrSource,
-        realtime: true,
-        inputMode,
+    if (!isQuestionScopeRequest) {
+      await saveInterviewAnswerWithDetails({
+        sessionId: session.id,
+        questionId: latestQuestion?.id,
+        transcriptText: normalizedAnswer,
+        responseMode: 'voice',
         vad,
-        confidenceGate: transcriptGate.confidenceGate,
-        transcriptAcceptance: {
-          accepted: true,
-          reason: transcriptGate.reason,
-          metrics: transcriptGate.metrics,
+        inputMode,
+        asrProvider: asrSource,
+        asrLanguage: language,
+        asrConfidence,
+        providerPayload: {
+          source: asrSource,
+          realtime: true,
+          inputMode,
+          vad,
+          confidenceGate: transcriptGate.confidenceGate,
+          transcriptAcceptance: {
+            accepted: true,
+            reason: transcriptGate.reason,
+            metrics: transcriptGate.metrics,
+          },
+          transcriptConfirmation,
+          transcriptProvenance,
+          transcriptReviewDecision,
+          transcriptEvidenceBoundary: {
+            rawTranscriptImmutable: true,
+            clarificationCanReplaceRawTranscript: false,
+            clarificationCanAffectCoaching: true,
+          },
+          answeredQuestionId: latestQuestion?.id || null,
         },
-        transcriptConfirmation,
-        transcriptProvenance,
-        transcriptReviewDecision,
-        transcriptEvidenceBoundary: {
-          rawTranscriptImmutable: true,
-          clarificationCanReplaceRawTranscript: false,
-          clarificationCanAffectCoaching: true,
-        },
-        answeredQuestionId: latestQuestion?.id || null,
-      },
-    });
+      });
+    }
   });
 
   let firstSentenceSeen = false;

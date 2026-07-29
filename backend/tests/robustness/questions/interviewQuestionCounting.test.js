@@ -63,6 +63,44 @@ describe('interview question counting and legacy novelty', () => {
     expect(hasReachedQuestionLimit(session)).toBe(false);
   });
 
+  it('keeps semantic question-scope clarification outside question count and coverage progress', () => {
+    const session = {
+      totalQuestions: 2,
+      currentQuestionIndex: 1,
+      transcript: [
+        interviewQuestion({ text: 'How do you use AI?', topic: 'ai_workflow', questionId: 'q1' }),
+        {
+          role: 'user',
+          text: 'Do you mean personal use or project delivery?',
+          metadata: {
+            turnType: 'question_scope_clarification_request',
+            countsAsQuestion: false,
+            countsAsAnswer: false,
+            rootQuestionId: 'q1',
+          },
+        },
+        {
+          role: 'ai',
+          text: 'Please focus on project delivery.',
+          questionId: 'q1',
+          metadata: {
+            turnKind: 'repair',
+            turnType: 'question_scope_clarification',
+            countsAsQuestion: false,
+            countsAsAnswer: false,
+            rootQuestionId: 'q1',
+          },
+        },
+      ],
+    };
+
+    const structure = buildInterviewStructure(session);
+    expect(structure.askedQuestions).toHaveLength(1);
+    expect(structure.repairHistory).toHaveLength(1);
+    expect(structure.nextTurnIndex).toBe(2);
+    expect(hasReachedQuestionLimit(session)).toBe(false);
+  });
+
   it('rejects a legacy pool duplicate even when it is older than the last three questions', () => {
     const repeatedText = 'Tell me about a time when you had to show Collaboration.?';
     const novelText = 'Tell me about documentation you improved?';

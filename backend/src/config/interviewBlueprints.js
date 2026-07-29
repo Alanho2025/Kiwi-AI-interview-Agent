@@ -13,8 +13,8 @@ const SENIORITY_BLUEPRINTS = {
     openingStyle: 'warm_relevant',
     strategy: { opening: 1, followUp: 3, technical: 2, behavioural: 2 },
   },
-  advanced: {
-    level: 'advanced',
+  senior: {
+    level: 'senior',
     freshTurnAnchors: [1, 4, 7, 10, 13],
     maxFollowUpsPerTopic: 2,
     openingStyle: 'executive_structured',
@@ -29,7 +29,7 @@ export const normalizeSeniorityLevelKey = (value = 'junior') => {
   const normalized = String(value || 'junior').trim().toLowerCase();
   if (['junior', 'junior/grad', 'grad', 'graduate'].includes(normalized)) return 'junior';
   if (['intermediate', 'mid', 'mid-level', 'midlevel'].includes(normalized)) return 'intermediate';
-  if (['advanced', 'advance', 'senior'].includes(normalized)) return 'advanced';
+  if (['advanced', 'advance', 'senior'].includes(normalized)) return 'senior';
   return 'junior';
 };
 

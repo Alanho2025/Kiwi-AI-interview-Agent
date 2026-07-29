@@ -16,6 +16,7 @@ Kiwi AI Interview Agent 是一个把 CV、目标 JD、访谈答案和报告检�
 | 理解现在的 RAG | [看当前检索层如何建索引和取证据](modules/rag-retrieval.md) | 知道 `weighted_hash_ngram_v2`、`document_chunks`、fusion score 和 corrective retry 的边界 |
 | 理解已有验证和测试 | [看验证与保护层](modules/validations-and-guards.md) 和 [测试/eval 版图](modules/testing-and-evaluation.md) | 知道哪些行为被守住、哪些测试为什么存在、哪些 real provider 路径需要批准 |
 | 檢查 EC2 第一版部署邊界 | [看 EC2 deployment runtime](modules/deployment-runtime.md) | 知道 Vercel、Caddy、container、uploads、workers 與 shutdown 如何接力，以及哪些仍待 live 驗證 |
+| 從 AWS Console 複製一個 single-EC2 staging | [看 AWS Console 部署手冊](../deploy/ec2/AWS_CONSOLE_SETUP.md) | 依序建立 VPC、Security Group、SSM role、EC2、EIP、DNS、GitHub OIDC 與 repository variables，並知道哪些值必須換成新專案的值 |
 | 审计文件是否有源码证据 | [查 evidence ledger](references/source-evidence.md) | 能把主要说法追到源码、测试、配置或产品契约 |
 
 覆盖范围：本次文档覆盖当前产品主链路、voice contract、RAG、正式 agent、关键功能内 critic、验证、测试、持久化、保留與 EC2 local deployment candidate。它不逐档导览 uploads、backup folders、historical generated eval results，也不把部署設定或舊计划文件里的 proposal 当作 live production 證據。

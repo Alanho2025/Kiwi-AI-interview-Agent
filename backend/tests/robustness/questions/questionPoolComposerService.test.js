@@ -6,6 +6,7 @@ import {
 } from '../../../src/services/questions/questionPoolComposerService.js';
 import * as questionPoolComposerService from '../../../src/services/questions/questionPoolComposerService.js';
 import { validatePreparedQuestionPool } from '../../../src/services/schemaValidationService.js';
+import { QUESTION_CATALOG_SEED } from '../../../src/data/questionCatalogSeed2026_1.js';
 
 const baseArgs = {
   userId: 'user-1',
@@ -278,5 +279,54 @@ describe('questionPoolComposerService', () => {
     expect(plan.exactFingerprintMatches).toBe(1);
     expect(plan.preparedIdMatches).toBe(1);
     expect(plan.questionIdsToMarkAsked).not.toContain('pool-3');
+  });
+
+  it('snapshots an approved catalog question into the private prepared pool without replacing existing sources', () => {
+    const catalogItem = {
+      ...QUESTION_CATALOG_SEED.find((item) => item.catalogQuestionId === 'ai_assisted_delivery'),
+      lifecycle: 'approved',
+    };
+    const pool = buildInterviewQuestionPoolItems({
+      ...baseArgs,
+      deliveryMode: 'voice',
+      settings: { focusArea: 'Technical', seniorityLevel: 'Senior', questionLimit: 8 },
+      analysisResult: {
+        jobTitle: 'Software Engineer',
+        parsedJdProfile: { roleFamily: 'software_development' },
+        requirementChecks: [{ requirement: 'React', met: false, category: 'technical' }],
+        matchingDetails: { questionPlanHints: { mustProbeSkills: ['React'], mustProbeBehavioural: ['teamwork'] } },
+      },
+      catalogItems: [catalogItem],
+    });
+
+    const catalogSnapshot = pool.find((item) => item.catalogQuestionId === 'ai_assisted_delivery');
+    expect(catalogSnapshot).toEqual(expect.objectContaining({
+      sessionId: 'session-1',
+      userId: 'user-1',
+      catalogVersion: '2026.1',
+      catalogLifecycle: 'approved',
+      coverageSlot: 'software_ai_workflow',
+    }));
+    expect(pool.some((item) => item.sourceType === 'jd_requirement')).toBe(true);
+    expect(pool.length).toBeGreaterThan(1);
+  });
+
+  it('does not add catalog snapshots when the prepared pool belongs to a text session', () => {
+    const catalogItem = {
+      ...QUESTION_CATALOG_SEED.find((item) => item.catalogQuestionId === 'ai_assisted_delivery'),
+      lifecycle: 'approved',
+    };
+    const pool = buildInterviewQuestionPoolItems({
+      ...baseArgs,
+      deliveryMode: 'text',
+      settings: { focusArea: 'Technical', seniorityLevel: 'Senior', questionLimit: 8 },
+      analysisResult: {
+        jobTitle: 'Software Engineer',
+        parsedJdProfile: { roleFamily: 'software_development' },
+      },
+      catalogItems: [catalogItem],
+    });
+
+    expect(pool.some((item) => item.catalogQuestionId === 'ai_assisted_delivery')).toBe(false);
   });
 });

@@ -66,7 +66,8 @@ export const sanitizeVoiceDeviceCheck = (input) => ({
   checkedAt: typeof input?.checkedAt === 'string' ? input.checkedAt : '',
 });
 
-export const seniorityOptions = ['Junior/Grad', 'Intermediate', 'Advanced'];
+export const seniorityOptions = ['Junior/Grad', 'Intermediate', 'Senior'];
+const normalizeSeniorityDisplay = (value) => (value === 'Advanced' ? 'Senior' : value);
 export const focusOptions = ['Technical', 'Behavioral', 'Combined'];
 export const controlModeOptions = [
   { value: 'question_limited', label: 'Question-limited' },
@@ -184,7 +185,7 @@ export const settingsSummary = (settings = DEFAULT_SESSION_SETTINGS) => {
     : `${[8, 12, 15].includes(Number(settings.questionLimit)) ? Number(settings.questionLimit) : 8} questions`;
 
   return {
-    level: settings.seniorityLevel || 'Junior/Grad',
+    level: normalizeSeniorityDisplay(settings.seniorityLevel) || 'Junior/Grad',
     focus: settings.focusArea || 'Combined',
     nzContext: settings.enableNZCultureFit ? 'On' : 'Off',
     controlMode,
@@ -311,7 +312,8 @@ export const parseStoredSessionDefaults = (rawDefaults) => {
   const parsedControlMode = parsedDefaults.controlMode === 'time_limited' ? 'time_limited' : 'question_limited';
   const parsedTimeLimit = Number(parsedDefaults.timeLimitMinutes) === 30 ? 30 : 15;
   const parsedQuestionLimit = [8, 12, 15].includes(Number(parsedDefaults.questionLimit)) ? Number(parsedDefaults.questionLimit) : DEFAULT_SESSION_SETTINGS.questionLimit;
-  const parsedSeniority = seniorityOptions.includes(parsedDefaults.seniorityLevel) ? parsedDefaults.seniorityLevel : DEFAULT_SESSION_SETTINGS.seniorityLevel;
+  const normalizedSeniority = normalizeSeniorityDisplay(parsedDefaults.seniorityLevel);
+  const parsedSeniority = seniorityOptions.includes(normalizedSeniority) ? normalizedSeniority : DEFAULT_SESSION_SETTINGS.seniorityLevel;
   const parsedFocus = focusOptions.includes(parsedDefaults.focusArea) ? parsedDefaults.focusArea : DEFAULT_SESSION_SETTINGS.focusArea;
 
   return {

@@ -13,7 +13,7 @@ export const SESSION_MODE_OPTIONS = Object.freeze({
   voice: 'voice',
 });
 
-export const seniorityOptions = ['Junior/Grad', 'Intermediate', 'Advanced'];
+export const seniorityOptions = ['Junior/Grad', 'Intermediate', 'Senior'];
 export const focusOptions = ['Technical', 'Behavioral', 'Combined'];
 export const focusDisplayOptions = [
   { value: 'Technical', label: 'Role-specific / Technical' },
@@ -46,12 +46,14 @@ const allowedControlModes = new Set(controlModeOptions.map((option) => option.va
 const allowedQuestionLimits = new Set(questionLimitOptions);
 const allowedTimeLimits = new Set(timeLimitOptions);
 
+const normalizeSeniorityDisplay = (value) => (value === 'Advanced' ? 'Senior' : value);
+
 export const sanitizeSessionMode = (value) => (allowedSessionModes.has(value) ? value : DEFAULT_ANALYZE_MODE);
 export const isSupportedSessionMode = (value) => allowedSessionModes.has(value);
 
 export const sanitizeSessionSettings = (input = {}) => ({
-  seniorityLevel: seniorityOptions.includes(input?.seniorityLevel)
-    ? input.seniorityLevel
+  seniorityLevel: seniorityOptions.includes(normalizeSeniorityDisplay(input?.seniorityLevel))
+    ? normalizeSeniorityDisplay(input.seniorityLevel)
     : DEFAULT_SESSION_SETTINGS.seniorityLevel,
   enableNZCultureFit: Boolean(input?.enableNZCultureFit),
   focusArea: focusOptions.includes(input?.focusArea)

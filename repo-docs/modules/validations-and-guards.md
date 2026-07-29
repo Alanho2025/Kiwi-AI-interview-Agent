@@ -31,6 +31,10 @@
 | Report QA | [report QA agent](../../backend/src/services/agents/reportQaAgent.js) | blocking flags、visible risks、score consistency |
 | Recording idempotency | [recording upload service](../../backend/src/services/recording/recordingUploadService.js) | chunk sequence、checksum、missing chunk、ownership |
 
+## Match streaming 的跨網域代表 case
+
+Vercel frontend 對 `/api/analyze/match/stream` 發出 `POST` 前，browser 會帶著 `content-type,x-match-request-id` 做 `OPTIONS` preflight。`api.js` 的 `allowedHeaders` 必須同時包含 `X-Match-Request-Id`，否則 browser 會在真正的 Match request 送出前阻擋它。2026-07-29 的 staging live preflight 已對 configured Vercel origin 回傳該 header；這只證明目前這個 origin/header 組合，並不放寬其他來源。
+
 ## 仍要保守表达的地方
 
 隐私和 compliance copy 不能写成已完全满足。Role-fit review 与 match 已加入 owner/version gate，CV evidence profile 标记为 private；当前代码也有 auth、CSRF、rate limits、audit logs、redaction helpers、retention pipeline 與 EC2 local deployment candidate，但 account-wide deletion、encryption-at-rest guarantees、route-complete ownership tests 和 live deployment verification 仍是 hardening area。

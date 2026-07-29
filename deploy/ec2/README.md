@@ -2,6 +2,19 @@
 
 這個部署包把 backend container 限制在 EC2 loopback，由 host 上的 Caddy 提供公開 HTTPS 與 WebSocket reverse proxy。第一版繼續使用 `/app/uploads`，透過 host bind mount 保留 CV、legacy recording 與 resumable recording。
 
+若要從 AWS Console 由零建立可重複使用的 VPC、EC2、EIP、SSM 與 GitHub OIDC 設定，先讀 [可複製的 AWS Console 部署手冊](AWS_CONSOLE_SETUP.md)。本 README 專注在已取得 host 後的 application runtime、env、Caddy 與 rollback。
+
+## Staging 驗證快照（2026-07-29 NZST）
+
+目前 staging API 使用 Caddy 的 HTTPS reverse proxy；Vercel frontend 使用 external API origin。下列是已分開記錄的實際證據，不能把它們擴大成 production readiness 宣稱：
+
+- [main CI run #30355476925](https://github.com/Alanho2025/Kiwi-AI-interview-Agent/actions/runs/30355476925) 的第三次 attempt 對當次 exact main commit 全數成功，包含 `Deploy EC2 staging`。
+- SSM 在 host 精準 checkout 同一個 SHA，`/api/health` 回報 PostgreSQL 與 MongoDB readiness 成功。
+- live `OPTIONS /api/analyze/match/stream` 對 Vercel origin 回傳 `X-Match-Request-Id`，所以 Match streaming 的 browser preflight 已通過。
+- Operator 在 browser 實測 Vercel -> EC2 的 Match、Voice interview 與 Report output 正常。
+
+仍未驗證：recording/retention worker cutover、Render worker 停用、rollback drill、backup/restore、instance recovery 與長期監控。這些項目完成前，staging 可用不等同正式 production release。
+
 ## 上線前準備
 
 - EC2 已安裝 Docker Engine、Docker Compose plugin 與 Caddy。
@@ -62,6 +75,27 @@ curl --fail --silent --show-error http://127.0.0.1:8080/api/health
 - deploy role 的 trust policy 只允許 `repo:Alanho2025/Kiwi-AI-interview-Agent:ref:refs/heads/main`。
 - deploy role 只允許對指定 EC2 instance 使用 `ssm:SendCommand` 的 `AWS-RunShellScript` document，以及讀取該 command 的結果。
 - GitHub Actions repository variables：`AWS_EC2_DEPLOY_ROLE_ARN`、`AWS_EC2_DEPLOY_INSTANCE_ID`。
+
+### Host 的 GitHub read access
+
+SSM Run Command 以 root 執行，而 `/opt/kiwi` 的 `origin` 使用 SSH。因此 host 必須有一把只讀 deploy key，並讓 root 的 SSH config 明確選用它。以下是目前 staging 使用的路徑；私鑰本身絕不可放進 repository 或 GitHub Actions variable：
+
+```sshconfig
+Host github.com
+  HostName github.com
+  User git
+  IdentityFile /root/.ssh/kiwi-stg-github
+  IdentitiesOnly yes
+```
+
+將這個 entry 合併到 `/root/.ssh/config`（不要覆寫既有其他 host 設定），並確保該 config 是 `0600`、key 是 GitHub repository 的 read-only deploy key。可用下列不會輸出私鑰的命令驗證：
+
+```bash
+sudo ssh -T git@github.com || true
+sudo git -C /opt/kiwi fetch --prune origin main
+```
+
+第一個命令預期顯示 authenticated、但不提供 shell access；第二個命令成功才表示 SSM 中的 `git fetch` 能成功執行。
 
 Host 端腳本是 [deploy-from-github.sh](deploy-from-github.sh)。它不讀取或列印 `/etc/kiwi/backend.env` 的內容；若發現範例值會直接拒絕部署。SSM deploy 失敗時 GitHub Actions job 會失敗，現有 container 不應被宣稱為已更新。Rollback 仍需由 operator 選擇已知可用的 commit 並重新部署；這個第一版未自動回退。
 

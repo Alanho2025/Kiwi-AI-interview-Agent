@@ -8,6 +8,7 @@ import {
   guardQuestionForInterviewMode,
   questionLooksBehavioural,
 } from '../../../src/services/aiControl/interviewModeGuard.js';
+import { normalizeSeniorityLevelKey, resolveInterviewModeConfig } from '../../../src/config/interviewBlueprints.js';
 
 describe('interview setting contract guard', () => {
   it('resolves 15-minute sessions as time-boxed interviews with 8 planned questions', () => {
@@ -34,6 +35,16 @@ describe('interview setting contract guard', () => {
     expect(config.estimatedMinutes).toBe(30);
     expect(config.plannedQuestionCount).toBe(15);
     expect(config.questionType).toBe('technical');
+  });
+
+  it('writes Senior as the canonical level while continuing to read legacy Advanced sessions', () => {
+    expect(normalizeSeniorityLevelKey('Senior')).toBe('senior');
+    expect(normalizeSeniorityLevelKey('Advanced')).toBe('senior');
+    expect(resolveInterviewModeConfig({ seniorityLevel: 'Advanced' })).toMatchObject({
+      level: 'senior',
+      seniorityKey: 'senior',
+      interviewModeKey: 'senior_combined_question_limited',
+    });
   });
 
   it('does not let question-limited 12 or 15 question sessions fall back to the default 8', () => {

@@ -31,6 +31,14 @@ backend voice turn 会保存 `transcriptReviewDecision` 和 `transcriptReviewIte
 
 目前没有可持久化的 interactive review action API；report UI 只显示 review evidence，还不能真正执行 `Accept correction`、`Keep raw` 或 `Clarify what I said`。也没有宣称 live Azure/ElevenLabs production SLO 已验证。
 
+## 问题 scope clarification 怎么处理
+
+CP3 在 accepted Voice transcript 进入一般 evaluator 前加入 deterministic scope resolver。它只接受 active prepared question 已标记为 `bounded_scenario` 或 `open_scope_probe`，且 snapshot 带有 versioned candidate-safe response 的情况；符合时选择 `ANSWER_QUESTION_SCOPE`，沿用同一个 root question，并把 request/response 都保存为 non-countable turn。scope request 不会另建 PostgreSQL `interview_responses` answer row，也不会增加 heavy model/retrieval call。
+
+缺少 prepared context 时会 fail closed 到通用 bounded rephrase；同一 root 重复询问会进入 scaffold，避免无限 clarification loop。候选人用 `I'll assume ...` 开始并继续给出实质答案时，答案照常评分，只额外保存 `scopeFraming=explicit_assumption`。低置信或听不清的 transcript 仍由 STT confirmation path 优先，不能被当成 semantic clarification。
+
+当前 staging 已核准的 `2026.1` catalog 全部使用 `ambiguityMode=none`，因此 runtime contract 和 mock-safe tests 已存在，但 valid-scope path 尚未有 approved content，也没有真人 Voice/browser/listen evidence。启用前需要另审带 `clarificationContextVersion` 的新 catalog version，不能直接改写 `2026.1`。
+
 ## 代码怎么追
 
 | 机制 | 源码入口 | 说明 |
@@ -44,6 +52,7 @@ backend voice turn 会保存 `transcriptReviewDecision` 和 `transcriptReviewIte
 | Confidence gate | [speech confidence gate](../../backend/src/services/voice/speechConfidenceGate.js) | accepted、rejected、needs confirmation |
 | Transcript calibration | [phrase hint service](../../backend/src/services/voice/speechPhraseHintService.js)、[calibration service](../../backend/src/services/voice/transcriptCalibrationService.js) | dynamic glossary、phrase hints、static normalization metadata、bounded N-best rerank |
 | Transcript review policy | [review policy service](../../backend/src/services/voice/transcriptReviewPolicyService.js) | auto/deferred/immediate/reject 分类、scoring policy、evidence boundary |
+| Scope clarification | [scope resolver](../../backend/src/services/voice/questionScopeClarificationService.js)、[scope controller](../../backend/src/services/voice/questionScopeControllerService.js) | versioned prepared context、same-root non-countable response、explicit assumption、deterministic fallback |
 | Report transcript risk | [report transcript risk service](../../backend/src/services/report/reportTranscriptRiskService.js)、[turn dataset](../../backend/src/services/report/reportTurnDatasetService.js)、[report UI](../../frontend/src/components/report/TranscriptRiskSection.jsx) | deferred review visible in report；unconfirmed high-risk transcript 不进入 scoring |
 | Frontend hook | [voice session hook](../../frontend/src/hooks/useVoiceInterviewSession.js) | UI-facing state、VAD、socket、audio queue |
 | Role-Fit latency marker | [turn orchestrator](../../backend/src/services/questions/interviewTurnOrchestratorService.js) | 预计算 metadata 在既有 ranker 中使用；记录 `roleFitQuestionRankingMs`，不新增 fetch 或 model lane |

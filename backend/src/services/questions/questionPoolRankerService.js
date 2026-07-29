@@ -3,6 +3,10 @@ import { normalizeCategory } from './questionArtifactHelpers.js';
 import { buildQuestionHistory, filterNovelQuestionCandidates } from './questionDeduplicationService.js';
 import { trackInterviewCoverage } from './interviewCoverageContractService.js';
 import { getEvidenceUsageCounts } from './evidenceUsageLedgerService.js';
+import {
+  resolveCatalogReservationPlan,
+  restrictCandidatesToUrgentReservations,
+} from './questionCatalogSelectionService.js';
 
 const weight = (value, fallback = 0.5) => {
   const parsed = Number(value);
@@ -58,6 +62,7 @@ const scorePoolItem = ({
   askedTopicKeys,
   trackedMustCover = [],
   evidenceCounts = {},
+  activeReservation = null,
 }) => {
   const focusArea = decisionContext?.interviewStructure?.focusAreaKey || session?.settings?.focusArea || actionInput?.category || 'combined';
   const modeFit = computeModeFit(item, focusArea);
@@ -173,6 +178,20 @@ const scorePoolItem = ({
     evidenceAngle: item.evidenceAngle || '',
     preparationGuidance: item.preparationGuidance || null,
     hiringLogicCoverage: item.hiringLogicCoverage || {},
+    catalogQuestionId: item.catalogQuestionId || null,
+    catalogVersion: item.catalogVersion || null,
+    eligibility: {
+      passed: true,
+      reasons: ensureArray(item.eligibilityReason),
+    },
+    coverageSlot: item.coverageSlot || null,
+    rootScore: {
+      components: { baseScore: normalizedBaseScore, roleFitAdjustment: roleFitAdjustment.total },
+      penalties,
+    },
+    selectionReason: activeReservation?.coverageSlot === item.coverageSlot
+      ? 'unmet_coverage_reservation'
+      : 'ranked_within_eligible_slot',
   };
 
   return {
@@ -208,8 +227,20 @@ export const rankPreparedQuestionPool = ({ poolItems = [], session = {}, decisio
     evidenceCounts = ledger.evidenceCounts || {};
   }
 
-  const ranked = ensureArray(novelty.accepted)
+  const catalogRejected = [];
+  const eligibleCandidates = ensureArray(novelty.accepted)
     .filter((item) => item && item.status !== 'suppressed' && item.status !== 'expired')
+    .filter((item) => {
+      if (!item.catalogQuestionId || item.catalogLifecycle === 'approved') return true;
+      catalogRejected.push({ questionId: item.questionId || null, reason: 'catalog_lifecycle_not_approved' });
+      return false;
+    });
+  const reservationPlan = resolveCatalogReservationPlan({ poolItems: eligibleCandidates, session });
+  const reservationSelection = restrictCandidatesToUrgentReservations({
+    candidates: eligibleCandidates,
+    reservationPlan,
+  });
+  const ranked = ensureArray(reservationSelection.candidates)
     .map((item) => scorePoolItem({ 
       item, 
       session, 
@@ -219,10 +250,17 @@ export const rankPreparedQuestionPool = ({ poolItems = [], session = {}, decisio
       askedTopicKeys,
       trackedMustCover,
       evidenceCounts,
+      activeReservation: reservationSelection.activeReservation,
     }))
-    .sort((a, b) => b.score - a.score);
-  ranked.rejectedCandidates = novelty.rejected;
+    .sort((a, b) => (
+      b.score - a.score
+      || Number(b.selectionPolicy?.reservationPriority || 0) - Number(a.selectionPolicy?.reservationPriority || 0)
+      || String(a.catalogQuestionId || a.questionId).localeCompare(String(b.catalogQuestionId || b.questionId))
+    ));
+  ranked.rejectedCandidates = [...novelty.rejected, ...catalogRejected];
   ranked.deduplication = { dedupeIndexBuildMs, candidateNoveltyFilterMs };
+  ranked.coverageReservations = reservationPlan.reservations;
+  ranked.activeReservation = reservationSelection.activeReservation;
   return ranked;
 };
 

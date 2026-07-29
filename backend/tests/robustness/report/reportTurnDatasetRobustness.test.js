@@ -55,4 +55,49 @@ describe('report turn dataset', () => {
     expect(dataset.countableQuestionCount).toBe(0);
     expect(dataset.scoredAnswerCount).toBe(0);
   });
+
+  it('excludes question-scope turns while preserving the active root answer pair', () => {
+    const dataset = buildReportTurnDataset([
+      {
+        role: 'ai',
+        text: 'How do you use AI?',
+        questionId: 'q-ai',
+        metadata: { turnType: 'interview_question', countsAsQuestion: true },
+      },
+      {
+        role: 'user',
+        text: 'Do you mean personal use or project delivery?',
+        metadata: {
+          turnType: 'question_scope_clarification_request',
+          countsAsQuestion: false,
+          countsAsAnswer: false,
+          rootQuestionId: 'q-ai',
+        },
+      },
+      {
+        role: 'ai',
+        text: 'Please focus on project delivery.',
+        questionId: 'q-ai',
+        metadata: {
+          turnType: 'question_scope_clarification',
+          countsAsQuestion: false,
+          countsAsAnswer: false,
+          rootQuestionId: 'q-ai',
+        },
+      },
+      {
+        role: 'user',
+        text: 'I used an agent to plan the feature, write tests, and verify the diff before merging.',
+        metadata: { turnType: 'user_answer', countsAsAnswer: true },
+      },
+    ]);
+
+    expect(dataset.countableQuestionCount).toBe(1);
+    expect(dataset.scoredAnswerCount).toBe(1);
+    expect(dataset.questionAnswerPairs[0]).toMatchObject({
+      questionId: 'q-ai',
+      answerTurn: { text: expect.stringContaining('plan the feature') },
+    });
+    expect(dataset.excludedUserTurnCount).toBe(1);
+  });
 });
