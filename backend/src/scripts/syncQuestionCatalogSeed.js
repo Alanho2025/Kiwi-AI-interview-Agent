@@ -1,8 +1,18 @@
 import { getEnv } from '../config/env.js';
 import { connectMongo, disconnectMongo } from '../db/mongo.js';
-import { QUESTION_CATALOG_SEED as QUESTION_CATALOG_SEED_2026_1, QUESTION_CATALOG_VERSION as QUESTION_CATALOG_VERSION_2026_1 } from '../data/questionCatalogSeed2026_1.js';
+import {
+  QUESTION_CATALOG_SEED as QUESTION_CATALOG_SEED_2026_1,
+  QUESTION_CATALOG_VERSION as QUESTION_CATALOG_VERSION_2026_1,
+  AI_DELIVERY_SIGNAL_TAXONOMY as AI_DELIVERY_SIGNAL_TAXONOMY_2026_1,
+  ML_SIGNAL_ALIASES as ML_SIGNAL_ALIASES_2026_1,
+} from '../data/questionCatalogSeed2026_1.js';
 import { QUESTION_CATALOG_REVIEW as QUESTION_CATALOG_REVIEW_2026_1 } from '../data/questionCatalogReview2026_1.js';
-import { QUESTION_CATALOG_SEED as QUESTION_CATALOG_SEED_2026_2, QUESTION_CATALOG_VERSION as QUESTION_CATALOG_VERSION_2026_2 } from '../data/questionCatalogSeed2026_2.js';
+import {
+  QUESTION_CATALOG_SEED as QUESTION_CATALOG_SEED_2026_2,
+  QUESTION_CATALOG_VERSION as QUESTION_CATALOG_VERSION_2026_2,
+  AI_DELIVERY_SIGNAL_TAXONOMY as AI_DELIVERY_SIGNAL_TAXONOMY_2026_2,
+  ML_SIGNAL_ALIASES as ML_SIGNAL_ALIASES_2026_2,
+} from '../data/questionCatalogSeed2026_2.js';
 import { QUESTION_CATALOG_REVIEW as QUESTION_CATALOG_REVIEW_2026_2 } from '../data/questionCatalogReview2026_2.js';
 import { QUESTION_SELECTION_POLICY_REVIEW } from '../services/questions/questionCatalogPolicyReviewService.js';
 import { approveQuestionCatalogVersion, seedQuestionCatalog } from '../services/questions/questionCatalogRepository.js';
@@ -15,6 +25,8 @@ const is2026_2 = requestedVersion === QUESTION_CATALOG_VERSION_2026_2;
 const catalogSeed = is2026_2 ? QUESTION_CATALOG_SEED_2026_2 : QUESTION_CATALOG_SEED_2026_1;
 const catalogVersion = is2026_2 ? QUESTION_CATALOG_VERSION_2026_2 : QUESTION_CATALOG_VERSION_2026_1;
 const reviewRecord = is2026_2 ? QUESTION_CATALOG_REVIEW_2026_2 : QUESTION_CATALOG_REVIEW_2026_1;
+const aiDeliverySignalTaxonomy = is2026_2 ? AI_DELIVERY_SIGNAL_TAXONOMY_2026_2 : AI_DELIVERY_SIGNAL_TAXONOMY_2026_1;
+const mlSignalAliases = is2026_2 ? ML_SIGNAL_ALIASES_2026_2 : ML_SIGNAL_ALIASES_2026_1;
 const policyReviewRecord = { ...QUESTION_SELECTION_POLICY_REVIEW, policyVersion: catalogVersion };
 
 const run = async () => {
@@ -36,6 +48,8 @@ const run = async () => {
       reviewRecord,
       policyReviewRecord,
       catalogItems: catalogSeed,
+      aiDeliverySignalTaxonomy,
+      mlSignalAliases,
     });
     report.approval = {
       status: 'approved',
