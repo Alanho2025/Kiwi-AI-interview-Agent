@@ -1,6 +1,8 @@
 # Kiwi AI Interview Agent - 68 Feature RFC 獨立文件全景索引
 
 > 本目錄包含 Kiwi AI Interview Agent 全專案 **68 個 Feature** 的獨立 Feature RFC 文件（一 Feature 一獨立檔），全部遵循標準 RFC 7 大章節規範。
+> 
+> 💡 **高階導覽指南**：若要了解系統 **5 層 Agent 架構**、**Interview Agent**、**Report Agent** 與 **Harness 觀測層** 如何與這 68 個 Feature RFC 進行高階 Mapping 對照，請參閱：[HIGH_LEVEL_AGENT_ARCHITECTURE_MAPPING.md](file:///Users/heminghan/Kiwi-AI-interview-Agent/docs/architecture-decision-records/HIGH_LEVEL_AGENT_ARCHITECTURE_MAPPING.md)
 
 ---
 
