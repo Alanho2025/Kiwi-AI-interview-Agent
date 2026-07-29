@@ -1,0 +1,156 @@
+# Feature RFC: F-56 AWS EC2 與 Docker Compose 單機 Staging 運行環境
+
+> **文件狀態**：Approved  
+> **系統成熟度 (Readiness Level)**：Production-Ready  
+> **核心模組路徑**：`docker-compose.yml`, `docs/ec2-setup-guide.md`  
+> **Git 演進 Commit 追蹤**：`PR #128`, Commit `728cad5`, `db484aa`  
+> **主要負責人 / 日期**：Kiwi AI Team / 2026-07-29  
+
+---
+
+## 1. 演進軌跡與背景動機 (Genesis & Evolution Trace)
+
+### 1.1 零基礎生活白話比喻 (Layman Analogy for Beginners)
+> 💡 **小白導讀**：
+> 想像你要在雲端租一間房子來運營你的工作室（AWS EC2 部署）。
+> * **傳統做法**：你在房裡手動一台一台去裝電腦、接線、安裝軟體，一旦房間壞掉重租，你必須手動再裝一次，耗時且極易出錯。
+> * **Docker Compose 單機一鍵運行 (本 Feature)**：就像帶進來一個「預製貨櫃 (`docker-compose.yml`)」。貨櫃裡已經包含了後端 Node.js API、前端 Nginx、Postgres 資料庫與 MongoDB 4 大核心容器。在 EC2 機器上只需要輸入指令 `docker compose up -d`，30 秒內全套環境自動啟動！
+
+### 1.2 基於 Git 歷史的從 0 到 1 演進歷程
+* **初始最簡版本 (Baseline v0 - Commit `db484aa`)**：
+  - 手動在 EC2 上安裝 Node.js 與 pm2 執行服務。
+* **遭遇的痛點與瓶頸 (Pain Points & Bottlenecks)**：
+  - 開發環境 (Local) 與線上環境 (EC2) Node 版本不一致導致怪異 Bug，且資料庫連線難以管理。
+* **現行架構 (Current Version - PR #128 Commit `728cad5`)**：
+  - `docker-compose.yml` 實現單機 Staging 容器化運行環境，包含 `backend`, `frontend`, `postgres`, `mongo` 4 大服務，配合 bridge 網路隔離與 `restart: always` 自愈重啟。
+
+---
+
+## 2. 邊界與成功標準 (Scope & Success Criteria)
+
+### 2.1 涵蓋與非涵蓋範圍 (Scope Boundaries)
+* **In-Scope (包含範圍)**：
+  - Docker Compose 4 服務協調、bridge 容器網路隔離、`restart: always` 故障自愈、環境變數注入。
+* **Out-of-Scope (排除範圍)**：
+  - 本階段暫不上 K8s / Kube-cluster (單機 EC2 Docker Compose 滿足當前 Staging 需求)。
+
+### 2.2 成功標準與量化 KPIs (Acceptance Criteria & Metrics)
+| 衡量指標 (Metric) | 目標值 (Target) | 驗證方式 / 自動化測試路徑 |
+| :--- | :--- | :--- |
+| **全站一鍵啟動時間** | `< 40 秒` | `docker compose up -d` |
+
+---
+
+## 3. 架構與系統流向 (Architecture & Flow)
+
+### 3.1 系統資料流與狀態轉移圖 (Data Flow & State Machine Diagram)
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Dev as 開發者 / CI Deployer
+    participant EC2 as AWS EC2 Instance
+    participant Compose as docker-compose.yml
+    participant Net as Bridge Network (kiwi-net)
+
+    Dev->>EC2: 執行 docker compose up -d
+    EC2->>Compose: 解析 4 大服務 (backend, frontend, postgres, mongo)
+    Compose->>Net: 建立專用隔離網路 kiwi-net
+    Compose->>EC2: 啟動容器並執行 healthcheck
+    EC2-->>Dev: 4 個容器全部 RUNNING (HTTP 80/443 對外暴露)
+```
+
+### 3.2 流程文字逐步拆解導覽 (Step-by-Step Narrative Walkthrough for Beginners)
+1. **第一步（指令啟動）**：在 EC2 上執行 `docker compose up -d`。
+2. **第二步（解析編排）**：Docker 讀取 `docker-compose.yml` 配置檔。
+3. **第三步（網路隔離）**：建立 `kiwi-net` 專屬橋接網路，將資料庫與後端封閉在容器內部。
+4. **第四步（健康檢查與對外暴露）**：後端通過 `healthcheck` 檢查後，前端 Nginx 開始對外 80/443 埠提供服務！
+
+---
+
+## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
+
+### 4.1 關鍵函數：`docker-compose.yml` 的 服務編排配置
+* **現行程式碼位置**：[`docker-compose.yml:L1-L30`](file:///Users/heminghan/Kiwi-AI-interview-Agent/docker-compose.yml#L1-L30)
+
+#### 現行真實程式碼 (Current Real Code Snippet)
+```yaml
+version: '3.8'
+
+services:
+  backend:
+    build: ./backend
+    restart: always
+    environment:
+      - PORT=5000
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - kiwi-net
+
+  postgres:
+    image: postgres:15-alpine
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kiwi"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - kiwi-net
+
+networks:
+  kiwi-net:
+    driver: bridge
+```
+
+#### 【逐行白話文解讀 (Line-by-Line Explanation for Beginners)】
+* **Line 6 (故障自動自愈)**：`restart: always`。當後端程序不小心 Exception 崩潰時，Docker 會自動在 1 秒內重新重啟容器，實現 24 小時不間斷自愈！
+* **Line 9-10 (強依賴與健康檢查關卡)**：`depends_on: postgres: condition: service_healthy`。**強硬規定：必須等 PostgreSQL 資料庫執行 `pg_isready` 通過健康檢查後，後端 Node.js 才允許啟動**！這徹底解決了開機時後端搶先啟動導致的「資料庫尚未連線」崩潰 Bug！
+* **Line 21-22 (獨立橋接網路)**：`driver: bridge`。將 4 個服務關在獨立的 `kiwi-net` 網路中，資料庫埠不對外暴露，極度安全！
+
+#### 替代寫法 A (Alternative Pattern A)：不安裝 `depends_on condition` 讓各服務隨機同時啟動
+```yaml
+# 替代寫法 A：只有簡單 depends_on
+depends_on:
+  - postgres
+```
+
+#### 微觀工程對比矩陣 (Micro Trade-off Analysis)
+| 對比維度 | 現行寫法 (`condition: service_healthy`) | 替代寫法 A (隨機 simultaneous 啟動) |
+| :--- | :--- | :--- |
+| **開機崩潰防範 (Boot Safety)**| 100% 安定 (確保 DB 準備好才開 Node) | 差 (Node 搶先開機，連不上 DB 直接 Crash 崩潰) |
+| **網路資安隔離** | 自訂 Bridge 網路，DB 不對外開 port | 暴露所有端口，容易被攻擊 |
+
+---
+
+## 5. 爆炸半徑與失敗矩陣 (Blast Radius & Failure Matrix)
+
+### 5.1 影響範圍 (Blast Radius)
+* **下游受影響模組**：AWS EC2 Staging 部署。
+
+### 5.2 失敗路徑與降級機制 (Failure Modes & Fallbacks)
+| 失敗場景 (Failure Scenario) | 系統表現 (Behavior) | 降級 / 修復策略 (Fallback) |
+| :--- | :--- | :--- |
+| **DB 健康檢查失敗** | `backend` 容器等待 | 阻斷 backend 啟動，防止產生連線報錯 |
+
+---
+
+## 6. 運維與回滾步驟 (Incident Response & Rollback Runbook)
+
+### 6.1 除錯起點 (Debugging)
+* 查看日誌 `docker compose logs -f backend`。
+
+### 6.2 緊急回滾流程 (Rollback SOP)
+1. 執行 `git revert 728cad5`。
+
+---
+
+## 7. 轉碼新人面試實戰對攻劇本 (Career-Switcher Interview Q&A Defense Script)
+
+### 7.1 30 秒大白話 Core Pitch (口語化台詞)
+> *"面試官您好！這個 EC2 Docker Compose 環境是我們單機 Staging 部署的核心。我們用 `docker-compose.yml` 把前後端和雙資料庫編排在一起。特別是在 `backend` 服務裡，我們寫了 `depends_on: postgres: condition: service_healthy`。這樣能保證 Postgres DB 確定完全啟動後後端才開機，徹底解決了開機搶跑導致連不上 DB 崩潰的 Bug！"*
+
+### 7.2 面試官追問實戰劇本 (Verbatim Defense Script)
+* **面試官問**：「你為什麼要在 Docker Compose 的 `depends_on` 配置裡專門加上 `condition: service_healthy` 條件，只寫 `depends_on: - postgres` 不行嗎？」
+  - **轉碼新人回答**：「因為只寫普通的 `depends_on`，Docker 只會保證 Postgres 容器『被創建了』，但此時 PostgreSQL 資料庫內部的服務與連接埠可能還在進行初始化。後端 Node.js 如果在 DB 初始化完成前搶先啟動，就會發起資料庫連線並拋出 `ECONNREFUSED` 崩潰！加上 `condition: service_healthy` 配合 `pg_isready` 健康檢查，能 100% 確保資料庫真的準備好接客了才開後端！」

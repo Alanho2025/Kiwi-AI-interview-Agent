@@ -1,0 +1,143 @@
+# Feature RFC: F-47 跨雲 / 本地多媒介 Storage 抽象適配器
+
+> **文件狀態**：Approved  
+> **系統成熟度 (Readiness Level)**：Production-Ready  
+> **核心模組路徑**：`backend/src/services/storage/storageAdapterService.js`, `localStorageProvider.js`, `s3StorageProvider.js`  
+> **Git 演進 Commit 追蹤**：`PR #110`, Commit `df871ba`, `db484aa`  
+> **主要負責人 / 日期**：Kiwi AI Team / 2026-07-29  
+
+---
+
+## 1. 演進軌跡與背景動機 (Genesis & Evolution Trace)
+
+### 1.1 零基礎生活白話比喻 (Layman Analogy for Beginners)
+> 💡 **小白導讀**：
+> 想像你要把重要物品存入快遞保險箱（檔案存儲）。
+> * **傳統做法**：程式碼硬生生寫死了只能存放在「本地 C 槽磁碟」。萬一哪天公司要搬家移到 AWS 雲端 (S3)，整套系統的代碼全要打掉重寫。
+> * **Storage 抽象適配器 (本 Feature)**：就像開闢了一個「萬能轉接頭 (`storageAdapterService`)」。在本地測試時，轉接頭自動插入「Local 磁碟」；部署到 AWS 時，只需改一個環境變數 `STORAGE_TYPE=s3`，轉接頭瞬間無縫切換到「AWS S3」！業務程式碼完全不用改動任何一行！
+
+### 1.2 基於 Git 歷史的從 0 到 1 演進歷程
+* **初始最簡版本 (Baseline v0 - Commit `db484aa` 早期)**：
+  - 檔案上傳程式碼直接呼叫 `fs.writeFileSync` 強綁定本地硬碟。
+* **遭遇的痛點與瓶頸 (Pain Points & Bottlenecks)**：
+  - 在 AWS EC2 或 S3 環境部署時無法彈性切換，極度不利於雲端無狀態擴展。
+* **現行架構 (Current Version - PR #110 `df871ba`)**：
+  - 採用 Strategy Design Pattern 策略模式，`storageAdapterService` 根據 `STORAGE_TYPE` 自動適配 `localStorageProvider` 或 `s3StorageProvider`，導出統一的 `saveFile` 與 `getFile` 介面。
+
+---
+
+## 2. 邊界與成功標準 (Scope & Success Criteria)
+
+### 2.1 涵蓋與非涵蓋範圍 (Scope Boundaries)
+* **In-Scope (包含範圍)**：
+  - 策略模式 (Strategy Pattern) 介面抽象、環境變數開關、統一 API (`saveFile`, `deleteFile`)。
+* **Out-of-Scope (排除範圍)**：
+  - 不在適配器層處理檔案去重 (去重由 F-13 SHA-256 負責)。
+
+### 2.2 成功標準與量化 KPIs (Acceptance Criteria & Metrics)
+| 衡量指標 (Metric) | 目標值 (Target) | 驗證方式 / 自動化測試路徑 |
+| :--- | :--- | :--- |
+| **Provider 切換適應時間** | `0 秒 (改 env 即生效)` | `backend/tests/storage/adapter.test.js` |
+
+---
+
+## 3. 架構與系統流向 (Architecture & Flow)
+
+### 3.1 系統資料流與狀態轉移圖 (Data Flow & State Machine Diagram)
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Service as uploadController.js
+    participant Adapter as storageAdapterService.js
+    participant Local as localStorageProvider.js
+    participant S3 as s3StorageProvider.js
+
+    Service->>Adapter: saveFile(fileBuffer, fileName)
+    Adapter->>Adapter: 讀取 process.env.STORAGE_TYPE
+    alt STORAGE_TYPE === 's3'
+        Adapter->>S3: uploadToS3(fileBuffer, fileName)
+        S3-->>Adapter: 傳回 S3 Bucket URL
+    else STORAGE_TYPE === 'local' (Default)
+        Adapter->>Local: saveToDisk(fileBuffer, fileName)
+        Local-->>Adapter: 傳回 Local Relative Path
+    end
+    Adapter-->>Service: 傳回 統一結構 { storageKey, url }
+```
+
+### 3.2 流程文字逐步拆解導覽 (Step-by-Step Narrative Walkthrough for Beginners)
+1. **第一步（呼叫適配器）**：上傳控制器呼叫 `storageAdapterService.js` 的 `saveFile` 介面。
+2. **第二步（讀取環境變數）**：適配器讀取 `process.env.STORAGE_TYPE`。
+3. **第三步（動態策略派發）**：若為 `s3` 派發給 AWS S3 Provider；若為 `local` 派發給本地硬碟 Provider。
+4. **第四步（傳回統一格式）**：不論背後是 S3 還是本地硬碟，回傳統一格式的物件，上層代碼完全無感！
+
+---
+
+## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
+
+### 4.1 關鍵函數：`storageAdapterService.js` 的 策略工廠
+* **現行程式碼位置**：[`backend/src/services/storage/storageAdapterService.js:L10-L30`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/storage/storageAdapterService.js#L10-L30)
+
+#### 現行真實程式碼 (Current Real Code Snippet)
+```javascript
+import * as localProvider from './localStorageProvider.js';
+import * as s3Provider from './s3StorageProvider.js';
+
+const getProvider = () => {
+  const type = process.env.STORAGE_TYPE || 'local';
+  return type === 's3' ? s3Provider : localProvider;
+};
+
+export const saveFile = async (fileBuffer, fileName) => {
+  const provider = getProvider();
+  return provider.saveFile(fileBuffer, fileName);
+};
+```
+
+#### 【逐行白話文解讀 (Line-by-Line Explanation for Beginners)】
+* **Line 4-7 (策略工廠函數)**：`getProvider` 函數檢查 `process.env.STORAGE_TYPE || 'local'`。**使用三元運算子在 0 毫秒內決定使用哪一個 Provider**！
+* **Line 9-12 (多態介面導出)**：`saveFile` 統一接口。直接調用 `provider.saveFile`。因為 `s3Provider` 與 `localProvider` 都實現了相同的函數名稱，這就是經典的 **多態 (Polymorphism)** 設計！
+
+#### 替代寫法 A (Alternative Pattern A)：在業務代碼中寫滿 `if (type === 's3')` 分支
+```javascript
+// 替代寫法 A：到處寫 if/else
+if (process.env.STORAGE_TYPE === 's3') { ... } else { ... }
+```
+
+#### 微觀工程對比矩陣 (Micro Trade-off Analysis)
+| 對比維度 | 現行寫法 (Strategy Pattern 策略模式) | 替代寫法 A (到處寫 if/else) |
+| :--- | :--- | :--- |
+| **可擴展性 (OCP 開放封閉原則)**| 極佳 (未來新增 GCP 只需加一個 Provider) | 差 (新增儲存媒介要改動幾十個檔案的 if/else) |
+| **程式碼乾淨度 (Clean Code)** | 高度解耦，業務代碼 0 污染 | 大量重複程式碼 |
+
+---
+
+## 5. 爆炸半徑與失敗矩陣 (Blast Radius & Failure Matrix)
+
+### 5.1 影響範圍 (Blast Radius)
+* **下游受影響模組**：`uploadController.js`, `fileService.js`。
+
+### 5.2 失敗路徑與降級機制 (Failure Modes & Fallbacks)
+| 失敗場景 (Failure Scenario) | 系統表現 (Behavior) | 降級 / 修復策略 (Fallback) |
+| :--- | :--- | :--- |
+| **S3 認證失敗** | 拋出 S3ServiceException | 捕獲 Exception，可降級使用本地磁碟寫入 |
+
+---
+
+## 6. 運維與回滾步驟 (Incident Response & Rollback Runbook)
+
+### 6.1 除錯起點 (Debugging)
+* 查看日誌 `[STORAGE_PROVIDER_INIT]`。
+
+### 6.2 緊急回滾流程 (Rollback SOP)
+1. 執行 `git revert df871ba`。
+
+---
+
+## 7. 轉碼新人面試實戰對攻劇本 (Career-Switcher Interview Q&A Defense Script)
+
+### 7.1 30 秒大白話 Core Pitch (口語化台詞)
+> *"面試官您好！這個 Storage 抽象服務採用了設計模式中的『策略模式 (Strategy Pattern)』。我們沒有把 `fs.writeFileSync` 硬寫在業務代碼裡，而是封裝了 `storageAdapterService`。在本地開發時用 `localStorageProvider`，部署到 AWS 時只需改一個環境變數 `STORAGE_TYPE=s3` 就能瞬間切換。業務代碼完全不需要改動任何一行，完美符合開放封閉原則！"*
+
+### 7.2 面試官追問實戰劇本 (Verbatim Defense Script)
+* **面試官問**：「你為什麼要在檔案存儲中採用 Strategy Pattern 策略模式設計？」
+  - **轉碼新人回答**：「因為軟體工程強調 **開放封閉原則 (Open-Closed Principle, OCP)**，也就是對擴展開放、對修改封閉。如果沒有用策略模式，未來公司要從 AWS 遷移到 GCP Cloud Storage 時，我們必須到處去修改業務控制器裡的 if/else 代碼。採用策略模式，我們只需新增一個 `gcpStorageProvider.js` 模組，完全不需要觸碰任何既有的業務代碼，維護性最高！」

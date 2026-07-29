@@ -1,0 +1,138 @@
+# Feature RFC: F-06 紐西蘭 Privacy Act 2020 隱私條款同意追蹤
+
+> **文件狀態**：Approved  
+> **系統成熟度 (Readiness Level)**：Production-Ready  
+> **核心模組路徑**：`backend/src/services/authService.js`, PostgreSQL `user_consents` 表  
+> **Git 演進 Commit 追蹤**：`PR #110`, Commit `df871ba`  
+> **主要負責人 / 日期**：Kiwi AI Team / 2026-07-29  
+
+---
+
+## 1. 演進軌跡與背景動機 (Genesis & Evolution Trace)
+
+### 1.1 零基礎生活白話比喻 (Layman Analogy for Beginners)
+> 💡 **小白導讀**：
+> 想像你去醫院做體檢（使用 Kiwi AI 服務）。
+> * **傳統做法**：護理師口頭問你「同意嗎？」，你點點頭，但沒有留存任何紙本簽名紀錄。日後如果有法律糾紛，醫院無法證明你當時確實知情並同意。
+> * **隱私條款同意追蹤 (本 Feature)**：就像護理師拿出一份帶有時間戳與唯一編號的「知情同意書」，在你按下同意的瞬間，系統自動在不可修改的檔案保險箱 (PostgreSQL `user_consents` 表) 存留一頁包含 UUID、條款版本 (`privacy_act_2020_v1`) 與發起時間的存證紀錄。
+
+### 1.2 基於 Git 歷史的從 0 到 1 演進歷程
+* **初始最簡版本 (Baseline v0 - Commit `df871ba` 早期)**：
+  - 僅在前端 Component 用 `useState` 紀錄勾選框狀態，後端未做不可變存證。
+* **遭遇的痛點與瓶頸 (Pain Points & Bottlenecks)**：
+  - 無法滿足紐西蘭 Privacy Act 2020 對於「明確同意存證 (Explicit Consent Provenance)」的合規審計要求。
+* **現行架構 (Current Version - PR #110 `df871ba`)**：
+  - `authService.js` 中的 `recordConsent` 函數會在用戶登入時，自動發起不可變 SQL 寫入，將 UUID、`policy_version` (`privacy_act_2020_v1`) 與 `captured_at` 時間戳存入 `user_consents` 表。
+
+---
+
+## 2. 邊界與成功標準 (Scope & Success Criteria)
+
+### 2.1 涵蓋與非涵蓋範圍 (Scope Boundaries)
+* **In-Scope (包含範圍)**：
+  - 條款版本標籤管理、`user_consents` 資料庫表紀錄、UUID 防猜測、合規版本演進支援。
+* **Out-of-Scope (排除範圍)**：
+  - 不在前端快取同意紀錄（每次授權驗證均以 Postgres DB 為唯一真理源）。
+
+### 2.2 成功標準與量化 KPIs (Acceptance Criteria & Metrics)
+| 衡量指標 (Metric) | 目標值 (Target) | 驗證方式 / 自動化測試路徑 |
+| :--- | :--- | :--- |
+| **審計存證覆蓋率** | `100% 登入用戶存證` | `backend/tests/auth/consent.test.js` |
+
+---
+
+## 3. 架構與系統流向 (Architecture & Flow)
+
+### 3.1 系統資料流與狀態轉移圖 (Data Flow & State Machine Diagram)
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as 用戶
+    participant Service as authService.js
+    participant DB as Postgres (user_consents)
+
+    User->>Service: 登入時確認同意條款 (termsAccepted: true)
+    Service->>DB: recordConsent({ userId, policyVersion })
+    DB->>DB: INSERT INTO user_consents (id, user_id, policy_version, captured_at)
+    DB-->>Service: SQL Success
+    Service-->>User: 允許發放 Auth Token
+```
+
+### 3.2 流程文字逐步拆解導覽 (Step-by-Step Narrative Walkthrough for Beginners)
+1. **第一步（發起登入）**：用戶在登入時勾選同意條款，觸發 `authService.js`。
+2. **第二步（生成存證）**：Service 調用 `recordConsent` 函數，自動使用 `crypto.randomUUID()` 生成獨一無二的審計 ID。
+3. **第三步（不可變寫入）**：發送 SQL `INSERT` 語法，將用戶 ID、條款版本標籤 (`privacy_act_2020_v1`) 與當前時間 `NOW()` 寫入 Postgres `user_consents` 表。
+4. **第四步（驗證成功）**：資料庫寫入成功後，系統才放行發送 JWT Token。
+
+---
+
+## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
+
+### 4.1 關鍵函數：`authService.js` 中的 `recordConsent`
+* **現行程式碼位置**：[`backend/src/services/authService.js:L34-L42`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/authService.js#L34-L42)
+
+#### 現行真實程式碼 (Current Real Code Snippet)
+```javascript
+import { query } from '../db/postgres.js';
+import crypto from 'crypto';
+
+export const recordConsent = async ({ userId, policyVersion, source = 'google_login' }) => {
+  await query(
+    `INSERT INTO user_consents (
+      id, user_id, consent_type, status, policy_version, captured_at, source
+    ) VALUES ($1, $2, 'privacy_terms', true, $3, NOW(), $4)`,
+    [crypto.randomUUID(), userId, policyVersion, source]
+  );
+};
+```
+
+#### 【逐行白話文解讀 (Line-by-Line Explanation for Beginners)】
+* **Line 4 (非同步導出函數)**：定義 `recordConsent` 接收 `userId` 與 `policyVersion`。
+* **Line 5-10 (參數化 SQL 寫入)**：使用 `INSERT INTO user_consents` 寫入。
+* **`crypto.randomUUID()`**：使用 Node.js 原生密碼級 UUIDv4 生成字串（如 `123e4567-e89b-12d3...`），防止惡意人士通過猜測自增 ID 枚舉審計資料。
+* **`NOW()`**：利用資料庫伺服器時間，確保時間戳防篡改。
+
+#### 替代寫法 A (Alternative Pattern A)：使用自增整數主鍵 (`SERIAL`)
+```javascript
+// 替代寫法 A：使用 Postgres SERIAL 自增 ID
+INSERT INTO user_consents (user_id, policy_version) VALUES ($1, $2)
+```
+
+#### 微觀工程對比矩陣 (Micro Trade-off Analysis)
+| 對比維度 | 現行寫法 (原生 UUIDv4) | 替代寫法 A (SERIAL 自增整數) |
+| :--- | :--- | :--- |
+| **防枚舉攻擊 (Enumeration Safety)**| 100% 無法猜測 (UUID 長度 36 字元) | 容易被爬蟲連續猜測 `id=1, 2, 3...` |
+| **分散式擴展 (Scalability)** | 零衝突，極適合分散式 DB | 依賴單一資料庫自增鎖 |
+
+---
+
+## 5. 爆炸半徑與失敗矩陣 (Blast Radius & Failure Matrix)
+
+### 5.1 影響範圍 (Blast Radius)
+* **下游受影響模組**：`authController.js`。
+
+### 5.2 失敗路徑與降級機制 (Failure Modes & Fallbacks)
+| 失敗場景 (Failure Scenario) | 系統表現 (Behavior) | 降級 / 修復策略 (Fallback) |
+| :--- | :--- | :--- |
+| **`user_consents` 表寫入失敗** | 拋出 DB Exception | 阻斷登入交易並 Rollback，確保無未存證登入 |
+
+---
+
+## 6. 運維與回滾步驟 (Incident Response & Rollback Runbook)
+
+### 6.1 除錯起點 (Debugging)
+* 查詢 Postgres `SELECT * FROM user_consents WHERE user_id = $1`。
+
+### 6.2 緊急回滾流程 (Rollback SOP)
+1. 執行 `git revert df871ba`。
+
+---
+
+## 7. 轉碼新人面試實戰對攻劇本 (Career-Switcher Interview Q&A Defense Script)
+
+### 7.1 30 秒大白話 Core Pitch (口語化台詞)
+> *"面試官您好！這個隱私條款追蹤功能是為了符合紐西蘭 Privacy Act 2020 的合規要求。我們在用戶登入時，用 `crypto.randomUUID()` 為每次授權寫入一筆不可變的審計紀錄至 Postgres。我們沒有用傳統的自增整數 ID，因為自增 ID 容易被駭客用爬蟲連續猜測；用 UUID 可以 100% 防範枚舉攻擊！"*
+
+### 7.2 面試官追問實戰劇本 (Verbatim Defense Script)
+* **面試官問**：「為什麼你在 `user_consents` 表的主鍵使用 `crypto.randomUUID()` 而不用 Postgres 的 `SERIAL` 自增整數？」
+  - **轉碼新人回答**：「因為自增整數 ID (1, 2, 3...) 存在嚴重的枚舉攻擊漏洞，惡意人士只要猜測數字就能知道我們有多少用戶同意了條款。而 UUIDv4 是 128 位元的隨機字串，數學上完全無法猜測，既保護了資安，又能適應未來的分散式資料庫擴展！」
