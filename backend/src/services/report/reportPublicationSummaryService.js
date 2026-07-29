@@ -1,3 +1,5 @@
+
+
 const PUBLICATION_SUMMARY_BY_STATUS = Object.freeze({
   ready: Object.freeze({
     status: 'verified',
@@ -41,3 +43,31 @@ export const buildCandidateReportPublicationSummary = ({ latestStatus } = {}) =>
   schemaVersion: 'report_publication_summary_v1',
   ...(PUBLICATION_SUMMARY_BY_STATUS[latestStatus] || STATUS_UNAVAILABLE_SUMMARY),
 });
+
+const FORBIDDEN_CANDIDATE_KEYS = new Set([
+  'ambiguityMode',
+  'ambiguityPolicy',
+  'rankTrace',
+  'poolSelectionReason',
+  'decisionType',
+  'scoringPolicy',
+  'preparedQuestionId',
+  'rawScoringDiagnostics',
+]);
+
+export const sanitizeCandidateReportProjection = (reportPayload = {}) => {
+  if (!reportPayload || typeof reportPayload !== 'object') return reportPayload;
+
+  const clone = Array.isArray(reportPayload) ? [] : {};
+  Object.keys(reportPayload).forEach((key) => {
+    if (FORBIDDEN_CANDIDATE_KEYS.has(key)) return;
+    const val = reportPayload[key];
+    if (val && typeof val === 'object') {
+      clone[key] = sanitizeCandidateReportProjection(val);
+    } else {
+      clone[key] = val;
+    }
+  });
+
+  return clone;
+};

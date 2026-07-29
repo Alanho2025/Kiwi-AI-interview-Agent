@@ -1,4 +1,4 @@
-import { normalizeKey, normalizeText, tokenize } from '../../utils/commonHelpers.js';
+import { normalizeKey, normalizeText } from '../../utils/commonHelpers.js';
 
 const AI_ML_QUESTION_TYPES = new Set([
   'ai_workflow',
@@ -19,7 +19,7 @@ const WORKFLOW_VERIFICATION_PATTERNS = [
 ];
 
 const AI_TOOL_NAME_PATTERNS = [
-  /\b(copilot|cursor|claude|chatgpt|gpt|openai|gemini|codex|windsurf|aider|continue|mcp|langchain|llamaindex|rag)\w*/i,
+  /\b(copilot|cursor|claude|chatgpt|gpt|openai|gemini|codex|windsurf|aider|continue|mcp|langchain|llamaindex|rag|llm|ai agent|agent)\w*/i,
 ];
 
 export const evaluateTurnAiJudgementCoaching = ({
@@ -41,7 +41,7 @@ export const evaluateTurnAiJudgementCoaching = ({
   const answerText = normalizeText(answerTurn.text || '');
 
   const hasVerificationSignal = WORKFLOW_VERIFICATION_PATTERNS.some((pattern) => pattern.test(answerText));
-  const hasToolNameSignal = AI_TOOL_NAME_PATTERNS.some((pattern) => pattern.test(answerText)) || tokenize(answerText).length >= 10;
+  const hasToolNameSignal = AI_TOOL_NAME_PATTERNS.some((pattern) => pattern.test(answerText));
 
   if (hasVerificationSignal) {
     return {
@@ -60,8 +60,8 @@ export const evaluateTurnAiJudgementCoaching = ({
   }
 
   return {
-    aiJudgementStatus: 'ai_tools_named_only',
+    aiJudgementStatus: 'ai_workflow_unspecified',
     coachingFeedback: 'For AI-assisted workflows, ensure you explain what parts you personally owned and how you verified the final output.',
-    actionableTip: 'Focus on your personal verification process rather than just naming AI assistants.',
+    actionableTip: 'Focus on your personal verification process and implementation ownership when discussing AI workflows.',
   };
 };

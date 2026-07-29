@@ -5,7 +5,7 @@ import { evaluateTurnAiJudgementCoaching } from '../../../src/services/report/ai
 import { buildAnswerAlignments } from '../../../src/services/report/answerAlignmentService.js';
 
 describe('CP4 report clarification and AI judgement coaching evaluators', () => {
-  it('evaluates scope_confirmed when a question_scope_clarification turn exists in transcript', () => {
+  it('evaluates scope_confirmed when a successful question_scope_clarification turn exists in transcript', () => {
     const questionTurn = {
       questionId: 'q-101',
       text: 'How do you use AI when building features?',
@@ -23,6 +23,7 @@ describe('CP4 report clarification and AI judgement coaching evaluators', () => 
         metadata: {
           turnType: 'question_scope_clarification',
           rootQuestionId: 'q-101',
+          scopeResponseReason: 'candidate_requested_focus',
         },
       },
       answerTurn,
@@ -37,6 +38,41 @@ describe('CP4 report clarification and AI judgement coaching evaluators', () => 
     expect(result.clarificationStatus).toBe('scope_confirmed');
     expect(result.coachingFeedback).toContain('confirmed the question scope');
     expect(result.actionableTip).toContain('seeking scope confirmation');
+    expect(result.ambiguityMode).toBeUndefined(); // Projection boundary enforced
+  });
+
+  it('evaluates degraded_rephrase when candidate asked a scope question but system degraded to fallback', () => {
+    const questionTurn = {
+      questionId: 'q-101b',
+      text: 'How do you use AI?',
+      metadata: { preparedQuestionId: 'prep-101b', ambiguityMode: 'open_scope_probe' },
+    };
+    const answerTurn = {
+      role: 'user',
+      text: 'I use it for coding.',
+      metadata: { preparedQuestionId: 'prep-101b' },
+    };
+    const transcript = [
+      questionTurn,
+      {
+        role: 'ai',
+        metadata: {
+          turnType: 'repair_prompt',
+          rootQuestionId: 'q-101b',
+          scopeResponseReason: 'prepared_context_unavailable',
+        },
+      },
+      answerTurn,
+    ];
+
+    const result = evaluateTurnClarificationCoaching({
+      questionTurn,
+      answerTurn,
+      transcript,
+    });
+
+    expect(result.clarificationStatus).toBe('degraded_rephrase');
+    expect(result.coachingFeedback).toContain('fallback rephrase was provided');
   });
 
   it('evaluates explicit_assumption when candidate starts answer with an explicit assumption', () => {
@@ -83,7 +119,7 @@ describe('CP4 report clarification and AI judgement coaching evaluators', () => 
     expect(result.coachingFeedback).toContain('stating your assumed context upfront makes your answer safer');
   });
 
-  it('evaluates AI judgement coaching for AI/ML questions and detects verification methods', () => {
+  it('evaluates AI judgement coaching for AI/ML questions and prevents false positives on generic answers', () => {
     const questionTurn = {
       questionId: 'q-104',
       text: 'How do you use AI when building features?',
@@ -104,7 +140,7 @@ describe('CP4 report clarification and AI judgement coaching evaluators', () => 
 
     const answerTurnToolsOnly = {
       role: 'user',
-      text: 'I use Copilot and Claude to code fast.',
+      text: 'I use Copilot and Claude.',
     };
 
     const toolsOnlyResult = evaluateTurnAiJudgementCoaching({
@@ -114,9 +150,23 @@ describe('CP4 report clarification and AI judgement coaching evaluators', () => 
 
     expect(toolsOnlyResult.aiJudgementStatus).toBe('ai_tools_named_only');
     expect(toolsOnlyResult.coachingFeedback).toContain('referenced AI tools');
+
+    // Generic answer without tool names should NOT be classified as ai_tools_named_only even if >= 10 words
+    const answerTurnGeneric = {
+      role: 'user',
+      text: 'I wrote a Spring Boot backend for a web app that handled customer orders.',
+    };
+
+    const genericResult = evaluateTurnAiJudgementCoaching({
+      questionTurn,
+      answerTurn: answerTurnGeneric,
+    });
+
+    expect(genericResult.aiJudgementStatus).toBe('ai_workflow_unspecified');
+    expect(genericResult.coachingFeedback).not.toContain('referenced AI tools');
   });
 
-  it('attaches CP4 clarification and AI judgement coaching to buildAnswerAlignments without distorting scores', () => {
+  it('attaches CP4 clarification and AI judgement coaching to buildAnswerAlignments with candidate-safe boundary', () => {
     const interviewPlan = {
       questionPool: [
         {
@@ -166,6 +216,7 @@ describe('CP4 report clarification and AI judgement coaching evaluators', () => 
     expect(alignments.length).toBe(1);
     expect(alignments[0].clarificationCoaching).toBeDefined();
     expect(alignments[0].clarificationCoaching.clarificationStatus).toBe('no_assumption_stated');
+    expect(alignments[0].clarificationCoaching.ambiguityMode).toBeUndefined(); // Projection boundary enforced
     expect(alignments[0].aiJudgementCoaching).toBeDefined();
     expect(alignments[0].aiJudgementCoaching.aiJudgementStatus).toBe('ai_workflow_verified');
   });
