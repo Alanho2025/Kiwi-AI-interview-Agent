@@ -60,6 +60,7 @@ export const QUESTION_SELECTION_POLICY_REVIEW = Object.freeze({
 export const validateQuestionSelectionPolicyReview = ({
   reviewRecord = {},
   policySnapshot = buildVoiceSelectionPolicyReviewSnapshot(),
+  policyVersion,
 } = {}) => {
   const errors = [];
   const decision = normalizeKey(reviewRecord.decision);
@@ -69,8 +70,9 @@ export const validateQuestionSelectionPolicyReview = ({
   );
   const reviewedScenarioIds = uniqueNormalizedValues(reviewRecord.reviewedScenarioIds);
   const currentPolicyDigest = buildQuestionSelectionPolicyDigest(policySnapshot);
+  const expectedPolicyVersion = policyVersion || reviewRecord.policyVersion || QUESTION_SELECTION_POLICY_VERSION;
 
-  if (reviewRecord.policyVersion !== QUESTION_SELECTION_POLICY_VERSION) {
+  if (reviewRecord.policyVersion !== expectedPolicyVersion) {
     errors.push('selection_policy_review_version_mismatch');
   }
   if (!REVIEW_DECISIONS.has(decision)) errors.push('invalid_selection_policy_review_decision');

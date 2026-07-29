@@ -61,15 +61,16 @@ export const validateQuestionCatalogItem = (item = {}) => {
   return { valid: errors.length === 0, errors };
 };
 
-export const validateQuestionCatalogSeed = (items = []) => {
+export const validateQuestionCatalogSeed = (items = [], { catalogVersion } = {}) => {
   const ids = new Set();
   const errors = [];
+  const expectedVersion = catalogVersion || items[0]?.catalogVersion || QUESTION_CATALOG_VERSION;
   ensureArray(items).forEach((item) => {
     const validation = validateQuestionCatalogItem(item);
     validation.errors.forEach((error) => errors.push(`${item?.catalogQuestionId || 'unknown'}:${error}`));
     if (ids.has(item?.catalogQuestionId)) errors.push(`${item?.catalogQuestionId}:duplicate_catalog_question_id`);
     ids.add(item?.catalogQuestionId);
-    if (item?.catalogVersion !== QUESTION_CATALOG_VERSION) errors.push(`${item?.catalogQuestionId}:unexpected_catalog_version`);
+    if (item?.catalogVersion !== expectedVersion) errors.push(`${item?.catalogQuestionId}:unexpected_catalog_version`);
   });
   return { valid: errors.length === 0, errors };
 };
@@ -79,13 +80,15 @@ export const validateQuestionCatalogReview = ({
   catalogItems = [],
   aiDeliverySignalTaxonomy = AI_DELIVERY_SIGNAL_TAXONOMY,
   mlSignalAliases = ML_SIGNAL_ALIASES,
+  catalogVersion,
 } = {}) => {
   const errors = [];
   const catalogQuestionIds = uniqueNormalizedValues(ensureArray(catalogItems).map((item) => item?.catalogQuestionId));
   const reviewedCatalogQuestionIds = uniqueNormalizedValues(reviewRecord.reviewedCatalogQuestionIds);
   const governanceScope = uniqueNormalizedValues(reviewRecord.governanceScope);
   const decision = normalizeKey(reviewRecord.decision);
-  if (reviewRecord.catalogVersion !== QUESTION_CATALOG_VERSION) errors.push('catalog_review_version_mismatch');
+  const expectedVersion = catalogVersion || reviewRecord.catalogVersion || catalogItems[0]?.catalogVersion || QUESTION_CATALOG_VERSION;
+  if (reviewRecord.catalogVersion !== expectedVersion) errors.push('catalog_review_version_mismatch');
   if (!REVIEW_DECISIONS.has(decision)) errors.push('invalid_catalog_review_decision');
   if (decision !== 'approved') errors.push('catalog_review_not_approved');
   if (!normalizeKey(reviewRecord.reviewer)) errors.push('missing_catalog_reviewer');

@@ -1,6 +1,11 @@
 import { getMongoReadyState } from '../../db/mongo.js';
 import { QuestionCatalogItem } from '../../db/models/questionCatalogItemModel.js';
-import { QUESTION_CATALOG_SEED, QUESTION_CATALOG_VERSION } from '../../data/questionCatalogSeed2026_1.js';
+import {
+  AI_DELIVERY_SIGNAL_TAXONOMY,
+  ML_SIGNAL_ALIASES,
+  QUESTION_CATALOG_SEED,
+  QUESTION_CATALOG_VERSION,
+} from '../../data/questionCatalogSeed2026_1.js';
 import { QUESTION_CATALOG_REVIEW } from '../../data/questionCatalogReview2026_1.js';
 import { ensureArray } from '../../utils/commonHelpers.js';
 import {
@@ -35,11 +40,19 @@ export const approveQuestionCatalogVersion = async ({
   reviewRecord = QUESTION_CATALOG_REVIEW,
   policyReviewRecord = QUESTION_SELECTION_POLICY_REVIEW,
   catalogItems = QUESTION_CATALOG_SEED,
+  aiDeliverySignalTaxonomy = AI_DELIVERY_SIGNAL_TAXONOMY,
+  mlSignalAliases = ML_SIGNAL_ALIASES,
   model = QuestionCatalogItem,
 } = {}) => {
   const normalizedReviewer = String(reviewer || '').trim();
   if (!normalizedReviewer) throw new Error('QUESTION_CATALOG_REVIEWER is required to approve a catalog version');
-  const reviewValidation = validateQuestionCatalogReview({ reviewRecord, catalogItems });
+  const reviewValidation = validateQuestionCatalogReview({
+    reviewRecord,
+    catalogItems,
+    aiDeliverySignalTaxonomy,
+    mlSignalAliases,
+    catalogVersion,
+  });
   if (!reviewValidation.valid) {
     throw new Error(`Catalog activation requires an approved human review record: ${reviewValidation.errors.join(', ')}`);
   }

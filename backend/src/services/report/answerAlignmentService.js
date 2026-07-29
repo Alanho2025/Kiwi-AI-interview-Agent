@@ -1,6 +1,8 @@
 import { ensureArray, normalizeKey, normalizeText, tokenize } from '../../utils/commonHelpers.js';
 import { extractAnswerEvidenceSignals } from './answerEvidenceSignalService.js';
 import { buildRoleFitDiagnostics } from '../roleFit/roleFitDiagnosticsService.js';
+import { evaluateTurnClarificationCoaching } from './clarificationCoachingEvaluatorService.js';
+import { evaluateTurnAiJudgementCoaching } from './aiJudgementCoachingEvaluatorService.js';
 
 const EXCLUDED_ANSWER_TYPES = new Set([
   'repair_prompt',
@@ -179,6 +181,7 @@ export const buildAnswerAlignments = ({
   questionAnswerPairs = [],
   interviewPlan = {},
   analysisResult = {},
+  session = {},
 } = {}) => {
   const poolById = new Map(ensureArray(interviewPlan.questionPool)
     .map((item) => [item.questionId, item]));
@@ -217,6 +220,16 @@ export const buildAnswerAlignments = ({
       detectedEvidenceUsed,
     });
 
+    const clarificationCoaching = evaluateTurnClarificationCoaching({
+      questionTurn: pair.questionTurn,
+      answerTurn: pair.answerTurn,
+      transcript: session.transcript || [],
+    });
+    const aiJudgementCoaching = evaluateTurnAiJudgementCoaching({
+      questionTurn: pair.questionTurn,
+      answerTurn: pair.answerTurn,
+    });
+
     return {
       schemaVersion: 'answer_alignment_v2',
       compatibilityVersion: 'answer_alignment_v1',
@@ -250,6 +263,8 @@ export const buildAnswerAlignments = ({
       groundingStatus,
       evidenceAngle: context.evidenceAngle || '',
       topic: normalizeText(context.poolItem.topic),
+      clarificationCoaching,
+      aiJudgementCoaching,
     };
   }).filter(Boolean);
 };
@@ -326,7 +341,7 @@ export const buildRoleFitReportSummary = ({
     };
   }
 
-  const answerAlignments = buildAnswerAlignments({ questionAnswerPairs, interviewPlan, analysisResult });
+  const answerAlignments = buildAnswerAlignments({ questionAnswerPairs, interviewPlan, analysisResult, session });
   const roleEvidenceMap = analysisResult.roleEvidenceMap || {};
   const evidenceIndex = buildEvidenceIndex(roleEvidenceMap);
   const roleIntentCoverage = buildRoleIntentCoverage({ proofStrategy, alignments: answerAlignments, roleEvidenceMap });
