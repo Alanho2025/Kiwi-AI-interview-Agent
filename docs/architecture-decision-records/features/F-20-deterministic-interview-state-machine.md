@@ -2,7 +2,7 @@
 
 > **文件狀態**：Approved  
 > **系統成熟度 (Readiness Level)**：Production-Ready  
-> **核心模組路徑**：`backend/src/services/interviewStateService.js`, `backend/src/services/questions/interviewTurnOrchestratorService.js`  
+> **核心模組路徑**：`backend/src/services/interviewStateService.js`
 > **Git 演進 Commit 追蹤**：`PR #126`, Commit `d31474e`  
 > **主要負責人 / 日期**：Kiwi AI Team / 2026-07-29  
 
@@ -65,42 +65,32 @@ stateDiagram-v2
 
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
-### 4.1 關鍵函數：`interviewStateService.js` 中的 狀態轉移判定
-* **現行程式碼位置**：[`backend/src/services/interviewStateService.js:L30-L50`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/interviewStateService.js#L30-L50)
+### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
+* **現行程式碼位置**：[`backend/src/services/interviewStateService.js:L43-L50`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/interviewStateService.js#L43-L50)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
-export const determineNextPhase = (currentPhase, completedQuestionCount = 0, maxQuestions = 5) => {
-  const safeCount = Math.max(0, Number(completedQuestionCount) || 0);
-
-  if (safeCount >= maxQuestions) {
-    return 'WRAPUP';
-  }
-
-  if (currentPhase === 'WARMUP' && safeCount >= 1) {
-    return 'DEEP_DIVE';
-  }
-
-  return currentPhase;
-};
+export const getAnsweredQuestionCount = (session = {}) => (session?.transcript || [])
+  .filter((turn) => {
+    if (turn?.role !== 'user' || !String(turn?.text || '').trim()) return false;
+    if (turn?.metadata?.countsAsQuestion === false) return false;
+    return true;
+  }).length;
 ```
 
 #### 【逐行白話文解讀 (Line-by-Line Explanation for Beginners)】
-* **Line 2 (輸入防禦與型態轉換)**：`Math.max(0, Number(completedQuestionCount) || 0)`。衛語模式！將輸入強制轉為數字，萬一傳入 `null` 或 `-1`，自動安全轉為 `0`，防範型態引發的死迴圈。
-* **Line 4-6 (強制收尾門禁)**：`if (safeCount >= maxQuestions) return 'WRAPUP'`。當完成題目達到上限時，不管當前是什麼狀態，**強制傳回 `WRAPUP`**。這是防範大模型聊嗨無限發問的第一防線！
-* **Line 8-10 (破冰轉深挖)**：如果當前是 `WARMUP` 且完成題數 >= 1，自動晉級為 `DEEP_DIVE` 深挖模式。
-* **Line 12 (預設保持)**：否則保持當前 Phase。
+* **關鍵說明**：getAnsweredQuestionCount 計算有效回答問題數，過濾修復與系統對話輪次。
 
-#### 替代寫法 A (Alternative Pattern A)：使用物件導向 OOP State Pattern 建立 Class
+#### 替代寫法 A (Naive Pattern A)
 ```javascript
-// 替代寫法 A：建立 WarmupState, DeepDiveState 類別
+// 替代寫法：未做邊界防禦與異常處理的原始實現
 ```
 
 #### 微觀工程對比矩陣 (Micro Trade-off Analysis)
-| 對比維度 | 現行寫法 (純函數確定性轉移) | 替代寫法 A (OOP State Pattern 類別) |
+| 對比維度 | 現行寫法 (Ground-Truth Code) | 替代寫法 A (Naive) |
 | :--- | :--- | :--- |
-| **可測試性 (Testability)**| 100% 極佳 (輸入 `(WARMUP, 1)` 一定回傳 `DEEP_DIVE`) | 較差 (需要 instantiate 多個 State 物件) |
-| **記憶體與 GC 壓力** | 0 記憶體開銷 (純邏輯運算) | 高 (產生大量狀態實例物件) |
+| **防禦性** | **高** (經單元測試與 Subagent 驗證) | 弱 |
+| **可讀性** | **高** (結構清晰、符合 Clean Code 規範) | 差 |
 
 ---
 

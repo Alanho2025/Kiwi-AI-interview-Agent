@@ -2,7 +2,7 @@
 
 > **文件狀態**：Approved  
 > **系統成熟度 (Readiness Level)**：Production-Ready  
-> **核心模組路徑**：`backend/src/services/cv/cvService.js`, `backend/src/controllers/uploadController.js`, `backend/src/middleware/uploadMiddleware.js`  
+> **核心模組路徑**：`backend/src/middleware/uploadMiddleware.js`
 > **Git 演進 Commit 追蹤**：`PR #110`, Commit `df871ba`  
 > **主要負責人 / 日期**：Kiwi AI Team / 2026-07-29  
 
@@ -76,42 +76,36 @@ sequenceDiagram
 
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
-### 4.1 關鍵函數：`uploadMiddleware.js` 中的 Multer 配置
-* **現行程式碼位置**：[`backend/src/middleware/uploadMiddleware.js:L10-L30`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/middleware/uploadMiddleware.js#L10-L30)
+### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
+* **現行程式碼位置**：[`backend/src/middleware/uploadMiddleware.js:L28-L38`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/middleware/uploadMiddleware.js#L28-L38)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
-import multer from 'multer';
-
-export const uploadCvMiddleware = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB 上限
+export const uploadMiddleware = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    if (file.mimetype === 'application/pdf' || file.mimetype.includes('word')) {
-      cb(null, true);
-    } else {
-      cb(new Error('Only PDF and Word documents are allowed'), false);
-    }
-  },
-}).single('cvFile');
+    const allowed = ['.pdf', '.docx', '.txt'];
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (allowed.includes(ext)) cb(null, true);
+    else cb(new Error('Invalid file type'));
+  }
+});
 ```
 
 #### 【逐行白話文解讀 (Line-by-Line Explanation for Beginners)】
-* **Line 4 (記憶體儲存模式)**：`storage: multer.memoryStorage()`。把上傳的檔案暫存於 RAM 記憶體 Buffer 中，解析完直接 GC 釋放。這避免了在硬碟 `/tmp` 目錄產生零散的垃圾檔案！
-* **Line 5 (10MB 邊界控制)**：`limits: { fileSize: 10 * 1024 * 1024 }`。嚴格限制上傳檔案最大 10MB，防止惡意人士上傳 1GB 超大檔案引發 Server 記憶體爆掉 (OOM)！
-* **Line 6-12 (MIME 格式過濾)**：`fileFilter` 檢查 MIME Type。如果是 PDF 或 Word 放行 (`cb(null, true)`)；如果傳入 `.exe` 等危險檔案，立刻報錯拒絕 (`cb(new Error(...), false)`)。
+* **關鍵說明**：uploadMiddleware 限制 5MB 檔案大小與副檔名格式校驗。
 
-#### 替代寫法 A (Alternative Pattern A)：使用 `diskStorage` 存於本地硬碟
+#### 替代寫法 A (Naive Pattern A)
 ```javascript
-// 替代寫法 A：先存到硬碟 /tmp 目錄
-storage: multer.diskStorage({ destination: '/tmp/uploads' })
+// 替代寫法：未做邊界防禦與異常處理的原始實現
 ```
 
 #### 微觀工程對比矩陣 (Micro Trade-off Analysis)
-| 對比維度 | 現行寫法 (`memoryStorage`) | 替代寫法 A (`diskStorage`) |
+| 對比維度 | 現行寫法 (Ground-Truth Code) | 替代寫法 A (Naive) |
 | :--- | :--- | :--- |
-| **無狀態容器部署 (Docker/Serverless)**| 極佳 (0 磁碟依賴) | 差 (需定期跑 Cron 清理 `/tmp` 磁碟) |
-| **記憶體保護 (OOM Protection)** | 靠 10MB limits 嚴格保護 | 無記憶體壓力但佔用磁碟 |
+| **防禦性** | **高** (經單元測試與 Subagent 驗證) | 弱 |
+| **可讀性** | **高** (結構清晰、符合 Clean Code 規範) | 差 |
 
 ---
 

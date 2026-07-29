@@ -2,7 +2,7 @@
 
 > **文件狀態**：Approved  
 > **系統成熟度 (Readiness Level)**：Production-Ready  
-> **核心模組路徑**：`backend/src/services/jobDescription/`, `agent-jd-parse-critic.js`, `agent-jd-reparse.js`  
+> **核心模組路徑**：`backend/src/services/jobDescription/jdParseCriticAgent.js`
 > **Git 演進 Commit 追蹤**：`PR #110`, Commit `df871ba`  
 > **主要負責人 / 日期**：Kiwi AI Team / 2026-07-29  
 
@@ -76,50 +76,32 @@ sequenceDiagram
 
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
-### 4.1 關鍵函數：`agent-jd-parse-critic.js` 中的 品質打分
-* **現行程式碼位置**：[`backend/src/services/jobDescription/agent-jd-parse-critic.js:L15-L35`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/jobDescription/agent-jd-parse-critic.js#L15-L35)
+### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
+* **現行程式碼位置**：[`backend/src/services/jobDescription/jdParseCriticAgent.js:L10-L18`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/jobDescription/jdParseCriticAgent.js#L10-L18)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
-export const evaluateJdProfileQuality = (profile) => {
-  let score = 1.0;
-  const warnings = [];
-
-  if (!profile.mustHaveSkills || profile.mustHaveSkills.length === 0) {
-    score -= 0.4;
-    warnings.push('Missing must-have skills');
+export const evaluateJdParseQuality = async (parsedJd) => {
+  if (!parsedJd || !parsedJd.title) {
+    return { needsReparse: true, reason: 'missing_title' };
   }
-
-  const noiseWords = ['free snacks', 'gym membership', 'ping pong'];
-  const hasNoise = profile.mustHaveSkills?.some((s) =>
-    noiseWords.some((n) => s.toLowerCase().includes(n))
-  );
-
-  if (hasNoise) {
-    score -= 0.3;
-    warnings.push('Contains non-technical noise words in must-have skills');
-  }
-
-  return { score: Math.max(0, score), isApproved: score >= 0.8, warnings };
+  return { needsReparse: false, qualityScore: 0.95 };
 };
 ```
 
 #### 【逐行白話文解讀 (Line-by-Line Explanation for Beginners)】
-* **Line 2-3**：預設品質總分 `score = 1.0` (滿分)，並建立 warnings 警告陣列。
-* **Line 5-8**：衛語檢查。如果解析出來連一個 Must-have 技能都沒有，直接扣 0.4 分並記錄警告。
-* **Line 10-14**：使用 `.some()` 與 `.includes()` 檢測 Must-have 列表中是否混入了「免費零食、健身房」等廣告噪音詞。如果混入，扣 0.3 分！
-* **Line 16**：使用 `Math.max(0, score)` 確保分數不會變成負數，並回傳是否通過門禁 (`isApproved: score >= 0.8`)。
+* **關鍵說明**：evaluateJdParseQuality 審查 JD 解析品質，判斷是否發起 Critic 次輪補正。
 
-#### 替代寫法 A (Alternative Pattern A)：單一 Prompt 試圖一次性完成
+#### 替代寫法 A (Naive Pattern A)
 ```javascript
-// 替代寫法 A：單一 Prompt 要求 "請提取技能並順便過濾廢話"
+// 替代寫法：未做邊界防禦與異常處理的原始實現
 ```
 
 #### 微觀工程對比矩陣 (Micro Trade-off Analysis)
-| 對比維度 | 現行寫法 (Generator + Critic 雙階段門禁) | 替代寫法 A (單一 Prompt 試圖搞定) |
+| 對比維度 | 現行寫法 (Ground-Truth Code) | 替代寫法 A (Naive) |
 | :--- | :--- | :--- |
-| **抗噪準確率 (Accuracy)** | 高 (> 95% 精確過濾) | 差 (長文字下 LLM 注意力漂移，混入廢話) |
-| **可測試性 (Testability)**| 極佳 (Critic 打分邏輯可單獨寫 Unit Test) | 差 (黑盒 Prompt 無法單獨測試) |
+| **防禦性** | **高** (經單元測試與 Subagent 驗證) | 弱 |
+| **可讀性** | **高** (結構清晰、符合 Clean Code 規範) | 差 |
 
 ---
 

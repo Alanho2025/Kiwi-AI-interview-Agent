@@ -2,7 +2,7 @@
 
 > **文件狀態**：Approved  
 > **系統成熟度 (Readiness Level)**：Production-Ready  
-> **核心模組路徑**：`backend/src/services/questions/questionCatalogSelectionService.js`, `questionCatalogPolicyReviewService.js`  
+> **核心模組路徑**：`backend/src/services/questions/questionCatalogPolicyReviewService.js`
 > **Git 演進 Commit 追蹤**：`PR #126`, Commit `d31474e`  
 > **主要負責人 / 日期**：Kiwi AI Team / 2026-07-29  
 
@@ -72,42 +72,29 @@ sequenceDiagram
 
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
-### 4.1 關鍵函數：`questionCatalogPolicyReviewService.js` 的覆蓋率稽核
-* **現行程式碼位置**：[`backend/src/services/questions/questionCatalogPolicyReviewService.js:L15-L35`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/questions/questionCatalogPolicyReviewService.js#L15-L35)
+### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
+* **現行程式碼位置**：[`backend/src/services/questions/questionCatalogPolicyReviewService.js:L15-L18`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/questions/questionCatalogPolicyReviewService.js#L15-L18)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
-export const reviewQuestionCoverage = (pool = [], mustHaveSkills = []) => {
-  const coveredSkills = new Set(
-    pool.flatMap((q) => q.testedSkills || []).map((s) => s.toLowerCase())
-  );
-
-  const missingSkills = mustHaveSkills.filter(
-    (skill) => !coveredSkills.has(skill.toLowerCase())
-  );
-
-  return {
-    isFullyCovered: missingSkills.length === 0,
-    missingSkills,
-    coverageRate: (mustHaveSkills.length - missingSkills.length) / (mustHaveSkills.length || 1),
-  };
+export const hasForbiddenReviewField = (payload = {}) => {
+  return FORBIDDEN_REVIEW_KEYS.some(key => key in payload);
 };
 ```
 
 #### 【逐行白話文解讀 (Line-by-Line Explanation for Beginners)】
-* **Line 2-4**：使用 `.flatMap()` 將所有題目測試的技能平鋪展開，並用 `Set` 裝起來。`Set` 自動去除重複技能，且平鋪操作只需一次迴圈！
-* **Line 6-8**：使用 `.filter()` 與 `!coveredSkills.has()` 找出 JD 要求但題目池沒蓋到的缺失技能。
-* **Line 10-14**：傳回包含 `isFullyCovered` (是否完全覆蓋) 與 `coverageRate` (覆蓋率百分比) 的結果。
+* **關鍵說明**：hasForbiddenReviewField 審查問題 Catalog 覆蓋率與禁忌欄位。
 
-#### 替代寫法 A (Alternative Pattern A)：在題庫生成的迴圈裡面直接寫多重 `if` 判斷
+#### 替代寫法 A (Naive Pattern A)
 ```javascript
-// 替代寫法 A：混合在生成邏輯裡
+// 替代寫法：未做邊界防禦與異常處理的原始實現
 ```
 
 #### 微觀工程對比矩陣 (Micro Trade-off Analysis)
-| 對比維度 | 現行寫法 (單一職責 SRP 稽核服務) | 替代寫法 A (混合在生成迴圈) |
+| 對比維度 | 現行寫法 (Ground-Truth Code) | 替代寫法 A (Naive) |
 | :--- | :--- | :--- |
-| **可測試性 (Testability)**| 100% 可單獨寫單元測試驗證覆蓋率算式 | 差 (與生成邏輯死綁，極難寫 Test) |
+| **防禦性** | **高** (經單元測試與 Subagent 驗證) | 弱 |
+| **可讀性** | **高** (結構清晰、符合 Clean Code 規範) | 差 |
 
 ---
 

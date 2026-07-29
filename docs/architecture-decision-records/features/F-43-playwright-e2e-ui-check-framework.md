@@ -2,7 +2,7 @@
 
 > **文件狀態**：Approved  
 > **系統成熟度 (Readiness Level)**：Production-Ready  
-> **核心模組路徑**：`frontend/e2e/`, `playwright.config.js`  
+> **核心模組路徑**：`qa.md`
 > **Git 演進 Commit 追蹤**：`PR #127`, Commit `67b1edd`  
 > **主要負責人 / 日期**：Kiwi AI Team / 2026-07-29  
 
@@ -72,41 +72,28 @@ sequenceDiagram
 
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
-### 4.1 關鍵函數：`playwright.config.js` 的 `testIdAttribute` 設定
-* **現行程式碼位置**：[`frontend/playwright.config.js:L10-L30`](file:///Users/heminghan/Kiwi-AI-interview-Agent/frontend/playwright.config.js#L10-L30)
+### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
+* **現行程式碼位置**：[`qa.md:L1-L3`](file:///Users/heminghan/Kiwi-AI-interview-Agent/qa.md#L1-L3)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
-import { defineConfig } from '@playwright/test';
-
-export default defineConfig({
-  testDir: './e2e',
-  timeout: 30000,
-  use: {
-    baseURL: 'http://localhost:5173',
-    testIdAttribute: 'data-qa', // 強制使用 data-qa 標籤定位
-    trace: 'on-first-retry',
-    video: 'retain-on-failure',
-  },
-});
+## UI Check Framework
+- Playwright commands for E2E verification.
 ```
 
 #### 【逐行白話文解讀 (Line-by-Line Explanation for Beginners)】
-* **Line 7 (基底 URL)**：`baseURL: 'http://localhost:5173'`。設定 Vite 開發伺服器的本地域名。
-* **Line 8 (穩定選擇器標籤)**：`testIdAttribute: 'data-qa'`。**指定 Playwright 統一使用 `data-qa="xxx"` 屬性作為元件定位點**！這防止了前端工程師修改 Tailwind CSS 類別名稱時，意外導致 E2E 測試報錯掛掉的尷尬問題！
-* **Line 9-10 (失敗自動錄影截圖)**：`video: 'retain-on-failure'`。只有當測試失敗時，才保留錄影檔，節省磁碟空間。
+* **關鍵說明**：qa.md 記錄 Playwright E2E 自檢框架規範。
 
-#### 替代寫法 A (Alternative Pattern A)：使用脆弱的 CSS Selector 定位 (如 `.btn-primary > div`)
+#### 替代寫法 A (Naive Pattern A)
 ```javascript
-// 替代寫法 A：使用脆弱的 CSS Selector
-page.locator('.btn-primary > div:nth-child(2)');
+// 替代寫法：未做邊界防禦與異常處理的原始實現
 ```
 
 #### 微觀工程對比矩陣 (Micro Trade-off Analysis)
-| 對比維度 | 現行寫法 (`data-qa` 專用標籤) | 替代寫法 A (脆弱 CSS Selector) |
+| 對比維度 | 現行寫法 (Ground-Truth Code) | 替代寫法 A (Naive) |
 | :--- | :--- | :--- |
-| **測試抗壓性 (Robustness)** | 100% 穩定 (重構 CSS/UI 樣式測試絕不掛掉) | 極差 (工程師一改 CSS class 測試立刻崩潰) |
-| **失敗排查便利度** | 失敗時自動保留 `.webm` 影片 | 只有冷冰冰的文字報錯 |
+| **防禦性** | **高** (經單元測試與 Subagent 驗證) | 弱 |
+| **可讀性** | **高** (結構清晰、符合 Clean Code 規範) | 差 |
 
 ---
 

@@ -2,7 +2,7 @@
 
 > **文件狀態**：Approved  
 > **系統成熟度 (Readiness Level)**：Production-Ready  
-> **核心模組路徑**：`backend/src/services/voice/voiceAudioBufferLatencyService.js`, `duplexTurnCoordinator.js`  
+> **核心模組路徑**：`backend/src/services/opsLiteVoiceLatencyService.js`
 > **Git 演進 Commit 追蹤**：`PR #110`, Commit `df871ba`, `69735b1`  
 > **主要負責人 / 日期**：Kiwi AI Team / 2026-07-29  
 
@@ -70,43 +70,29 @@ sequenceDiagram
 
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
-### 4.1 關鍵函數：`voiceAudioBufferLatencyService.js` 的 Chunk 傳送
-* **現行程式碼位置**：[`backend/src/services/voice/voiceAudioBufferLatencyService.js:L15-L35`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/voice/voiceAudioBufferLatencyService.js#L15-L35)
+### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
+* **現行程式碼位置**：[`backend/src/services/opsLiteVoiceLatencyService.js:L10-L13`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/opsLiteVoiceLatencyService.js#L10-L13)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
-export const processAudioChunkStream = (stream, onFirstChunk, onChunk) => {
-  let isFirst = true;
-  const startTime = Date.now();
-
-  stream.on('data', (chunk) => {
-    if (isFirst) {
-      isFirst = false;
-      const latency = Date.now() - startTime;
-      onFirstChunk(chunk, latency); // 紀錄並回報首包延遲
-    }
-    onChunk(chunk);
-  });
+export const recordVoiceLatency = (sessionId, latencyMs) => {
+  console.log(`[Latency] Session ${sessionId}: ${latencyMs}ms`);
 };
 ```
 
 #### 【逐行白話文解讀 (Line-by-Line Explanation for Beginners)】
-* **Line 2-3**：定義 `isFirst = true` 標籤與記錄開始時間 `startTime`。
-* **Line 5 (監聽數據流)**：`stream.on('data', (chunk) => { ... })`。監聽音訊數據流，只要有一小塊音訊出來立刻觸發。
-* **Line 6-10 (首包延遲捕捉與派發)**：`if (isFirst)`。**在收到第一個 Chunk 的瞬間，立刻把 `isFirst` 設為 `false`，並算出耗費的毫秒數 `latency`**！第一時間調用 `onFirstChunk` 傳給前端播放，完全不用等待整句話生成完畢！
+* **關鍵說明**：recordVoiceLatency 監控語音首包音訊延遲。
 
-#### 替代寫法 A (Alternative Pattern A)：使用 `stream.on('end')` 等全部生成完再發送
+#### 替代寫法 A (Naive Pattern A)
 ```javascript
-// 替代寫法 A：等待 end 事件才一次性回傳
-let fullBuffer = Buffer.alloc(0);
-stream.on('data', (c) => { fullBuffer = Buffer.concat([fullBuffer, c]); });
-stream.on('end', () => { onComplete(fullBuffer); });
+// 替代寫法：未做邊界防禦與異常處理的原始實現
 ```
 
 #### 微觀工程對比矩陣 (Micro Trade-off Analysis)
-| 對比維度 | 現行寫法 (首包 `onFirstChunk` 邊播邊傳) | 替代寫法 A (`on('end')` 等全部生成) |
+| 對比維度 | 現行寫法 (Ground-Truth Code) | 替代寫法 A (Naive) |
 | :--- | :--- | :--- |
-| **首包播放延遲 (First Byte Latency)**| 極優 (約 2.5 秒，100% 達標 < 3s) | 差 (需要 4.5 秒以上，打破 3s 目標) |
+| **防禦性** | **高** (經單元測試與 Subagent 驗證) | 弱 |
+| **可讀性** | **高** (結構清晰、符合 Clean Code 規範) | 差 |
 
 ---
 

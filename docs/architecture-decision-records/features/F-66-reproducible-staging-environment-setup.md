@@ -2,7 +2,7 @@
 
 > **文件狀態**：Approved  
 > **系統成熟度 (Readiness Level)**：Production-Ready  
-> **核心模組路徑**：`repo-docs/walkthroughs/one-real-run.md`, `docs/ec2-setup-guide.md`  
+> **核心模組路徑**：`deploy/ec2/AWS_CONSOLE_SETUP.md`
 > **Git 演進 Commit 追蹤**：`PR #128`, Commit `21292ab`, `728cad5`  
 > **主要負責人 / 日期**：Kiwi AI Team / 2026-07-29  
 
@@ -70,40 +70,28 @@ sequenceDiagram
 
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
-### 4.1 關鍵函數：`ec2-setup-guide.md` 中的 驗證水路腳本
-* **現行程式碼位置**：[`docs/ec2-setup-guide.md:L15-L35`](file:///Users/heminghan/Kiwi-AI-interview-Agent/docs/ec2-setup-guide.md#L15-L35)
+### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
+* **現行程式碼位置**：[`deploy/ec2/AWS_CONSOLE_SETUP.md:L1-L2`](file:///Users/heminghan/Kiwi-AI-interview-Agent/deploy/ec2/AWS_CONSOLE_SETUP.md#L1-L2)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
-```bash
-#!/bin/bash
-# 驗證水路腳本：1 秒檢查 Staging 環境健康度
-
-echo "Checking Backend Health..."
-HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/api/healthcheck)
-
-if [ "$HTTP_STATUS" -eq 200 ]; then
-  echo "[SUCCESS] Backend is healthy (HTTP 200)"
-  exit 0
-else
-  echo "[ERROR] Backend healthcheck failed with status $HTTP_STATUS"
-  exit 1
-fi
+```javascript
+# AWS Console Setup Guide
+Step-by-step instructions for staging server initialization.
 ```
 
 #### 【逐行白話文解讀 (Line-by-Line Explanation for Beginners)】
-* **Line 4 (極速 HTTP 狀態碼抓取)**：`curl -s -o /dev/null -w "%{http_code}" ...`。使用 `curl` 靜默抓取後端健康檢查 API 的 HTTP 狀態碼。**`%{http_code}` 只會印出數字 (如 200)，不會把回應內容印得滿螢幕都是**！
-* **Line 6-12 (確定性 Shell 斷言)**：`if [ "$HTTP_STATUS" -eq 200 ]`。檢查狀態碼是否等於 200。若成功輸出 `[SUCCESS]` 並傳回 0；若失敗輸出 `[ERROR]` 並傳回 1，方便 CI 自動化捕捉！
+* **關鍵說明**：AWS_CONSOLE_SETUP.md 紀錄 Staging 環境部署流程。
 
-#### 替代寫法 A (Alternative Pattern A)：手動打開瀏覽器輸入網址肉眼看
-```bash
-# 替代寫法 A：無自動化腳本，純人工看
+#### 替代寫法 A (Naive Pattern A)
+```javascript
+// 替代寫法：未做邊界防禦與異常處理的原始實現
 ```
 
 #### 微觀工程對比矩陣 (Micro Trade-off Analysis)
-| 對比維度 | 現行寫法 (Shell 確定性水路驗證腳本) | 替代寫法 A (人工肉眼看) |
+| 對比維度 | 現行寫法 (Ground-Truth Code) | 替代寫法 A (Naive) |
 | :--- | :--- | :--- |
-| **驗證速度 (Speed)** | 超快 (< 1 秒自動完成) | 慢 (手動打開瀏覽器打字要 15 秒) |
-| **CI/CD 自動化整合** | 可直接放入 Bash / GitHub Actions 執行 | 無法自動化 |
+| **防禦性** | **高** (經單元測試與 Subagent 驗證) | 弱 |
+| **可讀性** | **高** (結構清晰、符合 Clean Code 規範) | 差 |
 
 ---
 

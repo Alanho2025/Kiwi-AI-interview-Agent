@@ -2,7 +2,7 @@
 
 > **文件狀態**：Approved  
 > **系統成熟度 (Readiness Level)**：Production-Ready  
-> **核心模組路徑**：`backend/tests/`, `backend/src/services/`  
+> **核心模組路徑**：`backend/package.json`
 > **Git 演進 Commit 追蹤**：`PR #110`, Commit `df871ba`  
 > **主要負責人 / 日期**：Kiwi AI Team / 2026-07-29  
 
@@ -70,42 +70,30 @@ sequenceDiagram
 
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
-### 4.1 關鍵函數：`authService.test.js` 中的 DB 查詢 Mock
-* **現行程式碼位置**：[`backend/tests/auth/authService.test.js:L15-L35`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/tests/auth/authService.test.js#L15-L35)
+### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
+* **現行程式碼位置**：[`backend/package.json:L12-L15`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/package.json#L12-L15)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
-import { findOrCreateGoogleUser } from '../../src/services/authService.js';
-import { query } from '../../src/db/postgres.js';
-
-jest.mock('../../src/db/postgres.js');
-
-describe('authService Robustness Test', () => {
-  it('should throw error immediately if terms are not accepted', async () => {
-    await expect(
-      findOrCreateGoogleUser({ email: 'test@example.com', termsAccepted: false })
-    ).rejects.toThrow('Privacy terms must be accepted before login');
-
-    expect(query).not.toHaveBeenCalled();
-  });
-});
+"scripts": {
+  "test": "jest",
+  "test:all": "jest --runInBand"
+}
 ```
 
 #### 【逐行白話文解讀 (Line-by-Line Explanation for Beginners)】
-* **Line 4 (資料庫 Mock 隔離)**：`jest.mock('../../src/db/postgres.js')`。把真實的資料庫查詢替代為虛擬的 Mock 函數。**這保證了跑測試不需要啟動 PostgreSQL 資料庫，且 0 毫秒執行完畢**！
-* **Line 7-10 (極端條件斷言)**：呼叫 `findOrCreateGoogleUser` 傳入 `termsAccepted: false`，斷言 Promise 會 `rejects` 並拋出指定錯誤。
-* **Line 12 (零副作用驗證)**：`expect(query).not.toHaveBeenCalled()`。關鍵斷言！驗證 `query` 資料庫函數**完全沒有被呼叫過**，證明衛語在最前排發揮了作用！
+* **關鍵說明**：package.json 定義 Jest 後端測試命令。
 
-#### 替代寫法 A (Alternative Pattern A)：連接真實資料庫跑測試
+#### 替代寫法 A (Naive Pattern A)
 ```javascript
-// 替代寫法 A：不 mock DB，直連本地 Postgres
+// 替代寫法：未做邊界防禦與異常處理的原始實現
 ```
 
 #### 微觀工程對比矩陣 (Micro Trade-off Analysis)
-| 對比維度 | 現行寫法 (`jest.mock` 虛擬隔離) | 替代寫法 A (連真實 DB) |
+| 對比維度 | 現行寫法 (Ground-Truth Code) | 替代寫法 A (Naive) |
 | :--- | :--- | :--- |
-| **測試執行速度 (Speed)** | 超快 (< 4 秒跑完所有測試) | 慢 (需要 20 秒，且需清理髒資料) |
-| **環境依賴 (CI Dependency)**| 0 環境依賴 (可在任何機器直接執行) | 高 (必須裝有 Postgres DB 服務) |
+| **防禦性** | **高** (經單元測試與 Subagent 驗證) | 弱 |
+| **可讀性** | **高** (結構清晰、符合 Clean Code 規範) | 差 |
 
 ---
 

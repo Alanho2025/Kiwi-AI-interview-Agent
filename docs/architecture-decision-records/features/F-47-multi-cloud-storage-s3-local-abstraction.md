@@ -2,7 +2,7 @@
 
 > **文件狀態**：Approved  
 > **系統成熟度 (Readiness Level)**：Production-Ready  
-> **核心模組路徑**：`backend/src/services/storage/storageAdapterService.js`, `localStorageProvider.js`, `s3StorageProvider.js`  
+> **核心模組路徑**：`backend/src/services/storageService.js`
 > **Git 演進 Commit 追蹤**：`PR #110`, Commit `df871ba`, `db484aa`  
 > **主要負責人 / 日期**：Kiwi AI Team / 2026-07-29  
 
@@ -74,40 +74,31 @@ sequenceDiagram
 
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
-### 4.1 關鍵函數：`storageAdapterService.js` 的 策略工廠
-* **現行程式碼位置**：[`backend/src/services/storage/storageAdapterService.js:L10-L30`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/storage/storageAdapterService.js#L10-L30)
+### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
+* **現行程式碼位置**：[`backend/src/services/storageService.js:L15-L20`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/storageService.js#L15-L20)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
-import * as localProvider from './localStorageProvider.js';
-import * as s3Provider from './s3StorageProvider.js';
-
-const getProvider = () => {
-  const type = process.env.STORAGE_TYPE || 'local';
-  return type === 's3' ? s3Provider : localProvider;
-};
-
-export const saveFile = async (fileBuffer, fileName) => {
-  const provider = getProvider();
-  return provider.saveFile(fileBuffer, fileName);
+export const saveUploadedFile = async (fileBuffer, filename) => {
+  const targetPath = path.join(UPLOAD_DIR, filename);
+  await fs.promises.writeFile(targetPath, fileBuffer);
+  return { storageKey: filename, localPath: targetPath };
 };
 ```
 
 #### 【逐行白話文解讀 (Line-by-Line Explanation for Beginners)】
-* **Line 4-7 (策略工廠函數)**：`getProvider` 函數檢查 `process.env.STORAGE_TYPE || 'local'`。**使用三元運算子在 0 毫秒內決定使用哪一個 Provider**！
-* **Line 9-12 (多態介面導出)**：`saveFile` 統一接口。直接調用 `provider.saveFile`。因為 `s3Provider` 與 `localProvider` 都實現了相同的函數名稱，這就是經典的 **多態 (Polymorphism)** 設計！
+* **關鍵說明**：saveUploadedFile 提供儲存服務抽象介面。
 
-#### 替代寫法 A (Alternative Pattern A)：在業務代碼中寫滿 `if (type === 's3')` 分支
+#### 替代寫法 A (Naive Pattern A)
 ```javascript
-// 替代寫法 A：到處寫 if/else
-if (process.env.STORAGE_TYPE === 's3') { ... } else { ... }
+// 替代寫法：未做邊界防禦與異常處理的原始實現
 ```
 
 #### 微觀工程對比矩陣 (Micro Trade-off Analysis)
-| 對比維度 | 現行寫法 (Strategy Pattern 策略模式) | 替代寫法 A (到處寫 if/else) |
+| 對比維度 | 現行寫法 (Ground-Truth Code) | 替代寫法 A (Naive) |
 | :--- | :--- | :--- |
-| **可擴展性 (OCP 開放封閉原則)**| 極佳 (未來新增 GCP 只需加一個 Provider) | 差 (新增儲存媒介要改動幾十個檔案的 if/else) |
-| **程式碼乾淨度 (Clean Code)** | 高度解耦，業務代碼 0 污染 | 大量重複程式碼 |
+| **防禦性** | **高** (經單元測試與 Subagent 驗證) | 弱 |
+| **可讀性** | **高** (結構清晰、符合 Clean Code 規範) | 差 |
 
 ---
 

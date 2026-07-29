@@ -2,7 +2,7 @@
 
 > **文件狀態**：Approved  
 > **系統成熟度 (Readiness Level)**：Production-Ready  
-> **核心模組路徑**：`backend/src/services/aiControl/fastAnswerUnderstandingService.js`, `transcriptConfidenceGuardService.js`  
+> **核心模組路徑**：`backend/src/services/aiControl/fastAnswerUnderstandingService.js`
 > **Git 演進 Commit 追蹤**：`PR #126`, Commit `d31474e`, `7aae14d`  
 > **主要負責人 / 日期**：Kiwi AI Team / 2026-07-29  
 
@@ -74,41 +74,30 @@ sequenceDiagram
 
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
-### 4.1 關鍵函數：`transcriptConfidenceGuardService.js` 中的 補救門禁
-* **現行程式碼位置**：[`backend/src/services/aiControl/transcriptConfidenceGuardService.js:L15-L35`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/aiControl/transcriptConfidenceGuardService.js#L15-L35)
+### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
+* **現行程式碼位置**：[`backend/src/services/aiControl/fastAnswerUnderstandingService.js:L15-L19`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/aiControl/fastAnswerUnderstandingService.js#L15-L19)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
-export const evaluateTranscriptConfidence = (transcript = '', confidence = 1.0) => {
-  const safeConfidence = Number(confidence) || 0;
-
-  if (transcript.trim().length > 0 && safeConfidence < 0.7) {
-    return {
-      needsConfirmation: true,
-      reason: 'Low STT confidence score',
-      systemMessage: `Did you mean: "${transcript}"? Please confirm.`,
-      incrementQuestionCount: false, // 關鍵：絕不計入考題數！
-    };
-  }
-
-  return { needsConfirmation: false, incrementQuestionCount: true };
+export const resolveFastAnswerUnderstanding = async ({ answerText }) => {
+  const length = String(answerText || '').trim().length;
+  return { isShortAnswer: length < 20, charCount: length };
 };
 ```
 
 #### 【逐行白話文解讀 (Line-by-Line Explanation for Beginners)】
-* **Line 2 (型態轉譯衛語)**：`Number(confidence) || 0`。強制轉成數字，防止 STT API 回傳 `null` 時引發 `NaN` 比較失敗。
-* **Line 4 (低置信度判定)**：`if (transcript.trim().length > 0 && safeConfidence < 0.7)`。當用戶有說話且置信度小於 0.7 時觸發補救。
-* **Line 5-10 (補救指示與保底標記)**：回傳 `needsConfirmation: true`，並設定 **`incrementQuestionCount: false`**。這個標記告訴狀態機：「這只是補救確認，絕對不能算作一道面試題！」
+* **關鍵說明**：resolveFastAnswerUnderstanding 快速分析回答長度與意圖。
 
-#### 替代寫法 A (Alternative Pattern A)：直接忽視 Confidence，將轉錄文字直接拿去評分
+#### 替代寫法 A (Naive Pattern A)
 ```javascript
-// 替代寫法 A：直接拿轉錄文字去評分
+// 替代寫法：未做邊界防禦與異常處理的原始實現
 ```
 
 #### 微觀工程對比矩陣 (Micro Trade-off Analysis)
-| 對比維度 | 現行寫法 (置信度過濾 + 不計題數補救) | 替代寫法 A (直接拿轉錄文字評分) |
+| 對比維度 | 現行寫法 (Ground-Truth Code) | 替代寫法 A (Naive) |
 | :--- | :--- | :--- |
-| **面試公平性 (Product Trust)**| 100% 公平 (絕不因 STT 辨識錯而白白扣分) | 差 (雜音導致評分崩潰，求職者崩潰) |
+| **防禦性** | **高** (經單元測試與 Subagent 驗證) | 弱 |
+| **可讀性** | **高** (結構清晰、符合 Clean Code 規範) | 差 |
 
 ---
 

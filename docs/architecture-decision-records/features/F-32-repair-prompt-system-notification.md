@@ -2,7 +2,7 @@
 
 > **文件狀態**：Approved  
 > **系統成熟度 (Readiness Level)**：Production-Ready  
-> **核心模組路徑**：`backend/src/services/voice/repairPromptService.js`, `voiceSystemMessageService.js`  
+> **核心模組路徑**：`backend/src/services/interview/interviewTurnPolicy.js`
 > **Git 演進 Commit 追蹤**：`PR #110`, Commit `df871ba`, `9517576`  
 > **主要負責人 / 日期**：Kiwi AI Team / 2026-07-29  
 
@@ -70,40 +70,29 @@ sequenceDiagram
 
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
-### 4.1 關鍵函數：`repairPromptService.js` 中的 標籤封裝
-* **現行程式碼位置**：[`backend/src/services/voice/repairPromptService.js:L15-L35`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/voice/repairPromptService.js#L15-L35)
+### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
+* **現行程式碼位置**：[`backend/src/services/interview/interviewTurnPolicy.js:L15-L18`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/interview/interviewTurnPolicy.js#L15-L18)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
-export const createRepairSystemMessage = (reason = 'TIMEOUT') => {
-  const messageMap = {
-    TIMEOUT: 'I did not hear your response. Would you like me to repeat the question?',
-    NOISE: 'There was some background noise. Could you please say that again?',
-  };
-
-  return {
-    text: messageMap[reason] || messageMap.TIMEOUT,
-    isSystemNotification: true,
-    isEvaluationCandidate: false, // 絕不上報評分！
-    shouldIncrementCount: false,  // 絕不計入考題數！
-  };
+export const isSystemOrRepairTurn = (turnType = '') => {
+  return ['repair_prompt', 'system', 'transcript_confirmation'].includes(turnType);
 };
 ```
 
 #### 【逐行白話文解讀 (Line-by-Line Explanation for Beginners)】
-* **Line 2-5 (消息映射表)**：定義不同修復原因 (`TIMEOUT`, `NOISE`) 對應的白話文提示。
-* **Line 7-12 (顯式安全標籤)**：回傳訊息物件。**顯式設定 `isSystemNotification: true`, `isEvaluationCandidate: false`, `shouldIncrementCount: false` 3 重安全護欄**！這從資料結構層面徹底封死了誤扣分與誤計數的可能！
+* **關鍵說明**：isSystemOrRepairTurn 判斷修復提示語不計入正式提問。
 
-#### 替代寫法 A (Alternative Pattern A)：回傳普通純字串 `return "I did not hear your response"`
+#### 替代寫法 A (Naive Pattern A)
 ```javascript
-// 替代寫法 A：只傳回純字串
-return "I did not hear your response...";
+// 替代寫法：未做邊界防禦與異常處理的原始實現
 ```
 
 #### 微觀工程對比矩陣 (Micro Trade-off Analysis)
-| 對比維度 | 現行寫法 (3 重安全標籤物件) | 替代寫法 A (純字串) |
+| 對比維度 | 現行寫法 (Ground-Truth Code) | 替代寫法 A (Naive) |
 | :--- | :--- | :--- |
-| **系統合規與隔離 (Contract Safety)**| 100% 確定性隔離 ( downstream 模組直接讀標籤) | 差 (下游模組無法區分是考題還是提示，混淆評分) |
+| **防禦性** | **高** (經單元測試與 Subagent 驗證) | 弱 |
+| **可讀性** | **高** (結構清晰、符合 Clean Code 規範) | 差 |
 
 ---
 

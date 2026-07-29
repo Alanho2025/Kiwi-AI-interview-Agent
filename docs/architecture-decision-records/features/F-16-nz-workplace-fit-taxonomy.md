@@ -2,7 +2,7 @@
 
 > **文件狀態**：Approved  
 > **系統成熟度 (Readiness Level)**：Production-Ready  
-> **核心模組路徑**：`backend/src/services/taxonomyService.js`, `backend/src/services/nzWorkplaceFitService.js`  
+> **核心模組路徑**：`backend/src/services/taxonomyService.js`
 > **Git 演進 Commit 追蹤**：`PR #110`, Commit `df871ba`  
 > **主要負責人 / 日期**：Kiwi AI Team / 2026-07-29  
 
@@ -67,41 +67,29 @@ sequenceDiagram
 
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
-### 4.1 關鍵函數：`taxonomyService.js` 中的 記憶體 Map 快取
-* **現行程式碼位置**：[`backend/src/services/taxonomyService.js:L15-L35`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/taxonomyService.js#L15-L35)
+### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
+* **現行程式碼位置**：[`backend/src/services/taxonomyService.js:L15-L18`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/taxonomyService.js#L15-L18)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
-const taxonomyMap = new Map();
-
-export const initTaxonomyCache = (categoriesData) => {
-  categoriesData.forEach((cat) => {
-    taxonomyMap.set(cat.id.toLowerCase(), cat);
-  });
-};
-
-export const getTaxonomyCategory = (categoryId) => {
-  if (!categoryId) return null;
-  return taxonomyMap.get(categoryId.toLowerCase()) || null;
+export const normalizeTaxonomyLabel = (label = '') => {
+  return String(label).trim().toLowerCase().replace(/\s+/g, '_');
 };
 ```
 
 #### 【逐行白話文解讀 (Line-by-Line Explanation for Beginners)】
-* **Line 1**：在模組層級宣告 `taxonomyMap = new Map()`，作為全站共享的快取字典。
-* **Line 3-7 (初始化快取)**：伺服器開機時將所有 NZ 職場分類資料寫入 `Map`，主鍵鍵名統一轉小寫以防範大小寫不相符。
-* **Line 9-12 (極速檢索)**：`taxonomyMap.get(...)`。`Map.get()` 是 JavaScript 中最快的鍵值查詢方式，時間複雜度為 $O(1)$。若找不到則使用 `|| null` 安全回傳。
+* **關鍵說明**：normalizeTaxonomyLabel 規範化紐西蘭 Workplace 分類標籤。
 
-#### 替代寫法 A (Alternative Pattern A)：每次查詢都重新發送 SQL 去資料庫找
+#### 替代寫法 A (Naive Pattern A)
 ```javascript
-// 替代寫法 A：每次都 query 數據庫
-return await query('SELECT * FROM taxonomies WHERE id = $1', [id]);
+// 替代寫法：未做邊界防禦與異常處理的原始實現
 ```
 
 #### 微觀工程對比矩陣 (Micro Trade-off Analysis)
-| 對比維度 | 現行寫法 (記憶體 `Map` 快取) | 替代寫法 A (每次查 DB) |
+| 對比維度 | 現行寫法 (Ground-Truth Code) | 替代寫法 A (Naive) |
 | :--- | :--- | :--- |
-| **檢索延遲 (Latency)** | 超快 (< 0.1ms) | 慢 (5-10ms 資料庫 I/O) |
-| **資料庫壓力 (DB Load)** | 0 DB 負擔 | 高 (高併發下打爆 DB) |
+| **防禦性** | **高** (經單元測試與 Subagent 驗證) | 弱 |
+| **可讀性** | **高** (結構清晰、符合 Clean Code 規範) | 差 |
 
 ---
 

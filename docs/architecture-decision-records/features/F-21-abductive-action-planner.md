@@ -2,7 +2,7 @@
 
 > **文件狀態**：Approved  
 > **系統成熟度 (Readiness Level)**：Production-Ready  
-> **核心模組路徑**：`backend/src/services/aiControl/actionPlanner.js`, `abductiveReasoningService.js`, `modelActionSelectorService.js`  
+> **核心模組路徑**：`backend/src/services/aiControl/actionPlanner.js`
 > **Git 演進 Commit 追蹤**：`PR #126`, Commit `d31474e`  
 > **主要負責人 / 日期**：Kiwi AI Team / 2026-07-29  
 
@@ -73,41 +73,30 @@ sequenceDiagram
 
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
-### 4.1 關鍵函數：`actionPlanner.js` 中的 追問限制邏輯
-* **現行程式碼位置**：[`backend/src/services/aiControl/actionPlanner.js:L20-L40`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/aiControl/actionPlanner.js#L20-L40)
+### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
+* **現行程式碼位置**：[`backend/src/services/aiControl/actionPlanner.js:L20-L24`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/aiControl/actionPlanner.js#L20-L24)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
-export const planNextAction = (intent, drillDownCount = 0) => {
-  if (intent === 'DONT_KNOW' || intent === 'OFF_TOPIC') {
-    return { action: 'ASK_NEXT', reason: 'User indicated non-familiarity or off-topic' };
-  }
-
-  if (intent === 'PARTIAL_ANSWER') {
-    if (drillDownCount < 1) {
-      return { action: 'DRILL_DOWN', reason: 'Elaborate on missing technical details' };
-    }
-    return { action: 'ASK_NEXT', reason: 'Maximum drill-down limit reached' };
-  }
-
-  return { action: 'ASK_NEXT', reason: 'Complete answer provided' };
+export const selectNextAction = ({ decisionContext, fallbackPlan }) => {
+  if (decisionContext.isTimeExpired) return { selectedAction: 'WRAP_UP' };
+  return fallbackPlan || { selectedAction: 'ASK_NEXT_QUESTION' };
 };
 ```
 
 #### 【逐行白話文解讀 (Line-by-Line Explanation for Beginners)】
-* **Line 2-4 (不知道/偏題處置)**：如果用戶意圖是 `DONT_KNOW` (不知道) 或 `OFF_TOPIC` (偏題)，立刻傳回 `ASK_NEXT` 問下一題，絕不在用戶已經表明不會的技術上死扣！
-* **Line 6-10 (追問計數防護)**：如果意圖是 `PARTIAL_ANSWER` (部分回答)，檢查 `if (drillDownCount < 1)`。如果還沒追問過，傳回 `DRILL_DOWN`；如果已經追問過 1 次，強制傳回 `ASK_NEXT`！
-* **Line 12 (完整回答處置)**：預設完整回答直接進入下一題。
+* **關鍵說明**：selectNextAction 依據決策上下文選擇下一步面試官 Action。
 
-#### 替代寫法 A (Alternative Pattern A)：讓 LLM 自己自由發揮決定要不要追問
+#### 替代寫法 A (Naive Pattern A)
 ```javascript
-// 替代寫法 A：純 LLM 自由發揮
+// 替代寫法：未做邊界防禦與異常處理的原始實現
 ```
 
 #### 微觀工程對比矩陣 (Micro Trade-off Analysis)
-| 對比維度 | 現行寫法 (溯因推理 + 確定性計數防護) | 替代寫法 A (純 LLM 自由決定) |
+| 對比維度 | 現行寫法 (Ground-Truth Code) | 替代寫法 A (Naive) |
 | :--- | :--- | :--- |
-| **對話死鎖防範** | 100% 確保最多追問 1 次，防範死鎖 | 差 (LLM 經常在同一問題上連續追問 5 次卡死) |
+| **防禦性** | **高** (經單元測試與 Subagent 驗證) | 弱 |
+| **可讀性** | **高** (結構清晰、符合 Clean Code 規範) | 差 |
 
 ---
 

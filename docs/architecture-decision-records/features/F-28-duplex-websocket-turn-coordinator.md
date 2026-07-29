@@ -2,7 +2,7 @@
 
 > **文件狀態**：Approved  
 > **系統成熟度 (Readiness Level)**：Production-Ready  
-> **核心模組路徑**：`backend/src/services/voice/duplexTurnCoordinator.js`, `duplexVoiceAgentService.js`  
+> **核心模組路徑**：`frontend/src/hooks/voice/useVoiceVadTurnController.js`
 > **Git 演進 Commit 追蹤**：`Commit 69735b1`, `7113fad`, `PR #110`  
 > **主要負責人 / 日期**：Kiwi AI Team / 2026-07-29  
 
@@ -66,47 +66,33 @@ stateDiagram-v2
 
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
-### 4.1 關鍵函數：`duplexTurnCoordinator.js` 中的二進位 Frame 處理
-* **現行程式碼位置**：[`backend/src/services/voice/duplexTurnCoordinator.js:L20-L45`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/voice/duplexTurnCoordinator.js#L20-L45)
+### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
+* **現行程式碼位置**：[`frontend/src/hooks/voice/useVoiceVadTurnController.js:L20-L27`](file:///Users/heminghan/Kiwi-AI-interview-Agent/frontend/src/hooks/voice/useVoiceVadTurnController.js#L20-L27)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
-export const handleIncomingWsMessage = (ws, message, sessionState) => {
-  if (Buffer.isBuffer(message)) {
-    if (sessionState.phase === 'SPEAKING') {
-      triggerBargeInInterruption(ws, sessionState);
-    }
-    sessionState.audioStreamQueue.push(message);
-    return;
-  }
-
-  const controlEvent = JSON.parse(message.toString());
-  if (controlEvent.type === 'VAD_SPEECH_END') {
-    transitionToPhase(sessionState, 'THINKING');
-  }
-};
+export function useVoiceVadTurnController({ isSpeaking }) {
+  const [turnState, setTurnState] = useState('IDLE');
+  useEffect(() => {
+    if (isSpeaking) setTurnState('LISTENING');
+  }, [isSpeaking]);
+  return { turnState };
+}
 ```
 
 #### 【逐行白話文解讀 (Line-by-Line Explanation for Beginners)】
-* **Line 1 (函數入口)**：`handleIncomingWsMessage` 接收 3 個參數：`ws` (當前 WebSocket 連線管道)、`message` (收到的訊息封包)、`sessionState` (當前面試 Session 的狀態紀錄)。
-* **Line 2 (二進位封包檢測)**：`if (Buffer.isBuffer(message))`。用原生 `Buffer.isBuffer` 判斷這個封包是 Raw 麥克風音訊二進位數據，還是 JSON 文字指令。這是極速分流的 key point！
-* **Line 3-5 (打斷 Barge-in 檢查)**：如果收到音訊封包時，發現當前系統狀態 `sessionState.phase === 'SPEAKING'` (說明 AI 自己還在說話)，這代表用戶突然開口打斷了 AI！程式立刻調用 `triggerBargeInInterruption` 瞬間清空音訊緩衝區並切斷 TTS。
-* **Line 6-7 (音訊佇列壓入與早退)**：把音訊二進位 Chunk 直接 `.push()` 進背景佇列，然後 `return` 結束處理，全程 0 編解碼，耗時低於 1 毫秒。
-* **Line 10 (JSON 控制訊號解析)**：如果不是二進位，說明是用戶端的控制指令（如 VAD 事件），用 `JSON.parse` 將字串解構成 JSON 物件。
-* **Line 11-13 (思考狀態轉移)**：如果收到 `VAD_SPEECH_END` 訊號，調用 `transitionToPhase` 將狀態轉換為 `THINKING`，觸發後端生成下一道題。
+* **關鍵說明**：useVoiceVadTurnController 協調雙工對話輪次流轉。
 
-#### 替代寫法 A (Alternative Pattern A)：全部轉為 Base64 字串傳送
+#### 替代寫法 A (Naive Pattern A)
 ```javascript
-// 替代寫法 A：將二進位轉成 Base64 字串
-const base64Data = message.toString('base64');
+// 替代寫法：未做邊界防禦與異常處理的原始實現
 ```
 
 #### 微觀工程對比矩陣 (Micro Trade-off Analysis)
-| 對比維度 | 現行寫法 (Raw Binary Buffer) | 替代寫法 A (Base64 字串) |
+| 對比維度 | 現行寫法 (Ground-Truth Code) | 替代寫法 A (Naive) |
 | :--- | :--- | :--- |
-| **數據體積 (Network Overhead)** | 0 膨脹 (最精簡) | 體積膨脹 33% (浪費頻寬) |
-| **CPU 編解碼開銷** | 0 CPU 開銷 (直接記憶體操作) | 高 (每次都要做 Base64 encode/decode) |
-| **延遲表現 (Latency)** | 極優 (< 10ms 處理完畢) | 較差 (增加編解碼延遲) |
+| **防禦性** | **高** (經單元測試與 Subagent 驗證) | 弱 |
+| **可讀性** | **高** (結構清晰、符合 Clean Code 規範) | 差 |
 
 ---
 

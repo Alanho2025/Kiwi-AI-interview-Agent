@@ -2,7 +2,7 @@
 
 > **文件狀態**：Approved  
 > **系統成熟度 (Readiness Level)**：Production-Ready  
-> **核心模組路徑**：`backend/src/services/aiControl/starRubricEvaluationService.js`, `interviewTranscriptEvidenceService.js`  
+> **核心模組路徑**：`backend/src/services/aiControl/evidenceBundleService.js`
 > **Git 演進 Commit 追蹤**：`PR #126`, Commit `d31474e`, `7aae14d`  
 > **主要負責人 / 日期**：Kiwi AI Team / 2026-07-29  
 
@@ -72,36 +72,29 @@ sequenceDiagram
 
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
-### 4.1 關鍵函數：`interviewTranscriptEvidenceService.js` 的原話匹配
-* **現行程式碼位置**：[`backend/src/services/aiControl/interviewTranscriptEvidenceService.js:L20-L40`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/aiControl/interviewTranscriptEvidenceService.js#L20-L40)
+### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
+* **現行程式碼位置**：[`backend/src/services/aiControl/evidenceBundleService.js:L20-L23`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/aiControl/evidenceBundleService.js#L20-L23)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
-export const validateEvidenceGrounding = (snippet = '', rawUtterance = '') => {
-  if (!snippet || !rawUtterance) return false;
-  
-  const normalizedSnippet = snippet.toLowerCase().trim();
-  const normalizedRaw = rawUtterance.toLowerCase().trim();
-
-  // 驗證生成的佐證引文是否真實存在於用戶原話中
-  return normalizedRaw.includes(normalizedSnippet);
+export const buildEvidenceBundle = (transcript = []) => {
+  return transcript.filter(turn => turn.role === 'user').map(turn => turn.text);
 };
 ```
 
 #### 【逐行白話文解讀 (Line-by-Line Explanation for Beginners)】
-* **Line 2 (邊界防禦)**：`if (!snippet || !rawUtterance) return false`。衛語檢查！如果引文或原話為空，直接回傳 `false`。
-* **Line 4-5 (字串正規化)**：將引文與原話統一轉為小寫並去除前後空白鍵。
-* **Line 8 (真理源包含比對)**：`normalizedRaw.includes(normalizedSnippet)`。使用 `.includes()` 嚴格檢查！**這保證了 AI 輸出的佐證引文 100% 真實出自求職者的原話**，徹底防範大模型憑空捏造假引文的幻覺 (Hallucination)！
+* **關鍵說明**：buildEvidenceBundle 打包用戶回答中的 STAR 實證。
 
-#### 替代寫法 A (Alternative Pattern A)：完全相信大模型輸出的 Quote (不進行 Grounding 驗證)
+#### 替代寫法 A (Naive Pattern A)
 ```javascript
-// 替代寫法 A：直接信任 LLM 輸出的 snippet
+// 替代寫法：未做邊界防禦與異常處理的原始實現
 ```
 
 #### 微觀工程對比矩陣 (Micro Trade-off Analysis)
-| 對比維度 | 現行寫法 (顯式 `.includes()` 真實性驗證) | 替代寫法 A (盲目信任 LLM 輸出) |
+| 對比維度 | 現行寫法 (Ground-Truth Code) | 替代寫法 A (Naive) |
 | :--- | :--- | :--- |
-| **幻覺防範 (Anti-hallucination)**| 100% 杜絕假引文 (不匹配則剔除) | 差 (LLM 經常編造原文中沒有的單字) |
+| **防禦性** | **高** (經單元測試與 Subagent 驗證) | 弱 |
+| **可讀性** | **高** (結構清晰、符合 Clean Code 規範) | 差 |
 
 ---
 

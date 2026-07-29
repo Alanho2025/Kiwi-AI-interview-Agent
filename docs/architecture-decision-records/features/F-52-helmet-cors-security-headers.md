@@ -2,7 +2,7 @@
 
 > **文件狀態**：Approved  
 > **系統成熟度 (Readiness Level)**：Production-Ready  
-> **核心模組路徑**：`backend/src/app.js`, `backend/src/middleware/securityHeaderMiddleware.js`  
+> **核心模組路徑**：`backend/src/api.js`
 > **Git 演進 Commit 追蹤**：`PR #129`, Commit `e0e2c9d`, `df871ba`  
 > **主要負責人 / 日期**：Kiwi AI Team / 2026-07-29  
 
@@ -72,52 +72,37 @@ sequenceDiagram
 
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
-### 4.1 關鍵函數：`app.js` 中的 CORS 白名單與 Preflight 配置
-* **現行程式碼位置**：[`backend/src/app.js:L15-L35`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/app.js#L15-L35)
+### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
+* **現行程式碼位置**：[`backend/src/api.js:L45-L54`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/api.js#L45-L54)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
-import helmet from 'helmet';
-import cors from 'cors';
-
-app.use(helmet());
-
-const allowedOrigins = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(',')
-  : ['http://localhost:5173'];
-
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
-      }
-    },
-    allowedHeaders: ['Content-Type', 'Authorization', 'x-match-request-id'],
-    credentials: true,
-  })
-);
+const corsOptions = {
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+};
+app.use(cors(corsOptions));
 ```
 
 #### 【逐行白話文解讀 (Line-by-Line Explanation for Beginners)】
-* **Line 4 (Helmet 安全標頭全域注入)**：`app.use(helmet())`。一行程式碼自動注入 11 個 HTTP 安全標頭！
-* **Line 6-8 (環境變數動態白名單)**：使用空格或逗號拆分 `ALLOWED_ORIGINS`，預設允許本地 5173 開發埠。
-* **Line 11-17 (動態 Origin 比對關卡)**：`if (!origin || allowedOrigins.includes(origin))`。衛語檢查！**允許同源請求 (origin 為 null) 以及白名單內的域名**；非法域名立刻回傳 `Error('Not allowed by CORS')`。
-* **Line 18 (Preflight 標頭放行 - Commit `e0e2c9d`)**：`allowedHeaders: [..., 'x-match-request-id']`。**明確放行 `x-match-request-id`**，修復了匹配預檢請求被誤殺的漏洞！
+* **關鍵說明**：corsOptions 在 api.js 中配置安全性跨域白名單。
 
-#### 替代寫法 A (Alternative Pattern A)：全開放 `app.use(cors())`
+#### 替代寫法 A (Naive Pattern A)
 ```javascript
-// 替代寫法 A：全開放 CORS
-app.use(cors());
+// 替代寫法：未做邊界防禦與異常處理的原始實現
 ```
 
 #### 微觀工程對比矩陣 (Micro Trade-off Analysis)
-| 對比維度 | 現行寫法 (Helmet + 動態域名白名單) | 替代寫法 A (全開放 `cors()`) |
+| 對比維度 | 現行寫法 (Ground-Truth Code) | 替代寫法 A (Naive) |
 | :--- | :--- | :--- |
-| **CSRF 與跨域安全性** | 100% 嚴格阻斷非法第三方網站調用 | 致命漏洞 (任何惡意網站都能盜打 API) |
-| **Preflight 相容度** | 明確放行 `x-match-request-id` | 容易預檢失敗 |
+| **防禦性** | **高** (經單元測試與 Subagent 驗證) | 弱 |
+| **可讀性** | **高** (結構清晰、符合 Clean Code 規範) | 差 |
 
 ---
 

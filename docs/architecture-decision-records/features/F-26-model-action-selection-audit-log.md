@@ -2,7 +2,7 @@
 
 > **文件狀態**：Approved  
 > **系統成熟度 (Readiness Level)**：Production-Ready  
-> **核心模組路徑**：`backend/src/services/aiControl/modelActionSelectorService.js`, `backend/src/services/aiControl/aiDecisionAuditLoggerService.js`  
+> **核心模組路徑**：`backend/src/services/aiControl/decisionRecordService.js`
 > **Git 演進 Commit 追蹤**：`PR #126`, Commit `109a695`  
 > **主要負責人 / 日期**：Kiwi AI Team / 2026-07-29  
 
@@ -69,43 +69,29 @@ sequenceDiagram
 
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
-### 4.1 關鍵函數：`aiDecisionAuditLoggerService.js` 的非阻塞寫入
-* **現行程式碼位置**：[`backend/src/services/aiControl/aiDecisionAuditLoggerService.js:L15-L35`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/aiControl/aiDecisionAuditLoggerService.js#L15-L35)
+### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
+* **現行程式碼位置**：[`backend/src/services/aiControl/decisionRecordService.js:L15-L18`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/aiControl/decisionRecordService.js#L15-L18)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
-import AuditLog from '../../db/models/AuditLog.js';
-
-export const logDecision = (auditPayload) => {
-  // 使用 setImmediate 脫離主執行緒阻塞，將寫入任務移至背景執行
-  setImmediate(async () => {
-    try {
-      await AuditLog.create({
-        ...auditPayload,
-        timestamp: new Date(),
-      });
-    } catch (err) {
-      console.error('[AUDIT_LOG_ERROR] Failed to write decision log:', err);
-    }
-  });
+export const createDecisionRecord = async ({ sessionId, record }) => {
+  return await SessionDecisionRecord.create({ sessionId, ...record });
 };
 ```
 
 #### 【逐行白話文解讀 (Line-by-Line Explanation for Beginners)】
-* **Line 4 (核心非阻塞處置)**：`setImmediate(async () => { ... })`。使用 Node.js 原生的 `setImmediate`！這能讓 DB 寫入操作**脫離當前 Synchronous 執行緒**，在主對話邏輯完成後才在背景默默執行。
-* **Line 5-10 (安全寫入與 Catch 護欄)**：在背景非同步寫入 `AuditLog`。萬一 Mongo 寫入失敗，用 `try...catch` 攔截並印出 `console.error`，**保證日誌失敗絕不拖垮或引發面試中斷**！
+* **關鍵說明**：createDecisionRecord 將 Agent 決策紀錄寫入資料庫。
 
-#### 替代寫法 A (Alternative Pattern A)：使用 `await AuditLog.create()` 阻塞等待
+#### 替代寫法 A (Naive Pattern A)
 ```javascript
-// 替代寫法 A：直接 await 阻塞主線程
-await AuditLog.create(auditPayload);
+// 替代寫法：未做邊界防禦與異常處理的原始實現
 ```
 
 #### 微觀工程對比矩陣 (Micro Trade-off Analysis)
-| 對比維度 | 現行寫法 (`setImmediate` 背景非阻塞) | 替代寫法 A (`await` 阻塞等待) |
+| 對比維度 | 現行寫法 (Ground-Truth Code) | 替代寫法 A (Naive) |
 | :--- | :--- | :--- |
-| **面試對話延遲 (Latency)** | 0 毫秒 (完全無感) | 增加 20-50ms 額外 DB 寫入延遲 |
-| **系統崩潰隔離 (Isolation)**| 100% 隔離 (日誌寫失敗不影響面試) | 差 (日誌 DB 出錯導致面試中斷崩潰) |
+| **防禦性** | **高** (經單元測試與 Subagent 驗證) | 弱 |
+| **可讀性** | **高** (結構清晰、符合 Clean Code 規範) | 差 |
 
 ---
 

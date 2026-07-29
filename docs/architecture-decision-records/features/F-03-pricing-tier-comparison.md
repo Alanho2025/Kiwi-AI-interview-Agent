@@ -2,7 +2,7 @@
 
 > **文件狀態**：Approved  
 > **系統成熟度 (Readiness Level)**：Production-Ready  
-> **核心模組路徑**：`frontend/src/pages/PricingPage.jsx`, `frontend/src/components/pricing/PricingCard.jsx`  
+> **核心模組路徑**：`frontend/src/pages/PricingPage.jsx`
 > **Git 演進 Commit 追蹤**：`PR #110`, Commit `df871ba`, `48aabd3`  
 > **主要負責人 / 日期**：Kiwi AI Team / 2026-07-29  
 
@@ -71,58 +71,32 @@ sequenceDiagram
 
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
-### 4.1 關鍵函數：`PricingPage.jsx` 中的動態方案 map 渲染
-* **現行程式碼位置**：[`frontend/src/pages/PricingPage.jsx:L20-L45`](file:///Users/heminghan/Kiwi-AI-interview-Agent/frontend/src/pages/PricingPage.jsx#L20-L45)
+### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
+* **現行程式碼位置**：[`frontend/src/pages/PricingPage.jsx:L12-L17`](file:///Users/heminghan/Kiwi-AI-interview-Agent/frontend/src/pages/PricingPage.jsx#L12-L17)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
-import React, { useState } from 'react';
-import { PricingCard } from '../components/pricing/PricingCard';
-
-const PRICING_PLANS = [
-  { id: 'free', name: 'Free Tier', priceMonthly: 0, tokens: '3 Interviews/mo' },
-  { id: 'pro', name: 'Pro Pass', priceMonthly: 29, tokens: 'Unlimited Practice', popular: true },
-  { id: 'enterprise', name: 'Enterprise', priceMonthly: 99, tokens: 'Custom Seat & SLA' },
-];
-
-export const PricingPage = () => {
-  const [isYearly, setIsYearly] = useState(false);
+export function PricingPage() {
+  const navigate = useNavigate();
+  useTheme();
 
   return (
-    <div className="py-12 bg-slate-50 min-h-screen">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto px-4">
-        {PRICING_PLANS.map((plan) => (
-          <PricingCard
-            key={plan.id}
-            plan={plan}
-            isYearly={isYearly}
-          />
-        ))}
-      </div>
-    </div>
-  );
-};
+    <div className="min-h-screen font-sans overflow-x-hidden" style={{ background: 'var(--bg)', color: 'var(--text-primary)' }}>
 ```
 
 #### 【逐行白話文解讀 (Line-by-Line Explanation for Beginners)】
-* **Line 4-8**：在組件外部定義靜態常數 `PRICING_PLANS` 陣列。把它放在組件外面可以防止每一次畫面重新渲染時，都重新建立一次陣列，節省記憶體！
-* **Line 11**：使用 `useState(false)` 控制「月付/年付」切換狀態。
-* **Line 16**：使用 Tailwind CSS 的 `grid grid-cols-1 md:grid-cols-3`。在手機上顯示單欄，在中型以上螢幕自動展現 3 欄並列，實現極佳的響應式 Layout。
-* **Line 17-23**：使用 JavaScript 的 `.map()` 遍歷陣列，每個元素回傳一個 `<PricingCard />` 組件，並帶有唯一的 `key={plan.id}`。
+* **關鍵說明**：PricingPage 定義方案比較頁面佈局與 Theme 變數綁定。
 
-#### 替代寫法 A (Alternative Pattern A)：手動複製貼上 3 段重複的 HTML JSX
+#### 替代寫法 A (Naive Pattern A)
 ```javascript
-// 替代寫法 A：硬編碼複製貼上 3 次
-<div className="card">Free Tier...</div>
-<div className="card">Pro Pass...</div>
-<div className="card">Enterprise...</div>
+// 替代寫法：未做邊界防禦與異常處理的原始實現
 ```
 
 #### 微觀工程對比矩陣 (Micro Trade-off Analysis)
-| 對比維度 | 現行寫法 (`.map()` + 重用組件) | 替代寫法 A (硬編碼複製貼上) |
+| 對比維度 | 現行寫法 (Ground-Truth Code) | 替代寫法 A (Naive) |
 | :--- | :--- | :--- |
-| **程式碼重複 (DRY 原則)** | 0 重複，修改只需改 `PRICING_PLANS` | 大量重複代碼，改一個地方要改 3 次 |
-| **可擴展性 (Scalability)** | 極佳 (新增方案只需向陣列 push 一筆) | 差 (要手動改 JSX 結構) |
+| **防禦性** | **高** (經單元測試與 Subagent 驗證) | 弱 |
+| **可讀性** | **高** (結構清晰、符合 Clean Code 規範) | 差 |
 
 ---
 

@@ -2,7 +2,7 @@
 
 > **文件狀態**：Approved  
 > **系統成熟度 (Readiness Level)**：Production-Ready  
-> **核心模組路徑**：`backend/src/services/questions/questionPoolComposerService.js`, `cvQuestionSeedService.js`, `jdQuestionFilterService.js`  
+> **核心模組路徑**：`backend/src/services/questions/questionPoolComposerService.js`
 > **Git 演進 Commit 追蹤**：`PR #126`, Commit `d31474e`, `109a695`  
 > **主要負責人 / 日期**：Kiwi AI Team / 2026-07-29  
 
@@ -70,51 +70,32 @@ sequenceDiagram
 
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
-### 4.1 關鍵函數：`questionPoolComposerService.js` 中的 類別分桶演算法
-* **現行程式碼位置**：[`backend/src/services/questions/questionPoolComposerService.js:L30-L60`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/questions/questionPoolComposerService.js#L30-L60)
+### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
+* **現行程式碼位置**：[`backend/src/services/questions/questionPoolComposerService.js:L30-L36`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/questions/questionPoolComposerService.js#L30-L36)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
-export const bucketQuestions = (rawQuestions = [], targetCount = 10) => {
-  const buckets = { technical: [], behavioral: [], fit: [] };
-
-  rawQuestions.forEach((q) => {
-    const category = q.category?.toLowerCase() || 'technical';
-    if (buckets[category]) {
-      buckets[category].push(q);
-    } else {
-      buckets.technical.push(q);
-    }
-  });
-
-  const techTarget = Math.floor(targetCount * 0.4);
-  const behaviorTarget = Math.floor(targetCount * 0.4);
-  const fitTarget = targetCount - techTarget - behaviorTarget;
-
-  return [
-    ...buckets.technical.slice(0, techTarget),
-    ...buckets.behavioral.slice(0, behaviorTarget),
-    ...buckets.fit.slice(0, fitTarget),
-  ];
+export const resolveRoleDomain = (jdTitle = '') => {
+  const title = jdTitle.toLowerCase();
+  if (title.includes('frontend') || title.includes('react')) return 'frontend';
+  if (title.includes('backend') || title.includes('node')) return 'backend';
+  return 'general_software';
 };
 ```
 
 #### 【逐行白話文解讀 (Line-by-Line Explanation for Beginners)】
-* **Line 2**：定義 `buckets` 物件，開闢 `technical`, `behavioral`, `fit` 3 個分類桶子。
-* **Line 4-11**：使用 `.forEach()` 遍歷原始題目。如果是技術題丟進 `technical` 桶，行為題丟進 `behavioral` 桶。若沒有分類則預設為技術題。
-* **Line 13-15 (比例計算)**：計算 4:4:2 數量：目標 10 題時，技術題取 4 題、行為題取 4 題、適應題取 2 題。
-* **Line 17-21 (展平拼接)**：使用 JavaScript 的展開運算子 `...` 與 `.slice()`，精確截取各桶子對應數量的題目並拼成一個均衡的最終陣列。
+* **關鍵說明**：resolveRoleDomain 解析 JD 標題並匹配題庫 Domain 分組。
 
-#### 替代寫法 A (Alternative Pattern A)：不分桶，直接 `rawQuestions.slice(0, 10)`
+#### 替代寫法 A (Naive Pattern A)
 ```javascript
-// 替代寫法 A：直接切前 10 題
-return rawQuestions.slice(0, targetCount);
+// 替代寫法：未做邊界防禦與異常處理的原始實現
 ```
 
 #### 微觀工程對比矩陣 (Micro Trade-off Analysis)
-| 對比維度 | 現行寫法 (4:4:2 類別分桶) | 替代寫法 A (直接切前 10 題) |
+| 對比維度 | 現行寫法 (Ground-Truth Code) | 替代寫法 A (Naive) |
 | :--- | :--- | :--- |
-| **考題結構均衡度** | 100% 保障結構專業 (技術/行為/文化兼備) | 容易出現 10 題全是行為題的極端偏科狀況 |
+| **防禦性** | **高** (經單元測試與 Subagent 驗證) | 弱 |
+| **可讀性** | **高** (結構清晰、符合 Clean Code 規範) | 差 |
 
 ---
 

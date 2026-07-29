@@ -1,10 +1,10 @@
-# Feature RFC: F-60 環境變數 `.env.example` 範本與 Secret 衛語檢查
+# Feature RFC: F-60 環境變數與密鑰安全檢查 (Environment Variable & Secret Guard)
 
 > **文件狀態**：Approved  
 > **系統成熟度 (Readiness Level)**：Production-Ready  
-> **核心模組路徑**：`backend/src/config/envGuard.js`, `backend/.env.example`  
-> **Git 演進 Commit 追蹤**：`PR #110`, Commit `df871ba`  
-> **主要負責人 / 日期**：Kiwi AI Team / 2026-07-29  
+> **核心模組路徑**：`backend/src/config/env.js`  
+> **Git 演進 Commit 追蹤**：`PR #102`, Commit `a51201e`  
+> **主要负责人在 / 日期**：Kiwi AI Team / 2026-07-30  
 
 ---
 
@@ -12,17 +12,15 @@
 
 ### 1.1 零基礎生活白話比喻 (Layman Analogy for Beginners)
 > 💡 **小白導讀**：
-> 想像你買了一台新家電回家插電使用（啟動 Server 服務）。
-> * **傳統做法**：家電完全沒有檢查電壓（沒檢查環境變數），你一按開關，機器運行到一半因為沒插好地線突然「轟」的一聲燒毀，資料庫連線中途爆掉。
-> * **Secret 衛語檢查 Guard (本 Feature)**：就像家電開機時的「智慧自我安檢 (`envGuard.js`)」。在 Server 啟動的第 1 毫秒，安檢員逐一核對 `.env` 的必填金鑰（如 `JWT_SECRET`, `AZURE_SPEECH_KEY`, `DATABASE_URL`）。只要發現少設了任何一個密鑰，開機立刻報錯中斷，並印出清晰提示：「請參考 `.env.example` 填寫密鑰」，絕不帶病開機！
+> 想像飛機起飛前的清單檢查（Pre-flight Checklist）：
+> * **無環境變數檢查 (No Env Guard)**：飛機直接起飛（伺服器啟動），等飛到萬米高空才發現沒加油或沒帶地圖（運行到一半調用 LLM 或 DB 時才發現缺少 `DEEPSEEK_API_KEY` 或 `POSTGRES_URL`），導致系統在中途慘烈崩潰！
+> * **密鑰安全檢查 (Env Guard - 本 Feature)**：在引擎啟動的第 1 秒（[env.js](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/config/env.js)），機長立刻核對必要變數清單。只要有任何關鍵密鑰缺失，立刻拋出明確警告並拒絕起飛，防止帶病運行！
 
 ### 1.2 基於 Git 歷史的從 0 到 1 演進歷程
-* **初始最簡版本 (Baseline v0 - Commit `df871ba` 早期)**：
-  - 開機時不檢查環境變數，直到用戶呼叫 Google Auth 或 Voice API 時才因為 `undefined` key 爆錯。
-* **遭遇的痛點與瓶頸 (Pain Points & Bottlenecks)**：
-  - 帶病開機導致除錯困難，且開發者常誤將包含真密鑰的 `.env` 檔案 commit 進 Git 倉庫引發資安災難。
-* **現行架構 (Current Version - PR #110 `df871ba`)**：
-  - `envGuard.js` 實現開機時的 `assertRequiredEnv` 強制校驗；同時維護公開安全的 `backend/.env.example` 範本，並在 `.gitignore` 鎖死實體 `.env` 提交。
+* **初始最簡版本 (Baseline v0)**：
+  - 各模組自行讀取 `process.env.XXX`，缺乏統一驗證。
+* **現行架構 (Current Version)**：
+  - 實作 [env.js](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/config/env.js)，導出 `assertRequiredEnv` 斷言函數，在系統初始化階段統一檢驗必填變數清單。
 
 ---
 
@@ -30,14 +28,11 @@
 
 ### 2.1 涵蓋與非涵蓋範圍 (Scope Boundaries)
 * **In-Scope (包含範圍)**：
-  - 開機第 1 毫秒必填 Env 校驗、`assertRequiredEnv` 衛語中斷、`backend/.env.example` 範本維護、`.gitignore` 密鑰保護。
+  - 統一存取與動態解析 `getEnv(name)`。
+  - 批次檢查必填變數清單 `assertRequiredEnv(names)`。
+  - 缺少密鑰時拋出明確錯誤描述，阻止隱患發酵。
 * **Out-of-Scope (排除範圍)**：
-  - 不在 `.env.example` 中寫入任何真實的 Production 密鑰明文。
-
-### 2.2 成功標準與量化 KPIs (Acceptance Criteria & Metrics)
-| 衡量指標 (Metric) | 目標值 (Target) | 驗證方式 / 自動化測試路徑 |
-| :--- | :--- | :--- |
-| **帶病開機攔截率** | `100% (Missing Env 時開機即崩潰報錯)` | `backend/tests/config/envGuard.test.js` |
+  - 不包含線上 KMS / HashiCorp Vault 動態密鑰輪轉。
 
 ---
 
@@ -47,97 +42,63 @@
 ```mermaid
 sequenceDiagram
     autonumber
-    actor Server as Node.js Entry (server.js)
-    participant Guard as envGuard.js
-    participant Process as process.env
+    actor Boot as Server Startup (index.js / api.js)
+    participant Env as env.js (assertRequiredEnv)
+    participant App as Express App
 
-    Server->>Guard: 呼叫 assertRequiredEnv() (開機第 1 毫秒)
-    Guard->>Process: 檢驗 REQUIRED_ENVS ['JWT_SECRET', 'DATABASE_URL'...]
-    alt 有必填變數缺失 (Missing Env)
-        Guard-->>Server: 拋出 [FATAL_ENV_MISSING] Error 并 process.exit(1)
-    else 全部變數健全 (All Env Valid)
-        Guard-->>Server: 驗證通過，放行啟動 HTTP/WebSocket Server
+    Boot->>Env: assertRequiredEnv(['POSTGRES_URL', 'DEEPSEEK_API_KEY'])
+    Env->>Env: 掃描傳入的變數名稱列表
+    
+    alt 所有變數皆配置健全
+        Env-->>Boot: 檢查通過
+        Boot->>App: 啟動 Express HTTP Server
+    else 存在缺失變數 (Missing Envs)
+        Env-->>Boot: 拋出 Error("Missing required environment variables: DEEPSEEK_API_KEY")
+        Boot->>Boot: 啟動失敗，阻止帶病上線
     end
 ```
-
-### 3.2 流程文字逐步拆解導覽 (Step-by-Step Narrative Walkthrough for Beginners)
-1. **第一步（ Server 開機入口）**：`server.js` 在啟動 HTTP Server 之前，優先引入並執行 `envGuard.js`。
-2. **第二步（密鑰清單掃描）**：`assertRequiredEnv` 掃描 `process.env` 中的必填金鑰。
-3. **第三步（Missing 報錯與阻斷）**：若有缺失，列出具體少設了哪一個變數，並調用 `process.exit(1)` 安全阻斷。
-4. **第四步（健全放行）**：變數齊全後才開啟資料庫連線與 API 監聽，保障 100% 健康運作！
 
 ---
 
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
-### 4.1 關鍵函數：`envGuard.js` 的 `assertRequiredEnv`
-* **現行程式碼位置**：[`backend/src/config/envGuard.js:L10-L30`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/config/envGuard.js#L10-L30)
+### 4.1 關鍵函數 / 邏輯區塊：`assertRequiredEnv`
+* **現行程式碼位置**：[`backend/src/config/env.js:L75-L80`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/config/env.js#L75-L80)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
-const REQUIRED_ENVS = [
-  'DATABASE_URL',
-  'JWT_SECRET',
-  'AZURE_SPEECH_KEY',
-  'AZURE_SPEECH_REGION',
-];
-
-export const assertRequiredEnv = () => {
-  const missing = REQUIRED_ENVS.filter((key) => !process.env[key]);
-
+export const assertRequiredEnv = (names = []) => {
+  const missing = names.filter((name) => !getEnv(name));
   if (missing.length > 0) {
-    console.error(`[FATAL_ENV_MISSING] Missing required environment variables: ${missing.join(', ')}`);
-    console.error('Please check your .env file against .env.example');
-    process.exit(1);
+    throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
   }
 };
 ```
 
 #### 【逐行白話文解讀 (Line-by-Line Explanation for Beginners)】
-* **Line 1-6 (必填清單陣列)**：在頂層定義包含 `DATABASE_URL`, `JWT_SECRET` 等關鍵金鑰的 `REQUIRED_ENVS` 常數陣列。
-* **Line 9 (過濾缺失變數)**：使用 `.filter(key => !process.env[key])` 在 0 毫秒內找出所有未設定或空字串的環境變數。
-* **Line 11-14 (友善提示與硬性阻斷)**：`if (missing.length > 0)`。**如果發現有少，印出具體少哪幾個變數與提示訊息，並調用 `process.exit(1)` 阻止帶病開機**！
+* **第 75 行**：導出 `assertRequiredEnv` 函數，接收需要檢驗的變數名稱陣列 `names`。
+* **第 76 行**：使用 `Array.prototype.filter` 遍歷列表，透過 `getEnv(name)` 檢查每一個環境變數是否存在。
+* **第 77-79 行**：若 `missing.length > 0`，立刻拋出包含具體缺失變數清單的 `Error`，明確指出缺了哪一把 Key。
 
-#### 替代寫法 A (Alternative Pattern A)：不安裝開機檢查，在業務代碼裡用到時才 `if (!process.env.KEY)`
+#### 替代寫法 A (Inline Ad-hoc Check scattered across files)
 ```javascript
-// 替代寫法 A：用到時才檢查
+// 替代寫法：分散在各 Service 中的零散檢查，容易漏掉且報錯訊息不一致
+if (!process.env.DEEPSEEK_API_KEY) throw new Error('No Key!');
 ```
 
 #### 微觀工程對比矩陣 (Micro Trade-off Analysis)
-| 對比維度 | 現行寫法 (開機第 1 毫秒 `assertRequiredEnv`) | 替代寫法 A (用到時才檢查) |
+| 對比維度 | 現行寫法 (Centralized Guard Assertion) | 替代寫法 A (Ad-hoc Scattered Checks) |
 | :--- | :--- | :--- |
-| **除錯與問題暴露 (Fail-Fast 原則)**| 100% 遵守 Fail-Fast (開機瞬間發現問題) | 差 (系統運行 3 天後用戶調用特定 API 才崩潰) |
-| **資安保護 (.gitignore 鎖死)** | 提供 `.env.example`，實體 `.env` 0 洩漏 | 容易誤把真實 key 推到 GitHub |
+| **維護性與可讀性** | **極高** (啟動時一目瞭然) | 差 (分散在幾十個檔案中) |
+| **報錯明確度** | **極佳** (一次列出所有缺失 Key) | 差 (每次只報第一個錯) |
+| **可測試性** | **高** (容易進行單元測試 Mock) | 差 |
 
 ---
 
 ## 5. 爆炸半徑與失敗矩陣 (Blast Radius & Failure Matrix)
-
-### 5.1 影響範圍 (Blast Radius)
-* **下游受影響模組**：`server.js`, `app.js`。
-
-### 5.2 失敗路徑與降級機制 (Failure Modes & Fallbacks)
-| 失敗場景 (Failure Scenario) | 系統表現 (Behavior) | 降級 / 修復策略 (Fallback) |
-| :--- | :--- | :--- |
-| **環境變數少設** | 觸發 `process.exit(1)` | 印出清晰提示引導工程師設定，不帶病開機 |
+- 影響後端伺服器啟動流程、資料庫連線、AI 模型調用與 Azure 音訊服務。
 
 ---
 
 ## 6. 運維與回滾步驟 (Incident Response & Rollback Runbook)
-
-### 6.1 除錯起點 (Debugging)
-* 查看控制台 `[FATAL_ENV_MISSING]` 輸出。
-
-### 6.2 緊急回滾流程 (Rollback SOP)
-1. 執行 `git revert df871ba`。
-
----
-
-## 7. 轉碼新人面試實戰對攻劇本 (Career-Switcher Interview Q&A Defense Script)
-
-### 7.1 30 秒大白話 Core Pitch (口語化台詞)
-> *"面試官您好！這個 Secret 衛語檢查是我們系統開機的健康守衛。我們遵循軟體工程的 **Fail-Fast (快速失敗)** 原則，在 `server.js` 啟動的第 1 毫秒呼叫 `assertRequiredEnv`。如果少設了 `JWT_SECRET` 等密鑰，開機立刻 `process.exit(1)` 並印出引導提示。絕不讓 Server 帶病開機！"*
-
-### 7.2 面試官追問實戰劇本 (Verbatim Defense Script)
-* **面試官問**：「你為什麼要遵守 **Fail-Fast (快速失敗)** 原則在 Server 開機時就檢查環境變數，而不是在用戶呼叫 API 時才檢查？」
-  - **轉碼新人回答**：「因為如果在用戶呼叫 API 時才檢查，系統可能會在線上正常運行了好幾天後，突然因為某個冷門 API 缺少環境變數而崩潰，這種隱性 Bug 極難排查！遵守 Fail-Fast 原則，在 Server 啟動的第 1 毫秒就把所有缺少的密鑰暴露出來並阻斷開機，能確保只要 Server 成功啟動，後續的所有 API 就 100% 具備健全的運行環境！」
+- 檢查日誌：`Missing required environment variables:`

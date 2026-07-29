@@ -24,6 +24,7 @@ When behavior-bearing code, config, data, scripts, or tests change, compare the 
 - Before changing voice interview behavior, voice tests, voice prompts, voice latency handling, STT/TTS, VAD, duplex WebSocket logic, interview question selection, or transcript confidence handling, also read `VOICE_INTERVIEW_PRODUCT_BEHAVIOR.md`.
 - Do not rely on memory for voice interview behavior. Treat `VOICE_INTERVIEW_PRODUCT_BEHAVIOR.md` as the product contract.
 - If an implementation idea conflicts with the product behavior document, stop and explain the conflict before changing code.
+- **Auto Documentation Synchronization**: Whenever product code (`backend/`, `frontend/`, services, controllers, DB schemas) is modified, you MUST execute the `auto-docs-sync` skill ([SKILL.md](file:///Users/heminghan/Kiwi-AI-interview-Agent/.agents/skills/auto-docs-sync/SKILL.md)) to update the corresponding Feature RFCs (`F-01` through `F-68`), sitemaps, and change log. High-level agent mapping is documented in [HIGH_LEVEL_AGENT_ARCHITECTURE_MAPPING.md](file:///Users/heminghan/Kiwi-AI-interview-Agent/docs/architecture-decision-records/HIGH_LEVEL_AGENT_ARCHITECTURE_MAPPING.md).
 
 ## Harness Product Updates
 

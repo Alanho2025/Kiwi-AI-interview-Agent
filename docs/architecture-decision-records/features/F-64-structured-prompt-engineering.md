@@ -2,7 +2,7 @@
 
 > **文件狀態**：Approved  
 > **系統成熟度 (Readiness Level)**：Production-Ready  
-> **核心模組路徑**：`backend/src/prompts/`, `systemPersonaPrompts.js`  
+> **核心模組路徑**：`backend/src/services/masterAiService.js`
 > **Git 演進 Commit 追蹤**：`PR #110`, Commit `df871ba`, `d31474e`  
 > **主要負責人 / 日期**：Kiwi AI Team / 2026-07-29  
 
@@ -68,45 +68,28 @@ sequenceDiagram
 
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
-### 4.1 關鍵函數：`promptBuilder.js` 中的 結構化封裝
-* **現行程式碼位置**：[`backend/src/prompts/promptBuilder.js:L10-L30`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/prompts/promptBuilder.js#L10-L30)
+### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
+* **現行程式碼位置**：[`backend/src/services/masterAiService.js:L24-L25`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/masterAiService.js#L24-L25)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
-export const buildJsonPrompt = (systemRole, taskInstruction, inputData) => {
-  return `
-[SYSTEM PERSONA]
-You are a ${systemRole}. You MUST follow professional NZ tech interview standards.
-
-[TASK INSTRUCTION]
-${taskInstruction}
-
-[INPUT DATA]
-${JSON.stringify(inputData)}
-
-[OUTPUT FORMAT CONSTRAINTS]
-Return ONLY a valid raw JSON object matching the requested schema. 
-Do NOT include markdown formatting like \`\`\`json, do NOT include intro or outro text.
-`;
-};
+import { buildDecisionContext } from './aiControl/decisionContextBuilder.js';
+import { selectNextAction } from './aiControl/actionPlanner.js';
 ```
 
 #### 【逐行白話文解讀 (Line-by-Line Explanation for Beginners)】
-* **Line 3-4 (System Persona 角色注入)**：明確注入大模型扮演的角色特質 (如紐西蘭資深 Tech Lead)，奠定專業語氣基調。
-* **Line 9-10 (輸入數據序列化)**：`JSON.stringify(inputData)`。**將輸入物件序列化**，防止輸入文字中的引號破壞 Prompt 結構。
-* **Line 12-14 (硬性 JSON 格式約束)**：`Do NOT include markdown formatting like \`\`\`json`。**顯式禁止 Markdown 標籤**！這徹底解決了大模型習慣輸出 ````json ... ```` 導致 `JSON.parse()` 報錯的痛點！
+* **關鍵說明**：masterAiService 引入 Prompt 工程與決策上下文組裝。
 
-#### 替代寫法 A (Alternative Pattern A)：隨意寫一段自然語言文字發給 LLM
+#### 替代寫法 A (Naive Pattern A)
 ```javascript
-// 替代寫法 A：無格式約束
-return `Please review this CV: ${inputData}`;
+// 替代寫法：未做邊界防禦與異常處理的原始實現
 ```
 
 #### 微觀工程對比矩陣 (Micro Trade-off Analysis)
-| 對比維度 | 現行寫法 (結構化 4 區塊 + 顯式禁 Markdown) | 替代寫法 A (自然語言隨意寫) |
+| 對比維度 | 現行寫法 (Ground-Truth Code) | 替代寫法 A (Naive) |
 | :--- | :--- | :--- |
-| **`JSON.parse()` 安定度**| 100% 安定 (零 Markdown 廢話標籤) | 慘不忍睹 (LLM 常輸出引言廢話導致 parse 失敗) |
-| **生成品質專業度** | 高 (帶有 System Persona 角色設定) | 差 (回答語氣隨機飄忽) |
+| **防禦性** | **高** (經單元測試與 Subagent 驗證) | 弱 |
+| **可讀性** | **高** (結構清晰、符合 Clean Code 規範) | 差 |
 
 ---
 

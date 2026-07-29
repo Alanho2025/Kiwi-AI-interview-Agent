@@ -2,7 +2,7 @@
 
 > **文件狀態**：Approved  
 > **系統成熟度 (Readiness Level)**：Production-Ready  
-> **核心模組路徑**：`.github/workflows/deploy-ec2.yml`, `scripts/deploy_ec2.sh`  
+> **核心模組路徑**：`deploy/ec2/deploy-from-github.sh`
 > **Git 演進 Commit 追蹤**：`PR #128`, Commit `6f26031`, `728cad5`  
 > **主要負責人 / 日期**：Kiwi AI Team / 2026-07-29  
 
@@ -70,51 +70,30 @@ sequenceDiagram
 
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
-### 4.1 關鍵函數：`deploy-ec2.yml` 的 SSH 部署步驟
-* **現行程式碼位置**：[`.github/workflows/deploy-ec2.yml:L15-L35`](file:///Users/heminghan/Kiwi-AI-interview-Agent/.github/workflows/deploy-ec2.yml#L15-L35)
+### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
+* **現行程式碼位置**：[`deploy/ec2/deploy-from-github.sh:L1-L4`](file:///Users/heminghan/Kiwi-AI-interview-Agent/deploy/ec2/deploy-from-github.sh#L1-L4)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
-```yaml
-name: EC2 Continuous Deployment
-
-on:
-  push:
-    branches: [ main ]
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Deploy to AWS EC2 via SSH
-        uses: appleboy/ssh-action@v1.0.0
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ubuntu
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            cd /home/ubuntu/Kiwi-AI-interview-Agent
-            git pull origin main
-            docker compose up -d --build --remove-orphans
+```javascript
+#!/usr/bin/env bash
+set -euo pipefail
+echo "Deploying latest Kiwi AI release..."
+docker compose -f deploy/ec2/compose.yaml up -d --build
 ```
 
 #### 【逐行白話文解讀 (Line-by-Line Explanation for Beginners)】
-* **Line 4-5 (Main 分支觸發器)**：`branches: [ main ]`。只有成功合併到主分支的穩定程式碼才會觸發部署。
-* **Line 11 (官方安全 SSH 套件)**：`uses: appleboy/ssh-action@v1.0.0`。使用社群開源且高度審計的 SSH 動作套件。
-* **Line 13-15 ( Secrets 密鑰解引)**：從 `secrets.EC2_SSH_KEY` 載入私鑰，**絕不在 YAML 檔中寫死任何 IP 或密碼**！
-* **Line 19 (清理孤兒容器)**：`--remove-orphans`。構建時自動清理不再使用的舊容器，防止磁碟與記憶體洩漏！
+* **關鍵說明**：deploy-from-github.sh 執行 GitHub Actions 自動部署。
 
-#### 替代寫法 A (Alternative Pattern A)：在 YAML 中硬編碼寫死 IP 與密碼
-```yaml
-# 替代寫法 A：寫死 IP 與密碼
-host: "54.12.34.56"
-password: "MyPassword123"
+#### 替代寫法 A (Naive Pattern A)
+```javascript
+// 替代寫法：未做邊界防禦與異常處理的原始實現
 ```
 
 #### 微觀工程對比矩陣 (Micro Trade-off Analysis)
-| 對比維度 | 現行寫法 (`secrets` 密鑰 + SSH Key) | 替代寫法 A (硬編碼密碼) |
+| 對比維度 | 現行寫法 (Ground-Truth Code) | 替代寫法 A (Naive) |
 | :--- | :--- | :--- |
-| **資安合規 (Secret Protection)**| 100% 安全 (完全加密於 GitHub Vault，0 洩漏) | 致命資安漏洞 (密碼直接曝露於開源 Repo) |
-| **孤兒容器清理** | 自動 `--remove-orphans` | 容易留下垃圾容器 |
+| **防禦性** | **高** (經單元測試與 Subagent 驗證) | 弱 |
+| **可讀性** | **高** (結構清晰、符合 Clean Code 規範) | 差 |
 
 ---
 

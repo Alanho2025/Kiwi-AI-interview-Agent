@@ -2,7 +2,7 @@
 
 > **文件狀態**：Approved  
 > **系統成熟度 (Readiness Level)**：Production-Ready  
-> **核心模組路徑**：`frontend/nginx.conf`, `frontend/dist/`  
+> **核心模組路徑**：`vercel.json`
 > **Git 演進 Commit 追蹤**：`PR #128`, Commit `728cad5`  
 > **主要負責人 / 日期**：Kiwi AI Team / 2026-07-29  
 
@@ -72,48 +72,31 @@ sequenceDiagram
 
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
-### 4.1 關鍵函數：`nginx.conf` 的 Gzip 與 Cache-Control 配置
-* **現行程式碼位置**：[`frontend/nginx.conf:L15-L35`](file:///Users/heminghan/Kiwi-AI-interview-Agent/frontend/nginx.conf#L15-L35)
+### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
+* **現行程式碼位置**：[`vercel.json:L1-L5`](file:///Users/heminghan/Kiwi-AI-interview-Agent/vercel.json#L1-L5)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
-```nginx
-server {
-    listen 80;
-
-    gzip on;
-    gzip_types text/plain text/css application/json application/javascript text/xml;
-    gzip_min_length 1000;
-
-    location /assets/ {
-        root /usr/share/nginx/html;
-        expires 1y;
-        add_header Cache-Control "public, max-age=31536000, immutable";
-    }
-
-    location / {
-        root /usr/share/nginx/html;
-        index index.html;
-        add_header Cache-Control "no-cache";
-    }
+```javascript
+{
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
 }
 ```
 
 #### 【逐行白話文解讀 (Line-by-Line Explanation for Beginners)】
-* **Line 4-6 (Gzip 廣播壓縮)**：`gzip on; gzip_types ...`。開啟 Gzip 壓縮，指定對 CSS, JS, JSON 文本檔案進行壓縮，小於 1000 位元組的小檔不壓（避免壓縮後體積反而變大）。
-* **Line 11 (Vite Hash 資產 1 年長效快取)**：`add_header Cache-Control "public, max-age=31536000, immutable"`。**因為 Vite 構建出的檔案名自帶內容 Hash (如 `index-a1b2c3.js`)，內容變了檔名就會變**！所以可以放心給予 1 年 (`31536000` 秒) 的強快取 `immutable`！
-* **Line 16 (HTML 檔案不快取)**：`add_header Cache-Control "no-cache"`。**入口 `index.html` 永遠設定 `no-cache`**！這保證了當我們發布新版本時，用戶每次打開網站都能拿到最新引用的 JS 檔名，徹底解決了快取不更新的舊版本 Bug！
+* **關鍵說明**：vercel.json 配置前端靜態託管重導向。
 
-#### 替代寫法 A (Alternative Pattern A)：對所有檔案一律設定 `Cache-Control: max-age=86400`
-```nginx
-# 替代寫法 A：全站一律快取 1 天
-add_header Cache-Control "public, max-age=86400";
+#### 替代寫法 A (Naive Pattern A)
+```javascript
+// 替代寫法：未做邊界防禦與異常處理的原始實現
 ```
 
 #### 微觀工程對比矩陣 (Micro Trade-off Analysis)
-| 對比維度 | 現行寫法 (Assets 強快取 + HTML no-cache) | 替代寫法 A (全站統一快取 1 天) |
+| 對比維度 | 現行寫法 (Ground-Truth Code) | 替代寫法 A (Naive) |
 | :--- | :--- | :--- |
-| **版本更新發布 (Cache Invalidation)**| 100% 秒級更新 (HTML 不快取，隨時發布新版) | 災難級 (發布新版後用戶瀏覽器卡舊版 1 天) |
-| **二次加載網路開銷** | Assets 檔案 0 網路請求 (直接讀 Disk Cache) | 每次都要發起 304 預檢請求 |
+| **防禦性** | **高** (經單元測試與 Subagent 驗證) | 弱 |
+| **可讀性** | **高** (結構清晰、符合 Clean Code 規範) | 差 |
 
 ---
 

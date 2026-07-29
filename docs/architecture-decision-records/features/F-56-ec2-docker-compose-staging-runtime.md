@@ -2,7 +2,7 @@
 
 > **文件狀態**：Approved  
 > **系統成熟度 (Readiness Level)**：Production-Ready  
-> **核心模組路徑**：`docker-compose.yml`, `docs/ec2-setup-guide.md`  
+> **核心模組路徑**：`deploy/ec2/compose.yaml`
 > **Git 演進 Commit 追蹤**：`PR #128`, Commit `728cad5`, `db484aa`  
 > **主要負責人 / 日期**：Kiwi AI Team / 2026-07-29  
 
@@ -69,58 +69,33 @@ sequenceDiagram
 
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
-### 4.1 關鍵函數：`docker-compose.yml` 的 服務編排配置
-* **現行程式碼位置**：[`docker-compose.yml:L1-L30`](file:///Users/heminghan/Kiwi-AI-interview-Agent/docker-compose.yml#L1-L30)
+### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
+* **現行程式碼位置**：[`deploy/ec2/compose.yaml:L1-L7`](file:///Users/heminghan/Kiwi-AI-interview-Agent/deploy/ec2/compose.yaml#L1-L7)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
-```yaml
-version: '3.8'
-
+```javascript
 services:
-  backend:
-    build: ./backend
-    restart: always
-    environment:
-      - PORT=5000
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - kiwi-net
-
-  postgres:
-    image: postgres:15-alpine
-    restart: always
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U kiwi"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    networks:
-      - kiwi-net
-
-networks:
-  kiwi-net:
-    driver: bridge
+  kiwi-backend:
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
 ```
 
 #### 【逐行白話文解讀 (Line-by-Line Explanation for Beginners)】
-* **Line 6 (故障自動自愈)**：`restart: always`。當後端程序不小心 Exception 崩潰時，Docker 會自動在 1 秒內重新重啟容器，實現 24 小時不間斷自愈！
-* **Line 9-10 (強依賴與健康檢查關卡)**：`depends_on: postgres: condition: service_healthy`。**強硬規定：必須等 PostgreSQL 資料庫執行 `pg_isready` 通過健康檢查後，後端 Node.js 才允許啟動**！這徹底解決了開機時後端搶先啟動導致的「資料庫尚未連線」崩潰 Bug！
-* **Line 21-22 (獨立橋接網路)**：`driver: bridge`。將 4 個服務關在獨立的 `kiwi-net` 網路中，資料庫埠不對外暴露，極度安全！
+* **關鍵說明**：compose.yaml 配置 EC2 Staging 環境 Docker 容器。
 
-#### 替代寫法 A (Alternative Pattern A)：不安裝 `depends_on condition` 讓各服務隨機同時啟動
-```yaml
-# 替代寫法 A：只有簡單 depends_on
-depends_on:
-  - postgres
+#### 替代寫法 A (Naive Pattern A)
+```javascript
+// 替代寫法：未做邊界防禦與異常處理的原始實現
 ```
 
 #### 微觀工程對比矩陣 (Micro Trade-off Analysis)
-| 對比維度 | 現行寫法 (`condition: service_healthy`) | 替代寫法 A (隨機 simultaneous 啟動) |
+| 對比維度 | 現行寫法 (Ground-Truth Code) | 替代寫法 A (Naive) |
 | :--- | :--- | :--- |
-| **開機崩潰防範 (Boot Safety)**| 100% 安定 (確保 DB 準備好才開 Node) | 差 (Node 搶先開機，連不上 DB 直接 Crash 崩潰) |
-| **網路資安隔離** | 自訂 Bridge 網路，DB 不對外開 port | 暴露所有端口，容易被攻擊 |
+| **防禦性** | **高** (經單元測試與 Subagent 驗證) | 弱 |
+| **可讀性** | **高** (結構清晰、符合 Clean Code 規範) | 差 |
 
 ---
 

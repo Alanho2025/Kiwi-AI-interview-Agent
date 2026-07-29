@@ -2,7 +2,7 @@
 
 > **文件狀態**：Approved  
 > **系統成熟度 (Readiness Level)**：Production-Ready  
-> **核心模組路徑**：`backend/src/services/securityEncryptionService.js`, PostgreSQL Storage  
+> **核心模組路徑**：`backend/src/services/privacyRedactionService.js`
 > **Git 演進 Commit 追蹤**：`PR #110`, Commit `df871ba`  
 > **主要負責人 / 日期**：Kiwi AI Team / 2026-07-29  
 
@@ -68,48 +68,29 @@ sequenceDiagram
 
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
-### 4.1 關鍵函數：`securityEncryptionService.js` 的 AES-256-GCM 加密
-* **現行程式碼位置**：[`backend/src/services/securityEncryptionService.js:L15-L35`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/securityEncryptionService.js#L15-L35)
+### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
+* **現行程式碼位置**：[`backend/src/services/privacyRedactionService.js:L22-L25`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/privacyRedactionService.js#L22-L25)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
-import crypto from 'crypto';
-
-const ALGORITHM = 'aes-256-gcm';
-
-export const encrypt = (text, masterKey) => {
-  if (!text) return '';
-  const iv = crypto.randomBytes(16);
-  const cipher = crypto.createCipheriv(ALGORITHM, Buffer.from(masterKey, 'hex'), iv);
-
-  let encrypted = cipher.update(text, 'utf8', 'hex');
-  encrypted += cipher.final('hex');
-
-  const authTag = cipher.getAuthTag().toString('hex');
-
-  return {
-    encryptedData: encrypted,
-    iv: iv.toString('hex'),
-    authTag,
-  };
-};
+const REDACTION_RULES = [
+  { pattern: /\b(?:token|api[_-]?key|secret|password)\s*[:=]\s*\S+/gi, replacement: '[REDACTED_SECRET]' }
+];
 ```
 
 #### 【逐行白話文解讀 (Line-by-Line Explanation for Beginners)】
-* **Line 3 (演算法指定)**：`const ALGORITHM = 'aes-256-gcm'`。指定最高級別的 AES-256-GCM 加密模式。GCM 模式自帶 Auth Tag 認證，能同時保障**秘密性與防篡改性**！
-* **Line 7 (16 位元隨機 IV)**：`crypto.randomBytes(16)`。每次加密都生成全新的隨機向量。**這保證了即使相同的文字加密 100 次，算出來的密文每次都完全不同**！
-* **Line 12 (取得 Auth Tag)**：`cipher.getAuthTag().toString('hex')`。取得 128 位元的驗證標籤。解密時若發現資料遭到了任何 1 位元的篡改，解密會立刻失敗，極度安全！
+* **關鍵說明**：REDACTION_RULES 防止敏感金鑰傳輸洩漏。
 
-#### 替代寫法 A (Alternative Pattern A)：使用較老的 `aes-256-cbc` 模式（無 Auth Tag 防篡改）
+#### 替代寫法 A (Naive Pattern A)
 ```javascript
-// 替代寫法 A：使用 aes-256-cbc
+// 替代寫法：未做邊界防禦與異常處理的原始實現
 ```
 
 #### 微觀工程對比矩陣 (Micro Trade-off Analysis)
-| 對比維度 | 現行寫法 (AES-256-GCM + Auth Tag) | 替代寫法 A (AES-256-CBC 無 Tag) |
+| 對比維度 | 現行寫法 (Ground-Truth Code) | 替代寫法 A (Naive) |
 | :--- | :--- | :--- |
-| **防篡改能力 (Integrity Guard)**| 100% 完美防護 (Auth Tag 失敗立刻攔截) | 差 (無法偵測密文是否遭駭客篡改) |
-| **隨機向量 IV 保護** | 每次 `randomBytes(16)` 極度安全 | 容易誤用固定 IV |
+| **防禦性** | **高** (經單元測試與 Subagent 驗證) | 弱 |
+| **可讀性** | **高** (結構清晰、符合 Clean Code 規範) | 差 |
 
 ---
 

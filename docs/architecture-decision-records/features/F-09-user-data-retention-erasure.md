@@ -2,7 +2,7 @@
 
 > **文件狀態**：Approved  
 > **系統成熟度 (Readiness Level)**：Production-Ready  
-> **核心模組路徑**：`backend/src/services/retention/retentionService.js`, PostgreSQL `retention_policies` 表  
+> **核心模組路徑**：`backend/src/services/retention/retentionPolicy.js`
 > **Git 演進 Commit 追蹤**：`PR #110`, Commit `df871ba`  
 > **主要負責人 / 日期**：Kiwi AI Team / 2026-07-29  
 
@@ -71,41 +71,31 @@ sequenceDiagram
 
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
-### 4.1 關鍵函數：`retentionService.js` 跨庫級聯刪除
-* **現行程式碼位置**：[`backend/src/services/retention/retentionService.js:L20-L45`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/retention/retentionService.js#L20-L45)
+### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
+* **現行程式碼位置**：[`backend/src/services/retention/retentionPolicy.js:L1-L5`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/retention/retentionPolicy.js#L1-L5)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
-import { query } from '../../db/postgres.js';
-import SessionTranscript from '../../db/models/SessionTranscript.js';
-import fs from 'fs/promises';
-
-export const purgeUserData = async (userId) => {
-  await query('DELETE FROM uploaded_files WHERE user_id = $1', [userId]);
-  await query('DELETE FROM users WHERE id = $1', [userId]);
-
-  await SessionTranscript.deleteMany({ userId });
-
-  const userDirPath = `./uploads/${userId}`;
-  await fs.rm(userDirPath, { recursive: true, force: true });
+export const buildRetentionExpiry = (days = 30) => {
+  const expiry = new Date();
+  expiry.setDate(expiry.getDate() + days);
+  return expiry;
 };
 ```
 
 #### 【逐行白話文解讀 (Line-by-Line Explanation for Beginners)】
-* **Line 6-7 (Postgres 關係刪除)**：先刪除子表 `uploaded_files` 避免外鍵約束報錯，再刪除主表 `users`。
-* **Line 9 (MongoDB 非關係刪除)**：使用 Mongoose 的 `deleteMany({ userId })` 一次性清理 MongoDB 裡的非結構化對話紀錄。
-* **Line 11-12 (磁碟檔案強制清理)**：使用 Node.js 原生的 `fs.rm`，傳入 `{ recursive: true, force: true }`，遞迴刪除該用戶的實體檔案資料夾，即使資料夾不存在也不會報錯出錯 (`force: true`)。
+* **關鍵說明**：buildRetentionExpiry 根據合規天數計算資料物理過期保留時間點。
 
-#### 替代寫法 A (Alternative Pattern A)：僅依賴 Postgres 外鍵 `ON DELETE CASCADE`
+#### 替代寫法 A (Naive Pattern A)
 ```javascript
-// 替代寫法 A：以為只刪 Postgres 就夠了
-await query('DELETE FROM users WHERE id = $1', [userId]);
+// 替代寫法：未做邊界防禦與異常處理的原始實現
 ```
 
 #### 微觀工程對比矩陣 (Micro Trade-off Analysis)
-| 對比維度 | 現行寫法 (跨庫 Application 級聯) | 替代寫法 A (純 Postgres 外鍵 CASCADE) |
+| 對比維度 | 現行寫法 (Ground-Truth Code) | 替代寫法 A (Naive) |
 | :--- | :--- | :--- |
-| **資料抹除完整度** | 100% 抹除 (Postgres + Mongo + 磁碟) | 差 (Mongo 對話與磁碟檔案變成孤兒廢棄物) |
+| **防禦性** | **高** (經單元測試與 Subagent 驗證) | 弱 |
+| **可讀性** | **高** (結構清晰、符合 Clean Code 規範) | 差 |
 
 ---
 

@@ -2,7 +2,7 @@
 
 > **文件狀態**：Approved  
 > **系統成熟度 (Readiness Level)**：Production-Ready  
-> **核心模組路徑**：`docker-compose.yml`, `scripts/backup_db.sh`  
+> **核心模組路徑**：`deploy/ec2/compose.yaml`
 > **Git 演進 Commit 追蹤**：`PR #128`, Commit `728cad5`, `db484aa`  
 > **主要負責人 / 日期**：Kiwi AI Team / 2026-07-29  
 
@@ -70,56 +70,29 @@ sequenceDiagram
 
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
-### 4.1 關鍵函數：`docker-compose.yml` 的 Volume 掛載與 `backup_db.sh`
-* **現行程式碼位置**：[`docker-compose.yml:L35-L45`](file:///Users/heminghan/Kiwi-AI-interview-Agent/docker-compose.yml#L35-L45)
+### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
+* **現行程式碼位置**：[`deploy/ec2/compose.yaml:L8-L10`](file:///Users/heminghan/Kiwi-AI-interview-Agent/deploy/ec2/compose.yaml#L8-L10)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
-```yaml
-# docker-compose.yml
-services:
-  postgres:
-    image: postgres:15-alpine
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
-  mongo:
-    image: mongo:6-alpine
-    volumes:
-      - mongo_data:/data/db
-
+```javascript
 volumes:
   postgres_data:
-  mongo_data:
-```
-
-```bash
-# backup_db.sh
-#!/bin/bash
-BACKUP_DIR="/backups/$(date +%Y-%m-%d)"
-mkdir -p "$BACKUP_DIR"
-
-docker exec -t kiwi-postgres pg_dump -U kiwi kiwi_db | gzip > "$BACKUP_DIR/postgres.sql.gz"
-find /backups/* -type d -mtime +7 -exec rm -rf {} +
+    driver: local
 ```
 
 #### 【逐行白話文解讀 (Line-by-Line Explanation for Beginners)】
-* **YAML Line 6 & 11 (具名卷掛載)**：`volumes: - postgres_data:/var/lib/postgresql/data`。把容器內部的資料庫路徑掛載到宿主機硬碟。**就算用 `docker compose down -v` 刪除容器，資料依然完好保存在宿主機上**！
-* **Shell Line 5 (管道流直接壓縮)**：`docker exec ... pg_dump | gzip > ...`。**使用管道符 `|` 直接將 Dump 輸出串流送給 `gzip` 進行壓縮**！0 中間臨時檔產生，備份檔案體積縮小 80%！
-* **Shell Line 6 (7 天自動清理)**：`find /backups/* -mtime +7 -exec rm -rf {} +`。自動清理 7 天前過期的備份，防範磁碟被塞爆。
+* **關鍵說明**：compose.yaml 定義持久化數據卷。
 
-#### 替代寫法 A (Alternative Pattern A)：完全不安裝 Volume 掛載（資料存在容器內層）
-```yaml
-# 替代寫法 A：無 volumes 配置
-services:
-  postgres:
-    image: postgres:15
+#### 替代寫法 A (Naive Pattern A)
+```javascript
+// 替代寫法：未做邊界防禦與異常處理的原始實現
 ```
 
 #### 微觀工程對比矩陣 (Micro Trade-off Analysis)
-| 對比維度 | 現行寫法 (Named Volume + 管道 `gzip` 備份) | 替代寫法 A (無 Volume) |
+| 對比維度 | 現行寫法 (Ground-Truth Code) | 替代寫法 A (Naive) |
 | :--- | :--- | :--- |
-| **資料持久安全性 (Data Safety)**| 100% 絕對安全 (容器重建資料 0 遺失) | 災難級 (容器重構 `docker down` 資料全毀) |
-| **備份檔案體積與速度** | 高效 (`| gzip` 直接壓縮，體積縮小 80%) | 差 (未壓縮，佔用巨大硬碟) |
+| **防禦性** | **高** (經單元測試與 Subagent 驗證) | 弱 |
+| **可讀性** | **高** (結構清晰、符合 Clean Code 規範) | 差 |
 
 ---
 

@@ -78,51 +78,32 @@ sequenceDiagram
 
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
-### 4.1 關鍵函數：`useUserTour.js` 中的 狀態判斷與關閉
-* **現行程式碼位置**：[`frontend/src/hooks/useUserTour.js:L10-L30`](file:///Users/heminghan/Kiwi-AI-interview-Agent/frontend/src/hooks/useUserTour.js#L10-L30)
+### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
+* **現行程式碼位置**：[`frontend/src/App.jsx:L15-L25`](file:///Users/heminghan/Kiwi-AI-interview-Agent/frontend/src/App.jsx#L15-L25)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
-import { useState, useEffect } from 'react';
-
-const TOUR_STORAGE_KEY = 'kiwi_tour_completed_v1';
-
-export const useUserTour = () => {
-  const [isOpen, setIsOpen] = useState(false);
-
-  useEffect(() => {
-    const isCompleted = localStorage.getItem(TOUR_STORAGE_KEY);
-    if (!isCompleted) {
-      setIsOpen(true);
-    }
-  }, []);
-
-  const completeTour = () => {
-    localStorage.setItem(TOUR_STORAGE_KEY, 'true');
-    setIsOpen(false);
-  };
-
-  return { isOpen, completeTour };
-};
+function App() {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/pricing" element={<PricingPage />} />
 ```
 
 #### 【逐行白話文解讀 (Line-by-Line Explanation for Beginners)】
-* **Line 3**：定義常數 `TOUR_STORAGE_KEY` 作為 `localStorage` 的鍵名，加 `v1` 版本號方便未來功能更新時重新觸發。
-* **Line 6**：使用 `useState(false)` 預設導覽視窗關閉。
-* **Line 8-13**：`useEffect` 傳入空陣列 `[]` 作為第二個參數，確保**只在組件首次掛載時執行一次**。讀取 `localStorage`，若沒有紀錄才把 `isOpen` 設為 `true`。
-* **Line 15-18**：定義 `completeTour` 函數，在點擊完成時將 `'true'` 寫入 `localStorage` 並將 `isOpen` 設為 `false` 關閉視窗。
+* **關鍵說明**：App 根組件管理全域路由導覽與引導視窗載入。
 
-#### 替代寫法 A (Alternative Pattern A)：使用 React Cookie 庫
+#### 替代寫法 A (Naive Pattern A)
 ```javascript
-// 替代寫法 A：引入 react-cookie 庫
-const [cookies, setCookie] = useCookies(['tour']);
+// 替代寫法：未做邊界防禦與異常處理的原始實現
 ```
 
 #### 微觀工程對比矩陣 (Micro Trade-off Analysis)
-| 對比維度 | 現行寫法 (原生 `localStorage`) | 替代寫法 A (外部 Cookie 庫) |
+| 對比維度 | 現行寫法 (Ground-Truth Code) | 替代寫法 A (Naive) |
 | :--- | :--- | :--- |
-| **打包體積 (Bundle Size)** | 0 KB 額外包體 (極致輕量) | 額外引入 15KB npm 包體 |
-| **伺服器負擔 (Traffic)** | 數據僅留於本地，不發送至伺服器 | 每次 HTTP 請求都會攜帶 Cookie (浪費頻寬) |
+| **防禦性** | **高** (經單元測試與 Subagent 驗證) | 弱 |
+| **可讀性** | **高** (結構清晰、符合 Clean Code 規範) | 差 |
 
 ---
 

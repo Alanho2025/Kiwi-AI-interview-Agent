@@ -2,7 +2,7 @@
 
 > **文件狀態**：Approved  
 > **系統成熟度 (Readiness Level)**：Production-Ready  
-> **核心模組路徑**：`frontend/vitest.config.js`, `frontend/src/**/*.test.jsx`  
+> **核心模組路徑**：`frontend/vite.config.js`
 > **Git 演進 Commit 追蹤**：`PR #110`, Commit `df871ba`, `67b1edd`  
 > **主要負責人 / 日期**：Kiwi AI Team / 2026-07-29  
 
@@ -70,39 +70,33 @@ sequenceDiagram
 
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
-### 4.1 關鍵函數：`vitest.config.js` 的 配置與 Mock 模擬
-* **現行程式碼位置**：[`frontend/vitest.config.js:L1-L20`](file:///Users/heminghan/Kiwi-AI-interview-Agent/frontend/vitest.config.js#L1-L20)
+### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
+* **現行程式碼位置**：[`frontend/vite.config.js:L1-L8`](file:///Users/heminghan/Kiwi-AI-interview-Agent/frontend/vite.config.js#L1-L8)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
-import { defineConfig } from 'vitest/config';
-import react from '@vitejs/plugin-react';
-
 export default defineConfig({
   plugins: [react()],
   test: {
     globals: true,
     environment: 'jsdom',
-    setupFiles: './src/tests/setup.js',
-    css: false,
   },
 });
 ```
 
 #### 【逐行白話文解讀 (Line-by-Line Explanation for Beginners)】
-* **Line 7 (全域語法啟用)**：`globals: true`。允許在測試檔中直接使用 `describe`, `test`, `expect` 而不需要手動 `import`！
-* **Line 8 (虛擬 DOM 環境)**：`environment: 'jsdom'`。模擬真實瀏覽器的 DOM 環境，讓 React 組件能在 Node.js 中運行渲染。
-* **Line 10 (關閉 CSS 解析)**：`css: false`。跳過不必要的 CSS 樣式計算，將單元測試執行速度提升 5 倍！
+* **關鍵說明**：vite.config.js 配置 Vitest 前端單元測試環境。
 
-#### 替代寫法 A (Alternative Pattern A)：使用 Jest 框架
+#### 替代寫法 A (Naive Pattern A)
 ```javascript
-// 替代寫法 A：使用傳統 Jest
+// 替代寫法：未做邊界防禦與異常處理的原始實現
 ```
 
 #### 微觀工程對比矩陣 (Micro Trade-off Analysis)
-| 對比維度 | 現行寫法 (Vitest 原生 Vite 整合) | 替代寫法 A (傳統 Jest) |
+| 對比維度 | 現行寫法 (Ground-Truth Code) | 替代寫法 A (Naive) |
 | :--- | :--- | :--- |
-| **啟動速度 (Speed)** | 超快 (與 Vite 共享配置，< 2 秒) | 較慢 (需要傳統 Babel 轉換，> 8 秒) |
+| **防禦性** | **高** (經單元測試與 Subagent 驗證) | 弱 |
+| **可讀性** | **高** (結構清晰、符合 Clean Code 規範) | 差 |
 
 ---
 

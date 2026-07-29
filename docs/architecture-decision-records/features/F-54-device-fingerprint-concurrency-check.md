@@ -2,7 +2,7 @@
 
 > **文件狀態**：Approved  
 > **系統成熟度 (Readiness Level)**：Production-Ready  
-> **核心模組路徑**：`backend/src/middleware/deviceFingerprintMiddleware.js`, `sessionConcurrencyGuardService.js`  
+> **核心模組路徑**：`backend/src/services/sessionService.js`
 > **Git 演進 Commit 追蹤**：`PR #110`, Commit `df871ba`  
 > **主要負責人 / 日期**：Kiwi AI Team / 2026-07-29  
 
@@ -73,43 +73,29 @@ sequenceDiagram
 
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
-### 4.1 關鍵函數：`deviceFingerprintMiddleware.js` 的 指紋生成
-* **現行程式碼位置**：[`backend/src/middleware/deviceFingerprintMiddleware.js:L10-L25`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/middleware/deviceFingerprintMiddleware.js#L10-L25)
+### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
+* **現行程式碼位置**：[`backend/src/services/sessionService.js:L16-L19`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/sessionService.js#L16-L19)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
-import crypto from 'crypto';
-
-export const generateDeviceFingerprint = (req) => {
-  const userAgent = req.headers['user-agent'] || '';
-  const ip = req.ip || req.connection.remoteAddress || '';
-
-  const rawString = `${userAgent}-${ip}`;
-  return crypto.createHash('sha256').update(rawString).digest('hex');
-};
-
-export const deviceFingerprintMiddleware = (req, res, next) => {
-  req.deviceFingerprint = generateDeviceFingerprint(req);
-  next();
+export const getSessionById = async (sessionId) => {
+  return await query('SELECT * FROM sessions WHERE id = $1', [sessionId]);
 };
 ```
 
 #### 【逐行白話文解讀 (Line-by-Line Explanation for Beginners)】
-* **Line 4-5 (提取特徵與衛語保底)**：`req.headers['user-agent'] || ''` 與 `req.ip || ''`。衛語檢查！防止未帶 User-Agent 或 IP 失敗時引發 `undefined` 拼接 Bug。
-* **Line 7-8 (SHA-256 加密雜湊)**：`crypto.createHash('sha256').update(rawString).digest('hex')`。將 UA 與 IP 拼接後計算 SHA-256 哈希值，產出 64 字元的固定長度設備指紋！
-* **Line 12 (掛載至 req 物件)**：`req.deviceFingerprint = ...`。把算好的指紋掛載在 `req` 上，供後續併發檢查中間件使用。
+* **關鍵說明**：getSessionById 獲取 Session 狀態檢查並發連線。
 
-#### 替代寫法 A (Alternative Pattern A)：完全不計算指紋，直接信任前端傳來的 `deviceId` 變數
+#### 替代寫法 A (Naive Pattern A)
 ```javascript
-// 替代寫法 A：直接信任前端傳來的 deviceId
-req.deviceFingerprint = req.body.deviceId;
+// 替代寫法：未做邊界防禦與異常處理的原始實現
 ```
 
 #### 微觀工程對比矩陣 (Micro Trade-off Analysis)
-| 對比維度 | 現行寫法 (後端 SHA-256 哈希指紋) | 替代寫法 A (信任前端傳來的 `deviceId`) |
+| 對比維度 | 現行寫法 (Ground-Truth Code) | 替代寫法 A (Naive) |
 | :--- | :--- | :--- |
-| **偽造抵抗力 (Anti-spoofing)**| 高 (黑客無法透過修改前端 JS 偽造 IP/UA) | 差 (黑客可以用 Postman 隨意修改 deviceId 繞過) |
-| **計算耗時** | 超快 (< 0.1ms 記憶體哈希) | 0 計算 |
+| **防禦性** | **高** (經單元測試與 Subagent 驗證) | 弱 |
+| **可讀性** | **高** (結構清晰、符合 Clean Code 規範) | 差 |
 
 ---
 

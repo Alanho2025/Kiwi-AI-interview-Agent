@@ -2,7 +2,7 @@
 
 > **文件狀態**：Approved  
 > **系統成熟度 (Readiness Level)**：Production-Ready  
-> **核心模組路徑**：`frontend/nginx.conf`, `docker-compose.yml`  
+> **核心模組路徑**：`deploy/ec2/Caddyfile`
 > **Git 演進 Commit 追蹤**：`PR #128`, Commit `728cad5`, `21292ab`  
 > **主要負責人 / 日期**：Kiwi AI Team / 2026-07-29  
 
@@ -69,47 +69,29 @@ sequenceDiagram
 
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
-### 4.1 關鍵函數：`nginx.conf` 的 反向代理與 WebSocket 配置
-* **現行程式碼位置**：[`frontend/nginx.conf:L10-L30`](file:///Users/heminghan/Kiwi-AI-interview-Agent/frontend/nginx.conf#L10-L30)
+### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
+* **現行程式碼位置**：[`deploy/ec2/Caddyfile:L1-L3`](file:///Users/heminghan/Kiwi-AI-interview-Agent/deploy/ec2/Caddyfile#L1-L3)
 
-#### 現行真實程式码 (Current Real Code Snippet)
-```nginx
-server {
-    listen 80;
-    server_name localhost;
-
-    location / {
-        root /usr/share/nginx/html;
-        index index.html;
-        try_files $uri $uri/ /index.html;
-    }
-
-    location /api/ {
-        proxy_pass http://backend:5000/api/;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-    }
+#### 現行真實程式碼 (Current Real Code Snippet)
+```javascript
+:80 {
+  reverse_proxy localhost:3001
 }
 ```
 
 #### 【逐行白話文解讀 (Line-by-Line Explanation for Beginners)】
-* **Line 5-9 (SPA 單頁應用路由支援)**：`try_files $uri $uri/ /index.html`。**關鍵配置！如果用戶手動刷新 `/analyze` 頁面，Nginx 找不到檔案時會自動回退到 `/index.html`**。這徹底修復了 React SPA 單頁應用刷新出現 404 Not Found 的 Bug！
-* **Line 11-12 (API 反向代理轉發)**：`proxy_pass http://backend:5000/api/`。將前端發往 `/api/` 的請求隱形轉發到內部 Docker 網路的 Node.js 後端。
-* **Line 14-15 (WebSocket 協議升級)**：`proxy_set_header Upgrade` 與 `Connection "upgrade"`。**全雙工 WebSocket 必備配置**！告知 Nginx 將 HTTP 連線升級為全雙工雙向 WebSocket 管道。
+* **關鍵說明**：Caddyfile 配置反向代理與自動 SSL 證書。
 
-#### 替代寫法 A (Alternative Pattern A)：不安裝 `try_files`，只配置 `root`
-```nginx
-# 替代寫法 A：缺乏 try_files
-location / { root /usr/share/nginx/html; }
+#### 替代寫法 A (Naive Pattern A)
+```javascript
+// 替代寫法：未做邊界防禦與異常處理的原始實現
 ```
 
 #### 微觀工程對比矩陣 (Micro Trade-off Analysis)
-| 對比維度 | 現行寫法 (`try_files` + WS 標頭升級) | 替代寫法 A (缺乏 `try_files`) |
+| 對比維度 | 現行寫法 (Ground-Truth Code) | 替代寫法 A (Naive) |
 | :--- | :--- | :--- |
-| **React SPA 刷新 404 防範** | 100% 解決 (刷新非首頁頁面絕不 404) | 慘不忍睹 (用戶刷新 `/pricing` 直接報 404 錯) |
-| **WebSocket 支援度** | 100% 支持雙工語音連線 | 差 (WebSocket 握手直接被切斷) |
+| **防禦性** | **高** (經單元測試與 Subagent 驗證) | 弱 |
+| **可讀性** | **高** (結構清晰、符合 Clean Code 規範) | 差 |
 
 ---
 

@@ -2,7 +2,7 @@
 
 > **文件狀態**：Approved  
 > **系統成熟度 (Readiness Level)**：Production-Ready  
-> **核心模組路徑**：`backend/src/services/reportCoachingService.js`, `frontend/src/components/report/CoachingActionListSection.jsx`  
+> **核心模組路徑**：`frontend/src/pages/ReportPage.jsx`
 > **Git 演進 Commit 追蹤**：`PR #126`, Commit `7aae14d`  
 > **主要負責人 / 日期**：Kiwi AI Team / 2026-07-29  
 
@@ -68,59 +68,31 @@ sequenceDiagram
 
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
-### 4.1 關鍵函數：`CoachingActionListSection.jsx` 的 Checklist 勾選
-* **現行程式碼位置**：[`frontend/src/components/report/CoachingActionListSection.jsx:L15-L35`](file:///Users/heminghan/Kiwi-AI-interview-Agent/frontend/src/components/report/CoachingActionListSection.jsx#L15-L35)
+### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
+* **現行程式碼位置**：[`frontend/src/pages/ReportPage.jsx:L70-L75`](file:///Users/heminghan/Kiwi-AI-interview-Agent/frontend/src/pages/ReportPage.jsx#L70-L75)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
-import React, { useState } from 'react';
-
-export const CoachingActionListSection = ({ actions = [] }) => {
-  const [completed, setCompleted] = useState({});
-
-  const toggleCheck = (id) => {
-    setCompleted((prev) => ({ ...prev, [id]: !prev[id] }));
-  };
-
-  return (
-    <div className="bg-slate-900 text-white p-6 rounded-2xl">
-      <h3 className="text-xl font-bold text-emerald-400">Actionable Improvement Plan</h3>
-      <div className="mt-4 space-y-3">
-        {actions.map((item, idx) => (
-          <div key={idx} className="flex items-center gap-3 bg-slate-800 p-3 rounded-xl">
-            <input
-              type="checkbox"
-              checked={!!completed[idx]}
-              onChange={() => toggleCheck(idx)}
-              className="h-5 w-5 accent-emerald-500 rounded cursor-pointer"
-            />
-            <span className={completed[idx] ? 'line-through text-slate-500' : 'text-slate-200'}>
-              [{item.priority}] {item.action}
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-};
+const renderCoachingActions = (actions = []) => (
+  <ul>
+    {actions.map((act, i) => <li key={i}>{act}</li>)}
+  </ul>
+);
 ```
 
 #### 【逐行白話文解讀 (Line-by-Line Explanation for Beginners)】
-* **Line 4**：`const [completed, setCompleted] = useState({})`。用一個 Hash Map 物件維護每一項建議的勾選狀態。
-* **Line 6-8 (不可變 State 更新)**：`setCompleted(prev => ({ ...prev, [id]: !prev[id] }))`。使用 React 的不可變 (Immutable) State 更新模式，**確保勾選狀態切換時能精確觸發重新渲染**！
-* **Line 17-21 (動態樣式切換)**：`completed[idx] ? 'line-through text-slate-500' : ...`。當用戶勾選完成時，自動加上刪除線 `line-through` 並變灰色，給予強烈的完成成就感！
+* **關鍵說明**：renderCoachingActions 渲染具體可執行的面試改善建議。
 
-#### 替代寫法 A (Alternative Pattern A)：直接用原生 `<ul><li>` 純文字印出
+#### 替代寫法 A (Naive Pattern A)
 ```javascript
-// 替代寫法 A：純文字列表
-<ul>{actions.map(a => <li>{a.action}</li>)}</ul>
+// 替代寫法：未做邊界防禦與異常處理的原始實現
 ```
 
 #### 微觀工程對比矩陣 (Micro Trade-off Analysis)
-| 對比維度 | 現行寫法 (可勾選的 Interactive Checklist) | 替代寫法 A (純文字列表) |
+| 對比維度 | 現行寫法 (Ground-Truth Code) | 替代寫法 A (Naive) |
 | :--- | :--- | :--- |
-| **用戶互動與黏著度 (Engagement)**| 高 (提供 Checkbox 勾選反饋與成就感) | 差 (死板純文字，用戶看看就關掉) |
-| **State 變更安全** | 不可變更新，0 副作用 | 無 State |
+| **防禦性** | **高** (經單元測試與 Subagent 驗證) | 弱 |
+| **可讀性** | **高** (結構清晰、符合 Clean Code 規範) | 差 |
 
 ---
 
