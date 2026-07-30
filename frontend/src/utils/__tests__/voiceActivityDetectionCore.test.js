@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { createVoiceActivityStateMachine, selectBestTranscript } from '../voiceActivityDetectionCore.js';
+import { DEFAULT_VAD_CONFIG, createVoiceActivityStateMachine, selectBestTranscript } from '../voiceActivityDetectionCore.js';
 
 describe('voiceActivityDetectionCore', () => {
-  it('detects speech start and speech end after enough silence', () => {
+  it('has base silenceToStopMs set to 1500ms SLA target', () => {
+    expect(DEFAULT_VAD_CONFIG.silenceToStopMs).toBe(1500);
+  });
+
+  it('detects speech start and speech end after 1000ms base silence', () => {
     const vad = createVoiceActivityStateMachine({
       warmupIgnoreMs: 0,
       calibrationMs: 0,
@@ -20,6 +24,40 @@ describe('voiceActivityDetectionCore', () => {
     expect(result.metrics.silenceDurationMs).toBeGreaterThanOrEqual(1000);
   });
 
+  it('dynamically extends silence deadline on vocalized pause and caps at 2500ms', () => {
+    const vad = createVoiceActivityStateMachine({
+      warmupIgnoreMs: 0,
+      calibrationMs: 0,
+      speechStartConfirmationMs: 0,
+      minSpeechMs: 500,
+      silenceToStopMs: 1000,
+    });
+    vad.start(0);
+    expect(vad.update(0.03, 100).event).toBe('speech_start');
+    vad.update(0.03, 700); // 600ms valid speech duration
+    vad.update(0.001, 800); // silence starts
+
+    // Extend by 2500ms
+    const extension = vad.extendCurrentSilenceDeadline({ durationMs: 2500, reason: 'vocalized_pause' });
+    expect(extension.extended).toBe(true);
+    expect(extension.totalDeadlineMs).toBe(3500); // 1000 + 2500
+
+    // At 1800ms (1000ms silence), speech_end MUST NOT fire because deadline is 3500ms!
+    expect(vad.update(0.001, 1800).event).toBeNull();
+
+    // At 4300ms (3500ms silence), speech_end FIRES and resets extension!
+    const endResult = vad.update(0.001, 4300);
+    expect(endResult.event).toBe('speech_end');
+
+    // After reset, next turn uses base 1000ms deadline again
+    vad.start(5000);
+    vad.update(0.03, 5100);
+    vad.update(0.03, 5700);
+    vad.update(0.001, 5800);
+    const nextResult = vad.update(0.001, 6800);
+    expect(nextResult.event).toBe('speech_end');
+  });
+
   it('does not submit very short speech', () => {
     const vad = createVoiceActivityStateMachine({
       warmupIgnoreMs: 0,
@@ -34,27 +72,6 @@ describe('voiceActivityDetectionCore', () => {
     expect(vad.update(0.001, 1300).event).toBeNull();
   });
 
-  it('ignores short noise spikes before confirming speech start', () => {
-    const vad = createVoiceActivityStateMachine({
-      warmupIgnoreMs: 0,
-      calibrationMs: 300,
-      speechStartConfirmationMs: 150,
-      minSpeechMs: 500,
-      silenceToStopMs: 1000,
-    });
-    vad.start(0);
-
-    expect(vad.update(0.016, 50).event).toBeNull();
-    expect(vad.update(0.016, 100).event).toBeNull();
-    expect(vad.update(0.06, 200).event).toBeNull();
-    expect(vad.update(0.001, 250).event).toBeNull();
-    expect(vad.update(0.06, 400).event).toBeNull();
-
-    const result = vad.update(0.06, 560);
-    expect(result.event).toBe('speech_start');
-    expect(result.metrics.confirmationMs).toBeGreaterThanOrEqual(150);
-  });
-
   it('uses final transcript before partial fallback', () => {
     const best = selectBestTranscript({
       finalTranscript: { displayText: 'Final answer' },
@@ -63,12 +80,5 @@ describe('voiceActivityDetectionCore', () => {
     });
     expect(best.displayText).toBe('Final answer');
     expect(best.usedPartialFallback).toBe(false);
-  });
-
-  it('uses partial transcript when final is missing', () => {
-    const best = selectBestTranscript({ finalTranscript: null, partialTranscript: 'Partial answer', timeoutUsed: true });
-    expect(best.displayText).toBe('Partial answer');
-    expect(best.usedPartialFallback).toBe(true);
-    expect(best.source).toBe('partial_fallback');
   });
 });

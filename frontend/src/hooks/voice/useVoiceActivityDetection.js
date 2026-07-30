@@ -213,12 +213,17 @@ export function useVoiceActivityDetection({
     setVadMetrics(null);
   }, [stopVad]);
 
+  const extendSilenceDeadline = useCallback(({ durationMs = 2500, reason = 'vocalized_pause' } = {}) => {
+    return machineRef.current.extendCurrentSilenceDeadline({ durationMs, reason });
+  }, []);
+
   useEffect(() => () => stopVad(), [stopVad]);
 
   return {
     startVad,
     stopVad,
     resetVad,
+    extendSilenceDeadline,
     isSpeechDetected,
     vadState,
     vadMetrics,

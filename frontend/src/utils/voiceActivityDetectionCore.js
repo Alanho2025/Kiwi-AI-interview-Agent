@@ -7,7 +7,7 @@ export const DEFAULT_VAD_CONFIG = {
   noiseFloorMargin: 0.006,
   speechStartConfirmationMs: 150,
   minSpeechMs: 2500,
-  silenceToStopMs: 1800,
+  silenceToStopMs: 1500,
   maxAnswerMs: 240000,
   preSpeechGraceMs: 15000,
   micArmDelayMs: 350,
@@ -35,6 +35,23 @@ export function createVoiceActivityStateMachine(config = {}) {
   let speechCandidateStartedAt = null;
   let calibrationSamples = [];
   let noiseFloor = null;
+  let silenceDeadlineExtensionMs = 0;
+
+  const resetSilenceExtension = () => {
+    silenceDeadlineExtensionMs = 0;
+  };
+
+  const extendCurrentSilenceDeadline = ({ durationMs = 2500, reason = 'vocalized_pause' } = {}) => {
+    if (state === 'detecting_silence' || state === 'user_speaking') {
+      silenceDeadlineExtensionMs = Math.min(2500, Math.max(silenceDeadlineExtensionMs, Number(durationMs) || 0));
+      return {
+        extended: true,
+        totalDeadlineMs: mergedConfig.silenceToStopMs + silenceDeadlineExtensionMs,
+        reason,
+      };
+    }
+    return { extended: false, totalDeadlineMs: mergedConfig.silenceToStopMs, reason };
+  };
 
   const percentile = (values = [], target = 0.8) => {
     if (!values.length) return null;
@@ -82,10 +99,12 @@ export function createVoiceActivityStateMachine(config = {}) {
     speechCandidateStartedAt = null;
     calibrationSamples = [];
     noiseFloor = null;
+    resetSilenceExtension();
     return { state, event: 'vad_started' };
   };
 
   const stop = (nowMs = 0) => {
+    resetSilenceExtension();
     const metrics = {
       startedAt,
       speechStartedAt,
@@ -118,12 +137,14 @@ export function createVoiceActivityStateMachine(config = {}) {
       lastSpeechAt = nowMs;
       silenceStartedAt = null;
       state = 'user_speaking';
+      resetSilenceExtension();
       return { state, event: 'speech_start', metrics: buildMetrics({ speechStartedAt, confirmationMs }) };
     }
 
     if (speechStartedAt == null) {
       if (!isSpeech) speechCandidateStartedAt = null;
       if (nowMs - startedAt >= mergedConfig.preSpeechGraceMs) {
+        resetSilenceExtension();
         return { state, event: 'no_speech_timeout', metrics: buildMetrics({ waitedMs: nowMs - startedAt }) };
       }
       return { state, event: null };
@@ -134,6 +155,7 @@ export function createVoiceActivityStateMachine(config = {}) {
       silenceStartedAt = null;
       state = 'user_speaking';
       if (nowMs - speechStartedAt >= mergedConfig.maxAnswerMs) {
+        resetSilenceExtension();
         return {
           state,
           event: 'max_answer_timeout',
@@ -153,7 +175,10 @@ export function createVoiceActivityStateMachine(config = {}) {
       state = 'detecting_silence';
       const speechDurationMs = lastSpeechAt ? lastSpeechAt - speechStartedAt : nowMs - speechStartedAt;
       const silenceDurationMs = nowMs - silenceStartedAt;
-      if (speechDurationMs >= mergedConfig.minSpeechMs && silenceDurationMs >= mergedConfig.silenceToStopMs) {
+      const activeSilenceDeadlineMs = mergedConfig.silenceToStopMs + silenceDeadlineExtensionMs;
+
+      if (speechDurationMs >= mergedConfig.minSpeechMs && silenceDurationMs >= activeSilenceDeadlineMs) {
+        resetSilenceExtension();
         return {
           state,
           event: 'speech_end',
@@ -176,8 +201,9 @@ export function createVoiceActivityStateMachine(config = {}) {
     start,
     stop,
     update,
+    extendCurrentSilenceDeadline,
     getState: () => state,
-    getRuntimeMetrics: () => buildMetrics({ state }),
+    getRuntimeMetrics: () => buildMetrics({ state, silenceDeadlineExtensionMs }),
     config: mergedConfig,
   };
 }

@@ -8,6 +8,7 @@ import { buildSectionState, inferInterviewSection } from './sectionPlannerServic
 import { getSessionReflectionMemory } from './reflectionWriterService.js';
 import { getUserCoachingMemory } from './userCoachingMemoryService.js';
 import { buildInterviewTurnPolicy } from '../interview/interviewTurnPolicy.js';
+import { resolveQuestionAssessmentContract } from '../questions/questionAssessmentContractService.js';
 import {
   buildCompactEvidenceBundle,
   buildCompactRetrievalBundle,
@@ -306,6 +307,14 @@ export const buildDecisionContext = async ({
     dynamicSlotState,
     interviewStructure,
   }));
+  const assessmentContract = measureSyncContextStep(trace, diagnostics, 'assessment_contract_resolve', () => resolveQuestionAssessmentContract({
+    questionId: environment?.questionContext?.latestQuestionId || 'q_latest',
+    intent: environment?.questionContext?.latestQuestionIntent || 'technical_depth',
+    parentQuestionFamily: environment?.questionContext?.latestQuestionFamily || 'role_specific',
+    parentEvidenceMode: environment?.questionContext?.latestEvidenceMode || 'past_example',
+    requiredSignals: environment?.questionContext?.requiredSignals || [],
+    collectedSignals: resolvedAnswerUnderstanding?.collectedSignals || [],
+  }));
 
   if (!trace?.mark && taskType === 'interview_next_turn') {
     logger.info('Decision context diagnostic breakdown', {
@@ -325,6 +334,7 @@ export const buildDecisionContext = async ({
     currentObjective: taskType === 'generate_report' ? 'build_grounded_report' : `collect evidence for ${currentTopic}`,
     currentTopic,
     environment,
+    assessmentContract,
     evaluatorState: resolvedLatestEvaluation
       ? {
         successStatus: resolvedLatestEvaluation.successStatus,

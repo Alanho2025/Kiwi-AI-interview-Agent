@@ -29,6 +29,45 @@ const TECHNOLOGY_ALIASES = new Map([
   ['apple', ['apple', 'ios', 'safari', 'macos']],
 ]);
 
+export const EQUIVALENT_TECHNOLOGY_CLUSTERS = new Map([
+  ['frontend_ui_framework', ['react', 'svelte', 'vue', 'angular', 'next.js', 'nuxt']],
+  ['relational_db', ['postgresql', 'mysql', 'sqlite', 'oracle', 'sqlserver', 'mariadb']],
+  ['nosql_db', ['mongodb', 'dynamodb', 'cassandra', 'couchdb']],
+  ['backend_runtime', ['node.js', 'express', 'fastify', 'python', 'django', 'fastapi', 'go', 'java', 'spring']],
+  ['message_broker', ['kafka', 'rabbitmq', 'sqs', 'pubsub', 'redis']],
+]);
+
+export const classifyTechnologyMatch = ({
+  targetTech = '',
+  mentionedTechs = [],
+  hasStarStructure = false,
+} = {}) => {
+  const normTarget = normalizeKey(targetTech);
+  const normMentioned = (mentionedTechs || []).map((t) => normalizeKey(t));
+
+  if (!normTarget) {
+    return { matchType: 'NO_RELEVANT_EVIDENCE', cluster: null };
+  }
+
+  if (normMentioned.includes(normTarget)) {
+    return { matchType: 'EXACT_MATCH', cluster: null };
+  }
+
+  for (const [clusterName, techList] of EQUIVALENT_TECHNOLOGY_CLUSTERS.entries()) {
+    if (techList.includes(normTarget)) {
+      const hasEquivalent = normMentioned.some((m) => techList.includes(m));
+      if (hasEquivalent) {
+        return {
+          matchType: hasStarStructure ? 'TRANSFERABLE_EVIDENCE' : 'PARTIAL_TRANSFER',
+          cluster: clusterName,
+        };
+      }
+    }
+  }
+
+  return { matchType: 'NO_RELEVANT_EVIDENCE', cluster: null };
+};
+
 const OWNERSHIP_VERBS = [
   'built', 'build', 'designed', 'implemented', 'implement', 'led', 'lead', 'owned', 'own',
   'debugged', 'debug', 'fixed', 'fix', 'deployed', 'deploy', 'created', 'create',

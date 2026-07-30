@@ -276,7 +276,9 @@ export const selectNextAction = (decisionContext = {}) => {
     && interviewStructure.forceCategory === 'technical'
     && !interviewStructure.mustBeFreshQuestion
     && !evaluatorState.misunderstandingFlag
-    && evaluatorState.suggestedNextMode !== 'rephrase';
+    && evaluatorState.suggestedNextMode !== 'rephrase'
+    && evaluatorState.suggestedNextMode !== 'deepen'
+    && evaluatorState.suggestedNextMode !== 'probe';
 
   if (requiresTechnicalRecovery) {
     return finalizePlan({
@@ -288,7 +290,7 @@ export const selectNextAction = (decisionContext = {}) => {
     });
   }
 
-  if (interviewStructure.mustBeFreshQuestion) {
+  if (interviewStructure.mustBeFreshQuestion && evaluatorState.suggestedNextMode !== 'deepen') {
     return finalizePlan({
       selectedAction: AGENT_ACTION_TYPES.ASK_POOL_QUESTION,
       rationale: `Turn ${interviewStructure.nextTurnIndex} is a fresh-question anchor, so the controller must open a new topic instead of extending the previous chain.`,
@@ -303,18 +305,43 @@ export const selectNextAction = (decisionContext = {}) => {
     });
   }
 
-  if (evaluatorState.closeCurrentIntent || interviewStructure.currentTopicState?.exhausted) {
+  const assessmentContract = decisionContext.assessmentContract || evaluatorState.assessmentContract || {};
+  const isAssessmentSatisfied = (
+    assessmentContract.satisfactionStatus === 'satisfied' ||
+    (Array.isArray(assessmentContract.missingSignals) && assessmentContract.missingSignals.length === 0 && Array.isArray(assessmentContract.requiredSignals) && assessmentContract.requiredSignals.length > 0)
+  ) && evaluatorState.suggestedNextMode !== 'deepen';
+  const isDeepenOrProbeNeeded = evaluatorState.suggestedNextMode === 'deepen' || evaluatorState.suggestedNextMode === 'probe';
+
+  if (!isDeepenOrProbeNeeded && (isAssessmentSatisfied || evaluatorState.closeCurrentIntent || interviewStructure.currentTopicState?.exhausted)) {
     return finalizePlan({
-      selectedAction: AGENT_ACTION_TYPES.ASK_POOL_QUESTION,
-      rationale: 'The current topic is already sufficiently covered or has reached the follow-up limit, so the controller should move to the next fresh question.',
-      confidence: 0.9,
+      selectedAction: AGENT_ACTION_TYPES.SWITCH_TOPIC,
+      rationale: isAssessmentSatisfied
+        ? 'The assessment contract is fully satisfied (missingSignals length is 0), so the controller executes an early topic close.'
+        : 'The current topic is already sufficiently covered or has reached the follow-up limit, so the controller should move to the next fresh question.',
+      confidence: 0.92,
       actionInput: {
         targetTopic: interviewStructure.forceCategory || coverageState.missingTopics?.[0] || targetTopic,
-        probeType: 'close_topic',
+        probeType: isAssessmentSatisfied ? 'early_topic_close_satisfied' : 'close_topic',
         forceEvidence: false,
         freshOnly: true,
         category: interviewStructure.forceCategory || null,
       },
+    });
+  }
+
+  if (evaluatorState.candidateDenial || evaluatorState.evidenceStatus === 'EXPLICIT_NO_EXPERIENCE') {
+    return finalizePlan({
+      selectedAction: AGENT_ACTION_TYPES.SWITCH_TOPIC,
+      rationale: 'The candidate explicitly denied experience on this topic (candidate_denial / EXPLICIT_NO_EXPERIENCE), so the controller executes a fast pivot to preserve candidate experience.',
+      confidence: 0.93,
+      actionInput: {
+        targetTopic: coverageState.missingTopics?.[0] || 'next_topic',
+        probeType: 'candidate_denial_fast_pivot',
+        forceEvidence: false,
+        freshOnly: true,
+        category: interviewStructure.forceCategory || null,
+      },
+      allowModelSelection: false,
     });
   }
 
@@ -435,7 +462,7 @@ export const selectNextAction = (decisionContext = {}) => {
     && !evaluatorState.misunderstandingFlag
     && (evaluatorState.successStatus === 'usable' || evaluatorState.evidenceGainScore >= 0.35 || Number(interviewStructure.currentTopicState?.followUpCount || 0) >= 1);
 
-  if ((shouldTriggerStressInHighPressure || (isTooPerfect && stressLevel !== 'supportive')) && !isFinalPlannedTurn) {
+  if ((shouldTriggerStressInHighPressure || (isTooPerfect && stressLevel !== 'supportive')) && !isFinalPlannedTurn && evaluatorState.suggestedNextMode !== 'deepen') {
     const selectedAction = stressLevel === 'high_pressure'
       ? (focusAreaKey === 'behavioral' ? AGENT_ACTION_TYPES.PROBE_FRICTION : AGENT_ACTION_TYPES.PROBE_STRESS)
       : AGENT_ACTION_TYPES.PROBE_TRADE_OFF;
@@ -457,6 +484,15 @@ export const selectNextAction = (decisionContext = {}) => {
     ]);
   }
 
+  if (evaluatorState.suggestedNextMode === 'deepen') {
+    return finalizePlan({
+      selectedAction: AGENT_ACTION_TYPES.ASK_DEEP_DIVE_QUESTION,
+      rationale: 'The answer was usable but still partial, so a deeper follow-up should gather stronger evidence on the same topic.',
+      confidence: 0.92,
+      actionInput: { targetTopic, probeType: 'deepen', forceEvidence: true },
+    });
+  }
+
   if (abductiveState.shouldProbe) {
     if (focusAreaKey === 'behavioral') {
       return finalizePlan({
@@ -471,15 +507,6 @@ export const selectNextAction = (decisionContext = {}) => {
       rationale: `A hidden gap was inferred (${abductiveState.hiddenGap}), so the controller should probe it directly before moving on.`,
       confidence: 0.84,
       actionInput: { targetTopic: abductiveState.probeTopic || targetTopic, probeType: 'abductive_probe', forceEvidence: true },
-    });
-  }
-
-  if (evaluatorState.suggestedNextMode === 'deepen') {
-    return finalizePlan({
-      selectedAction: AGENT_ACTION_TYPES.ASK_DEEP_DIVE_QUESTION,
-      rationale: 'The answer was usable but still partial, so a deeper follow-up should gather stronger evidence on the same topic.',
-      confidence: 0.82,
-      actionInput: { targetTopic, probeType: 'deepen', forceEvidence: true },
     });
   }
 

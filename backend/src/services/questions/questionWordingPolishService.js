@@ -8,6 +8,24 @@ const ensureQuestionMark = (text = '') => {
 
 const replaceCaseInsensitive = (text = '', pattern, replacement) => String(text || '').replace(pattern, replacement);
 
+export const compactSpokenJDRequirement = (text = '') => {
+  let clean = normalizeWhitespace(text);
+  if (!clean) return '';
+
+  // Detect verbose multi-clause JD lead-in headers (e.g. "Tell me about one example that shows your evidence for Strong communication skills...")
+  if (/^Tell me about (?:one|an?) (?:example|time) that shows your evidence for/i.test(clean)) {
+    if (/translate technical concepts/i.test(clean) || (/communication/i.test(clean) && /stakeholder|non-technical|business/i.test(clean))) {
+      clean = 'Tell me about a time you translated complex technical concepts for non-technical stakeholders or senior leadership. What was your approach, and what was the result?';
+    } else if (/automation/i.test(clean) || /workflow/i.test(clean)) {
+      clean = 'Tell me about a concrete example where you used automation. What decision or trade-off did you handle yourself?';
+    } else if (/stakeholder|client|customer/i.test(clean)) {
+      clean = 'Tell me about a real example where you aligned with non-technical stakeholders to deliver a feature. What was the outcome?';
+    }
+  }
+
+  return ensureQuestionMark(clean);
+};
+
 export const polishQuestionWording = (text = '') => {
   let next = normalizeWhitespace(text);
   if (!next) return '';
@@ -41,6 +59,8 @@ export const polishQuestionWording = (text = '') => {
     /\bshowed leadership\b/gi,
     'helped guide a team decision'
   );
+
+  next = compactSpokenJDRequirement(next);
 
   return ensureQuestionMark(next);
 };
