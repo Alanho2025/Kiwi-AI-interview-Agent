@@ -2,6 +2,7 @@ import { AGENT_ACTION_TYPES } from '../../constants/agentActionTypes.js';
 import { ensureArray, normalizeText, tokenize } from '../../utils/commonHelpers.js';
 import { getNextPoolQuestion } from '../interviewStateService.js';
 import { buildSafeSpokenQuestion } from '../questions/interviewMicroPlanningService.js';
+import { REAL_WORLD_CLARIFICATION_PATTERNS } from '../../config/realWorldInterviewPatterns.js';
 
 const ELIGIBLE_AMBIGUITY_MODES = new Set(['bounded_scenario', 'open_scope_probe']);
 const ASSUMPTION_PATTERN = /^(?:for this answer[, ]+)?(?:i(?:'|’)?ll|i will|let me)\s+assume\b/i;
@@ -231,20 +232,41 @@ const safePreparedQuestionText = (question = {}) => buildSafeSpokenQuestion({
   deliveryMode: 'voice',
 }).question;
 
-const candidateSafeTopic = (activeQuestion = {}) => {
-  const topic = normalizeText(activeQuestion?.metadata?.topic);
-  if (
-    !topic
-    || tokenize(topic).length > 8
-    || /\b(?:evidence|gap|coverage|score|risk|rubric|requirement)\b/i.test(topic)
-  ) {
-    return 'one relevant example from your experience';
+const extractTargetSkillFromQuestion = (activeQuestion = {}) => {
+  const metadata = activeQuestion?.metadata || {};
+  const topic = normalizeText(metadata.topic || activeQuestion?.topic);
+  if (topic && tokenize(topic).length <= 6 && !/\b(?:evidence|gap|coverage|score|risk|rubric|requirement|match_gap)\b/i.test(topic)) {
+    return topic;
   }
-  return `one relevant example involving ${topic}`;
+  const matchedSkill = metadata.matchedSkill || metadata.requirement || metadata.category;
+  if (matchedSkill && typeof matchedSkill === 'string' && !/\b(?:evidence|gap|requirement)\b/i.test(matchedSkill)) {
+    return matchedSkill;
+  }
+  const questionText = normalizeText(activeQuestion?.text || metadata.fallbackText);
+  const match = questionText.match(/\b(?:for|around|with|in|using|about)\s+([A-Za-z0-9+#.\- ]{2,30}?)(?=\s*(?:\?|\.|,|$|what|how))/i);
+  if (match?.[1]) {
+    const candidate = match[1].trim();
+    if (!/\b(evidence|gap|requirement|experience|role|study|coursework)\b/i.test(candidate)) {
+      return candidate;
+    }
+  }
+  return null;
+};
+
+const candidateSafeTopic = (activeQuestion = {}) => {
+  const skill = extractTargetSkillFromQuestion(activeQuestion);
+  if (skill) {
+    return `your experience with ${skill}`;
+  }
+  return 'one relevant example from your experience';
 };
 
 const buildGeneralClarificationResponse = ({ intentType, activeQuestion }) => {
   const question = candidateSafeQuestionText(activeQuestion);
+  const skill = extractTargetSkillFromQuestion(activeQuestion);
+  if (REAL_WORLD_CLARIFICATION_PATTERNS[intentType]) {
+    return REAL_WORLD_CLARIFICATION_PATTERNS[intentType](skill);
+  }
   if (intentType === 'request_repeat') return `Of course. The question is: ${question}`;
   if (intentType === 'request_slower_delivery') return `Of course. I will say it more slowly: ${question}`;
   if (intentType === 'ask_example_type') return GENERIC_EXAMPLE_RESPONSE;
@@ -264,6 +286,9 @@ const buildGeneralClarificationResponse = ({ intentType, activeQuestion }) => {
     return 'Use the scope most relevant to your experience. State that scope briefly, then explain what you did and the result.';
   }
   if (intentType === 'ask_question_meaning') {
+    if (skill) {
+      return `I am asking about your experience with ${skill}. What is one practical example of what you personally did and the result?`;
+    }
     return `It is asking for ${candidateSafeTopic(activeQuestion)}, including what you personally did and what happened.`;
   }
   if (intentType === 'request_rephrase') {

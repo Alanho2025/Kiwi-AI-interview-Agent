@@ -31,10 +31,10 @@ describe('nzWorkplaceFitService', () => {
                 expect(result.suggestedRewrite).toBe(null);
             });
 
-            it('should return disabled when settings are missing', () => {
+            it('should return enabled by default when settings are missing', () => {
                 const session = {};
                 const result = buildNzWorkplaceFit({ session });
-                expect(result.enabled).toBe(false);
+                expect(result.enabled).toBe(true);
             });
         });
 
@@ -507,7 +507,7 @@ describe('nzWorkplaceFitService', () => {
         describe('edge cases', () => {
             it('should handle null session', () => {
                 const result = buildNzWorkplaceFit({ session: null });
-                expect(result.enabled).toBe(false);
+                expect(result.enabled).toBe(true);
             });
 
             it('should handle undefined transcript', () => {

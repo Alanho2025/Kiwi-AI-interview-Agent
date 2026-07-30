@@ -120,7 +120,7 @@ describe('questionPoolComposerService', () => {
 
     const gapQuestion = pool.find((item) => item.sourceStage === 'match_gap');
     expect(gapQuestion?.text).toBe(
-      'Can you describe a relevant example involving this area of the role, including what you personally owned?',
+      'Can you describe a relevant example involving this role, including what you personally owned?',
     );
     expect(gapQuestion?.text).not.toContain(internalGapSummary);
     expect(gapQuestion?.metadata?.gap?.summary).toBe(internalGapSummary);

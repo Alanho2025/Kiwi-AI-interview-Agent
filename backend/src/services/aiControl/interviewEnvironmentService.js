@@ -11,6 +11,7 @@ const buildQuestionContext = (session = {}) => {
     latestQuestionTopic: latestAiTurn?.metadata?.topic || 'self_intro',
     previousQuestionTopics: previousAiTurns.map((turn) => turn.metadata?.topic).filter(Boolean),
     previousQuestionStages: previousAiTurns.map((turn) => turn.metadata?.stage).filter(Boolean),
+    stressLevel: session.settings?.stressLevel || 'standard',
   };
 };
 
@@ -56,7 +57,7 @@ const buildCoverageContext = (session = {}) => {
 
 const buildNzCultureContext = (session = {}) => {
   const settings = session.settings || {};
-  if (!settings.enableNZCultureFit) return null;
+  if (settings.enableNZCultureFit === false) return null;
 
   const hints = session.analysisResult?.matchingDetails?.questionPlanHints || {};
   const nzQuestions = ensureArray(hints.nzCultureQuestions);

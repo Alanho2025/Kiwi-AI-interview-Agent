@@ -26,6 +26,7 @@ export const FOLLOW_UP_SCENARIOS = new Set([
   'follow_up_constraint',
   'follow_up_reflection',
   'follow_up_behavioural_action',
+  'follow_up_teamwork',
 ]);
 
 export const REPAIR_SCENARIOS = new Set([
@@ -43,6 +44,7 @@ const FOLLOW_UP_ACTIONS = new Set([
   AGENT_ACTION_TYPES.ASK_ABDUCTIVE_PROBE_QUESTION,
   AGENT_ACTION_TYPES.PROBE_STRESS,
   AGENT_ACTION_TYPES.PROBE_FRICTION,
+  AGENT_ACTION_TYPES.PROBE_TRADE_OFF,
 ]);
 
 const ROOT_ACTIONS = new Set([
@@ -82,6 +84,7 @@ const followUpIntentForScenario = (scenario = '') => ({
   follow_up_constraint: 'constraint',
   follow_up_reflection: 'reflection',
   follow_up_behavioural_action: 'behavioural_action',
+  follow_up_teamwork: 'teamwork',
 }[scenario] || 'clarification');
 
 export const buildCheapAnswerSignals = ({ answerText = '', session = {} } = {}) => {
@@ -93,10 +96,15 @@ export const buildCheapAnswerSignals = ({ answerText = '', session = {} } = {}) 
     .filter(Boolean)
     .filter((title) => lower.includes(title.toLowerCase()));
   const technologyMentions = unique(tokens.filter((token) => /^(react|node|express|python|java|sql|postgresql|mongodb|azure|aws|api|websocket|typescript|javascript)$/.test(token)));
+  
+  const hasTeamwork = /\b(team|teammate|colleague|stakeholder|designer|product owner|manager|collaborat|paired|reviewed|aligned|shared goal|handoff|checked with)\b/i.test(text);
+  const soloHeroicsRisk = /\b(i did everything|all by myself|full system myself|without anyone|only me)\b/i.test(text);
+
   const missingEvidence = [
     !/\b(i|my|personally|owned|led|built|implemented|designed|decided)\b/i.test(text) ? 'personal_ownership' : null,
     !/\b(result|impact|improved|reduced|increased|measured|validated|tested|deployed)\b/i.test(text) ? 'result_or_validation' : null,
     !/\b(tradeoff|constraint|challenge|failure|blocked|hard|risk)\b/i.test(text) ? 'tradeoff_or_constraint' : null,
+    (soloHeroicsRisk || (tokens.length >= 35 && !hasTeamwork)) ? 'teamwork_or_collaboration' : null,
   ].filter(Boolean);
 
   return {
@@ -107,6 +115,8 @@ export const buildCheapAnswerSignals = ({ answerText = '', session = {} } = {}) 
     mentionedProjects,
     technologyMentions,
     missingEvidence,
+    soloHeroicsRisk,
+    hasTeamwork,
   };
 };
 
@@ -143,6 +153,8 @@ const scenarioForFollowUp = ({ actionType, answerSignals, actionInput = {}, deci
   const missing = answerSignals.missingEvidence;
   if (actionType === AGENT_ACTION_TYPES.PROBE_FRICTION || probeType.includes('failure')) return 'follow_up_failure';
   if (actionType === AGENT_ACTION_TYPES.PROBE_STRESS || probeType.includes('constraint')) return 'follow_up_constraint';
+  if (actionType === AGENT_ACTION_TYPES.PROBE_TRADE_OFF || probeType.includes('tradeoff')) return 'follow_up_tradeoff';
+  if (missing.includes('teamwork_or_collaboration') || answerSignals.soloHeroicsRisk) return 'follow_up_teamwork';
   if (probeType.includes('validation') || missing.includes('result_or_validation')) return 'follow_up_validation';
   if (probeType.includes('tradeoff') || missing.includes('tradeoff_or_constraint')) return 'follow_up_tradeoff';
   if (normalizeMode(decisionContext?.interviewStructure?.focusAreaKey) === 'behavioural') return 'follow_up_behavioural_action';

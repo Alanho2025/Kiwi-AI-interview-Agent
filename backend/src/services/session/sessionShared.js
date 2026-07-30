@@ -45,6 +45,13 @@ export {
   extractDisplayTitle,
 };
 
+export const normalizeStressLevelKey = (value = 'standard') => {
+  const normalized = String(value || 'standard').trim().toLowerCase();
+  if (['supportive', 'gentle', 'coaching'].includes(normalized)) return 'supportive';
+  if (['high_pressure', 'high', 'stress', 'hardcore', 'hard'].includes(normalized)) return 'high_pressure';
+  return 'standard';
+};
+
 export const mapSessionRow = (row) => ({
   id: row.id,
   userId: row.user_id,
@@ -78,6 +85,7 @@ export const mapSessionRow = (row) => ({
     timeLimitSeconds: row.time_limit_seconds || null,
     timeLimitMinutes: row.time_limit_seconds ? Math.round(Number(row.time_limit_seconds) / 60) : null,
     enableNZCultureFit: row.enable_nz_culture_fit,
+    stressLevel: normalizeStressLevelKey(row.stress_level || row.settings?.stressLevel || 'standard'),
   },
 });
 

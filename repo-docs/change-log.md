@@ -1,5 +1,14 @@
 # Change Log
 
+## [2026-07-30 21:24 NZST] Kiwi Workplace Culture Interviewer Alignment & Default Coaching
+
+### Changed / Added
+
+- Updated `nzWorkplaceFitService.js`, `interviewEnvironmentService.js`, and `questionPlanService.js`: made NZ Workplace Culture Coaching active by default (`enableNZCultureFit !== false`), ensuring candidate interviews naturally evaluate Kiwi communication dimensions (humility with confidence, teamwork, open communication, manaakitanga) without requiring manual opt-in.
+- Updated `interviewTurnOrchestratorService.js`: added `teamwork_or_collaboration` and `solo_heroics_risk` signal detection to `buildCheapAnswerSignals`. Added `follow_up_teamwork` scenario so answers with solo heroics or missing collaboration trigger Kiwi stakeholder/team alignment probing.
+- Added unit test in `interviewTurnOrchestratorService.test.js` verifying solo heroics detection and `follow_up_teamwork` scenario selection.
+- Verified Vitest tests (50 tests across orchestrator, NZ workplace fit, and report suites) and ESLint passed with 0 errors.
+
 ## [2026-07-30 21:08 NZST] Report coaching answer rewrite identity matching repair
 
 ### Changed / Added

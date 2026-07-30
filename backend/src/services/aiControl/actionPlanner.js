@@ -421,20 +421,39 @@ export const selectNextAction = (decisionContext = {}) => {
     });
   }
 
+  const stressLevel = decisionContext.questionContext?.stressLevel
+    || decisionContext.interviewStructure?.stressLevel
+    || decisionContext.sessionSettings?.stressLevel
+    || 'standard';
+
   const isTooPerfect = evaluatorState.successStatus === 'usable'
     && evaluatorState.evidenceGainScore >= 0.65
     && (evaluatorState.frictionState?.frictionLevel === 'low' || !evaluatorState.frictionState?.frictionDetected);
 
-  if (isTooPerfect && !isFinalPlannedTurn) {
-    const useFriction = focusAreaKey === 'behavioral' || Math.random() > 0.5;
+  const shouldTriggerStressInHighPressure = stressLevel === 'high_pressure'
+    && !isFinalPlannedTurn
+    && !evaluatorState.misunderstandingFlag
+    && (evaluatorState.successStatus === 'usable' || evaluatorState.evidenceGainScore >= 0.35 || Number(interviewStructure.currentTopicState?.followUpCount || 0) >= 1);
+
+  if ((shouldTriggerStressInHighPressure || (isTooPerfect && stressLevel !== 'supportive')) && !isFinalPlannedTurn) {
+    const selectedAction = stressLevel === 'high_pressure'
+      ? (focusAreaKey === 'behavioral' ? AGENT_ACTION_TYPES.PROBE_FRICTION : AGENT_ACTION_TYPES.PROBE_STRESS)
+      : AGENT_ACTION_TYPES.PROBE_TRADE_OFF;
+    const probeType = selectedAction === AGENT_ACTION_TYPES.PROBE_FRICTION
+      ? 'failure_analysis'
+      : selectedAction === AGENT_ACTION_TYPES.PROBE_STRESS
+        ? 'constraint_test'
+        : 'tradeoff_analysis';
     return finalizePlan({
-      selectedAction: useFriction ? AGENT_ACTION_TYPES.PROBE_FRICTION : AGENT_ACTION_TYPES.PROBE_STRESS,
-      rationale: isTooPerfect ? 'The answer was very smooth but lacked real-world friction/stress. Probing boundaries now.' : 'Deepening the conversation.',
-      confidence: 0.88,
-      actionInput: { targetTopic, probeType: useFriction ? 'failure_analysis' : 'constraint_test', forceEvidence: true },
+      selectedAction,
+      rationale: stressLevel === 'high_pressure'
+        ? 'High-pressure stress level mode active: probing technical tradeoffs and architecture limits.'
+        : 'The answer was smooth; probing organic technical trade-offs and decision limitations.',
+      confidence: 0.91,
+      actionInput: { targetTopic, probeType, forceEvidence: true },
     }, [
-      buildCandidateAction(useFriction ? AGENT_ACTION_TYPES.PROBE_FRICTION : AGENT_ACTION_TYPES.PROBE_STRESS, 0.88, 'The answer was smooth but needs friction or stress evidence.', ['friction', 'constraints'], 'low', { targetTopic, probeType: useFriction ? 'failure_analysis' : 'constraint_test', forceEvidence: true }),
-      buildCandidateAction(AGENT_ACTION_TYPES.ASK_DEEP_DIVE_QUESTION, 0.64, 'A deep dive can still test decision quality without forcing a stress scenario.', ['decision_quality', 'validation_method'], 'low', { targetTopic, probeType: 'deepen', forceEvidence: true }),
+      buildCandidateAction(selectedAction, 0.91, 'Probing technical constraints and trade-offs.', ['friction', 'constraints'], 'high', { targetTopic, probeType, forceEvidence: true }),
+      buildCandidateAction(AGENT_ACTION_TYPES.ASK_DEEP_DIVE_QUESTION, 0.70, 'A deep dive can test decision quality.', ['decision_quality', 'validation_method'], 'low', { targetTopic, probeType: 'deepen', forceEvidence: true }),
     ]);
   }
 

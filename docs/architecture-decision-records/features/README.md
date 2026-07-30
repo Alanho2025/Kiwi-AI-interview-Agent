@@ -44,6 +44,8 @@
 * 📄 [F-25-star-rubric-evidence-bundling.md](./F-25-star-rubric-evidence-bundling.md) - F-25 STAR 法則規準打分與原文 Evidence 打包
 * 📄 [F-26-model-action-selection-audit-log.md](./F-26-model-action-selection-audit-log.md) - F-26 模型 Action 決策與 Auditing 日誌鏈
 * 📄 [F-63-master-ai-controller-agent.md](./F-63-master-ai-controller-agent.md) - F-63 Master AI 控制器 Agent
+* 📄 [F-73-interview-stress-level-mode.md](./F-73-interview-stress-level-mode.md) - F-73 面試壓力模式 (Supportive vs Standard vs High-Pressure)
+* 📄 [F-74-context-aware-interviewer-dialogue-and-tradeoff-probing.md](./F-74-context-aware-interviewer-dialogue-and-tradeoff-probing.md) - F-74 語境自然化對白、紐西蘭團隊文化追問與情境式有機 Trade-off 追問
 
 ### 🟢 領域六：語音、多模態與全雙工 (Voice & Audio Processing)
 * 📄 [F-27-text-interview-chat-workspace.md](./F-27-text-interview-chat-workspace.md) - F-27 純文字面試模式與 Workspace 互動介面
@@ -54,6 +56,7 @@
 * 📄 [F-32-repair-prompt-system-notification.md](./F-32-repair-prompt-system-notification.md) - F-32 修復提示與系統通知隔離保護
 * 📄 [F-33-voice-audio-buffer-latency.md](./F-33-voice-audio-buffer-latency.md) - F-33 語音首包音訊 Buffer 與 3s 延遲優化
 * 📄 [F-61-realtime-voice-duplex-agent.md](./F-61-realtime-voice-duplex-agent.md) - F-61 全雙工語音 Agent
+* 📄 [F-72-candidate-answer-stt-calibration.md](./F-72-candidate-answer-stt-calibration.md) - F-72 候選人回答側轉寫校準與精準度優化
 
 ### 🟢 領域七：報告、評估與復盤 (Reports & Coaching)
 * 📄 [F-34-report-generation-pipeline.md](./F-34-report-generation-pipeline.md) - F-34 面試評估報告與輔導生成管線

@@ -34,6 +34,17 @@ export const SAFE_REPLACEMENTS = [
     [/\bby coding\b/gi, 'vibe coding'],
     [/\bproper engineering\b/gi, 'prompt engineering'],
     [/\btext driven(?: development)?\b/gi, 'test-driven development'],
+    [/\bweb\s*(?:sunkit|circuit|site\s*kit)\b/gi, 'WebSocket'],
+    [/\btypes\s*javascript\b/gi, 'TypeScript'],
+    [/\blan\s*chen\b/gi, 'LangChain'],
+    [/\bhardness\s*engines?\b/gi, 'harness engines'],
+    [/\bnon\s*type\s*people\b/gi, 'non-tech people'],
+    [/\bmpn\s*run\s*build\b/gi, 'npm run build'],
+    [/\bc\s*oc\s*id\b/gi, 'CI/CD'],
+    [/\bsql\s*manager\b/gi, 'Secrets Manager'],
+    [/\bmerge\s*to\s*the\s*man\b/gi, 'merge to main'],
+    [/\bair\s*engine\b/gi, 'AI engine'],
+    [/\bsee\s*the\s*j\s*the\s*online\b/gi, 'see the JD online'],
 ];
 
 // Made with Bob

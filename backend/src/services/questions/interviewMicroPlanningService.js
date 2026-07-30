@@ -47,8 +47,29 @@ const hasRubricStyleQuestion = (text = '') =>
 const hasInternalAssessmentPreamble = (text = '') =>
   INTERNAL_ASSESSMENT_PATTERNS.some((pattern) => pattern.test(String(text || '')));
 
-const GENERIC_REQUIREMENT_QUESTION =
-  'Can you give me one practical example that shows your experience with this requirement?';
+const extractTopicFromFrame = (planningFrame = {}, questionText = '') => {
+  const topic = planningFrame.targetTopic || planningFrame.topic || planningFrame.matchedSkill;
+  if (topic && typeof topic === 'string' && !/\b(evidence|gap|requirement|match_gap)\b/i.test(topic)) {
+    return topic;
+  }
+  const cleanText = normalizeText(questionText);
+  const match = cleanText.match(/\b(?:around|for|with|in|using|about)\s+([A-Za-z0-9+#.\- ]{2,35}?)(?=\s*(?:\?|\.|,|$|what|how))/i);
+  if (match?.[1]) {
+    const candidate = match[1].trim();
+    if (!/\b(evidence|gap|requirement|experience|role|study)\b/i.test(candidate)) {
+      return candidate;
+    }
+  }
+  return null;
+};
+
+const buildSafeRequirementQuestion = ({ question = '', fallbackQuestion = '', planningFrame = {} } = {}) => {
+  const extractedTopic = extractTopicFromFrame(planningFrame, `${question} ${fallbackQuestion}`);
+  if (extractedTopic) {
+    return `Can you give me one practical example that shows your experience with ${extractedTopic}?`;
+  }
+  return 'Can you give me one practical example from your experience for this role?';
+};
 
 const naturalizeRubricStyleQuestion = ({
   question = '',
@@ -56,13 +77,14 @@ const naturalizeRubricStyleQuestion = ({
   planningFrame = {},
 } = {}) => {
   const polishedQuestion = polishQuestionWording(question || fallbackQuestion);
+  const genericQuestion = buildSafeRequirementQuestion({ question: polishedQuestion, fallbackQuestion, planningFrame });
   if (hasInternalAssessmentPreamble(polishedQuestion)) {
     const safeFallback = polishQuestionWording(fallbackQuestion);
     const fallbackIsSafe = safeFallback
       && !hasInternalAssessmentPreamble(safeFallback)
       && !hasRubricStyleQuestion(safeFallback);
     return {
-      question: fallbackIsSafe ? safeFallback : GENERIC_REQUIREMENT_QUESTION,
+      question: fallbackIsSafe ? safeFallback : genericQuestion,
       riskFlags: ['internal_assessment_preamble_rewritten'],
     };
   }
@@ -73,7 +95,7 @@ const naturalizeRubricStyleQuestion = ({
       && !hasInternalAssessmentPreamble(safeFallback)
       && !hasRubricStyleQuestion(safeFallback);
     return {
-      question: boundedFallback ? safeFallback : GENERIC_REQUIREMENT_QUESTION,
+      question: boundedFallback ? safeFallback : genericQuestion,
       riskFlags: ['overlong_spoken_question_rewritten'],
     };
   }
@@ -129,7 +151,7 @@ const naturalizeRubricStyleQuestion = ({
   }
 
   return {
-    question: GENERIC_REQUIREMENT_QUESTION,
+    question: genericQuestion,
     riskFlags: ['rubric_style_question_rewritten', 'generic_requirement_reworded'],
   };
 };

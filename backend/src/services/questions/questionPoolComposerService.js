@@ -8,6 +8,7 @@ import { getJdQuestionFilter } from './jdQuestionFilterService.js';
 import { buildAssessmentKey, buildQuestionFingerprint } from './questionDeduplicationService.js';
 import { buildRoleFitQuestionPool } from './roleSpecificPracticePlannerService.js';
 import { buildCatalogQuestionSnapshots } from './questionCatalogSelectionService.js';
+import { isJobDescriptionSectionHeading } from '../jobDescription/jobDescriptionSectionHeadingGuard.js';
 import {
   buildModeCompatibility,
   clampWeight,
@@ -213,7 +214,10 @@ const mapSeedQuestion = (seed, decision, context) => {
 };
 
 const buildRequirementItems = (analysisResult, context) => ensureArray(analysisResult?.requirementChecks)
-  .filter((item) => item?.requirement || item?.label || item?.skill)
+  .filter((item) => {
+    const topic = item?.requirement || item?.label || item?.skill;
+    return Boolean(topic && !isJobDescriptionSectionHeading(topic));
+  })
   .slice(0, 6)
   .map((requirement) => {
     const topic = requirement.requirement || requirement.label || requirement.skill;
@@ -241,11 +245,15 @@ const buildRequirementItems = (analysisResult, context) => ensureArray(analysisR
 const INTERNAL_GAP_LANGUAGE = /\b(?:limited|missing|insufficient)\s+(?:direct\s+)?evidence\b|\b(?:possible|match)\s+gap\b|\b(?:coverage|score|risk|requirement)\b/i;
 
 const resolveVoiceGapTopic = (gap = {}) => {
-  if (!gap || typeof gap !== 'object') return 'this area of the role';
+  if (!gap || typeof gap !== 'object') return 'this role';
+  const skill = gap.requirement || gap.matchedSkill || gap.skill || gap.category;
+  if (skill && typeof skill === 'string' && !INTERNAL_GAP_LANGUAGE.test(skill)) {
+    return skill;
+  }
   const candidate = normalizeText(gap.topic || gap.label);
   const words = candidate.split(/\s+/).filter(Boolean);
   if (!candidate || words.length > 8 || candidate.length > 72 || INTERNAL_GAP_LANGUAGE.test(candidate)) {
-    return 'this area of the role';
+    return 'this role';
   }
   return candidate;
 };

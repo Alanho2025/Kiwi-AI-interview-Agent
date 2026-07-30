@@ -1,3 +1,5 @@
+import { lookupRealWorldTradeOff } from '../../config/realWorldInterviewPatterns.js';
+
 export const normalizeText = (value = '') => String(value || '').trim();
 export const tokenize = (value = '') => normalizeText(value).toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
 export const getLastUserAnswer = (transcript = []) => [...transcript].reverse().find((turn) => turn.role === 'user')?.text || '';
@@ -232,16 +234,22 @@ export const inferEvidenceTypeHint = (question = {}) => {
   return 'adjacent_experience';
 };
 
-export const buildProbingQuestion = ({ targetTopic = 'project' } = {}) => ({
-  type: 'probing_follow_up',
-  stage: 'technical_probe',
-  topic: targetTopic,
-  category: 'technical',
-  followUpDepth: 1,
-  text: 'What did you personally do in that example?',
-  reason: 'A probing question is needed to collect one concrete example before moving on.',
-  sourceType: 'controller_directed',
-});
+export const buildProbingQuestion = ({ targetTopic = 'project', candidateText = '' } = {}) => {
+  const hasTeamworkReference = /\b(we|our team|together|cooperated|collaborated)\b/i.test(candidateText);
+  const text = hasTeamworkReference
+    ? 'That sounds like a great team effort! What was your specific piece of the puzzle there, and what did you personally build or design?'
+    : 'What did you personally own and build in that example?';
+  return {
+    type: 'probing_follow_up',
+    stage: 'technical_probe',
+    topic: targetTopic,
+    category: 'technical',
+    followUpDepth: 1,
+    text,
+    reason: 'Culturally nuanced probing for personal action and ownership.',
+    sourceType: 'controller_directed',
+  };
+};
 
 export const buildRephrasedQuestion = ({ targetTopic = 'project', environment = {} } = {}) => ({
   type: 'rephrased_follow_up',
@@ -265,6 +273,27 @@ export const buildDeepDiveQuestion = ({ targetTopic = 'project' } = {}) => ({
   sourceType: 'controller_directed',
 });
 
+export const buildProbeTradeOffQuestion = ({ targetTopic = 'technical_depth' } = {}) => {
+  const matchedPattern = lookupRealWorldTradeOff(targetTopic);
+  let text = matchedPattern?.tradeOffQuestion;
+  if (!text) {
+    const phrase = toCandidatePhrase(targetTopic);
+    text = phrase && phrase !== 'this area' && phrase !== 'this role'
+      ? `You mentioned using ${phrase} there. What was the biggest limitation or technical trade-off you accepted with that choice?`
+      : 'What was the biggest limitation or technical trade-off you accepted with that choice?';
+  }
+  return {
+    type: 'probe_tradeoff_follow_up',
+    stage: 'technical_tradeoff',
+    topic: targetTopic,
+    category: 'technical',
+    followUpDepth: 2,
+    text,
+    reason: 'Organic trade-off probe rooted in candidate technical narrative.',
+    sourceType: 'controller_directed',
+  };
+};
+
 export const buildValidationQuestion = ({ targetTopic = 'claim' } = {}) => ({
   type: 'validation_follow_up',
   stage: 'technical_validation',
@@ -276,16 +305,23 @@ export const buildValidationQuestion = ({ targetTopic = 'claim' } = {}) => ({
   sourceType: 'controller_directed',
 });
 
-export const buildSwitchTopicQuestion = ({ targetTopic = 'role_fit' } = {}) => ({
-  type: 'coverage_follow_up',
-  stage: 'coverage',
-  topic: targetTopic,
-  category: 'experience',
-  followUpDepth: 0,
-  text: `Can you share one example that shows ${toCandidatePhrase(targetTopic)}?`,
-  reason: 'The controller switched topic because an important requirement has not been covered yet.',
-  sourceType: 'controller_directed',
-});
+export const buildSwitchTopicQuestion = ({ targetTopic = 'role_fit', previousTopic = '' } = {}) => {
+  const cleanPrev = toCandidatePhrase(previousTopic);
+  const cleanTarget = toCandidatePhrase(targetTopic);
+  const bridgingText = cleanPrev && cleanPrev !== 'this area' && cleanPrev !== 'this role'
+    ? `That makes sense for ${cleanPrev}. Moving on to ${cleanTarget}, can you share one practical example?`
+    : `Can you share one example that shows ${cleanTarget}?`;
+  return {
+    type: 'coverage_follow_up',
+    stage: 'coverage',
+    topic: targetTopic,
+    category: 'experience',
+    followUpDepth: 0,
+    text: bridgingText,
+    reason: 'Bridged topic switch to ensure clear context transition.',
+    sourceType: 'controller_directed',
+  };
+};
 
 export const buildRepetitionRepairSwitchQuestion = ({ targetTopic = 'role_fit' } = {}) => ({
   type: 'repetition_repair_switch',
@@ -311,24 +347,28 @@ export const buildAbductiveProbeQuestion = ({ targetTopic = 'decision_tradeoff',
   sourceType: 'controller_directed',
 });
 
-export const buildSectionShiftQuestion = ({ nextSectionKey = 'motivation' } = {}) => ({
-  type: 'section_shift_follow_up',
-  stage: nextSectionKey,
-  topic: nextSectionKey,
-  category: nextSectionKey === 'technical' ? 'technical' : nextSectionKey === 'behavioural' ? 'behavioural' : nextSectionKey === 'closing' ? 'closing' : 'experience',
-  followUpDepth: 0,
-  text: nextSectionKey === 'motivation'
-    ? 'What makes this role a strong fit for you now?'
-    : nextSectionKey === 'behavioural'
-      ? 'Tell me about one challenge you worked through with others.'
-      : nextSectionKey === 'technical'
-        ? 'What technical decision did you make yourself?'
-        : nextSectionKey === 'reflection_close'
-          ? 'What would you improve if you answered one past question again?'
-          : `Can you share one example from ${toCandidatePhrase(nextSectionKey)}?`,
-  reason: 'The current section is sufficiently covered, so the interviewer is moving to the next planned section.',
-  sourceType: 'controller_directed',
-});
+export const buildSectionShiftQuestion = ({ nextSectionKey = 'motivation', previousTopic = '' } = {}) => {
+  const cleanPrev = toCandidatePhrase(previousTopic);
+  const cleanNext = toCandidatePhrase(nextSectionKey);
+  const prefix = cleanPrev && cleanPrev !== 'this area' && cleanPrev !== 'this role'
+    ? `We've covered ${cleanPrev} well. `
+    : '';
+  let body = `Can you share one example from ${cleanNext}?`;
+  if (nextSectionKey === 'motivation') body = `${prefix}What makes this role a strong fit for you now?`;
+  else if (nextSectionKey === 'behavioural') body = `${prefix}Tell me about one challenge you worked through with others.`;
+  else if (nextSectionKey === 'technical') body = `${prefix}What technical decision did you make yourself?`;
+  else if (nextSectionKey === 'reflection_close') body = `${prefix}What would you improve if you answered one past question again?`;
+  return {
+    type: 'section_shift_follow_up',
+    stage: nextSectionKey,
+    topic: nextSectionKey,
+    category: nextSectionKey === 'technical' ? 'technical' : nextSectionKey === 'behavioural' ? 'behavioural' : nextSectionKey === 'closing' ? 'closing' : 'experience',
+    followUpDepth: 0,
+    text: body,
+    reason: 'Bridged section shift for smooth interview section transition.',
+    sourceType: 'controller_directed',
+  };
+};
 
 export const buildForceShiftProjectQuestion = ({ targetTopic = 'experience', forbiddenProject = '' } = {}) => ({
   type: 'force_shift_project_follow_up',
@@ -341,27 +381,39 @@ export const buildForceShiftProjectQuestion = ({ targetTopic = 'experience', for
   sourceType: 'controller_directed',
 });
 
-export const buildProbeStressQuestion = ({ targetTopic = 'technical_depth' } = {}) => ({
-  type: 'probe_stress_follow_up',
-  stage: 'technical_stress',
-  topic: targetTopic,
-  category: 'technical',
-  followUpDepth: 2,
-  text: `What would change if ${toCandidatePhrase(targetTopic)} had a tighter deadline?`,
-  reason: 'The candidate provided a stable answer, so the interviewer is applying a stress constraint to test boundaries.',
-  sourceType: 'controller_directed',
-});
+export const buildProbeStressQuestion = ({ targetTopic = 'technical_depth' } = {}) => {
+  const phrase = toCandidatePhrase(targetTopic);
+  const text = phrase && phrase !== 'this area'
+    ? `If ${phrase} experienced a 10x traffic or latency spike, where would your architecture fail first and how did you defend it?`
+    : 'If your architecture experienced a 10x traffic or latency spike, where would it fail first and how did you defend it?';
+  return {
+    type: 'probe_stress_follow_up',
+    stage: 'technical_stress',
+    topic: targetTopic,
+    category: 'technical',
+    followUpDepth: 2,
+    text,
+    reason: 'Applying a 10x scale/latency constraint test to probe architecture limits and disaster resilience.',
+    sourceType: 'controller_directed',
+  };
+};
 
-export const buildProbeFrictionQuestion = ({ targetTopic = 'ownership' } = {}) => ({
-  type: 'probe_friction_follow_up',
-  stage: 'friction_analysis',
-  topic: targetTopic,
-  category: 'behavioural',
-  followUpDepth: 2,
-  text: 'What was the hardest friction point in that project?',
-  reason: 'The candidate gave a "happy path" answer, so the interviewer is probing for real-world friction and conflict resolution.',
-  sourceType: 'controller_directed',
-});
+export const buildProbeFrictionQuestion = ({ targetTopic = 'ownership' } = {}) => {
+  const phrase = toCandidatePhrase(targetTopic);
+  const text = phrase && phrase !== 'this area'
+    ? `What was the worst outage, technical conflict, or trade-off you encountered in ${phrase}, and how did you resolve it?`
+    : 'What was the worst technical outage, conflict, or trade-off you encountered, and how did you resolve it?';
+  return {
+    type: 'probe_friction_follow_up',
+    stage: 'friction_analysis',
+    topic: targetTopic,
+    category: 'behavioural',
+    followUpDepth: 2,
+    text,
+    reason: 'Probing for real-world technical friction, trade-offs, outage recovery, and accountability under pressure.',
+    sourceType: 'controller_directed',
+  };
+};
 
 export const buildReactTrace = ({ selectedAction, decisionContext, selectedQuestion, environment, evaluatorState }) => {
   const targetTopic = selectedQuestion?.topic || decisionContext?.currentTopic || environment?.questionContext?.latestQuestionTopic || 'role_fit';

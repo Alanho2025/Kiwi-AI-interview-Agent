@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { AGENT_ACTION_TYPES } from '../../../src/constants/agentActionTypes.js';
+import { selectNextAction } from '../../../src/services/aiControl/actionPlanner.js';
 import {
   buildCheapAnswerSignals,
   buildInterviewTurnPlan,
@@ -304,5 +305,47 @@ describe('interviewTurnOrchestratorService', () => {
     }));
     expect(plan.turnKind).toBe('root_question');
     expect(plan.selectedRootCandidate).not.toBeNull();
+  });
+
+  it('detects solo heroics risk and triggers follow_up_teamwork scenario when teamwork is missing', async () => {
+    const answerText = 'I did everything all by myself without anyone helping me on the entire project architecture.';
+    const signals = buildCheapAnswerSignals({ answerText });
+
+    expect(signals.soloHeroicsRisk).toBe(true);
+    expect(signals.missingEvidence).toContain('teamwork_or_collaboration');
+
+    const plan = await buildInterviewTurnPlan({
+      session: {
+        ...baseSession,
+        currentQuestionIndex: 2,
+        questionLimit: 8,
+      },
+      actionType: AGENT_ACTION_TYPES.ASK_PROBING_QUESTION,
+      decisionContext: {
+        ...baseDecisionContext,
+        environment: {
+          latestAnswer: {
+            text: answerText,
+            tokenCount: 15,
+          },
+        },
+      },
+      poolItems,
+    });
+
+    expect(plan.scenario).toBe('follow_up_teamwork');
+    expect(plan.followUpIntent).toBe('teamwork');
+  });
+
+  it('triggers stress and friction probes in high_pressure stressLevel mode', () => {
+    const plan = selectNextAction({
+      currentTopic: 'React',
+      focusArea: 'technical',
+      questionContext: { stressLevel: 'high_pressure' },
+      evaluatorState: { interactionStatus: 'usable', successStatus: 'usable', evidenceGainScore: 0.5 },
+      interviewStructure: { focusAreaKey: 'technical', currentTopicState: { followUpCount: 1 } },
+    });
+
+    expect([AGENT_ACTION_TYPES.PROBE_STRESS, AGENT_ACTION_TYPES.PROBE_FRICTION]).toContain(plan.selectedAction);
   });
 });
