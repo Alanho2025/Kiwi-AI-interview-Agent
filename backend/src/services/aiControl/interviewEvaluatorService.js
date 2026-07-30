@@ -136,13 +136,18 @@ const answerDeniesTarget = ({ normalizedAnswer = '', target = '' } = {}) => {
   const pattern = targetMentionPattern(target);
   if (!pattern || !pattern.test(normalizedAnswer)) return false;
   const targetSource = pattern.source;
+
+  if (/\b(?:do|does|did|have|has|had|can)\s+not\s+(?:really\s+)?(?:explain|describe|cover|mention|detail)\b/i.test(normalizedAnswer)) {
+    return false;
+  }
+
   const denialBeforeTarget = new RegExp(
-    `\\b(?:do|does|did|have|has|had|can)\\s+not\\b.{0,70}${targetSource}`,
+    `\\b(?:do|does|did|have|has|had|can)\\s+not\\b.{0,45}${targetSource}`,
     'i',
   );
   const noTargetEvidence = new RegExp(`\\b(?:no|without)\\b.{0,45}${targetSource}`, 'i');
   const targetBeforeDenial = new RegExp(
-    `${targetSource}.{0,70}\\b(?:do|does|did|have|has|had|can)\\s+not\\b.{0,30}\\b(?:use|used|work|worked|know|have|need)\\b`,
+    `${targetSource}.{0,45}\\b(?:do|does|did|have|has|had|can)\\s+not\\b.{0,30}\\b(?:use|used|work|worked|know|have|need)\\b`,
     'i',
   );
   return denialBeforeTarget.test(normalizedAnswer)

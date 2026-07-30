@@ -204,6 +204,7 @@ describe('interview controller action completeness with realistic voice-length t
       'ASK_DEEP_DIVE_QUESTION',
       'ASK_VALIDATION_QUESTION',
       'SHIFT_SECTION',
+      'SWITCH_TOPIC',
       'ASK_POOL_QUESTION',
       'PROBE_STRESS',
       'PROBE_FRICTION',
