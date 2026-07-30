@@ -314,7 +314,21 @@ const normalizeCandidateFeedback = (candidateFeedback = {}, fallback = {}, conte
     .map((item, index) => applyTrust(normalizeAdvice(item, ensureArray(fallback.coachingAdvice)[index] || {}), ensureArray(fallback.coachingAdvice)[index] || {}, { ...context, type: 'coaching' }))
     .filter((item) => item.theme && item.advice && item.example),
   answerRewriteExamples: ensureArray(candidateFeedback.answerRewriteExamples)
-    .map((item, index) => normalizeRewrite(item, ensureArray(fallback.answerRewriteExamples)[index] || {}))
+    .map((item, index) => {
+      const fallbackList = ensureArray(fallback.answerRewriteExamples);
+      const itemQ = ensureString(item.question).trim().toLowerCase();
+      const itemW = ensureString(item.weak).trim().toLowerCase();
+      const matchedFallback = fallbackList.find((fb) => {
+        const fbQ = ensureString(fb.question).trim().toLowerCase();
+        const fbW = ensureString(fb.weak).trim().toLowerCase();
+        return itemQ && fbQ && itemQ === fbQ && itemW && fbW && itemW === fbW;
+      }) || fallbackList.find((fb) => {
+        const fbQ = ensureString(fb.question).trim().toLowerCase();
+        const fbW = ensureString(fb.weak).trim().toLowerCase();
+        return (itemQ && fbQ && itemQ === fbQ) || (itemW && fbW && itemW === fbW);
+      }) || fallbackList[index] || {};
+      return normalizeRewrite(item, matchedFallback);
+    })
     .filter((item) => item.weak && (item.better || item.status === 'unavailable')),
   quoteAnalyses: ensureArray(candidateFeedback.quoteAnalyses)
     .map((item, index) => normalizeQuoteAnalysis(item, ensureArray(fallback.quoteAnalyses)[index] || {}))

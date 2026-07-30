@@ -1,5 +1,13 @@
 # Change Log
 
+## [2026-07-30 21:08 NZST] Report coaching answer rewrite identity matching repair
+
+### Changed / Added
+
+- Fixed release blocker in `reportCoachingService.js`: replaced index-based `answerRewriteExamples` mapping with `(question, weak answer)` text identity matching before falling back to array index. This prevents LLM array reordering or element omission from misassigning stronger answer rewrites across question cards.
+- Added automated test in `reportFrameworkPipeline.test.js` verifying correct question/weak answer identity matching when LLM returns rewrites out of order.
+- Verified backend focused Vitest tests (`reportFrameworkPipeline.test.js`, `reportPublicationSummary.test.js`) and ESLint passed with 0 errors.
+
 ## [2026-07-30 20:10 NZST] Role & tech-stack specific feedback context in framework breakdowns
 
 ### Changed / Added

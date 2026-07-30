@@ -440,7 +440,7 @@ export const fetchRelationalTranscriptTurns = async (sessionId) => {
     }
 
     return turns;
-  } catch (error) {
+  } catch (_error) {
     return [];
   }
 };
