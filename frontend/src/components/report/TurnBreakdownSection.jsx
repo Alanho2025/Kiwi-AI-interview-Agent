@@ -23,38 +23,7 @@ const formatStructureLabel = (label = '') => String(label || '')
   .replace(/([A-Z])/g, ' $1')
   .trim();
 
-const buildDimensionReason = ({ label, score, turn = {} }) => {
-  const normalizedLabel = label.toLowerCase();
-  const explicitReasons = turn.scoreReasons || turn.dimensionReasons || turn.scores?.reasons || {};
-  const explicit = explicitReasons[normalizedLabel] || explicitReasons[label] || explicitReasons[`${normalizedLabel}Reason`];
-  if (explicit) return explicit;
 
-  const safeScore = clampMicroScore(score);
-  const answer = String(turn.answer || turn.answerSummary || '').trim();
-  const feedback = String(turn.feedback || '').trim();
-
-  if (normalizedLabel === 'business') {
-    if (safeScore >= 8) return 'Strong role awareness. The answer connects the work to user, business, or delivery value.';
-    if (safeScore >= 6) return 'Some business context is present, but the answer could link impact to the target role more clearly.';
-    return 'Business value is unclear. Add who benefited, what changed, and why it mattered.';
-  }
-
-  if (normalizedLabel === 'logic') {
-    if (turn.starApplicable === false) {
-      if (turn.rubricType === 'self_intro') return 'Scored from introduction flow, role interest, and clarity.';
-      if (turn.rubricType === 'company_motivation') return 'Scored from company reason, role reason, and candidate evidence.';
-      return 'Scored from answer relevance, clarity, and completion.';
-    }
-    if (safeScore >= 8) return 'The answer has a clear structure and is easy to follow.';
-    if (safeScore >= 6) return 'The structure is understandable, but the steps could be sharper and less general.';
-    return 'The answer needs a clearer setup, action, and result sequence.';
-  }
-
-  if (safeScore >= 8) return 'The answer uses concrete evidence, not just claims.';
-  if (safeScore >= 6) return feedback || 'Some evidence appears, but it needs stronger proof or a measurable result.';
-  if (answer.length < 80) return 'Evidence is thin. Add a real example, your action, and a result metric.';
-  return 'The answer explains intent, but it needs more proof from a real project or work example.';
-};
 
 function ScoreBar({ label, score, color, reason }) {
   const safeScore = clampMicroScore(score);
