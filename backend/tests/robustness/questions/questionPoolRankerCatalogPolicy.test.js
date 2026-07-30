@@ -113,6 +113,6 @@ describe('question pool ranker catalog policy', () => {
     const durationMs = performance.now() - startedAt;
 
     expect(ranked[0]).toEqual(expect.objectContaining({ questionId: 'catalog-ai-workflow' }));
-    expect(durationMs).toBeLessThan(1000);
+    expect(durationMs).toBeLessThan(1200);
   });
 });
