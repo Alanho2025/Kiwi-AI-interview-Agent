@@ -170,7 +170,7 @@ const buildFallbackRewriteText = (turn = {}) => {
     return `In this project, I owned the AI engine design and data integration for the recommendation system. We evaluated the recommendation system against clear metrics to maximize performance, achieving an 85% project rating and delivering a clear business solution for users.`;
   }
 
-  return `To strengthen this response, clearly state your context and goal first: "${rawAnswer.slice(0, 120)}...". Then specify your personal ownership, technical approach, validation method, and measurable outcome.`;
+  return '';
 };
 
 /**

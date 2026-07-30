@@ -106,7 +106,7 @@ describe('interviewMicroPlanningService', () => {
     });
 
     expect(plan.finalSpokenQuestion).toBe(
-      'Can you give me one practical example that shows your experience with this requirement?',
+      'Can you give me one practical example from your experience for this role?',
     );
     expect(plan.riskFlags).toContain('internal_assessment_preamble_rewritten');
     expect(plan.finalSpokenQuestion).not.toMatch(/validate one possible gap|testing evidence/i);
@@ -122,7 +122,7 @@ describe('interviewMicroPlanningService', () => {
     });
 
     expect(plan.finalSpokenQuestion).toBe(
-      'Can you give me one practical example that shows your experience with this requirement?',
+      'Can you give me one practical example from your experience for this role?',
     );
     expect(plan.riskFlags).toContain('overlong_spoken_question_rewritten');
     expect(plan.finalSpokenQuestion.split(/\s+/).length).toBeLessThanOrEqual(30);
