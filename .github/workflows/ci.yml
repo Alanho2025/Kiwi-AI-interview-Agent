@@ -32,6 +32,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Delay execution on main push to prevent runner contention
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          echo "Main branch push detected. Delaying 3 minutes to avoid backend test timeouts from concurrent runs..."
+          sleep 180
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -93,6 +99,12 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Delay execution on main push to prevent runner contention
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          echo "Main branch push detected. Delaying 3 minutes to avoid backend test timeouts from concurrent runs..."
+          sleep 180
 
       - name: Setup Node.js
         uses: actions/setup-node@v4

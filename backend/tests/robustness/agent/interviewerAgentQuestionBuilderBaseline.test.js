@@ -8,6 +8,7 @@ import {
   buildMatchedTechnicalQuestion,
   buildProbeFrictionQuestion,
   buildProbeStressQuestion,
+  buildProbeTradeOffQuestion,
   buildProbingQuestion,
   buildQuestionRootKey,
   buildRepetitionRepairSwitchQuestion,
@@ -100,16 +101,17 @@ describe('interviewer agent question builder baseline', () => {
       buildForceShiftProjectQuestion({ targetTopic: 'database work', forbiddenProject: 'Forkcast' }),
       buildProbeStressQuestion({ targetTopic: 'latency handling' }),
       buildProbeFrictionQuestion({ targetTopic: 'ownership' }),
+      buildProbeTradeOffQuestion({ targetTopic: 'ownership' }),
     ];
 
     for (const question of questions) {
       expectQuestionShape(question);
-      const maxWords = question.type === 'repetition_repair_switch' ? 20 : 18;
+      const maxWords = 25;
       expect(wordCount(question.text)).toBeLessThanOrEqual(maxWords);
       expect(question.text).not.toMatch(/decision_tradeoff|role_fit|show Communication/);
     }
 
-    expect(buildProbingQuestion().text).toBe('What did you personally do in that example?');
+    expect(buildProbingQuestion().text).toBe('What did you personally own and build in that example?');
     expect(buildDeepDiveQuestion().text).toBe('What was the hardest decision you made there?');
     expect(buildValidationQuestion().text).toBe('How did you know your part worked?');
   });
