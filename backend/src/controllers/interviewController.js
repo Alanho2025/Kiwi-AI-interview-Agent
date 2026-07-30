@@ -84,6 +84,8 @@ export const startInterview = asyncHandler(async (req, res) => {
       timestamp: new Date().toISOString(),
       questionId,
       metadata: {
+        rootQuestionId: questionId,
+        questionId,
         stage: 'opening',
         topic: 'self_intro',
         followUpDepth: 0,

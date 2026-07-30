@@ -13,7 +13,6 @@ import { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { AppHeader } from '../components/layout/AppHeader.jsx';
 import { StatusBanner } from '../components/common/StatusBanner.jsx';
-import { AnswerRewriteSection } from '../components/report/AnswerRewriteSection.jsx';
 import { CoachingSection } from '../components/report/CoachingSection.jsx';
 import { TurnBreakdownSection } from '../components/report/TurnBreakdownSection.jsx';
 import { ReportActionBar } from '../components/report/ReportActionBar.jsx';
@@ -142,7 +141,6 @@ export function ReportPage() {
             <div id="tour-report-turns">
               <TurnBreakdownSection turnBreakdowns={viewModel.turnBreakdowns} />
             </div>
-            <AnswerRewriteSection answerRewriteTips={viewModel.answerRewriteTips} />
           </div>
         )}
         <DeveloperReportDiagnostics sessionId={sessionId} />

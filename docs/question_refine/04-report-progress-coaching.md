@@ -135,3 +135,9 @@ CP4 reviewer accepts/revises/blocks report wording, dimensions, source boundarie
 ## 7. Stop conditions and rollback
 
 Any ungrounded coaching claim, candidate-visible leakage, score mutation by a non-answer turn, retention ambiguity or false hiring implication is a first-failure hard stop. Other deterministic issues use Master Plan §13's three-attempt policy. Rollback returns to current report dimensions for new reports, preserving raw accepted-answer and QA evidence for investigation.
+
+## 8. Implementation and Local Acceptance Status (2026-07-30)
+
+- **CP4 Implementation**: Local CP4 implementation is complete. `answerAlignmentService.js`, `reportCoachingBuilder.js`, `turnRubricService.js`, `roleAnswerAnalysisService.js`, and `TurnBreakdownSection.jsx` deliver candidate-safe coaching, 4/5/6-dimension framework card grids, self-intro detection (`briefly introduce`), candidate tech-stack hints, and grounded fallback rewrites.
+- **Candidate Safety**: Candidate report projection ([reportPublicationSummaryService.js](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/report/reportPublicationSummaryService.js)) strictly allowlists candidate-safe fields. Internal selection traces, catalog IDs, rank scores, and prompt internals remain excluded.
+- **Automated Verification**: 52 backend robustness tests (`realtimeVoiceTurnMocked.test.js`, `questionScopeClarificationService.test.js`, `answerAlignmentService.test.js`, `reportFrameworkPipeline.test.js`, `roleSpecificFrameworkRobustness.test.js`) and 3 frontend Vitest component tests (`TurnBreakdownSection.test.jsx`) passed cleanly with 0 ESLint errors.

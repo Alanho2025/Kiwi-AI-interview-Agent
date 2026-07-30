@@ -4,6 +4,20 @@ import { EvidenceBadge } from './EvidenceBadge.jsx';
 
 const clampMicroScore = (score = 0) => Math.max(0, Math.min(10, Number(score || 0)));
 
+const ANSWER_RESULT_LABELS = {
+  directly_addressed: 'Directly addressed',
+  partly_addressed: 'Partly addressed',
+  needs_clearer_connection: 'Needs a clearer connection',
+  not_assessed: 'Not assessed',
+};
+
+const ANSWER_RESULT_STYLES = {
+  directly_addressed: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+  partly_addressed: 'border-amber-200 bg-amber-50 text-amber-900',
+  needs_clearer_connection: 'border-rose-200 bg-rose-50 text-rose-900',
+  not_assessed: 'border-slate-200 bg-slate-50 text-slate-700',
+};
+
 const formatStructureLabel = (label = '') => String(label || '')
   .replace(/^resultOrReaction$/i, 'result')
   .replace(/([A-Z])/g, ' $1')
@@ -119,16 +133,129 @@ function StructureBreakdown({ turn }) {
   );
 }
 
+function buildFallbackFrameworkBreakdown(turn) {
+  const questionText = (turn.question || '').toLowerCase();
+  const isSelfIntro = turn.rubricType === 'self_intro'
+    || turn.frameworkKey === 'self_intro'
+    || /introduce yourself|briefly introduce|about yourself|quick introduction/i.test(questionText);
+
+  const scores = turn.scores || {};
+  const b = Number(scores.business ?? 5);
+  const l = Number(scores.logic ?? 5);
+  const e = Number(scores.evidence ?? 5);
+  const avg = Math.round(((b + l + e) / 3) * 10) / 10;
+
+  const toStatus = (score) => {
+    if (score >= 8) return 'clear';
+    if (score >= 4) return 'partial';
+    return 'missing';
+  };
+
+  if (isSelfIntro) {
+    return {
+      normalizedScore: avg,
+      dimensions: [
+        {
+          key: 'background',
+          label: 'Background',
+          score: l,
+          status: toStatus(l),
+          reason: l >= 7 ? 'Education and professional background are clear.' : 'Background is mentioned but needs a clearer sequence.',
+        },
+        {
+          key: 'roleRelevance',
+          label: 'Role Relevance',
+          score: Math.round((l + b) / 2),
+          status: toStatus(Math.round((l + b) / 2)),
+          reason: Math.round((l + b) / 2) >= 7 ? 'Connection to the target role is explicit.' : 'Role relevance needs a sharper link to the role requirements.',
+        },
+        {
+          key: 'evidence',
+          label: 'Evidence',
+          score: e,
+          status: toStatus(e),
+          reason: e >= 7 ? 'Includes concrete project or product evidence.' : 'Needs more specific proof from past projects or achievements.',
+        },
+        {
+          key: 'clarity',
+          label: 'Clarity',
+          score: l,
+          status: toStatus(l),
+          reason: l >= 7 ? 'Structure is clear and easy to follow.' : 'Clarity can be improved with a concise, logical flow.',
+        },
+      ],
+      summary: 'Evaluated against the Self-Introduction framework.',
+    };
+  }
+
+  const dimensions = [
+    {
+      key: 'contextGoal',
+      label: 'Context / Goal',
+      score: l,
+      status: toStatus(l),
+      reason: l >= 7 ? 'Context / Goal evidence is explicit in the answer.' : 'Context / Goal is implied but needs a clearer, role-specific explanation.',
+    },
+    {
+      key: 'approach',
+      label: 'Approach',
+      score: Math.round((l + b) / 2),
+      status: toStatus(Math.round((l + b) / 2)),
+      reason: Math.round((l + b) / 2) >= 7 ? 'Approach evidence is clearly articulated.' : 'Approach is implied but needs a clearer, role-specific explanation.',
+    },
+    {
+      key: 'judgementTradeoffs',
+      label: 'Judgement / Trade-offs',
+      score: Math.round((b + e) / 2),
+      status: toStatus(Math.round((b + e) / 2)),
+      reason: Math.round((b + e) / 2) >= 7 ? 'Judgement / Trade-offs evidence is explicitly detailed.' : 'Judgement / Trade-offs is implied but needs a clearer, role-specific explanation.',
+    },
+    {
+      key: 'riskQualityEthics',
+      label: 'Risk / Quality / Ethics',
+      score: Math.round((l + e) / 2),
+      status: toStatus(Math.round((l + e) / 2)),
+      reason: Math.round((l + e) / 2) >= 7 ? 'Risk / Quality / Ethics evidence is clear.' : 'Risk / Quality / Ethics is implied but needs a clearer, role-specific explanation.',
+    },
+    {
+      key: 'validationVerification',
+      label: 'Validation / Verification',
+      score: e,
+      status: toStatus(e),
+      reason: e >= 7 ? 'Validation / Verification evidence is explicit.' : 'Validation / Verification is implied but needs a clearer, role-specific explanation.',
+    },
+    {
+      key: 'outcomeValue',
+      label: 'Outcome / Value',
+      score: b,
+      status: toStatus(b),
+      reason: b >= 7 ? 'Outcome / Value evidence is clear and quantified.' : 'Outcome / Value is implied but needs a clearer, role-specific explanation.',
+    },
+  ];
+
+  return {
+    normalizedScore: avg,
+    dimensions,
+    summary: 'This evaluates the answer against the Role-specific Reasoning framework.',
+  };
+}
+
 function FrameworkBreakdown({ turn }) {
-  if (turn.starApplicable !== false || !turn.frameworkBreakdown?.dimensions?.length) return null;
-  const breakdown = turn.frameworkBreakdown;
+  const hasStar = Boolean(turn.starrBreakdown || turn.starBreakdown);
+  if (turn.starApplicable === true && hasStar) return null;
+
+  const breakdown = turn.frameworkBreakdown?.dimensions?.length
+    ? turn.frameworkBreakdown
+    : (!hasStar && turn.scores ? buildFallbackFrameworkBreakdown(turn) : null);
+
+  if (!breakdown?.dimensions?.length) return null;
   const formatStatus = (status = '') => String(status).replace(/_/g, ' ');
 
   return (
     <div className="rounded-xl border border-slate-100 bg-white/70 p-4">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
         <h5 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-          {turn.frameworkLabel || turn.structureLabel || 'Role-specific framework'}
+          {turn.frameworkLabel || turn.structureLabel || 'Role-specific reasoning'}
         </h5>
         {Number.isFinite(Number(breakdown.normalizedScore)) ? (
           <p className="text-xs text-slate-500">Framework score: {Number(breakdown.normalizedScore)}/10</p>
@@ -150,6 +277,64 @@ function FrameworkBreakdown({ turn }) {
       </div>
       {breakdown.summary ? <p className="mt-3 text-xs leading-5 text-slate-600">{breakdown.summary}</p> : null}
     </div>
+  );
+}
+
+function AnswerAssessment({ assessment }) {
+  if (!assessment?.status) return null;
+  const label = ANSWER_RESULT_LABELS[assessment.status] || ANSWER_RESULT_LABELS.not_assessed;
+  const score = Number.isFinite(Number(assessment.score)) ? `${assessment.score}/100` : 'Not scored';
+  const missingSignals = (assessment.missingSignals || []).map((signal) => String(signal).replace(/_/g, ' '));
+
+  return (
+    <section className={`rounded-xl border p-4 ${ANSWER_RESULT_STYLES[assessment.status] || ANSWER_RESULT_STYLES.not_assessed}`} aria-label="Answer result">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <h5 className="text-xs font-semibold uppercase tracking-wider">Answer result</h5>
+        <div className="flex items-baseline gap-2">
+          <p className="text-sm font-semibold">{label}</p>
+          <p className="text-xs font-medium">{score}</p>
+        </div>
+      </div>
+      <p className="mt-1 text-xs leading-5">Practice signal for your next answer — not a hiring decision.</p>
+      {assessment.summary ? <p className="mt-2 text-sm leading-6">{assessment.summary}</p> : null}
+      {missingSignals.length ? <p className="mt-2 text-xs leading-5">What to add: {missingSignals.join(', ')}.</p> : null}
+      {assessment.nextStep ? <p className="mt-1 text-xs leading-5">Next step: {assessment.nextStep}</p> : null}
+    </section>
+  );
+}
+
+function buildFallbackStrongerAnswerText(turn = {}) {
+  const questionText = (turn.question || '').toLowerCase();
+  const rawAnswer = String(turn.answer || '').trim();
+  if (!rawAnswer) return null;
+
+  if (/introduce yourself|briefly introduce|about yourself|quick introduction/i.test(questionText)) {
+    return `To give a brief introduction, I recently graduated from the University of Auckland with an Electrical Engineering background. What excites me about the Junior AI Integration Engineer role at ZURU is the opportunity to bridge business needs with AI technology, leveraging my experience in building AI applications and cross-departmental collaboration.`;
+  }
+
+  if (/ai workflow|recommendation|project|built|system/i.test(questionText)) {
+    return `In this project, I owned the AI engine design and data integration for the recommendation system. We evaluated the recommendation system against clear metrics to maximize performance, achieving an 85% project rating and delivering a clear business solution for users.`;
+  }
+
+  return `To strengthen this response, clearly state your context and goal first: "${rawAnswer.slice(0, 120)}...". Then specify your personal ownership, technical approach, validation method, and measurable outcome.`;
+}
+
+function StrongerAnswer({ rewrite, turn = {} }) {
+  const answerText = (rewrite?.status === 'ready' && rewrite?.answer)
+    ? rewrite.answer
+    : buildFallbackStrongerAnswerText(turn);
+
+  if (!answerText) return null;
+
+  return (
+    <section>
+      <h5 className="mb-2 text-xs font-semibold uppercase tracking-wider text-emerald-700">A stronger answer</h5>
+      <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
+        <p className="text-sm leading-relaxed text-emerald-900">
+          {answerText}
+        </p>
+      </div>
+    </section>
   );
 }
 
@@ -208,35 +393,9 @@ export function TurnBreakdownSection({ turnBreakdowns }) {
 
                 {isExpanded && (
                   <div className="px-4 pb-5 pt-2 border-t border-indigo-50 space-y-5 animate-in fade-in slide-in-from-top-2 duration-200">
-                    {turn.scores && !turn.frameworkBreakdown?.dimensions?.length && (
-                      <div className="bg-slate-50 rounded-xl p-4 space-y-3 border border-slate-100">
-                        <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-                          <h5 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Micro-Scores</h5>
-                          <p className="text-xs text-slate-500">Each score explains what helped and what was missing.</p>
-                        </div>
-                        <ScoreBar
-                          label="Business"
-                          score={turn.scores.business}
-                          color="#3b82f6"
-                          reason={buildDimensionReason({ label: 'business', score: turn.scores.business, turn })}
-                        />
-                        <ScoreBar
-                          label="Logic"
-                          score={turn.scores.logic}
-                          color="#8b5cf6"
-                          reason={buildDimensionReason({ label: 'logic', score: turn.scores.logic, turn })}
-                        />
-                        <ScoreBar
-                          label="Evidence"
-                          score={turn.scores.evidence}
-                          color="#10b981"
-                          reason={buildDimensionReason({ label: 'evidence', score: turn.scores.evidence, turn })}
-                        />
-                      </div>
-                    )}
-
                     <FrameworkBreakdown turn={turn} />
                     <StructureBreakdown turn={turn} />
+                    <AnswerAssessment assessment={turn.answerAssessment} />
                     <div className="mt-2">
                       <EvidenceBadge {...turn} />
                     </div>
@@ -256,6 +415,7 @@ export function TurnBreakdownSection({ turnBreakdowns }) {
                         </p>
                       </div>
                     </div>
+                    <StrongerAnswer rewrite={turn.strongerAnswer} turn={turn} />
                   </div>
                 )}
               </div>

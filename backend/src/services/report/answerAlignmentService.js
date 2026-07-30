@@ -182,6 +182,7 @@ export const buildAnswerAlignments = ({
   interviewPlan = {},
   analysisResult = {},
   session = {},
+  includeGeneric = false,
 } = {}) => {
   const poolById = new Map(ensureArray(interviewPlan.questionPool)
     .map((item) => [item.questionId, item]));
@@ -190,7 +191,8 @@ export const buildAnswerAlignments = ({
 
   return ensureArray(questionAnswerPairs).filter(isAcceptedPair).map((pair, index) => {
     const context = resolveQuestionContext({ pair, poolById });
-    if (!context.proofPointId && !context.testedRoleIntentIds.length) return null;
+    const hasRoleFitContext = Boolean(context.proofPointId || context.testedRoleIntentIds.length);
+    if (!hasRoleFitContext && !includeGeneric) return null;
     const answer = normalizeText(pair.answerTurn?.text);
     const mapItems = roleEvidenceItems.filter((item) => context.testedRoleIntentIds.includes(item.roleIntentId));
     const roleIntentLabels = unique(mapItems.map((item) => normalizeText(item.roleIntent)).filter(Boolean));
@@ -212,7 +214,9 @@ export const buildAnswerAlignments = ({
     const score = Object.values(scoreBreakdown).reduce((sum, value) => sum + value, 0);
     const label = alignmentLabel(score);
     const missedSignals = buildMissedSignals(signals);
-    const groundingStatus = !mapItems.length
+    const groundingStatus = !hasRoleFitContext
+      ? 'generic'
+      : !mapItems.length
       ? 'blocked'
       : detectedEvidenceUsed.length ? 'grounded' : 'limited';
     const evidenceUseDiagnosis = buildEvidenceUseDiagnosis({
@@ -268,6 +272,39 @@ export const buildAnswerAlignments = ({
     };
   }).filter(Boolean);
 };
+
+const toCandidateAssessmentStatus = (label = '') => {
+  if (label === 'strong') return 'directly_addressed';
+  if (label === 'partial') return 'partly_addressed';
+  return 'needs_clearer_connection';
+};
+
+const buildCandidateAssessmentSummary = ({ status = '', missedSignals = [] } = {}) => {
+  if (status === 'directly_addressed') return 'Your answer directly addressed the question with clear evidence.';
+  if (status === 'partly_addressed') {
+    return missedSignals.length
+      ? `Your answer is relevant, but needs clearer ${missedSignals.slice(0, 2).join(' and ')}.`
+      : 'Your answer is relevant, but needs a clearer connection to the question.';
+  }
+  return 'Your answer needs a clearer connection to what this question asked.';
+};
+
+const buildCandidateTurnAssessments = (input = {}) => buildAnswerAlignments({
+  ...input,
+  includeGeneric: true,
+}).map((alignment) => {
+  const status = toCandidateAssessmentStatus(alignment.label);
+  const missedSignals = alignment.diagnosis?.missedSignals || [];
+  return {
+    question: alignment.question,
+    status,
+    score: alignment.score,
+    summary: buildCandidateAssessmentSummary({ status, missedSignals }),
+    missingSignals: missedSignals.map(normalizeKey),
+    nextStep: alignment.betterAnswerPlan?.direction || 'Keep the answer focused on what the question asked.',
+    source: alignment.groundingStatus === 'generic' ? 'generic_question_alignment' : 'role_fit_alignment',
+  };
+});
 
 const buildRoleIntentCoverage = ({ proofStrategy = {}, alignments = [], roleEvidenceMap = {} } = {}) => {
   const roleEvidenceById = new Map(ensureArray(roleEvidenceMap.items)
@@ -365,12 +402,14 @@ export const buildRoleFitReportSummary = ({
 } = {}) => {
   const proofStrategy = interviewPlan.roleFit?.proofStrategy || {};
   const hasRoleFitContract = ensureArray(proofStrategy.mustCover).length > 0;
+  const candidateTurnAssessments = buildCandidateTurnAssessments({ questionAnswerPairs, interviewPlan, analysisResult, session });
   if (!hasRoleFitContract) {
     const roleFitDiagnostics = buildRoleFitDiagnostics({ roleFitReport: { status: 'legacy' } });
     return {
       schemaVersion: 'role_fit_report_v1',
       status: 'legacy',
       answerAlignments: [],
+      candidateTurnAssessments,
       roleIntentCoverage: { total: 0, covered: 0, partial: 0, missing: 0, unavailable: 0, items: [] },
       evidenceUsageMap: { totalUses: 0, items: [] },
       questionReasoning: [],
@@ -419,6 +458,7 @@ export const buildRoleFitReportSummary = ({
     schemaVersion: 'role_fit_report_v2',
     status,
     answerAlignments,
+    candidateTurnAssessments,
     roleIntentCoverage,
     evidenceUsageMap,
     questionReasoning,

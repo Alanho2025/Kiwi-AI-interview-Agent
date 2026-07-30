@@ -49,9 +49,16 @@ const mapSavedTranscriptTurn = (turn) => ({
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
 export const appendTranscriptTurn = async (sessionId, turn) => {
-  const transcript = await SessionTranscript.findOne({ sessionId });
+  let transcript = await SessionTranscript.findOne({ sessionId });
   if (!transcript) {
-    return null;
+    transcript = new SessionTranscript({
+      sessionId,
+      turns: [],
+      lastTurnOrder: 0,
+      fullTranscript: '',
+      redactedTranscript: '',
+      redactionStatus: 'no_sensitive_match',
+    });
   }
 
   const nextTurn = buildTranscriptTurn(turn);

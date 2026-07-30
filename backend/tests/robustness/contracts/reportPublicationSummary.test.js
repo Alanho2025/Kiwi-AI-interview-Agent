@@ -103,8 +103,26 @@ describe('candidate-safe report publication summary', () => {
             { title: 'Three' },
             { title: 'Four' },
           ],
-          turnBreakdowns: [{ question: 'Question?', answer: 'Answer.', feedback: 'Feedback.' }],
-          answerRewriteExamples: [{ weak: 'Weak.', better: 'Better.' }],
+          turnBreakdowns: [
+            { question: 'Question?', answer: 'Answer.', feedback: 'Feedback.' },
+            { question: ' QUESTION?  ', answer: 'Second answer.', feedback: 'Second feedback.' },
+            { question: 'Unmatched question?', answer: 'Third answer.', feedback: 'Third feedback.' },
+          ],
+          answerRewriteExamples: [
+            {
+              question: 'Question?',
+              weak: 'Weak.',
+              better: 'Better.',
+              status: 'ready',
+              evidenceUsed: ['private-evidence'],
+            },
+            {
+              question: 'Question?',
+              weak: 'Second weak.',
+              better: 'Second better.',
+              status: 'ready',
+            },
+          ],
           coachingAdvice: [{ title: 'Duplicate coaching' }],
           quoteAnalyses: [{ quote: 'Raw quote' }],
         },
@@ -117,6 +135,36 @@ describe('candidate-safe report publication summary', () => {
           status: 'ready',
           roleIntentCoverage: { total: 1, covered: 1 },
           answerAlignments: [{ question: 'Private role-fit detail' }],
+          candidateTurnAssessments: [
+            {
+              question: 'Question?',
+              status: 'partly_addressed',
+              score: 61,
+              summary: 'Relevant, but add validation.',
+              missingSignals: ['validation'],
+              nextStep: 'Explain how you verified the outcome.',
+              source: 'generic_question_alignment',
+              proofPointId: 'private-proof',
+            },
+            {
+              question: 'Question?',
+              status: 'needs_clearer_connection',
+              score: 35,
+              summary: 'Needs a clearer connection.',
+              missingSignals: ['specific_context'],
+              nextStep: 'State the context first.',
+              source: 'role_fit_alignment',
+            },
+            {
+              question: 'Unmatched question?',
+              status: 'needs_clearer_connection',
+              score: 30,
+              summary: 'Needs a clearer connection.',
+              missingSignals: ['specific_context'],
+              nextStep: 'State the context first.',
+              source: 'role_fit_alignment',
+            },
+          ],
         },
       },
       qaResult: {
@@ -143,6 +191,25 @@ describe('candidate-safe report publication summary', () => {
     expect(projection.report).not.toHaveProperty('schemaVersion');
     expect(projection.report.candidateFeedback).not.toHaveProperty('coachingAdvice');
     expect(projection.report.candidateFeedback).not.toHaveProperty('quoteAnalyses');
+    expect(projection.report.candidateFeedback.turnBreakdowns[0]).toMatchObject({
+      answerAssessment: {
+        status: 'partly_addressed',
+        score: 61,
+        missingSignals: ['validation'],
+      },
+      strongerAnswer: { status: 'ready', answer: 'Better.' },
+    });
+    expect(projection.report.candidateFeedback.turnBreakdowns[0].answerAssessment).not.toHaveProperty('source');
+    expect(projection.report.candidateFeedback.turnBreakdowns[0].answerAssessment).not.toHaveProperty('proofPointId');
+    expect(projection.report.candidateFeedback.turnBreakdowns[1]).toMatchObject({
+      answerAssessment: { score: 35 },
+      strongerAnswer: { status: 'ready', answer: 'Second better.' },
+    });
+    expect(projection.report.candidateFeedback.turnBreakdowns[2].strongerAnswer).toMatchObject({
+      status: 'unavailable',
+      unavailableReason: expect.stringMatching(/could not be matched/i),
+    });
+    expect(JSON.stringify(projection)).not.toMatch(/generic_question_alignment|private-proof|private-evidence/);
     expect(JSON.stringify(projection)).not.toMatch(/candidate@example\\.com|\\+64 21 555 123|9999|internal_flag/);
   });
 

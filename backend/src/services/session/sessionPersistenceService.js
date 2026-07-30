@@ -381,8 +381,72 @@ export const initializeTranscript = async ({ id, userId }) => {
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
+export const fetchRelationalTranscriptTurns = async (sessionId) => {
+  try {
+    const [qRes, rRes] = await Promise.all([
+      query(
+        `SELECT id, question_order, question_text, created_at
+         FROM interview_questions
+         WHERE session_id = $1
+         ORDER BY question_order ASC`,
+        [sessionId]
+      ),
+      query(
+        `SELECT id, question_id, transcript_text, created_at
+         FROM interview_responses
+         WHERE session_id = $1
+         ORDER BY created_at ASC`,
+        [sessionId]
+      ),
+    ]);
+
+    const turns = [];
+    const questions = qRes.rows || [];
+    const responses = rRes.rows || [];
+
+    for (const q of questions) {
+      turns.push({
+        role: 'ai',
+        text: q.question_text,
+        timestamp: q.created_at ? new Date(q.created_at) : new Date(),
+        questionId: q.id,
+        metadata: {
+          rootQuestionId: q.id,
+          questionId: q.id,
+          turnKind: 'root_question',
+          turnType: 'interview_question',
+          countsAsQuestion: true,
+        },
+      });
+
+      const matchingResponses = responses.filter((r) => r.question_id === q.id);
+      for (const r of matchingResponses) {
+        if (r.transcript_text) {
+          turns.push({
+            role: 'user',
+            text: r.transcript_text,
+            timestamp: r.created_at ? new Date(r.created_at) : new Date(),
+            questionId: q.id,
+            metadata: {
+              rootQuestionId: q.id,
+              questionId: q.id,
+              turnType: 'user_answer',
+              countsAsAnswer: true,
+              transcriptAcceptance: { accepted: true },
+            },
+          });
+        }
+      }
+    }
+
+    return turns;
+  } catch (error) {
+    return [];
+  }
+};
+
 export const fetchSessionDependencies = async ({ id, cvFileId }) => {
-  const [plan, transcript, analysis, report, cvDocument, jobDescriptionInput] = await Promise.all([
+  const [plan, transcriptDoc, analysis, report, cvDocument, jobDescriptionInput] = await Promise.all([
     InterviewPlan.findOne({ sessionId: id }).lean(),
     SessionTranscript.findOne({ sessionId: id }).lean(),
     SessionAnalysis.findOne({ sessionId: id }).lean(),
@@ -397,6 +461,20 @@ export const fetchSessionDependencies = async ({ id, cvFileId }) => {
       [id]
     ).then((result) => result.rows[0] || null),
   ]);
+
+  let transcript = transcriptDoc;
+  if (!transcript || !Array.isArray(transcript.turns) || transcript.turns.length === 0) {
+    const relationalTurns = await fetchRelationalTranscriptTurns(id);
+    if (relationalTurns.length > 0) {
+      transcript = {
+        sessionId: id,
+        turns: relationalTurns,
+        fullTranscript: relationalTurns.map((t) => `${t.role}: ${t.text}`).join('\n\n'),
+        redactedTranscript: relationalTurns.map((t) => `${t.role}: ${t.text}`).join('\n\n'),
+        redactionStatus: 'no_sensitive_match',
+      };
+    }
+  }
 
   return { plan, transcript, analysis, report, cvDocument, jobDescriptionInput };
 };

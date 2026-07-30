@@ -20,8 +20,27 @@ export const calculateFrameworkScore = (dimensions = []) => {
   };
 };
 
-export const analyzeRoleSpecificAnswer = ({ answer = '', rubric = {} } = {}) => {
+const buildTechHint = (context = {}) => {
+  const techStack = Array.isArray(context.techStack)
+    ? context.techStack.filter(Boolean)
+    : (typeof context.techStack === 'string' && context.techStack.trim()
+        ? context.techStack.split(/[,/|]/).map((s) => s.trim()).filter(Boolean)
+        : []);
+  const jobTitle = context.jobTitle || context.roleTitle || context.targetRole || context.jobRole || '';
+
+  if (techStack.length > 0) {
+    const examples = techStack.slice(0, 2).join(' or ');
+    return ` (such as ${examples})`;
+  }
+  if (jobTitle) {
+    return ` for the ${jobTitle} role`;
+  }
+  return '';
+};
+
+export const analyzeRoleSpecificAnswer = ({ answer = '', rubric = {}, context = {} } = {}) => {
   const targetedDimensions = new Set(rubric.targetedDimensions || []);
+  const techHint = buildTechHint(context);
   const dimensions = (rubric.dimensions || []).map((definition) => {
     if (targetedDimensions.size > 0 && !targetedDimensions.has(definition.key)) {
       return {
@@ -40,8 +59,8 @@ export const analyzeRoleSpecificAnswer = ({ answer = '', rubric = {} } = {}) => 
       reason: result.status === 'clear'
         ? `${definition.label} evidence is explicit in the answer.`
         : result.status === 'partial'
-          ? `${definition.label} is implied but needs a clearer, role-specific explanation.`
-          : `${definition.label} evidence is missing from the answer.`,
+          ? `${definition.label} is implied but needs a clearer, role-specific explanation${techHint}.`
+          : `${definition.label} evidence is missing from the answer${techHint}.`,
     };
   });
   const score = calculateFrameworkScore(dimensions);

@@ -1,5 +1,43 @@
 # Change Log
 
+## [2026-07-30 20:10 NZST] Role & tech-stack specific feedback context in framework breakdowns
+
+### Changed / Added
+
+- Updated `roleAnswerAnalysisService.js` and `turnRubricService.js`: added `buildTechHint` helper to dynamically incorporate candidate `techStack` (e.g. RAG 檢索, LLM API 串接) and `jobTitle` from turn metadata/context into fallback & rule-based framework breakdown reasons instead of returning static generic templates.
+- Added automated test in `roleSpecificFrameworkRobustness.test.js` verifying tech stack and job title inclusion. Verified 24 robustness tests passed cleanly and ESLint passed with 0 errors.
+
+## [2026-07-30 19:37 NZST] Self-intro keyword detection fix & clean framework fallback rendering
+
+### Changed / Added
+
+- Updated `turnRubricService.js`: added `briefly introduce` to `isSelfIntroductionQuestion` regex, ensuring opening questions combining self-introductions and motivation (e.g., *"Could you briefly introduce yourself..."*) are accurately classified as `self_intro` and evaluated using the 4-dimension **Introduction Framework** (`Background`, `Role Relevance`, `Evidence`, `Clarity`).
+- Updated `TurnBreakdownSection.jsx`: enhanced `buildFallbackFrameworkBreakdown` to detect self-intro questions and generate the 4-card Introduction Framework fallback. Removed the redundant standalone `MICRO-SCORES` block to prevent duplicate progress bars rendering above framework cards.
+- Verified frontend and backend test suites (`TurnBreakdownSection.test.jsx`, `reportFrameworkPipeline.test.js`, `roleSpecificFrameworkRobustness.test.js`, `answerAlignmentService.test.js`): 45 tests passed cleanly.
+
+## [2026-07-30 19:13 NZST] Relational transcript fallback & SessionTranscript auto-upsert
+
+### Changed / Added
+
+- Added `fetchRelationalTranscriptTurns` in `sessionPersistenceService.js`: if a MongoDB `SessionTranscript` document is missing or has 0 turns, the backend automatically queries PostgreSQL `interview_questions` and `interview_responses` to reconstruct the full transcript turns array.
+- Updated `appendTranscriptTurn` in `sessionTranscriptService.js` to automatically initialize a new `SessionTranscript` document if `findOne` returns `null`, preventing silent turn dropping for legacy or uninitialized sessions.
+- Verified backend robustness suites (`realtimeVoiceTurnMocked.test.js`, `questionScopeClarificationService.test.js`, `answerAlignmentService.test.js`): 53 tests passed cleanly.
+
+## [2026-07-30 17:21 NZST] Candidate report per-question answer result and stronger answer
+
+### Changed / Added
+
+- New reports now add a candidate-safe, practice-only `answerAssessment` under each eligible question card. It is separate from the existing framework score and reports whether the answer directly addressed the question, a 0–100 coaching score, missing signals and a next step; it is not a hiring decision.
+- Candidate report projection canonical-question matches each assessment and excludes role/evidence/proof IDs, alignment source and selection metadata. Generic question alignment is used only where Role-Fit evidence is unavailable and does not claim role or CV evidence was met.
+- Each actual accepted answer now has a rewrite fallback input; the previous first-three cap is removed. The HTML report shows a ready stronger answer inside the matching question card, or an honest unavailable state. Clarifications, repair/system turns and rejected/pending/unconfirmed answers are excluded. Existing reports remain unchanged until regenerated.
+- Removed the duplicate global HTML rewrite section. Existing JSON/TXT/PDF layout was not redesigned.
+- Release blocker: the existing report-coaching normalizer associates model rewrites by array index. Same-text questions with reordered LLM rewrites can therefore misassign a stronger answer. This needs a follow-up `(question, weak answer)` identity repair in `reportCoachingService.js`; the current slice is not release-complete for duplicate questions.
+
+### Verification
+
+- Backend focused tests (`answerAlignmentService.test.js`, `reportPublicationSummary.test.js`): 17 tests passed. Frontend focused `TurnBreakdownSection.test.jsx`: 3 tests passed. Backend and frontend ESLint passed.
+- Human browser visual review, real-provider generation, legacy-report manual check and production rollout were not run.
+
 ## [2026-07-30 15:30 NZST] Kiwi Operator Pack documentation suite
 
 ### Changed / Added
