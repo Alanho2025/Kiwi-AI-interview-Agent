@@ -4,7 +4,8 @@
 > **系統成熟度 (Readiness Level)**：Production-Ready  
 > **核心模組路徑**：`deploy/ec2/AWS_CONSOLE_SETUP.md`
 > **Git 演進 Commit 追蹤**：`PR #128`, Commit `21292ab`, `728cad5`  
-> **主要負責人 / 日期**：Kiwi AI Team / 2026-07-29  
+> **主要負責人 / 日期**：Kiwi AI Team / 2026-07-29    
+> **實作狀態 (Implementation Status)**：Partial / Onboarding Mapping
 
 ---
 

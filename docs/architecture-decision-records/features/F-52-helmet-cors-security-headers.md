@@ -4,7 +4,8 @@
 > **系統成熟度 (Readiness Level)**：Production-Ready  
 > **核心模組路徑**：`backend/src/api.js`
 > **Git 演進 Commit 追蹤**：`PR #129`, Commit `e0e2c9d`, `df871ba`  
-> **主要負責人 / 日期**：Kiwi AI Team / 2026-07-29  
+> **主要負責人 / 日期**：Kiwi AI Team / 2026-07-29    
+> **實作狀態 (Implementation Status)**：Partial / Onboarding Mapping
 
 ---
 

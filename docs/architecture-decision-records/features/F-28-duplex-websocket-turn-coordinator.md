@@ -4,7 +4,8 @@
 > **系統成熟度 (Readiness Level)**：Production-Ready  
 > **核心模組路徑**：`frontend/src/hooks/voice/useVoiceVadTurnController.js`
 > **Git 演進 Commit 追蹤**：`Commit 69735b1`, `7113fad`, `PR #110`  
-> **主要負責人 / 日期**：Kiwi AI Team / 2026-07-29  
+> **主要負責人 / 日期**：Kiwi AI Team / 2026-07-29    
+> **實作狀態 (Implementation Status)**：Partial / Onboarding Mapping
 
 ---
 

@@ -4,7 +4,8 @@
 > **系統成熟度 (Readiness Level)**：Production-Ready  
 > **核心模组路徑**：`frontend/src/components/common/UserTourModal.jsx`, `frontend/src/hooks/useUserTour.js`  
 > **Git 演進 Commit 追蹤**：`PR #110`, Commit `df871ba`, `9c45c1a`  
-> **主要負責人 / 日期**：Kiwi AI Team / 2026-07-29  
+> **主要負責人 / 日期**：Kiwi AI Team / 2026-07-29    
+> **實作狀態 (Implementation Status)**：Partial / Onboarding Mapping
 
 ---
 
