@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_VAD_CONFIG, createVoiceActivityStateMachine, selectBestTranscript } from '../voiceActivityDetectionCore.js';
 
 describe('voiceActivityDetectionCore', () => {
-  it('has base silenceToStopMs set to 1000ms SLA target', () => {
-    expect(DEFAULT_VAD_CONFIG.silenceToStopMs).toBe(1000);
+  it('has base silenceToStopMs set to 1500ms SLA target', () => {
+    expect(DEFAULT_VAD_CONFIG.silenceToStopMs).toBe(1500);
   });
 
   it('detects speech start and speech end after 1000ms base silence', () => {
