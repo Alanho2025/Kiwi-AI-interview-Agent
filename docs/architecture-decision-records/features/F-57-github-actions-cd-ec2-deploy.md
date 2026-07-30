@@ -9,13 +9,15 @@
 
 ---
 
+---
+
 ## 1. 演進軌跡與背景動機 (Genesis & Evolution Trace)
 
 ### 1.1 零基礎生活白話比喻 (Layman Analogy for Beginners)
 > 💡 **小白導讀**：
 > 想像你每次要把寫好的軟體發布給全網用戶（持續部署 CD）。
 > * **傳統做法**：工程師手動用 SSH 登入遠端 AWS 伺服器，手動 `git pull`、手動重新編譯。一旦工程師放假或手滑打錯指令，整個伺服器直接崩潰掛掉。
-> * **GitHub Actions 自動化 CD (本 Feature)**：就像聘請了一位「24 小時機器人快遞員 (`deploy-ec2.yml`)」。只要你把測試通過的代碼合併到 `main` 分支，機器人自動用安全的 SSH Key 連上 EC2，一鍵執行 `docker compose up -d --build` 更新，全程無需人工介入，30 秒零失誤自動上線！
+> * **GitHub Actions 自動化 CD (本 Feature)**：就像聘請了一位「24 小時機器人快遞員 (`ci.yml (AWS SSM + OIDC)`)」。只要你把測試通過的代碼合併到 `main` 分支，機器人自動用安全的 SSH Key 連上 EC2，一鍵執行 `docker compose up -d --build` 更新，全程無需人工介入，30 秒零失誤自動上線！
 
 ### 1.2 基於 Git 歷史的從 0 到 1 演進歷程
 * **初始最簡版本 (Baseline v0 - Commit `6f26031` 早期)**：
@@ -23,7 +25,9 @@
 * **遭遇的痛點與瓶頸 (Pain Points & Bottlenecks)**：
   - 手動部署容易遺漏環境變數，且缺乏部署前 CI 測試門禁，壞代碼經常被直接推上 Staging。
 * **現行架構 (Current Version - PR #128 Commit `6f26031`)**：
-  - `.github/workflows/deploy-ec2.yml` 實現 main 分支合併自動觸發，利用 `appleboy/ssh-action` 安全通道連線 EC2，執行原子化滾動更新。
+  - `.github/workflows/ci.yml (AWS SSM + OIDC)` 實現 main 分支合併自動觸發，利用 `AWS SSM deploy-from-github.sh` 安全通道連線 EC2，執行原子化滾動更新。
+
+---
 
 ---
 
@@ -39,6 +43,8 @@
 | 衡量指標 (Metric) | 目標值 (Target) | 驗證方式 / 自動化測試路徑 |
 | :--- | :--- | :--- |
 | **CD 自動化部署耗時** | `< 45 秒` | GitHub Actions Workflow log |
+
+---
 
 ---
 
@@ -64,15 +70,17 @@ sequenceDiagram
 ### 3.2 流程文字逐步拆解導覽 (Step-by-Step Narrative Walkthrough for Beginners)
 1. **第一步（觸發 CD）**：開發者將程式碼合併到 `main` 分支，觸發 GitHub Actions。
 2. **第二步（密鑰載入）**：Runner 從安全的 GitHub Secrets 中載入加密的 `EC2_SSH_KEY`。
-3. **第三步（SSH 遠端連線）**：透過 `appleboy/ssh-action` 建立安全的 SSH 通道連上 EC2。
+3. **第三步（SSH 遠端連線）**：透過 `AWS SSM deploy-from-github.sh` 建立安全的 SSH 通道連上 EC2。
 4. **第四步（一鍵滾動更新）**：在 EC2 上執行拉取代碼並重新構建容器，完成 0 人工干預部署！
+
+---
 
 ---
 
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
-* **現行程式碼位置**：[`deploy/ec2/deploy-from-github.sh:L1-L4`](file:///Users/heminghan/Kiwi-AI-interview-Agent/deploy/ec2/deploy-from-github.sh#L1-L4)
+* **現行程式碼位置**：[`deploy/ec2/deploy-from-github.sh:L1-L4`](../../deploy/ec2/deploy-from-github.sh#L1-L4)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -98,6 +106,8 @@ docker compose -f deploy/ec2/compose.yaml up -d --build
 
 ---
 
+---
+
 ## 5. 爆炸半徑與失敗矩陣 (Blast Radius & Failure Matrix)
 
 ### 5.1 影響範圍 (Blast Radius)
@@ -107,6 +117,8 @@ docker compose -f deploy/ec2/compose.yaml up -d --build
 | 失敗場景 (Failure Scenario) | 系統表現 (Behavior) | 降級 / 修復策略 (Fallback) |
 | :--- | :--- | :--- |
 | **SSH Key 認證失敗** | CI 步驟紅牌報錯 | 阻斷 CD 流程，舊版本容器繼續運行不中斷 |
+
+---
 
 ---
 
@@ -120,11 +132,15 @@ docker compose -f deploy/ec2/compose.yaml up -d --build
 
 ---
 
+---
+
 ## 7. 轉碼新人面試實戰對攻劇本 (Career-Switcher Interview Q&A Defense Script)
 
-### 7.1 30 秒大白話 Core Pitch (口語化台詞)
-> *"面試官您好！這個 GitHub Actions CD 流程是我們自動化部署的流水線。我們沒有手動 SSH 登入伺服器，而是用 `appleboy/ssh-action` 配合 GitHub Secrets。只要代碼 Merge 到 `main` 分支，自動觸發連線並執行 `docker compose up -d --build --remove-orphans`！全程 30 秒零人工干預，而且清理了孤兒容器！"*
+#
 
-### 7.2 面試官追問實戰劇本 (Verbatim Defense Script)
-* **面試官問**：「你為什麼要在 `docker compose up -d --build` 的命令後特別加上 `--remove-orphans` 參數？」
-  - **轉碼新人回答**：「因為當我們在程式碼中刪除或重命名了某個 Docker 服務時，如果不加 `--remove-orphans`，舊的容器仍會在背景默默運行並佔用記憶體與連接埠。加上這個參數，Docker 會在更新時自動清理掉那些不再定義於 `docker-compose.yml` 中的孤兒容器，保持伺服器記憶體絕對乾淨！」
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

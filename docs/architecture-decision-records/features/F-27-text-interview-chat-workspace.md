@@ -9,6 +9,8 @@
 
 ---
 
+---
+
 ## 1. 演進軌跡與背景動機 (Genesis & Evolution Trace)
 
 ### 1.1 零基礎生活白話比喻 (Layman Analogy for Beginners)
@@ -27,6 +29,8 @@
 
 ---
 
+---
+
 ## 2. 邊界與成功標準 (Scope & Success Criteria)
 
 ### 2.1 涵蓋與非涵蓋範圍 (Scope Boundaries)
@@ -39,6 +43,8 @@
 | 衡量指標 (Metric) | 目標值 (Target) | 驗證方式 / 自動化測試路徑 |
 | :--- | :--- | :--- |
 | **自動滾動命中率** | `100% (新訊息出現時)` | `frontend/src/tests/chatWorkspace.test.js` |
+
+---
 
 ---
 
@@ -70,10 +76,12 @@ sequenceDiagram
 
 ---
 
+---
+
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
-* **現行程式碼位置**：[`frontend/src/components/interview/InterviewChatPanel.jsx:L15-L20`](file:///Users/heminghan/Kiwi-AI-interview-Agent/frontend/src/components/interview/InterviewChatPanel.jsx#L15-L20)
+* **現行程式碼位置**：[`frontend/src/components/interview/InterviewChatPanel.jsx:L15-L20`](../../frontend/src/components/interview/InterviewChatPanel.jsx#L15-L20)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -100,6 +108,8 @@ export function InterviewChatPanel({ transcript = [] }) {
 
 ---
 
+---
+
 ## 5. 爆炸半徑與失敗矩陣 (Blast Radius & Failure Matrix)
 
 ### 5.1 影響範圍 (Blast Radius)
@@ -109,6 +119,8 @@ export function InterviewChatPanel({ transcript = [] }) {
 | 失敗場景 (Failure Scenario) | 系統表現 (Behavior) | 降級 / 修復策略 (Fallback) |
 | :--- | :--- | :--- |
 | **Ref 未掛載** | 可選鏈 `?.` 攔截 | 靜默不發起滾動，不引發 JavaScript 報錯崩潰 |
+
+---
 
 ---
 
@@ -122,11 +134,15 @@ export function InterviewChatPanel({ transcript = [] }) {
 
 ---
 
+---
+
 ## 7. 轉碼新人面試實戰對攻劇本 (Career-Switcher Interview Q&A Defense Script)
 
-### 7.1 30 秒大白話 Core Pitch (口語化台詞)
-> *"面試官您好！這個純文字面試 Workspace 是我們全系統最安全、零依賴的 Demo 路徑。即使在用戶麥克風壞掉的情況下也能順暢完成面試。我們在對話框底部放置了一個隱形的 `<div ref={messagesEndRef} />`，並在 `useEffect` 中監聽 `messages` 陣列。只要有新訊息，在 0 毫秒內平滑滑動至底部，帶來像 Messenger 一樣流暢的體驗！"*
+#
 
-### 7.2 面試官追問實戰劇本 (Verbatim Defense Script)
-* **面試官問**：「你為什麼要在聊天滾動時使用 `useRef` + `scrollIntoView`，而不是直接調用 `window.scrollTo`？」
-  - **轉碼新人回答**：「因為我們的頁面是雙欄式的 Workspace，左側有進度面板、上方有導航欄。如果用 `window.scrollTo` 會滾動整個瀏覽器大視窗，導致導航欄被刷走！使用 `useRef` 錨定聊天區域內部的 `<div />` 配合 `scrollIntoView`，能做到 100% 的局部平滑滾動，頁面佈局極其穩定！」
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

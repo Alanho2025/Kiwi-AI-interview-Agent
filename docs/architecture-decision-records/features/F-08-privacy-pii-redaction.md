@@ -15,7 +15,7 @@
 > 💡 **小白導讀**：
 > 想像你要把一份個人履歷拿給外包列印店（第三方大模型如 DeepSeek/OpenAI）列印。
 > * **傳統做法**：履歷上寫滿了你的真實手機號碼、個人 Email 和家庭住址，列印店員工（或外包公司）全看光光，有嚴重的隱私外洩風險。
-> * **PII 自動脫敏 (本 Feature)**：就像在把履歷傳出去之前，一位「安全秘書 ([privacyRedactionService.js](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/privacyRedactionService.js))」拿著黑色的立可帶，自動把所有的電話號碼蓋上 `[REDACTED_PHONE]`、把 Email 蓋上 `[REDACTED_EMAIL]`。第三方大模型只能看到你的專業技能，完全拿不到你的個人私密聯繫方式！
+> * **PII 自動脫敏 (本 Feature)**：就像在把履歷傳出去之前，一位「安全秘書 ([privacyRedactionService.js](../../backend/src/services/privacyRedactionService.js))」拿著黑色的立可帶，自動把所有的電話號碼蓋上 `[REDACTED_PHONE]`、把 Email 蓋上 `[REDACTED_EMAIL]`。第三方大模型只能看到你的專業技能，完全拿不到你的個人私密聯繫方式！
 
 ### 1.2 基於 Git 歷史的從 0 到 1 演進歷程
 * **初始最簡版本 (Baseline v0 - PR #110 之前)**：
@@ -23,7 +23,7 @@
 * **遭遇的痛點與瓶頸 (Pain Points & Bottlenecks)**：
   - 候選人的電話、Email、個人網站與 API 密鑰可能被外部 LLM 用作訓練集或記錄日誌，違反 PII (Personally Identifiable Information) 與 GDPR / NZ Privacy Act 隱私合規規範。
 * **現行架構 (Current Version - PR #110)**：
-  - 實作 [privacyRedactionService.js](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/privacyRedactionService.js)，採用決定性正則表達式引擎，在文字離開系統前進行毫秒級的文字遮蔽替換。
+  - 實作 [privacyRedactionService.js](../../backend/src/services/privacyRedactionService.js)，採用決定性正則表達式引擎，在文字離開系統前進行毫秒級的文字遮蔽替換。
 
 ---
 
@@ -74,7 +74,7 @@ sequenceDiagram
 ```
 
 ### 3.2 流程文字逐步拆解導覽 (Step-by-Step Narrative Walkthrough for Beginners)
-1. **第一步（觸發脫敏）**：當系統準備打包提示詞發往 LLM 時，呼叫 [redactSensitiveText](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/privacyRedactionService.js#L27-L33)。
+1. **第一步（觸發脫敏）**：當系統準備打包提示詞發往 LLM 時，呼叫 [redactSensitiveText](../../backend/src/services/privacyRedactionService.js#L27-L33)。
 2. **第二步（正則流式替換）**：遍歷 `REDACTION_RULES` 陣列，針對傳入文字進行多模式匹配。
 3. **第三步（判斷是否有脫敏發生）**：可透過 `hasRedactedSensitiveText` 檢查比對脫敏前後文字是否變化，記錄審計日誌。
 4. **第四步（安全發出）**：將遮蔽後的文字安全地傳遞給外部大模型。
@@ -84,7 +84,7 @@ sequenceDiagram
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：`REDACTION_RULES` 與 `redactSensitiveText`
-* **現行程式碼位置**：[`backend/src/services/privacyRedactionService.js:L8-L33`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/privacyRedactionService.js#L8-L33)
+* **現行程式碼位置**：[`backend/src/services/privacyRedactionService.js:L8-L33`](../../backend/src/services/privacyRedactionService.js#L8-L33)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -158,3 +158,10 @@ const redactSensitiveTextNLP = async (text) => {
 
 ### 6.2 緊急回滾流程 (Rollback SOP)
 - 若發現某項特殊格式電話未遮蔽，直接更新 `REDACTION_RULES` 正則規則並發布即可。
+
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

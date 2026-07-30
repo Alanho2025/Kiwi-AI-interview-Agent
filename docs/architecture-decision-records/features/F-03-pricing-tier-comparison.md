@@ -9,6 +9,8 @@
 
 ---
 
+---
+
 ## 1. 演進軌跡與背景動機 (Genesis & Evolution Trace)
 
 ### 1.1 零基礎生活白話比喻 (Layman Analogy for Beginners)
@@ -27,6 +29,8 @@
 
 ---
 
+---
+
 ## 2. 邊界與成功標準 (Scope & Success Criteria)
 
 ### 2.1 涵蓋與非涵蓋範圍 (Scope Boundaries)
@@ -40,6 +44,8 @@
 | :--- | :--- | :--- |
 | **卡片渲染時間** | `< 50ms` | `frontend/src/tests/pricing.test.js` |
 | **點擊升級轉化** | `> 15%` | `frontend/src/components/__tests__/PricingCard.test.jsx` |
+
+---
 
 ---
 
@@ -70,10 +76,12 @@ sequenceDiagram
 
 ---
 
+---
+
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
-* **現行程式碼位置**：[`frontend/src/pages/PricingPage.jsx:L12-L17`](file:///Users/heminghan/Kiwi-AI-interview-Agent/frontend/src/pages/PricingPage.jsx#L12-L17)
+* **現行程式碼位置**：[`frontend/src/pages/PricingPage.jsx:L12-L17`](../../frontend/src/pages/PricingPage.jsx#L12-L17)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -101,6 +109,8 @@ export function PricingPage() {
 
 ---
 
+---
+
 ## 5. 爆炸半徑與失敗矩陣 (Blast Radius & Failure Matrix)
 
 ### 5.1 影響範圍 (Blast Radius)
@@ -110,6 +120,8 @@ export function PricingPage() {
 | 失敗場景 (Failure Scenario) | 系統表現 (Behavior) | 降級 / 修復策略 (Fallback) |
 | :--- | :--- | :--- |
 | **未傳入 plan.id** | `map` 缺乏 key 警告 | `PricingCard` 內部提供預設 prop 防護 |
+
+---
 
 ---
 
@@ -123,11 +135,15 @@ export function PricingPage() {
 
 ---
 
+---
+
 ## 7. 轉碼新人面試實戰對攻劇本 (Career-Switcher Interview Q&A Defense Script)
 
-### 7.1 30 秒大白話 Core Pitch (口語化台詞)
-> *"面試官您好！這個定價頁面就像電信公司的資費比較表。我們把方案數據抽離成獨立的 `PRICING_PLANS` 陣列，並放在 React 組件外部。這樣做的好處是：第一，遵守 Clean Code 的 DRY 不重複原則，未來新增方案只需要改陣列；第二，把資料放在組件外可以防止每次 Re-render 重新創建物件，降低 GC 垃圾回收壓力！"*
+#
 
-### 7.2 面試官追問實戰劇本 (Verbatim Defense Script)
-* **面試官問**：「你為什麼把 `PRICING_PLANS` 陣列放在 React 組件外，而不是放在組件裡面？」
-  - **轉碼新人回答**：「如果把陣列放在組件內部，每次組件因為 State 改變而重新渲染時，JavaScript 都會在記憶體中重新聲明並創建一次這個陣列，產生不必要的 GC (垃圾回收) 壓力。放在組件外部作為靜態常數，只會在模組加載時創建一次，效能最好！」
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

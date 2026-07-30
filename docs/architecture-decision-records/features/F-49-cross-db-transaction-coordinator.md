@@ -78,7 +78,7 @@ sequenceDiagram
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：`withTransaction` 與 `runTransactionWithClient`
-* **現行程式碼位置**：[`backend/src/db/postgres.js:L167-L174`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/db/postgres.js#L167-L174)
+* **現行程式碼位置**：[`backend/src/db/postgres.js:L167-L174`](../../backend/src/db/postgres.js#L167-L174)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -120,3 +120,10 @@ await client.query('COMMIT');
 
 ## 6. 運維與回滾步驟 (Incident Response & Rollback Runbook)
 - 檢查日誌：`[Postgres] Rollback failed:`
+
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

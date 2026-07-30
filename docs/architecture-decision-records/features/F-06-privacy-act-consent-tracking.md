@@ -9,6 +9,8 @@
 
 ---
 
+---
+
 ## 1. 演進軌跡與背景動機 (Genesis & Evolution Trace)
 
 ### 1.1 零基礎生活白話比喻 (Layman Analogy for Beginners)
@@ -27,6 +29,8 @@
 
 ---
 
+---
+
 ## 2. 邊界與成功標準 (Scope & Success Criteria)
 
 ### 2.1 涵蓋與非涵蓋範圍 (Scope Boundaries)
@@ -39,6 +43,8 @@
 | 衡量指標 (Metric) | 目標值 (Target) | 驗證方式 / 自動化測試路徑 |
 | :--- | :--- | :--- |
 | **審計存證覆蓋率** | `100% 登入用戶存證` | `backend/tests/auth/consent.test.js` |
+
+---
 
 ---
 
@@ -67,10 +73,12 @@ sequenceDiagram
 
 ---
 
+---
+
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
-* **現行程式碼位置**：[`backend/src/services/authService.js:L34-L41`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/authService.js#L34-L41)
+* **現行程式碼位置**：[`backend/src/services/authService.js:L34-L41`](../../backend/src/services/authService.js#L34-L41)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -100,6 +108,8 @@ const recordConsent = async ({ userId, policyVersion, source = 'google_login' })
 
 ---
 
+---
+
 ## 5. 爆炸半徑與失敗矩陣 (Blast Radius & Failure Matrix)
 
 ### 5.1 影響範圍 (Blast Radius)
@@ -109,6 +119,8 @@ const recordConsent = async ({ userId, policyVersion, source = 'google_login' })
 | 失敗場景 (Failure Scenario) | 系統表現 (Behavior) | 降級 / 修復策略 (Fallback) |
 | :--- | :--- | :--- |
 | **`user_consents` 表寫入失敗** | 拋出 DB Exception | 阻斷登入交易並 Rollback，確保無未存證登入 |
+
+---
 
 ---
 
@@ -122,11 +134,15 @@ const recordConsent = async ({ userId, policyVersion, source = 'google_login' })
 
 ---
 
+---
+
 ## 7. 轉碼新人面試實戰對攻劇本 (Career-Switcher Interview Q&A Defense Script)
 
-### 7.1 30 秒大白話 Core Pitch (口語化台詞)
-> *"面試官您好！這個隱私條款追蹤功能是為了符合紐西蘭 Privacy Act 2020 的合規要求。我們在用戶登入時，用 `crypto.randomUUID()` 為每次授權寫入一筆不可變的審計紀錄至 Postgres。我們沒有用傳統的自增整數 ID，因為自增 ID 容易被駭客用爬蟲連續猜測；用 UUID 可以 100% 防範枚舉攻擊！"*
+#
 
-### 7.2 面試官追問實戰劇本 (Verbatim Defense Script)
-* **面試官問**：「為什麼你在 `user_consents` 表的主鍵使用 `crypto.randomUUID()` 而不用 Postgres 的 `SERIAL` 自增整數？」
-  - **轉碼新人回答**：「因為自增整數 ID (1, 2, 3...) 存在嚴重的枚舉攻擊漏洞，惡意人士只要猜測數字就能知道我們有多少用戶同意了條款。而 UUIDv4 是 128 位元的隨機字串，數學上完全無法猜測，既保護了資安，又能適應未來的分散式資料庫擴展！」
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

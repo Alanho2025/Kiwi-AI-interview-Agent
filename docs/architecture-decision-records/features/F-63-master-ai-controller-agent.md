@@ -15,7 +15,7 @@
 > 💡 **小白導讀**：
 > 想像一位專業資深面試官在面試候選人：
 > * **傳統單純 Prompt 寫法 (Static Single Prompt)**：面試官手裡拿著一張固定死板的問答清單，無論候選人回答什麼，都只能照著清單唸下一題，完全無法根據候選人的回答進行追問、澄清或評估。
-> * **自主 Agent 思考-行動-軌跡架構 (Agentic ReAct Loop - 本 Feature)**：面試官身邊帶了一位助手（[masterAiService.js](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/masterAiService.js)）。
+> * **自主 Agent 思考-行動-軌跡架構 (Agentic ReAct Loop - 本 Feature)**：面試官身邊帶了一位助手（[masterAiService.js](../../backend/src/services/masterAiService.js)）。
 >   1. **感知 (Context Building)**：觀察候選人剛才的回答、目前面試的時間與進度。
 >   2. **規劃 (Action Planning)**：思考下一步應該「追問細節」、「切換下一個技術模組」還是「進行追問澄清」。
 >   3. **執行 (Execution)**：生成並講出最適當的面試問題。
@@ -35,10 +35,10 @@
 
 ### 2.1 涵蓋與非涵蓋範圍 (Scope Boundaries)
 * **In-Scope (包含範圍)**：
-  - 面試環境與槽位上下文裝配 ([buildDecisionContext](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/aiControl/decisionContextBuilder.js))。
-  - 行動規劃與模型決策 ([selectActionWithModel](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/aiControl/modelActionSelectorService.js))。
-  - 受控行動執行器 ([executeInterviewAction](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/aiControl/interviewActionExecutor.js))。
-  - 決策記錄異步寫入 ([createDecisionRecord](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/aiControl/decisionRecordService.js))。
+  - 面試環境與槽位上下文裝配 ([buildDecisionContext](../../backend/src/services/aiControl/decisionContextBuilder.js))。
+  - 行動規劃與模型決策 ([selectActionWithModel](../../backend/src/services/aiControl/modelActionSelectorService.js))。
+  - 受控行動執行器 ([executeInterviewAction](../../backend/src/services/aiControl/interviewActionExecutor.js))。
+  - 決策記錄異步寫入 ([createDecisionRecord](../../backend/src/services/aiControl/decisionRecordService.js))。
   - 支持 Harness 影子模式 (Shadow Mode) 對比測試。
 * **Out-of-Scope (排除範圍)**：
   - 不由 LLM 直接修改資料庫原始 Schema，所有寫入均透過受控的 Executor 執行。
@@ -86,7 +86,7 @@ sequenceDiagram
 ```
 
 ### 3.2 流程文字逐步拆解導覽 (Step-by-Step Narrative Walkthrough for Beginners)
-1. **第一步（上下文構建）**：當使用者提交回答後，[masterAiService.js](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/masterAiService.js) 匯集當前已問問題清單、剩餘時間、候選人技能矩陣與動態槽位 (Slots)。
+1. **第一步（上下文構建）**：當使用者提交回答後，[masterAiService.js](../../backend/src/services/masterAiService.js) 匯集當前已問問題清單、剩餘時間、候選人技能矩陣與動態槽位 (Slots)。
 2. **第二步（模型動作選取）**：透過 `selectActionWithModel` 結合候選動作、評估器輸出與備用計劃 (fallbackPlan)，選取最適當的 `selectedAction`。
 3. **第三步（動作受控執行）**：`executeInterviewAction` 執行具體動作，將嚴肅的評估問題自然化為溫和的講話口氣。
 4. **第四步（異步佇列與軌跡寫入）**：透過 `enqueueBackgroundJob` 發起 `persist-action-selection-record` 與 `trace-followup-decision`，將決策原因 (rationale)、證據鏈 (evidenceUsed) 異步寫入資料庫，主通道零卡頓。
@@ -96,7 +96,7 @@ sequenceDiagram
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：`masterAiService.js` 中的模型動作選擇與執行
-* **現行程式碼位置**：[`backend/src/services/masterAiService.js:L639-L743`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/masterAiService.js#L639-L743)
+* **現行程式碼位置**：[`backend/src/services/masterAiService.js:L639-L743`](../../backend/src/services/masterAiService.js#L639-L743)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -182,3 +182,10 @@ await db.saveTrajectory(response); // 同步阻塞寫入 DB
 
 ### 6.2 緊急回滾流程 (Rollback SOP)
 - 若新版本的 Action Planner 出現異常，可在配置中設定 `HARNESS_SHADOW_MODE=true` 關閉主線 Agent 的實驗性分支，降級為穩定版的 Planner。
+
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

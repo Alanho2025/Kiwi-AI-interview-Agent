@@ -9,6 +9,8 @@
 
 ---
 
+---
+
 ## 1. 演進軌跡與背景動機 (Genesis & Evolution Trace)
 
 ### 1.1 零基礎生活白話比喻 (Layman Analogy for Beginners)
@@ -27,6 +29,8 @@
 
 ---
 
+---
+
 ## 2. 邊界與成功標準 (Scope & Success Criteria)
 
 ### 2.1 涵蓋與非涵蓋範圍 (Scope Boundaries)
@@ -39,6 +43,8 @@
 | 衡量指標 (Metric) | 目標值 (Target) | 驗證方式 / 自動化測試路徑 |
 | :--- | :--- | :--- |
 | **日誌寫入阻斷率** | `0% (完全非阻塞)` | `backend/tests/aiControl/auditLog.test.js` |
+
+---
 
 ---
 
@@ -64,14 +70,16 @@ sequenceDiagram
 1. **第一步（決策產生）**：`modelActionSelectorService` 決定好下一個 Action (如追問)。
 2. **第二步（發起日誌記錄）**：呼叫 `aiDecisionAuditLoggerService` 傳入 Action、推理解釋與當前上下文快照。
 3. **第三步（背景非阻塞派發）**：日誌服務使用 Node.js 的 `setImmediate` 把寫入任務丟到事件循環的下一幀。
-4. **第四步（0 毫秒放行）**：控制流程 0 毫秒立刻繼續執行，DB 寫入在背景默默完成，完全不卡住用戶的面試對話！
+4. **第四步（15-50ms放行）**：控制流程 15-50ms立刻繼續執行，DB 寫入在背景默默完成，完全不卡住用戶的面試對話！
+
+---
 
 ---
 
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
-* **現行程式碼位置**：[`backend/src/services/aiControl/decisionRecordService.js:L15-L18`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/aiControl/decisionRecordService.js#L15-L18)
+* **現行程式碼位置**：[`backend/src/services/aiControl/decisionRecordService.js:L15-L18`](../../backend/src/services/aiControl/decisionRecordService.js#L15-L18)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -96,6 +104,8 @@ export const createDecisionRecord = async ({ sessionId, record }) => {
 
 ---
 
+---
+
 ## 5. 爆炸半徑與失敗矩陣 (Blast Radius & Failure Matrix)
 
 ### 5.1 影響範圍 (Blast Radius)
@@ -105,6 +115,8 @@ export const createDecisionRecord = async ({ sessionId, record }) => {
 | 失敗場景 (Failure Scenario) | 系統表現 (Behavior) | 降級 / 修復策略 (Fallback) |
 | :--- | :--- | :--- |
 | **Audit DB 連線中斷** | 觸發 `catch` 印日誌 | 0 影響主面試流程，系統繼續運行 |
+
+---
 
 ---
 
@@ -118,11 +130,15 @@ export const createDecisionRecord = async ({ sessionId, record }) => {
 
 ---
 
+---
+
 ## 7. 轉碼新人面試實戰對攻劇本 (Career-Switcher Interview Q&A Defense Script)
 
-### 7.1 30 秒大白話 Core Pitch (口語化台詞)
-> *"面試官您好！這個 Audit 日誌服務就像是 AI 代理的黑盒子保險箱。最開始我們用 `await AuditLog.create()` 阻塞等待，結果每次寫日誌都讓語音對話卡頓 30 毫秒！現在我們用 Node.js 的 `setImmediate` 把日誌任務移到背景非同步執行。控制流程 0 毫秒放行，就算日誌 DB 斷線也絕不拖垮面試！"*
+#
 
-### 7.2 面試官追問實戰劇本 (Verbatim Defense Script)
-* **面試官問**：「你為什麼要在日誌寫入時使用 `setImmediate` 而不是直接 `await`？」
-  - **轉碼新人回答**：「因為審計日誌屬於『旁路輔助功能 (Side Effect)』，主線任務是盡可能快地將語音響應傳回給用戶。如果用 `await` 阻塞主執行緒，用戶每說一句話都要白白等待 30 毫秒的 DB 寫入時間。用 `setImmediate` 可以實現 0 毫秒無感日誌派發，且做到了完美的故障隔離！」
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

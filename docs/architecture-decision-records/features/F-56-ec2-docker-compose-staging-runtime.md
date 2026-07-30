@@ -9,6 +9,8 @@
 
 ---
 
+---
+
 ## 1. 演進軌跡與背景動機 (Genesis & Evolution Trace)
 
 ### 1.1 零基礎生活白話比喻 (Layman Analogy for Beginners)
@@ -27,6 +29,8 @@
 
 ---
 
+---
+
 ## 2. 邊界與成功標準 (Scope & Success Criteria)
 
 ### 2.1 涵蓋與非涵蓋範圍 (Scope Boundaries)
@@ -39,6 +43,8 @@
 | 衡量指標 (Metric) | 目標值 (Target) | 驗證方式 / 自動化測試路徑 |
 | :--- | :--- | :--- |
 | **全站一鍵啟動時間** | `< 40 秒` | `docker compose up -d` |
+
+---
 
 ---
 
@@ -68,10 +74,12 @@ sequenceDiagram
 
 ---
 
+---
+
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
-* **現行程式碼位置**：[`deploy/ec2/compose.yaml:L1-L7`](file:///Users/heminghan/Kiwi-AI-interview-Agent/deploy/ec2/compose.yaml#L1-L7)
+* **現行程式碼位置**：[`deploy/ec2/compose.yaml:L1-L7`](../../deploy/ec2/compose.yaml#L1-L7)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -100,6 +108,8 @@ services:
 
 ---
 
+---
+
 ## 5. 爆炸半徑與失敗矩陣 (Blast Radius & Failure Matrix)
 
 ### 5.1 影響範圍 (Blast Radius)
@@ -109,6 +119,8 @@ services:
 | 失敗場景 (Failure Scenario) | 系統表現 (Behavior) | 降級 / 修復策略 (Fallback) |
 | :--- | :--- | :--- |
 | **DB 健康檢查失敗** | `backend` 容器等待 | 阻斷 backend 啟動，防止產生連線報錯 |
+
+---
 
 ---
 
@@ -122,11 +134,15 @@ services:
 
 ---
 
+---
+
 ## 7. 轉碼新人面試實戰對攻劇本 (Career-Switcher Interview Q&A Defense Script)
 
-### 7.1 30 秒大白話 Core Pitch (口語化台詞)
-> *"面試官您好！這個 EC2 Docker Compose 環境是我們單機 Staging 部署的核心。我們用 `docker-compose.yml` 把前後端和雙資料庫編排在一起。特別是在 `backend` 服務裡，我們寫了 `depends_on: postgres: condition: service_healthy`。這樣能保證 Postgres DB 確定完全啟動後後端才開機，徹底解決了開機搶跑導致連不上 DB 崩潰的 Bug！"*
+#
 
-### 7.2 面試官追問實戰劇本 (Verbatim Defense Script)
-* **面試官問**：「你為什麼要在 Docker Compose 的 `depends_on` 配置裡專門加上 `condition: service_healthy` 條件，只寫 `depends_on: - postgres` 不行嗎？」
-  - **轉碼新人回答**：「因為只寫普通的 `depends_on`，Docker 只會保證 Postgres 容器『被創建了』，但此時 PostgreSQL 資料庫內部的服務與連接埠可能還在進行初始化。後端 Node.js 如果在 DB 初始化完成前搶先啟動，就會發起資料庫連線並拋出 `ECONNREFUSED` 崩潰！加上 `condition: service_healthy` 配合 `pg_isready` 健康檢查，能 100% 確保資料庫真的準備好接客了才開後端！」
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

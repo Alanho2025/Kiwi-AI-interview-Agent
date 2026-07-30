@@ -9,6 +9,8 @@
 
 ---
 
+---
+
 ## 1. 演進軌跡與背景動機 (Genesis & Evolution Trace)
 
 ### 1.1 零基礎生活白話比喻 (Layman Analogy for Beginners)
@@ -27,6 +29,8 @@
 
 ---
 
+---
+
 ## 2. 邊界與成功標準 (Scope & Success Criteria)
 
 ### 2.1 涵蓋與非涵蓋範圍 (Scope Boundaries)
@@ -39,6 +43,8 @@
 | 衡量指標 (Metric) | 目標值 (Target) | 驗證方式 / 自動化測試路徑 |
 | :--- | :--- | :--- |
 | **環境重複搭建成功率** | `100%` | `docs/ec2-setup-guide.md` 手冊實測 |
+
+---
 
 ---
 
@@ -69,10 +75,12 @@ sequenceDiagram
 
 ---
 
+---
+
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
-* **現行程式碼位置**：[`deploy/ec2/AWS_CONSOLE_SETUP.md:L1-L2`](file:///Users/heminghan/Kiwi-AI-interview-Agent/deploy/ec2/AWS_CONSOLE_SETUP.md#L1-L2)
+* **現行程式碼位置**：[`deploy/ec2/AWS_CONSOLE_SETUP.md:L1-L2`](../../deploy/ec2/AWS_CONSOLE_SETUP.md#L1-L2)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -96,6 +104,8 @@ Step-by-step instructions for staging server initialization.
 
 ---
 
+---
+
 ## 5. 爆炸半徑與失敗矩陣 (Blast Radius & Failure Matrix)
 
 ### 5.1 影響範圍 (Blast Radius)
@@ -105,6 +115,8 @@ Step-by-step instructions for staging server initialization.
 | 失敗場景 (Failure Scenario) | 系統表現 (Behavior) | 降級 / 修復策略 (Fallback) |
 | :--- | :--- | :--- |
 | **Healthcheck 傳回 500** | 腳本傳回 exit code 1 | 提示查看 `docker compose logs backend` 排查日誌 |
+
+---
 
 ---
 
@@ -118,11 +130,15 @@ Step-by-step instructions for staging server initialization.
 
 ---
 
+---
+
 ## 7. 轉碼新人面試實戰對攻劇本 (Career-Switcher Interview Q&A Defense Script)
 
-### 7.1 30 秒大白話 Core Pitch (口語化台詞)
-> *"面試官您好！這個 Staging 搭建指南是我們團隊快速 Onboarding 的祕訣。我們拒絕口耳相傳的搭建口訣，而是編寫了 `docs/ec2-setup-guide.md` 與自動化 Shell 驗證水路腳本。在腳本裡用 `curl -w "%{http_code}"` 抓取 HTTP 狀態碼。任何新人拿著這份手冊，1 秒就能自動驗證 Staging 環境是否 100% 健全！"*
+#
 
-### 7.2 面試官追問實戰劇本 (Verbatim Defense Script)
-* **面試官問**：「你為什麼要在 Shell 水路腳本中使用 `curl -s -o /dev/null -w "%{http_code}"` 這種寫法？」
-  - **轉碼新人回答**：「因為 `-s` 能關閉進度條，`-o /dev/null` 忽視回應主體，而 `-w "%{http_code}"` 可以精確只輸出 `200` 這 3 個數字！這樣 Shell 腳本可以用整數比較 `if [ "$HTTP_STATUS" -eq 200 ]` 進行毫秒級的自動化判斷，而不需要用複雜的字串正規表達式去解析 HTML 內容，效能與穩定度最高！」
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

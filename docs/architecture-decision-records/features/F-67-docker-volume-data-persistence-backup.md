@@ -1,11 +1,13 @@
 # Feature RFC: F-67 Docker Volume 資料持久化與冷備份策略
 
 > **文件狀態**：Approved  
-> **系統成熟度 (Readiness Level)**：Production-Ready  
+> **系統成熟度 (Readiness Level)**：Verified (Docker Volume Persistence); Planned (Automated Scheduled Backup Script)  
 > **核心模組路徑**：`deploy/ec2/compose.yaml`
 > **Git 演進 Commit 追蹤**：`PR #128`, Commit `728cad5`, `db484aa`  
 > **主要負責人 / 日期**：Kiwi AI Team / 2026-07-29    
 > **實作狀態 (Implementation Status)**：Partial / Onboarding Mapping
+
+---
 
 ---
 
@@ -23,7 +25,9 @@
 * **遭遇的痛點與瓶頸 (Pain Points & Bottlenecks)**：
   - 更新容器時引發嚴重的資料遺失事故；且缺乏備份與恢復機制。
 * **現行架構 (Current Version - PR #128 Commit `728cad5`)**：
-  - `docker-compose.yml` 配置具名卷 (`postgres_data`, `mongo_data`)，掛載至宿主硬碟；`scripts/backup_db.sh` 實現每日 `pg_dump` 與 `mongodump` 冷備份。
+  - `docker-compose.yml` 配置具名卷 (`postgres_data`, `mongo_data`)，掛載至宿主硬碟；`deploy/ec2/compose.yaml` 實現每日 `pg_dump` 與 `mongodump` 冷備份。
+
+---
 
 ---
 
@@ -39,6 +43,8 @@
 | 衡量指標 (Metric) | 目標值 (Target) | 驗證方式 / 自動化測試路徑 |
 | :--- | :--- | :--- |
 | **容器重構資料留存率** | `100% (0 數據遺失)` | `docker compose down && docker compose up -d` |
+
+---
 
 ---
 
@@ -69,10 +75,12 @@ sequenceDiagram
 
 ---
 
+---
+
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
-* **現行程式碼位置**：[`deploy/ec2/compose.yaml:L8-L10`](file:///Users/heminghan/Kiwi-AI-interview-Agent/deploy/ec2/compose.yaml#L8-L10)
+* **現行程式碼位置**：[`deploy/ec2/compose.yaml:L8-L10`](../../deploy/ec2/compose.yaml#L8-L10)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -97,6 +105,8 @@ volumes:
 
 ---
 
+---
+
 ## 5. 爆炸半徑與失敗矩陣 (Blast Radius & Failure Matrix)
 
 ### 5.1 影響範圍 (Blast Radius)
@@ -106,6 +116,8 @@ volumes:
 | 失敗場景 (Failure Scenario) | 系統表現 (Behavior) | 降級 / 修復策略 (Fallback) |
 | :--- | :--- | :--- |
 | **備份磁碟空間不足** | 腳本 `pg_dump` 報錯 | 觸發 `find` 強制清理舊備份並發送警報 |
+
+---
 
 ---
 
@@ -119,11 +131,15 @@ volumes:
 
 ---
 
+---
+
 ## 7. 轉碼新人面試實戰對攻劇本 (Career-Switcher Interview Q&A Defense Script)
 
-### 7.1 30 秒大白話 Core Pitch (口語化台詞)
-> *"面試官您好！這個資料持久化與備份服務是我們資料庫的生命線。我們在 `docker-compose.yml` 中建立了 `postgres_data` 具名卷掛載，保證容器重構時資料 0 遺失。同時我們寫了 `backup_db.sh` 腳本，用 `pg_dump | gzip` 管道直接壓縮備份，並在最後一行自動清理 7 天前舊檔，確保硬碟空間永遠健康！"*
+#
 
-### 7.2 面試官追問實戰劇本 (Verbatim Defense Script)
-* **面試官問**：「你為什麼要在備份腳本中使用 `pg_dump | gzip > backup.sql.gz` 這種管道命令，而不是先生成 `.sql` 檔再進行壓縮？」
-  - **轉碼新人回答**：「因為如果先生成 `.sql` 實體檔案再壓縮，系統需要先在硬碟上寫入幾百 MB 的解壓文字，然後再讀出來壓縮，這會產生兩次重型的磁碟 I/O！使用 Linux 管道符 `|`，`pg_dump` 的輸出串流直接在記憶體中傳給 `gzip` 進行即時壓縮，0 臨時檔產生，磁碟 I/O 降低 50%，備份速度快了 3 倍！」
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

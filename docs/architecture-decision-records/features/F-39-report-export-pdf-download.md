@@ -1,11 +1,13 @@
 # Feature RFC: F-39 報告匯出 PDF 下載與排版轉譯
 
 > **文件狀態**：Approved  
-> **系統成熟度 (Readiness Level)**：Production-Ready  
+> **系統成熟度 (Readiness Level)**：Verified (Plain Text Transcript Export); Planned (Puppeteer PDF Export)  
 > **核心模組路徑**：`backend/src/controllers/exportController.js`
 > **Git 演進 Commit 追蹤**：`PR #110`, Commit `df871ba`  
 > **主要負責人 / 日期**：Kiwi AI Team / 2026-07-29    
 > **實作狀態 (Implementation Status)**：Partial / Onboarding Mapping
+
+---
 
 ---
 
@@ -27,6 +29,8 @@
 
 ---
 
+---
+
 ## 2. 邊界與成功標準 (Scope & Success Criteria)
 
 ### 2.1 涵蓋與非涵蓋範圍 (Scope Boundaries)
@@ -40,6 +44,8 @@
 | :--- | :--- | :--- |
 | **PDF 生成耗時** | `< 1.5 秒` | `backend/tests/reports/export.test.js` |
 | **跨頁斷行切字率** | `0%` | `backend/tests/reports/export.test.js` |
+
+---
 
 ---
 
@@ -71,10 +77,12 @@ sequenceDiagram
 
 ---
 
+---
+
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
-* **現行程式碼位置**：[`backend/src/controllers/exportController.js:L10-L15`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/controllers/exportController.js#L10-L15)
+* **現行程式碼位置**：[`backend/src/controllers/exportController.js:L10-L15`](../../backend/src/controllers/exportController.js#L10-L15)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -101,6 +109,8 @@ export const exportTranscript = async (req, res) => {
 
 ---
 
+---
+
 ## 5. 爆炸半徑與失敗矩陣 (Blast Radius & Failure Matrix)
 
 ### 5.1 影響範圍 (Blast Radius)
@@ -110,6 +120,8 @@ export const exportTranscript = async (req, res) => {
 | 失敗場景 (Failure Scenario) | 系統表現 (Behavior) | 降級 / 修復策略 (Fallback) |
 | :--- | :--- | :--- |
 | **PDF 轉譯引擎異常** | 捕獲 Exception | 傳回 HTTP 500，前端提示 "PDF 生成失敗，請重試" |
+
+---
 
 ---
 
@@ -123,11 +135,15 @@ export const exportTranscript = async (req, res) => {
 
 ---
 
+---
+
 ## 7. 轉碼新人面試實戰對攻劇本 (Career-Switcher Interview Q&A Defense Script)
 
-### 7.1 30 秒大白話 Core Pitch (口語化台詞)
-> *"面試官您好！這個 PDF 匯出服務是我們報告離線分享的管道。最開始前端用 `html2canvas` 截圖，結果導出的 PDF 文字全變成了鋸齒模糊圖片，而且標題還被截成兩半！現在我們改用後端高保真轉譯，並在 HTTP Header 中設定了 `Content-Disposition: attachment`。匯出的 PDF 100% 是向量文字，高清無暇，一鍵下載！"*
+#
 
-### 7.2 面試官追問實戰劇本 (Verbatim Defense Script)
-* **面試官問**：「你為什麼要在 HTTP 響應標頭中設定 `Content-Disposition: attachment`？」
-  - **轉碼新人回答**：「因為如果不設定 `Content-Disposition: attachment`，瀏覽器接收到 `application/pdf` 時預設會在當前分頁直接開啟預覽，用戶還得手動點擊右上方按鈕儲存。設定 `attachment` 標頭能強制瀏覽器觸發原生『另存新檔』下載視窗，給予用戶最直觀的一鍵下載體驗！」
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

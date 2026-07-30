@@ -1,11 +1,13 @@
 # Feature RFC: F-04 企業銷售諮詢與 Form 提交
 
 > **文件狀態**：Approved  
-> **系統成熟度 (Readiness Level)**：Production-Ready  
+> **系統成熟度 (Readiness Level)**：Verified (Frontend UI Prototype); Planned (Backend CRM API)  
 > **核心模組路徑**：`frontend/src/pages/ContactSalesPage.jsx`
 > **Git 演進 Commit 追蹤**：`PR #110`, Commit `df871ba`, `7d1be39`  
 > **主要負責人 / 日期**：Kiwi AI Team / 2026-07-29    
 > **實作狀態 (Implementation Status)**：Partial / Onboarding Mapping
+
+---
 
 ---
 
@@ -27,6 +29,8 @@
 
 ---
 
+---
+
 ## 2. 邊界與成功標準 (Scope & Success Criteria)
 
 ### 2.1 涵蓋與非涵蓋範圍 (Scope Boundaries)
@@ -40,6 +44,8 @@
 | :--- | :--- | :--- |
 | **表單提交成功率** | `> 99%` | `frontend/src/tests/contactSales.test.js` |
 | **重複點擊發送率** | `0%` | `frontend/src/components/__tests__/ContactSalesPage.test.jsx` |
+
+---
 
 ---
 
@@ -74,10 +80,12 @@ sequenceDiagram
 
 ---
 
+---
+
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
-* **現行程式碼位置**：[`frontend/src/pages/ContactSalesPage.jsx:L6-L16`](file:///Users/heminghan/Kiwi-AI-interview-Agent/frontend/src/pages/ContactSalesPage.jsx#L6-L16)
+* **現行程式碼位置**：[`frontend/src/pages/ContactSalesPage.jsx:L6-L16`](../../frontend/src/pages/ContactSalesPage.jsx#L6-L16)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -109,6 +117,8 @@ export function ContactSalesPage() {
 
 ---
 
+---
+
 ## 5. 爆炸半徑與失敗矩陣 (Blast Radius & Failure Matrix)
 
 ### 5.1 影響範圍 (Blast Radius)
@@ -118,6 +128,8 @@ export function ContactSalesPage() {
 | 失敗場景 (Failure Scenario) | 系統表現 (Behavior) | 降級 / 修復策略 (Fallback) |
 | :--- | :--- | :--- |
 | **網絡完全中斷** | `fetch` 拋出 TypeError | `finally` 區塊強制復位按鈕，允許重試 |
+
+---
 
 ---
 
@@ -131,11 +143,15 @@ export function ContactSalesPage() {
 
 ---
 
+---
+
 ## 7. 轉碼新人面試實戰對攻劇本 (Career-Switcher Interview Q&A Defense Script)
 
-### 7.1 30 秒大白話 Core Pitch (口語化台詞)
-> *"面試官您好！這個 Contact Sales 表單簡單來說，重點在於『防重複點擊』與『異常復位』。我們在 `handleSubmit` 中使用了 `if (isSubmitting) return;` 衛語 Guard，並在 `try...finally` 結構的 `finally` 區塊中強制將 `isSubmitting` 設回 `false`。這樣做的好處是：第一，防止用戶因為網路慢連續點兩次造成重複提交；第二，萬一網路中斷出錯，按鈕不會被死死卡住，用戶依然能重新嘗試！"*
+#
 
-### 7.2 面試官追問實戰劇本 (Verbatim Defense Script)
-* **面試官問**：「你為什麼要在 `try...finally` 的 `finally` 裡面重置 `isSubmitting` 狀態，放在 `try` 的最後一行不行嗎？」
-  - **轉碼新人回答**：「如果放在 `try` 的最後一行，萬一 `fetch` 網路請求拋出異常 (比如斷線)，代碼會立刻跳到 `catch` 區塊，導致最後一行重置狀態的代碼根本不會被執行！這樣按鈕就會永久卡在 `Disabled` 發送中狀態。放在 `finally` 區塊可以 100% 保證無論成功或失敗，狀態都一定會被復位！」
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

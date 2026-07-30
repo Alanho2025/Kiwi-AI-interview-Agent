@@ -9,6 +9,8 @@
 
 ---
 
+---
+
 ## 1. 演進軌跡與背景動機 (Genesis & Evolution Trace)
 
 ### 1.1 零基礎生活白話比喻 (Layman Analogy for Beginners)
@@ -27,6 +29,8 @@
 
 ---
 
+---
+
 ## 2. 邊界與成功標準 (Scope & Success Criteria)
 
 ### 2.1 涵蓋與非涵蓋範圍 (Scope Boundaries)
@@ -40,6 +44,8 @@
 | :--- | :--- | :--- |
 | **技能萃取精確度** | `> 95%` | `backend/tests/jd/critic.test.js` |
 | **無效廢話過濾率** | `> 90%` | `backend/tests/jd/critic.test.js` |
+
+---
 
 ---
 
@@ -75,10 +81,12 @@ sequenceDiagram
 
 ---
 
+---
+
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
-* **現行程式碼位置**：[`backend/src/services/jobDescription/jdParseCriticAgent.js:L10-L18`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/jobDescription/jdParseCriticAgent.js#L10-L18)
+* **現行程式碼位置**：[`backend/src/services/jobDescription/jdParseCriticAgent.js:L10-L18`](../../backend/src/services/jobDescription/jdParseCriticAgent.js#L10-L18)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -106,6 +114,8 @@ export const evaluateJdParseQuality = async (parsedJd) => {
 
 ---
 
+---
+
 ## 5. 爆炸半徑與失敗矩陣 (Blast Radius & Failure Matrix)
 
 ### 5.1 影響範圍 (Blast Radius)
@@ -115,6 +125,8 @@ export const evaluateJdParseQuality = async (parsedJd) => {
 | 失敗場景 (Failure Scenario) | 系統表現 (Behavior) | 降級 / 修復策略 (Fallback) |
 | :--- | :--- | :--- |
 | **重試 2 次後分數仍 < 0.8** | 停止無限重試 | 安全退回初稿並標註 Low Confidence 警告 |
+
+---
 
 ---
 
@@ -128,11 +140,15 @@ export const evaluateJdParseQuality = async (parsedJd) => {
 
 ---
 
+---
+
 ## 7. 轉碼新人面試實戰對攻劇本 (Career-Switcher Interview Q&A Defense Script)
 
-### 7.1 30 秒大白話 Core Pitch (口語化台詞)
-> *"面試官您好！這個 JD 解析模組採用了 Agent 架構中的『雙階段 Critic 品質門禁』模式。因為 HR 寫的 JD 常常混入『免費零食、員工旅遊』等廣告詞，大模型很容易把廢話當成考題。我們第一個 Agent 先提取，第二個 Critic Agent 專門審查打分。如果分數低於 0.8 就觸發修復。這樣能確保進入後續題庫的都是 100% 精確的硬技能！"*
+#
 
-### 7.2 面試官追問實戰劇本 (Verbatim Defense Script)
-* **面試官問**：「你為什麼要多花一次 API 調用寫一個 Critic Agent，而不是在第一個 Prompt 裡直接叫 LLM 把廢話過濾掉？」
-  - **轉碼新人回答**：「因為大模型在處理超長文字時存在『注意力漂移 (Attention Drift)』現象。單一 Prompt 既要它抽技能又要它過濾廢話，準確率只有不到 70%。我們採用『Generator 生成 + Critic 審查』責任分離模式，把品質打分寫成確定性的單元測試，將精確度提升到了 95% 以上！」
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

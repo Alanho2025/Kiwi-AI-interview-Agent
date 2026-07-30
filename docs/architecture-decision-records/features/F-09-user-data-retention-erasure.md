@@ -1,11 +1,13 @@
 # Feature RFC: F-09 用戶資料保留與 GDPR/Privacy 刪除條例引擎
 
 > **文件狀態**：Approved  
-> **系統成熟度 (Readiness Level)**：Production-Ready  
+> **系統成熟度 (Readiness Level)**：Verified (Retention Expiry Calculation); Planned (Automated Account Erasure Pipeline)  
 > **核心模組路徑**：`backend/src/services/retention/retentionPolicy.js`
 > **Git 演進 Commit 追蹤**：`PR #110`, Commit `df871ba`  
 > **主要負責人 / 日期**：Kiwi AI Team / 2026-07-29    
 > **實作狀態 (Implementation Status)**：Partial / Onboarding Mapping
+
+---
 
 ---
 
@@ -27,6 +29,8 @@
 
 ---
 
+---
+
 ## 2. 邊界與成功標準 (Scope & Success Criteria)
 
 ### 2.1 涵蓋與非涵蓋範圍 (Scope Boundaries)
@@ -39,6 +43,8 @@
 | 衡量指標 (Metric) | 目標值 (Target) | 驗證方式 / 自動化測試路徑 |
 | :--- | :--- | :--- |
 | **帳號抹除完成時間** | `< 3 秒` | `backend/tests/services/retention.test.js` |
+
+---
 
 ---
 
@@ -70,10 +76,12 @@ sequenceDiagram
 
 ---
 
+---
+
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
-* **現行程式碼位置**：[`backend/src/services/retention/retentionPolicy.js:L1-L5`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/retention/retentionPolicy.js#L1-L5)
+* **現行程式碼位置**：[`backend/src/services/retention/retentionPolicy.js:L1-L5`](../../backend/src/services/retention/retentionPolicy.js#L1-L5)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -100,6 +108,8 @@ export const buildRetentionExpiry = (days = 30) => {
 
 ---
 
+---
+
 ## 5. 爆炸半徑與失敗矩陣 (Blast Radius & Failure Matrix)
 
 ### 5.1 影響範圍 (Blast Radius)
@@ -109,6 +119,8 @@ export const buildRetentionExpiry = (days = 30) => {
 | 失敗場景 (Failure Scenario) | 系統表現 (Behavior) | 降級 / 修復策略 (Fallback) |
 | :--- | :--- | :--- |
 | **Mongo 刪除時網路中斷** | 拋出 Exception | 事務 Rollback 並發送警告日誌 |
+
+---
 
 ---
 
@@ -122,11 +134,15 @@ export const buildRetentionExpiry = (days = 30) => {
 
 ---
 
+---
+
 ## 7. 轉碼新人面試實戰對攻劇本 (Career-Switcher Interview Q&A Defense Script)
 
-### 7.1 30 秒大白話 Core Pitch (口語化台詞)
-> *"面試官您好！這個資料抹除服務是為了符合 GDPR 的被忘記權利。因為我們的架構用了 Postgres 和 MongoDB 雙資料庫，所以單靠 Postgres 的外鍵 CASCADE 是無法刪除 Mongo 和本地硬碟檔案的。我們在 `retentionService` 中寫了 Application-level 的級聯刪除，協調三方同步擦除，確保用戶隱私 100% 合規！"*
+#
 
-### 7.2 面試官追問實戰劇本 (Verbatim Defense Script)
-* **面試官問**：「為什麼你不直接用 Postgres 的 `ON DELETE CASCADE` 外鍵來做刪除？」
-  - **轉碼新人回答**：「因為 `ON DELETE CASCADE` 只能作用在 PostgreSQL 關係型資料庫內部的 Table。但我們的系統還用了 MongoDB 存對話紀錄，並且在硬碟存了 PDF 履歷檔案。如果不寫 Application 層級的協調器，只刪 Postgres 會導致 MongoDB 和硬碟留下一堆無法清乾淨的廢棄檔案！」
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

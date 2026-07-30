@@ -9,6 +9,8 @@
 
 ---
 
+---
+
 ## 1. 演進軌跡與背景動機 (Genesis & Evolution Trace)
 
 ### 1.1 零基礎生活白話比喻 (Layman Analogy for Beginners)
@@ -27,6 +29,8 @@
 
 ---
 
+---
+
 ## 2. 邊界與成功標準 (Scope & Success Criteria)
 
 ### 2.1 涵蓋與非涵蓋範圍 (Scope Boundaries)
@@ -39,6 +43,8 @@
 | 衡量指標 (Metric) | 目標值 (Target) | 驗證方式 / 自動化測試路徑 |
 | :--- | :--- | :--- |
 | **Must-have 技能覆蓋率** | `100% (前 5 大技能)` | `backend/tests/questions/coverage.test.js` |
+
+---
 
 ---
 
@@ -71,10 +77,12 @@ sequenceDiagram
 
 ---
 
+---
+
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
-* **現行程式碼位置**：[`backend/src/services/questions/questionCatalogPolicyReviewService.js:L15-L18`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/questions/questionCatalogPolicyReviewService.js#L15-L18)
+* **現行程式碼位置**：[`backend/src/services/questions/questionCatalogPolicyReviewService.js:L15-L18`](../../backend/src/services/questions/questionCatalogPolicyReviewService.js#L15-L18)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -99,6 +107,8 @@ export const hasForbiddenReviewField = (payload = {}) => {
 
 ---
 
+---
+
 ## 5. 爆炸半徑與失敗矩陣 (Blast Radius & Failure Matrix)
 
 ### 5.1 影響範圍 (Blast Radius)
@@ -108,6 +118,8 @@ export const hasForbiddenReviewField = (payload = {}) => {
 | 失敗場景 (Failure Scenario) | 系統表現 (Behavior) | 降級 / 修復策略 (Fallback) |
 | :--- | :--- | :--- |
 | **Catalog 庫中缺少罕見技能題目** | 補題失敗 | 降級使用通用架構問題，並記錄 Warning |
+
+---
 
 ---
 
@@ -121,11 +133,15 @@ export const hasForbiddenReviewField = (payload = {}) => {
 
 ---
 
+---
+
 ## 7. 轉碼新人面試實戰對攻劇本 (Career-Switcher Interview Q&A Defense Script)
 
-### 7.1 30 秒大白話 Core Pitch (口語化台詞)
-> *"面試官您好！這個覆蓋率稽核服務就像是監考主任。我們遵守軟體工程的單一職責原則 (SRP)，把『題目生成』與『品質稽核』解耦成兩個獨立服務。生成完後，`reviewQuestionCoverage` 在 1 毫秒內算出 Must-have 技能覆蓋率。如果發現漏掉核心技能，自動從 Catalog 庫補題，確保 100% 精準考查！"*
+#
 
-### 7.2 面試官追問實戰劇本 (Verbatim Defense Script)
-* **面試官問**：「你為什麼要單獨寫一個 `questionCatalogPolicyReviewService`，而不是在生成題庫的迴圈裡面直接判斷？」
-  - **轉碼新人回答**：「這遵循了 Clean Code 的 **單一職責原則 (Single Responsibility Principle, SRP)**。如果把稽核邏輯寫在生成迴圈裡，代碼會變得異常臃腫且極難寫單元測試。把它解耦成獨立服務，我們可以用單元測試 100% 驗證覆蓋率算式，維護性最好！」
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

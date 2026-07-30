@@ -9,6 +9,8 @@
 
 ---
 
+---
+
 ## 1. 演進軌跡與背景動機 (Genesis & Evolution Trace)
 
 ### 1.1 零基礎生活白話比喻 (Layman Analogy for Beginners)
@@ -27,6 +29,8 @@
 
 ---
 
+---
+
 ## 2. 邊界與成功標準 (Scope & Success Criteria)
 
 ### 2.1 涵蓋與非涵蓋範圍 (Scope Boundaries)
@@ -40,6 +44,8 @@
 | :--- | :--- | :--- |
 | **首屏渲染時間 (FCP)** | `< 1.2s` | `frontend/src/tests/performance.test.js` |
 | **CTA 點擊率 (CTR)** | `> 25%` | `frontend/src/components/__tests__/HeroSection.test.jsx` |
+
+---
 
 ---
 
@@ -66,14 +72,16 @@ sequenceDiagram
 1. **第一步（用戶訪問）**：訪客開啟網站首頁，`HeroSection.jsx` 在首屏渲染出高對比度的品牌標題與特色卡片。
 2. **第二步（視覺吸引）**：動態展示卡片向用戶展示 AI 如何從 CV 與 JD 中萃取關鍵能力。
 3. **第三步（點擊觸發）**：用戶被吸引後，點擊「Start Free Practice」CTA 主按鈕。
-4. **第四步（頁面轉跳）**：`useNavigate` Hook 接收到點擊事件，在 0 毫秒內無縫轉跳至 `/analyze` 分析頁。
+4. **第四步（頁面轉跳）**：`useNavigate` Hook 接收到點擊事件，在 15-50ms內無縫轉跳至 `/analyze` 分析頁。
+
+---
 
 ---
 
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
-* **現行程式碼位置**：[`frontend/src/pages/HomePage.jsx:L12-L25`](file:///Users/heminghan/Kiwi-AI-interview-Agent/frontend/src/pages/HomePage.jsx#L12-L25)
+* **現行程式碼位置**：[`frontend/src/pages/HomePage.jsx:L12-L25`](../../frontend/src/pages/HomePage.jsx#L12-L25)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -102,6 +110,8 @@ export function HomePage() {
 
 ---
 
+---
+
 ## 5. 爆炸半徑與失敗矩陣 (Blast Radius & Failure Matrix)
 
 ### 5.1 影響範圍 (Blast Radius)
@@ -111,6 +121,8 @@ export function HomePage() {
 | 失敗場景 (Failure Scenario) | 系統表現 (Behavior) | 降級 / 修復策略 (Fallback) |
 | :--- | :--- | :--- |
 | **路由轉跳異常** | 按鈕無響應 | 降級回傳 `<a href="/analyze">` 實體連結 |
+
+---
 
 ---
 
@@ -124,11 +136,15 @@ export function HomePage() {
 
 ---
 
+---
+
 ## 7. 轉碼新人面試實戰對攻劇本 (Career-Switcher Interview Q&A Defense Script)
 
-### 7.1 30 秒大白話 Core Pitch (口語化台詞)
-> *"面試官您好！這個 Hero 展示區就像我們餐廳的門面玻璃櫥窗。最開始我們只用了靜態文字，後來改成了響應式 Layout 與動態 Demo。在代碼層，我們用 React Router 的 `useNavigate` 替代了原生 `<a href>` 連結，這樣能保證單頁應用 (SPA) 在轉跳時零全頁刷新，帶來最流暢的體驗！"*
+#
 
-### 7.2 面試官追問實戰劇本 (Verbatim Defense Script)
-* **面試官問**：「為什麼按鈕轉跳要用 `useNavigate` 而不用傳統 `<a href>`？」
-  - **轉碼新人回答**：「因為傳統 `<a href>` 會觸發瀏覽器的全頁重新加載，拖慢速度且丟失前端狀態。而 `useNavigate` 是 React Router 的客戶端路由，能在不刷新頁面的情況下瞬時切換組件，給用戶單頁應用 (SPA) 的極速體驗！」
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

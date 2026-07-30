@@ -9,6 +9,8 @@
 
 ---
 
+---
+
 ## 1. 演進軌跡與背景動機 (Genesis & Evolution Trace)
 
 ### 1.1 零基礎生活白話比喻 (Layman Analogy for Beginners)
@@ -27,6 +29,8 @@
 
 ---
 
+---
+
 ## 2. 邊界與成功標準 (Scope & Success Criteria)
 
 ### 2.1 涵蓋與非涵蓋範圍 (Scope Boundaries)
@@ -40,6 +44,8 @@
 | :--- | :--- | :--- |
 | **意圖識別準確率** | `> 92%` | `backend/tests/aiControl/actionPlanner.test.js` |
 | **Action 決定耗時** | `< 300ms` | `backend/tests/aiControl/actionPlanner.test.js` |
+
+---
 
 ---
 
@@ -72,10 +78,12 @@ sequenceDiagram
 
 ---
 
+---
+
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
-* **現行程式碼位置**：[`backend/src/services/aiControl/actionPlanner.js:L20-L24`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/aiControl/actionPlanner.js#L20-L24)
+* **現行程式碼位置**：[`backend/src/services/aiControl/actionPlanner.js:L20-L24`](../../backend/src/services/aiControl/actionPlanner.js#L20-L24)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -101,6 +109,8 @@ export const selectNextAction = ({ decisionContext, fallbackPlan }) => {
 
 ---
 
+---
+
 ## 5. 爆炸半徑與失敗矩陣 (Blast Radius & Failure Matrix)
 
 ### 5.1 影響範圍 (Blast Radius)
@@ -110,6 +120,8 @@ export const selectNextAction = ({ decisionContext, fallbackPlan }) => {
 | 失敗場景 (Failure Scenario) | 系統表現 (Behavior) | 降級 / 修復策略 (Fallback) |
 | :--- | :--- | :--- |
 | **溯因推理超時** | 捕獲 Exception | 安全降級傳回 `ASK_NEXT` (問下一題) |
+
+---
 
 ---
 
@@ -123,11 +135,15 @@ export const selectNextAction = ({ decisionContext, fallbackPlan }) => {
 
 ---
 
+---
+
 ## 7. 轉碼新人面試實戰對攻劇本 (Career-Switcher Interview Q&A Defense Script)
 
-### 7.1 30 秒大白話 Core Pitch (口語化台詞)
-> *"面試官您好！這個 Action 規劃器是面試對話的神經中樞。最開始我們用大模型自由決定要不要追問，結果大模型像個死腦筋一樣在同一個問題上連追了 5 次！現在我們在代碼裡寫了 `if (drillDownCount < 1)` 硬性防禦，配合溯因推理。如果用戶說不會，立刻換題；如果答得不完整，最多追問 1 次！既有彈性，又絕不死鎖！"*
+#
 
-### 7.2 面試官追問實戰劇本 (Verbatim Defense Script)
-* **面試官問**：「為什麼你要在代碼裡硬性規定 `drillDownCount < 1` 最多追問一次，而不是讓 AI 大模型自己判斷追問幾次？」
-  - **轉碼新人回答**：「因為大模型屬於非確定性的概率模型，在對話中非常容易陷入『追問死迴圈』，導致面試時間被無意義耗盡。我們在代碼層加入 `drillDownCount < 1` 的硬性邊界鎖定，既給了 AI 追問一次的靈活性，又保障了對話狀態機的絕對可控！」
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

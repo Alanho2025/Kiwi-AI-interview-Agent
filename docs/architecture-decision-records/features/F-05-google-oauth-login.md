@@ -9,6 +9,8 @@
 
 ---
 
+---
+
 ## 1. 演進軌跡與背景動機 (Genesis & Evolution Trace)
 
 ### 1.1 零基礎生活白話比喻 (Layman Analogy for Beginners)
@@ -27,6 +29,8 @@
 
 ---
 
+---
+
 ## 2. 邊界與成功標準 (Scope & Success Criteria)
 
 ### 2.1 涵蓋與非涵蓋範圍 (Scope Boundaries)
@@ -40,6 +44,8 @@
 | :--- | :--- | :--- |
 | **登入耗時 (Auth Latency)** | `< 300ms` | `backend/tests/auth/authService.test.js` |
 | **未同意條款攔截率** | `100% 拋出 400 Bad Request` | `backend/tests/auth/privacyGuard.test.js` |
+
+---
 
 ---
 
@@ -80,10 +86,12 @@ sequenceDiagram
 
 ---
 
+---
+
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
-* **現行程式碼位置**：[`backend/src/services/authService.js:L49-L65`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/authService.js#L49-L65)
+* **現行程式碼位置**：[`backend/src/services/authService.js:L49-L65`](../../backend/src/services/authService.js#L49-L65)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -121,6 +129,8 @@ export const findOrCreateGoogleUser = async ({
 
 ---
 
+---
+
 ## 5. 爆炸半徑與失敗矩陣 (Blast Radius & Failure Matrix)
 
 ### 5.1 影響範圍 (Blast Radius)
@@ -131,6 +141,8 @@ export const findOrCreateGoogleUser = async ({
 | :--- | :--- | :--- |
 | **Google Auth API 網路超時** | 丟出 504 錯誤 | 前端 Toast 提示 "Google 連線暫時不可用，請稍後重試" |
 | **未勾選條款直接呼叫 API** | 攔截並傳回 400 | 後端衛語 Guard 阻斷，保護合規審計 |
+
+---
 
 ---
 
@@ -145,13 +157,15 @@ export const findOrCreateGoogleUser = async ({
 
 ---
 
+---
+
 ## 7. 轉碼新人面試實戰對攻劇本 (Career-Switcher Interview Q&A Defense Script)
 
-### 7.1 30 秒大白話 Core Pitch (口語化台詞)
-> *"面試官您好！這個功能簡單來說，就像我們去健身房用身分證代替填表一樣。我們沒有自建密碼庫，而是直接對接 Google OAuth 2.0。最早期測試時我們沒做 Email 小寫正規化，結果發現 'User@gmail.com' 和 'user@gmail.com' 會被建立成兩個不同帳號！現在我們在 Service 層做了 `email.trim().toLowerCase()` 正規化與參數化 SQL，並且在第 1 行加上了隱私條款的 Guard 檢查。這樣既防範了 SQL 注入，又確保了 100% 合規！"*
+#
 
-### 7.2 面試官追問實戰劇本 (Verbatim Defense Script)
-* **面試官問**：「為什麼你在 `findOrCreateGoogleUser` 的第一行就要判斷 `!termsAccepted`？」
-  - **轉碼新人回答**：「這叫做 **衛語模式 (Guard Clause)**。如果用戶沒有勾選同意隱私條款，我們在第一行就直接 `throw Error` 踢掉，根本不需要去查資料庫。這樣可以節省寶貴的資料庫連線與 CPU 開銷，也能確保任何想繞過前端直接發 API 的惡意請求都會被瞬間阻斷！」
-* **面試官問**：「你的 Email 為什麼要特地做 `trim().toLowerCase()`？」
-  - **轉碼新人回答**：「因為用戶在手機輸入 Email 時，輸入法經常會自動在結尾加上空格，或者把第一個字母大寫。如果沒有做正規化，資料庫會視為不同的字串而建立重複帳號。我們在代碼層做正規化，是為了從源頭保證資料的一致性。」
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

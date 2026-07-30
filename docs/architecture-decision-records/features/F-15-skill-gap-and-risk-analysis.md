@@ -9,6 +9,8 @@
 
 ---
 
+---
+
 ## 1. 演進軌跡與背景動機 (Genesis & Evolution Trace)
 
 ### 1.1 零基礎生活白話比喻 (Layman Analogy for Beginners)
@@ -27,6 +29,8 @@
 
 ---
 
+---
+
 ## 2. 邊界與成功標準 (Scope & Success Criteria)
 
 ### 2.1 涵蓋與非涵蓋範圍 (Scope Boundaries)
@@ -40,6 +44,8 @@
 | :--- | :--- | :--- |
 | **缺口比對耗時** | `< 10ms` | `backend/tests/services/matchGap.test.js` |
 | **題庫傳導覆蓋率** | `100%` | `backend/tests/services/matchGap.test.js` |
+
+---
 
 ---
 
@@ -68,10 +74,12 @@ sequenceDiagram
 
 ---
 
+---
+
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
-* **現行程式碼位置**：[`backend/src/services/matchService.js:L120-L126`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/matchService.js#L120-L126)
+* **現行程式碼位置**：[`backend/src/services/matchService.js:L120-L126`](../../backend/src/services/matchService.js#L120-L126)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -98,6 +106,8 @@ export const buildSkillGapAnalysis = (cvSkills = [], jdSkills = []) => {
 
 ---
 
+---
+
 ## 5. 爆炸半徑與失敗矩陣 (Blast Radius & Failure Matrix)
 
 ### 5.1 影響範圍 (Blast Radius)
@@ -107,6 +117,8 @@ export const buildSkillGapAnalysis = (cvSkills = [], jdSkills = []) => {
 | 失敗場景 (Failure Scenario) | 系統表現 (Behavior) | 降級 / 修復策略 (Fallback) |
 | :--- | :--- | :--- |
 | **技能清單傳入 null** | 預設參數 `= []` 防護 | 傳回空陣列 `[]`，降級使用通用題庫 |
+
+---
 
 ---
 
@@ -120,11 +132,15 @@ export const buildSkillGapAnalysis = (cvSkills = [], jdSkills = []) => {
 
 ---
 
+---
+
 ## 7. 轉碼新人面試實戰對攻劇本 (Career-Switcher Interview Q&A Defense Script)
 
-### 7.1 30 秒大白話 Core Pitch (口語化台詞)
-> *"面試官您好！這個缺口分析服務就像是教練拿著核對清單找出球員短板。我們在演算法上沒有用雙重 `for` 迴圈，而是先將候選人的技能轉成 ES6 的 `Set` 集合。因為 `Set.has()` 的查詢時間複雜度是 $O(1)$，這樣整個比對可以在 $O(N+M)$ 時間內毫秒級完成！找出缺口後，我們立刻把它們傳給題庫生成器做靶向發問！"*
+#
 
-### 7.2 面試官追問實戰劇本 (Verbatim Defense Script)
-* **面試官問**：「你為什麼要把候選人的技能轉成 `Set`，直接用 `Array.includes()` 不行嗎？」
-  - **轉碼新人回答**：「如果用 `Array.includes()`，過濾時每次都要重新掃描整個陣列，時間複雜度是 $O(N \times M)$ 的雙重迴圈；而 `Set` 的內部實現是 Hash Table，`Set.has()` 的查詢速度是 $O(1)$。轉成 `Set` 可以把整體複雜度降到 $O(N+M)$，在面對大型技能庫時效能提升數十倍！」
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

@@ -9,6 +9,8 @@
 
 ---
 
+---
+
 ## 1. 演進軌跡與背景動機 (Genesis & Evolution Trace)
 
 ### 1.1 零基礎生活白話比喻 (Layman Analogy for Beginners)
@@ -27,6 +29,8 @@
 
 ---
 
+---
+
 ## 2. 邊界與成功標準 (Scope & Success Criteria)
 
 ### 2.1 涵蓋與非涵蓋範圍 (Scope Boundaries)
@@ -40,6 +44,8 @@
 | :--- | :--- | :--- |
 | **XSS 腳本過濾率** | `100%` | `backend/tests/middleware/sanitization.test.js` |
 | **消毒管線耗時** | `< 1ms` | `backend/tests/middleware/sanitization.test.js` |
+
+---
 
 ---
 
@@ -67,10 +73,12 @@ sequenceDiagram
 
 ---
 
+---
+
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
-* **現行程式碼位置**：[`backend/src/services/privacyRedactionService.js:L27-L33`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/privacyRedactionService.js#L27-L33)
+* **現行程式碼位置**：[`backend/src/services/privacyRedactionService.js:L27-L33`](../../backend/src/services/privacyRedactionService.js#L27-L33)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -99,6 +107,8 @@ export const redactSensitiveText = (value = '') => {
 
 ---
 
+---
+
 ## 5. 爆炸半徑與失敗矩陣 (Blast Radius & Failure Matrix)
 
 ### 5.1 影響範圍 (Blast Radius)
@@ -108,6 +118,8 @@ export const redactSensitiveText = (value = '') => {
 | 失敗場景 (Failure Scenario) | 系統表現 (Behavior) | 降級 / 修復策略 (Fallback) |
 | :--- | :--- | :--- |
 | **輸入包含超大陣列** | 遞迴消耗耗時 | `typeof !== 'object'` 防護，0 崩潰 |
+
+---
 
 ---
 
@@ -121,11 +133,15 @@ export const redactSensitiveText = (value = '') => {
 
 ---
 
+---
+
 ## 7. 轉碼新人面試實戰對攻劇本 (Career-Switcher Interview Q&A Defense Script)
 
-### 7.1 30 秒大白話 Core Pitch (口語化台詞)
-> *"面試官您好！這個 Sanitization 中間件是我們 API 入口的安全風淋室。我們沒有在幾十個 Controller 裡手動去洗字串，而是寫了一個全域 Express 中間件。用遞迴演算法深度遍歷 `req.body` 的每一個層級，把 `<script>` 腳本轉義為安全實體。100% 杜絕了跨站腳本 (XSS) 攻擊！"*
+#
 
-### 7.2 面試官追問實戰劇本 (Verbatim Defense Script)
-* **面試官問**：「你為什麼要在 `sanitizeObject` 中使用遞迴呼叫，而不是直接只消毒最外層的 `req.body`？」
-  - **轉碼新人回答**：「因為現代 Web 應用的 JSON 請求往往是多層嵌套的，比如 `req.body.user.profile.bio`。如果只消毒最外層，攻擊者只要把惡意 `<script>` 腳本藏在第二層或第三層的 JSON 物件裡，就能輕鬆繞過安全檢查！使用遞迴遍歷能確保不管 JSON 藏得多深，全都能被徹底消毒！」
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

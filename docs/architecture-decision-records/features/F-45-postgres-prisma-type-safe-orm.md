@@ -15,13 +15,13 @@
 > 💡 **小白導讀**：
 > 想像你去銀行辦理業務：
 > * **無連線池 (No Connection Pool)**：每次有顧客（HTTP 請求）進門，銀行就要現場蓋一間臨時辦公室並招聘一位新櫃員（新建 TCP 連線與 DB Handshake），顧客辦理完 3 秒後立刻拆毀辦公室並開除櫃員（銷毀連線），極度浪費資源且超慢。
-> * **連線池 (Connection Pooling - 本 Feature)**：銀行預先保留 10 位專業櫃員坐在櫃檯（[postgres.js](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/db/postgres.js) 的 `pg.Pool`）。顧客來了直接到空閒櫃檯辦理，辦理完畢櫃員繼續留在原位等待下一位顧客，極速且省資源！
+> * **連線池 (Connection Pooling - 本 Feature)**：銀行預先保留 10 位專業櫃員坐在櫃檯（[postgres.js](../../backend/src/db/postgres.js) 的 `pg.Pool`）。顧客來了直接到空閒櫃檯辦理，辦理完畢櫃員繼續留在原位等待下一位顧客，極速且省資源！
 
 ### 1.2 基於 Git 歷史的從 0 到 1 演進歷程
 * **初始最簡版本 (Baseline v0)**：
   - 每次資料庫操作皆建立獨立的 `Client` 連線。
 * **現行架構 (Current Version)**：
-  - 實作 [postgres.js](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/db/postgres.js)，採用懶加載工廠 `createPool`、環境變數動態配置、SQL 縮寫錯誤包裹與 `withTransaction` 安全交易。
+  - 實作 [postgres.js](../../backend/src/db/postgres.js)，採用懶加載工廠 `createPool`、環境變數動態配置、SQL 縮寫錯誤包裹與 `withTransaction` 安全交易。
 
 ---
 
@@ -31,7 +31,7 @@
 * **In-Scope (包含範圍)**：
   - `pg.Pool` 連線池懶加載 (`createPool`) 與環境變數動態連線參數注入。
   - 安全 SQL 執行封裝 (`query`) 與錯誤語境修飾 (`shortenSql`)。
-  - 自動 ROLLBACK / COMMIT 交易包裝 ([withTransaction](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/db/postgres.js#L139-L160)).
+  - 自動 ROLLBACK / COMMIT 交易包裝 ([withTransaction](../../backend/src/db/postgres.js#L139-L160)).
 * **Out-of-Scope (排除範圍)**：
   - 不做異地跨區備份（由 AWS RDS 控制）。
 
@@ -69,7 +69,7 @@ sequenceDiagram
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：`createPool` 與 `query`
-* **現行程式碼位置**：[`backend/src/db/postgres.js:L52-L75`, `L124-L136`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/db/postgres.js#L52-L136)
+* **現行程式碼位置**：[`backend/src/db/postgres.js:L52-L75`, `L124-L136`](../../backend/src/db/postgres.js#L52-L136)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -140,3 +140,10 @@ export const queryNaive = (text, params) => pool.query(text, params);
 
 ## 6. 運維與回滾步驟 (Incident Response & Rollback Runbook)
 - 搜尋日誌關鍵字：`[Postgres] Query failed`
+
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

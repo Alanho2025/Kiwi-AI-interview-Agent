@@ -9,6 +9,8 @@
 
 ---
 
+---
+
 ## 1. 演進軌跡與背景動機 (Genesis & Evolution Trace)
 
 ### 1.1 零基礎生活白話比喻 (Layman Analogy for Beginners)
@@ -27,6 +29,8 @@
 
 ---
 
+---
+
 ## 2. 邊界與成功標準 (Scope & Success Criteria)
 
 ### 2.1 涵蓋與非涵蓋範圍 (Scope Boundaries)
@@ -40,6 +44,8 @@
 | :--- | :--- | :--- |
 | **Evidence 原文匹配度** | `100% (完全出自逐字稿)` | `backend/tests/aiControl/starEvidence.test.js` |
 | **評分可信任度** | `> 95%` | `backend/tests/aiControl/starEvidence.test.js` |
+
+---
 
 ---
 
@@ -71,10 +77,12 @@ sequenceDiagram
 
 ---
 
+---
+
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
-* **現行程式碼位置**：[`backend/src/services/aiControl/evidenceBundleService.js:L20-L23`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/aiControl/evidenceBundleService.js#L20-L23)
+* **現行程式碼位置**：[`backend/src/services/aiControl/evidenceBundleService.js:L20-L23`](../../backend/src/services/aiControl/evidenceBundleService.js#L20-L23)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -99,6 +107,8 @@ export const buildEvidenceBundle = (transcript = []) => {
 
 ---
 
+---
+
 ## 5. 爆炸半徑與失敗矩陣 (Blast Radius & Failure Matrix)
 
 ### 5.1 影響範圍 (Blast Radius)
@@ -108,6 +118,8 @@ export const buildEvidenceBundle = (transcript = []) => {
 | 失敗場景 (Failure Scenario) | 系統表現 (Behavior) | 降級 / 修復策略 (Fallback) |
 | :--- | :--- | :--- |
 | **LLM 生成的引文無法匹配原話** | `includes` 傳回 `false` | 自動回傳完整原話作為 Fallback，標註 Unverified |
+
+---
 
 ---
 
@@ -121,11 +133,15 @@ export const buildEvidenceBundle = (transcript = []) => {
 
 ---
 
+---
+
 ## 7. 轉碼新人面試實戰對攻劇本 (Career-Switcher Interview Q&A Defense Script)
 
-### 7.1 30 秒大白話 Core Pitch (口語化台詞)
-> *"面試官您好！這個 STAR 規準打分與 Evidence 打包服務是我們報告權威性的來源。評分時我們按 STAR 4 個維度打分，並從逐字稿中高亮引述求職者的原話作證。我們在 `validateEvidenceGrounding` 中寫了 `rawUtterance.includes(snippet)` 驗證。如果大模型輸出的引文不在求職者原話裡，直接剔除！100% 杜絕了大模型編造假引文的幻覺問題！"*
+#
 
-### 7.2 面試官追問實戰劇本 (Verbatim Defense Script)
-* **面試官問**：「你為什麼要在 `validateEvidenceGrounding` 中專門寫一行 `.includes()` 檢查，大模型自己輸出的引文還會有假嗎？」
-  - **轉碼新人回答**：「會的！大模型存在嚴重的『幻覺 (Hallucination)』問題。在提取引文時，大模型經常會自動『優化』或『修改』求職者原話中的錯別字或句型，導致引文與真實逐字稿不符。我們加這行 `.includes()` 驗證，能 100% 確保呈現給面試官的佐證原話真真實實出自求職者的口中！」
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

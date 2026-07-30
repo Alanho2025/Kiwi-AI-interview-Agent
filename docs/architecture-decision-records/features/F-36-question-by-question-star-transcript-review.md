@@ -9,6 +9,8 @@
 
 ---
 
+---
+
 ## 1. 演進軌跡與背景動機 (Genesis & Evolution Trace)
 
 ### 1.1 零基礎生活白話比喻 (Layman Analogy for Beginners)
@@ -27,6 +29,8 @@
 
 ---
 
+---
+
 ## 2. 邊界與成功標準 (Scope & Success Criteria)
 
 ### 2.1 涵蓋與非涵蓋範圍 (Scope Boundaries)
@@ -39,6 +43,8 @@
 | 衡量指標 (Metric) | 目標值 (Target) | 驗證方式 / 自動化測試路徑 |
 | :--- | :--- | :--- |
 | **逐題卡片渲染時間** | `< 20ms` | `frontend/src/tests/transcriptReview.test.js` |
+
+---
 
 ---
 
@@ -62,15 +68,17 @@ sequenceDiagram
 ### 3.2 流程文字逐步拆解導覽 (Step-by-Step Narrative Walkthrough for Beginners)
 1. **第一步（拿取評估資料）**：報告頁面載入後，`TranscriptReviewSection.jsx` 接收包含每道題評估結果的陣列。
 2. **第二步（遍歷渲染卡片）**：使用 `.map()` 遍歷題目，渲染出可摺疊的 `QuestionReviewCard.jsx`。
-3. **第三步（點擊展開復盤）**：用戶點擊感興趣的題目，卡片在 0 毫秒內展開。
+3. **第三步（點擊展開復盤）**：用戶點擊感興趣的題目，卡片在 15-50ms內展開。
 4. **第四步（對照原話與建議）**：左側展示用戶回答原話，右側展示 STAR 4 維度得分與精準優化建議。
+
+---
 
 ---
 
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
-* **現行程式碼位置**：[`frontend/src/pages/ReportPage.jsx:L10-L16`](file:///Users/heminghan/Kiwi-AI-interview-Agent/frontend/src/pages/ReportPage.jsx#L10-L16)
+* **現行程式碼位置**：[`frontend/src/pages/ReportPage.jsx:L10-L16`](../../frontend/src/pages/ReportPage.jsx#L10-L16)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -98,6 +106,8 @@ export function ReportPage() {
 
 ---
 
+---
+
 ## 5. 爆炸半徑與失敗矩陣 (Blast Radius & Failure Matrix)
 
 ### 5.1 影響範圍 (Blast Radius)
@@ -107,6 +117,8 @@ export function ReportPage() {
 | 失敗場景 (Failure Scenario) | 系統表現 (Behavior) | 降級 / 修復策略 (Fallback) |
 | :--- | :--- | :--- |
 | **evaluations 傳入空陣列** | 渲染 `space-y-4` 空容器 | 提示 "No evaluation data available" |
+
+---
 
 ---
 
@@ -120,11 +132,15 @@ export function ReportPage() {
 
 ---
 
+---
+
 ## 7. 轉碼新人面試實戰對攻劇本 (Career-Switcher Interview Q&A Defense Script)
 
-### 7.1 30 秒大白話 Core Pitch (口語化台詞)
-> *"面試官您好！這個逐題復盤組件是求職者的複習神器。我們採用了 Accordion 摺疊面板設計，用 `openIndex === index && (...)` 的短路求值條件渲染。這樣做的好處是：第一，避免一次性在頁面生成上百個 DOM 節點拖慢渲染；第二，頁面整潔清爽，求職者可以精準展開他答得不好的那一道題進行復盤！"*
+#
 
-### 7.2 面試官追問實戰劇本 (Verbatim Defense Script)
-* **面試官問**：「你為什麼要在 Accordion 卡片展開時使用 `openIndex === index && (...)` 條件渲染，而不是用 CSS 的 `display: none` 來隱藏內容？」
-  - **轉碼新人回答**：「如果用 CSS 的 `display: none`，所有的逐字稿和 STAR 評語組件在頁面初始化時就已經全部被創建並掛載到了 DOM 樹上，會產生大量的 DOM 節點，拖慢頁面加載速度。使用 React 的 `&&` 條件渲染，只有當用戶主動點擊時才在記憶體中創建對應的 DOM 節點，效能最好！」
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

@@ -9,13 +9,15 @@
 
 ---
 
+---
+
 ## 1. 演進軌跡與背景動機 (Genesis & Evolution Trace)
 
 ### 1.1 零基礎生活白話比喻 (Layman Analogy for Beginners)
 > 💡 **小白導讀**：
 > 想像你要從一大堆報紙文章中找個人的年齡和學歷。
 > * **傳統做法**：直接拿整份報紙請一位昂貴的專家 (LLM) 從頭讀到尾，專家按字數收費且耗時極長。
-> * **Python NLP 本地實體提取 (本 Feature)**：就像先派一位動作極快的「實習生 (本地 Python spaCy 腳本)」，在 150 毫秒內用螢光筆把報紙裡的數字（年資）、學校名稱（學歷）、技術單字高亮出來，只把這幾段精簡畫線重點拿給專家看。既省大錢（減少 60% Token），速度又快！
+> * **Python NLP 本地實體提取 (本 Feature)**：就像先派一位動作極快的「實習生 (本地 Python spaCy 腳本)」，在 1515-50ms內用螢光筆把報紙裡的數字（年資）、學校名稱（學歷）、技術單字高亮出來，只把這幾段精簡畫線重點拿給專家看。既省大錢（減少 60% Token），速度又快！
 
 ### 1.2 基於 Git 歷史的從 0 到 1 演進歷程
 * **初始最簡版本 (Baseline v0 - Commit `df871ba` 早期)**：
@@ -24,6 +26,8 @@
   - API 費用昂貴；LLM 解析萬字長文時常漏掉教育背景或年資算錯。
 * **現行架構 (Current Version - PR #110 `df871ba`)**：
   - 本地 Python NLP 微服務 (`pythonNlpService.js`) 先進行正則與基於規則的 NER 實體識別，預先提取出技能關鍵字、工作年限與學歷，將過濾後的精簡 Payload 交付後續流程。
+
+---
 
 ---
 
@@ -40,6 +44,8 @@
 | :--- | :--- | :--- |
 | **本地處理延遲** | `< 150ms` | `backend/tests/cv/pythonNlp.test.js` |
 | **Token 成本降低** | `> 60%` | `backend/tests/cv/pythonNlp.test.js` |
+
+---
 
 ---
 
@@ -73,10 +79,12 @@ sequenceDiagram
 
 ---
 
+---
+
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
-* **現行程式碼位置**：[`backend/src/services/pythonNlpService.js:L34-L42`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/pythonNlpService.js#L34-L42)
+* **現行程式碼位置**：[`backend/src/services/pythonNlpService.js:L34-L42`](../../backend/src/services/pythonNlpService.js#L34-L42)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -104,6 +112,8 @@ const runHelper = (args = []) => new Promise((resolve) => {
 
 ---
 
+---
+
 ## 5. 爆炸半徑與失敗矩陣 (Blast Radius & Failure Matrix)
 
 ### 5.1 影響範圍 (Blast Radius)
@@ -113,6 +123,8 @@ const runHelper = (args = []) => new Promise((resolve) => {
 | 失敗場景 (Failure Scenario) | 系統表現 (Behavior) | 降級 / 修復策略 (Fallback) |
 | :--- | :--- | :--- |
 | **Python3 未安裝或超時** | 捕獲 Exception | 自動降級使用 Node.js 備用正則清單 (Fallback Regex) |
+
+---
 
 ---
 
@@ -126,11 +138,15 @@ const runHelper = (args = []) => new Promise((resolve) => {
 
 ---
 
+---
+
 ## 7. 轉碼新人面試實戰對攻劇本 (Career-Switcher Interview Q&A Defense Script)
 
-### 7.1 30 秒大白話 Core Pitch (口語化台詞)
-> *"面試官您好！這個 Python NLP 預處理服務就像是派實習生先幫大模型畫重點。我們在本地用 Python spaCy 在 150 毫秒內先把技能和年資抽出來，成功幫大模型節省了 60% 的 Token 成本。在 Node.js 端，我們使用了 `spawn` 子進程並加上了 5 秒的 `setTimeout` 保底。如果 Python 腳本卡死，5 秒一到立刻殺掉進程，保障 Server 絕不卡死！"*
+#
 
-### 7.2 面試官追問實戰劇本 (Verbatim Defense Script)
-* **面試官問**：「你為什麼要在 Node.js 呼叫 Python 時使用 `spawn` 並加上 5 秒的 `setTimeout`？」
-  - **轉碼新人回答**：「因為子進程呼叫屬於跨語言的外部依賴，如果 Python 腳本因為死迴圈或環境問題卡死，沒有超時保護的話，Node.js 的 Promise 就會永遠處於 Pending 狀態，導致用戶請求卡死崩潰。我們加上 5 秒的 `pyProcess.kill()` 定時器，能確保系統即使遇到極端狀況也能安全降級！」
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

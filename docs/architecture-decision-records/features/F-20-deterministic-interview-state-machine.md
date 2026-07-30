@@ -9,6 +9,8 @@
 
 ---
 
+---
+
 ## 1. 演進軌跡與背景動機 (Genesis & Evolution Trace)
 
 ### 1.1 零基礎生活白話比喻 (Layman Analogy for Beginners)
@@ -27,6 +29,8 @@
 
 ---
 
+---
+
 ## 2. 邊界與成功標準 (Scope & Success Criteria)
 
 ### 2.1 涵蓋與非涵蓋範圍 (Scope Boundaries)
@@ -39,6 +43,8 @@
 | 衡量指標 (Metric) | 目標值 (Target) | 驗證方式 / 自動化測試路徑 |
 | :--- | :--- | :--- |
 | **面試按時完成率** | `100% (在 5 題內完結)` | `backend/tests/interview/stateMachine.test.js` |
+
+---
 
 ---
 
@@ -64,10 +70,12 @@ stateDiagram-v2
 
 ---
 
+---
+
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
-* **現行程式碼位置**：[`backend/src/services/interviewStateService.js:L43-L50`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/interviewStateService.js#L43-L50)
+* **現行程式碼位置**：[`backend/src/services/interviewStateService.js:L43-L50`](../../backend/src/services/interviewStateService.js#L43-L50)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -95,6 +103,8 @@ export const getAnsweredQuestionCount = (session = {}) => (session?.transcript |
 
 ---
 
+---
+
 ## 5. 爆炸半徑與失敗矩陣 (Blast Radius & Failure Matrix)
 
 ### 5.1 影響範圍 (Blast Radius)
@@ -104,6 +114,8 @@ export const getAnsweredQuestionCount = (session = {}) => (session?.transcript |
 | 失敗場景 (Failure Scenario) | 系統表現 (Behavior) | 降級 / 修復策略 (Fallback) |
 | :--- | :--- | :--- |
 | **`completedQuestionCount` 傳入 NaN** | 衛語 `Number(...) || 0` | 安全轉譯為 `0`，停留於當前 Phase |
+
+---
 
 ---
 
@@ -117,11 +129,15 @@ export const getAnsweredQuestionCount = (session = {}) => (session?.transcript |
 
 ---
 
+---
+
 ## 7. 轉碼新人面試實戰對攻劇本 (Career-Switcher Interview Q&A Defense Script)
 
-### 7.1 30 秒大白話 Core Pitch (口語化台詞)
-> *"面試官您好！這個面試狀態機是我們控制對話節奏的核心。最開始讓大模型自由決定結束時間，結果大模型聊嗨了問了 20 題還不停止！現在我們把它改成後端純函數的確定性狀態機 (WARMUP -> DEEP_DIVE -> WRAPUP)。我們在第一行用了 `Math.max(0, Number(count) || 0)` 做型態防衛，當題目達到 5 題時強制傳回 WRAPUP 結束面試！"*
+#
 
-### 7.2 面試官追問實戰劇本 (Verbatim Defense Script)
-* **面試官問**：「你為什麼要在狀態轉移函數 `determineNextPhase` 中用純函數寫法，而不是用物件導向的 State Pattern 設計模式？」
-  - **轉碼新人回答**：「因為對於只有 3 個狀態的簡單轉移而言，使用 OOP State Pattern 需要創建 `WarmupState`、`DeepDiveState` 等多個 Class 類別，增加了不必要的物件分配與 GC 壓力。採用純函數寫法，0 記憶體開銷，而且測試極其簡單，只要輸入 `(WARMUP, 1)` 就 100% 確定回傳 `DEEP_DIVE`，可測試性最高！」
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

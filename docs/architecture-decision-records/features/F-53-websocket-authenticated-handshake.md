@@ -9,6 +9,8 @@
 
 ---
 
+---
+
 ## 1. 演進軌跡與背景動機 (Genesis & Evolution Trace)
 
 ### 1.1 零基礎生活白話比喻 (Layman Analogy for Beginners)
@@ -27,6 +29,8 @@
 
 ---
 
+---
+
 ## 2. 邊界與成功標準 (Scope & Success Criteria)
 
 ### 2.1 涵蓋與非涵蓋範圍 (Scope Boundaries)
@@ -39,6 +43,8 @@
 | 衡量指標 (Metric) | 目標值 (Target) | 驗證方式 / 自動化測試路徑 |
 | :--- | :--- | :--- |
 | **未授權握手攔截率** | `100% (傳回 4001 關閉)` | `backend/tests/voice/wsAuth.test.js` |
+
+---
 
 ---
 
@@ -73,10 +79,12 @@ sequenceDiagram
 
 ---
 
+---
+
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
-* **現行程式碼位置**：[`backend/src/services/voice/duplexVoiceAgentService.js:L542-L546`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/voice/duplexVoiceAgentService.js#L542-L546)
+* **現行程式碼位置**：[`backend/src/services/voice/duplexVoiceAgentService.js:L542-L546`](../../backend/src/services/voice/duplexVoiceAgentService.js#L542-L546)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -102,6 +110,8 @@ export const createDuplexVoiceAgentSession = async ({ sessionId, clientTurnId })
 
 ---
 
+---
+
 ## 5. 爆炸半徑與失敗矩陣 (Blast Radius & Failure Matrix)
 
 ### 5.1 影響範圍 (Blast Radius)
@@ -111,6 +121,8 @@ export const createDuplexVoiceAgentSession = async ({ sessionId, clientTurnId })
 | 失敗場景 (Failure Scenario) | 系統表現 (Behavior) | 降級 / 修復策略 (Fallback) |
 | :--- | :--- | :--- |
 | **Token 過期 (Expired)** | 呼叫 `ws.close(4001)` | 前端捕獲 4001 碼，自動刷新 Token 並重新連線 |
+
+---
 
 ---
 
@@ -124,11 +136,15 @@ export const createDuplexVoiceAgentSession = async ({ sessionId, clientTurnId })
 
 ---
 
+---
+
 ## 7. 轉碼新人面試實戰對攻劇本 (Career-Switcher Interview Q&A Defense Script)
 
-### 7.1 30 秒大白話 Core Pitch (口語化台詞)
-> *"面試官您好！這個 WebSocket 帶權握手是我們語音通道的第一道大門。因為 WebSocket 是長連線，如果建立連線後才去驗證，匿名攻擊者就能輕易塞爆我們的伺服器 Socket。我們在 `handleWsConnection` 的第一毫秒解析 `?token=` 參數。如果無效，立刻呼叫 `ws.close(4001)` 阻斷！既保護了伺服器連線池，又保障了資安！"*
+#
 
-### 7.2 面試官追問實戰劇本 (Verbatim Defense Script)
-* **面試官問**：「你為什麼要在 WebSocket 握手時使用 `ws.close(4001)` 自訂關閉碼，而不是普通的 `ws.close()`？」
-  - **轉碼新人回答**：「因為 WebSocket 標準的 1000 關閉碼代表正常關閉。如果使用 1000，前端無法區分是『用戶手動掛斷』還是『Token 逾期被踢下線』。使用 4001 專用未授權錯誤碼，前端捕捉到 4001 號碼後可以精確觸發『自動刷新 JWT Token 並重新連線』的修復邏輯，給予最流暢的自動重連體驗！」
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

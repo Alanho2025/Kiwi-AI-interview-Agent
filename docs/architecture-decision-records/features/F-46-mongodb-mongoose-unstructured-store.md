@@ -15,13 +15,13 @@
 > 💡 **小白導讀**：
 > 想像儲存候選人的詳細面試評估報告：
 > * **傳統關聯式表格 (PostgreSQL Relational Table)**：像一排格子固定死板的藥櫃。要把 AI 生成的深層 JSON 結構（含五維雷達圖、多輪問題 STAR 拆解、對話改善建議）硬塞進去，必須拆成十幾張外鍵關聯表，讀取時要做複雜的 `JOIN` 操作。
-> * **文档型数据库 (MongoDB / Mongoose - 本 Feature)**：像一個可以彈性伸縮的文件資料夾（[sessionReportModel.js](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/db/models/sessionReportModel.js)）。整份完整的 AI 評估報告與歷史修復版本直接以 JSON (BSON) 格式原汁原味存進去，讀寫極速且模式極其靈活！
+> * **文档型数据库 (MongoDB / Mongoose - 本 Feature)**：像一個可以彈性伸縮的文件資料夾（[sessionReportModel.js](../../backend/src/db/models/sessionReportModel.js)）。整份完整的 AI 評估報告與歷史修復版本直接以 JSON (BSON) 格式原汁原味存進去，讀寫極速且模式極其靈活！
 
 ### 1.2 基於 Git 歷史的從 0 到 1 演進歷程
 * **初始最簡版本 (Baseline v0)**：
   - 將報告 JSON 序列化為字串存入 SQL 欄位。
 * **現行架構 (Current Version)**：
-  - 實作 [sessionReportModel.js](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/db/models/sessionReportModel.js)，採用 Mongoose 的 `Types.Mixed` 動態 Schema，支援報告版本控管 (`reportVersions`)、自動修復歷程 (`repairHistory`) 與 TTL 留存機制 (`retentionUntil`)。
+  - 實作 [sessionReportModel.js](../../backend/src/db/models/sessionReportModel.js)，採用 Mongoose 的 `Types.Mixed` 動態 Schema，支援報告版本控管 (`reportVersions`)、自動修復歷程 (`repairHistory`) 與 TTL 留存機制 (`retentionUntil`)。
 
 ---
 
@@ -58,7 +58,7 @@ sequenceDiagram
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：`SessionReportSchema`
-* **現行程式碼位置**：[`backend/src/db/models/sessionReportModel.js:L14-L38`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/db/models/sessionReportModel.js#L14-L38)
+* **現行程式碼位置**：[`backend/src/db/models/sessionReportModel.js:L14-L38`](../../backend/src/db/models/sessionReportModel.js#L14-L38)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -117,3 +117,10 @@ const SessionReportRigid = new mongoose.Schema({ score1: Number, score2: Number,
 
 ## 6. 運維與回滾步驟 (Incident Response & Rollback Runbook)
 - 檢查 Mongoose 連線與 Model 狀態：`SessionReport.findOne({ sessionId })`
+
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

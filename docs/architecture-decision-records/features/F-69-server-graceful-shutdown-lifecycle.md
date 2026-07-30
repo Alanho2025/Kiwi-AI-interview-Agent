@@ -24,7 +24,7 @@
   - 面試進行到一半的 WebSocket 語音連線被突然中斷，前端收到未預期的 `1006 Abnormally Closed` 錯誤。
   - 後端正準備將 AI 產出的對話報告寫入資料庫，因連線瞬間被切斷導致資料寫入一半壞毀 (Dangling DB Transaction)。
 * **現行架構 (Current Version)**：
-  - 實作 [serverGracefulShutdownService.js](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/serverGracefulShutdownService.js)，透過 `Promise.race` 與定時器 `unref()` 進行有界 (Bounded) 的異步資源排空與關閉。
+  - 實作 [serverGracefulShutdownService.js](../../backend/src/services/serverGracefulShutdownService.js)，透過 `Promise.race` 與定時器 `unref()` 進行有界 (Bounded) 的異步資源排空與關閉。
 
 ---
 
@@ -78,9 +78,9 @@ sequenceDiagram
 ```
 
 ### 3.2 流程文字逐步拆解導覽 (Step-by-Step Narrative Walkthrough for Beginners)
-1. **第一步（訊號監聽）**：[registerShutdownSignals](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/serverGracefulShutdownService.js#L146-L156) 在 Node.js 進程啟動時監聽 `SIGTERM` 與 `SIGINT`。
-2. **第二步（啟動有界關閉流程）**：[createGracefulShutdown](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/serverGracefulShutdownService.js#L94-L105) 被觸發，計算死期時間點 (`deadlineAt`)，並透過 `settleWithin` 包裝關閉任務。
-3. **第三步（排空 HTTP 與 WebSocket）**：呼叫 [drainRuntime](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/serverGracefulShutdownService.js#L66-L83)，透過 `Promise.allSettled` 並發關閉 HTTP Server 與發送 Code 1001 給所有 WebSocket 客戶端。
+1. **第一步（訊號監聽）**：[registerShutdownSignals](../../backend/src/services/serverGracefulShutdownService.js#L146-L156) 在 Node.js 進程啟動時監聽 `SIGTERM` 與 `SIGINT`。
+2. **第二步（啟動有界關閉流程）**：[createGracefulShutdown](../../backend/src/services/serverGracefulShutdownService.js#L94-L105) 被觸發，計算死期時間點 (`deadlineAt`)，並透過 `settleWithin` 包裝關閉任務。
+3. **第三步（排空 HTTP 與 WebSocket）**：呼叫 [drainRuntime](../../backend/src/services/serverGracefulShutdownService.js#L66-L83)，透過 `Promise.allSettled` 並發關閉 HTTP Server 與發送 Code 1001 給所有 WebSocket 客戶端。
 4. **第四步（資料庫清理與退出）**：排空完成後，關閉 DB 連線，若無異常則以 Code 0 退出；若超時則強制關閉連線並以 Code 1 退出。
 
 ---
@@ -88,7 +88,7 @@ sequenceDiagram
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：`createTimeout` 與 `settleWithin`
-* **現行程式碼位置**：[`backend/src/services/serverGracefulShutdownService.js:L12-L20`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/serverGracefulShutdownService.js#L12-L20)
+* **現行程式碼位置**：[`backend/src/services/serverGracefulShutdownService.js:L12-L20`](../../backend/src/services/serverGracefulShutdownService.js#L12-L20)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -136,7 +136,7 @@ const createTimeoutNaive = (timeoutMs) => new Promise((_, reject) => {
 
 ### 5.2 失敗路徑與降級機制 (Failure Modes & Fallbacks)
 - **失敗路徑 1：WebSocket 連線卡死無法關閉**
-  - **降級機制**：在 catch 區塊中自動觸發 [forceCloseRuntime](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/serverGracefulShutdownService.js#L85-L92)，調用 `httpServer.closeAllConnections()` 與 `client.terminate()` 強制中斷。
+  - **降級機制**：在 catch 區塊中自動觸發 [forceCloseRuntime](../../backend/src/services/serverGracefulShutdownService.js#L85-L92)，調用 `httpServer.closeAllConnections()` 與 `client.terminate()` 強制中斷。
 
 ---
 
@@ -150,3 +150,10 @@ const createTimeoutNaive = (timeoutMs) => new Promise((_, reject) => {
 
 ### 6.2 緊急回滾流程 (Rollback SOP)
 - 若關閉服務邏輯導致部署卡死，可以降低 `timeoutMs` (例如設定環境變數 `SHUTDOWN_TIMEOUT_MS=5000`) 進行快速重啟。
+
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

@@ -9,6 +9,8 @@
 
 ---
 
+---
+
 ## 1. 演進軌跡與背景動機 (Genesis & Evolution Trace)
 
 ### 1.1 零基礎生活白話比喻 (Layman Analogy for Beginners)
@@ -27,6 +29,8 @@
 
 ---
 
+---
+
 ## 2. 邊界與成功標準 (Scope & Success Criteria)
 
 ### 2.1 涵蓋與非涵蓋範圍 (Scope Boundaries)
@@ -39,6 +43,8 @@
 | 衡量指標 (Metric) | 目標值 (Target) | 驗證方式 / 自動化測試路徑 |
 | :--- | :--- | :--- |
 | **`JSON.parse()` 成功率** | `> 99.8%` | `backend/tests/prompts/promptFormat.test.js` |
+
+---
 
 ---
 
@@ -67,10 +73,12 @@ sequenceDiagram
 
 ---
 
+---
+
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
-* **現行程式碼位置**：[`backend/src/services/masterAiService.js:L24-L25`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/masterAiService.js#L24-L25)
+* **現行程式碼位置**：[`backend/src/services/masterAiService.js:L24-L25`](../../backend/src/services/masterAiService.js#L24-L25)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -94,6 +102,8 @@ import { selectNextAction } from './aiControl/actionPlanner.js';
 
 ---
 
+---
+
 ## 5. 爆炸半徑與失敗矩陣 (Blast Radius & Failure Matrix)
 
 ### 5.1 影響範圍 (Blast Radius)
@@ -103,6 +113,8 @@ import { selectNextAction } from './aiControl/actionPlanner.js';
 | 失敗場景 (Failure Scenario) | 系統表現 (Behavior) | 降級 / 修復策略 (Fallback) |
 | :--- | :--- | :--- |
 | **LLM 仍輸出 Markdown 標籤** | 前端 `regex.replace(/```json/g, '')` | 後端加一層洗淨被包裹的 JSON |
+
+---
 
 ---
 
@@ -116,11 +128,15 @@ import { selectNextAction } from './aiControl/actionPlanner.js';
 
 ---
 
+---
+
 ## 7. 轉碼新人面試實戰對攻劇本 (Career-Switcher Interview Q&A Defense Script)
 
-### 7.1 30 秒大白話 Core Pitch (口語化台詞)
-> *"面試官您好！這個 Prompt 工程模組是我們大模型輸出 100% 穩定的保證。最開始我們隨手寫自然語言，結果大模型總喜歡輸出 ````json ... ```` 標籤，導致 `JSON.parse()` 頻繁崩潰！現在我們在 `buildJsonPrompt` 裡寫了 4 區塊結構，並在最後一行顯式加上了 `Do NOT include markdown formatting` 約束。`JSON.parse()` 成功率直接提升到了 99.8%！"*
+#
 
-### 7.2 面試官追問實戰劇本 (Verbatim Defense Script)
-* **面試官問**：「你為什麼要在 `buildJsonPrompt` 的最後一行特地加上 `Do NOT include markdown formatting like \`\`\`json` 這句英文提示？」
-  - **轉碼新人回答**：「因為大模型在預設情況下，非常喜歡用 Markdown 的代碼塊 (```json) 來包裹 JSON 輸出。當後端拿到這串字串直接執行 `JSON.parse()` 時，JavaScript 會因為 `\`\`\`` 字元而拋出 `SyntaxError` 崩潰！在 Prompt 的最後一行顯式加上禁止 Markdown 的強硬約束，能直接讓大模型輸出純淨的 JSON 字串，從源頭解決了解析崩潰的難題！」
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

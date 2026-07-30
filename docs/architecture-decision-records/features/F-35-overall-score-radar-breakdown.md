@@ -9,6 +9,8 @@
 
 ---
 
+---
+
 ## 1. 演進軌跡與背景動機 (Genesis & Evolution Trace)
 
 ### 1.1 零基礎生活白話比喻 (Layman Analogy for Beginners)
@@ -27,6 +29,8 @@
 
 ---
 
+---
+
 ## 2. 邊界與成功標準 (Scope & Success Criteria)
 
 ### 2.1 涵蓋與非涵蓋範圍 (Scope Boundaries)
@@ -39,6 +43,8 @@
 | 衡量指標 (Metric) | 目標值 (Target) | 驗證方式 / 自動化測試路徑 |
 | :--- | :--- | :--- |
 | **五維度計算耗時** | `< 5ms` | `backend/tests/reports/radar.test.js` |
+
+---
 
 ---
 
@@ -67,10 +73,12 @@ sequenceDiagram
 
 ---
 
+---
+
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
-* **現行程式碼位置**：[`backend/src/services/reportCoachingService.js:L40-L43`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/reportCoachingService.js#L40-L43)
+* **現行程式碼位置**：[`backend/src/services/reportCoachingService.js:L40-L43`](../../backend/src/services/reportCoachingService.js#L40-L43)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -95,6 +103,8 @@ export const generateCandidateFeedback = async (session) => {
 
 ---
 
+---
+
 ## 5. 爆炸半徑與失敗矩陣 (Blast Radius & Failure Matrix)
 
 ### 5.1 影響範圍 (Blast Radius)
@@ -104,6 +114,8 @@ export const generateCandidateFeedback = async (session) => {
 | 失敗場景 (Failure Scenario) | 系統表現 (Behavior) | 降級 / 修復策略 (Fallback) |
 | :--- | :--- | :--- |
 | **metrics 傳入空物件** | 衛語 `|| 0` 防護 | 各維度安全傳回 0 分，避免 NaN 崩潰 |
+
+---
 
 ---
 
@@ -117,11 +129,15 @@ export const generateCandidateFeedback = async (session) => {
 
 ---
 
+---
+
 ## 7. 轉碼新人面試實戰對攻劇本 (Career-Switcher Interview Q&A Defense Script)
 
-### 7.1 30 秒大白話 Core Pitch (口語化台詞)
-> *"面試官您好！這個五維度雷達圖是我們呈現能力分佈的核心。最開始我們讓大模型自由輸出五維度分數，結果大模型隨機性太強，同一份對話重新整理一次雷達圖形狀就變了！現在我們改成後端確定性的 30:25:20:15:10 加權算式，並在每個維度都加上了 `Math.min(100, Math.max(0, ...))` Clamp 防護。確保雷達圖 100% 精確且絕對不爆分！"*
+#
 
-### 7.2 面試官追問實戰劇本 (Verbatim Defense Script)
-* **面試官問**：「你為什麼要在五維度計算的每一行都加上 `Math.min(100, Math.max(0, ...))` 鎖定？」
-  - **轉碼新人回答**：「因為雷達圖的 SVG 渲染組件要求輸入的數據必須嚴格落在 0 到 100 的百分比區間內。如果因為浮點數精度問題算出了 `100.1` 或者 `-1`，前端雷達圖的頂點就會拉伸變形、溢出圖表框！加上這行 Clamp 防護，能 100% 保障前端 UI 渲染的安定性！」
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

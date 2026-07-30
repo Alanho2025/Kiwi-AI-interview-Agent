@@ -4,7 +4,9 @@
 > **系統成熟度 (Readiness Level)**：Production-Ready  
 > **核心模組路徑**：`backend/src/config/env.js`  
 > **Git 演進 Commit 追蹤**：`PR #102`, Commit `a51201e`  
-> **主要负责人在 / 日期**：Kiwi AI Team / 2026-07-30  
+> **主要負責人 / 日期**：Kiwi AI Team / 2026-07-30  
+> **實作狀態 (Implementation Status)**：Verified  
+> **校驗測試路徑 (Verified by Tests)**：`backend/src/config/env.js`  
 
 ---
 
@@ -14,13 +16,13 @@
 > 💡 **小白導讀**：
 > 想像飛機起飛前的清單檢查（Pre-flight Checklist）：
 > * **無環境變數檢查 (No Env Guard)**：飛機直接起飛（伺服器啟動），等飛到萬米高空才發現沒加油或沒帶地圖（運行到一半調用 LLM 或 DB 時才發現缺少 `DEEPSEEK_API_KEY` 或 `POSTGRES_URL`），導致系統在中途慘烈崩潰！
-> * **密鑰安全檢查 (Env Guard - 本 Feature)**：在引擎啟動的第 1 秒（[env.js](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/config/env.js)），機長立刻核對必要變數清單。只要有任何關鍵密鑰缺失，立刻拋出明確警告並拒絕起飛，防止帶病運行！
+> * **密鑰安全檢查 (Env Guard - 本 Feature)**：在引擎啟動的第 1 秒（[env.js](../../backend/src/config/env.js)），機長立刻核對必要變數清單。只要有任何關鍵密鑰缺失，立刻拋出明確警告並拒絕起飛，防止帶病運行！
 
 ### 1.2 基於 Git 歷史的從 0 到 1 演進歷程
 * **初始最簡版本 (Baseline v0)**：
   - 各模組自行讀取 `process.env.XXX`，缺乏統一驗證。
 * **現行架構 (Current Version)**：
-  - 實作 [env.js](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/config/env.js)，導出 `assertRequiredEnv` 斷言函數，在系統初始化階段統一檢驗必填變數清單。
+  - 實作 [env.js](../../backend/src/config/env.js)，導出 `assertRequiredEnv` 斷言函數，在系統初始化階段統一檢驗必填變數清單。
 
 ---
 
@@ -63,7 +65,7 @@ sequenceDiagram
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：`assertRequiredEnv`
-* **現行程式碼位置**：[`backend/src/config/env.js:L75-L80`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/config/env.js#L75-L80)
+* **現行程式碼位置**：[`backend/src/config/env.js:L75-L80`](../../backend/src/config/env.js#L75-L80)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -102,3 +104,10 @@ if (!process.env.DEEPSEEK_API_KEY) throw new Error('No Key!');
 
 ## 6. 運維與回滾步驟 (Incident Response & Rollback Runbook)
 - 檢查日誌：`Missing required environment variables:`
+
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

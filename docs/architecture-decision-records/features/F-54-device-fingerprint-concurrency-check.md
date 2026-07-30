@@ -1,11 +1,13 @@
 # Feature RFC: F-54 設備 Fingerprint 指紋與併發 Sessions 檢查
 
 > **文件狀態**：Approved  
-> **系統成熟度 (Readiness Level)**：Production-Ready  
+> **系統成熟度 (Readiness Level)**：Verified (Session Verification); Planned (Device Fingerprint Concurrency Guard)  
 > **核心模組路徑**：`backend/src/services/sessionService.js`
 > **Git 演進 Commit 追蹤**：`PR #110`, Commit `df871ba`  
 > **主要負責人 / 日期**：Kiwi AI Team / 2026-07-29    
 > **實作狀態 (Implementation Status)**：Partial / Onboarding Mapping
+
+---
 
 ---
 
@@ -27,6 +29,8 @@
 
 ---
 
+---
+
 ## 2. 邊界與成功標準 (Scope & Success Criteria)
 
 ### 2.1 涵蓋與非涵蓋範圍 (Scope Boundaries)
@@ -39,6 +43,8 @@
 | 衡量指標 (Metric) | 目標值 (Target) | 驗證方式 / 自動化測試路徑 |
 | :--- | :--- | :--- |
 | **多端併發 Session 攔截** | `100% (只留最新 1 個)` | `backend/tests/security/concurrency.test.js` |
+
+---
 
 ---
 
@@ -72,10 +78,12 @@ sequenceDiagram
 
 ---
 
+---
+
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
-* **現行程式碼位置**：[`backend/src/services/sessionService.js:L16-L19`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/sessionService.js#L16-L19)
+* **現行程式碼位置**：[`backend/src/services/sessionService.js:L16-L19`](../../backend/src/services/sessionService.js#L16-L19)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -100,6 +108,8 @@ export const getSessionById = async (sessionId) => {
 
 ---
 
+---
+
 ## 5. 爆炸半徑與失敗矩陣 (Blast Radius & Failure Matrix)
 
 ### 5.1 影響範圍 (Blast Radius)
@@ -109,6 +119,8 @@ export const getSessionById = async (sessionId) => {
 | 失敗場景 (Failure Scenario) | 系統表現 (Behavior) | 降級 / 修復策略 (Fallback) |
 | :--- | :--- | :--- |
 | **代理伺服器隱藏 IP** | 降級使用 `user-agent` 哈希 | 安全生成指紋，不引發 Exception 崩潰 |
+
+---
 
 ---
 
@@ -122,11 +134,15 @@ export const getSessionById = async (sessionId) => {
 
 ---
 
+---
+
 ## 7. 轉碼新人面試實戰對攻劇本 (Career-Switcher Interview Q&A Defense Script)
 
-### 7.1 30 秒大白話 Core Pitch (口語化台詞)
-> *"面試官您好！這個設備指紋與併發檢查是我們防止帳號共享與 Race Condition 的武器。我們沒有盲目信任前端傳來的 `deviceId`，而是在後端用 `User-Agent` 與 `IP` 算 SHA-256 指紋。當檢測到同一個用戶在 2 個設備上同時面試時，系統自動 Kick 掉舊連線，確保同一時間只有 1 個 ACTIVE Session！"*
+#
 
-### 7.2 面試官追問實戰劇本 (Verbatim Defense Script)
-* **面試官問**：「你為什麼要在後端用 User-Agent 和 IP 計算 SHA-256 設備指紋，而不讓前端傳送 `localStorage` 裡保存的 UUID 設備識別碼？」
-  - **轉碼新人回答**：「因為前端傳送的 `deviceId` 可以被惡意用戶隨意改寫或清空 `localStorage` 繞過；而在後端提取 HTTP 請求標頭中的 User-Agent 與 TCP 層的 IP 地址計算 SHA-256 雜湊，是由伺服器掌控的權威數據，無法被前端 JS 輕易篡改，安全性最高！」
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

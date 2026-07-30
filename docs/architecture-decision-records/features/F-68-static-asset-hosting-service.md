@@ -9,13 +9,15 @@
 
 ---
 
+---
+
 ## 1. 演進軌跡與背景動機 (Genesis & Evolution Trace)
 
 ### 1.1 零基礎生活白話比喻 (Layman Analogy for Beginners)
 > 💡 **小白導讀**：
 > 想像你要向全世界分發宣傳海報（前端 JS/CSS 靜態資源）。
 > * **傳統做法**：讓昂貴的大廚（Node.js 後端 API）親自兼職遞送海報。大廚一邊要處理複雜的匹配演算法，一邊還要給顧客發送 `.png` 圖片與 `.js` 檔案，導致後端 API 被拉垮崩潰。
-> * **Nginx 高效靜態託管 (本 Feature)**：就像在飯店門口架設的「自動報報亭 (`frontend/nginx.conf`)」。所有的 HTML、CSS、JS 與圖片全部交給極速的報報亭 (Nginx) 託管。開啟 Gzip 壓縮將檔案體積砍半，並設定 1 年的長效 HTTP Cache 標頭。用戶再次開啟網頁時直接讀取本地快取，0 毫秒載入！
+> * **Nginx 高效靜態託管 (本 Feature)**：就像在飯店門口架設的「自動報報亭 (`frontend/nginx.conf`)」。所有的 HTML、CSS、JS 與圖片全部交給極速的報報亭 (Nginx) 託管。開啟 Gzip 壓縮將檔案體積砍半，並設定 1 年的長效 HTTP Cache 標頭。用戶再次開啟網頁時直接讀取本地快取，15-50ms載入！
 
 ### 1.2 基於 Git 歷史的從 0 到 1 演進歷程
 * **初始最簡版本 (Baseline v0 - Commit `728cad5` 早期)**：
@@ -24,6 +26,8 @@
   - 佔用 Node.js 單執行緒事件循環 (Event Loop) 算力，且缺乏瀏覽器長效快取 (Cache-Control) 配置。
 * **現行架構 (Current Version - PR #128 Commit `728cad5`)**：
   - 專屬 `nginx:alpine` 容器託管前端 Vite 編譯後的 `/dist` 靜態產物，配置 Gzip / Brotli 壓縮與 `Cache-Control: max-age=31536000` 長效快取。
+
+---
 
 ---
 
@@ -40,6 +44,8 @@
 | :--- | :--- | :--- |
 | **二次加載時間 (Repeat Load)** | `< 50ms (Cache Hit)` | Chrome DevTools Network tab |
 | **Gzip 檔案體積壓縮率** | `> 65%` | `curl -I -H "Accept-Encoding: gzip" http://localhost/` |
+
+---
 
 ---
 
@@ -71,10 +77,12 @@ sequenceDiagram
 
 ---
 
+---
+
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
-* **現行程式碼位置**：[`vercel.json:L1-L5`](file:///Users/heminghan/Kiwi-AI-interview-Agent/vercel.json#L1-L5)
+* **現行程式碼位置**：[`vercel.json:L1-L5`](../../vercel.json#L1-L5)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -101,6 +109,8 @@ sequenceDiagram
 
 ---
 
+---
+
 ## 5. 爆炸半徑與失敗矩陣 (Blast Radius & Failure Matrix)
 
 ### 5.1 影響範圍 (Blast Radius)
@@ -110,6 +120,8 @@ sequenceDiagram
 | 失敗場景 (Failure Scenario) | 系統表現 (Behavior) | 降級 / 修復策略 (Fallback) |
 | :--- | :--- | :--- |
 | **資產檔案不存在** | Nginx 回傳 404 | `try_files` 自動回退至 `/index.html` |
+
+---
 
 ---
 
@@ -123,11 +135,15 @@ sequenceDiagram
 
 ---
 
+---
+
 ## 7. 轉碼新人面試實戰對攻劇本 (Career-Switcher Interview Q&A Defense Script)
 
-### 7.1 30 秒大白話 Core Pitch (口語化台詞)
-> *"面試官您好！這個靜態資源託管配置是我們前端極速加載的祕訣。我們在 Nginx 中採用了『分級快取策略』：因為 Vite 產出的 JS/CSS 檔名帶有內容 Hash，所以我們對 `/assets/` 設定了 1 年的 `max-age=31536000, immutable` 強快取；而對入口 `index.html` 設定了 `no-cache`。這既達成了二次加載 0 毫秒的極致速度，又保障了每次發布新版本用戶能 100% 拿到最新代碼！"*
+#
 
-### 7.2 面試官追問實戰劇本 (Verbatim Defense Script)
-* **面試官問**：「你為什麼要對 `/assets/` 下的 JS 檔案設定 1 年長效快取 `max-age=31536000`，而對入口 `index.html` 設定 `no-cache`？」
-  - **轉碼新人回答**：「這在前端工程化中稱為 **基於 Hash 的持久化快取 (Cache Invalidation)**。因為 Vite 在打包時會根據檔案內容算出一串 Hash 檔名 (如 `index-a1b2.js`)，只要檔案內容沒變，檔名就不會變，所以可以放心地給予 1 年強快取；而一旦我們更新了代碼，產出的檔名就會變成 `index-x9y8.js`。因為入口 `index.html` 設定了 `no-cache` 永遠保持最新，它裡面引用的 JS 檔名變了，瀏覽器就會自動去下載全新的 JS 檔案。這完美兼顧了『極速加載』與『即時版本更新』！」
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

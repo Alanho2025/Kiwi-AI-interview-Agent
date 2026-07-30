@@ -9,6 +9,8 @@
 
 ---
 
+---
+
 ## 1. 演進軌跡與背景動機 (Genesis & Evolution Trace)
 
 ### 1.1 零基礎生活白話比喻 (Layman Analogy for Beginners)
@@ -27,6 +29,8 @@
 
 ---
 
+---
+
 ## 2. 邊界與成功標準 (Scope & Success Criteria)
 
 ### 2.1 涵蓋與非涵蓋範圍 (Scope Boundaries)
@@ -39,6 +43,8 @@
 | 衡量指標 (Metric) | 目標值 (Target) | 驗證方式 / 自動化測試路徑 |
 | :--- | :--- | :--- |
 | **後端測試套件執行時間** | `< 5 秒` | `cd backend && npm run test:all` |
+
+---
 
 ---
 
@@ -69,10 +75,12 @@ sequenceDiagram
 
 ---
 
+---
+
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
-* **現行程式碼位置**：[`backend/package.json:L12-L15`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/package.json#L12-L15)
+* **現行程式碼位置**：[`backend/package.json:L12-L15`](../../backend/package.json#L12-L15)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -98,6 +106,8 @@ sequenceDiagram
 
 ---
 
+---
+
 ## 5. 爆炸半徑與失敗矩陣 (Blast Radius & Failure Matrix)
 
 ### 5.1 影響範圍 (Blast Radius)
@@ -107,6 +117,8 @@ sequenceDiagram
 | 失敗場景 (Failure Scenario) | 系統表現 (Behavior) | 降級 / 修復策略 (Fallback) |
 | :--- | :--- | :--- |
 | **Mock 未復位** | 前後測試互相干擾 | `afterEach(() => jest.clearAllMocks())` 自動復位 |
+
+---
 
 ---
 
@@ -120,11 +132,15 @@ sequenceDiagram
 
 ---
 
+---
+
 ## 7. 轉碼新人面試實戰對攻劇本 (Career-Switcher Interview Q&A Defense Script)
 
-### 7.1 30 秒大白話 Core Pitch (口語化台詞)
-> *"面試官您好！這個後端 Robustness 測試套件是我們代碼健壯性的防線。我們用 `jest.mock` 把資料庫和外部 API 隔離起來。在測試未同意條款的案例時，我們寫了 `expect(query).not.toHaveBeenCalled()` 斷言。這不僅保證了跑測試不需要連真實資料庫、4 秒內跑完，更驗證了衛語 Guard 確實在第 1 行就攔截了請求！"*
+#
 
-### 7.2 面試官追問實戰劇本 (Verbatim Defense Script)
-* **面試官問**：「你為什麼要在 `authService.test.js` 中特別寫一行 `expect(query).not.toHaveBeenCalled()` 斷言？」
-  - **轉碼新人回答**：「因為光測試是否拋出錯誤是不夠的！如果有人改壞了代碼，把衛語 Guard 放在了資料庫查詢的『後面』，雖然最終也會拋出錯誤，但卻白白浪費了一次資料庫查詢開銷。加上 `not.toHaveBeenCalled()` 斷言，能 100% 確保代碼在查詢資料庫之前就把非法請求踢掉，驗證了最極致的效能保護！」
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

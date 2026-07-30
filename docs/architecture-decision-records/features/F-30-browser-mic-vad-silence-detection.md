@@ -9,13 +9,15 @@
 
 ---
 
+---
+
 ## 1. 演進軌跡與背景動機 (Genesis & Evolution Trace)
 
 ### 1.1 零基礎生活白話比喻 (Layman Analogy for Beginners)
 > 💡 **小白導讀**：
 > 想像你在和朋友對話（麥克風錄音）。
 > * **傳統做法**：你說完話後必須手動按一下「說完了按鈕」，否則系統一直呆呆地等著，體驗非常笨拙。
-> * **瀏覽器端 VAD 靜音自動檢測 (本 Feature)**：就像在前端裝了一位「智慧聽覺守衛 (`useAudioRecorder.js`)」。利用 Web Audio API 即時計算你說話的音量振幅 (RMS Decibels)。當你停止說話超過 500 毫秒，守衛自動幫你觸發 `SPEECH_END` 訊號給後端！你完全不需要按任何按鈕，對話自然得就像面對面聊天！
+> * **瀏覽器端 VAD 靜音自動檢測 (本 Feature)**：就像在前端裝了一位「智慧聽覺守衛 (`useAudioRecorder.js`)」。利用 Web Audio API 即時計算你說話的音量振幅 (RMS Decibels)。當你停止說話超過 5015-50ms，守衛自動幫你觸發 `SPEECH_END` 訊號給後端！你完全不需要按任何按鈕，對話自然得就像面對面聊天！
 
 ### 1.2 基於 Git 歷史的從 0 到 1 演進歷程
 * **初始最簡版本 (Baseline v0 - Commit `69735b1` 早期)**：
@@ -24,6 +26,8 @@
   - 手動按鈕破壞了語音面試的沉浸感；且在背景環境噪聲下容易誤觸發發言結束。
 * **現行架構 (Current Version - PR #110 `df871ba`)**：
   - `useAudioRecorder.js` 整合 Web Audio API `ScriptProcessorNode` / `AudioWorklet` 計算能量振幅 (RMS)，配合動態噪音門檻與 500ms 靜音 Timer，實現流暢的自動語音切割與 Barge-in 打斷發送。
+
+---
 
 ---
 
@@ -40,6 +44,8 @@
 | :--- | :--- | :--- |
 | **VAD 靜音切斷反應時間** | `500ms` | `frontend/src/hooks/voice/__tests__/useAudioRecorder.test.js` |
 | **靜音誤判率** | `< 2%` | `frontend/src/hooks/voice/__tests__/useAudioRecorder.test.js` |
+
+---
 
 ---
 
@@ -67,14 +73,16 @@ sequenceDiagram
 1. **第一步（捕獲麥克風）**：用戶授權麥克風後，`getUserMedia` 建立音訊流傳給 `useAudioRecorder.js`。
 2. **第二步（能量振幅計算）**：Web Audio API 即時計算 PCM 數據的 RMS (均方根) 能量。
 3. **第三步（動態開口判定）**：當 RMS 超過背景噪音門檻，判定用戶開口，開始推送二進位音訊流。
-4. **第四步（500ms 靜音觸發）**：當 RMS 低於門檻並持續超過 500 毫秒，觸發 `VAD_SPEECH_END` 控制訊號給後端，自動進入思考階段！
+4. **第四步（500ms 靜音觸發）**：當 RMS 低於門檻並持續超過 5015-50ms，觸發 `VAD_SPEECH_END` 控制訊號給後端，自動進入思考階段！
+
+---
 
 ---
 
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
-* **現行程式碼位置**：[`frontend/src/hooks/voice/useVoiceActivityDetection.js:L25-L30`](file:///Users/heminghan/Kiwi-AI-interview-Agent/frontend/src/hooks/voice/useVoiceActivityDetection.js#L25-L30)
+* **現行程式碼位置**：[`frontend/src/hooks/voice/useVoiceActivityDetection.js:L25-L30`](../../frontend/src/hooks/voice/useVoiceActivityDetection.js#L25-L30)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -101,6 +109,8 @@ const computeRms = (pcmBuffer) => {
 
 ---
 
+---
+
 ## 5. 爆炸半徑與失敗矩陣 (Blast Radius & Failure Matrix)
 
 ### 5.1 影響範圍 (Blast Radius)
@@ -110,6 +120,8 @@ const computeRms = (pcmBuffer) => {
 | 失敗場景 (Failure Scenario) | 系統表現 (Behavior) | 降級 / 修復策略 (Fallback) |
 | :--- | :--- | :--- |
 | **用戶拒絕麥克風權限** | `getUserMedia` 拋出 NotAllowedError | 前端 Toast 提示，並提供切換至純文字模式按鈕 |
+
+---
 
 ---
 
@@ -123,11 +135,15 @@ const computeRms = (pcmBuffer) => {
 
 ---
 
+---
+
 ## 7. 轉碼新人面試實戰對攻劇本 (Career-Switcher Interview Q&A Defense Script)
 
-### 7.1 30 秒大白話 Core Pitch (口語化台詞)
-> *"面試官您好！這個前端 VAD 靜音檢測是為了讓語音面試像面對面聊天一樣自然。我們在 Web Audio API 中計算音訊 PCM 數據的 RMS (均方根) 能量。當用戶停止說話超過 500 毫秒時自動切斷。我們沒有使用 `Math.max()` 取最大值，而是用 RMS 均方根算法，因為 `Math.max` 會把單點滑鼠敲擊聲當成說話；而 RMS 能完美抵抗突發雜音！"*
+#
 
-### 7.2 面試官追問實戰劇本 (Verbatim Defense Script)
-* **面試官問**：「你為什麼要在 `calculateRMS` 中用 `for` 迴圈計算 RMS，而不是用 `Math.max(...pcmData)` 來找音量峰值？」
-  - **轉碼新人回答**：「有兩個原因！第一，`Math.max(...pcmData)` 採用 ES6 展開運算子，傳入幾萬個採樣點時很容易引發 Call Stack 溢出崩潰；第二，`Math.max` 只能拿到瞬間的極致峰值，遇到滑鼠敲擊等突發雜音會產生誤判。RMS 均方根反應的是平均能量，能有效濾除雜音，而且 `for` 迴圈耗時不到 0.01 毫秒，記憶體開銷為 0！」
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

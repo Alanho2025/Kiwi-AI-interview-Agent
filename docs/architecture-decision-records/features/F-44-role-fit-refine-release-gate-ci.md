@@ -9,6 +9,8 @@
 
 ---
 
+---
+
 ## 1. 演進軌跡與背景動機 (Genesis & Evolution Trace)
 
 ### 1.1 零基礎生活白話比喻 (Layman Analogy for Beginners)
@@ -27,6 +29,8 @@
 
 ---
 
+---
+
 ## 2. 邊界與成功標準 (Scope & Success Criteria)
 
 ### 2.1 涵蓋與非涵蓋範圍 (Scope Boundaries)
@@ -39,6 +43,8 @@
 | 衡量指標 (Metric) | 目標值 (Target) | 驗證方式 / 自動化測試路徑 |
 | :--- | :--- | :--- |
 | **門禁執行時間** | `< 60 秒` | `node backend/scripts/roleFitRefineGate.js` |
+
+---
 
 ---
 
@@ -72,10 +78,12 @@ sequenceDiagram
 
 ---
 
+---
+
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
-* **現行程式碼位置**：[`backend/eval/runners/runRoleFitReleaseGateEval.js:L1-L4`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/eval/runners/runRoleFitReleaseGateEval.js#L1-L4)
+* **現行程式碼位置**：[`backend/eval/runners/runRoleFitReleaseGateEval.js:L1-L4`](../../backend/eval/runners/runRoleFitReleaseGateEval.js#L1-L4)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -100,6 +108,8 @@ export const runRoleFitReleaseGateEval = async () => {
 
 ---
 
+---
+
 ## 5. 爆炸半徑與失敗矩陣 (Blast Radius & Failure Matrix)
 
 ### 5.1 影響範圍 (Blast Radius)
@@ -109,6 +119,8 @@ export const runRoleFitReleaseGateEval = async () => {
 | 失敗場景 (Failure Scenario) | 系統表現 (Behavior) | 降級 / 修復策略 (Fallback) |
 | :--- | :--- | :--- |
 | **門禁腳本 Exception** | 預設 `catch` 呼叫 `process.exit(1)` | 安全阻斷發布，防止未知代碼流出 |
+
+---
 
 ---
 
@@ -122,11 +134,15 @@ export const runRoleFitReleaseGateEval = async () => {
 
 ---
 
+---
+
 ## 7. 轉碼新人面試實戰對攻劇本 (Career-Switcher Interview Q&A Defense Script)
 
-### 7.1 30 秒大白話 Core Pitch (口語化台詞)
-> *"面試官您好！這個 Role-fit 發布門禁是我們 CI/CD 流程的終極衛兵。最開始我們只跑 Lint 檢查，結果很多語法正確但演算法被改壞的代碼順利上線！現在我們在 `roleFitRefineGate.js` 中實施了雙重門禁。只要測試沒過或匹配分低於 80 分，腳本調用 `process.exit(1)`。在 Linux 規範中 1 代表異常，GitHub Actions 會立刻紅牌阻斷發布！"*
+#
 
-### 7.2 面試官追問實戰劇本 (Verbatim Defense Script)
-* **面試官問**：「你為什麼要在門禁不通過時顯式呼叫 `process.exit(1)`，而不是直接拋出 Exception？」
-  - **轉碼新人回答**：「因為在 Linux 操作系統與 CI/CD 引擎 (如 GitHub Actions, Jenkins) 中，腳本的返回值 (Exit Code) 是判斷任務成功與否的唯一標準！`0` 代表成功，`1` 代表失敗。顯式調用 `process.exit(1)` 能 100% 確保 CI 容器第一時間識別到異常並紅牌阻斷 PR 合入，這是標準的 DevSecOps 實踐！」
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

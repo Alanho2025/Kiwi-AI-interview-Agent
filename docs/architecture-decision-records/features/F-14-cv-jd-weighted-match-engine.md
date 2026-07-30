@@ -9,6 +9,8 @@
 
 ---
 
+---
+
 ## 1. 演進軌跡與背景動機 (Genesis & Evolution Trace)
 
 ### 1.1 零基礎生活白話比喻 (Layman Analogy for Beginners)
@@ -27,6 +29,8 @@
 
 ---
 
+---
+
 ## 2. 邊界與成功標準 (Scope & Success Criteria)
 
 ### 2.1 涵蓋與非涵蓋範圍 (Scope Boundaries)
@@ -39,6 +43,8 @@
 | 衡量指標 (Metric) | 目標值 (Target) | 驗證方式 / 自動化測試路徑 |
 | :--- | :--- | :--- |
 | **打分波動度 (Variance)** | `< 2 分` | `backend/tests/services/matchScore.test.js` |
+
+---
 
 ---
 
@@ -71,10 +77,12 @@ sequenceDiagram
 
 ---
 
+---
+
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
-* **現行程式碼位置**：[`backend/src/services/matchService.js:L56-L63`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/matchService.js#L56-L63)
+* **現行程式碼位置**：[`backend/src/services/matchService.js:L56-L63`](../../backend/src/services/matchService.js#L56-L63)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -103,6 +111,8 @@ export const compareCvToJobDescription = async (cvInput, rawJD, jdRubric, settin
 
 ---
 
+---
+
 ## 5. 爆炸半徑與失敗矩陣 (Blast Radius & Failure Matrix)
 
 ### 5.1 影響範圍 (Blast Radius)
@@ -112,6 +122,8 @@ export const compareCvToJobDescription = async (cvInput, rawJD, jdRubric, settin
 | 失敗場景 (Failure Scenario) | 系統表現 (Behavior) | 降級 / 修復策略 (Fallback) |
 | :--- | :--- | :--- |
 | **維護欄位全為 undefined** | `(undefined || 0)` 觸發 | 自動傳回 0 分，避免 NaN 崩潰 |
+
+---
 
 ---
 
@@ -125,11 +137,15 @@ export const compareCvToJobDescription = async (cvInput, rawJD, jdRubric, settin
 
 ---
 
+---
+
 ## 7. 轉碼新人面試實戰對攻劇本 (Career-Switcher Interview Q&A Defense Script)
 
-### 7.1 30 秒大白話 Core Pitch (口語化台詞)
-> *"面試官您好！這個匹配引擎是我們解決 LLM 打分黑盒與分數波動的核心。最開始我們讓大模型自由打分，結果同一份履歷第一次給 80 分、第二次給 60 分！現在我們改成由後端程式碼進行 4:3:1.5:1.5 的確定性權重加法，大模型只負責寫評語。我們在代碼最後一行用了 `Math.min(100, Math.max(0, ...))` 做邊界鎖定，確保分數 100% 可重複且絕不爆分！"*
+#
 
-### 7.2 面試官追問實戰劇本 (Verbatim Defense Script)
-* **面試官問**：「你為什麼要在分數計算的最後一行使用 `Math.min(100, Math.max(0, ...))` 這種寫法？」
-  - **轉碼新人回答**：「這在軟體工程中叫做 **邊界鎖定 (Clamp)**。因為浮點數計算偶爾會有 `100.0000000001` 或負數的精度誤差，如果直接傳給前端會破壞 UI Layout。用 `Math.max(0, ...)` 鎖住下限，再用 `Math.min(100, ...)` 鎖住上限，能保證最終分數 100% 落在合法的 0 到 100 區間內！」
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

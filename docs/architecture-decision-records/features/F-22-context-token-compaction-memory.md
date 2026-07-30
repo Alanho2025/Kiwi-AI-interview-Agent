@@ -9,6 +9,8 @@
 
 ---
 
+---
+
 ## 1. 演進軌跡與背景動機 (Genesis & Evolution Trace)
 
 ### 1.1 零基礎生活白話比喻 (Layman Analogy for Beginners)
@@ -27,6 +29,8 @@
 
 ---
 
+---
+
 ## 2. 邊界與成功標準 (Scope & Success Criteria)
 
 ### 2.1 涵蓋與非涵蓋範圍 (Scope Boundaries)
@@ -40,6 +44,8 @@
 | :--- | :--- | :--- |
 | **Token 體積壓縮率** | `> 65%` | `backend/tests/aiControl/contextCompact.test.js` |
 | **Prompt Token 數量** | `< 2500 Tokens` | `backend/tests/aiControl/contextCompact.test.js` |
+
+---
 
 ---
 
@@ -72,10 +78,12 @@ sequenceDiagram
 
 ---
 
+---
+
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
-* **現行程式碼位置**：[`backend/src/services/aiControl/experienceMemoryService.js:L15-L18`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/aiControl/experienceMemoryService.js#L15-L18)
+* **現行程式碼位置**：[`backend/src/services/aiControl/experienceMemoryService.js:L15-L18`](../../backend/src/services/aiControl/experienceMemoryService.js#L15-L18)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -100,6 +108,8 @@ export const rebuildBoundedMemory = (history = [], maxTokens = 2000) => {
 
 ---
 
+---
+
 ## 5. 爆炸半徑與失敗矩陣 (Blast Radius & Failure Matrix)
 
 ### 5.1 影響範圍 (Blast Radius)
@@ -109,6 +119,8 @@ export const rebuildBoundedMemory = (history = [], maxTokens = 2000) => {
 | 失敗場景 (Failure Scenario) | 系統表現 (Behavior) | 降級 / 修復策略 (Fallback) |
 | :--- | :--- | :--- |
 | **摘要生成失敗** | 捕獲 Exception | 自動退回最新 4 條對話的純切片，確保 Prompt 不超載 |
+
+---
 
 ---
 
@@ -122,11 +134,15 @@ export const rebuildBoundedMemory = (history = [], maxTokens = 2000) => {
 
 ---
 
+---
+
 ## 7. 轉碼新人面試實戰對攻劇本 (Career-Switcher Interview Q&A Defense Script)
 
-### 7.1 30 秒大白話 Core Pitch (口語化台詞)
-> *"面試官您好！這個上下文壓縮服務就像是小說的前情提要。最開始我們把從第 1 題到第 6 題的所有對話全部發給大模型，結果 Token 破萬、費用翻倍而且延遲高達 4 秒！現在我們用 JavaScript 的 `.slice(-4)` 保留最新 2 輪對話，並把舊對話濃縮成 100 字的 Key-fact 前情提要。成功將 Token 體積砍掉了 65%，而且完全沒丟失記憶！"*
+#
 
-### 7.2 面試官追問實戰劇本 (Verbatim Defense Script)
-* **面試官問**：「你為什麼要在壓縮時做『舊對話前情提要』，而不是直接把舊對話丟掉（Direct Truncation）？」
-  - **轉碼新人回答**：「如果直接把舊對話丟掉，當大模型在第 5 題想要引用求職者在第 1 題提到的專案經歷時，就會因為記憶斷層而產生幻覺。我們採用『前情提要 + 最新對話切片』雙軌機制，既鎖定了 Token 上限，又保障了記憶的連貫性！」
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

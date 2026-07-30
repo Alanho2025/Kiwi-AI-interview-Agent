@@ -9,6 +9,8 @@
 
 ---
 
+---
+
 ## 1. 演進軌跡與背景動機 (Genesis & Evolution Trace)
 
 ### 1.1 零基礎生活白話比喻 (Layman Analogy for Beginners)
@@ -27,6 +29,8 @@
 
 ---
 
+---
+
 ## 2. 邊界與成功標準 (Scope & Success Criteria)
 
 ### 2.1 涵蓋與非涵蓋範圍 (Scope Boundaries)
@@ -40,6 +44,8 @@
 | :--- | :--- | :--- |
 | **Tour 完成率** | `> 80%` | `frontend/src/tests/tour.test.js` |
 | **重複彈出率** | `0%` | `frontend/src/components/__tests__/UserTourModal.test.jsx` |
+
+---
 
 ---
 
@@ -77,10 +83,12 @@ sequenceDiagram
 
 ---
 
+---
+
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
-* **現行程式碼位置**：[`frontend/src/App.jsx:L15-L25`](file:///Users/heminghan/Kiwi-AI-interview-Agent/frontend/src/App.jsx#L15-L25)
+* **現行程式碼位置**：[`frontend/src/App.jsx:L15-L25`](../../frontend/src/App.jsx#L15-L25)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -108,6 +116,8 @@ function App() {
 
 ---
 
+---
+
 ## 5. 爆炸半徑與失敗矩陣 (Blast Radius & Failure Matrix)
 
 ### 5.1 影響範圍 (Blast Radius)
@@ -117,6 +127,8 @@ function App() {
 | 失敗場景 (Failure Scenario) | 系統表現 (Behavior) | 降級 / 修復策略 (Fallback) |
 | :--- | :--- | :--- |
 | **無痕模式禁用 Storage** | `getItem` 拋出例外 | 捕獲 Exception，預設 `isOpen = false` 防止卡死 |
+
+---
 
 ---
 
@@ -130,11 +142,15 @@ function App() {
 
 ---
 
+---
+
 ## 7. 轉碼新人面試實戰對攻劇本 (Career-Switcher Interview Q&A Defense Script)
 
-### 7.1 30 秒大白話 Core Pitch (口語化台詞)
-> *"面試官您好！新手指引功能就像博物館入口的導覽員。我們用原生的 `localStorage` 記錄用戶是否看過導覽。最開始我們想用 Cookie，但發現 Cookie 在每次 HTTP 請求時都會發給伺服器，浪費頻寬！現在改用 `localStorage` 零額外包體，而且 `useEffect` 只在首次掛載時讀取一次，完全不影響效能！"*
+#
 
-### 7.2 面試官追問實戰劇本 (Verbatim Defense Script)
-* **面試官問**：「你為什麼用 `localStorage` 而不是 `sessionStorage` 或 `Cookie`？」
-  - **轉碼新人回答**：「因為 `sessionStorage` 在用戶關閉分頁後就會消失，下次打開又會重複彈出導覽，很打擾用戶；而 `Cookie` 每次發起 HTTP 請求都會隨標頭傳給後端，浪費頻寬。`localStorage` 既能永久保存在前端，又不會增加網路負擔，是最好的選擇！」
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

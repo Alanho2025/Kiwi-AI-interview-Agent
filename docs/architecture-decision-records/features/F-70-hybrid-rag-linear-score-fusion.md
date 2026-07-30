@@ -24,7 +24,7 @@
 * **遭遇的痛點與瓶頸 (Pain Points & Bottlenecks)**：
   - 當候選人回答「做過跨國系統重構」時，無法檢索到包含「System Redesign」或「Architecture Migration」等英文同義詞的參考範例。
 * **現行架構 (Current Version)**：
-  - 實作 [ragRetrievalService.js](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/ragRetrievalService.js)，結合 Cosine Similarity（餘弦相似度向量檢索）與 Token Jaccard Overlap（關鍵字比對），進行動態加權線性融合。
+  - 實作 [ragRetrievalService.js](../../backend/src/services/ragRetrievalService.js)，結合 Cosine Similarity（餘弦相似度向量檢索）與 Token Jaccard Overlap（關鍵字比對），進行動態加權線性融合。
 
 ---
 
@@ -79,7 +79,7 @@ sequenceDiagram
 ```
 
 ### 3.2 流程文字逐步拆解導覽 (Step-by-Step Narrative Walkthrough for Beginners)
-1. **第一步（發起查詢）**：面試評估服務呼叫 [ragRetrievalService.js](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/ragRetrievalService.js)，傳入查詢字串。
+1. **第一步（發起查詢）**：面試評估服務呼叫 [ragRetrievalService.js](../../backend/src/services/ragRetrievalService.js)，傳入查詢字串。
 2. **第二步（雙軌處理）**：並行執行語意向量生成與查詢文本正規化分詞。
 3. **第三步（三維融合評分）**：針對每個候選文字塊，分別計算餘弦相似度與 Jaccard 關鍵字交集率，最後透過 `computeFusionScore` 計算最終得分。
 4. **第四步（Top-K 篩選）**：依據最終分數降序排列，截取前 K 個最佳切片作為 LLM 提示詞上下文。
@@ -89,7 +89,7 @@ sequenceDiagram
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：`RETRIEVAL_CONFIG` 與 `computeFusionScore`
-* **現行程式碼位置**：[`backend/src/services/ragRetrievalService.js:L21-L26`, `L58-L65`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/ragRetrievalService.js#L21-L65)
+* **現行程式碼位置**：[`backend/src/services/ragRetrievalService.js:L21-L26`, `L58-L65`](../../backend/src/services/ragRetrievalService.js#L21-L65)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -147,3 +147,10 @@ const computeFusionScorePureVector = ({ semantic = 0 }) => semantic;
 
 ### 6.2 緊急回滾流程 (Rollback SOP)
 - 若發現某類專有名詞檢索率下降，可調大 `fusionWeights.keyword` 至 0.50，調整無需重新編譯代碼。
+
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

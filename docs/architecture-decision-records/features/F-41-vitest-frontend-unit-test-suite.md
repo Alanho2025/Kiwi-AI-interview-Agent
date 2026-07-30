@@ -9,6 +9,8 @@
 
 ---
 
+---
+
 ## 1. 演進軌跡與背景動機 (Genesis & Evolution Trace)
 
 ### 1.1 零基礎生活白話比喻 (Layman Analogy for Beginners)
@@ -27,6 +29,8 @@
 
 ---
 
+---
+
 ## 2. 邊界與成功標準 (Scope & Success Criteria)
 
 ### 2.1 涵蓋與非涵蓋範圍 (Scope Boundaries)
@@ -39,6 +43,8 @@
 | 衡量指標 (Metric) | 目標值 (Target) | 驗證方式 / 自動化測試路徑 |
 | :--- | :--- | :--- |
 | **前端測試執行時間** | `< 3 秒` | `cd frontend && npm run test:all` |
+
+---
 
 ---
 
@@ -69,10 +75,12 @@ sequenceDiagram
 
 ---
 
+---
+
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
-* **現行程式碼位置**：[`frontend/vite.config.js:L1-L8`](file:///Users/heminghan/Kiwi-AI-interview-Agent/frontend/vite.config.js#L1-L8)
+* **現行程式碼位置**：[`frontend/vite.config.js:L1-L8`](../../frontend/vite.config.js#L1-L8)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -101,6 +109,8 @@ export default defineConfig({
 
 ---
 
+---
+
 ## 5. 爆炸半徑與失敗矩陣 (Blast Radius & Failure Matrix)
 
 ### 5.1 影響範圍 (Blast Radius)
@@ -110,6 +120,8 @@ export default defineConfig({
 | 失敗場景 (Failure Scenario) | 系統表現 (Behavior) | 降級 / 修復策略 (Fallback) |
 | :--- | :--- | :--- |
 | **Assertion 失敗** | Vitest 傳回 exit code 1 | 阻斷 `quality:all` 門禁，防止問題程式碼合入 |
+
+---
 
 ---
 
@@ -123,11 +135,15 @@ export default defineConfig({
 
 ---
 
+---
+
 ## 7. 轉碼新人面試實戰對攻劇本 (Career-Switcher Interview Q&A Defense Script)
 
-### 7.1 30 秒大白話 Core Pitch (口語化台詞)
-> *"面試官您好！這個 Vitest 單測框架是我們前端 Quality Gate 的基石。最開始我們用傳統的 Jest，但因為專案是用 Vite 構建的，Jest 每次都要經過 Babel 重新編譯，跑一次要 8 秒！現在我們改用 Vitest，共享 Vite 配置，並在配置中設了 `css: false` 跳過樣式計算。2 秒內就能跑完所有測試！"*
+#
 
-### 7.2 面試官追問實戰劇本 (Verbatim Defense Script)
-* **面試官問**：「你為什麼要在 `vitest.config.js` 中特別設定 `css: false`？」
-  - **轉碼新人回答**：「因為單元測試的核心在於驗證 React 的邏輯、State 狀態與事件觸發，而不是驗證 CSS 的渲染結果。如果開啟 CSS 解析，Vitest 會把大量時間花在解析 Tailwind 的樣式類別上。關閉 CSS 解析能把測試速度提升 5 倍以上，而且完全不影響邏輯驗證！」
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

@@ -9,6 +9,8 @@
 
 ---
 
+---
+
 ## 1. 演進軌跡與背景動機 (Genesis & Evolution Trace)
 
 ### 1.1 零基礎生活白話比喻 (Layman Analogy for Beginners)
@@ -27,6 +29,8 @@
 
 ---
 
+---
+
 ## 2. 邊界與成功標準 (Scope & Success Criteria)
 
 ### 2.1 涵蓋與非涵蓋範圍 (Scope Boundaries)
@@ -39,6 +43,8 @@
 | 衡量指標 (Metric) | 目標值 (Target) | 驗證方式 / 自動化測試路徑 |
 | :--- | :--- | :--- |
 | **E2E 全流程執行時間** | `< 45 秒` | `npx playwright test` |
+
+---
 
 ---
 
@@ -71,10 +77,12 @@ sequenceDiagram
 
 ---
 
+---
+
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
-* **現行程式碼位置**：[`qa.md:L1-L3`](file:///Users/heminghan/Kiwi-AI-interview-Agent/qa.md#L1-L3)
+* **現行程式碼位置**：[`qa.md:L1-L3`](../../qa.md#L1-L3)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -98,6 +106,8 @@ sequenceDiagram
 
 ---
 
+---
+
 ## 5. 爆炸半徑與失敗矩陣 (Blast Radius & Failure Matrix)
 
 ### 5.1 影響範圍 (Blast Radius)
@@ -107,6 +117,8 @@ sequenceDiagram
 | 失敗場景 (Failure Scenario) | 系統表現 (Behavior) | 降級 / 修復策略 (Fallback) |
 | :--- | :--- | :--- |
 | **前端服務未開起** | 觸發 timeout 30s | 提示 "Web server not running on localhost:5173" |
+
+---
 
 ---
 
@@ -120,11 +132,15 @@ sequenceDiagram
 
 ---
 
+---
+
 ## 7. 轉碼新人面試實戰對攻劇本 (Career-Switcher Interview Q&A Defense Script)
 
-### 7.1 30 秒大白話 Core Pitch (口語化台詞)
-> *"面試官您好！這個 E2E 測試框架是我們全站整合流程的防護網。最開始我們用傳統的 CSS 類別選擇器寫測試，結果工程師稍微改一下 Tailwind 樣式，測試就全紅掛掉！現在我們在 `playwright.config.js` 中設定了 `testIdAttribute: 'data-qa'`，規定所有按鈕與輸入框必須加上 `data-qa` 標籤。這樣就算 UI 視覺重構，E2E 測試也依然 100% 穩定運行！"*
+#
 
-### 7.2 面試官追問實戰劇本 (Verbatim Defense Script)
-* **面試官問**：「你為什麼要在 Playwright 中指定 `testIdAttribute: 'data-qa'`，而不是直接用 HTML 元素的 `id` 或 CSS class 定位？」
-  - **轉碼新人回答**：「因為 CSS class 是專門給 UI 樣式使用的，工程師在做重構時隨時會修改類別名稱；而 HTML `id` 在組件化開發中容易產生重複。導入 `data-qa` 專用標籤，實現了『UI 樣式』與『測試定位』的解耦。這樣工程師可以放心地重構 CSS，而不需要擔心破壞自動化測試！」
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

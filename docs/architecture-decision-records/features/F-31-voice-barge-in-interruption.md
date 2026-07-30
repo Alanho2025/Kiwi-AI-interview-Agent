@@ -24,7 +24,7 @@
   - 用戶無法在 AI 回答過長時進行打斷，無法實現真實人類對話中的「雙工輪次交替 (Full Duplex Turn-Taking)」。
   - 音訊播放佇列與 URL 物件殘留在記憶體中，導致長時間語音面試出現記憶體洩漏 (Memory Leak)。
 * **現行架構 (Current Version)**：
-  - 結合 [useVoiceActivityDetection.js](file:///Users/heminghan/Kiwi-AI-interview-Agent/frontend/src/hooks/voice/useVoiceActivityDetection.js) 的 RMS 振幅分析與 [useAssistantAudioQueue.js](file:///Users/heminghan/Kiwi-AI-interview-Agent/frontend/src/hooks/voice/useAssistantAudioQueue.js) 的 `cancelAudioQueue`，實現毫秒級打斷與垃圾回收。
+  - 結合 [useVoiceActivityDetection.js](../../frontend/src/hooks/voice/useVoiceActivityDetection.js) 的 RMS 振幅分析與 [useAssistantAudioQueue.js](../../frontend/src/hooks/voice/useAssistantAudioQueue.js) 的 `cancelAudioQueue`，實現毫秒級打斷與垃圾回收。
 
 ---
 
@@ -74,9 +74,9 @@ sequenceDiagram
 ```
 
 ### 3.2 流程文字逐步拆解導覽 (Step-by-Step Narrative Walkthrough for Beginners)
-1. **第一步（RMS 計算）**：[useVoiceActivityDetection.js](file:///Users/heminghan/Kiwi-AI-interview-Agent/frontend/src/hooks/voice/useVoiceActivityDetection.js) 透過 Web Audio API 拿到麥克風 PCM 數據，計算能量均方根 (RMS)。
+1. **第一步（RMS 計算）**：[useVoiceActivityDetection.js](../../frontend/src/hooks/voice/useVoiceActivityDetection.js) 透過 Web Audio API 拿到麥克風 PCM 數據，計算能量均方根 (RMS)。
 2. **第二步（發話判定）**：當 RMS 超過動態噪聲基底與設定閾值，判定用戶開口說話 (`isSpeaking = true`)。
-3. **第三步（佇列清空）**：呼叫 [useAssistantAudioQueue.js](file:///Users/heminghan/Kiwi-AI-interview-Agent/frontend/src/hooks/voice/useAssistantAudioQueue.js) 的中斷方法，暫停目前 HTML5 Audio 標籤播放，清空未播放的播報佇列。
+3. **第三步（佇列清空）**：呼叫 [useAssistantAudioQueue.js](../../frontend/src/hooks/voice/useAssistantAudioQueue.js) 的中斷方法，暫停目前 HTML5 Audio 標籤播放，清空未播放的播報佇列。
 4. **第四步（記憶體釋放）**：使用 `releaseObjectUrlSoon` 或 `URL.revokeObjectURL(url)` 即時釋放 Blob 音訊記憶體，防止瀏覽器 Heap 膨脹。
 
 ---
@@ -84,7 +84,7 @@ sequenceDiagram
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：`releaseObjectUrlSoon` 與 `base64ToAudioUrl`
-* **現行程式碼位置**：[`frontend/src/hooks/voice/useAssistantAudioQueue.js:L17-L40`](file:///Users/heminghan/Kiwi-AI-interview-Agent/frontend/src/hooks/voice/useAssistantAudioQueue.js#L17-L40)
+* **現行程式碼位置**：[`frontend/src/hooks/voice/useAssistantAudioQueue.js:L17-L40`](../../frontend/src/hooks/voice/useAssistantAudioQueue.js#L17-L40)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -140,3 +140,10 @@ const base64ToAudioUrlNaive = (base64) => {
 
 ### 6.2 緊急回滾流程 (Rollback SOP)
 - 若某瀏覽器出現音訊播放中斷異常，可在語音設定中暫時關閉 `enableBargeIn` 標記。
+
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

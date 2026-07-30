@@ -9,6 +9,8 @@
 
 ---
 
+---
+
 ## 1. 演進軌跡與背景動機 (Genesis & Evolution Trace)
 
 ### 1.1 零基礎生活白話比喻 (Layman Analogy for Beginners)
@@ -27,6 +29,8 @@
 
 ---
 
+---
+
 ## 2. 邊界與成功標準 (Scope & Success Criteria)
 
 ### 2.1 涵蓋與非涵蓋範圍 (Scope Boundaries)
@@ -40,6 +44,8 @@
 | :--- | :--- | :--- |
 | **重複檔案命中響應** | `< 50ms` | `backend/tests/services/fileRepo.test.js` |
 | **磁碟空間節省** | `> 30%` | `backend/tests/services/fileRepo.test.js` |
+
+---
 
 ---
 
@@ -74,10 +80,12 @@ sequenceDiagram
 
 ---
 
+---
+
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
-* **現行程式碼位置**：[`backend/src/services/fileRepositoryService.js:L8-L12`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/fileRepositoryService.js#L8-L12)
+* **現行程式碼位置**：[`backend/src/services/fileRepositoryService.js:L8-L12`](../../backend/src/services/fileRepositoryService.js#L8-L12)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -102,6 +110,8 @@ export const calculateSha256 = (buffer) => {
 
 ---
 
+---
+
 ## 5. 爆炸半徑與失敗矩陣 (Blast Radius & Failure Matrix)
 
 ### 5.1 影響範圍 (Blast Radius)
@@ -111,6 +121,8 @@ export const calculateSha256 = (buffer) => {
 | 失敗場景 (Failure Scenario) | 系統表現 (Behavior) | 降級 / 修復策略 (Fallback) |
 | :--- | :--- | :--- |
 | **Postgres 連線失敗** | 拋出 AppError 500 | 阻止損壞紀錄產生，保持資料庫乾淨 |
+
+---
 
 ---
 
@@ -124,11 +136,15 @@ export const calculateSha256 = (buffer) => {
 
 ---
 
+---
+
 ## 7. 轉碼新人面試實戰對攻劇本 (Career-Switcher Interview Q&A Defense Script)
 
-### 7.1 30 秒大白話 Core Pitch (口語化台詞)
-> *"面試官您好！這個檔案去重服務就像是相片館的數位指紋比對機。我們在檔案上傳的瞬間用 `crypto` 計算出它的 SHA-256 哈希值。如果資料庫裡早就有了，我們在 50 毫秒內直接傳回舊 ID，完全不重複寫入硬碟！我們選用 SHA-256 而不用 MD5，是因為 MD5 在密碼學上已經被證明有碰撞漏洞，而 SHA-256 可以 100% 保障不同檔案不會被誤判！"*
+#
 
-### 7.2 面試官追問實戰劇本 (Verbatim Defense Script)
-* **面試官問**：「為什麼你在去重時選擇 SHA-256 而不選擇計算速度更快的 MD5 算法？」
-  - **轉碼新人回答**：「因為 MD5 在密碼學上已經被證明存在『哈希碰撞漏洞 (Hash Collision)』，也就是兩個內容完全不同的檔案有可能算出相同的 MD5 值，這會導致用戶上傳新履歷時誤用到別人的舊檔案！SHA-256 具備極高的碰撞抵抗性，雖然計算稍微多花 0.1 毫秒，但能保障 100% 的數據安全！」
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

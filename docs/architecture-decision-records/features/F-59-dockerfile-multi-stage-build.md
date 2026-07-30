@@ -9,6 +9,8 @@
 
 ---
 
+---
+
 ## 1. 演進軌跡與背景動機 (Genesis & Evolution Trace)
 
 ### 1.1 零基礎生活白話比喻 (Layman Analogy for Beginners)
@@ -27,6 +29,8 @@
 
 ---
 
+---
+
 ## 2. 邊界與成功標準 (Scope & Success Criteria)
 
 ### 2.1 涵蓋與非涵蓋範圍 (Scope Boundaries)
@@ -39,6 +43,8 @@
 | 衡量指標 (Metric) | 目標值 (Target) | 驗證方式 / 自動化測試路徑 |
 | :--- | :--- | :--- |
 | **前端 Docker 鏡像體積** | `< 50MB (實測 ~25MB)` | `docker images | grep frontend` |
+
+---
 
 ---
 
@@ -69,10 +75,12 @@ sequenceDiagram
 
 ---
 
+---
+
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
-* **現行程式碼位置**：[`backend/Dockerfile:L1-L8`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/Dockerfile#L1-L8)
+* **現行程式碼位置**：[`backend/Dockerfile:L1-L8`](../../backend/Dockerfile#L1-L8)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -101,6 +109,8 @@ CMD ["npm", "start"]
 
 ---
 
+---
+
 ## 5. 爆炸半徑與失敗矩陣 (Blast Radius & Failure Matrix)
 
 ### 5.1 影響範圍 (Blast Radius)
@@ -110,6 +120,8 @@ CMD ["npm", "start"]
 | 失敗場景 (Failure Scenario) | 系統表現 (Behavior) | 降級 / 修復策略 (Fallback) |
 | :--- | :--- | :--- |
 | **Stage 1 構建失敗** | Docker Build 中斷 | 阻斷 Docker Image 產生，防止損壞鏡像上線 |
+
+---
 
 ---
 
@@ -123,11 +135,15 @@ CMD ["npm", "start"]
 
 ---
 
+---
+
 ## 7. 轉碼新人面試實戰對攻劇本 (Career-Switcher Interview Q&A Defense Script)
 
-### 7.1 30 秒大白話 Core Pitch (口語化台詞)
-> *"面試官您好！這個 Dockerfile 是我們極致瘦身與資安防禦的亮點。我們採用了 Multi-Stage Build 多階段構建。在 Stage 1 用 `npm ci` 進行編譯，在 Stage 2 用 `COPY --from=build-stage` 僅把編譯好的 HTML 複製進輕量級的 Nginx 鏡像中。將 Docker 鏡像體積從 1.5GB 瞬間砍到了 25MB！而且容器內完全沒有原始碼，資安防護最高！"*
+#
 
-### 7.2 面試官追問實戰劇本 (Verbatim Defense Script)
-* **面試官問**：「你為什麼要在 Dockerfile 的 Stage 1 中使用 `RUN npm ci`，而不是一般的 `RUN npm install`？」
-  - **轉碼新人回答**：「因為 `npm install` 會嘗試去升級 `package.json` 裡相容的依賴套件版本，導致每一次構建出來的套件版本可能稍微不同；而 `npm ci` 會嚴格根據 `package-lock.json` 中的確定性版本進行安裝，如果 lock 檔案不匹配會直接報錯中斷。使用 `npm ci` 能 100% 保障構建的可重複性 (Reproducible Builds)，而且安裝速度比 `npm install` 快兩倍！」
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

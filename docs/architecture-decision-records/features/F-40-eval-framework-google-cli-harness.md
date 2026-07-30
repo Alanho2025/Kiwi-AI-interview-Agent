@@ -9,6 +9,8 @@
 
 ---
 
+---
+
 ## 1. 演進軌跡與背景動機 (Genesis & Evolution Trace)
 
 ### 1.1 零基礎生活白話比喻 (Layman Analogy for Beginners)
@@ -27,6 +29,8 @@
 
 ---
 
+---
+
 ## 2. 邊界與成功標準 (Scope & Success Criteria)
 
 ### 2.1 涵蓋與非涵蓋範圍 (Scope Boundaries)
@@ -39,6 +43,8 @@
 | 衡量指標 (Metric) | 目標值 (Target) | 驗證方式 / 自動化測試路徑 |
 | :--- | :--- | :--- |
 | **Eval 評測合格率** | `>= 85 分` | `backend/scripts/evalRunner.js` |
+
+---
 
 ---
 
@@ -73,10 +79,12 @@ sequenceDiagram
 
 ---
 
+---
+
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
-* **現行程式碼位置**：[`backend/eval/runners/runInterviewControllerEval.js:L1-L5`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/eval/runners/runInterviewControllerEval.js#L1-L5)
+* **現行程式碼位置**：[`backend/eval/runners/runInterviewControllerEval.js:L1-L5`](../../backend/eval/runners/runInterviewControllerEval.js#L1-L5)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -102,6 +110,8 @@ export const runInterviewControllerEval = async () => {
 
 ---
 
+---
+
 ## 5. 爆炸半徑與失敗矩陣 (Blast Radius & Failure Matrix)
 
 ### 5.1 影響範圍 (Blast Radius)
@@ -111,6 +121,8 @@ export const runInterviewControllerEval = async () => {
 | 失敗場景 (Failure Scenario) | 系統表現 (Behavior) | 降級 / 修復策略 (Fallback) |
 | :--- | :--- | :--- |
 | **未配置 AI 憑證** | 腳本開頭捕獲 Env 缺失 | 顯式提示 "AI credentials required for evals"，安全中斷 |
+
+---
 
 ---
 
@@ -124,11 +136,15 @@ export const runInterviewControllerEval = async () => {
 
 ---
 
+---
+
 ## 7. 轉碼新人面試實戰對攻劇本 (Career-Switcher Interview Q&A Defense Script)
 
-### 7.1 30 秒大白話 Core Pitch (口語化台詞)
-> *"面試官您好！這個 Eval 評測框架是我們保證 AI 品質不退化的武器。最開始我們改了 Prompt 全靠眼睛看，根本不知道改好還是改壞！現在我們寫了 `evalRunner.js` 框架，用 50 個標準 Dataset 配合 LLM-as-a-Judge 進行自動化打分。設定了 85 分的 CI 發布門禁，分數不達標硬性阻斷上線！"*
+#
 
-### 7.2 面試官追問實戰劇本 (Verbatim Defense Script)
-* **面試官問**：「你為什麼要在 `evalRunner.js` 中採用 LLM-as-a-Judge 裁判模型打分，而不是傳統的字串完全匹配 (Exact Match)？」
-  - **轉碼新人回答**：「因為大模型生成的語音與文字回答具有高度的語義豐富性，同一句意思可以用 10 種不同的說法表達。傳統的字串完全匹配對於 AI 評測來說太死板了；採用 LLM-as-a-Judge 配合評分規準 (Rubric)，能從邏輯、專業度與完整性三個維度進行客觀量化打分，準確率與人工評價高度一致！」
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

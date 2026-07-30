@@ -9,6 +9,8 @@
 
 ---
 
+---
+
 ## 1. 演進軌跡與背景動機 (Genesis & Evolution Trace)
 
 ### 1.1 零基礎生活白話比喻 (Layman Analogy for Beginners)
@@ -27,6 +29,8 @@
 
 ---
 
+---
+
 ## 2. 邊界與成功標準 (Scope & Success Criteria)
 
 ### 2.1 涵蓋與非涵蓋範圍 (Scope Boundaries)
@@ -39,6 +43,8 @@
 | 衡量指標 (Metric) | 目標值 (Target) | 驗證方式 / 自動化測試路徑 |
 | :--- | :--- | :--- |
 | **未授權跨域攔截率** | `100% (拒絕非法 Origin)` | `backend/tests/security/cors.test.js` |
+
+---
 
 ---
 
@@ -71,10 +77,12 @@ sequenceDiagram
 
 ---
 
+---
+
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
-* **現行程式碼位置**：[`backend/src/api.js:L45-L54`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/api.js#L45-L54)
+* **現行程式碼位置**：[`backend/src/api.js:L45-L54`](../../backend/src/api.js#L45-L54)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -107,6 +115,8 @@ app.use(cors(corsOptions));
 
 ---
 
+---
+
 ## 5. 爆炸半徑與失敗矩陣 (Blast Radius & Failure Matrix)
 
 ### 5.1 影響範圍 (Blast Radius)
@@ -116,6 +126,8 @@ app.use(cors(corsOptions));
 | 失敗場景 (Failure Scenario) | 系統表現 (Behavior) | 降級 / 修復策略 (Fallback) |
 | :--- | :--- | :--- |
 | **ALLOWED_ORIGINS 忘記設定** | 降級使用 `localhost:5173` | 保障本地開發不受影響 |
+
+---
 
 ---
 
@@ -129,11 +141,15 @@ app.use(cors(corsOptions));
 
 ---
 
+---
+
 ## 7. 轉碼新人面試實戰對攻劇本 (Career-Switcher Interview Q&A Defense Script)
 
-### 7.1 30 秒大白話 Core Pitch (口語化台詞)
-> *"面試官您好！這個資安防護模組是我們伺服器的金鐘罩。我們用了 `helmet()` 注入 11 個 HTTP 安全標頭防範點擊劫持；在 CORS 方面，我們沒有偷懶用全開放的 `cors()`，而是寫了 `allowedOrigins.includes(origin)` 動態白名單。在 Commit `e0e2c9d` 中，我們還特別放行了 `x-match-request-id` 標頭，修復了預檢請求被誤攔截的 Bug！"*
+#
 
-### 7.2 面試官追問實戰劇本 (Verbatim Defense Script)
-* **面試官問**：「你為什麼要在 `cors()` 的 `allowedHeaders` 中特別加上 `'x-match-request-id'`？」
-  - **轉碼新人回答**：「因為當前端在發起匹配請求時，帶有了自訂的 Header `x-match-request-id` 用於追蹤。根據 CORS 規範，帶有自訂 Header 的請求會先發起 `OPTIONS` 預檢 (Preflight)。如果沒有在 `allowedHeaders` 白名單中明確允許這個標頭，瀏覽器就會直接回傳 403 阻斷請求！我們加上這個標頭放行，既保證了資安，又修復了預檢失敗的 Bug！」
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

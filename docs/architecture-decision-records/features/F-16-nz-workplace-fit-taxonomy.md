@@ -9,6 +9,8 @@
 
 ---
 
+---
+
 ## 1. 演進軌跡與背景動機 (Genesis & Evolution Trace)
 
 ### 1.1 零基礎生活白話比喻 (Layman Analogy for Beginners)
@@ -27,6 +29,8 @@
 
 ---
 
+---
+
 ## 2. 邊界與成功標準 (Scope & Success Criteria)
 
 ### 2.1 涵蓋與非涵蓋範圍 (Scope Boundaries)
@@ -39,6 +43,8 @@
 | 衡量指標 (Metric) | 目標值 (Target) | 驗證方式 / 自動化測試路徑 |
 | :--- | :--- | :--- |
 | **Taxonomy 查找耗時** | `< 0.1ms` | `backend/tests/services/taxonomy.test.js` |
+
+---
 
 ---
 
@@ -66,10 +72,12 @@ sequenceDiagram
 
 ---
 
+---
+
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
-* **現行程式碼位置**：[`backend/src/services/taxonomyService.js:L15-L18`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/taxonomyService.js#L15-L18)
+* **現行程式碼位置**：[`backend/src/services/taxonomyService.js:L15-L18`](../../backend/src/services/taxonomyService.js#L15-L18)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -94,6 +102,8 @@ export const normalizeTaxonomyLabel = (label = '') => {
 
 ---
 
+---
+
 ## 5. 爆炸半徑與失敗矩陣 (Blast Radius & Failure Matrix)
 
 ### 5.1 影響範圍 (Blast Radius)
@@ -103,6 +113,8 @@ export const normalizeTaxonomyLabel = (label = '') => {
 | 失敗場景 (Failure Scenario) | 系統表現 (Behavior) | 降級 / 修復策略 (Fallback) |
 | :--- | :--- | :--- |
 | **Taxonomy 查無類目** | 傳回 `null` | 降級使用 `General Category` 標籤 |
+
+---
 
 ---
 
@@ -116,11 +128,15 @@ export const normalizeTaxonomyLabel = (label = '') => {
 
 ---
 
+---
+
 ## 7. 轉碼新人面試實戰對攻劇本 (Career-Switcher Interview Q&A Defense Script)
 
-### 7.1 30 秒大白話 Core Pitch (口語化台詞)
-> *"面試官您好！這個 Taxonomy 引擎就像是紐西蘭職場的指南手冊。我們在伺服器啟動時，把所有 NZ 本地職場指標載入到 JavaScript 的 `Map` 物件中。這樣做的好處是：每次匹配時查詢時間複雜度只要 $O(1)$，不到 0.1 毫秒就能查完，完全不需要每次都發送 SQL 請求去打爆資料庫！"*
+#
 
-### 7.2 面試官追問實戰劇本 (Verbatim Defense Script)
-* **面試官問**：「你為什麼要在開機時把 Taxonomy 資料載入到記憶體 `Map` 裡，而不是寫在資料庫裡每次 SQL 查詢？」
-  - **轉碼新人回答**：「因為 Taxonomy 分類資料屬於『高頻讀取、極少修改』的靜態資料。如果每次匹配都要發送一次 SQL 查詢去打資料庫，高併發時會產生大量的網路 I/O 開銷。把它存在記憶體 `Map` 裡，`Map.get()` 可以在 0.1 毫秒內完成，極大地保護了資料庫效能！」
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

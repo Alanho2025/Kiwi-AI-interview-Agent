@@ -23,7 +23,7 @@
 * **遭遇的痛點與瓶頸 (Pain Points & Bottlenecks)**：
   - 增加了 50ms - 100ms 的 HTTP 響應延遲；一旦 DB 寫入出現暫時鎖死，整個面試評估 API 直接卡住或崩潰。
 * **現行架構 (Current Version)**：
-  - 實作 [aiUsageTrackingService.js](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/aiUsageTrackingService.js)，採用非阻塞的 `recordAiUsageEvent` 異步記錄，並由 [usageRollupService.js](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/usageRollupService.js) 在背景定時執行 Daily Rollup 數據聚合。
+  - 實作 [aiUsageTrackingService.js](../../backend/src/services/aiUsageTrackingService.js)，採用非阻塞的 `recordAiUsageEvent` 異步記錄，並由 [usageRollupService.js](../../backend/src/services/usageRollupService.js) 在背景定時執行 Daily Rollup 數據聚合。
 
 ---
 
@@ -71,17 +71,17 @@ sequenceDiagram
 ```
 
 ### 3.2 流程文字逐步拆解導覽 (Step-by-Step Narrative Walkthrough for Beginners)
-1. **第一步（發起遙測）**：[recordAiUsageEvent](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/aiUsageTrackingService.js#L49-L83) 在 AI 呼叫完成後被異步觸發，記錄傳入的 Prompt Tokens、Completion Tokens、音訊秒數等。
+1. **第一步（發起遙測）**：[recordAiUsageEvent](../../backend/src/services/aiUsageTrackingService.js#L49-L83) 在 AI 呼叫完成後被異步觸發，記錄傳入的 Prompt Tokens、Completion Tokens、音訊秒數等。
 2. **第二步（防禦性驗證與 Payload 構造）**：檢查傳入參數合法性（若缺少 `userId` 或 `provider` 則安全回傳 `null`），透過 `sanitizeMetrics` 與 `roundCost` 正規化數值。
 3. **第三步（寫入數據庫與更新 Rollup）**：寫入 `AiUsageEvent` 原始表記錄，並異步觸發 `refreshAiUsageDailyRollup` 更新每日聚合點。
-4. **第四步（背景 Job 觸發）**：[usageRollupService.js](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/usageRollupService.js) 定期掃描 `AiUsageEvent` 原始事件表，維護聚合統計報表。
+4. **第四步（背景 Job 觸發）**：[usageRollupService.js](../../backend/src/services/usageRollupService.js) 定期掃描 `AiUsageEvent` 原始事件表，維護聚合統計報表。
 
 ---
 
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：`recordAiUsageEvent`
-* **現行程式碼位置**：[`backend/src/services/aiUsageTrackingService.js:L49-L83`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/aiUsageTrackingService.js#L49-L83)
+* **現行程式碼位置**：[`backend/src/services/aiUsageTrackingService.js:L49-L83`](../../backend/src/services/aiUsageTrackingService.js#L49-L83)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -166,3 +166,10 @@ export const recordAiUsageEventNaive = async (data) => {
 
 ### 6.2 緊急回滾流程 (Rollback SOP)
 - 若 Rollup 背景 Job 消耗過多 DB CPU，可調整 Cron 觸發頻率或改在凌晨離峰時段運行。
+
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

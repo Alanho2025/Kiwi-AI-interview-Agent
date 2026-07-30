@@ -9,6 +9,8 @@
 
 ---
 
+---
+
 ## 1. 演進軌跡與背景動機 (Genesis & Evolution Trace)
 
 ### 1.1 零基礎生活白話比喻 (Layman Analogy for Beginners)
@@ -27,6 +29,8 @@
 
 ---
 
+---
+
 ## 2. 邊界與成功標準 (Scope & Success Criteria)
 
 ### 2.1 涵蓋與非涵蓋範圍 (Scope Boundaries)
@@ -40,6 +44,8 @@
 | :--- | :--- | :--- |
 | **STT 誤判攔截率** | `100% (Confidence < 0.7)` | `backend/tests/aiControl/confidence.test.js` |
 | **意圖理解延遲** | `< 200ms` | `backend/tests/aiControl/fastAnswer.test.js` |
+
+---
 
 ---
 
@@ -73,10 +79,12 @@ sequenceDiagram
 
 ---
 
+---
+
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
-* **現行程式碼位置**：[`backend/src/services/aiControl/fastAnswerUnderstandingService.js:L15-L19`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/aiControl/fastAnswerUnderstandingService.js#L15-L19)
+* **現行程式碼位置**：[`backend/src/services/aiControl/fastAnswerUnderstandingService.js:L15-L19`](../../backend/src/services/aiControl/fastAnswerUnderstandingService.js#L15-L19)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -102,6 +110,8 @@ export const resolveFastAnswerUnderstanding = async ({ answerText }) => {
 
 ---
 
+---
+
 ## 5. 爆炸半徑與失敗矩陣 (Blast Radius & Failure Matrix)
 
 ### 5.1 影響範圍 (Blast Radius)
@@ -111,6 +121,8 @@ export const resolveFastAnswerUnderstanding = async ({ answerText }) => {
 | 失敗場景 (Failure Scenario) | 系統表現 (Behavior) | 降級 / 修復策略 (Fallback) |
 | :--- | :--- | :--- |
 | **STT 傳回 confidence 為 null** | 衛語轉譯為 `0` | 安全觸發確認，防止直接無聽清評分 |
+
+---
 
 ---
 
@@ -124,11 +136,15 @@ export const resolveFastAnswerUnderstanding = async ({ answerText }) => {
 
 ---
 
+---
+
 ## 7. 轉碼新人面試實戰對攻劇本 (Career-Switcher Interview Q&A Defense Script)
 
-### 7.1 30 秒大白話 Core Pitch (口語化台詞)
-> *"面試官您好！這個置信度衛語服務是為了保障面試的絕對公平。語音轉文字 (STT) 常常因為雜音把『Docker』聽成『吃大口』。最開始我們直接評分，結果用戶被白白扣分！現在我們檢查 STT 的 Confidence。小於 0.7 時觸發確認，而且在代碼第 9 行明確寫了 `incrementQuestionCount: false`！確認過程絕不佔用面試題數，用戶體驗極佳！"*
+#
 
-### 7.2 面試官追問實戰劇本 (Verbatim Defense Script)
-* **面試官問**：「為什麼你在 `evaluateTranscriptConfidence` 中要強調 `incrementQuestionCount: false`？」
-  - **轉碼新人回答**：「因為根據我們的 Voice Product 產品規範，語音確認與修復提示屬於系統級的理解確認，絕對不是真正的面試考題！如果不把 `incrementQuestionCount` 設為 `false`，系統就會把這兩句確認話當成 2 道考題，導致真正的技術題沒問完面試就提前結束了！」
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

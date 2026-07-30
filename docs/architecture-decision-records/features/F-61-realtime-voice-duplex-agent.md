@@ -21,7 +21,7 @@
 * **初始最簡版本 (Baseline v0)**：
   - 透過 HTTP POST 輪詢上傳 WAV 音訊檔。
 * **現行架構 (Current Version)**：
-  - 實作 [duplexVoiceAgentService.js](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/voice/duplexVoiceAgentService.js)，導出 `createDuplexVoiceAgentSession` 工廠函數，抽象化 JSON 訊息與二進位音訊處理。
+  - 實作 [duplexVoiceAgentService.js](../../backend/src/services/voice/duplexVoiceAgentService.js)，導出 `createDuplexVoiceAgentSession` 工廠函數，抽象化 JSON 訊息與二進位音訊處理。
 
 ---
 
@@ -67,7 +67,7 @@ sequenceDiagram
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：`createDuplexVoiceAgentSession`
-* **現行程式碼位置**：[`backend/src/services/voice/duplexVoiceAgentService.js:L542-L565`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/voice/duplexVoiceAgentService.js#L542-L565)
+* **現行程式碼位置**：[`backend/src/services/voice/duplexVoiceAgentService.js:L542-L565`](../../backend/src/services/voice/duplexVoiceAgentService.js#L542-L565)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -138,3 +138,10 @@ ws.on('message', (data) => { processAudio(data); });
 
 ## 6. 運維與回滾步驟 (Incident Response & Rollback Runbook)
 - 檢查日誌：`[duplexVoiceAgentService] sessionState updated`
+
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

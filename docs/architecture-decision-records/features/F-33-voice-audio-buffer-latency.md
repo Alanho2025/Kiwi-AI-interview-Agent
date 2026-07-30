@@ -9,6 +9,8 @@
 
 ---
 
+---
+
 ## 1. 演進軌跡與背景動機 (Genesis & Evolution Trace)
 
 ### 1.1 零基礎生活白話比喻 (Layman Analogy for Beginners)
@@ -27,6 +29,8 @@
 
 ---
 
+---
+
 ## 2. 邊界與成功標準 (Scope & Success Criteria)
 
 ### 2.1 涵蓋與非涵蓋範圍 (Scope Boundaries)
@@ -39,6 +43,8 @@
 | 衡量指標 (Metric) | 目標值 (Target) | 驗證方式 / 自動化測試路徑 |
 | :--- | :--- | :--- |
 | **首包語音延遲 (First Byte Latency)** | `< 3 秒 (實測 ~2.8s)` | `backend/tests/voice/latency.test.js` |
+
+---
 
 ---
 
@@ -64,15 +70,17 @@ sequenceDiagram
 ### 3.2 流程文字逐步拆解導覽 (Step-by-Step Narrative Walkthrough for Beginners)
 1. **第一步（接收靜音訊號 - 0 秒）**：前端 VAD 檢測到用戶說完話，發送 `VAD_SPEECH_END`。
 2. **第二步（發起 TTS 串流）**：後端 `voiceAudioBufferLatencyService.js` 立刻發起 TTS 串流請求。
-3. **第三步（首包音訊派發 - 2.5 秒）**：在 2.5 秒時，Azure 生成第一個 100ms 的音訊 Chunk。後端 0 毫秒派發給前端，前端開始播放聲音！
+3. **第三步（首包音訊派發 - 2.5 秒）**：在 2.5 秒時，Azure 生成第一個 100ms 的音訊 Chunk。後端 15-50ms派發給前端，前端開始播放聲音！
 4. **第四步（後續 Chunk 無縫接軌）**：當前端播放這 100ms 聲音時，後續的音訊 Chunk 源源不斷傳過來，無縫拼接播放！
+
+---
 
 ---
 
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
-* **現行程式碼位置**：[`backend/src/services/opsLiteVoiceLatencyService.js:L10-L13`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/opsLiteVoiceLatencyService.js#L10-L13)
+* **現行程式碼位置**：[`backend/src/services/opsLiteVoiceLatencyService.js:L10-L13`](../../backend/src/services/opsLiteVoiceLatencyService.js#L10-L13)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -97,6 +105,8 @@ export const recordVoiceLatency = (sessionId, latencyMs) => {
 
 ---
 
+---
+
 ## 5. 爆炸半徑與失敗矩陣 (Blast Radius & Failure Matrix)
 
 ### 5.1 影響範圍 (Blast Radius)
@@ -106,6 +116,8 @@ export const recordVoiceLatency = (sessionId, latencyMs) => {
 | 失敗場景 (Failure Scenario) | 系統表現 (Behavior) | 降級 / 修復策略 (Fallback) |
 | :--- | :--- | :--- |
 | **串流中途網路塞車** | 前端 Audio 緩衝不足 | 前端自動展現 Loading 提示，並安全拼接後續 Chunk |
+
+---
 
 ---
 
@@ -119,11 +131,15 @@ export const recordVoiceLatency = (sessionId, latencyMs) => {
 
 ---
 
+---
+
 ## 7. 轉碼新人面試實戰對攻劇本 (Career-Switcher Interview Q&A Defense Script)
 
-### 7.1 30 秒大白話 Core Pitch (口語化台詞)
-> *"面試官您好！這個延遲優化服務是我們達成『用戶說完話到 AI 開口小於 3 秒』的核心。最開始我們等整句話 TTS 生成完才發給前端，延遲高達 4.5 秒！現在我們用 `stream.on('data')` 監聽。只要第一個 100ms 的 Audio Chunk 一出來，第 2.5 秒立刻傳給前端開始播放！後面的聲音邊播邊傳，完美達成了低於 3 秒的產品極限指標！"*
+#
 
-### 7.2 面試官追問實戰劇本 (Verbatim Defense Script)
-* **面試官問**：「你為什麼要在 `processAudioChunkStream` 的第一個 `data` 事件時就立刻把首包傳給前端，而不是等整個音訊 Buffer 拼接完？」
-  - **轉碼新人回答**：「因為語音合成 (TTS) 需要時間。如果等整句話全部合成完，用戶需要白白發呆等待 4.5 秒！在收到第一個 100ms 音訊 Chunk 的瞬間就發給前端播放，用戶在第 2.5 秒就能聽到 AI 開口。在前端播放這 100ms 聲音的同時，後續的音訊在背景無縫傳過來，這能讓感知延遲降低 40% 以上！」
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

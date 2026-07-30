@@ -9,12 +9,14 @@
 
 ---
 
+---
+
 ## 1. 演進軌跡與背景動機 (Genesis & Evolution Trace)
 
 ### 1.1 零基礎生活白話比喻 (Layman Analogy for Beginners)
 > 💡 **小白導讀**：
 > * **傳統 HTTP 輪詢 (就像寄信)**：你問一句話，打包成信封寄給 AI，等待 AI 寫信寄回給你。如果你講話講到一半想改口，根本無法把寄出的信收回來（延遲高達 4 秒，且無法打斷）。
-> * **全雙工 WebSocket (就像打電話)**：電話線（WebSocket 連線）隨時保持接通。你講話的同時（PCM 音訊流），AI 隨時在聽；當 AI 說話時，如果你突然插話（Barge-in），AI 能在 150 毫秒內立刻停下來聽你說！
+> * **全雙工 WebSocket (就像打電話)**：電話線（WebSocket 連線）隨時保持接通。你講話的同時（PCM 音訊流），AI 隨時在聽；當 AI 說話時，如果你突然插話（Barge-in），AI 能在 1515-50ms內立刻停下來聽你說！
 
 ### 1.2 基於 Git 歷史的從 0 到 1 演進歷程
 * **初始最簡版本 (Baseline v0 - Commit `dbc9d6c`)**：
@@ -23,6 +25,8 @@
   - HTTP 建立連線開銷大，語音延遲高達 4 秒以上，對話極度僵硬，用戶一打斷系統就會出錯。
 * **現行架構 (Current Version - Commit `69735b1`, `7113fad`)**：
   - `duplexTurnCoordinator.js` 透過全雙工 WebSocket 連線，維護一個 Event-driven 雙工狀態機 (`LISTENING` -> `THINKING` -> `SPEAKING`)，二進位串流傳輸 PCM/Opus 音訊 Chunk，將對話延遲壓低至 3 秒內。
+
+---
 
 ---
 
@@ -39,6 +43,8 @@
 | :--- | :--- | :--- |
 | **首包語音延遲 (First Byte Latency)** | `< 3 秒` | `npm run test:all` (Voice suite) |
 | **打斷響應時間 (Barge-in Response)** | `< 150ms` | `backend/tests/voice/duplex.test.js` |
+
+---
 
 ---
 
@@ -65,10 +71,12 @@ stateDiagram-v2
 
 ---
 
+---
+
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
-* **現行程式碼位置**：[`frontend/src/hooks/voice/useVoiceVadTurnController.js:L20-L27`](file:///Users/heminghan/Kiwi-AI-interview-Agent/frontend/src/hooks/voice/useVoiceVadTurnController.js#L20-L27)
+* **現行程式碼位置**：[`frontend/src/hooks/voice/useVoiceVadTurnController.js:L20-L27`](../../frontend/src/hooks/voice/useVoiceVadTurnController.js#L20-L27)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -97,6 +105,8 @@ export function useVoiceVadTurnController({ isSpeaking }) {
 
 ---
 
+---
+
 ## 5. 爆炸半徑與失敗矩陣 (Blast Radius & Failure Matrix)
 
 ### 5.1 影響範圍 (Blast Radius)
@@ -106,6 +116,8 @@ export function useVoiceVadTurnController({ isSpeaking }) {
 | 失敗場景 (Failure Scenario) | 系統表現 (Behavior) | 降級 / 修復策略 (Fallback) |
 | :--- | :--- | :--- |
 | **WebSocket 異常斷線** | 觸發 `ws.on('close')` | 自動保存狀態，前端彈出切換至純文字模式按鈕 |
+
+---
 
 ---
 
@@ -120,11 +132,15 @@ export function useVoiceVadTurnController({ isSpeaking }) {
 
 ---
 
+---
+
 ## 7. 轉碼新人面試實戰對攻劇本 (Career-Switcher Interview Q&A Defense Script)
 
-### 7.1 30 秒大白話 Core Pitch (口語化台詞)
-> *"面試官您好！這個全雙工語音協調器，簡單來說就像打電話一樣。我們最開始是用傳統的 HTTP 輪詢，但發現延遲高達 4 秒，而且 AI 說話時用戶根本無法打斷。現在我們改成了全雙工 WebSocket 狀態機，直接在 WebSocket 上傳輸 Raw Binary PCM 音訊流。我們沒有把它轉成 Base64 字串，因為 Base64 會讓數據體積膨脹 33%！這樣做讓我們把首包語音延遲壓到了 3 秒以內，而且能在 150 毫秒內響應用戶的打斷！"*
+#
 
-### 7.2 面試官追問實戰劇本 (Verbatim Defense Script)
-* **面試官問**：「你為什麼在 WebSocket 上堅持傳 Raw Binary，而不是轉成 JSON 或 Base64 傳送？」
-  - **轉碼新人回答**：「因為 Base64 編碼會把每 3 個 Byte 變成 4 個 Byte，造成 33% 的數據體積膨脹，而且 CPU 每次都要做編解碼運算。在語音面試這種對延遲極度敏感的場景下，直接傳 Raw Binary Buffer 是零編解碼開銷、零頻寬浪費的最佳做法！」
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

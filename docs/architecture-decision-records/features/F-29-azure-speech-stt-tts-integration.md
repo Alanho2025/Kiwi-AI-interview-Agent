@@ -9,6 +9,8 @@
 
 ---
 
+---
+
 ## 1. 演進軌跡與背景動機 (Genesis & Evolution Trace)
 
 ### 1.1 零基礎生活白話比喻 (Layman Analogy for Beginners)
@@ -27,6 +29,8 @@
 
 ---
 
+---
+
 ## 2. 邊界與成功標準 (Scope & Success Criteria)
 
 ### 2.1 涵蓋與非涵蓋範圍 (Scope Boundaries)
@@ -40,6 +44,8 @@
 | :--- | :--- | :--- |
 | **TTS 首包發送時間** | `< 400ms` | `backend/tests/voice/azureSpeech.test.js` |
 | **STT 串流轉換延遲** | `< 300ms` | `backend/tests/voice/azureSpeech.test.js` |
+
+---
 
 ---
 
@@ -73,10 +79,12 @@ sequenceDiagram
 
 ---
 
+---
+
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
-* **現行程式碼位置**：[`backend/src/services/voice/azureSttService.js:L20-L24`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/voice/azureSttService.js#L20-L24)
+* **現行程式碼位置**：[`backend/src/services/voice/azureSttService.js:L20-L24`](../../backend/src/services/voice/azureSttService.js#L20-L24)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -102,6 +110,8 @@ export const recognizeSpeechFromBuffer = async (audioBuffer) => {
 
 ---
 
+---
+
 ## 5. 爆炸半徑與失敗矩陣 (Blast Radius & Failure Matrix)
 
 ### 5.1 影響範圍 (Blast Radius)
@@ -111,6 +121,8 @@ export const recognizeSpeechFromBuffer = async (audioBuffer) => {
 | 失敗場景 (Failure Scenario) | 系統表現 (Behavior) | 降級 / 修復策略 (Fallback) |
 | :--- | :--- | :--- |
 | **Azure KEY 額度用盡或網路中斷** | 拋出 SpeechSynthesizer error | 友好切換至純文字面試模式 (F-27) |
+
+---
 
 ---
 
@@ -124,11 +136,15 @@ export const recognizeSpeechFromBuffer = async (audioBuffer) => {
 
 ---
 
+---
+
 ## 7. 轉碼新人面試實戰對攻劇本 (Career-Switcher Interview Q&A Defense Script)
 
-### 7.1 30 秒大白話 Core Pitch (口語化台詞)
-> *"面試官您好！這個 Azure 語音整合服務是我們實現低延遲語音對話的關鍵。我們沒有選擇把語音存成 `.wav` 磁碟檔案，而是用 Azure SDK 的 `PushAudioInputStream` 直接在記憶體中建立串流傳送帶。在代碼中我們設定了 16kHz 單聲道 PCM 格式，並用 ArrayBuffer 視圖切片寫入。這讓我們在 0 毫秒磁碟開銷下完成了語音轉寫與朗讀！"*
+#
 
-### 7.2 面試官追問實戰劇本 (Verbatim Defense Script)
-* **面試官問**：「你為什麼要在 `pushChunkToStream` 中使用 ArrayBuffer 視圖切片 `buffer.buffer.slice(...)` 來寫入資料？」
-  - **轉碼新人回答**：「因為 Node.js 的 `Buffer` 在底層可能共享同一個大塊記憶體。直接傳入原始 Buffer 有可能導致讀取到其他數據；使用 `.byteOffset` 和 `.byteLength` 做精確視圖切片，能保證只寫入當前音訊 Chunk 的正確記憶體區域，既實現了零記憶體複製的高效能，又保障了記憶體存取的絕對安全！」
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

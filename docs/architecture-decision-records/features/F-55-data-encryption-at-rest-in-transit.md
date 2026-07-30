@@ -1,11 +1,13 @@
 # Feature RFC: F-55 數據傳輸 TLS 加密與靜態雙重保護
 
 > **文件狀態**：Approved  
-> **系統成熟度 (Readiness Level)**：Production-Ready  
+> **系統成熟度 (Readiness Level)**：Verified (Regex PII Redaction); Planned (Database Field AES-256-GCM Encryption)  
 > **核心模組路徑**：`backend/src/services/privacyRedactionService.js`
 > **Git 演進 Commit 追蹤**：`PR #110`, Commit `df871ba`  
 > **主要負責人 / 日期**：Kiwi AI Team / 2026-07-29    
 > **實作狀態 (Implementation Status)**：Partial / Onboarding Mapping
+
+---
 
 ---
 
@@ -27,6 +29,8 @@
 
 ---
 
+---
+
 ## 2. 邊界與成功標準 (Scope & Success Criteria)
 
 ### 2.1 涵蓋與非涵蓋範圍 (Scope Boundaries)
@@ -39,6 +43,8 @@
 | 衡量指標 (Metric) | 目標值 (Target) | 驗證方式 / 自動化測試路徑 |
 | :--- | :--- | :--- |
 | **AES 加解密耗時** | `< 1ms` | `backend/tests/security/encryption.test.js` |
+
+---
 
 ---
 
@@ -67,10 +73,12 @@ sequenceDiagram
 
 ---
 
+---
+
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
-* **現行程式碼位置**：[`backend/src/services/privacyRedactionService.js:L22-L25`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/privacyRedactionService.js#L22-L25)
+* **現行程式碼位置**：[`backend/src/services/privacyRedactionService.js:L22-L25`](../../backend/src/services/privacyRedactionService.js#L22-L25)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -95,6 +103,8 @@ const REDACTION_RULES = [
 
 ---
 
+---
+
 ## 5. 爆炸半徑與失敗矩陣 (Blast Radius & Failure Matrix)
 
 ### 5.1 影響範圍 (Blast Radius)
@@ -104,6 +114,8 @@ const REDACTION_RULES = [
 | 失敗場景 (Failure Scenario) | 系統表現 (Behavior) | 降級 / 修復策略 (Fallback) |
 | :--- | :--- | :--- |
 | **Master Key 密鑰長度不足** | 拋出 Invalid Key Length error | `assertRequiredEnv` 啟動時阻斷 |
+
+---
 
 ---
 
@@ -117,11 +129,15 @@ const REDACTION_RULES = [
 
 ---
 
+---
+
 ## 7. 轉碼新人面試實戰對攻劇本 (Career-Switcher Interview Q&A Defense Script)
 
-### 7.1 30 秒大白話 Core Pitch (口語化台詞)
-> *"面試官您好！這個靜態加密服務是我們保護用戶資料隱私的保險箱。我們沒有選擇較老的 CBC 模式，而是採用了帶有認證標籤的 `aes-256-gcm` 演算法。每次加密我們都用 `crypto.randomBytes(16)` 生成全新的隨機向量 IV，並保存 128 位元的 Auth Tag。這保障了資料即使備份檔外洩也絕對無法被解密或篡改！"*
+#
 
-### 7.2 面試官追問實戰劇本 (Verbatim Defense Script)
-* **面試官問**：「你為什麼要在 AES 加密時選擇 GCM 模式，而不是傳統的 CBC 模式？」
-  - **轉碼新人回答**：「因為傳統的 CBC 模式只提供『保密性 (Confidentiality)』，但不提供『完整性驗證 (Authenticity Check)』。駭客可以在不知道密鑰的情況下篡改密文，引發密文填補攻擊 (Padding Oracle Attack)。AES-256-GCM 屬於 AEAD 認證加密模式，自帶 128 位元的 Auth Tag，如果在傳輸或存儲中密文被改動了 1 個 Bit，解密時會立刻失敗，既保密又防篡改！」
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

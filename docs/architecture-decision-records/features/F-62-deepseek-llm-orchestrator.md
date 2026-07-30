@@ -15,13 +15,13 @@
 > 💡 **小白導讀**：
 > 想像你在開一家餐廳，需要訂購高檔食材（LLM 生成文字）：
 > * **傳統做法**：每個廚師（業務模組）都各自打電話給供應商，硬編碼 API Key，沒有人統一記帳，也沒有設定電話超時中斷。
-> * **調用控制器 (DeepSeek Orchestrator - 本 Feature)**：所有食材訂購統一經由採購經理 ([deepseekService.js](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/deepseekService.js)) 發出。採購經理負責：1. 自動代入 API Key；2. 設定 API 超時信號 (`AbortSignal`)；3. 自動計費並登記 Token 耗用 (`autoRecordUsage`)。
+> * **調用控制器 (DeepSeek Orchestrator - 本 Feature)**：所有食材訂購統一經由採購經理 ([deepseekService.js](../../backend/src/services/deepseekService.js)) 發出。採購經理負責：1. 自動代入 API Key；2. 設定 API 超時信號 (`AbortSignal`)；3. 自動計費並登記 Token 耗用 (`autoRecordUsage`)。
 
 ### 1.2 基於 Git 歷史的從 0 到 1 演進歷程
 * **初始最簡版本 (Baseline v0)**：
   - 各模組分散引入第三方程式庫手動發起 HTTP 請求。
 * **現行架構 (Current Version)**：
-  - 實作 [deepseekService.js](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/deepseekService.js)，導出 `callDeepSeek`，採用 Node.js 原生 `fetch` 與 `AbortSignal` 實現低開銷的防衛調用。
+  - 實作 [deepseekService.js](../../backend/src/services/deepseekService.js)，導出 `callDeepSeek`，採用 Node.js 原生 `fetch` 與 `AbortSignal` 實現低開銷的防衛調用。
 
 ---
 
@@ -66,7 +66,7 @@ sequenceDiagram
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：`callDeepSeek`
-* **現行程式碼位置**：[`backend/src/services/deepseekService.js:L203-L254`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/deepseekService.js#L203-L254)
+* **現行程式碼位置**：[`backend/src/services/deepseekService.js:L203-L254`](../../backend/src/services/deepseekService.js#L203-L254)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -155,3 +155,10 @@ export const callDeepSeekAxios = async (prompt) => {
 
 ## 6. 運維與回滾步驟 (Incident Response & Rollback Runbook)
 - 檢查日誌：`DeepSeek API Error:`
+
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」

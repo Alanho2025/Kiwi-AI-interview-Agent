@@ -15,13 +15,13 @@
 > 💡 **小白導讀**：
 > 想像遊樂園熱門設施排隊入口：
 > * **無速率限制 (No Rate Limiting)**：一個人可以 1 秒鐘內連續按 1,000 次取票機按鈕，把所有門票瞬間搶光（DDoS 攻擊或腳本狂刷 API），導致後面的真實遊客完全無法遊玩，且遊樂園伺服器直接被衝垮。
-> * **分層速率限制 (Rate Limiting Guard - 本 Feature)**：門口設置智慧閘門（[rateLimitMiddleware.js](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/middleware/rateLimitMiddleware.js)）。登入門口限制 15 分鐘最多試 20 次 (`authRateLimit`)；檔案上傳限制 15 分鐘最多 30 次 (`uploadRateLimit`)；昂貴的 AI 面試請求限制 15 分鐘最多 80 次 (`aiRateLimit`)。既保障正常用戶，又完美防止惡意刷單！
+> * **分層速率限制 (Rate Limiting Guard - 本 Feature)**：門口設置智慧閘門（[rateLimitMiddleware.js](../../backend/src/middleware/rateLimitMiddleware.js)）。登入門口限制 15 分鐘最多試 20 次 (`authRateLimit`)；檔案上傳限制 15 分鐘最多 30 次 (`uploadRateLimit`)；昂貴的 AI 面試請求限制 15 分鐘最多 80 次 (`aiRateLimit`)。既保障正常用戶，又完美防止惡意刷單！
 
 ### 1.2 基於 Git 歷史的從 0 到 1 演進歷程
 * **初始最簡版本 (Baseline v0)**：
   - 零防護，API 暴露給全網公網。
 * **現行架構 (Current Version)**：
-  - 實作 [rateLimitMiddleware.js](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/middleware/rateLimitMiddleware.js)，採用 `createLimiter` 工廠函數，針對認證、上傳、AI 呼叫與導出實施精細化的分層速率控制。
+  - 實作 [rateLimitMiddleware.js](../../backend/src/middleware/rateLimitMiddleware.js)，採用 `createLimiter` 工廠函數，針對認證、上傳、AI 呼叫與導出實施精細化的分層速率控制。
 
 ---
 
@@ -62,7 +62,7 @@ sequenceDiagram
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：`createLimiter` 分層配置
-* **現行程式碼位置**：[`backend/src/middleware/rateLimitMiddleware.js:L36-L52`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/middleware/rateLimitMiddleware.js#L36-L52)
+* **現行程式碼位置**：[`backend/src/middleware/rateLimitMiddleware.js:L36-L52`](../../backend/src/middleware/rateLimitMiddleware.js#L36-L52)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -88,7 +88,7 @@ export const aiRateLimit = createLimiter({
 #### 【逐行白話文解讀 (Line-by-Line Explanation for Beginners)】
 * **第 36-40 行**：`authRateLimit` 針對登入與 OAuth 接口。設定視窗 `windowMs: 15 分鐘`，最大允許 `20` 次請求，有效攔截暴力破解。
 * **第 42-46 行**：`uploadRateLimit` 限制履歷上傳頻率，避免磁爆式履歷檔案攻擊。
-* **第 48-52 行**：`aiRateLimit` 針對昂貴的 LLM 推理接口，設定 15 分鐘上限 80 次，精準控制商業算力成本。
+* **第 48-52 行**：`aiRateLimit` 針對昂貴的 LLM 推理接口，設定 15 分鐘上限 80 次，邊界受控商業算力成本。
 
 #### 替代寫法 A (Global Single Rate Limiter)
 ```javascript
@@ -112,3 +112,10 @@ app.use(rateLimit({ max: 100 }));
 
 ## 6. 運維與回滾步驟 (Incident Response & Rollback Runbook)
 - 檢查日誌：`Too many AI requests` (HTTP Status 429)
+
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」
