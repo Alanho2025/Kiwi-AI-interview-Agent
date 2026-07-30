@@ -5,6 +5,7 @@ import { buildInterviewEnvironment } from '../../../src/services/aiControl/inter
 import { evaluateInterviewTurn } from '../../../src/services/aiControl/interviewEvaluatorService.js';
 import { selectNextAction } from '../../../src/services/aiControl/actionPlanner.js';
 import {
+  classifyTechnologyMatch,
   extractFastAnswerUnderstanding,
   resolveFastAnswerUnderstanding,
 } from '../../../src/services/aiControl/fastAnswerUnderstandingService.js';
@@ -91,5 +92,40 @@ describe('fast answer understanding robustness', () => {
     expect(understanding.source).toBe('local_js');
     expect(understanding.adapterError).toMatch(/timed out/i);
     expect(understanding.technologies).toEqual(expect.arrayContaining(['websocket', 'postgresql']));
+  });
+
+  it('classifies equivalent technology transferability correctly', () => {
+    const svelteMatch = classifyTechnologyMatch({
+      targetTech: 'react',
+      mentionedTechs: ['svelte'],
+      hasStarStructure: true,
+    });
+    expect(svelteMatch.matchType).toBe('TRANSFERABLE_EVIDENCE');
+    expect(svelteMatch.cluster).toBe('frontend_ui_framework');
+
+    const exactMatch = classifyTechnologyMatch({
+      targetTech: 'react',
+      mentionedTechs: ['react'],
+      hasStarStructure: true,
+    });
+    expect(exactMatch.matchType).toBe('EXACT_MATCH');
+  });
+
+  it('distinguishes EXPLICIT_NO_EXPERIENCE from INSUFFICIENT_EVIDENCE', () => {
+    const sessionDenial = buildTechnicalSession("I haven't worked with Kafka or message queues before.");
+    const envDenial = buildInterviewEnvironment({ session: sessionDenial });
+    const understandingDenial = extractFastAnswerUnderstanding({ session: sessionDenial, environment: envDenial });
+    const evalDenial = evaluateInterviewTurn({ environment: buildInterviewEnvironment({ session: sessionDenial, latestAnswerUnderstanding: understandingDenial }) });
+
+    expect(evalDenial.candidateDenial).toBe(true);
+    expect(evalDenial.evidenceStatus).toBe('EXPLICIT_NO_EXPERIENCE');
+
+    const sessionVague = buildTechnicalSession('I know a little bit about queues maybe.');
+    const envVague = buildInterviewEnvironment({ session: sessionVague });
+    const understandingVague = extractFastAnswerUnderstanding({ session: sessionVague, environment: envVague });
+    const evalVague = evaluateInterviewTurn({ environment: buildInterviewEnvironment({ session: sessionVague, latestAnswerUnderstanding: understandingVague }) });
+
+    expect(evalVague.candidateDenial).toBe(false);
+    expect(evalVague.evidenceStatus).toBe('INSUFFICIENT_EVIDENCE');
   });
 });

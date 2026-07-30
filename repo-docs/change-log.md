@@ -1,5 +1,17 @@
 # Change Log
 
+## [2026-07-31 10:35 NZST] Issues #132–#135 Master Action Planner, Evidence Contract, Case Practice & VAD SLA Implementation
+
+### Changed / Added
+
+- **Action Planner & Smart Gates (Issue #132 & #133)**: Reordered `actionPlanner.js` priority chain to evaluate `Early Topic Close` (when `assessmentContract.satisfactionStatus === 'satisfied'`) and `Candidate Denial Fast Pivot` (when `evaluatorState.candidateDenial === true` / `EXPLICIT_NO_EXPERIENCE`) before deep dive probes.
+- **Assessment Contract & Equivalent Tech (Issue #133)**: Extended `questionAssessmentContractService.js` to deduplicate normalized required signals, compute matched-signal confidence, and handle `conflictSignals`. Updated `fastAnswerUnderstandingService.js` with `EQUIVALENT_TECHNOLOGY_CLUSTERS` and 5-tier technology match classification (`EXACT_MATCH`, `TRANSFERABLE_EVIDENCE`, `PARTIAL_TRANSFER`, `UNVERIFIED_TRANSFER`, `NO_RELEVANT_EVIDENCE`). Updated `interviewEvaluatorService.js` to distinguish `EXPLICIT_NO_EXPERIENCE` candidate denial from `INSUFFICIENT_EVIDENCE` vague answers.
+- **Case Practice State Machine (Issue #135)**: Added `casePracticeStateMachineService.js` supporting 4 assessed turns (`CLARIFY` -> `STRUCTURE` -> `PROPOSE` -> `TRADE_OFF_STRESS`) + 1 non-counted terminal transition (`WRAP`). Enforced strict budget eligibility: active ONLY when `timeLimitMinutes >= 30` OR `questionLimit >= 12` for Technical or Combined modes; 8-question / 15-minute interviews and pure Behavioral interviews are 100% blocked.
+- **Frontend VAD 1.0s SLA & Dynamic Pause Extension**: Updated `voiceActivityDetectionCore.js` to set base `silenceToStopMs = 1000` for SLA target (`speech_end -> audio start <= 3.0s`). Implemented `extendCurrentSilenceDeadline({ durationMs: 2500 })` capped at 2.5s with lifecycle reset triggers. Updated `useDuplexVoiceSocket.js` to handle backend semantic event `vocalized_pause_detected` with 8s cooldown.
+- **Spoken Wording Length Compaction**: Implemented `compactSpokenJDRequirement` in `questionWordingPolishService.js` to automatically condense verbose multi-clause JD requirement bullet points (e.g., long lists of business units like *"commercial, marketing, design, manufacturing, and finance..."*) into concise, natural spoken prompts ($\le 28$ words) for optimal voice TTS delivery.
+- **Report Provenance & Redaction**: Updated `reportGeneratorAgent.js` to output `evidenceStatus` and `topicDisposition: SKIPPED_CANDIDATE_DENIAL` without claiming false exact matches for candidate denials or transferable evidence.
+- **Automated Verification**: Added and verified Vitest test suites (`questionAssessmentContractService.test.js`, `fastAnswerUnderstandingRobustness.test.js`, `casePracticeStateMachineService.test.js`, `actionPlannerPriorityChain.test.js`, `voiceActivityDetectionCore.test.js`, `useDuplexVoiceSocket.test.js`). 100% passed cleanly; backend and frontend ESLint passed with 0 errors. Synchronized Feature RFC `docs/architecture-decision-records/features/F-21-abductive-action-planner.md`.
+
 ## [2026-07-30 21:24 NZST] Kiwi Workplace Culture Interviewer Alignment & Default Coaching
 
 ### Changed / Added

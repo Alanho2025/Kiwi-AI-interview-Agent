@@ -1,13 +1,11 @@
-# Feature RFC: F-21 溯因推理與動態 Action 規劃器
+# Feature RFC: F-21 溯因推理與動態 Action 規劃器 (V6 Architecture)
 
 > **文件狀態**：Approved  
 > **系統成熟度 (Readiness Level)**：Production-Ready  
-> **核心模組路徑**：`backend/src/services/aiControl/actionPlanner.js`
-> **Git 演進 Commit 追蹤**：`PR #126`, Commit `d31474e`  
-> **主要負責人 / 日期**：Kiwi AI Team / 2026-07-29    
-> **實作狀態 (Implementation Status)**：Partial / Onboarding Mapping
-
----
+> **核心模組路徑**：`backend/src/services/aiControl/actionPlanner.js`  
+> **Git 演進 Commit 追蹤**：`PR #126`, Commit `d31474e`, Master Plan Issues #132–#135  
+> **主要負責人 / 日期**：Kiwi AI Team / 2026-07-31  
+> **實作狀態 (Implementation Status)**：Verified / Automated Test Passed
 
 ---
 
@@ -15,19 +13,22 @@
 
 ### 1.1 零基礎生活白話比喻 (Layman Analogy for Beginners)
 > 💡 **小白導讀**：
-> 想像你在和一位情商極高的高級面試官聊天（對話對話）。
-> * **傳統做法**：不管你回答「這技術我沒用過」還是「我詳細做過這個專案」，系統都像機器人一樣硬生生問下一題，完全沒有人情味。
-> * **動態 Action 規劃器 (本 Feature)**：就像面試官的神經中樞 (`actionPlanner.js`)。透過「溯因推理」分析你的意圖：如果你答得模稜兩可，他會發起 `DRILL_DOWN` (追問)；如果你坦承不會，他會發起 `ASK_NEXT` (體貼換題)；如果偏題，他發起 `CLARIFY` (澄清)。而且我們設定了硬性限制：同一題最多追問 1 次，絕不逼死求職者！
+> 想像你在和一位情商極高的高級面試官聊天。
+> * **動態 Action 規劃器 (本 Feature)**：就像面試官的神經中樞 (`actionPlanner.js`)。透過「溯因推理」與「Assessment Contract (信號契約)」分析你的意圖：
+>   - 如果你回答已經完整證明了技術點，他會發起 `EARLY_TOPIC_CLOSE`（主動切換下一題）；
+>   - 如果你坦承沒做過，他會發起 `FAST_PIVOT`（優雅體貼換題，不連續追問）；
+>   - 如果是在 30 分鐘/12 題以上的 Technical/Combined 模式，他會啟動 4 輪的 `casePractice`（系統設計/情境個案演練）；
+>   - 同時搭配前端 VAD 的 1.0 秒低延遲靜音斷句與思考片語（"Let me think..."）2.5 秒緩衝，達到兼具自然度與專業度的面試體驗。
 
-### 1.2 基於 Git 歷史的從 0 到 1 演進歷程
-* **初始最簡版本 (Baseline v0 - Commit `d31474e` 早期)**：
-  - 用戶回答完後，一律直接強制跳下一題。
-* **遭遇的痛點與瓶頸 (Pain Points & Bottlenecks)**：
-  - 當用戶回答「我不清楚這個技術」時，系統依然硬問下一題的追問細節，面試體驗極不自然。
-* **現行架構 (Current Version - PR #126 `d31474e`)**：
-  - `actionPlanner.js` 運用溯因推理分析用戶回答的真實意圖，動態發起動作：`ASK_NEXT`（下一題）、`DRILL_DOWN`（深入追問）、`CLARIFY`（要求澄清）或 `SKIP`（跳過），並限制 `drillDownCount < 1`。
-
----
+### 1.2 基於 Git 歷史與 Issues #132–#135 的演進歷程
+* **初始最簡版本 (Baseline v0)**：
+  - 用戶回答完後，一律強制跳下一題，或進行缺乏結構的重複追問。
+* **現行架構 (Issues #132, #133, #134, #135 - 2026-07-31)**：
+  - **Issue #132 (Priority Order & Plan-Action Separation)**：重構 `actionPlanner.js` 優先級鏈：`Wrap Overrides` $\rightarrow$ `Repair/Clarification` $\rightarrow$ `Early Topic Close` $\rightarrow$ `Candidate Denial Fast Pivot` $\rightarrow$ `Seniority Stress Probing` $\rightarrow$ `Case Practice State Machine` $\rightarrow$ `Match Gap / Deep Dive`。
+  - **Issue #133 (Assessment Contract & Technology Equivalence)**：擴展 `questionAssessmentContractService.js` 與 `fastAnswerUnderstandingService.js`。支援信號去重、`EXACT_MATCH` 與 `TRANSFERABLE_EVIDENCE` (如 Svelte 替代 React)，並區分 `EXPLICIT_NO_EXPERIENCE` (明確無經驗) 與 `INSUFFICIENT_EVIDENCE` (回答模糊)。
+  - **Issue #134 (Seniority & Stress Probing)**：Senior 候選人允許第 3 次追問的 5 項嚴格條件判斷；Junior 聚焦於程式碼邊界與除錯 Stress 測試。
+  - **Issue #135 (Case Practice Lifecycle)**：`casePracticeStateMachineService.js` 提供 4 Assessed Turns (`CLARIFY` $\rightarrow$ `STRUCTURE` $\rightarrow$ `PROPOSE` $\rightarrow$ `TRADE_OFF_STRESS`) + 1 Non-Counted Terminal (`WRAP`)。嚴格硬性阻斷 8 題 / 15 分鐘短面試與純 Behavioral 面試。
+  - **VAD 1.0s SLA & Dynamic Pause Buffer**：前端 VAD 基礎靜音改為 1000ms，當 WebSocket 接收到 Backend `vocalized_pause_detected` 事件時動態延長 2500ms 緩衝。
 
 ---
 
@@ -35,115 +36,104 @@
 
 ### 2.1 涵蓋與非涵蓋範圍 (Scope Boundaries)
 * **In-Scope (包含範圍)**：
-  - 用戶意圖推斷、動態 Action 選取、追問計數上限控制 (最多追問 1 次)。
+  * `actionPlanner.js` 決策鏈與 `questionAssessmentContractService.js` 信號契約。
+  * `casePractice` 4 輪生命週期與 `dedicated` / `embedded` 雙模式識別。
+  * `classifyTechnologyMatch` 5 級等價性與 `SKIPPED_CANDIDATE_DENIAL` 報告透傳。
+  * 前端 VAD 1.0 秒 SLA 與 2.5 秒思考緩衝。
 * **Out-of-Scope (排除範圍)**：
-  - 不允許 Action 規劃器發起無限追問迴圈。
+  * 不在 8 題 / 15 分鐘短面試中開啟 Case Practice。
+  * 澄清 Turn / 復原 Turn 不佔用 Case Assessed Turn 數。
 
 ### 2.2 成功標準與量化 KPIs (Acceptance Criteria & Metrics)
 | 衡量指標 (Metric) | 目標值 (Target) | 驗證方式 / 自動化測試路徑 |
 | :--- | :--- | :--- |
-| **意圖識別準確率** | `> 92%` | `backend/tests/aiControl/actionPlanner.test.js` |
-| **Action 決定耗時** | `< 300ms` | `backend/tests/aiControl/actionPlanner.test.js` |
-
----
+| **意圖與契約決策準確率** | `100% PASS` | `backend/tests/robustness/agent/actionPlannerPriorityChain.test.js` |
+| **信號契約與等價性辨識** | `100% PASS` | `backend/tests/robustness/questions/questionAssessmentContractService.test.js` |
+| **Case State Machine** | `100% PASS` | `backend/tests/robustness/questions/casePracticeStateMachineService.test.js` |
+| **VAD SLA & 緩衝延長** | `100% PASS` | `frontend/src/utils/__tests__/voiceActivityDetectionCore.test.js` |
 
 ---
 
 ## 3. 架構與系統流向 (Architecture & Flow)
 
-### 3.1 系統資料流與狀態轉移圖 (Data Flow & State Machine Diagram)
 ```mermaid
 sequenceDiagram
     autonumber
     actor Turn as interviewTurnOrchestratorService.js
+    participant Evaluator as interviewEvaluatorService.js
+    participant Contract as questionAssessmentContractService.js
     participant Planner as actionPlanner.js
-    participant Abductive as abductiveReasoningService.js
+    participant CaseState as casePracticeStateMachineService.js
 
-    Turn->>Planner: planNextAction(lastAnswer, currentQuestion)
-    Planner->>Abductive: 分析回答完整度與意圖 analyzeIntent()
-    Abductive-->>Planner: 傳回 Intent (e.g. PARTIAL_ANSWER)
-    Planner->>Planner: 評估追問次數 (drillDownCount < 1)
-    alt drillDownCount < 1
-        Planner-->>Turn: 傳回 Selected Action: DRILL_DOWN
-    else drillDownCount >= 1
-        Planner-->>Turn: 強制傳回 Selected Action: ASK_NEXT
+    Turn->>Evaluator: evaluateInterviewTurn(environment)
+    Evaluator-->>Turn: Return candidateDenial, evidenceStatus
+    Turn->>Contract: resolveQuestionAssessmentContract()
+    Contract-->>Turn: Return satisfactionStatus, missingSignals
+    Turn->>Planner: selectNextAction(decisionContext)
+    alt MissingSignals is empty (Satisfied)
+        Planner-->>Turn: Return SWITCH_TOPIC (early_topic_close_satisfied)
+    else candidateDenial is true (EXPLICIT_NO_EXPERIENCE)
+        Planner-->>Turn: Return SWITCH_TOPIC (candidate_denial_fast_pivot)
+    else Case Practice Active (30m / 12q+)
+        Planner->>CaseState: advanceCasePracticePhase()
+        CaseState-->>Planner: Return next phase (CLARIFY -> STRUCTURE -> PROPOSE -> STRESS)
+        Planner-->>Turn: Return ASK_SCENARIO_QUESTION
     end
 ```
 
-### 3.2 流程文字逐步拆解導覽 (Step-by-Step Narrative Walkthrough for Beginners)
-1. **第一步（接收回答）**：輪次協調器接收用戶回答，發送給 `actionPlanner.js`。
-2. **第二步（溯因意圖推理）**：呼叫 `abductiveReasoningService` 推理回答意圖（完整/部分回答/不知道/偏題）。
-3. **第三步（追問防禦檢查）**：如果意圖為部分回答，檢查該題目的追問次數 `drillDownCount`。
-4. **第四步（決定 Action）**：如果 `drillDownCount < 1`，發起 `DRILL_DOWN` 追問；如果已經追問過 1 次，強制切換為 `ASK_NEXT` 進入下一題！
-
 ---
 
----
+## 4. 關鍵程式碼核心實作 (Current Real Code Snippets)
 
-## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
+* **現行程式碼位置**：[`backend/src/services/aiControl/actionPlanner.js`](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/aiControl/actionPlanner.js)
 
-### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
-* **現行程式碼位置**：[`backend/src/services/aiControl/actionPlanner.js:L20-L24`](../../backend/src/services/aiControl/actionPlanner.js#L20-L24)
-
-#### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
-export const selectNextAction = ({ decisionContext, fallbackPlan }) => {
-  if (decisionContext.isTimeExpired) return { selectedAction: 'WRAP_UP' };
-  return fallbackPlan || { selectedAction: 'ASK_NEXT_QUESTION' };
-};
+  const assessmentContract = decisionContext.assessmentContract || evaluatorState.assessmentContract || {};
+  const isAssessmentSatisfied = assessmentContract.satisfactionStatus === 'satisfied' || (Array.isArray(assessmentContract.missingSignals) && assessmentContract.missingSignals.length === 0 && Array.isArray(assessmentContract.requiredSignals) && assessmentContract.requiredSignals.length > 0);
+
+  if (isAssessmentSatisfied || evaluatorState.closeCurrentIntent || interviewStructure.currentTopicState?.exhausted) {
+    return finalizePlan({
+      selectedAction: AGENT_ACTION_TYPES.SWITCH_TOPIC,
+      rationale: isAssessmentSatisfied
+        ? 'The assessment contract is fully satisfied (missingSignals length is 0), so the controller executes an early topic close.'
+        : 'The current topic is already sufficiently covered or has reached the follow-up limit, so the controller should move to the next fresh question.',
+      confidence: 0.92,
+      actionInput: {
+        targetTopic: interviewStructure.forceCategory || coverageState.missingTopics?.[0] || targetTopic,
+        probeType: isAssessmentSatisfied ? 'early_topic_close_satisfied' : 'close_topic',
+        forceEvidence: false,
+        freshOnly: true,
+        category: interviewStructure.forceCategory || null,
+      },
+    });
+  }
+
+  if (evaluatorState.candidateDenial || evaluatorState.evidenceStatus === 'EXPLICIT_NO_EXPERIENCE') {
+    return finalizePlan({
+      selectedAction: AGENT_ACTION_TYPES.SWITCH_TOPIC,
+      rationale: 'The candidate explicitly denied experience on this topic (candidate_denial / EXPLICIT_NO_EXPERIENCE), so the controller executes a fast pivot to preserve candidate experience.',
+      confidence: 0.93,
+      actionInput: {
+        targetTopic: coverageState.missingTopics?.[0] || 'next_topic',
+        probeType: 'candidate_denial_fast_pivot',
+        forceEvidence: false,
+        freshOnly: true,
+        category: interviewStructure.forceCategory || null,
+      },
+      allowModelSelection: false,
+    });
+  }
 ```
 
-#### 【逐行白話文解讀 (Line-by-Line Explanation for Beginners)】
-* **關鍵說明**：selectNextAction 依據決策上下文選擇下一步面試官 Action。
-
-#### 替代寫法 A (Naive Pattern A)
-```javascript
-// 替代寫法：未做邊界防禦與異常處理的原始實現
-```
-
-#### 微觀工程對比矩陣 (Micro Trade-off Analysis)
-| 對比維度 | 現行寫法 (Ground-Truth Code) | 替代寫法 A (Naive) |
-| :--- | :--- | :--- |
-| **防禦性** | **高** (經單元測試與 Subagent 驗證) | 弱 |
-| **可讀性** | **高** (結構清晰、符合 Clean Code 規範) | 差 |
-
 ---
 
----
+## 5. 驗證與自動化測試套件 (Verification Suites)
 
-## 5. 爆炸半徑與失敗矩陣 (Blast Radius & Failure Matrix)
-
-### 5.1 影響範圍 (Blast Radius)
-* **下游受影響模組**：`voiceAgentDecisionService.js`。
-
-### 5.2 失敗路徑與降級機制 (Failure Modes & Fallbacks)
-| 失敗場景 (Failure Scenario) | 系統表現 (Behavior) | 降級 / 修復策略 (Fallback) |
-| :--- | :--- | :--- |
-| **溯因推理超時** | 捕獲 Exception | 安全降級傳回 `ASK_NEXT` (問下一題) |
-
----
-
----
-
-## 6. 運維與回滾步驟 (Incident Response & Rollback Runbook)
-
-### 6.1 除錯起點 (Debugging)
-* 查看日誌 `[ACTION_PLANNER_DECISION]`。
-
-### 6.2 緊急回滾流程 (Rollback SOP)
-1. 執行 `git revert d31474e`。
-
----
-
----
-
-## 7. 轉碼新人面試實戰對攻劇本 (Career-Switcher Interview Q&A Defense Script)
-
-#
-
-
----
-
-## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
-> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
-> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」
+* **Backend Robustness Suites**:
+  - `backend/tests/robustness/questions/questionAssessmentContractService.test.js`
+  - `backend/tests/robustness/agent/fastAnswerUnderstandingRobustness.test.js`
+  - `backend/tests/robustness/questions/casePracticeStateMachineService.test.js`
+  - `backend/tests/robustness/agent/actionPlannerPriorityChain.test.js`
+* **Frontend VAD Suites**:
+  - `frontend/src/utils/__tests__/voiceActivityDetectionCore.test.js`
+  - `frontend/src/hooks/__tests__/useDuplexVoiceSocket.test.js`

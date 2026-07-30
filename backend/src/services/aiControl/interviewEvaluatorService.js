@@ -168,6 +168,18 @@ const detectSkillDenial = ({ answerText = '', currentTopic = '', validationTarge
   }
   const candidateTargets = unique([currentTopic, ...ensureArray(validationTargets)].filter(Boolean));
   const deniedTargets = candidateTargets.filter((target) => answerDeniesTarget({ normalizedAnswer, target }));
+  
+  // General denial regex matching (e.g. "haven't worked with Kafka", "no experience with Docker")
+  const generalDenialMatch = normalizedAnswer.match(/\b(?:have not|haven't|never|did not|didn't|don't|do not)\s+(?:worked with|used|built|implemented|experience with|done|had)\s+([a-z0-9_.\s-]+)\b/i)
+    || normalizedAnswer.match(/\bno\s+(?:experience|background|knowledge)\s+(?:with|in)\s+([a-z0-9_.\s-]+)\b/i);
+
+  if (generalDenialMatch && generalDenialMatch[1]) {
+    const extractedTech = generalDenialMatch[1].trim().split(/\s+/)[0];
+    if (extractedTech && !deniedTargets.includes(extractedTech)) {
+      deniedTargets.push(extractedTech);
+    }
+  }
+
   return {
     deniedTargets,
     alternativeTools: unique(extractAlternativeTools({ answerText, deniedTargets })),
@@ -418,6 +430,18 @@ export const evaluateInterviewTurn = ({ environment = {}, decisionContext = null
     skillDenial,
   });
 
+  const candidateDenial = Boolean(skillDenial?.deniedCurrentTopic || skillDenial?.deniedTargets?.length);
+  let evidenceStatus = 'INSUFFICIENT_EVIDENCE';
+  if (candidateDenial) {
+    evidenceStatus = 'EXPLICIT_NO_EXPERIENCE';
+  } else if (vagueLongAnswer || incompleteEvidenceAdmission) {
+    evidenceStatus = 'INSUFFICIENT_EVIDENCE';
+  } else if (evidenceGainScore >= 0.7) {
+    evidenceStatus = 'EXACT_MATCH';
+  } else if (evidenceGainScore >= 0.45) {
+    evidenceStatus = 'PARTIAL_TRANSFER';
+  }
+
   return {
     evaluationId: crypto.randomUUID(),
     createdAt: new Date().toISOString(),
@@ -432,6 +456,8 @@ export const evaluateInterviewTurn = ({ environment = {}, decisionContext = null
     incompleteEvidenceAdmission,
     vagueLongAnswer,
     skillDenial,
+    candidateDenial,
+    evidenceStatus,
     hasCandidateQuestion,
     frictionState,
     mentionedEntities,

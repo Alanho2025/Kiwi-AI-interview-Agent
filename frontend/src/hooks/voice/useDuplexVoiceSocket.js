@@ -43,6 +43,7 @@ export function useDuplexVoiceSocket({
   onTurnRejected,
   onTranscriptConfirmationRequested,
   onTranscriptConfirmationResolved,
+  onVocalizedPause,
 } = {}) {
   const socketRef = useRef(null);
   const [socketState, setSocketState] = useState('idle');
@@ -59,6 +60,7 @@ export function useDuplexVoiceSocket({
   const socketTraceSessionRef = useRef(0);
   const speechTurnTraceRef = useRef(0);
   const ttsChunkReceivedRef = useRef(0);
+  const lastVocalizedPauseAtRef = useRef(0);
   const callbacksRef = useRef({
     onAudioChunk,
     onAssistantText,
@@ -69,6 +71,7 @@ export function useDuplexVoiceSocket({
     onTurnRejected,
     onTranscriptConfirmationRequested,
     onTranscriptConfirmationResolved,
+    onVocalizedPause,
   });
 
   callbacksRef.current = {
@@ -81,6 +84,7 @@ export function useDuplexVoiceSocket({
     onTurnRejected,
     onTranscriptConfirmationRequested,
     onTranscriptConfirmationResolved,
+    onVocalizedPause,
   };
 
   const closeSocket = useCallback(() => {
@@ -239,6 +243,17 @@ export function useDuplexVoiceSocket({
         });
         setPartialTranscript(text);
         setLatency((current) => current.firstPartialMs ? current : ({ ...current, firstPartialMs: Math.round(performance.now() - startedAtRef.current) }));
+        return;
+      }
+      if (payload.type === 'vocalized_pause_detected') {
+        const now = Date.now();
+        if (now - lastVocalizedPauseAtRef.current > 8000) {
+          lastVocalizedPauseAtRef.current = now;
+          callbacksRef.current.onVocalizedPause?.({
+            durationMs: payload.suggestedExtensionMs || 2500,
+            reason: payload.reason || 'vocalized_pause',
+          });
+        }
         return;
       }
       if (payload.type === 'stt_final' || payload.type === 'final_transcript') {

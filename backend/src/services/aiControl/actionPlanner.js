@@ -303,18 +303,39 @@ export const selectNextAction = (decisionContext = {}) => {
     });
   }
 
-  if (evaluatorState.closeCurrentIntent || interviewStructure.currentTopicState?.exhausted) {
+  const assessmentContract = decisionContext.assessmentContract || evaluatorState.assessmentContract || {};
+  const isAssessmentSatisfied = assessmentContract.satisfactionStatus === 'satisfied' || (Array.isArray(assessmentContract.missingSignals) && assessmentContract.missingSignals.length === 0 && Array.isArray(assessmentContract.requiredSignals) && assessmentContract.requiredSignals.length > 0);
+
+  if (isAssessmentSatisfied || evaluatorState.closeCurrentIntent || interviewStructure.currentTopicState?.exhausted) {
     return finalizePlan({
-      selectedAction: AGENT_ACTION_TYPES.ASK_POOL_QUESTION,
-      rationale: 'The current topic is already sufficiently covered or has reached the follow-up limit, so the controller should move to the next fresh question.',
-      confidence: 0.9,
+      selectedAction: AGENT_ACTION_TYPES.SWITCH_TOPIC,
+      rationale: isAssessmentSatisfied
+        ? 'The assessment contract is fully satisfied (missingSignals length is 0), so the controller executes an early topic close.'
+        : 'The current topic is already sufficiently covered or has reached the follow-up limit, so the controller should move to the next fresh question.',
+      confidence: 0.92,
       actionInput: {
         targetTopic: interviewStructure.forceCategory || coverageState.missingTopics?.[0] || targetTopic,
-        probeType: 'close_topic',
+        probeType: isAssessmentSatisfied ? 'early_topic_close_satisfied' : 'close_topic',
         forceEvidence: false,
         freshOnly: true,
         category: interviewStructure.forceCategory || null,
       },
+    });
+  }
+
+  if (evaluatorState.candidateDenial || evaluatorState.evidenceStatus === 'EXPLICIT_NO_EXPERIENCE') {
+    return finalizePlan({
+      selectedAction: AGENT_ACTION_TYPES.SWITCH_TOPIC,
+      rationale: 'The candidate explicitly denied experience on this topic (candidate_denial / EXPLICIT_NO_EXPERIENCE), so the controller executes a fast pivot to preserve candidate experience.',
+      confidence: 0.93,
+      actionInput: {
+        targetTopic: coverageState.missingTopics?.[0] || 'next_topic',
+        probeType: 'candidate_denial_fast_pivot',
+        forceEvidence: false,
+        freshOnly: true,
+        category: interviewStructure.forceCategory || null,
+      },
+      allowModelSelection: false,
     });
   }
 

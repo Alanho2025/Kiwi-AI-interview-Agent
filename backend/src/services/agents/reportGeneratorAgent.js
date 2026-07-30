@@ -122,6 +122,8 @@ export const buildDeterministicTurnBreakdowns = (transcriptOrPairs = [], analyse
           : `Scored from ${turnStructure.structureLabel.toLowerCase()} and answer sequence.`,
         evidence: 'Scored from direct evidence, validation, and measurable result signals.',
       },
+      evidenceStatus: questionTurn.metadata?.evidenceStatus || answerTurn.metadata?.evidenceStatus || (answerTurn.metadata?.candidateDenial ? 'EXPLICIT_NO_EXPERIENCE' : 'EXACT_MATCH'),
+      topicDisposition: questionTurn.metadata?.topicDisposition || (answerTurn.metadata?.candidateDenial ? 'SKIPPED_CANDIDATE_DENIAL' : 'ASSESSED'),
     };
   }).filter((item) => item.answer);
 };
