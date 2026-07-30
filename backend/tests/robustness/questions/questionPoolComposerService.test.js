@@ -76,6 +76,71 @@ describe('questionPoolComposerService', () => {
     expect(pool.find((item) => item.sourceStage === 'match_gap').questionRole).toBe('root_question');
   });
 
+  it('keeps internal match-gap analysis out of the candidate-facing spoken question', () => {
+    const internalGapSummary = 'Limited direct evidence for strong communication skills across commercial, marketing, design, manufacturing, and finance stakeholders';
+    const pool = buildInterviewQuestionPoolItems({
+      ...baseArgs,
+      deliveryMode: 'voice',
+      analysisResult: {
+        jobTitle: 'Product Manager',
+        gaps: [{
+          id: 'gap-stakeholder-communication',
+          topic: 'cross-functional stakeholder communication',
+          summary: internalGapSummary,
+        }],
+        matchingDetails: {
+          questionPlanHints: {
+            mustProbeSkills: [],
+            mustProbeBehavioural: [],
+          },
+        },
+      },
+    });
+
+    const gapQuestion = pool.find((item) => item.sourceStage === 'match_gap');
+
+    expect(gapQuestion?.text).toBe(
+      'Can you describe a relevant example involving cross-functional stakeholder communication, including what you personally owned?',
+    );
+    expect(gapQuestion?.text).not.toMatch(/i want to validate|possible gap|limited direct evidence/i);
+    expect(gapQuestion?.text).not.toContain(internalGapSummary);
+    expect(gapQuestion?.metadata?.gap?.summary).toBe(internalGapSummary);
+  });
+
+  it('uses a bounded generic voice topic when the only gap label is a long internal summary', () => {
+    const internalGapSummary = 'Limited direct evidence for strong communication skills across commercial, marketing, design, manufacturing, and finance stakeholders, with a need to translate technical concepts for senior leaders';
+    const pool = buildInterviewQuestionPoolItems({
+      ...baseArgs,
+      deliveryMode: 'voice',
+      analysisResult: {
+        gaps: [{ id: 'gap-long-summary', summary: internalGapSummary }],
+        matchingDetails: { questionPlanHints: { mustProbeSkills: [], mustProbeBehavioural: [] } },
+      },
+    });
+
+    const gapQuestion = pool.find((item) => item.sourceStage === 'match_gap');
+    expect(gapQuestion?.text).toBe(
+      'Can you describe a relevant example involving this area of the role, including what you personally owned?',
+    );
+    expect(gapQuestion?.text).not.toContain(internalGapSummary);
+    expect(gapQuestion?.metadata?.gap?.summary).toBe(internalGapSummary);
+  });
+
+  it('preserves the existing text-session gap wording', () => {
+    const pool = buildInterviewQuestionPoolItems({
+      ...baseArgs,
+      deliveryMode: 'text',
+      analysisResult: {
+        gaps: [{ id: 'gap-text', topic: 'stakeholder communication' }],
+        matchingDetails: { questionPlanHints: { mustProbeSkills: [], mustProbeBehavioural: [] } },
+      },
+    });
+
+    expect(pool.find((item) => item.sourceStage === 'match_gap')?.text).toBe(
+      'I want to validate one possible gap around stakeholder communication. What related experience do you have, and what did you personally own?',
+    );
+  });
+
   it('deduplicates similar questions and keeps fallback technical and behavioural coverage', () => {
     const pool = buildInterviewQuestionPoolItems({
       ...baseArgs,

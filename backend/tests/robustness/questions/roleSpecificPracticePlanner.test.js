@@ -100,6 +100,27 @@ describe('roleSpecificPracticePlannerService', () => {
     ]);
   });
 
+  it('keeps interview preparation available when a high-priority intent has no evidence-map entry', () => {
+    const partialRoleEvidenceMap = {
+      ...roleEvidenceMap,
+      items: roleEvidenceMap.items.filter((item) => item.roleIntentId !== 'intent-node'),
+    };
+
+    const strategy = buildInterviewProofStrategy({
+      roleFitProfile,
+      roleEvidenceMap: partialRoleEvidenceMap,
+    });
+
+    expect(strategy.artifactStatus).toBe('ready');
+    expect(strategy.mustCover).toContainEqual(expect.objectContaining({
+      coverageId: 'cov-intent-intent-node',
+      type: 'role_intent',
+      roleIntentId: 'intent-node',
+      evidenceOptions: [],
+      status: 'pending',
+    }));
+  });
+
   it('enriches a question pool with v3 metadata', () => {
     const poolItems = [
       { questionId: 'q-1', topic: 'react', text: 'React hook lifecycle' },

@@ -267,7 +267,6 @@ export const prepareInterviewQuestionPool = async ({
     try {
       catalogLoad = await loadCatalogItems({
         analysisResult: context.analysisResult,
-        settings,
       }) || catalogLoad;
     } catch (error) {
       catalogLoad = {
@@ -301,6 +300,7 @@ export const prepareInterviewQuestionPool = async ({
       rejectedReserveQuestions: [],
       reserveGenerationError: null,
       catalogStatus: catalogLoad.status || 'catalog_unavailable',
+      catalogVersion: catalogLoad.catalogVersion || null,
       catalogLoadError: catalogLoad.error || null,
       catalogCoverage,
     };
@@ -347,6 +347,7 @@ export const prepareInterviewQuestionPool = async ({
       rejectedReserveQuestions: novelty.rejected,
       reserveGenerationError: null,
       catalogStatus: catalogLoad.status || 'catalog_unavailable',
+      catalogVersion: catalogLoad.catalogVersion || null,
       catalogLoadError: catalogLoad.error || null,
       catalogCoverage,
     };
@@ -357,6 +358,7 @@ export const prepareInterviewQuestionPool = async ({
       rejectedReserveQuestions: [],
       reserveGenerationError: error instanceof Error ? error.message : String(error),
       catalogStatus: catalogLoad.status || 'catalog_unavailable',
+      catalogVersion: catalogLoad.catalogVersion || null,
       catalogLoadError: catalogLoad.error || null,
       catalogCoverage,
     };

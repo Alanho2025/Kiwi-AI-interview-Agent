@@ -234,6 +234,7 @@ export const processRealtimeVoiceTurn = async ({
   const questionScopeObservation = resolveQuestionScopeObservation({
     session,
     candidateText: normalizedAnswer,
+    activeQuestion: latestQuestion,
   });
   const isQuestionScopeRequest = isActionableQuestionScopeObservation(questionScopeObservation);
   const questionScopeRequestMetadata = isQuestionScopeRequest
@@ -267,6 +268,7 @@ export const processRealtimeVoiceTurn = async ({
         ambiguityMode: questionScopeRequestMetadata?.ambiguityMode || null,
         clarificationContextVersion: questionScopeRequestMetadata?.clarificationContextVersion || null,
         scopeResponseReason: questionScopeRequestMetadata?.scopeResponseReason || null,
+        clarificationIntent: questionScopeRequestMetadata?.clarificationIntent || null,
         transcriptConfirmation,
         voiceDelivery,
         rawTranscriptText: transcriptProvenance?.rawText || normalizedAnswer,

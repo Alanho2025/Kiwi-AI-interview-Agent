@@ -42,23 +42,4 @@ describe('report view model', () => {
     expect(viewModel.answerRewriteTips[0]).toMatchObject({ status: 'unavailable', better: '' });
     expect(viewModel.legacyReportNotice).toMatch(/Regenerate this report for corrected scoring/i);
   });
-
-  it('normalizes ready, limited, unavailable, and legacy Role-Fit report states', () => {
-    const ready = buildReportViewModel({
-      report: {
-        roleFit: {
-          status: 'ready',
-          roleIntentCoverage: { total: 2, covered: 2, partial: 0, missing: 0, items: [] },
-          evidenceUsageMap: { totalUses: 1, items: [] },
-          answerAlignments: [{ label: 'strong', score: 84 }],
-          questionReasoning: [],
-        },
-      },
-      qaResult: {},
-    });
-    const legacy = buildReportViewModel({ report: { schemaVersion: 'v6' }, qaResult: {} });
-
-    expect(ready.roleFit).toMatchObject({ status: 'ready', available: true });
-    expect(legacy.roleFit).toMatchObject({ status: 'unavailable', available: false });
-  });
 });

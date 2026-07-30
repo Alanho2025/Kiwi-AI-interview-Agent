@@ -16,6 +16,10 @@ This skill MUST be executed whenever:
 
 ## Mandatory Step-by-Step Sync Workflow
 
+## Slice Scope Guardrail
+
+The repository-level change-budget rules in `AGENTS.md` take precedence. For a normal product-behavior bug-fix or implementation slice, map the change to exactly one owning Feature RFC and update that RFC plus one scoped `repo-docs/change-log.md` entry. Do not turn an isolated behavior change into a Feature-RFC sweep, sitemap rewrite, reader-guide sync, or cross-system document update without explicit user approval. If a second document needs a correction to avoid being materially false, stop and request a narrower split or explicit wider approval. Reserve broad documentation alignment for an explicitly approved milestone-closeout task.
+
 ### Step 1: Identify Changed Code & Owning Feature
 - Inspect modified files in `git status` or `git diff`.
 - Map the code changes to the owning Feature RFC (`F-01` through `F-68`) under `docs/architecture-decision-records/features/`.

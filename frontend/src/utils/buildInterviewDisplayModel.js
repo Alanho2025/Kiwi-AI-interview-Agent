@@ -6,8 +6,11 @@ const normalizeFocus = (value = '') => {
 };
 
 const normalizeSeniority = (value = '') => {
-  const raw = String(value || '').trim();
-  return raw || 'Junior/Grad';
+  const raw = String(value || '').trim().toLowerCase();
+  if (raw === 'senior' || raw === 'advanced') return 'Senior';
+  if (raw === 'intermediate') return 'Intermediate';
+  if (['junior', 'junior/grad', 'grad', 'graduate'].includes(raw)) return 'Junior/Grad';
+  return 'Junior/Grad';
 };
 
 const toTitleCase = (value = '') => String(value || '')

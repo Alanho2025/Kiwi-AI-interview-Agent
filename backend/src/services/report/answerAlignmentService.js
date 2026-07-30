@@ -315,6 +315,48 @@ const buildEvidenceUsageMap = ({ alignments = [], evidenceIndex = new Map() } = 
   return { totalUses: items.reduce((sum, item) => sum + item.useCount, 0), items };
 };
 
+const countStatuses = (items = [], property = '') => ensureArray(items).reduce((counts, item) => {
+  const status = normalizeKey(item?.[property]);
+  if (status) counts[status] = (counts[status] || 0) + 1;
+  return counts;
+}, {});
+
+const buildCoachingHypotheses = (alignments = []) => {
+  const codes = new Set();
+  ensureArray(alignments).forEach((alignment) => {
+    const missedSignals = ensureArray(alignment?.diagnosis?.missedSignals).map(normalizeKey);
+    if (missedSignals.includes('validation')) codes.add('missing_validation');
+    if (missedSignals.includes('specific_context')) codes.add('abstract_example');
+    if (missedSignals.includes('outcome') || missedSignals.includes('measurable_result')) codes.add('missing_result');
+    if (alignment?.clarificationCoaching?.clarificationStatus === 'no_assumption_stated') codes.add('scope_not_stated');
+  });
+  return [...codes].map((code) => ({ code, groundedBy: 'accepted_answers' }));
+};
+
+const buildCoachingProgress = (alignments = []) => {
+  const clarification = countStatuses(alignments.map((item) => item.clarificationCoaching), 'clarificationStatus');
+  const aiJudgementItems = ensureArray(alignments)
+    .map((item) => item.aiJudgementCoaching)
+    .filter((item) => item?.aiJudgementStatus && item.aiJudgementStatus !== 'not_ai_question');
+  const aiJudgement = countStatuses(aiJudgementItems, 'aiJudgementStatus');
+  return {
+    schemaVersion: 'role_fit_coaching_progress_v1',
+    clarification: {
+      practised: ensureArray(alignments).length,
+      scopeConfirmed: clarification.scope_confirmed || 0,
+      explicitAssumptions: clarification.explicit_assumption || 0,
+      opportunities: clarification.no_assumption_stated || 0,
+    },
+    aiJudgement: {
+      assessed: aiJudgementItems.length,
+      verifiedWorkflows: aiJudgement.ai_workflow_verified || 0,
+      toolsNamedOnly: aiJudgement.ai_tools_named_only || 0,
+      unspecifiedWorkflows: aiJudgement.ai_workflow_unspecified || 0,
+    },
+    coachingHypotheses: buildCoachingHypotheses(alignments),
+  };
+};
+
 export const buildRoleFitReportSummary = ({
   questionAnswerPairs = [],
   interviewPlan = {},
@@ -338,6 +380,7 @@ export const buildRoleFitReportSummary = ({
       knownEvidenceIds: [],
       requiredCoverageIds: [],
       companyClaims: [],
+      coachingProgress: null,
     };
   }
 
@@ -346,6 +389,7 @@ export const buildRoleFitReportSummary = ({
   const evidenceIndex = buildEvidenceIndex(roleEvidenceMap);
   const roleIntentCoverage = buildRoleIntentCoverage({ proofStrategy, alignments: answerAlignments, roleEvidenceMap });
   const evidenceUsageMap = buildEvidenceUsageMap({ alignments: answerAlignments, evidenceIndex });
+  const coachingProgress = buildCoachingProgress(answerAlignments);
   const poolById = new Map(ensureArray(interviewPlan.questionPool).map((item) => [item.questionId, item]));
   const questionReasoning = answerAlignments.map((alignment) => {
     const pair = questionAnswerPairs.find((item) => item.questionId === alignment.questionId);
@@ -372,7 +416,7 @@ export const buildRoleFitReportSummary = ({
   });
 
   return {
-    schemaVersion: 'role_fit_report_v1',
+    schemaVersion: 'role_fit_report_v2',
     status,
     answerAlignments,
     roleIntentCoverage,
@@ -384,5 +428,6 @@ export const buildRoleFitReportSummary = ({
     knownEvidenceIds: unique([...evidenceIndex.keys()]),
     requiredCoverageIds: unique(ensureArray(proofStrategy.mustCover).map((item) => item.coverageId)),
     companyClaims: [],
+    coachingProgress,
   };
 };

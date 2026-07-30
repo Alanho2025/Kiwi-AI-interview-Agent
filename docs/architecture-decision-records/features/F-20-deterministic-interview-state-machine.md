@@ -141,3 +141,20 @@ export const getAnsweredQuestionCount = (session = {}) => (session?.transcript |
 ## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
 > 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
 > **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」
+
+## 8. 2026-07-30 職級 persistence 同步
+
+- `backend/src/services/session/sessionLifecycleService.js` 將新 session 的職級持久化為 canonical `junior`、`intermediate` 或 `senior`；`Advanced` 仍相容地映射為 `senior`。
+- `frontend/src/utils/sessionSettings.js`、`sessionDisplay.js` 與 `buildInterviewDisplayModel.js` 只把 canonical key 顯示為候選人熟悉的 `Junior/Grad`、`Intermediate`、`Senior`。
+- 驗證：`backend/tests/robustness/session/sessionLifecycleService.test.js` 和 frontend session settings/display tests 通過。
+
+## 9. 2026-07-30 Session candidate projection 同步
+
+- Session response 對 question pool 和 transcript metadata 採 allowlist projection，避免 client 取得 selection/coverage 或 prepared-question internals。
+
+## 10. 2026-07-30 Voice clarification non-score state 同步
+
+- `realtimeVoiceTurnService.js` 在正式 answer persistence、evaluator 與 next-question selection 前執行 deterministic clarification policy。
+- 命中的 turn 保存為 `countsAsAnswer=false` 並保留 `clarificationIntent`；controller 回到同一個 root question，不增加 question index，也不建立正式 answer row。
+- Substantive answer 即使尾端有 `Is that what you mean?`，以及內容提到 `I clarified requirements`，仍由 negative guard 保持為可評分答案。
+- 驗證：voice controller、realtime persistence、完整 voice robustness group 與 duplex integration 通過。

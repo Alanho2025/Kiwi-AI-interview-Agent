@@ -14,7 +14,7 @@ import {
   validateQuestionCatalogSeed,
 } from '../../../src/services/questions/questionCatalogService.js';
 import { QUESTION_SELECTION_POLICY_REVIEW } from '../../../src/services/questions/questionCatalogPolicyReviewService.js';
-import { approveQuestionCatalogVersion } from '../../../src/services/questions/questionCatalogRepository.js';
+import { approveQuestionCatalogVersion, loadApprovedQuestionCatalogItems } from '../../../src/services/questions/questionCatalogRepository.js';
 
 describe('question catalog seed and AI-delivery taxonomy', () => {
   it('ships a reviewable, no-PII 2026.1 catalog that covers the requested families', () => {
@@ -150,6 +150,68 @@ describe('question catalog seed and AI-delivery taxonomy', () => {
       valid: false,
       errors: ['company_role_internship_motivation:contains_candidate_or_session_field'],
     });
+  });
+
+  it('rejects prompts that request credentials, private customer data, or confidential implementation details', () => {
+    const validation = validateQuestionCatalogSeed([{
+      ...QUESTION_CATALOG_SEED[0],
+      promptVariants: [{ id: 'unsafe', targetLevels: ['junior'], text: 'Please paste the customer data and API key from your production system.' }],
+    }]);
+
+    expect(validation).toEqual({
+      valid: false,
+      errors: ['company_role_internship_motivation:contains_restricted_prompt_request'],
+    });
+  });
+
+  it('rejects direct credential solicitation without blocking a conceptual security question', () => {
+    const directSolicitation = validateQuestionCatalogSeed([{
+      ...QUESTION_CATALOG_SEED[0],
+      promptVariants: [{ id: 'unsafe-direct', targetLevels: ['junior'], text: 'What is your API key?' }],
+    }]);
+    const conceptualQuestion = validateQuestionCatalogSeed([{
+      ...QUESTION_CATALOG_SEED[0],
+      promptVariants: [{ id: 'safe-concept', targetLevels: ['junior'], text: 'How would you protect an API key in a production service?' }],
+    }]);
+
+    expect(directSolicitation).toEqual({
+      valid: false,
+      errors: ['company_role_internship_motivation:contains_restricted_prompt_request'],
+    });
+    expect(conceptualQuestion).toEqual({ valid: true, errors: [] });
+  });
+
+  it('loads the newest approved catalog and falls back only when the newer version is inactive', async () => {
+    const newerApproved = [{ catalogQuestionId: 'newer', catalogVersion: '2026.2', lifecycle: 'approved' }];
+    const find = vi.fn((filter) => ({
+      lean: vi.fn().mockResolvedValue(filter.catalogVersion === '2026.2' ? newerApproved : []),
+    }));
+
+    await expect(loadApprovedQuestionCatalogItems({ model: { find }, getMongoReady: () => 1 })).resolves.toEqual({
+      status: 'ready',
+      items: newerApproved,
+      catalogVersion: '2026.2',
+    });
+    expect(find).toHaveBeenCalledTimes(1);
+    expect(find).toHaveBeenCalledWith({ catalogVersion: '2026.2', lifecycle: 'approved' });
+
+    const requestedLegacyVersion = await loadApprovedQuestionCatalogItems({
+      catalogVersion: '2026.1',
+      model: { find },
+      getMongoReady: () => 1,
+    });
+    expect(requestedLegacyVersion.catalogVersion).toBe('2026.2');
+
+    const fallbackFind = vi.fn((filter) => ({
+      lean: vi.fn().mockResolvedValue(filter.catalogVersion === '2026.1'
+        ? [{ catalogQuestionId: 'stable', catalogVersion: '2026.1', lifecycle: 'approved' }]
+        : []),
+    }));
+    const fallback = await loadApprovedQuestionCatalogItems({ model: { find: fallbackFind }, getMongoReady: () => 1 });
+
+    expect(fallback).toMatchObject({ status: 'ready', catalogVersion: '2026.1' });
+    expect(fallbackFind).toHaveBeenNthCalledWith(1, { catalogVersion: '2026.2', lifecycle: 'approved' });
+    expect(fallbackFind).toHaveBeenNthCalledWith(2, { catalogVersion: '2026.1', lifecycle: 'approved' });
   });
 
   it('requires an approved, version-complete human review record before activation', async () => {

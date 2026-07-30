@@ -147,3 +147,20 @@ export const exportTranscript = async (req, res) => {
 ## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
 > 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
 > **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」
+
+## 8. 2026-07-30 report projection 同步
+
+- `backend/src/services/report/reportPublicationSummaryService.js` 會在 candidate API、JSON/TXT export 之前移除 catalog version/ID、rank/proof/evidence ID、grounding source、歷史 report version 與 repair internals。
+- frontend TXT/PDF 不輸出 Role-Fit、clarification/AI judgement internal coaching 或 progress 摘要，只使用 candidate report allowlist。
+- 驗證：publication projection、report text export 與 PDF report tests 通過。
+
+## 9. 2026-07-30 Coaching export shape 同步
+
+- backend TXT 與 frontend PDF 都排除 Role-Fit coaching 與 internal grounding metadata。
+
+## 10. 2026-07-30 Candidate export parity
+
+- Backend JSON/TXT 使用 `buildCandidateReportProjection`；frontend TXT/PDF 只輸出同一 candidate allowlist 的 summary、canonical scores、簡短 score explanations/insights、最多三個 priorities、accepted-turn feedback、answer rewrites、legacy limitation 與 transcript risks。
+- PDF 不再輸出 communication profile、quote analysis、Evidence Sources/appendix、report-confidence diagnostics、forms 或 controls。
+- Projection 會遞迴遮蔽 email、phone、street address，並移除 Role-Fit、QA、cost/token、commercial stress、trace、evidence diagnostics 和 internal IDs。
+- 驗證：backend publication/TXT tests、frontend helper/PDF tests 與 production build 通過；人工 PDF page/search review 尚未執行。

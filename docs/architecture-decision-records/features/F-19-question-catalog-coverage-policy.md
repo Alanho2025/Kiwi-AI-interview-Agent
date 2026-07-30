@@ -145,3 +145,13 @@ export const hasForbiddenReviewField = (payload = {}) => {
 ## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
 > 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
 > **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」
+
+## 8. 2026-07-30 CP2 允許次數同步
+
+- `backend/src/services/questions/questionCatalogSelectionService.js` 會把已達 `maxAsked` 的 coverage slot 從下一題候選集硬性排除。
+- `backend/src/services/questions/questionPoolRankerService.js` 把排除理由記為 `catalog_coverage_max_asked_reached`，不讓數值排名覆蓋此 hard gate。
+- 驗證：`questionPoolRankerCatalogPolicy.test.js` 覆蓋已問滿一題的 AI workflow slot。
+
+## 9. 2026-07-30 Catalog preference boundary 同步
+
+- 新 Voice session 固定優先使用 approved `2026.2`，再回退 `2026.1`；request settings 不可指定舊版覆蓋此順序。

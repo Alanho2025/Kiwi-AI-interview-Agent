@@ -15,23 +15,14 @@ import { AppHeader } from '../components/layout/AppHeader.jsx';
 import { StatusBanner } from '../components/common/StatusBanner.jsx';
 import { AnswerRewriteSection } from '../components/report/AnswerRewriteSection.jsx';
 import { CoachingSection } from '../components/report/CoachingSection.jsx';
-import { QuoteAnalysisSection } from '../components/report/QuoteAnalysisSection.jsx';
-import { CommunicationProfileSection } from '../components/report/CommunicationProfileSection.jsx';
-import { NZWorkplaceFitSection } from '../components/report/NZWorkplaceFitSection.jsx';
-import { CompanyMotivationFitSection } from '../components/report/CompanyMotivationFitSection.jsx';
 import { TurnBreakdownSection } from '../components/report/TurnBreakdownSection.jsx';
-import { InsightsSection } from '../components/report/InsightsSection.jsx';
 import { ReportActionBar } from '../components/report/ReportActionBar.jsx';
 import { RecordingStatusCard } from '../components/report/RecordingStatusCard.jsx';
-import { ReportDetailSections } from '../components/report/ReportDetailSections.jsx';
 import { ReportHeroCard } from '../components/report/ReportHeroCard.jsx';
 import { ReportTrustStatusCard } from '../components/report/ReportTrustStatusCard.jsx';
-import { ScoreBreakdownCard } from '../components/report/ScoreBreakdownCard.jsx';
-import { CommercialStressTestSection } from '../components/report/CommercialStressTestSection.jsx';
-import { CommunicationAuthenticitySection } from '../components/report/CommunicationAuthenticitySection.jsx';
-import { EvidenceSourcesSection } from '../components/report/EvidenceSourcesSection.jsx';
 import { TranscriptRiskSection } from '../components/report/TranscriptRiskSection.jsx';
-import { RoleFitReportSection } from '../components/report/RoleFitReportSection.jsx';
+import { CandidateReportSummary } from '../components/report/CandidateReportSummary.jsx';
+import { DeveloperReportDiagnostics } from '../components/report/DeveloperReportDiagnostics.jsx';
 import { LoadingInsightPanel } from '../components/common/LoadingInsightPanel.jsx';
 import { useReportData } from '../hooks/useReportData.js';
 import { buildReportViewModel } from '../utils/reportView/index.js';
@@ -75,7 +66,6 @@ export function ReportPage() {
     status,
     loading,
     handleGenerate,
-    handleQa,
     handleExport,
     handleDownloadRecording,
     handleRetryRecording,
@@ -104,13 +94,11 @@ export function ReportPage() {
         <ReportTrustStatusCard
           summary={publicationSummary}
           loading={loading}
-          onRecheck={() => handleQa('')}
           onRegenerate={handleGenerate}
         />
         <ReportActionBar 
           loading={loading} 
           onGenerate={handleGenerate} 
-          onRunQa={handleQa} 
           onExport={handleExport}
           onDownloadRecording={handleDownloadRecording}
           recordingStatus={recordingStatus}
@@ -143,37 +131,21 @@ export function ReportPage() {
               />
             </div>
             
-            <ScoreBreakdownCard 
-              scoreExplanations={viewModel.scoreExplanations} 
-              scoreLimitations={viewModel.scoreLimitations} 
-            />
-
-            <div id="tour-report-insights" className="space-y-6">
-              <CommunicationAuthenticitySection authenticityMetrics={viewModel.authenticityMetrics} />
-              <CommercialStressTestSection commercialStressTest={viewModel.commercialStressTest} />
-              <InsightsSection dataInsights={viewModel.dataInsights} strengthHighlights={viewModel.strengthHighlights} />
+            <div id="tour-report-insights">
+              <CandidateReportSummary
+                scoreExplanations={viewModel.scoreExplanations}
+                dataInsights={viewModel.dataInsights}
+              />
             </div>
-            <NZWorkplaceFitSection fit={viewModel.nzWorkplaceFit} />
-            <CompanyMotivationFitSection fit={viewModel.companyMotivationFit} />
-            <CommunicationProfileSection profile={viewModel.communicationProfile} />
             <TranscriptRiskSection risks={viewModel.transcriptRisks} />
-            <RoleFitReportSection roleFit={viewModel.roleFit} />
-            <EvidenceSourcesSection items={viewModel.evidenceSources} />
-            <CoachingSection improvementPriorities={viewModel.improvementPriorities} coachingAdvice={viewModel.coachingAdvice} />
-            <QuoteAnalysisSection quoteAnalyses={viewModel.quoteAnalyses} />
+            <CoachingSection improvementPriorities={viewModel.improvementPriorities} coachingAdvice={[]} />
             <div id="tour-report-turns">
               <TurnBreakdownSection turnBreakdowns={viewModel.turnBreakdowns} />
             </div>
             <AnswerRewriteSection answerRewriteTips={viewModel.answerRewriteTips} />
-            <ReportDetailSections
-              report={viewModel.report}
-              qa={viewModel.qa}
-              interviewMetrics={viewModel.interviewMetrics}
-              evidenceDiagnostics={viewModel.evidenceDiagnostics}
-              qaDiagnostics={viewModel.qaDiagnostics}
-            />
           </div>
         )}
+        <DeveloperReportDiagnostics sessionId={sessionId} />
       </main>
     </div>
   );

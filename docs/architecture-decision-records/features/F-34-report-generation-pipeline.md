@@ -161,3 +161,21 @@ return report;
 ## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
 > 💡 **面試官問**：「你們的面試報告是如何生成的？」  
 > **回答範例**：「我們採取了帶有 QA 自動修復循環的管線。當面試完成時，`reportActionExecutor` 會先調用報告生成器產出初稿，隨即交由獨立的 `reportQa` 進行比對。若發現 Evidence 覆蓋不足，會發起 `runReportQaRepairLoop`（帶入 maxAttempts: 2）進行修復，最後才傳回前台。」
+
+## 8. 2026-07-30 CP4 coaching integrity 同步
+
+- `backend/src/services/report/answerAlignmentService.js` 只從 accepted answer 建立 clarification / AI judgement coaching 與 `role_fit_coaching_progress_v1`；這些欄位不會改寫 alignment score。
+- `backend/src/services/agents/reportQaAgent.js` 將缺少 coaching、無 allowlisted source、內部 metadata 洩漏、score mutation 和無效 hypothesis 列為 blocking flags。
+- 驗證：report-focused backend suite 32 tests passed。
+
+## 9. 2026-07-30 QA rewrite projection 同步
+
+- report QA rewrite 回應和 persisted report read 都走 candidate-safe sanitizer，排除 report version、repair、rewrite、catalog、evidence 與 coverage internals。
+
+## 10. 2026-07-30 Shared candidate report publication boundary
+
+- `buildCandidateReportProjection` 現在是 generate、QA、read、QA rewrite 與 JSON/TXT export 的 server-owned allowlist。它只保留 candidate 可用的 report status、三個 canonical scores、簡短 score explanation、最多三個 priorities、逐題 feedback、answer rewrite、legacy limitation 與 material transcript risk。
+- Candidate payload 不再包含 Role-Fit breakdown/coaching、QA flags/prompt、execution cost、token usage、commercial stress、raw evidence/trace、internal IDs、candidate reflection 或 scoring formula；nested email、phone、street address 會在投影後再遮蔽。
+- Shared report boundary 同時適用 Voice 與 Text session；Voice clarification runtime 的分類改動仍是 voice-only。
+- `GET /api/report/:sessionId/diagnostics` 是獨立的 non-production、authenticated、owner-scoped surface；它包含 question selection/match-gap refs、turn eligibility、QA、cost 與 owner-scoped harness timelines。Production fail closed，diagnostics PII 仍遮蔽。
+- 驗證：report robustness group 100 tests、HTTP report integration、diagnostics controller 與 frontend report API/component tests 通過。

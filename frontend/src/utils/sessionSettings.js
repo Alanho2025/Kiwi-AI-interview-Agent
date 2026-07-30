@@ -46,7 +46,13 @@ const allowedControlModes = new Set(controlModeOptions.map((option) => option.va
 const allowedQuestionLimits = new Set(questionLimitOptions);
 const allowedTimeLimits = new Set(timeLimitOptions);
 
-const normalizeSeniorityDisplay = (value) => (value === 'Advanced' ? 'Senior' : value);
+const normalizeSeniorityDisplay = (value) => {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (normalized === 'advanced' || normalized === 'senior') return 'Senior';
+  if (normalized === 'intermediate') return 'Intermediate';
+  if (['junior', 'junior/grad', 'grad', 'graduate'].includes(normalized)) return 'Junior/Grad';
+  return value;
+};
 
 export const sanitizeSessionMode = (value) => (allowedSessionModes.has(value) ? value : DEFAULT_ANALYZE_MODE);
 export const isSupportedSessionMode = (value) => allowedSessionModes.has(value);

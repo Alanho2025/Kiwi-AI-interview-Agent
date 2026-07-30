@@ -7,6 +7,7 @@ import {
   QUESTION_CATALOG_VERSION,
 } from '../../data/questionCatalogSeed2026_1.js';
 import { QUESTION_CATALOG_REVIEW } from '../../data/questionCatalogReview2026_1.js';
+import { QUESTION_CATALOG_VERSION as QUESTION_CATALOG_VERSION_2026_2 } from '../../data/questionCatalogSeed2026_2.js';
 import { ensureArray } from '../../utils/commonHelpers.js';
 import {
   buildQuestionCatalogSeedUpserts,
@@ -17,14 +18,25 @@ import {
   validateQuestionSelectionPolicyReview,
 } from './questionCatalogPolicyReviewService.js';
 
+export const QUESTION_CATALOG_VERSION_PREFERENCE = Object.freeze([
+  QUESTION_CATALOG_VERSION_2026_2,
+  QUESTION_CATALOG_VERSION,
+]);
+
+const resolveCatalogVersionCandidates = () => QUESTION_CATALOG_VERSION_PREFERENCE;
+
 export const loadApprovedQuestionCatalogItems = async ({
-  catalogVersion = QUESTION_CATALOG_VERSION,
   model = QuestionCatalogItem,
+  getMongoReady = getMongoReadyState,
 } = {}) => {
-  if (getMongoReadyState() !== 1) return { status: 'catalog_unavailable', items: [] };
+  if (getMongoReady() !== 1) return { status: 'catalog_unavailable', items: [] };
   try {
-    const items = await model.find({ catalogVersion, lifecycle: 'approved' }).lean();
-    return { status: items.length ? 'ready' : 'inactive', items };
+    const versions = resolveCatalogVersionCandidates();
+    for (const version of versions) {
+      const items = await model.find({ catalogVersion: version, lifecycle: 'approved' }).lean();
+      if (items.length) return { status: 'ready', items, catalogVersion: version };
+    }
+    return { status: 'inactive', items: [], catalogVersion: versions[0] || null };
   } catch (error) {
     return { status: 'catalog_unavailable', items: [], error: error?.message || String(error) };
   }

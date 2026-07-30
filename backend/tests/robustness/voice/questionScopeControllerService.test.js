@@ -2,7 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   appendTranscriptTurn: vi.fn(),
+  createInterviewQuestion: vi.fn(),
   updateLatestTranscriptTurnMetadata: vi.fn(),
+  markQuestionPoolItemAsked: vi.fn(),
+  loggerWarn: vi.fn(),
   enqueueBackgroundJob: vi.fn(),
   recordAgentTraceEvent: vi.fn(),
   backgroundJobs: [],
@@ -10,7 +13,11 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('../../../src/services/sessionService.js', () => ({
   appendTranscriptTurn: mocks.appendTranscriptTurn,
+  createInterviewQuestion: mocks.createInterviewQuestion,
   updateLatestTranscriptTurnMetadata: mocks.updateLatestTranscriptTurnMetadata,
+}));
+vi.mock('../../../src/services/questions/questionPoolComposerService.js', () => ({
+  markQuestionPoolItemAsked: mocks.markQuestionPoolItemAsked,
 }));
 
 vi.mock('../../../src/jobs/backgroundJobQueue.js', () => ({
@@ -19,6 +26,9 @@ vi.mock('../../../src/jobs/backgroundJobQueue.js', () => ({
 
 vi.mock('../../../src/services/aiControl/agentTraceService.js', () => ({
   recordAgentTraceEvent: mocks.recordAgentTraceEvent,
+}));
+vi.mock('../../../src/utils/logger.js', () => ({
+  logger: { warn: mocks.loggerWarn },
 }));
 
 const {
@@ -52,7 +62,9 @@ describe('question scope controller persistence', () => {
     vi.clearAllMocks();
     mocks.backgroundJobs = [];
     mocks.appendTranscriptTurn.mockResolvedValue(null);
+    mocks.createInterviewQuestion.mockResolvedValue('persisted-question-8');
     mocks.updateLatestTranscriptTurnMetadata.mockResolvedValue(null);
+    mocks.markQuestionPoolItemAsked.mockResolvedValue({ questionId: 'root-question-8' });
     mocks.enqueueBackgroundJob.mockImplementation((_name, job) => {
       const promise = Promise.resolve().then(() => job?.());
       mocks.backgroundJobs.push(promise);
@@ -121,6 +133,7 @@ describe('question scope controller persistence', () => {
       eventType: 'question_scope_clarification',
       payload: {
         selectedAction: 'ANSWER_QUESTION_SCOPE',
+        intentType: null,
         scopeResponseReason: 'candidate_requested_focus',
         clarificationContextVersion: 'scope-context-2026.2',
         rootQuestionRef: 'root-question-7',
@@ -155,5 +168,72 @@ describe('question scope controller persistence', () => {
       },
     );
     expect(mocks.appendTranscriptTurn).not.toHaveBeenCalled();
+  });
+
+  it('persists an accepted skip as a non-answer and the fresh root as a countable question', async () => {
+    const observation = {
+      ...validObservation(),
+      kind: 'skip_question_request',
+      actionType: 'SWITCH_TOPIC',
+      requestTurnType: 'question_skip_request',
+      turnType: 'interview_question',
+      responseText: 'Okay, we’ll skip that one. Tell me about a delivery improvement.',
+      scopeResponseReason: 'candidate_skipped_after_bounded_help',
+      nextRootQuestionId: 'root-question-8',
+      nextQuestion: {
+        questionId: 'root-question-8',
+        text: 'Tell me about a delivery improvement.',
+        category: 'behavioural',
+        stage: 'behavioural',
+      },
+    };
+
+    const result = await executeQuestionScopeControllerTurn({
+      session: {
+        id: 'voice-session-1',
+        currentQuestionIndex: 7,
+        transcript: [],
+      },
+      observation,
+    });
+
+    expect(result).toMatchObject({
+      turnKind: 'root_question',
+      turnType: 'interview_question',
+      rootQuestionId: 'root-question-8',
+      controllerAction: 'SWITCH_TOPIC',
+    });
+    expect(mocks.updateLatestTranscriptTurnMetadata).toHaveBeenCalledWith(
+      'voice-session-1',
+      'user',
+      expect.objectContaining({
+        turnType: 'question_skip_request',
+        countsAsAnswer: false,
+        rootQuestionId: 'root-question-7',
+      }),
+    );
+    expect(mocks.appendTranscriptTurn).toHaveBeenCalledWith(
+      'voice-session-1',
+      expect.objectContaining({
+        questionId: 'persisted-question-8',
+        metadata: expect.objectContaining({
+          turnKind: 'root_question',
+          turnType: 'interview_question',
+          countsAsQuestion: true,
+          countsAsAnswer: false,
+          rootQuestionId: 'root-question-8',
+        }),
+      }),
+    );
+    expect(mocks.createInterviewQuestion).toHaveBeenCalledWith(expect.objectContaining({
+      sessionId: 'voice-session-1',
+      questionOrder: 8,
+      questionText: observation.responseText,
+    }));
+    expect(mocks.markQuestionPoolItemAsked).toHaveBeenCalledWith(expect.objectContaining({
+      sessionId: 'voice-session-1',
+      questionId: 'root-question-8',
+      askedTurnIndex: 8,
+    }));
   });
 });

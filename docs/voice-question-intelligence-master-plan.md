@@ -1,8 +1,8 @@
 # Voice Question Intelligence Master Plan
 
-> **狀態：CP1／CP2 已由 Product Owner 核准並完成 staging Mongo activation；CP3 local implementation 已完成，等待 human Voice/browser review 與新版 scope context content decision。**<br>
+> **狀態：CP1–CP4 local implementation、deterministic tests 與 candidate-safe projections 已完成；Mongo actual activation、human wording/privacy review、Voice/browser 與 live-provider 驗證仍未在此 working tree 證明。**<br>
 > **範圍：Voice interview only。**<br>
-> 本文件定義目標架構、分期、資料契約、驗證與 human checkpoints。Product Owner 已授權 CP1／CP2、核准兩個 manifests，並授權 CP3 local implementation；這些決定不等於 CP3 candidate-visible activation、CP4、deployment 或 production rollout。Text interview 行為不在本次範圍內。
+> 本文件定義目標架構、分期、資料契約、驗證與 human checkpoints。Source-controlled review manifests、local implementation 與 test pass 不等於 database activation、candidate-visible rollout、deployment 或 production readiness。Text interview 行為不在本次範圍內。
 
 ## 1. 為什麼要做這件事
 
@@ -40,10 +40,10 @@ Kiwi 現在已能由 CV、JD、match gap 和既有 behavioral fallback 準備問
 - CV seed、JD requirement / filter、match validation / gap、fallback 與 behavioral material 可組成 prepared question pool。
 - 每場 session 的 `InterviewQuestionPoolItem` 已帶有 `userId`、`sessionId`、source、evidence、rank trace、status 和 retention；它是 **session snapshot**，不是共用題庫。
 - CP1/CP2 的 local implementation 已把 seniority blueprint 正規化為 `junior`、`intermediate`、`senior`；legacy `advanced` input 讀取時映射為 `senior`，前端新設定顯示並送出 `Senior`。
-- `2026.1` global catalog、AI/ML taxonomy、Voice-only private snapshot、reservation trace 與 follow-up-vs-next-root comparator 已有 local test coverage；CP1 content 與 CP2 executable policy manifests 已由同一 Product Owner 核准，staging Mongo 的 21 個 items 已 seed 並 activation 為 `approved`。CP1 governance digest 同時綁定 question items、AI-delivery taxonomy 與 ML aliases，生成式完整審閱文件由 drift test 保證與 source 一致。
+- `2026.1` / `2026.2` global catalog source manifests、AI/ML taxonomy、Voice-only private snapshot、reservation trace 與 follow-up-vs-next-root comparator 已有 local test coverage；runtime 不接受 request pinning，固定依序載入 database `approved` 的 `2026.2`、`2026.1`，不可用時降級。Source digest/manifest 並非 target Mongo 已 seed 或 activation 的證據。
 - voice contract 已要求 repair、repeat、transcript confirmation、clarification 等非正式題不得推進 interview question count，也不得進 accepted-answer scoring dataset。
 - CP3 local implementation 已在正常 Voice interview stage 加入 deterministic question-scope lane；符合 versioned prepared context 的 candidate scope question 可走 `ANSWER_QUESTION_SCOPE`，缺 context 或重複請求則 fail closed 到 bounded rephrase/scaffold。
-- report 的 answer alignment 已以 accepted answers 為主，但尚未有獨立的 clarification judgement / assumption framing / AI delivery quality dimension。
+- report 的 answer alignment 以 accepted answers 為主，現已提供 clarification / assumption / AI judgement coaching、per-session progress hypotheses 與 optional candidate-provided reflection；新 coaching 不會改寫分數。Session、report read/QA-rewrite、JSON/TXT/PDF projections remove catalog/policy, evidence/proof, coverage/role-intent, turn/question and claim/source/chunk IDs, grounding and rewrite internals before candidate delivery.
 
 ### 本計畫要補的 gap
 
@@ -58,7 +58,7 @@ Kiwi 現在已能由 CV、JD、match gap 和既有 behavioral fallback 準備問
 
 ### 證據狀態
 
-本節以目前 working tree 為準。現有 question pool 與 session persistence 以 `backend/src/services/questions/`、`backend/src/db/models/interviewQuestionPoolItemModel.js` 為主；voice 行為以 `VOICE_INTERVIEW_PRODUCT_BEHAVIOR.md` 為產品契約。CP1 catalog contract、Senior migration、CP2 recommendation policy 與 CP3 scope action 已在本地實作；`2026.1` catalog 已在 staging Mongo activation，但其 ambiguity mode 全為 `none`，所以 CP3 valid-scope human replay 仍需要另審的 versioned context content。CP4 report coaching dimension 尚未實作。
+本節以目前 working tree 為準。現有 question pool 與 session persistence 以 `backend/src/services/questions/`、`backend/src/db/models/interviewQuestionPoolItemModel.js` 為主；voice 行為以 `VOICE_INTERVIEW_PRODUCT_BEHAVIOR.md` 為產品契約。CP1 catalog contract、Senior migration、CP2 recommendation policy、CP3 scope action 與 CP4 report coaching 已在本地實作；`2026.2` 會僅在資料庫具 `approved` entries 時優先載入，否則回退。Mongo lifecycle、human Voice replay 和 candidate-visible browser review 尚未在此記錄中驗證。
 
 ## 4. Target architecture
 
@@ -389,7 +389,7 @@ Candidate 說「你想我聚焦 personal AI use、built products，還是 busine
 
 ASR low-confidence confirmation 仍由既有 voice contract 處理，絕不可與 semantic scope clarification 混為一談。新增行為也不得在 voice hot path 加入未界定的模型 call；任何 model assistance 必須沿用 bounded fast path、timeout 和 deterministic fallback，並保護「user speech end 到 next question first audio」的產品目標。
 
-2026-07-29 的 local implementation 已完成上述 action、state、counting、fallback、report-dataset isolation 與 redacted trace contract。現行核准的 `2026.1` 題庫沒有 `bounded_scenario` / `open_scope_probe` item，也沒有可供 runtime 回覆的 versioned scope context，因此 production-like valid path 保持 fail-closed；不得為了測試而直接覆寫既有 approved version 或 digest。
+Local implementation 已完成上述 action、state、counting、fallback、report-dataset isolation 與 redacted trace contract。`2026.2` source seed 包含 versioned scope contexts；runtime 只會在其資料庫 lifecycle 為 `approved` 時使用，否則 `2026.1` 或既有 fallback 保持 fail-closed。不得為了測試而直接覆寫既有 version 或 digest。
 
 ### 8.3 Clarification feedback rubric
 
@@ -421,7 +421,7 @@ Technical depth · AI judgement · Communication · Adaptability
 
 report 不應透露完整 internal question rationale、rank trace、private CV/JD evidence IDs 或 model reasoning。`question_scope_clarification` 事件可影響 clarification coaching，不能直接改寫主答案分數或把 repair 計入 coverage。
 
-Progress loop 是後續 phase：使用者可輸入真實面試回憶，系統把 mock 中練習的 competency 與真實情境做 candidate-controlled reflection。它必須使用明確 provenance，不能宣稱「你的 mock skill 已轉移成功」而沒有使用者提供的 evidence。Stuck-moment detector 也只能先標示 coaching hypothesis，例如答案太抽象、沒有 validation、沒有 result 或在概念上卡住；不應把它當成心理或能力診斷。
+Progress loop 現已提供每場 roll-up、candidate-controlled reflection record 與保守 hypothesis（例如答案太抽象、沒有 validation、沒有 result 或未先說明 scope）。Reflection 私有於該 session，且不改分；不得宣稱「mock skill 已轉移成功」或把 hypothesis 當成心理／能力診斷。
 
 ## 10. Privacy, retention and safety boundaries
 
@@ -462,7 +462,7 @@ Human review 和 human checkpoint 不同：前者是驗證樣本，後者是阻�
 
 ### Approval boundary
 
-- Current execution record: Product Owner authorized CP1／CP2 local implementation, approved both digest-bound manifests as `heminghan`, activated `2026.1` in staging Mongo, and later authorized CP3 local implementation. CP3 human Voice/browser review and any new ambiguity-context catalog version remain separate blocking decisions.
+- Current execution record: CP1–CP4 local implementation is complete with source-controlled manifests and deterministic checks. The exact target Mongo lifecycle is not asserted here; CP1–CP4 human review, Voice/browser evidence and any candidate-visible rollout remain separate blocking decisions.
 - CP0 的核准只允許起草下一份 Goal / Spec，不等於 code implementation approval。
 - 每個 Phase 的 Goal / Spec 必須各自標示 `Draft` 或 `Owner approved`。
 - 實作前仍需要該 phase 的明確 implementation approval，特別是 schema migration、voice behavior、report visibility、retention、real-AI cost 與 production / GitHub actions。
@@ -560,7 +560,7 @@ Rollback must be a bounded switch to the prior safe controller / pool behavior f
 
 ## 16. Checkpoint decomposition and current status
 
-The five checkpoint documents now exist. CP1／CP2 are approved and staging-activated; CP3 has local implementation evidence and is at its human-review/content checkpoint; CP4–CP5 remain future owner-gated work:
+The five checkpoint documents now exist. CP1–CP4 have local implementation evidence and remain at their human-review/external-verification checkpoints; CP5 remains future owner-gated work:
 
 1. **QI-G1: Question Catalog Governance and Curated Seed** — catalog model, seed format, research governance, static NZ question migration strategy, no-PII contract, CP1.
 2. **QI-G2: Senior-Level Voice Pool Recommendation** — level migration, eligibility, coverage reservation, root / follow-up comparator, rank trace and session snapshot contract, CP2.
@@ -581,7 +581,7 @@ The five checkpoint documents now exist. CP1／CP2 are approved and staging-acti
 
 ## 18. Current owner review checklist
 
-CP1／CP2 implementation authority has already been given. The open Product Owner decisions are:
+CP1–CP4 local implementation is complete. The open Product Owner decisions are:
 
 1. Junior / Intermediate / Senior 和 `advanced -> senior` compatibility policy 是否正確。
 2. AI / ML role eligibility，以及 `eligible` / `prepared` / `reserved` / `asked` 的 coverage contract 是否合適。
@@ -590,10 +590,10 @@ CP1／CP2 implementation authority has already been given. The open Product Owne
 5. Global catalog + per-session snapshot 的兩層 persistence 是否是你要的資料庫策略。
 6. CP0–CP5 是否是你要的 owner / human checkpoint 位置。
 7. 三次 evidence-backed remediation 後 issue handoff，以及 first-failure hard stop 的規則是否可接受。
-8. CP1 governance digest 與 CP2 executable-policy digest 是否分別核准；兩者任一仍為 `pending`、`revise`、`blocked` 或 `deferred` 都不能 activation，且 database action 仍需另外明確授權。
+8. CP1 governance digest 與 CP2 executable-policy digest 是否分別核准；兩者任一仍為 `pending`、`revise`、`blocked` 或 `deferred` 都不能 activation，且 database action 與 read-only post-check 仍需另外明確授權。
 
 ---
 
-**Plan status:** CP1／CP2 local implementation is authorized; their Product Owner review packets remain pending.<br>
-**Implementation status:** CP1／CP2 code, tests and local documentation exist in the current working tree. No Mongo seed/approve, migration, external issue, deploy or production activation has run.<br>
-**Evidence status:** Catalog content remains draft and inactive; CP1／CP2 Product Owner decisions, real provider, human Voice/browser, 3-second end-to-first-audio SLO and production rollout remain unverified.
+**Plan status:** CP1–CP4 local implementation is complete; CP1–CP4 human checkpoints remain open.<br>
+**Implementation status:** CP1–CP4 code, deterministic tests and local documentation exist in the current working tree. No Mongo seed/approve/read-only post-check, deployment or production activation is claimed by this document.<br>
+**Evidence status:** Local regression evidence passes; actual catalog lifecycle, human wording/privacy review, real Voice/browser, 3-second end-to-first-audio SLO and production rollout remain unverified.

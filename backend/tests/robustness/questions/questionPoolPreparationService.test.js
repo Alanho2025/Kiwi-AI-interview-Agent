@@ -287,4 +287,18 @@ describe('question pool preparation readiness', () => {
     expect(result.catalogCoverage).toEqual({ status: 'not_applicable', reservations: [] });
     expect(result.items).toEqual(existingItems);
   });
+
+  it('does not pass a request-supplied catalog version into the Voice catalog loader', async () => {
+    const loadCatalogItems = vi.fn(async () => ({ status: 'inactive', items: [] }));
+    await prepareInterviewQuestionPool({
+      deliveryMode: 'voice',
+      settings: { questionCatalogVersion: '2026.1' },
+      loadCatalogItems,
+      composePool: async () => [],
+    });
+
+    expect(loadCatalogItems).toHaveBeenCalledTimes(1);
+    expect(loadCatalogItems.mock.calls[0][0]).not.toHaveProperty('catalogVersion');
+    expect(loadCatalogItems.mock.calls[0][0]).not.toHaveProperty('settings');
+  });
 });

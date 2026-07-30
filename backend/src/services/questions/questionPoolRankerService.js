@@ -4,6 +4,7 @@ import { buildQuestionHistory, filterNovelQuestionCandidates } from './questionD
 import { trackInterviewCoverage } from './interviewCoverageContractService.js';
 import { getEvidenceUsageCounts } from './evidenceUsageLedgerService.js';
 import {
+  excludeCandidatesAtCoverageLimit,
   resolveCatalogReservationPlan,
   restrictCandidatesToUrgentReservations,
 } from './questionCatalogSelectionService.js';
@@ -240,7 +241,11 @@ export const rankPreparedQuestionPool = ({ poolItems = [], session = {}, decisio
     candidates: eligibleCandidates,
     reservationPlan,
   });
-  const ranked = ensureArray(reservationSelection.candidates)
+  const cappedSelection = excludeCandidatesAtCoverageLimit({
+    candidates: reservationSelection.candidates,
+    reservationPlan,
+  });
+  const ranked = ensureArray(cappedSelection.candidates)
     .map((item) => scorePoolItem({ 
       item, 
       session, 
@@ -257,7 +262,7 @@ export const rankPreparedQuestionPool = ({ poolItems = [], session = {}, decisio
       || Number(b.selectionPolicy?.reservationPriority || 0) - Number(a.selectionPolicy?.reservationPriority || 0)
       || String(a.catalogQuestionId || a.questionId).localeCompare(String(b.catalogQuestionId || b.questionId))
     ));
-  ranked.rejectedCandidates = [...novelty.rejected, ...catalogRejected];
+  ranked.rejectedCandidates = [...novelty.rejected, ...catalogRejected, ...cappedSelection.rejected];
   ranked.deduplication = { dedupeIndexBuildMs, candidateNoveltyFilterMs };
   ranked.coverageReservations = reservationPlan.reservations;
   ranked.activeReservation = reservationSelection.activeReservation;

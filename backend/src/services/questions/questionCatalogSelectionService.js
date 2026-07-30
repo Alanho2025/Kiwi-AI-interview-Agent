@@ -338,6 +338,24 @@ export const restrictCandidatesToUrgentReservations = ({ candidates = [], reserv
   };
 };
 
+export const excludeCandidatesAtCoverageLimit = ({ candidates = [], reservationPlan = {} } = {}) => {
+  const reachedLimitSlots = new Set(ensureArray(reservationPlan.reservations)
+    .filter((reservation) => Number(reservation.maxAsked) > 0 && Number(reservation.askedCount) >= Number(reservation.maxAsked))
+    .map((reservation) => reservation.coverageSlot));
+  const rejected = [];
+  const eligibleCandidates = ensureArray(candidates).filter((item) => {
+    if (!item?.coverageSlot || !reachedLimitSlots.has(item.coverageSlot)) return true;
+    rejected.push({
+      questionId: item.questionId || null,
+      catalogQuestionId: item.catalogQuestionId || null,
+      reason: 'catalog_coverage_max_asked_reached',
+      coverageSlot: item.coverageSlot,
+    });
+    return false;
+  });
+  return { candidates: eligibleCandidates, rejected };
+};
+
 export const buildCatalogCoverageOutcome = ({
   poolItems = [],
   session = {},

@@ -1,8 +1,8 @@
 # QI-CP2 — Senior-Level Voice Pool Recommendation
 
-> **Status: Core implementation and CP2 policy review are approved; the `2026.1` staging catalog is activated.**
-> **Depends on: CP1 catalog contract and content approval — satisfied for `2026.1`.**
-> **Execution mode: Voice-only code path is implemented; staging Mongo contains 21 approved entries, while candidate-visible use still requires a deployed runtime containing this implementation.**
+> **Status: Core implementation and deterministic CP2 policy tests are complete.**
+> **Depends on: CP1 catalog contract — satisfied in source; actual database activation remains an external verification.**
+> **Execution mode: Voice-only code path is implemented. The loader always tries approved `2026.2`, then safely falls back to approved `2026.1`; request settings cannot pin a new session to an older catalog. A missing or unavailable catalog keeps the existing pool path.**
 
 Master authority: [Voice Question Intelligence Master Plan](../voice-question-intelligence-master-plan.md). Read Master Plan §§6.4–6.6 and this file; do not reload unrelated future checkpoints to decide a pool recommendation.
 
@@ -14,8 +14,8 @@ Make Voice question selection transparent, level-aware and coverage-driven. The 
 
 ### Confirmed baseline
 
-- The seniority blueprint now uses canonical `junior`, `intermediate`, `senior`; legacy `advanced` input is read as `senior`, while new UI/payload values use `Senior`.
-- The ranker now rejects non-approved catalog snapshots before scoring, creates an explicit reservation plan before numeric ranking, and records catalog provenance in rank trace and transcript metadata.
+- The seniority blueprint and newly persisted session settings use canonical `junior`, `intermediate`, `senior`; legacy `advanced` input is read as `senior`, while UI display remains `Senior`.
+- The ranker rejects non-approved catalog snapshots before scoring, creates an explicit reservation plan before numeric ranking, hard-rejects candidates once `maxAsked` is reached, and records catalog provenance in rank trace and transcript metadata.
 - Follow-up planning now records a follow-up-versus-next-root comparison and yields to an urgent pending coverage reservation. The comparison remains deliberately bounded and calibration is a human-checkpoint decision.
 - The current controller / prepared pool is authoritative. CP2 extends it; it does not introduce a second selection engine.
 
@@ -200,9 +200,9 @@ Automated evidence before CP2 review:
 - Voice no-hint and question-count regression tests;
 - focused performance measurement showing selection does not add unbounded hot-path work.
 
-CP2 reviewer saw the generated traces and candidate-safe previews and approved the reservation, level, coverage and follow-up policy as `heminghan`. The AI workflow prompt has Junior/Intermediate/Senior variants; legacy `Advanced` keeps the Senior behavior. This CP2 approval is bound to policy digest `36311aefcc6c503017bcaba7dd5e5bd960c0f07d395d0b5bf4ebea63a81d8116`; it does not replace the separate CP1 content-approval gate or authorize CP3/CP4 behavior.
+The source-controlled CP2 review manifest records the reservation, level, coverage and follow-up policy as reviewed by `heminghan`. The AI workflow prompt has Junior/Intermediate/Senior variants; legacy `Advanced` keeps the Senior behavior. The manifest is bound to policy digest `36311aefcc6c503017bcaba7dd5e5bd960c0f07d395d0b5bf4ebea63a81d8116`; it does not replace the separate CP1 content-approval gate or prove a human replay, database action or candidate-visible rollout.
 
-The review surfaces are the generated [executable policy matrix](reviews/cp2-voice-selection-policy-full-review.md) and compact [CP2 decision sheet](reviews/cp2-voice-selection-review.md). The policy matrix is generated through the real selector and follow-up comparator, and a byte-for-byte drift test keeps it aligned with executable output. The source-controlled policy review manifest binds the complete scenario set and SHA-256 policy digest; activation requires both CP1 and CP2 review records to be approved for `2026.1` by the same reviewer. That gate passed and all 21 staging entries were activated. Current implementation also gives every catalog family stored level variants, gates non-tech AI judgement on AI/digital evidence, distinguishes Intermediate from Senior ML coverage, applies the comparator's general `next_root` decision, and records completion-time degraded coverage in a developer trace while returning only candidate-safe counts/status.
+The review surfaces are the generated [executable policy matrix](reviews/cp2-voice-selection-policy-full-review.md) and compact [CP2 decision sheet](reviews/cp2-voice-selection-review.md). The policy matrix is generated through the real selector and follow-up comparator, and a byte-for-byte drift test keeps it aligned with executable output. The source-controlled policy review manifest binds the complete scenario set and SHA-256 policy digest; activation requires both CP1 and CP2 review records to be approved for a matching catalog version by the same reviewer. A source manifest does not prove any target Mongo entry is active; perform a read-only post-check before claiming activation. Current implementation also gives every catalog family stored level variants, gates non-tech AI judgement on AI/digital evidence, distinguishes Intermediate from Senior ML coverage, applies the comparator's general `next_root` decision, hard-enforces `maxAsked`, and records completion-time degraded coverage in a developer trace while returning only candidate-safe counts/status.
 
 ## 8. Stop conditions and rollback
 

@@ -118,6 +118,8 @@ describe('answer alignment service', () => {
       confidence: expect.stringMatching(/high|medium/),
       angleUsed: 'production delivery ownership',
     })]);
+    expect(alignments[0].clarificationCoaching).toEqual(expect.objectContaining({ groundedBy: 'accepted_answer' }));
+    expect(alignments[0].aiJudgementCoaching).toEqual(expect.objectContaining({ groundedBy: 'question_type' }));
   });
 
   it('diagnoses answers that miss the recommended evidence angle without inventing support', () => {
@@ -179,6 +181,7 @@ describe('answer alignment service', () => {
     const summary = buildRoleFitReportSummary(buildInput());
 
     expect(summary.status).toBe('ready');
+    expect(summary.schemaVersion).toBe('role_fit_report_v2');
     expect(summary.roleIntentCoverage).toMatchObject({ total: 1, covered: 1, missing: 0 });
     expect(summary.evidenceUsageMap).toMatchObject({ totalUses: 1 });
     expect(summary.roleFitDiagnostics).toMatchObject({
@@ -196,6 +199,10 @@ describe('answer alignment service', () => {
       topic: 'Production delivery reliability',
     });
     expect(JSON.stringify(summary.questionReasoning)).not.toContain('reduced failed releases by 35%');
+    expect(summary.coachingProgress).toEqual(expect.objectContaining({
+      schemaVersion: 'role_fit_coaching_progress_v1',
+      clarification: expect.objectContaining({ practised: 1 }),
+    }));
   });
 
   it('preserves the Role-Fit extension through report v7 schema validation', () => {

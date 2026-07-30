@@ -144,3 +144,15 @@ export function ReportPage() {
 ## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
 > 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
 > **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」
+
+## 8. 2026-07-30 accepted-answer coaching 同步
+
+- report coaching 仍只讀取 accepted answer；scope clarification、repair、confirmation 與 system turn 不會新增 alignment 或改分。
+- clarification coaching 的 source 只可為 accepted answer 或已保存的 scope event，避免把 ASR repair 誤寫成 candidate feedback。
+- 驗證：`clarificationCoachingEvaluatorService.test.js`、`answerAlignmentService.test.js` 通過。
+
+## 9. 2026-07-30 Legacy clarification limitation
+
+- 新 Voice clarification turn 在上游即保存為 non-answer，因此不會出現在正式逐題評分。
+- 舊 report 若存在看似 clarification、但被標成 `user_answer` 的高風險 turn，read/export projection 會顯示 `legacy_clarification_may_have_been_scored` 與 regenerate action；原始 transcript 不會被靜默改寫。
+- 驗證：candidate projection、report view-model 與 legacy fixture 通過。

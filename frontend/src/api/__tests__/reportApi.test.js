@@ -40,7 +40,7 @@ vi.mock('jspdf', () => ({
 }));
 
 describe('report PDF export', () => {
-  it('includes candidate, role, QA status, and evidence summary in the generated PDF', async () => {
+  it('includes candidate, role, and trust status while omitting raw evidence in the generated PDF', async () => {
     const { generateReportPDF } = await import('../reportApi.js');
 
     await expect(generateReportPDF({
@@ -83,13 +83,13 @@ describe('report PDF export', () => {
     expect(renderedText).toContain('TARGET ROLE');
     expect(renderedText).toContain('Frontend Developer');
     expect(renderedText).toContain('Needs review');
-    expect(renderedText).toContain('Evidence Sources');
-    expect(renderedText).toContain('Transcript answer about React testing');
+    expect(renderedText).not.toContain('Evidence Sources');
+    expect(renderedText).not.toContain('Transcript answer about React testing');
     expect(renderedText).not.toContain('NaN');
     expect(pdf.savedFilename).toBe('kiwi-ai-report-session-pdf-quality.pdf');
   });
 
-  it('prints a safe evidence fallback when optional evidence sections are missing', async () => {
+  it('does not add an empty evidence appendix when evidence sections are missing', async () => {
     const { generateReportPDF } = await import('../reportApi.js');
 
     await generateReportPDF({
@@ -108,8 +108,8 @@ describe('report PDF export', () => {
     });
 
     const renderedText = pdfMocks.instances.at(-1).textCalls.join('\n');
-    expect(renderedText).toContain('Evidence sources');
-    expect(renderedText).toContain('No evidence available');
+    expect(renderedText).not.toContain('Evidence sources');
+    expect(renderedText).not.toContain('No evidence available');
   });
 
   it('exports all scored turns rather than only the first eight', async () => {
@@ -153,7 +153,7 @@ describe('report PDF export', () => {
     expect(renderedText).toContain('could not be generated reliably');
   });
 
-  it('prints evidence claims and snippets', async () => {
+  it('does not print raw evidence claims and snippets', async () => {
     const { generateReportPDF } = await import('../reportApi.js');
 
     await generateReportPDF({
@@ -170,16 +170,18 @@ describe('report PDF export', () => {
     });
 
     const renderedText = pdfMocks.instances.at(-1).textCalls.join('\n');
-    expect(renderedText).toContain('Latency reduction');
-    expect(renderedText).toContain('latency from 12 seconds to 3 seconds');
+    expect(renderedText).not.toContain('Latency reduction');
+    expect(renderedText).not.toContain('latency from 12 seconds to 3 seconds');
   });
 
-  it('prints plain-language Role-Fit coverage and answer feedback', async () => {
+  it('omits Role-Fit noise and prints report limitations and transcript risks', async () => {
     const { generateReportPDF } = await import('../reportApi.js');
 
     await generateReportPDF({
       sessionId: 'role-fit-pdf',
       report: {
+        legacyLimitations: [{ message: 'This older report may include a scored clarification.' }],
+        transcriptRisks: [{ title: 'Low-confidence transcript', message: 'One answer may be incomplete.' }],
         roleFit: {
           status: 'ready',
           roleIntentCoverage: {
@@ -203,9 +205,13 @@ describe('report PDF export', () => {
     });
 
     const renderedText = pdfMocks.instances.at(-1).textCalls.join('\n');
-    expect(renderedText).toContain('How Your Answers Matched This Role');
-    expect(renderedText).toContain('Reliable production delivery');
-    expect(renderedText).toContain('Strong Match For This Answer');
+    expect(renderedText).toContain('Report Limitation');
+    expect(renderedText).toContain('This older report may include a scored clarification.');
+    expect(renderedText).toContain('Transcript Risks');
+    expect(renderedText).toContain('One answer may be incomplete.');
+    expect(renderedText).not.toContain('How Your Answers Matched This Role');
+    expect(renderedText).not.toContain('Reliable production delivery');
+    expect(renderedText).not.toContain('Role-Specific Coaching');
     expect(renderedText).not.toMatch(/proofPointId|coverageId|evidenceId/);
   });
 });

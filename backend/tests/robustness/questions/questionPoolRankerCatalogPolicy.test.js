@@ -70,6 +70,31 @@ describe('question pool ranker catalog policy', () => {
     }));
   });
 
+  it('hard-rejects a catalog candidate after its coverage slot reaches maxAsked', () => {
+    const ranked = rankPreparedQuestionPool({
+      poolItems: [reservedAiWorkflow],
+      session: {
+        transcript: [{
+          role: 'ai',
+          metadata: { countsAsQuestion: true, coverageSlot: 'software_ai_workflow' },
+        }],
+        currentQuestionIndex: 3,
+        questionLimit: 8,
+        settings: { seniorityLevel: 'Senior', focusArea: 'Technical' },
+        analysisResult: { parsedJdProfile: { roleFamily: 'software' } },
+      },
+      decisionContext: { interviewStructure: { focusAreaKey: 'technical' } },
+    });
+
+    expect(ranked).toHaveLength(0);
+    expect(ranked.coverageReservations).toEqual(expect.arrayContaining([
+      expect.objectContaining({ coverageSlot: 'software_ai_workflow', askedCount: 1, maxAsked: 1, status: 'covered' }),
+    ]));
+    expect(ranked.rejectedCandidates).toEqual(expect.arrayContaining([
+      expect.objectContaining({ questionId: 'catalog-ai-workflow', reason: 'catalog_coverage_max_asked_reached' }),
+    ]));
+  });
+
   it('keeps deterministic catalog ranking bounded for a large prepared pool', () => {
     const poolItems = Array.from({ length: 500 }, (_, index) => ({
       ...genericHighScore,

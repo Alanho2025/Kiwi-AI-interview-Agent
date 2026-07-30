@@ -1,148 +1,85 @@
-# Feature RFC: F-09 用戶資料保留與 GDPR/Privacy 刪除條例引擎
+# Feature RFC: F-09 用戶資料保留與到期清理
 
-> **文件狀態**：Approved  
-> **系統成熟度 (Readiness Level)**：Verified (Retention Expiry Calculation); Planned (Automated Account Erasure Pipeline)  
-> **核心模組路徑**：`backend/src/services/retention/retentionPolicy.js`
-> **Git 演進 Commit 追蹤**：`PR #110`, Commit `df871ba`  
-> **主要負責人 / 日期**：Kiwi AI Team / 2026-07-29    
-> **實作狀態 (Implementation Status)**：Partial / Onboarding Mapping
-
----
+> **文件狀態**：Updated
+> **系統成熟度 (Readiness Level)**：Partial — Saved JD 的讀取隔離與 schema TTL 已有本地測試；部署後 index 建立及實際 MongoDB 到期刪除仍須驗證。
+> **核心模組路徑**：`backend/src/services/retention/retentionPolicy.js`、`backend/src/services/company/companyValuesRepository.js`、`backend/src/db/models/companyValuesProfileModel.js`
+> **實作狀態 (Implementation Status)**：Partial
+> **校驗測試路徑 (Verified by Tests)**：`backend/tests/robustness/jd/roleFitReviewRepositoryRobustness.test.js`、`backend/tests/robustness/retention/retentionModelIndexes.test.js`
 
 ---
 
-## 1. 演進軌跡與背景動機 (Genesis & Evolution Trace)
+## 1. 現行行為與問題背景
 
-### 1.1 零基礎生活白話比喻 (Layman Analogy for Beginners)
-> 💡 **小白導讀**：
-> 想像你去銀行開戶後又申請銷戶（刪除帳號）。
-> * **傳統做法**：銀行口頭答應，但後台系統裡依然默默留著你的身分證影本、交易明細，違背「被忘記的權利 (Right to be Forgotten)」。
-> * **跨庫級聯抹除 (本 Feature)**：就像銀行按下銷戶鈕的瞬間，中央協調員（`retentionService`）發起指令，讓保險櫃 A (PostgreSQL) 銷毀身分資料、檔案庫 B (Local Disk) 銷毀上傳的 PDF 履歷、檔案庫 C (MongoDB) 刪除所有的對話與評分文檔，確保你在全系統中被乾淨抹除！
+本功能目前可證明的是「Saved JD / CompanyValuesProfile 的七天保留規則」，不是帳號刪除或跨資料庫的合規保證。`DEFAULT_RETENTION_DAYS` 與 `RETENTION_DAYS` 都是 7；寫入或更新 profile 時會更新 `retentionUntil`，而 Mongo schema 以 `updatedAt` 設定 604800 秒 TTL。
 
-### 1.2 基於 Git 歷史的從 0 到 1 演進歷程
-* **初始最簡版本 (Baseline v0 - Commit `df871ba` 早期)**：
-  - 資料永久留存於資料庫，無自動清理機制。
-* **遭遇的痛點與瓶頸 (Pain Points & Bottlenecks)**：
-  - 違背 GDPR / Privacy Act 對於「資料過期擦除 (Right to be Forgotten)」的要求，且 DB 空間無限膨脹。
-* **現行架構 (Current Version - PR #110 `df871ba`)**：
-  - `retentionService.js` 結合 Postgres `retention_policies` 表，提供 90 天過期排程掃描與用戶主動申請「Delete Account」時的跨庫級聯刪除 (Cascade Delete)。
+先前 Saved JD 列表只以 `userId` 查詢，因此即使資料已超過七天，MongoDB 尚未清除前仍會被 UI 顯示。舊資料也可能沒有 `retentionUntil`，所以只依賴該欄位不能覆蓋歷史資料。現行修正採用所有 timestamp schema 都有的 `updatedAt`：讀取時立即隱藏到期資料；MongoDB TTL 則在已部署 index 後負責後續物理刪除。
 
----
+## 2. 邊界與成功標準
 
----
+| 項目 | 現在的行為 | 證據或驗證 |
+| --- | --- | --- |
+| Saved JD 顯示 | 只回傳同一 owner、`deletedAt: null` 且 `updatedAt` 在七天 cutoff 之後的 profile | repository robustness test |
+| Saved JD 實體到期 | `CompanyValuesProfile` 宣告 `updatedAt` 的 604800 秒 TTL index | retention model index test |
+| 新／舊資料一致性 | TTL 使用 `updatedAt`，不依賴舊資料是否有 `retentionUntil` | schema 與 policy source inspection |
+| 手動跨 store cleanup | 保留 audit manifest、dry-run、backup 與 matching approval token 的既有流程 | 不由此功能繞過 |
 
-## 2. 邊界與成功標準 (Scope & Success Criteria)
+不在本 RFC 宣稱的範圍：帳號級聯刪除、備份資料刪除、加密保證、法律或 GDPR/Privacy Act 合規認證。`RETENTION_WORKER_ENABLED` 的預設值仍是 `false`；這個 worker 與手動 cleanup 的安全流程沒有被改成自動刪除開關。
 
-### 2.1 涵蓋與非涵蓋範圍 (Scope Boundaries)
-* **In-Scope (包含範圍)**：
-  - 90 天過期資料排程擦除、用戶主動申請「Delete Account」時的跨庫級聯刪除 (Postgres + Mongo + Disk)。
-* **Out-of-Scope (排除範圍)**：
-  - 審計日誌 (`audit_logs`) 中的匿名化操作痕跡不擦除（法律審計保留）。
+## 3. Saved JD 的資料流
 
-### 2.2 成功標準與量化 KPIs (Acceptance Criteria & Metrics)
-| 衡量指標 (Metric) | 目標值 (Target) | 驗證方式 / 自動化測試路徑 |
-| :--- | :--- | :--- |
-| **帳號抹除完成時間** | `< 3 秒` | `backend/tests/services/retention.test.js` |
+1. 使用者在 JD 頁打開已儲存的職缺；frontend `AnalyzePage` 經 `getSavedJDs()` 呼叫 `GET /job-description/saved`。
+2. controller 透過 `getCompanyValuesProfilesByUserId(user.id)` 讀取 profile。
+3. repository 以 owner、未軟刪除與 `updatedAt > buildRetentionCutoff(now)` 組成 Mongo query；過期項目在 API 回應前就被排除。
+4. `CompanyValuesProfileSchema` 對 `updatedAt` 宣告七天 TTL。部署後 MongoDB 會依此 index 進行到期刪除；TTL 的實際掃描時間不應被 UI 當成即時保證，因為讀取層已先隔離到期資料。
 
----
+## 4. 關鍵原始碼
 
----
+Saved JD repository 的共用讀取條件如下，來源為 [`companyValuesRepository.js`](../../../backend/src/services/company/companyValuesRepository.js)：
 
-## 3. 架構與系統流向 (Architecture & Flow)
-
-### 3.1 系統資料流與狀態轉移圖 (Data Flow & State Machine Diagram)
-```mermaid
-sequenceDiagram
-    autonumber
-    actor User as 用戶
-    participant Service as retentionService.js
-    participant PG as Postgres (users, uploaded_files)
-    participant Mongo as Mongo (SessionTranscript)
-    participant FS as Local File System
-
-    User->>Service: 發起 Delete My Account 請求
-    Service->>PG: DELETE FROM users WHERE id = $1
-    Service->>PG: DELETE FROM uploaded_files WHERE user_id = $1
-    Service->>Mongo: SessionTranscript.deleteMany({ userId })
-    Service->>FS: 刪除 /uploads/<userId>/ 所有實體檔案
-    Service-->>User: 傳回 200 OK (帳號與所有資料完全抹除完成)
-```
-
-### 3.2 流程文字逐步拆解導覽 (Step-by-Step Narrative Walkthrough for Beginners)
-1. **第一步（發起刪除）**：用戶在設定頁面點擊「刪除我的帳號」，發送請求給 `retentionService.js`。
-2. **第二步（Postgres 關聯刪除）**：Service 發起 Postgres SQL，刪除 `users` 表紀錄與 `uploaded_files` 表的檔案元數據。
-3. **第三步（MongoDB 文件抹除）**：調用 Mongoose 刪除 MongoDB 中 `SessionTranscript` 集合裡屬於該用戶的所有對話文檔。
-4. **第四步（磁碟檔案清理）**：刪除本地硬碟 `/uploads/` 目錄下該用戶的所有 PDF/Word 實體檔案。
-
----
-
----
-
-## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
-
-### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
-* **現行程式碼位置**：[`backend/src/services/retention/retentionPolicy.js:L1-L5`](../../backend/src/services/retention/retentionPolicy.js#L1-L5)
-
-#### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
-export const buildRetentionExpiry = (days = 30) => {
-  const expiry = new Date();
-  expiry.setDate(expiry.getDate() + days);
-  return expiry;
-};
+const buildActiveCompanyValuesProfileFilter = (filter, now) => ({
+  ...filter,
+  deletedAt: null,
+  updatedAt: { $gt: buildRetentionCutoff(now) },
+});
 ```
 
-#### 【逐行白話文解讀 (Line-by-Line Explanation for Beginners)】
-* **關鍵說明**：buildRetentionExpiry 根據合規天數計算資料物理過期保留時間點。
+`getCompanyValuesProfilesByUserId`、`getCompanyValuesProfile` 與 `getCompanyValuesProfileByFingerprint` 都使用這個條件，因此 saved list 和後續依 session/fingerprint 取用不會重新帶出超期 JD。
 
-#### 替代寫法 A (Naive Pattern A)
+model 採用既有的 runtime TTL helper，來源為 [`companyValuesProfileModel.js`](../../../backend/src/db/models/companyValuesProfileModel.js)：
+
 ```javascript
-// 替代寫法：未做邊界防禦與異常處理的原始實現
+CompanyValuesProfileSchema.index({ userId: 1, jdFingerprint: 1 }, { unique: true });
+CompanyValuesProfileSchema.index({ sessionId: 1 }, { sparse: true });
+applyRuntimeRetentionIndex(CompanyValuesProfileSchema);
 ```
 
-#### 微觀工程對比矩陣 (Micro Trade-off Analysis)
-| 對比維度 | 現行寫法 (Ground-Truth Code) | 替代寫法 A (Naive) |
-| :--- | :--- | :--- |
-| **防禦性** | **高** (經單元測試與 Subagent 驗證) | 弱 |
-| **可讀性** | **高** (結構清晰、符合 Clean Code 規範) | 差 |
+helper 由 [`runtimeRetentionIndex.js`](../../../backend/src/db/runtimeRetentionIndex.js) 以 `RETENTION_DAYS * 24 * 60 * 60` 建立 `{ updatedAt: 1 }` TTL index。保留 cutoff 的計算則在 [`retentionPolicy.js`](../../../backend/src/services/retention/retentionPolicy.js)；手動 cleanup 的 approval gate 仍在 [`runRetentionCleanup.js`](../../../backend/src/scripts/runRetentionCleanup.js)。
 
----
+## 5. 失敗模式與處理方式
 
----
+| 情境 | 表現 | 處理 |
+| --- | --- | --- |
+| 過期 JD 尚未被 Mongo TTL monitor 實體移除 | 列表與 repository 讀取已排除，不應再次在產品流程使用 | 確認部署的 collection 已建立 TTL index；不要以 UI 日期判斷 index 是否存在 |
+| 舊資料沒有 `retentionUntil` | 不再使 TTL 失效，因為依 `updatedAt` 判定 | 不需對既有資料做手動 backfill |
+| 需要刪除其他 store 的資料 | 不能跳過 manifest、dry-run、backup 或 approval token | 使用既有 retention audit/cleanup 流程並由操作人批准 |
+| MongoDB 未連線或未完成 index 建立 | 無法聲稱已物理清除任何 live 資料 | 以部署後 index 檢查與實際資料觀察驗證 |
 
-## 5. 爆炸半徑與失敗矩陣 (Blast Radius & Failure Matrix)
+## 6. 驗證與部署檢查
 
-### 5.1 影響範圍 (Blast Radius)
-* **下游受影響模組**：所有用戶關聯 Table 與 Collection。
+本地 deterministic 驗證：
 
-### 5.2 失敗路徑與降級機制 (Failure Modes & Fallbacks)
-| 失敗場景 (Failure Scenario) | 系統表現 (Behavior) | 降級 / 修復策略 (Fallback) |
-| :--- | :--- | :--- |
-| **Mongo 刪除時網路中斷** | 拋出 Exception | 事務 Rollback 並發送警告日誌 |
+```bash
+cd backend
+NODE_ENV=test AI_TEST_MODE=mock ./node_modules/.bin/vitest run \
+  tests/robustness/jd/roleFitReviewRepositoryRobustness.test.js \
+  tests/robustness/retention/retentionModelIndexes.test.js
+```
 
----
+部署後需要由真人確認 MongoDB 的 `companyvaluesprofiles` collection 已有 `ttl_runtime_updated_at`，且到期 profile 在 TTL monitor 執行後被移除。這是外部資料庫狀態，未以本地單元測試宣稱為已完成。
 
----
+## 7. 面試問答口述講稿
 
-## 6. 運維與回滾步驟 (Incident Response & Rollback Runbook)
-
-### 6.1 除錯起點 (Debugging)
-* 查看日誌 `[DATA_RETENTION_ERASURE]`。
-
-### 6.2 緊急回滾流程 (Rollback SOP)
-1. 從每日冷備份 DB Dump 恢復。
-
----
-
----
-
-## 7. 轉碼新人面試實戰對攻劇本 (Career-Switcher Interview Q&A Defense Script)
-
-#
-
-
----
-
-## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
-> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
-> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」
+> **問題**：為什麼同時做讀取過濾與 TTL？
+>
+> **回答**：TTL 是資料庫層的最終實體清理，但其掃描不是畫面即時更新機制。repository 先以同一個七天 cutoff 排除到期資料，使用者不會在 TTL 尚未掃描的窗口看到舊 JD；TTL 再處理實體資料。這也避免舊資料缺少 `retentionUntil` 時被保留規則漏掉。

@@ -33,6 +33,9 @@ describe('interview question diagnostics visibility', () => {
             questionDecision: {
               preparedQuestionId: 'pool-1',
               parentQuestionId: null,
+              selectionSource: 'prepared_question_pool',
+              matchGapId: 'gap-react',
+              rankTrace: { selectionReason: 'ranked_within_eligible_slot' },
               rejectedCandidates: [{ questionId: 'duplicate-1', reason: 'duplicate_fingerprint' }],
             },
           },
@@ -61,7 +64,18 @@ describe('interview question diagnostics visibility', () => {
         ],
       },
       poolItems: [
-        { questionId: 'pool-1', assessmentKey: 'root:react:role_specific', questionFingerprint: 'react evidence', questionRole: 'root_question', status: 'active', sourceStage: 'match_gap', sourceType: 'match_gap' },
+        {
+          questionId: 'pool-1',
+          assessmentKey: 'root:react:role_specific',
+          questionFingerprint: 'react evidence',
+          questionRole: 'root_question',
+          status: 'active',
+          sourceStage: 'match_gap',
+          sourceType: 'match_gap',
+          matchGapId: 'gap-react',
+          topic: 'React delivery',
+          rankTrace: { selectionReason: 'ranked_within_eligible_slot' },
+        },
         { questionId: 'pool-2', assessmentKey: 'root:teamwork:behavioural', questionFingerprint: 'teamwork example', questionRole: 'fallback_root', status: 'active', sourceStage: 'fallback' },
         { questionId: 'pool-3', questionRole: 'wrap_up', status: 'active', stage: 'wrap_up' },
         { questionId: 'pool-4', assessmentKey: 'root:react:role_specific', questionFingerprint: 'different react wording', status: 'asked', sourceStage: 'cv_seed' },
@@ -99,6 +113,9 @@ describe('interview question diagnostics visibility', () => {
       latestTurnKind: 'root_question',
       latestScenario: 'root_match_gap',
       latestPreparedQuestionId: 'pool-1',
+      latestSelectionSource: 'prepared_question_pool',
+      latestSelectionReason: 'ranked_within_eligible_slot',
+      latestMatchGapId: 'gap-react',
       sessionMemoryLoaded: true,
       sessionMemoryTopicHistoryCount: 1,
       sessionMemoryEvidenceGapCount: 1,
@@ -128,6 +145,11 @@ describe('interview question diagnostics visibility', () => {
       degradedReason: null,
     }));
     expect(diagnostics.jdFilterDecisionCounts).toEqual({ boost: 1, adapt: 1, keep: 1 });
+    expect(diagnostics.matchGapSamples).toEqual([expect.objectContaining({
+      matchGapId: 'gap-react',
+      topic: 'React delivery',
+      selectionReason: 'ranked_within_eligible_slot',
+    })]);
     expect(diagnostics.jdPrioritySummary.priorityTechnicalSkills).toEqual(['React', 'testing']);
     expect(JSON.stringify(diagnostics)).not.toContain('Raw seed question should not appear');
     expect(JSON.stringify(diagnostics)).not.toContain('Raw CV summary should not appear');

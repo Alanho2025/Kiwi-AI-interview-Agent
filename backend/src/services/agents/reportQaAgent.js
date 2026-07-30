@@ -24,6 +24,8 @@ export const BLOCKING_REPORT_FLAGS = new Set([
   'unacknowledged_transcript_conflict',
   'role_intent_reference_missing',
   'answer_alignment_without_proof_point',
+  'answer_alignment_proof_point_unknown',
+  'role_intent_coverage_unknown',
   'alignment_claim_not_grounded',
   'answer_alignment_score_out_of_range',
   'answer_alignment_missing_v2_dimensions',
@@ -32,6 +34,12 @@ export const BLOCKING_REPORT_FLAGS = new Set([
   'evidence_id_not_found',
   'must_cover_intent_unreported',
   'role_fit_artifact_not_owned',
+  'answer_alignment_missing_coaching',
+  'coaching_source_missing',
+  'coaching_status_invalid',
+  'coaching_internal_metadata_leak',
+  'coaching_score_mutation',
+  'coaching_progress_invalid',
 ]);
 
 const normalizeComparableText = (value = '') => String(value)
@@ -48,6 +56,18 @@ const REQUIRED_ANSWER_ALIGNMENT_V2_DIMENSIONS = [
   'naturalness',
   'concision',
 ];
+const CLARIFICATION_COACHING_STATUSES = new Set(['scope_confirmed', 'explicit_assumption', 'degraded_rephrase', 'no_assumption_stated', 'none']);
+const AI_JUDGEMENT_COACHING_STATUSES = new Set(['not_ai_question', 'ai_workflow_verified', 'ai_tools_named_only', 'ai_workflow_unspecified']);
+const COACHING_GROUNDING_SOURCES = new Set([
+  'accepted_answer',
+  'scope_confirmation_event',
+  'scope_rephrase_event',
+  'question_scope_and_accepted_answer',
+  'question_type',
+  'question_type_and_accepted_answer',
+]);
+const INTERNAL_COACHING_TERMS = /\b(?:catalog(?:question)?id|catalogversion|ranktrace|coverage(?:slot|id)?|preparedquestionid|ambiguitymode|rawreasoning|chainofthought|proofpointid|roleintentid|questionid|claimid|sourceid|chunkid|expectedsignals?|alternativesconsidered|(?:cv|jd|evidence|proof|coverage|intent|claim|source|chunk)[_-][a-z0-9_-]*\d+)\b/i;
+const COACHING_HYPOTHESIS_CODES = new Set(['missing_validation', 'abstract_example', 'missing_result', 'scope_not_stated', 'answer_interrupted']);
 
 const scoreCoverage = (report = {}) => {
   const sections = Array.isArray(report.sections) ? report.sections.length : 0;
@@ -86,6 +106,9 @@ const getRoleFitIntegrity = (report = {}) => {
     (alignment.testedRoleIntentIds || []).some((id) => !knownRoleIntentIds.has(id))
   ));
   const alignmentWithoutProofPoint = alignments.some((alignment) => !alignment.proofPointId);
+  const unknownProofPoint = alignments.some((alignment) => (
+    Boolean(alignment.proofPointId) && !requiredCoverageIds.has(alignment.proofPointId)
+  ));
   const ungroundedAlignment = alignments.some((alignment) => (
     alignment.groundingStatus === 'blocked'
     || (alignment.label === 'strong' && !(alignment.detectedEvidenceUsed || []).length)
@@ -105,10 +128,45 @@ const getRoleFitIntegrity = (report = {}) => {
     (alignment.detectedEvidenceUsed || []).some((evidence) => !knownEvidenceIds.has(evidence.evidenceId))
   ));
   const unreportedMustCover = [...requiredCoverageIds].some((coverageId) => !reportedCoverageIds.has(coverageId));
+  const unknownReportedCoverage = [...reportedCoverageIds].some((coverageId) => !requiredCoverageIds.has(coverageId));
   const ownershipInvalid = roleFit.ownership?.verified !== true;
+  const requiresCoachingIntegrity = roleFit.schemaVersion === 'role_fit_report_v2';
+  const coachingMissing = requiresCoachingIntegrity && alignments.some((alignment) => (
+    !alignment.clarificationCoaching || !alignment.aiJudgementCoaching
+  ));
+  const coachingSourceMissing = requiresCoachingIntegrity && alignments.some((alignment) => (
+    !COACHING_GROUNDING_SOURCES.has(alignment.clarificationCoaching?.groundedBy)
+    || !COACHING_GROUNDING_SOURCES.has(alignment.aiJudgementCoaching?.groundedBy)
+  ));
+  const coachingStatusInvalid = requiresCoachingIntegrity && alignments.some((alignment) => (
+    !CLARIFICATION_COACHING_STATUSES.has(alignment.clarificationCoaching?.clarificationStatus)
+    || !AI_JUDGEMENT_COACHING_STATUSES.has(alignment.aiJudgementCoaching?.aiJudgementStatus)
+  ));
+  const coachingInternalMetadataLeak = requiresCoachingIntegrity && alignments.some((alignment) => (
+    INTERNAL_COACHING_TERMS.test(JSON.stringify({
+      clarificationCoaching: alignment.clarificationCoaching,
+      aiJudgementCoaching: alignment.aiJudgementCoaching,
+    }))
+  ));
+  const coachingScoreMutation = requiresCoachingIntegrity && alignments.some((alignment) => (
+    ['score', 'scoreDelta', 'scoreAdjustment'].some((key) => (
+      Object.hasOwn(alignment.clarificationCoaching || {}, key)
+      || Object.hasOwn(alignment.aiJudgementCoaching || {}, key)
+    ))
+  ));
+  const progress = roleFit.coachingProgress || {};
+  const coachingProgressInvalid = requiresCoachingIntegrity && (
+    progress.schemaVersion !== 'role_fit_coaching_progress_v1'
+    || !Number.isFinite(Number(progress.clarification?.practised))
+    || !Number.isFinite(Number(progress.aiJudgement?.assessed))
+    || !(progress.coachingHypotheses || []).every((item) => (
+      COACHING_HYPOTHESIS_CODES.has(item?.code) && item?.groundedBy === 'accepted_answers'
+    ))
+  );
   const checks = [
     ['role_fit_role_intents_known', !missingRoleIntentReference, 'role_intent_reference_missing'],
     ['answer_alignments_have_proof_points', !alignmentWithoutProofPoint, 'answer_alignment_without_proof_point'],
+    ['answer_alignment_proof_points_are_known', !unknownProofPoint, 'answer_alignment_proof_point_unknown'],
     ['answer_alignment_claims_grounded', !ungroundedAlignment, 'alignment_claim_not_grounded'],
     ['answer_alignment_scores_in_range', !scoreOutOfRange, 'answer_alignment_score_out_of_range'],
     ['answer_alignment_v2_dimensions_present', !missingV2Dimensions, 'answer_alignment_missing_v2_dimensions'],
@@ -116,7 +174,14 @@ const getRoleFitIntegrity = (report = {}) => {
     ['company_claims_reviewed', !unreviewedCompanyClaim, 'company_claim_not_in_reviewed_profile'],
     ['answer_alignment_evidence_ids_known', !unknownEvidenceId, 'evidence_id_not_found'],
     ['must_cover_intents_reported', !unreportedMustCover, 'must_cover_intent_unreported'],
+    ['reported_role_intent_coverage_is_known', !unknownReportedCoverage, 'role_intent_coverage_unknown'],
     ['role_fit_artifacts_owned', !ownershipInvalid, 'role_fit_artifact_not_owned'],
+    ['answer_alignments_include_candidate_safe_coaching', !coachingMissing, 'answer_alignment_missing_coaching'],
+    ['coaching_claims_have_allowed_sources', !coachingSourceMissing, 'coaching_source_missing'],
+    ['coaching_statuses_are_valid', !coachingStatusInvalid, 'coaching_status_invalid'],
+    ['coaching_does_not_leak_internal_metadata', !coachingInternalMetadataLeak, 'coaching_internal_metadata_leak'],
+    ['coaching_does_not_mutate_scores', !coachingScoreMutation, 'coaching_score_mutation'],
+    ['coaching_progress_is_conservative_and_grounded', !coachingProgressInvalid, 'coaching_progress_invalid'],
   ];
   return {
     flags: checks.filter(([, passed]) => !passed).map(([, , flag]) => flag),

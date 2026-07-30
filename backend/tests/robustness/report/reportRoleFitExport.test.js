@@ -2,13 +2,15 @@ import { describe, expect, it } from 'vitest';
 
 import { formatReportAsText } from '../../../src/controllers/reportController.js';
 
-describe('Role-Fit report text export', () => {
-  it('exports role focus coverage and answer alignment in plain English', () => {
+describe('candidate report text export', () => {
+  it('omits role-fit noise and preserves report limitations and transcript risks', () => {
     const text = formatReportAsText({
       sessionId: 'session-role-fit-export',
       latestStatus: 'ready',
       report: {
         schemaVersion: 'v7',
+        legacyLimitations: [{ message: 'This older report may include a scored clarification.' }],
+        transcriptRisks: [{ message: 'One transcript segment had low confidence.' }],
         roleFit: {
           status: 'ready',
           roleIntentCoverage: {
@@ -27,16 +29,45 @@ describe('Role-Fit report text export', () => {
             label: 'strong',
             score: 88,
             diagnosis: { mainIssue: 'The answer used clear ownership and a measurable result.' },
+            clarificationCoaching: { coachingFeedback: 'The scope was stated clearly.', actionableTip: 'Name the assumptions first.' },
+            aiJudgementCoaching: { coachingFeedback: 'The verification step was concrete.', actionableTip: 'Keep ownership explicit.' },
           }],
         },
       },
       qaResult: {},
     });
 
-    expect(text).toContain('HOW YOUR ANSWERS MATCHED THIS ROLE');
-    expect(text).toContain('1 of 1 focus areas clearly demonstrated');
-    expect(text).toContain('Reliable production delivery: Clearly demonstrated');
-    expect(text).toContain('Strong match for this answer (88/100)');
+    expect(text).toContain('REPORT LIMITATION');
+    expect(text).toContain('This older report may include a scored clarification.');
+    expect(text).toContain('TRANSCRIPT RISKS');
+    expect(text).toContain('One transcript segment had low confidence.');
+    expect(text).not.toContain('HOW YOUR ANSWERS MATCHED THIS ROLE');
+    expect(text).not.toContain('Reliable production delivery');
+    expect(text).not.toContain('Role-specific coaching was unavailable');
     expect(text).not.toMatch(/proofPointId|coverageId|evidenceId/);
+  });
+
+  it('omits developer diagnostics, cost, evidence dumps, and QA controls', () => {
+    const text = formatReportAsText({
+      sessionId: 'session-candidate-export',
+      latestStatus: 'ready',
+      executionCost: { totalCost: 1.2 },
+      commercialStressTest: { totalLlmTokens: 4444 },
+      report: {
+        summary: 'Candidate-safe summary.',
+        scores: { overall: 70, cvJdMatch: 75, interviewPerformance: 65 },
+        evidenceDiagnostics: { averageStrength: 2 },
+        interviewMetrics: { candidateTurnCount: 4 },
+        evidenceReferences: [{ evidenceSnippet: 'candidate@example.com' }],
+      },
+      qaResult: {
+        coverageScore: 80,
+        qualityFlags: ['private_flag'],
+      },
+    });
+
+    expect(text).toContain('Candidate-safe summary.');
+    expect(text).not.toMatch(/COMMERCIAL STRESS TEST|LLM Tokens|EVIDENCE DIAGNOSTICS|INTERVIEW METRICS|QUALITY ASSURANCE/i);
+    expect(text).not.toMatch(/candidate@example\\.com|private_flag|4444/);
   });
 });

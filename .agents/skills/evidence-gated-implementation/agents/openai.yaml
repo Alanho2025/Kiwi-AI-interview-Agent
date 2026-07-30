@@ -1,0 +1,4 @@
+interface:
+  display_name: "Evidence-Gated Implementation"
+  short_description: "Implement plans with bounded evidence checks"
+  default_prompt: "Use $evidence-gated-implementation to implement this plan with a requirement matrix, targeted negative tests, one final full validation, and one independent QA bundle."

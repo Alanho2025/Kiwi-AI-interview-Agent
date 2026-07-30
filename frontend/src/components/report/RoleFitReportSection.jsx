@@ -1,5 +1,7 @@
 import { AlertCircle, CheckCircle2, Lightbulb, Target } from 'lucide-react';
 
+import { RoleFitCoachingInsights } from './RoleFitCoachingInsights.jsx';
+
 const STATUS_LABELS = {
   covered: 'Clearly demonstrated',
   partial: 'Partly demonstrated',
@@ -121,6 +123,11 @@ export function RoleFitReportSection({ roleFit = {} }) {
                     {alignment.betterAnswerPlan.direction}
                   </p>
                 ) : null}
+                <RoleFitCoachingInsights
+                  clarificationCoaching={alignment.clarificationCoaching}
+                  aiJudgementCoaching={alignment.aiJudgementCoaching}
+                  coachingProgress={index === 0 ? roleFit.coachingProgress : {}}
+                />
               </article>
             ))}
           </div>

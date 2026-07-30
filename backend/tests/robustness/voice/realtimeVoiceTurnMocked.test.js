@@ -286,6 +286,118 @@ describe('mocked realtime voice turn', () => {
     expect(mocks.runTask).toHaveBeenCalled();
   });
 
+  it('persists a general comprehension clarification as a non-answer even when ambiguity mode is none', async () => {
+    const session = scopeEligibleSession();
+    session.transcript[0].metadata.ambiguityMode = 'none';
+    mocks.runTask.mockResolvedValue({
+      displayText: 'Of course. In simpler terms: How do you use AI?',
+      nextQuestion: 'Of course. In simpler terms: How do you use AI?',
+      nextQuestionOrder: 2,
+      isComplete: false,
+    });
+
+    await processRealtimeVoiceTurn({
+      session,
+      userId: 'user-1',
+      transcriptText: 'Can you clarify and clear describe what are you asking? Because I think you mentioned quite long sentences and I cannot really follow.',
+      asrConfidence: 0.9,
+      vad: validVad,
+      inputMode: 'realtime_voice',
+    });
+    await flushBackgroundJobs();
+
+    expect(mocks.appendTranscriptTurn).toHaveBeenCalledWith(
+      'voice-session-1',
+      expect.objectContaining({
+        role: 'user',
+        metadata: expect.objectContaining({
+          turnType: 'question_scope_clarification_request',
+          countsAsQuestion: false,
+          countsAsAnswer: false,
+          rootQuestionId: 'question-1',
+          clarificationIntent: 'did_not_understand',
+        }),
+      }),
+    );
+    expect(mocks.saveInterviewAnswerWithDetails).not.toHaveBeenCalled();
+    expect(mocks.runTask).toHaveBeenCalledWith(expect.objectContaining({
+      taskType: 'interview_next_turn',
+      payload: expect.objectContaining({
+        answer: expect.stringContaining('Can you clarify'),
+      }),
+    }));
+  });
+
+  it('fails closed as a non-answer when a clarification arrives without an active root question', async () => {
+    const session = { ...baseSession(), transcript: [] };
+    mocks.getLatestQuestionForSession.mockResolvedValue(null);
+    mocks.runTask.mockResolvedValue({
+      displayText: 'I cannot safely recover the active question, so I will not score that response.',
+      nextQuestion: 'I cannot safely recover the active question, so I will not score that response.',
+      nextQuestionOrder: 2,
+      isComplete: false,
+    });
+
+    await processRealtimeVoiceTurn({
+      session,
+      userId: 'user-1',
+      transcriptText: 'Could you repeat the question?',
+      asrConfidence: 0.9,
+      vad: validVad,
+      inputMode: 'realtime_voice',
+    });
+
+    expect(mocks.appendTranscriptTurn).toHaveBeenCalledWith(
+      'voice-session-1',
+      expect.objectContaining({
+        role: 'user',
+        metadata: expect.objectContaining({
+          turnType: 'question_scope_clarification_request',
+          countsAsQuestion: false,
+          countsAsAnswer: false,
+          scopeResponseReason: 'active_root_question_unavailable',
+          rootQuestionId: null,
+        }),
+      }),
+    );
+    expect(mocks.saveInterviewAnswerWithDetails).not.toHaveBeenCalled();
+  });
+
+  it('fails closed as a non-answer for substantive speech when the active root is unavailable', async () => {
+    const session = { ...baseSession(), transcript: [] };
+    mocks.getLatestQuestionForSession.mockResolvedValue(null);
+    mocks.runTask.mockResolvedValue({
+      displayText: 'I cannot safely recover the active question, so I will not score that response.',
+      nextQuestion: 'I cannot safely recover the active question, so I will not score that response.',
+      nextQuestionOrder: 2,
+      isComplete: false,
+    });
+
+    await processRealtimeVoiceTurn({
+      session,
+      userId: 'user-1',
+      transcriptText: 'I built the service and reduced latency by 40 percent.',
+      asrConfidence: 0.9,
+      vad: validVad,
+      inputMode: 'realtime_voice',
+    });
+
+    expect(mocks.appendTranscriptTurn).toHaveBeenCalledWith(
+      'voice-session-1',
+      expect.objectContaining({
+        role: 'user',
+        metadata: expect.objectContaining({
+          turnType: 'question_scope_clarification_request',
+          countsAsQuestion: false,
+          countsAsAnswer: false,
+          scopeResponseReason: 'active_root_question_unavailable',
+          rootQuestionId: null,
+        }),
+      }),
+    );
+    expect(mocks.saveInterviewAnswerWithDetails).not.toHaveBeenCalled();
+  });
+
   it('uses streaming callback and archives full assistant audio in background', async () => {
     const onSentence = vi.fn();
     mocks.runTask.mockImplementation(async ({ onSentence: stream }) => {

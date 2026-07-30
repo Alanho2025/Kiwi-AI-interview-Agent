@@ -315,7 +315,10 @@ export const runInterviewerAgent = async ({
   try {
     const llmStartedAt = Date.now();
     microPlan = await runBoundedQuestionMicroPlanning({
-      planningFrame: turnPlan.planningFrame,
+      planningFrame: {
+        ...turnPlan.planningFrame,
+        deliveryMode: session?.mode || session?.settings?.deliveryMode || 'text',
+      },
       fallbackQuestion: selectedQuestion.fallbackText || selectedQuestion.text,
       focusArea,
     });

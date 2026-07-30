@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { formatReportAsText } from '../reportHelpers.js';
 
 describe('report export text formatting', () => {
-  it('renders object-shaped recommendations and QA notes without object placeholders', () => {
+  it('renders candidate recommendations while omitting developer QA details', () => {
     const text = formatReportAsText({
       sessionId: 'session-report-export',
       latestStatus: 'needs_review',
@@ -33,16 +33,18 @@ describe('report export text formatting', () => {
     expect(text).toContain('Overall Score: Not available');
     expect(text).toContain('Add measurable outcomes');
     expect(text).toContain('Report Status: needs_review');
-    expect(text).toContain('Coverage Score: 61/100');
-    expect(text).toContain('insufficient_evidence');
+    expect(text).not.toContain('Coverage Score: 61/100');
+    expect(text).not.toContain('insufficient_evidence');
     expect(text).not.toContain('[object Object]');
     expect(text).not.toContain('NaN');
   });
 
-  it('includes role focus and answer alignment without internal IDs', () => {
+  it('omits role-fit noise and includes candidate-facing limitations', () => {
     const text = formatReportAsText({
       sessionId: 'session-role-fit-export',
       report: {
+        legacyLimitations: [{ message: 'This older report may include a scored clarification.' }],
+        transcriptRisks: [{ message: 'One transcript segment had low confidence.' }],
         roleFit: {
           status: 'ready',
           roleIntentCoverage: {
@@ -55,15 +57,20 @@ describe('report export text formatting', () => {
             label: 'strong',
             score: 88,
             diagnosis: { mainIssue: 'Clear ownership and result.' },
+            clarificationCoaching: { coachingFeedback: 'You stated a clear assumption.', actionableTip: 'Name the scope.' },
+            aiJudgementCoaching: { coachingFeedback: 'You explained your verification.', actionableTip: 'Keep the check concrete.' },
           }],
         },
       },
       qaResult: {},
     });
 
-    expect(text).toContain('HOW YOUR ANSWERS MATCHED THIS ROLE');
-    expect(text).toContain('Reliable production delivery: Clearly demonstrated');
-    expect(text).toContain('Strong match for this answer (88/100)');
+    expect(text).toContain('REPORT LIMITATION');
+    expect(text).toContain('This older report may include a scored clarification.');
+    expect(text).toContain('TRANSCRIPT RISKS');
+    expect(text).toContain('One transcript segment had low confidence.');
+    expect(text).not.toContain('HOW YOUR ANSWERS MATCHED THIS ROLE');
+    expect(text).not.toContain('Reliable production delivery');
     expect(text).not.toMatch(/proofPointId|coverageId|evidenceId/);
   });
 });

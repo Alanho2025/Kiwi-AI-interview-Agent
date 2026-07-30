@@ -140,3 +140,22 @@ export const isClarificationRequested = (text = '') => {
 ## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
 > 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
 > **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」
+
+## 8. 2026-07-30 CP3 題庫啟用邊界同步
+
+- scope resolver/controller 只取用 prepared snapshot 的 versioned context；題庫 loader 在資料庫有 `approved` `2026.2` 時才使其優先於 `2026.1`。
+- 沒有 context、未啟用版本或重複 request 仍走 deterministic fail-closed rephrase/scaffold；scope turn 不計題、不計分。
+- 驗證：`questionCatalog2026_2.test.js`、scope clarification 與 voice focused suites 通過；真人 Voice/browser evidence 尚未聲稱完成。
+
+## 9. 2026-07-30 Candidate scope-hint boundary 同步
+
+- scope context 只供 server-side resolver 使用；candidate session/transcript projection 不會回傳 ambiguity mode、coverage slot 或 prepared clarification response。
+
+## 10. 2026-07-30 Natural clarification intent 同步
+
+- `questionScopeClarificationService.js` 現在以 deterministic intent families 覆蓋 repeat、slower、shorter、rephrase、meaning、scope、example、timeframe、understanding confirmation、too long/complex/ambiguous 與 uncertain help。
+- 使用者實際句子 `Can you clarify and clear describe what are you asking? Because I think you mentioned quite long sentences and I cannot really follow.` 會分類為 `did_not_understand`，並走 same-root non-answer lane。
+- 回應 policy 依 intent 與 prepared context 改變；即使 `ambiguityMode=none`，一般的重複、縮短或重新表述請求也能取得 bounded help。
+- Mixed turn 若已有實質 action/result 內容，會保留為正式回答；runtime 可用已持久化 latest question 補足 transcript context，兩者皆無 active root 時任何 accepted voice speech 都 fail closed 為 non-answer，不會建立正式 response row 或送入 evaluator。
+- 同一 root 已提供兩次 bounded help 後，第三次求助會明確提供 non-scoring skip；候選人接受後，下一個 fresh root 會再經共用 spoken-question safety guard，controller 才建立、保存並標記 prepared item asked，原 skip turn 仍不計分。
+- 此分類不新增 LLM 或 network call。48-case local paraphrase holdout recall 為 100%；44-case substantive-answer negative corpus false-positive 為 0%。這是 reviewed local corpus，不代表無限語言理解、真人 microphone 或 external production distribution。

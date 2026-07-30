@@ -13,6 +13,10 @@ const extractJsonObject = (text = '') => {
 };
 
 const countQuestionMarks = (text = '') => (String(text || '').match(/\?/g) || []).length;
+const countWords = (text = '') => normalizeText(text).split(/\s+/).filter(Boolean).length;
+const isVoicePlanningFrame = (planningFrame = {}) => (
+  normalizeKey(planningFrame.deliveryMode).includes('voice')
+);
 
 const hasTechnicalImplementationProbe = (text = '') => /\b(code|algorithm|database schema|sql query|implementation detail|latency|scalability|architecture|api endpoint|library|framework)\b/i.test(text);
 
@@ -28,8 +32,23 @@ const RUBRIC_STYLE_PATTERNS = [
   /\brequirement\s+alignment\b/i,
 ];
 
+const INTERNAL_ASSESSMENT_PATTERNS = [
+  /\bi want to validate (?:one )?possible gap\b/i,
+  /\bpossible gap around\b/i,
+  /\bmatch gap\b/i,
+  /\blimited direct evidence\b/i,
+  /\bassessment (?:goal|criteria|rubric)\b/i,
+  /\binternal (?:rubric|requirement|assessment)\b/i,
+];
+
 const hasRubricStyleQuestion = (text = '') =>
   RUBRIC_STYLE_PATTERNS.some((pattern) => pattern.test(String(text || '')));
+
+const hasInternalAssessmentPreamble = (text = '') =>
+  INTERNAL_ASSESSMENT_PATTERNS.some((pattern) => pattern.test(String(text || '')));
+
+const GENERIC_REQUIREMENT_QUESTION =
+  'Can you give me one practical example that shows your experience with this requirement?';
 
 const naturalizeRubricStyleQuestion = ({
   question = '',
@@ -37,6 +56,28 @@ const naturalizeRubricStyleQuestion = ({
   planningFrame = {},
 } = {}) => {
   const polishedQuestion = polishQuestionWording(question || fallbackQuestion);
+  if (hasInternalAssessmentPreamble(polishedQuestion)) {
+    const safeFallback = polishQuestionWording(fallbackQuestion);
+    const fallbackIsSafe = safeFallback
+      && !hasInternalAssessmentPreamble(safeFallback)
+      && !hasRubricStyleQuestion(safeFallback);
+    return {
+      question: fallbackIsSafe ? safeFallback : GENERIC_REQUIREMENT_QUESTION,
+      riskFlags: ['internal_assessment_preamble_rewritten'],
+    };
+  }
+
+  if (isVoicePlanningFrame(planningFrame) && countWords(polishedQuestion) > 30) {
+    const safeFallback = polishQuestionWording(fallbackQuestion);
+    const boundedFallback = countWords(safeFallback) <= 30
+      && !hasInternalAssessmentPreamble(safeFallback)
+      && !hasRubricStyleQuestion(safeFallback);
+    return {
+      question: boundedFallback ? safeFallback : GENERIC_REQUIREMENT_QUESTION,
+      riskFlags: ['overlong_spoken_question_rewritten'],
+    };
+  }
+
   const frameText = normalizeText(
     `${question} ${fallbackQuestion} ${JSON.stringify(planningFrame || {})}`,
   ).toLowerCase();
@@ -88,11 +129,20 @@ const naturalizeRubricStyleQuestion = ({
   }
 
   return {
-    question:
-      'Can you give me one practical example that shows your experience with this requirement?',
+    question: GENERIC_REQUIREMENT_QUESTION,
     riskFlags: ['rubric_style_question_rewritten', 'generic_requirement_reworded'],
   };
 };
+
+export const buildSafeSpokenQuestion = ({
+  question = '',
+  fallbackQuestion = '',
+  deliveryMode = 'voice',
+} = {}) => naturalizeRubricStyleQuestion({
+  question,
+  fallbackQuestion,
+  planningFrame: { deliveryMode },
+});
 
 const buildPrompt = ({ planningFrame = {} } = {}) => `Return strict JSON only:
 {
@@ -175,6 +225,9 @@ export const validateMicroPlan = ({
   if (!finalSpokenQuestion) validationErrors.push('missing_final_spoken_question');
   if (countQuestionMarks(finalSpokenQuestion) > 1) validationErrors.push('multiple_questions');
   if (!/[?？]\s*$/.test(finalSpokenQuestion)) validationErrors.push('not_a_question');
+  if (isVoicePlanningFrame(planningFrame) && countWords(finalSpokenQuestion) > 30) {
+    validationErrors.push('overlong_spoken_question');
+  }
   if (hasAwkwardQuestionWording(finalSpokenQuestion)) validationErrors.push('awkward_question_wording');
   if (normalizedFocus === 'behavioural' && hasTechnicalImplementationProbe(finalSpokenQuestion)) {
     validationErrors.push('behavioural_mode_technical_probe');

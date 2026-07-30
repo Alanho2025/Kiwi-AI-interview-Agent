@@ -143,3 +143,20 @@ const renderCoachingActions = (actions = []) => (
 ## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
 > 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
 > **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」
+
+## 8. 2026-07-30 candidate-safe progress 與 reflection 同步
+
+- Server-side Role-Fit coaching 與 QA grounding 仍可供內部診斷使用；candidate projection 不再發布 Role-Fit breakdown/coaching。
+- `CandidateReflectionCard` 可將候選人的真實面試 reflection 存為該 session 私有紀錄；它不會改變任何 interview/report score。
+- 驗證：server-side coaching/QA tests 通過；candidate publication exclusion 由 projection、TXT/PDF 與 surface tests 鎖定。Human tone/privacy review 仍待進行。
+
+## 9. 2026-07-30 Coaching identifier guard 同步
+
+- QA 將 evidence/proof/coverage/role-intent identifier 文字視為 candidate-visible internal metadata leak；candidate TXT/PDF 不輸出 Role-Fit coaching。
+
+## 10. 2026-07-30 Candidate report reading order
+
+- Shared candidate report 首屏改為 trust/summary 與三個 canonical scores，之後最多三個 improvement priorities，再進 accepted-turn feedback 與 answer rewrites。
+- Candidate 預設頁面不再渲染 Commercial Stress、Evidence Sources、raw diagnostics、QA controls、重複 Role-Fit breakdown 或 optional reflection form。
+- Reflection persistence service 保留為 session-private、non-scoring capability，但入口不再無條件出現在 mock report。
+- 驗證：`CandidateReportSurface.test.jsx`、report view-model 與完整 frontend quality gate 通過；desktop/mobile 人工視覺檢查尚未執行。

@@ -238,11 +238,28 @@ const buildRequirementItems = (analysisResult, context) => ensureArray(analysisR
     });
   });
 
-const buildGapItems = (analysisResult, context) => ensureArray(analysisResult?.gaps || analysisResult?.explanation?.gaps)
+const INTERNAL_GAP_LANGUAGE = /\b(?:limited|missing|insufficient)\s+(?:direct\s+)?evidence\b|\b(?:possible|match)\s+gap\b|\b(?:coverage|score|risk|requirement)\b/i;
+
+const resolveVoiceGapTopic = (gap = {}) => {
+  if (!gap || typeof gap !== 'object') return 'this area of the role';
+  const candidate = normalizeText(gap.topic || gap.label);
+  const words = candidate.split(/\s+/).filter(Boolean);
+  if (!candidate || words.length > 8 || candidate.length > 72 || INTERNAL_GAP_LANGUAGE.test(candidate)) {
+    return 'this area of the role';
+  }
+  return candidate;
+};
+
+const buildGapItems = (analysisResult, context, { deliveryMode = 'text' } = {}) => ensureArray(analysisResult?.gaps || analysisResult?.explanation?.gaps)
   .filter(Boolean)
   .slice(0, 5)
   .map((gap) => {
-    const topic = typeof gap === 'string' ? gap : gap.topic || gap.label || gap.summary || 'match gap';
+    const internalTopic = typeof gap === 'string' ? gap : gap.topic || gap.label || gap.summary || 'match gap';
+    const voiceMode = isVoiceDeliveryMode(deliveryMode);
+    const topic = voiceMode ? resolveVoiceGapTopic(gap) : internalTopic;
+    const questionText = voiceMode
+      ? `Can you describe a relevant example involving ${topic}, including what you personally owned?`
+      : `I want to validate one possible gap around ${internalTopic}. What related experience do you have, and what did you personally own?`;
     return buildBaseItem({
       ...context,
       sourceStage: 'match_gap',
@@ -251,8 +268,8 @@ const buildGapItems = (analysisResult, context) => ensureArray(analysisResult?.g
       stage: 'validation',
       topic,
       questionIntent: 'risk_probe',
-      text: `I want to validate one possible gap around ${topic}. What related experience do you have, and what did you personally own?`,
-      matchGapId: typeof gap === 'string' ? normalizeKey(gap) : gap.id || normalizeKey(topic),
+      text: questionText,
+      matchGapId: typeof gap === 'string' ? normalizeKey(gap) : gap.id || normalizeKey(internalTopic),
       roleDomain: resolveRoleDomain(analysisResult),
       requirementCategory: typeof gap === 'string' ? '' : gap.category || '',
       capabilityGroup: typeof gap === 'string' ? '' : gap.capabilityGroup || '',
@@ -358,7 +375,7 @@ export const buildInterviewQuestionPoolItems = ({ userId, sessionId, cvFileId = 
     .filter((seed) => decisionsBySeedId.get(seed.seedId)?.decision !== 'suppress')
     .map((seed) => mapSeedQuestion(seed, decisionsBySeedId.get(seed.seedId), context));
   const requirementItems = buildRequirementItems(analysisResult, context);
-  const gapItems = buildGapItems(analysisResult, context);
+  const gapItems = buildGapItems(analysisResult, context, { deliveryMode });
   const catalogSnapshots = buildCatalogQuestionSnapshots({
     catalogItems: isVoiceDeliveryMode(deliveryMode) ? catalogItems : [],
     context: { ...context, analysisResult, settings, explicitCandidateSignals },

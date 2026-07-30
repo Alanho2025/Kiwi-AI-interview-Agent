@@ -1,44 +1,67 @@
 ---
 name: ground-truth-anti-hallucination
-description: Mandatory 3-Step Ground-Truth Verification Protocol (Source Grounding, Disk Inspection, Subagent Independent QA) for every task to eliminate AI hallucinations, synthetic snippets, and unverified claims.
+description: Risk-tiered Ground-Truth Verification Protocol for source-backed claims, verified writes, and bounded independent QA.
 ---
 
 # Ground-Truth Anti-Hallucination Skill
 
-This skill enforces a mandatory 3-step verification protocol for **every task** in this codebase (coding, refactoring, documentation, code review, architectural design, debugging).
+This skill enforces evidence-backed work without turning every question or small edit into a full audit workflow.
 
-The goal is zero hallucination, zero synthetic code snippets, zero unverified claims, and 100% disk-inspected ground-truth execution.
+The goal is to prevent invented symbols, stale documentation, and unsupported claims while keeping verification proportional to task risk.
 
 ---
 
-## Mandatory 3-Step Protocol
+## Risk Tiers
 
-### Step 1: Source Grounding (原始碼真實檢索)
-Before writing any code, modifying documentation, or giving technical explanations:
-1. **File Inspection**: You MUST call `view_file` or `grep_search` to inspect the authoritative source file FIRST.
-2. **Byte-for-Byte Snippets**: All quoted code snippets MUST be direct 100% exact slices from actual files with exact line numbers (`L10-L35`). Synthesizing, simplifying, or "writing code from memory" is strictly FORBIDDEN.
-3. **Zero Phantom Symbols**: Never invent non-existent function names, API endpoints, parameters, or packages. If a feature or function is not implemented in code, explicitly mark it as `Implementation Status: Planned / Non-Goal`.
+| Tier | Examples | Required verification |
+| --- | --- | --- |
+| T0 — read-only | Repository question, status check, narrow explanation, command help | Minimal source grounding only |
+| T1 — low-risk write | Typo, formatting, comment, narrow test-only or docs-only correction | Source grounding + disk verification |
+| T2 — behavior write | Product behavior, cross-file refactor, public contract, Feature RFC | Source grounding + disk verification + one independent QA |
+| T3 — high-risk write | Security, privacy, authorization, scoring, persistence, migration, deployment | T2 plus focused negative/adversarial verification |
 
-### Step 2: Disk Inspection (實體落盤校驗)
-After creating or editing files:
-1. **Verification of Disk Write**: You MUST execute `git status` or `view_file` to verify that every file modification has actually been written to disk.
-2. **No Partial Updates**: Ensure all sections of modified documents (including intro analogies, diagrams, and code blocks) are updated coherently without leaving stale or contradictory text.
+Use the lowest tier that fully covers the requested work. Do not raise the tier merely because the repository is large or already dirty.
 
-### Step 3: Subagent Independent QA (跨 Context Subagent 對立稽核)
-Before declaring any non-trivial task complete:
-1. **Launch Auditor Subagent**: You MUST launch a separate Subagent (with a clean context window) as an independent Auditor to inspect the modified files line-by-line against the actual codebase.
-2. **Line-by-Line Verification**: The subagent MUST check for:
-   - File path existence.
-   - Code snippet accuracy.
-   - Absence of hallucinated terms (e.g. 2PC, fake polling, fake buckets).
-   - Correct metadata headers.
-3. **Fix Discrepancies**: If the Subagent reports any discrepancy, immediately apply exact code/file fixes before responding to the user.
+---
+
+## Step 1: Source Grounding (原始碼真實檢索)
+
+Before modifying files or making repository-specific technical claims:
+
+1. Inspect only the minimum authoritative source needed for the task using available read-only tools such as `rg`, `sed`, `view_file`, or `grep_search`.
+2. Never invent non-existent functions, endpoints, parameters, packages, files, or runtime behavior.
+3. Verbatim code quotations must be exact slices from disk and include a file/line reference. Conceptual explanations and clearly labeled pseudocode may be paraphrased; do not present them as existing code.
+4. If behavior is not implemented or evidence is incomplete, label it `Planned`, `Partial`, `Not verified`, or `Non-goal` as appropriate.
+5. Reuse this inspection for the repo-docs decision. Do not repeat source discovery for a second documentation gate.
+
+## Step 2: Disk Inspection (實體落盤校驗)
+
+Required only after a write:
+
+1. Use `git status`, a task-scoped diff, or direct file inspection to verify that intended writes reached disk.
+2. Compare only task-owned paths against the task baseline. Do not attribute unrelated dirty files to the task.
+3. Check modified documents and interfaces for stale or contradictory nearby text.
+4. Run the smallest relevant syntax, format, link, lint, or focused test check required by the task contract.
+
+## Step 3: Bounded Independent QA (跨 Context 對立稽核)
+
+Required for T2 and T3 only:
+
+1. The main agent launches exactly one clean-context auditor during Cycle 3, after its own implementation and focused checks are complete.
+2. The auditor reviews only task-owned diffs, their directly affected interfaces, and the stated acceptance criteria. Whole-repository line-by-line review is not required.
+3. An agent explicitly assigned as an auditor or read-only QA agent must not launch another auditor. This prevents recursive audit trees.
+4. The auditor does not modify files unless the user explicitly authorizes that role. It reports blocking findings with file/line evidence and an evidence matrix.
+5. The main agent repairs only auditor-confirmed gaps and runs focused verification. The same auditor may inspect those repairs within the same Cycle 3 and must return the final evidence matrix; do not launch a different or additional auditor.
+6. T0 and T1 tasks do not use a subagent unless the user explicitly requests one.
+7. Do not claim `PASS` before the auditor's final evidence matrix supports it.
 
 ---
 
 ## Strict Rules on Technical Claims & Documentation
 
-- **No Overpromised Claims**: Never use unverified claims such as "0ms latency", "100% atomicity", "2PC", ">99% accuracy" unless backed by actual code logic or automated test files.
+- **No Overpromised Claims**: Never use claims such as "0ms latency", "100% atomicity", "2PC", or ">99% accuracy" without evidence that directly supports that exact statement.
+- **Bounded Evidence**: Passing tests support only the behavior and environment they exercised. Keep human, live-provider, browser, production, and deployment evidence explicitly separate.
+- **No Audit Recursion**: Independent QA uses one auditor in one audit cycle, never a self-replicating tree. A follow-up by that same auditor to finalize its evidence matrix is part of the same cycle.
 - **Mandatory RFC Headers**: Every Feature RFC must include:
   - `> **實作狀態 (Implementation Status)**：[Verified / Partial / Planned]`
   - `> **校驗測試路徑 (Verified by Tests)**：[Test file path or None]`

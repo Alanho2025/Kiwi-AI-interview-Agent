@@ -64,6 +64,10 @@ CP3 的 local controller contract 已实现，但已核准的 `2026.1` 仍全部
 
 2026-07-10 的 Phase 3 checkpoint 已完成 proof strategy、role-fit question metadata、must-cover reconciliation、coverage/gap ranking 和 evidence overuse penalty。2026-07-11 的 V2-4 slice 又把 Role Evidence Map v2 的 proof angle、evidence guidance 和 hiring-logic links 接到 proof strategy、question item、rank trace 和 Analyze preparation summary。新 question item explicit write 与 model default 都是 v3；pre-cutover 的 v2/无版本 snapshot 仍通过 bounded reader 完成旧 session。新 match/result/RAG/report 主路徑優先使用 `roleEvidenceMap`，不再把 legacy match evidence summary 當第二份資料來源。
 
+Role Evidence Map 可以只有部分 role intent；当高优先 intent 没有对应 map row 时，`buildInterviewProofStrategy` 建立没有 evidence 的 `role_intent` coverage，让后续 question-pool fallback 继续补题，而不是让已经保存的 Match 无法创建 interview plan。这个边界由 `backend/tests/robustness/questions/roleSpecificPracticePlanner.test.js` 的缺行回归测试覆盖。
+
+Gap 可以继续作为内部选题依据，但不会再被朗读成 `I want to validate one possible gap around ...`。Composer 产生自然的候选人问题，micro-planner 在 model success/fallback 两条路都检查 assessor/rubric preamble；完整 gap summary 只保留在 private metadata，供选择与诊断使用。
+
 | 验收项 | 当前状态 | 主要边界 |
 | --- | --- | --- |
 | 每个 must-cover 有问题或显式降级 | 已通过 | `roleFitQuestionCoverageService` 检查实际 pool；缺题时建立 bounded deterministic v3 fallback，仍无法表示时标记 degraded |

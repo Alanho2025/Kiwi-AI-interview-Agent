@@ -319,23 +319,6 @@ const drawItemCard = (layout, title, body, { meta = '', action = '', color = COL
   layout.y = startY + height + 4;
 };
 
-const drawTwoColumnList = (layout, items, renderer) => {
-  const gap = 6;
-  const width = (CONTENT_WIDTH - gap) / 2;
-  for (let index = 0; index < items.length; index += 2) {
-    const rowItems = items.slice(index, index + 2);
-    const heights = rowItems.map((item) => renderer.measure(item, width));
-    const rowHeight = Math.max(...heights);
-    layout.ensureSpace(rowHeight + 6);
-    const startY = layout.y;
-    rowItems.forEach((item, column) => {
-      const x = PAGE.margin + column * (width + gap);
-      renderer.draw(item, x, startY, width, rowHeight);
-    });
-    layout.y = startY + rowHeight + 6;
-  }
-};
-
 const drawCover = (layout, reportData, vm) => {
   const report = vm.report || {};
   const generated = report.generatedAt ? new Date(report.generatedAt).toLocaleString() : new Date().toLocaleString();
@@ -354,8 +337,6 @@ const drawCover = (layout, reportData, vm) => {
   layout.label('Candidate', report.candidateName || reportData?.candidateName || 'Candidate');
   layout.label('Target role', report.jobTitle || reportData?.targetRole || 'Target role not specified');
   layout.label('Generated', generated);
-  layout.label('Session', reportData?.sessionId || 'N/A');
-
   layout.y += 6;
   drawCallout(layout, 'Overall feedback', vm.takeaway || report.summary || 'No summary available.', COLOR.brand);
 
@@ -381,11 +362,21 @@ const drawCover = (layout, reportData, vm) => {
 };
 
 const drawInsights = (layout, vm) => {
-  const insights = (vm.dataInsights || []).slice(0, 6);
-  const strengths = (vm.strengthHighlights || []).slice(0, 4);
-  if (!insights.length && !strengths.length) return;
+  const explanations = Object.entries(vm.scoreExplanations || {})
+    .filter(([, value]) => value?.explanation)
+    .slice(0, 3);
+  const insights = (vm.dataInsights || []).slice(0, 3);
+  if (!explanations.length && !insights.length) return;
 
-  layout.sectionTitle('Evidence Snapshot', 'The strongest and weakest signals captured in this interview.');
+  layout.sectionTitle('Score Summary', 'A concise explanation of the report scores and supporting evidence.');
+  explanations.forEach(([key, value]) => {
+    drawItemCard(
+      layout,
+      titleCase(key),
+      value.explanation,
+      { color: COLOR.blue },
+    );
+  });
   insights.forEach((insight) => {
     drawItemCard(
       layout,
@@ -394,68 +385,14 @@ const drawInsights = (layout, vm) => {
       { meta: insight.metric || insight.displayValue || String(insight.value ?? '') }
     );
   });
-
-  if (strengths.length) {
-    layout.sectionTitle('What You Did Well');
-    const strengthRenderer = {
-      measure: (item, width) => {
-        layout.font(9, 'bold', COLOR.ink);
-        const titleLines = layout.pdf.splitTextToSize(asText(item.title || item.label || item, 'Strength'), width - 8);
-        layout.font(7.8, 'normal', COLOR.muted);
-        const bodyLines = layout.pdf.splitTextToSize(
-          item.explanation || item.description || 'This was one of the clearer role-fit signals.',
-          width - 8
-        );
-        return Math.max(30, 12 + titleLines.length * 4.2 + bodyLines.length * 4);
-      },
-      draw: (item, x, y, width, height) => {
-        layout.rect(x, y, width, height, { fill: [239, 249, 244], stroke: [204, 231, 218], radius: 3 });
-        layout.font(9, 'bold', COLOR.ink);
-        const titleLines = layout.pdf.splitTextToSize(asText(item.title || item.label || item, 'Strength'), width - 8);
-        let cursorY = y + 8;
-        titleLines.forEach((line) => {
-          layout.pdf.text(line, x + 4, cursorY);
-          cursorY += 4.2;
-        });
-        cursorY += 2;
-        layout.font(7.8, 'normal', COLOR.muted);
-        const bodyLines = layout.pdf.splitTextToSize(
-          item.explanation || item.description || 'This was one of the clearer role-fit signals.',
-          width - 8
-        );
-        bodyLines.forEach((line) => {
-          layout.pdf.text(line, x + 4, cursorY);
-          cursorY += 4;
-        });
-      },
-    };
-    drawTwoColumnList(layout, strengths, strengthRenderer);
-  }
-};
-
-const drawCommunicationProfile = (layout, profile) => {
-  if (!profile) return;
-  const traits = profile.traits || profile.keyTraits || [];
-  const summary = profile.summary || profile.overallImpression;
-  if (!summary && !traits.length && !profile.fillerWords && !profile.fillerWordNote) return;
-
-  layout.sectionTitle('Communication Style Profile');
-  if (summary) drawCallout(layout, 'Overall impression', summary, COLOR.brand);
-  traits.forEach((trait) => {
-    drawItemCard(layout, trait.label || trait.title || 'Trait', trait.description || '', { color: COLOR.brand });
-  });
-  if (profile.fillerWords || profile.fillerWordNote) {
-    drawCallout(layout, 'Delivery and filler words', profile.fillerWordNote || profile.fillerWords, COLOR.rose);
-  }
 };
 
 const drawCoaching = (layout, vm) => {
   const priorities = vm.improvementPriorities || [];
-  const coaching = vm.coachingAdvice || [];
-  if (!priorities.length && !coaching.length) return;
+  if (!priorities.length) return;
 
   layout.sectionTitle('Priority Improvements');
-  priorities.slice(0, 5).forEach((item) => {
+  priorities.slice(0, 3).forEach((item) => {
     drawItemCard(
       layout,
       item.title || item.label || 'Improvement',
@@ -467,79 +404,22 @@ const drawCoaching = (layout, vm) => {
       }
     );
   });
-
-  if (coaching.length) {
-    layout.sectionTitle('Coaching Plan');
-    coaching.slice(0, 5).forEach((item) => {
-      drawItemCard(
-        layout,
-        item.theme || item.title || item.label || 'Coaching point',
-        item.advice || item.explanation || item.description || '',
-        {
-          action: item.example || '',
-          meta: [friendlyEvidenceLabel(item.evidenceLabel), item.confidenceLevel ? `${item.confidenceLevel} confidence` : ''].filter(Boolean).join(' - '),
-          color: COLOR.brand,
-        }
-      );
-    });
-  }
 };
 
-const drawQuoteAnalyses = (layout, quoteAnalyses = []) => {
-  if (!quoteAnalyses.length) return;
-  layout.sectionTitle('Interview Highlights and Critiques', 'Short coaching examples based on actual interview responses.');
-  quoteAnalyses.slice(0, 4).forEach((analysis) => {
-    drawItemCard(layout, analysis.context || 'Interview response', analysis.quote || '', { color: COLOR.blue });
-    drawItemCard(layout, "Coach's critique", analysis.critique || '', { color: COLOR.amber });
-    if (analysis.rewrite) drawItemCard(layout, 'How to say it better', analysis.rewrite, { color: COLOR.brand });
-  });
-};
-
-const drawRoleFit = (layout, roleFit = {}) => {
-  if (roleFit.status === 'legacy') return;
-  if (!roleFit.available) {
-    layout.sectionTitle('Role-Specific Coaching');
-    drawCallout(
-      layout,
-      'Coaching unavailable',
-      'Role-specific coaching was unavailable. Your existing interview feedback is still available.',
-      COLOR.amber
-    );
-    return;
+const drawReportLimitations = (layout, vm) => {
+  if (vm.legacyReportNotice) {
+    layout.sectionTitle('Report Limitation');
+    drawCallout(layout, 'Legacy report', vm.legacyReportNotice, COLOR.amber);
   }
-
-  const coverage = roleFit.roleIntentCoverage || {};
-  layout.sectionTitle(
-    'How Your Answers Matched This Role',
-    `${coverage.covered || 0} of ${coverage.total || 0} focus areas clearly demonstrated.`
-  );
-  (coverage.items || []).forEach((item) => {
+  const risks = Array.isArray(vm.transcriptRisks) ? vm.transcriptRisks.slice(0, 3) : [];
+  if (!risks.length) return;
+  layout.sectionTitle('Transcript Risks');
+  risks.forEach((risk) => {
     drawItemCard(
       layout,
-      item.label || 'Role focus',
-      titleCase(item.status === 'covered' ? 'clearly demonstrated' : item.status === 'partial' ? 'partly demonstrated' : item.status === 'missing' ? 'needs stronger evidence' : 'not assessed'),
-      { color: item.status === 'covered' ? COLOR.brand : COLOR.amber }
-    );
-  });
-  (roleFit.answerAlignments || []).forEach((alignment, index) => {
-    const label = alignment.label === 'strong'
-      ? 'Strong match for this answer'
-      : alignment.label === 'partial'
-        ? 'Partly matched this focus'
-        : alignment.label === 'weak'
-          ? 'Needs a clearer connection'
-          : alignment.label === 'off_target'
-            ? 'Did not yet answer this focus'
-            : 'Not assessed';
-    drawItemCard(
-      layout,
-      `Answer ${index + 1}: ${alignment.question || 'Interview question'}`,
-      alignment.diagnosis?.mainIssue || '',
-      {
-        meta: `${titleCase(label)} - ${Number(alignment.score || 0)}/100`,
-        action: alignment.betterAnswerPlan?.direction || '',
-        color: alignment.label === 'strong' ? COLOR.brand : COLOR.amber,
-      }
+      risk.title || risk.label || 'Transcript risk',
+      risk.message || risk.description || risk.reason || risk.summary || asText(risk),
+      { color: COLOR.amber },
     );
   });
 };
@@ -587,46 +467,6 @@ const drawAnswerRewrites = (layout, rewrites = []) => {
   });
 };
 
-const drawAppendix = (layout, reportData, vm) => {
-  const report = vm.report || {};
-  const qa = vm.qa || {};
-  const diagnostics = vm.evidenceDiagnostics || {};
-  const evidenceReferences = report.evidenceReferences || report.evidenceSummary || [];
-
-  layout.sectionTitle('Appendix: Report Confidence', 'Technical checks are summarized in candidate-friendly language.');
-  layout.label('Report status', friendlyStatus(reportData?.latestStatus || report.latestStatus));
-  if (qa.coverageScore !== undefined) layout.label('Coverage score', `${qa.coverageScore}/100`);
-  if (qa.hallucinationRisk) layout.label('Grounding risk', titleCase(qa.hallucinationRisk));
-  if (diagnostics.averageStrength !== undefined) layout.label('Average evidence strength', `${diagnostics.averageStrength}/4`);
-
-  if (diagnostics.totals && Object.keys(diagnostics.totals).length) {
-    layout.y += 3;
-    drawItemCard(
-      layout,
-      'Evidence type breakdown',
-      Object.entries(diagnostics.totals).map(([key, value]) => `${titleCase(key)}: ${value}`).join(' | '),
-      { color: COLOR.brand }
-    );
-  }
-
-  if (evidenceReferences.length) {
-    layout.sectionTitle('Evidence Sources');
-    evidenceReferences.forEach((item) => {
-      const label = typeof item === 'string'
-        ? friendlyEvidenceLabel(item)
-        : item.claim || item.label || item.title || friendlyEvidenceLabel(item.sourceType) || item.summary;
-      const body = item.evidenceSnippet || item.summary || item.description || friendlyEvidenceLabel(item.sourceType) || '';
-      const meta = [item.sourceLabel || friendlyEvidenceLabel(item.sourceType), item.confidenceLevel ? `${item.confidenceLevel} confidence` : ''].filter(Boolean).join(' - ');
-      drawItemCard(layout, label || 'Evidence source', body, {
-        meta,
-        color: COLOR.brand,
-      });
-    });
-  } else {
-    drawItemCard(layout, 'Evidence sources', 'No evidence available', { color: COLOR.amber });
-  }
-};
-
 export const generateReportPDF = async (reportData) => {
   try {
     const vm = buildReportViewModel(reportData);
@@ -635,13 +475,10 @@ export const generateReportPDF = async (reportData) => {
 
     drawCover(layout, reportData, vm);
     drawInsights(layout, vm);
-    drawCommunicationProfile(layout, vm.communicationProfile);
-    drawRoleFit(layout, vm.roleFit);
+    drawReportLimitations(layout, vm);
     drawCoaching(layout, vm);
-    drawQuoteAnalyses(layout, vm.quoteAnalyses);
     drawTurnBreakdowns(layout, vm.turnBreakdowns);
     drawAnswerRewrites(layout, vm.answerRewriteTips);
-    drawAppendix(layout, reportData, vm);
 
     layout.addFooter();
     pdf.save(`kiwi-ai-report-${reportData?.sessionId || 'session'}.pdf`);

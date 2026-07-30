@@ -25,6 +25,12 @@
 
 Role-Fit 的 Company profile、match record、interview plan、prepared question、session analysis 和 report 都以 user/session/match ID 維持 ownership，敏感 Mongo artifacts 使用 `retentionUntil`、`deletedAt`、`containsSensitiveData`、`accessScope=private`，並已在 `mongoRetentionModelRegistry` 登記。寫入 Company Role-Fit draft/review 或 report 時沿用既有 7-day policy 更新 retention，不另造期限。Role-Fit release gate 目前只宣稱 local source/model/registry contract passed；它明確標記 `productionTelemetryAvailable=false`，不把本地 contract 冒充成 production 14-day telemetry。
 
+## 已儲存 JD 為什麼不會等到實體刪除才消失
+
+Saved JD 使用 `CompanyValuesProfile`。使用者開啟列表時，[repository](../../backend/src/services/company/companyValuesRepository.js) 先用 owner、`deletedAt: null` 和 `updatedAt > buildRetentionCutoff(now)` 查詢，所以超過七天的 JD 不會回到畫面，也不會被依 session 或 fingerprint 的讀取重新取用。這層是使用者可見的即時保護。
+
+[Mongo model](../../backend/src/db/models/companyValuesProfileModel.js) 同時宣告 `updatedAt` 的七天 TTL index；它涵蓋沒有 `retentionUntil` 的舊資料。部署後仍要實際確認 index 已建立及 MongoDB 已完成到期清理；本地 schema test 只能證明程式宣告正確，不能替代 live database 驗證。`RETENTION_WORKER_ENABLED=false` 的預設值沒有因為這項 Saved JD 修正而改變，既有跨 store cleanup 仍保留 manifest、dry-run、backup 與 approval gate。
+
 ## 保守边界
 
 当前 schema 有 `is_encrypted`、virus scan status、retention fields、audit logs 和 deletion requests，但不能把它们写成完整合规保证。是否启用 worker、如何部署存储、是否完成 account-wide deletion、是否有 encryption-at-rest enforcement，都需要独立验证。pre-cutover evidence/question/report readers 也必须等 production retention/resume gate 后才可删除，不能提前清掉仍可访问的用户资料。

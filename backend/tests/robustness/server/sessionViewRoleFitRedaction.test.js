@@ -37,6 +37,12 @@ describe('session Role-Fit client redaction', () => {
         },
         questionPool: [{
           text: 'Tell me about your experience.',
+          catalogQuestionId: 'catalog-private-1',
+          catalogVersion: '2026.2',
+          selectionPolicy: { maxAsked: 1 },
+          coverageSlot: 'private-slot',
+          ambiguityMode: 'open_scope_probe',
+          clarificationContext: { responseText: 'private answer hint' },
           proofPointId: 'cov-private-1',
           coverageContractIds: ['cov-private-1'],
           testedRoleIntentIds: ['intent-private-1'],
@@ -58,6 +64,9 @@ describe('session Role-Fit client redaction', () => {
       transcript: {
         turns: [{
           role: 'ai',
+          questionId: 'question-private-1',
+          preparedQuestionId: 'prepared-private-1',
+          rootQuestionId: 'root-private-1',
           text: 'Tell me about your experience.',
           timestamp: '2026-07-10T00:00:00.000Z',
           metadata: {
@@ -79,6 +88,12 @@ describe('session Role-Fit client redaction', () => {
             hiringLogicCoverage: {
               businessProblemIds: ['private-turn-business-problem'],
             },
+            catalogQuestionId: 'catalog-private-1',
+            catalogVersion: '2026.2',
+            selectionPolicy: { maxAsked: 1 },
+            coverageSlot: 'private-slot',
+            ambiguityMode: 'open_scope_probe',
+            clarificationContext: { responseText: 'private answer hint' },
           },
         }],
       },
@@ -102,7 +117,7 @@ describe('session Role-Fit client redaction', () => {
     });
 
     const serialized = JSON.stringify(result);
-    expect(serialized).not.toMatch(/private-evidence|private-cv-snippet|cov-private|intent-private|private-internal-reason|private-alternative|private-proof-angle|private-how-to-use|private-risk|private-business-problem/);
+    expect(serialized).not.toMatch(/private-evidence|private-cv-snippet|cov-private|intent-private|private-internal-reason|private-alternative|private-proof-angle|private-how-to-use|private-risk|private-business-problem|catalog-private|private-slot|open_scope_probe|private answer hint|question-private|prepared-private|root-private/);
     expect(result.transcript[0].metadata).toEqual(expect.objectContaining({
       topic: 'experience',
       latency: { rootCandidateRankMs: 2 },
