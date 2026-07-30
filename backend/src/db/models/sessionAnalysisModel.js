@@ -44,6 +44,7 @@ const SessionAnalysisSchema = new mongoose.Schema(
     humanCalibrationRecords: { type: [mongoose.Schema.Types.Mixed], default: [] },
     dynamicSlotRecords: { type: [mongoose.Schema.Types.Mixed], default: [] },
     reflectionRecords: { type: [mongoose.Schema.Types.Mixed], default: [] },
+    candidateReflectionRecords: { type: [mongoose.Schema.Types.Mixed], default: [] },
     latestEvaluatorRecord: { type: mongoose.Schema.Types.Mixed, default: null },
     latestTrajectoryRecord: { type: mongoose.Schema.Types.Mixed, default: null },
     latestDynamicSlots: { type: mongoose.Schema.Types.Mixed, default: null },

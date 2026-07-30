@@ -19,9 +19,8 @@ import { useEffect, useRef, useState } from 'react';
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-export function ReportActionBar({ loading, onGenerate, onRunQa, onExport, onDownloadRecording, recordingStatus }) {
+export function ReportActionBar({ loading, onGenerate, onExport, onDownloadRecording, recordingStatus }) {
   const [showExportMenu, setShowExportMenu] = useState(false);
-  const [qaPrompt, setQaPrompt] = useState('');
   const exportMenuRef = useRef(null);
   const canDownloadRecording = Boolean(onDownloadRecording) && recordingStatus?.state === 'ready';
 
@@ -53,17 +52,10 @@ export function ReportActionBar({ loading, onGenerate, onRunQa, onExport, onDown
     }
   };
 
-  const handleRunQa = () => {
-    if (onRunQa) {
-      onRunQa(qaPrompt);
-    }
-  };
-
   return (
     <div className="sticky top-16 z-40 -mx-4 border-b border-theme bg-transparent px-4 py-3 backdrop-blur sm:relative sm:top-auto sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0">
       <div className={`flex gap-2 ${showExportMenu ? 'overflow-visible' : 'overflow-x-auto'} sm:flex-wrap`}>
         <Button className="shrink-0" onClick={onGenerate} disabled={loading}>{loading ? 'Working...' : 'Generate report'}</Button>
-        <Button className="shrink-0" onClick={handleRunQa} variant="secondary" disabled={loading}>Run QA</Button>
         {onDownloadRecording ? (
           <Button
             onClick={onDownloadRecording}
@@ -121,24 +113,6 @@ export function ReportActionBar({ loading, onGenerate, onRunQa, onExport, onDown
         )}
       </div>
 
-      <div className="mt-3 rounded-2xl border border-theme bg-white/60 p-3 shadow-sm">
-        <label className="text-xs font-semibold uppercase tracking-[0.14em] text-faint" htmlFor="qa-rewrite-prompt">
-          Optional QA rewrite prompt
-        </label>
-        <textarea
-          id="qa-rewrite-prompt"
-          value={qaPrompt}
-          onChange={(event) => setQaPrompt(event.target.value)}
-          disabled={loading}
-          rows={2}
-          maxLength={2000}
-          className="mt-2 w-full resize-y rounded-xl border border-theme bg-white/80 px-3 py-2 text-sm text-primary outline-none focus:ring-2 focus:ring-accent"
-          placeholder="Example: Make the report more concise and student-facing. Keep all evidence labels and do not invent new feedback."
-        />
-        <p className="mt-1 text-xs text-muted">
-          Leave this empty to only refresh QA checks. Add a prompt to safely rewrite the report and run QA again.
-        </p>
-      </div>
     </div>
   );
 }

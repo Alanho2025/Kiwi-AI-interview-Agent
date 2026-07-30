@@ -8,11 +8,38 @@ import { runTask } from '../services/masterAiService.js';
 import { agentRegistry } from '../services/agentRegistryService.js';
 import { SessionReport } from '../db/models/sessionReportModel.js';
 import { SessionAnalysis } from '../db/models/sessionAnalysisModel.js';
-import { getSessionExecutionCost } from '../services/aiUsageTrackingService.js';
 import { rewriteReportWithQaPrompt } from '../services/report/reportRewriteService.js';
+import {
+  buildCandidateReportProjection,
+  buildCandidateReportPublicationSummary,
+} from '../services/report/reportPublicationSummaryService.js';
 import { buildRetentionExpiry } from '../services/retention/retentionPolicy.js';
 
 const normalizeUserPrompt = (value = '') => String(value || '').trim().slice(0, 2000);
+
+const toCandidateReportRecord = (value = {}) => buildCandidateReportProjection(value);
+
+export const buildCandidateQaRewriteResponse = ({
+  sessionId,
+  report = {},
+  stored = null,
+  rewriteApplied = false,
+} = {}) => {
+  const candidateProjection = toCandidateReportRecord({
+    sessionId,
+    ...(stored || {}),
+    report: stored?.report || report,
+  });
+  const candidateResponse = {
+    ...candidateProjection,
+    rewriteApplied: rewriteApplied === true,
+    stored: stored ? candidateProjection : null,
+  };
+  return {
+    ...candidateResponse,
+    publicationSummary: buildCandidateReportPublicationSummary({ latestStatus: stored?.latestStatus }),
+  };
+};
 
 const persistPromptRewrittenReport = async ({ sessionId, userId, report, qaResult, originalQaResult, rewriteMetadata }) => {
   await SessionAnalysis.findOneAndUpdate(
@@ -62,11 +89,11 @@ export const qaRewriteReport = asyncHandler(async (req, res) => {
 
   if (!userPrompt) {
     const result = await runTask({ taskType: 'qa_report', sessionId });
-    const executionCost = await getSessionExecutionCost({ userId: user.id, sessionId });
-    result.executionCost = executionCost;
-    result.commercialStressTest = executionCost?.commercialStressTest || null;
-    result.rewriteApplied = false;
-    res.json(formatSuccess('Report QA completed', result));
+    res.json(formatSuccess('Report QA completed', buildCandidateQaRewriteResponse({
+      sessionId,
+      report: result.report,
+      stored: result.stored,
+    })));
     return;
   }
 
@@ -108,16 +135,10 @@ export const qaRewriteReport = asyncHandler(async (req, res) => {
     rewriteMetadata: rewriteResult.rewriteMetadata,
   });
 
-  const executionCost = await getSessionExecutionCost({ userId: user.id, sessionId });
-  res.json(formatSuccess('Report QA rewrite completed', {
+  res.json(formatSuccess('Report QA rewrite completed', buildCandidateQaRewriteResponse({
+    sessionId,
     report: rewriteResult.report,
-    qaResult: rewrittenQaResult,
-    originalQaResult: existingQa.qaResult,
     rewriteApplied: rewriteResult.rewriteMetadata?.rewriteApplied === true,
-    rewriteMetadata: rewriteResult.rewriteMetadata,
-    userPrompt,
     stored,
-    executionCost,
-    commercialStressTest: executionCost?.commercialStressTest || null,
-  }));
+  })));
 });

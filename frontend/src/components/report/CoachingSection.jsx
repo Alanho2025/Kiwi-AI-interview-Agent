@@ -21,15 +21,18 @@ import { EvidenceBadge } from './EvidenceBadge.jsx';
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
 export function CoachingSection({ improvementPriorities, coachingAdvice }) {
+  const priorities = (improvementPriorities || []).slice(0, 3);
+  const advice = coachingAdvice || [];
+  if (!priorities.length && !advice.length) return null;
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
-      <Card className="glass">
+    <div className={`grid gap-6 ${priorities.length && advice.length ? 'lg:grid-cols-2' : ''}`}>
+      {priorities.length ? <Card className="glass">
         <CardHeader>
           <CardTitle>Priority Improvements</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {improvementPriorities.map((item) => (
+            {priorities.map((item) => (
               <div key={item.title} className="relative hover:z-50 rounded-2xl border border-sky-100 bg-sky-50 p-4">
                 <h3 className="text-base font-semibold text-sky-950">{item.title}</h3>
                 <p className="mt-2 text-sm leading-6 text-sky-900">{item.whyItMatters || item.detail}</p>
@@ -43,15 +46,15 @@ export function CoachingSection({ improvementPriorities, coachingAdvice }) {
             ))}
           </div>
         </CardContent>
-      </Card>
+      </Card> : null}
 
-      <Card>
+      {advice.length ? <Card>
         <CardHeader>
           <CardTitle>AI Coaching</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {coachingAdvice.map((item, index) => (
+            {advice.map((item, index) => (
               <div key={`${item.theme || item.weak}-${index}`} className="relative hover:z-50 rounded-2xl border border-gray-100 p-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-700">{item.theme || 'Coaching point'}</p>
                 <p className="mt-2 text-sm leading-6 text-primary">{item.advice}</p>
@@ -65,7 +68,7 @@ export function CoachingSection({ improvementPriorities, coachingAdvice }) {
             ))}
           </div>
         </CardContent>
-      </Card>
+      </Card> : null}
     </div>
   );
 }

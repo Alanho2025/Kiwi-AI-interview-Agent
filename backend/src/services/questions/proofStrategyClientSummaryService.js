@@ -1,4 +1,5 @@
 import { ensureArray, normalizeText } from '../../utils/commonHelpers.js';
+import { isJobDescriptionSectionHeading } from '../jobDescription/jobDescriptionSectionHeadingGuard.js';
 
 const getCoverageIds = (item = {}) => {
   const coverageIds = ensureArray(item.coverageContractIds).filter(Boolean);
@@ -30,7 +31,7 @@ export const buildProofStrategyClientSummary = ({ readiness = {}, poolItems = []
   focusItems.forEach((item) => {
     const focusArea = buildFocusArea(item);
     const label = focusArea.label;
-    if (!label) return;
+    if (!label || isJobDescriptionSectionHeading(label)) return;
     const key = label.toLowerCase();
     if (!uniqueFocusAreas.has(key) || focusArea.kind === 'gap') uniqueFocusAreas.set(key, focusArea);
   });

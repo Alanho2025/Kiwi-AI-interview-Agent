@@ -249,15 +249,12 @@ describe('interview/report route integration', () => {
     });
 
     expect(report.response.status).toBe(200);
+    expect(report.payload.data.sessionId).toBe(session.id);
     expect(report.payload.data.report.summary).toBe('Grounded report.');
-    expect(report.payload.data.report.roleFit).toMatchObject({
-      schemaVersion: 'role_fit_report_v1',
-      status: 'ready',
-      roleIntentCoverage: { total: 1, covered: 1 },
-    });
-    expect(report.payload.data.executionCost.summary.totalCost).toBe(0.00042);
-    expect(report.payload.data.commercialStressTest.totalLlmTokens).toBe(120);
+    expect(report.payload.data.report).not.toHaveProperty('roleFit');
+    expect(report.payload.data).not.toHaveProperty('executionCost');
+    expect(report.payload.data).not.toHaveProperty('commercialStressTest');
     expect(serviceMocks.getOwnedSessionById).toHaveBeenCalledWith(session.id, 'user-1');
-    expect(serviceMocks.getSessionExecutionCost).toHaveBeenCalledWith({ userId: 'user-1', sessionId: session.id });
+    expect(serviceMocks.getSessionExecutionCost).not.toHaveBeenCalled();
   });
 });

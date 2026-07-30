@@ -33,6 +33,7 @@ export const evaluateTurnAiJudgementCoaching = ({
   if (!isAiMlQuestion) {
     return {
       aiJudgementStatus: 'not_ai_question',
+      groundedBy: 'question_type',
       coachingFeedback: null,
       actionableTip: null,
     };
@@ -46,6 +47,7 @@ export const evaluateTurnAiJudgementCoaching = ({
   if (hasVerificationSignal) {
     return {
       aiJudgementStatus: 'ai_workflow_verified',
+      groundedBy: 'accepted_answer',
       coachingFeedback: 'You clearly explained your personal verification and workflow ownership when utilizing AI tools.',
       actionableTip: 'Continue highlighting how you validate model output and manage quality and safety boundaries in production.',
     };
@@ -54,6 +56,7 @@ export const evaluateTurnAiJudgementCoaching = ({
   if (hasToolNameSignal) {
     return {
       aiJudgementStatus: 'ai_tools_named_only',
+      groundedBy: 'accepted_answer',
       coachingFeedback: 'You referenced AI tools or concepts; to strengthen your response, elaborate on how you personally verified the output and handled failure risks.',
       actionableTip: 'Always pair AI tool mentions with a concrete verification method (e.g. unit tests, code review, or golden set benchmark).',
     };
@@ -61,6 +64,7 @@ export const evaluateTurnAiJudgementCoaching = ({
 
   return {
     aiJudgementStatus: 'ai_workflow_unspecified',
+    groundedBy: 'question_type_and_accepted_answer',
     coachingFeedback: 'For AI-assisted workflows, ensure you explain what parts you personally owned and how you verified the final output.',
     actionableTip: 'Focus on your personal verification process and implementation ownership when discussing AI workflows.',
   };

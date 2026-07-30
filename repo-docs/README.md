@@ -6,8 +6,11 @@ Kiwi AI Interview Agent 是一个把 CV、目标 JD、访谈答案和报告检�
 
 ## 阅读路径
 
-| 读者目标 | 从这里开始 | 读完后获得什么 |
+| Reader goal | Start here | What this page gives you |
 | --- | --- | --- |
+| 運營者與除錯手冊 (Operator Pack) | [Kiwi Operator Pack 指南](operator-pack/README.md) | 知道無 Token 狀態下如何 0-Token 除錯、4 大主流水線 Trace、一鍵測試驗證與 CLI 任務包 |
+| 理解系統 5 層 Agent 架構與 68 Feature 對照 | [高階 Agent 架構與 RFC 全景導航](../docs/architecture-decision-records/HIGH_LEVEL_AGENT_ARCHITECTURE_MAPPING.md) | 知道 5 層 Agent 架構、Interview Agent、Report Agent 與 Harness 觀測層如何對應 68 個 RFC |
+| 查閱全專案 68 個獨立 Feature RFC 目錄 | [68 Feature RFC 獨立全景索引](../docs/architecture-decision-records/features/README.md) | 一 Feature 一獨立檔，完整 7 章節包含白話比喻、Git 追蹤、真實代碼與面試對攻劇本 |
 | 快速理解一个真实运行 | [跟随一次从准备到报告的主流程](walkthroughs/one-real-run.md) | 知道用户输入如何变成访谈问题和报告状态 |
 | 按 feature 理解代码 | [看多条产品流程之间的关系](flows.md) | 知道 CV/JD、match、interview、voice、report、recording、RAG 各自在哪里接力 |
 | 了解用戶層 JD 解析與 CV-JD 匹配行為 | [用戶層 JD 解析與 CV-JD 匹配指南](modules/user-facing-cv-jd-behavior.md) | 知道用戶能看到、編輯和對比的 JD/Match 具體欄位與介面資訊 |

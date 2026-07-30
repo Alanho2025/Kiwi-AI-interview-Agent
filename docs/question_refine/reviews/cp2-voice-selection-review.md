@@ -5,7 +5,7 @@
 > Decided at: `2026-07-28T20:19:45.000Z`
 > Dependency: CP1 catalog `2026.1` content approval — satisfied
 > Candidate policy digest: `36311aefcc6c503017bcaba7dd5e5bd960c0f07d395d0b5bf4ebea63a81d8116`
-> Runtime state: deterministic policy is locally implemented; staging Mongo database `test` contains 21/21 approved `2026.1` entries for new Voice-session preparation.
+> Runtime state: deterministic policy is locally implemented. Historical runtime record (recorded with this decision; not reverified in this task): staging Mongo database `test` contained 21/21 approved `2026.1` entries for new Voice-session preparation.
 
 This is the compact decision sheet. Review the generated [executable role, level, question-count, coverage and follow-up matrix](cp2-voice-selection-policy-full-review.md) before recording a decision here. Catalog activation now requires both the CP1 content review and this CP2 policy review to be approved by the same reviewer for version `2026.1`.
 
@@ -42,7 +42,7 @@ These are developer/reviewer traces. Candidate responses receive only a safe sta
 - Matrix coverage: 8 and 15 questions; Junior, Intermediate and Senior; Software, AI Solution, ML and non-tech boundaries.
 - Large-pool bound: deterministic ranking of 501 candidates is guarded below 1 second in the focused test; the latest whole test file completed in about 0.4 seconds. This is a local bound, not proof of the Voice 3-second end-to-first-audio SLO.
 - Text sessions do not load catalog content or compute catalog completion coverage.
-- Mongo seed/activation completed against the confirmed staging database: 21 unique entries, all `approved`, reviewer `heminghan`.
+- Historical external execution record: Mongo seed/activation was recorded against the confirmed staging database as 21 unique entries, all `approved`, reviewer `heminghan`; a current task must perform a read-only post-check before claiming this remains active.
 - No real-provider eval, live Voice session or browser human flow for this new policy has run.
 
 ## Required Product Owner decision
@@ -56,4 +56,4 @@ Confirm or revise:
 
 Decision reason: Product Owner approved the CP2 Voice role, level, question-count, coverage, follow-up, and candidate-visibility policy.
 
-This approval and the separately recorded CP1 approval authorized the completed `2026.1` database activation. It does not authorize CP3 clarification behavior, CP4 report coaching, automatic future policy publishing, or unrelated production rollout.
+This approval and the separately recorded CP1 approval authorized the recorded `2026.1` database activation. It does not authorize CP3 clarification behavior, CP4 report coaching, automatic future policy publishing, or unrelated production rollout. A current external read-only post-check is still required before treating the historical runtime record as present state.

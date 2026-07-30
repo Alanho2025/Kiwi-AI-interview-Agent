@@ -1,14 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mocks = vi.hoisted(() => ({ findOne: vi.fn(), findOneAndUpdate: vi.fn() }));
+const mocks = vi.hoisted(() => ({ find: vi.fn(), findOne: vi.fn(), findOneAndUpdate: vi.fn() }));
 
 vi.mock('../../../src/db/models/companyValuesProfileModel.js', () => ({
-  CompanyValuesProfile: { findOne: mocks.findOne, findOneAndUpdate: mocks.findOneAndUpdate },
+  CompanyValuesProfile: {
+    find: mocks.find,
+    findOne: mocks.findOne,
+    findOneAndUpdate: mocks.findOneAndUpdate,
+  },
 }));
 
 import {
   confirmCompanyRoleFitReview,
   assertVerifiedCompanyRoleFitReview,
+  getCompanyValuesProfilesByUserId,
   saveCompanyRoleFitDraft,
 } from '../../../src/services/company/companyValuesRepository.js';
 
@@ -16,8 +21,27 @@ const leanResult = (value) => ({ lean: vi.fn(async () => value) });
 
 describe('role-fit review repository robustness', () => {
   beforeEach(() => {
+    mocks.find.mockReset();
     mocks.findOneAndUpdate.mockReset();
     mocks.findOne.mockReset();
+  });
+
+  it('lists only the owner records updated inside the seven-day retention window', async () => {
+    const lean = vi.fn(async () => [{ jdFingerprint: 'recent-jd' }]);
+    const sort = vi.fn(() => ({ lean }));
+    mocks.find.mockReturnValue({ sort });
+    const now = new Date('2026-07-30T12:00:00.000Z');
+
+    await expect(getCompanyValuesProfilesByUserId('user-1', now)).resolves.toEqual([
+      { jdFingerprint: 'recent-jd' },
+    ]);
+
+    expect(mocks.find).toHaveBeenCalledWith({
+      userId: 'user-1',
+      deletedAt: null,
+      updatedAt: { $gt: new Date('2026-07-23T12:00:00.000Z') },
+    });
+    expect(sort).toHaveBeenCalledWith({ updatedAt: -1 });
   });
 
   it('stores a role-fit draft under the owning user and JD fingerprint', async () => {
@@ -132,7 +156,12 @@ describe('role-fit review repository robustness', () => {
       reviewVersion: 4,
       roleFitProfileId: 'role-fit-1',
     })).resolves.toMatchObject({ roleFitReviewVersion: 4 });
-    expect(mocks.findOne).toHaveBeenCalledWith({ userId: 'user-1', jdFingerprint: 'jd-fingerprint' });
+    expect(mocks.findOne).toHaveBeenCalledWith({
+      userId: 'user-1',
+      jdFingerprint: 'jd-fingerprint',
+      deletedAt: null,
+      updatedAt: { $gt: expect.any(Date) },
+    });
 
     mocks.findOne.mockReturnValueOnce(leanResult({
       roleFitReviewVersion: 5,

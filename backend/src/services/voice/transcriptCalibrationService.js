@@ -59,7 +59,11 @@ export const extractNBestCandidatesFromAzureJson = (azureJsonResult = null) => {
 const textContainsTerm = (text = '', term = '') => {
   const normalizedText = ` ${normalizeForSearch(text)} `;
   const normalizedTerm = normalizeForSearch(term);
-  return Boolean(normalizedTerm && normalizedText.includes(` ${normalizedTerm} `));
+  if (!normalizedTerm) return false;
+  if (normalizedText.includes(` ${normalizedTerm} `)) return true;
+  const strippedText = normalizedText.replace(/\s+/g, '');
+  const strippedTerm = normalizedTerm.replace(/\s+/g, '');
+  return Boolean(strippedTerm.length >= 3 && strippedText.includes(strippedTerm));
 };
 
 const isUsableGlossaryItem = (item = {}) => {

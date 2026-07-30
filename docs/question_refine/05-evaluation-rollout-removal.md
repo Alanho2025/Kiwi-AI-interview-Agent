@@ -162,6 +162,19 @@ Only `approved` can promote one explicitly named contract to the next rollout mo
 
 Apply Master Plan §13 across every CP1–CP5 verification failure. A safety/privacy/counting/source-of-truth/provider-cost issue stops after the first failure. For another deterministic root cause, record up to three distinct evidence-backed attempts; then mark the slice blocked/deferred, prepare a GitHub issue draft with SHA/traces/failed criteria, and continue only independent work.
 
-## 10. Completion record
+## 10. Implementation and completion record
 
+### Code Artifacts & Evidence Locators
+- Evaluation & Evidence Taxonomy Service: `backend/src/services/questions/questionEvaluationService.js`
+- Rollout Mode & Rollback Fallback Service: `backend/src/services/questions/questionRolloutModeService.js`
+- Rollout Orchestrator Helper: `backend/src/services/questions/questionRolloutOrchestratorHelper.js`
+- Executable Evaluation Benchmark Runner: `backend/src/scripts/runQuestionIntelligenceEval.js`
+- Evaluation Service Tests: `backend/tests/robustness/questions/questionEvaluationService.test.js`
+- Rollout Mode Service Tests: `backend/tests/robustness/questions/questionRolloutModeService.test.js`
+- Rollout Helper Tests: `backend/tests/robustness/questions/questionRolloutOrchestratorHelper.test.js`
+- CP5 Legacy Removal Manifest: [docs/question_refine/removal-manifest-cp5.md](file:///Users/heminghan/Kiwi-AI-interview-Agent/docs/question_refine/removal-manifest-cp5.md)
+
+### Final Record
 The final record names the enabled rollout mode, exact artifacts/SHAs, passing and non-passing gates, rollback state, legacy removal state, human decisions and all remaining live/production unknowns. It must never summarize the project as simply "done".
+
+

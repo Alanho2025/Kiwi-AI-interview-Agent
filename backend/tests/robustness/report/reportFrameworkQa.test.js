@@ -36,6 +36,21 @@ const buildReport = (turn) => ({
 });
 
 describe('report framework QA', () => {
+  const validCoaching = {
+    clarificationCoaching: {
+      clarificationStatus: 'none',
+      groundedBy: 'accepted_answer',
+      coachingFeedback: 'The answer was scoped clearly.',
+      actionableTip: 'Keep the answer specific.',
+    },
+    aiJudgementCoaching: {
+      aiJudgementStatus: 'not_ai_question',
+      groundedBy: 'question_type',
+      coachingFeedback: null,
+      actionableTip: null,
+    },
+  };
+
   it('blocks every deterministic Role-Fit integrity failure', async () => {
     const report = buildReport({
       rubricType: 'starr',
@@ -127,6 +142,164 @@ describe('report framework QA', () => {
       'answer_alignment_wrong_evidence_use',
     ]));
     expect(qa.passed).toBe(false);
+  });
+
+  it('blocks missing, ungrounded, leaking, score-mutating, or invalid CP4 coaching data', async () => {
+    const report = buildReport({
+      rubricType: 'starr',
+      frameworkKey: 'behavioural_starr',
+      starApplicable: true,
+      starBreakdown: {
+        situation: 'clear', task: 'clear', action: 'clear', resultOrReaction: 'clear', reflection: 'clear',
+      },
+    });
+    report.roleFit = {
+      schemaVersion: 'role_fit_report_v2',
+      status: 'limited',
+      ownership: { verified: true },
+      knownRoleIntentIds: ['intent-known'],
+      knownEvidenceIds: ['evidence-known'],
+      requiredCoverageIds: ['cov-required'],
+      roleIntentCoverage: { items: [{ coverageId: 'cov-required' }] },
+      answerAlignments: [{
+        schemaVersion: 'answer_alignment_v2',
+        turnId: 'answer-1',
+        questionId: 'question-1',
+        proofPointId: 'cov-required',
+        testedRoleIntentIds: ['intent-known'],
+        detectedEvidenceUsed: [{ evidenceId: 'evidence-known' }],
+        score: 75,
+        label: 'partial',
+        groundingStatus: 'grounded',
+        scoreBreakdown: {
+          questionAlignment: 20, evidenceFit: 15, evidenceClarity: 15, roleIntentFit: 15, naturalness: 5, concision: 5,
+        },
+        evidenceUseDiagnosis: { status: 'matched_recommended_evidence' },
+        clarificationCoaching: {
+          clarificationStatus: 'none',
+          groundedBy: 'rankTrace',
+          coachingFeedback: 'The catalogQuestionId says this was good.',
+          actionableTip: 'Keep it specific.',
+          score: 10,
+        },
+        aiJudgementCoaching: validCoaching.aiJudgementCoaching,
+      }],
+      coachingProgress: {
+        schemaVersion: 'role_fit_coaching_progress_v1',
+        clarification: { practised: 1 },
+        aiJudgement: { assessed: 0 },
+        coachingHypotheses: [{ code: 'unsupported_hypothesis', groundedBy: 'accepted_answers' }],
+      },
+    };
+
+    const qa = await runReportQaAgent({ report, analysisResult: { decision: { label: 'manual_review' }, explanation: {} } });
+
+    expect(qa.qualityFlags).toEqual(expect.arrayContaining([
+      'coaching_source_missing',
+      'coaching_internal_metadata_leak',
+      'coaching_score_mutation',
+      'coaching_progress_invalid',
+    ]));
+  });
+
+  it('blocks coaching that leaks an evidence identifier even when its status and source are valid', async () => {
+    const report = buildReport({
+      rubricType: 'starr',
+      frameworkKey: 'behavioural_starr',
+      starApplicable: true,
+      starBreakdown: {
+        situation: 'clear', task: 'clear', action: 'clear', resultOrReaction: 'clear', reflection: 'clear',
+      },
+    });
+    report.roleFit = {
+      schemaVersion: 'role_fit_report_v2',
+      status: 'limited',
+      ownership: { verified: true },
+      knownRoleIntentIds: ['intent-known'],
+      knownEvidenceIds: ['evidence-known'],
+      requiredCoverageIds: ['cov-required'],
+      roleIntentCoverage: { items: [{ coverageId: 'cov-required' }] },
+      answerAlignments: [{
+        schemaVersion: 'answer_alignment_v2',
+        turnId: 'answer-1',
+        questionId: 'question-1',
+        proofPointId: 'cov-required',
+        testedRoleIntentIds: ['intent-known'],
+        detectedEvidenceUsed: [{ evidenceId: 'evidence-known' }],
+        score: 75,
+        label: 'partial',
+        groundingStatus: 'grounded',
+        scoreBreakdown: {
+          questionAlignment: 20, evidenceFit: 15, evidenceClarity: 15, roleIntentFit: 15, naturalness: 5, concision: 5,
+        },
+        evidenceUseDiagnosis: { status: 'matched_recommended_evidence' },
+        clarificationCoaching: {
+          clarificationStatus: 'none',
+          groundedBy: 'accepted_answer',
+          coachingFeedback: 'The private cv_evidence_123 and sourceId source_1 supported this answer.',
+          actionableTip: 'Keep the example concrete.',
+        },
+        aiJudgementCoaching: validCoaching.aiJudgementCoaching,
+      }],
+      coachingProgress: {
+        schemaVersion: 'role_fit_coaching_progress_v1',
+        clarification: { practised: 1 },
+        aiJudgement: { assessed: 0 },
+        coachingHypotheses: [],
+      },
+    };
+
+    const qa = await runReportQaAgent({ report, analysisResult: { decision: { label: 'manual_review' }, explanation: {} } });
+    expect(qa.qualityFlags).toContain('coaching_internal_metadata_leak');
+  });
+
+  it('blocks unknown proof points and coverage entries instead of treating nonempty IDs as grounded', async () => {
+    const report = buildReport({
+      rubricType: 'starr',
+      frameworkKey: 'behavioural_starr',
+      starApplicable: true,
+      starBreakdown: {
+        situation: 'clear', task: 'clear', action: 'clear', resultOrReaction: 'clear', reflection: 'clear',
+      },
+    });
+    report.roleFit = {
+      schemaVersion: 'role_fit_report_v2',
+      status: 'limited',
+      ownership: { verified: true },
+      knownRoleIntentIds: ['intent-known'],
+      knownEvidenceIds: ['evidence-known'],
+      requiredCoverageIds: ['coverage-known'],
+      roleIntentCoverage: { items: [{ coverageId: 'coverage-unknown' }] },
+      answerAlignments: [{
+        schemaVersion: 'answer_alignment_v2',
+        turnId: 'answer-1',
+        questionId: 'question-1',
+        proofPointId: 'coverage-unknown',
+        testedRoleIntentIds: ['intent-known'],
+        detectedEvidenceUsed: [{ evidenceId: 'evidence-known' }],
+        score: 75,
+        label: 'partial',
+        groundingStatus: 'grounded',
+        scoreBreakdown: {
+          questionAlignment: 20, evidenceFit: 15, evidenceClarity: 15, roleIntentFit: 15, naturalness: 5, concision: 5,
+        },
+        evidenceUseDiagnosis: { status: 'matched_recommended_evidence' },
+        clarificationCoaching: validCoaching.clarificationCoaching,
+        aiJudgementCoaching: validCoaching.aiJudgementCoaching,
+      }],
+      coachingProgress: {
+        schemaVersion: 'role_fit_coaching_progress_v1',
+        clarification: { practised: 1 },
+        aiJudgement: { assessed: 0 },
+        coachingHypotheses: [],
+      },
+    };
+
+    const qa = await runReportQaAgent({ report, analysisResult: { decision: { label: 'manual_review' }, explanation: {} } });
+    expect(qa.qualityFlags).toEqual(expect.arrayContaining([
+      'answer_alignment_proof_point_unknown',
+      'role_intent_coverage_unknown',
+    ]));
   });
 
   it('flags deterministic report integrity mismatches', async () => {

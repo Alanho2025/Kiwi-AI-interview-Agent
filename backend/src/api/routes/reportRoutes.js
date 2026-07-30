@@ -10,14 +10,17 @@
  */
 
 import express from 'express';
-import { generateReport, getReport, qaReport, exportReport } from '../../controllers/reportController.js';
+import { generateReport, getReport, qaReport, exportReport, saveReportReflection } from '../../controllers/reportController.js';
 import { qaRewriteReport } from '../../controllers/reportQaRewriteController.js';
+import { getReportDiagnostics } from '../../controllers/reportDiagnosticsController.js';
 
 const router = express.Router();
 
 router.post('/generate', generateReport);
 router.post('/qa', qaRewriteReport);
 router.post('/qa-check', qaReport);
+router.post('/:sessionId/reflections', saveReportReflection);
+router.get('/:sessionId/diagnostics', getReportDiagnostics);
 router.get('/:sessionId', getReport);
 router.post('/:sessionId/export', exportReport);
 

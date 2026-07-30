@@ -68,8 +68,21 @@ const buildLatestTurnFields = (latestAiTurn = null) => {
     latestPreparedQuestionId: decision.preparedQuestionId || metadata.preparedQuestionId || null,
     latestParentQuestionId: metadata.parentQuestionId || decision.parentQuestionId || null,
     latestFollowUpIntent: metadata.followUpIntent || decision.followUpIntent || null,
+    latestSelectionSource: metadata.selectionSource || decision.selectionSource || null,
+    latestSelectionReason: decision.rankTrace?.selectionReason || decision.selectionReason || null,
+    latestMatchGapId: decision.matchGapId || metadata.matchGapId || null,
   };
 };
+
+const buildMatchGapSamples = (matchGaps = []) => ensureArray(matchGaps)
+  .slice(0, FIRST_SAMPLE_LIMIT)
+  .map((item) => ({
+    matchGapId: item.matchGapId || null,
+    topic: item.topic || null,
+    sourceStage: item.sourceStage || item.sourceType || null,
+    selectionReason: item.rankTrace?.selectionReason || null,
+    rankTrace: item.rankTrace || null,
+  }));
 
 const buildMemoryDiagnostics = ({ sessionAnalysis = null } = {}) => {
   const controller = sessionAnalysis?.controllerState || {};
@@ -187,6 +200,7 @@ export const buildInterviewQuestionDiagnostics = ({
     fallbackRootQuestionCount: fallbackRoots.length,
     wrapUpQuestionCount: wrapUps.length,
     matchGapQuestionCount: matchGaps.length,
+    matchGapSamples: buildMatchGapSamples(matchGaps),
     askedPreparedRootCount: roots.filter((item) => item.status === 'asked').length,
     ...buildLatestTurnFields(latestAiTurn),
     poolDegraded: preparedRootQuestionCount === 0,

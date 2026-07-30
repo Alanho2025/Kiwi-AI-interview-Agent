@@ -3,7 +3,7 @@ import { buildSpeechPhraseList } from '../../config/speechPhraseList.js';
 const MAX_PHRASES = 120;
 const MAX_PHRASE_LENGTH = 80;
 
-const TECH_TOKEN_PATTERN = /\b(?:[A-Z][A-Za-z0-9]*\.?[A-Za-z0-9]*|[A-Za-z]+(?:\.js|JS)|[A-Za-z]+(?:SQL|API|SDK|AI|ML|UI|UX|DB)|[A-Za-z]+(?:[- ][A-Za-z0-9]+){1,3})\b/g;
+const TECH_TOKEN_PATTERN = /\b(?:[A-Z0-9]+(?:\/[A-Z0-9]+)+|[A-Z][A-Za-z0-9]*\.?[A-Za-z0-9]*|[A-Za-z]+(?:\.(?:js|ts)|JS|TS)|[A-Za-z]+(?:SQL|API|SDK|AI|ML|UI|UX|DB|EC2|RDS|S3|IAM|VAD|TTS|STT)|[A-Za-z]+(?:[- ][A-Za-z0-9]+){1,3})\b/gi;
 const GENERIC_PHRASES = new Set(['and', 'or', 'the', 'with', 'from', 'your', 'this', 'that', 'role', 'team', 'work']);
 const AUTO_CORRECT_REASONS = new Set([
   'proper_noun',
@@ -24,8 +24,8 @@ const cleanPhrase = (value = '') => String(value || '')
 const normalizeTermKey = (value = '') => cleanPhrase(value).toLowerCase();
 
 const inferReason = (phrase = '', fallback = 'domain_term') => {
-  if (/\b[A-Z]{2,}\b/.test(phrase)) return 'technical_acronym';
-  if (/\b(?:SQL|API|SDK|AI|ML|UI|UX|DB)\b/i.test(phrase) || /\.(?:js|ts)$/i.test(phrase)) return 'tool_or_framework';
+  if (/\b(?:CI\/CD|STT\/TTS|[A-Z]{2,}\b|\bEC2\b|\bRDS\b|\bS3\b|\bIAM\b|\bVAD\b)\b/i.test(phrase)) return 'technical_acronym';
+  if (/\b(?:SQL|API|SDK|AI|ML|UI|UX|DB)\b/i.test(phrase) || /\.(?:js|ts)$/i.test(phrase) || /\b(?:WebSocket|WebSockets|TypeScript|LangChain|Docker|PostgreSQL|Render)\b/i.test(phrase)) return 'tool_or_framework';
   if (/\b(?:certificate|certification|certified|degree|university)\b/i.test(phrase)) return 'certification';
   if (/^[A-Z][A-Za-z0-9]+(?:\s+[A-Z][A-Za-z0-9]+)+$/.test(phrase)) return 'proper_noun';
   return fallback;

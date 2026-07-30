@@ -2,7 +2,7 @@
 
 > **Status: Local implementation complete; ready for CP3 human review.**
 > **Depends on: CP2 approved pool metadata and recommendation contract.**
-> **Execution mode: Product Owner authorized local CP3 implementation. Candidate-visible activation and CP4 remain gated.**
+> **Execution mode: Local CP3 and CP4 implementations are complete. Candidate-visible activation, human Voice/browser review and rollout remain gated.**
 
 Master authority: [Voice Question Intelligence Master Plan](../voice-question-intelligence-master-plan.md). This checkpoint must be read with `VOICE_INTERVIEW_PRODUCT_BEHAVIOR.md`; the voice product contract wins on conflict.
 
@@ -32,7 +32,7 @@ Allow a Voice candidate to ask a meaningful question about an interview question
 - Changing ASR confidence thresholds or transcript-repair strategy.
 - Letting a model invent scenario facts or company facts in real time.
 - Turning every interview question into a clarification challenge.
-- Text interview behavior, report implementation (CP4), or automatic candidate judgement.
+- Text interview behavior, score mutation from a clarification event, or automatic candidate judgement.
 
 ## 3. Ambiguity policy
 
@@ -152,7 +152,9 @@ Before human review, provide:
 - first-audio latency trace before/after with bounded fallback evidence;
 - redacted developer trace showing action, reason, context version and no raw private payload.
 
-CP3 reviewer listens to or browser-validates the cases above, confirms that the response sounds natural, and verifies no candidate sees internal policy or answer hints. Possible decision: `approved`, `revise`, `blocked`, `deferred`. Approval permits CP4 drafting or explicitly approved CP3 implementation; it does not promote candidate-visible enforcement.
+CP3 reviewer listens to or browser-validates the cases above, confirms that the response sounds natural, and verifies no candidate sees internal policy or answer hints. Possible decision: `approved`, `revise`, `blocked`, `deferred`. Approval permits CP5 evaluation planning; it does not promote candidate-visible enforcement.
+
+The candidate session projection keeps only question text/basic presentation and transcript topic/latency. It strips catalog provenance, selection/coverage policy, ambiguity mode, root/prepared IDs and clarification context/response text, so the runtime may use scope context without leaking an answer hint.
 
 ### Local implementation evidence — 2026-07-29
 
@@ -163,7 +165,7 @@ CP3 reviewer listens to or browser-validates the cases above, confirms that the 
 - The redacted trace contains only action, reason, context version, root reference and count flags. It does not contain candidate text or the prepared response.
 - Focused and broader local mock-safe suites cover resolver, controller persistence, question counting, catalog snapshot propagation, report exclusion, harness mapping and Voice confidence precedence.
 
-The approved `2026.1` catalog intentionally remains unchanged and all its items currently use `ambiguityPolicy.mode = none`. Therefore the local engine is fail-closed, but a real valid-scope Voice/browser replay cannot be performed until a separately reviewed catalog version supplies selected eligible items with versioned clarification context. This is a CP3 content/human-review dependency, not permission to mutate the approved CP1 digest.
+The `2026.1` source catalog intentionally remains unchanged and all its items use `ambiguityPolicy.mode = none`. The `2026.2` source catalog supplies versioned clarification context, but runtime uses it only when the target database contains matching `approved` entries. Therefore a real valid-scope Voice/browser replay still requires an external lifecycle post-check and CP3 human review; it is not permission to mutate an existing digest.
 
 ## 8. Stop conditions and rollback
 

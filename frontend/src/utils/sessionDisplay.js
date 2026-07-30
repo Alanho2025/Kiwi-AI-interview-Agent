@@ -67,7 +67,13 @@ export const sanitizeVoiceDeviceCheck = (input) => ({
 });
 
 export const seniorityOptions = ['Junior/Grad', 'Intermediate', 'Senior'];
-const normalizeSeniorityDisplay = (value) => (value === 'Advanced' ? 'Senior' : value);
+const normalizeSeniorityDisplay = (value) => {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (normalized === 'advanced' || normalized === 'senior') return 'Senior';
+  if (normalized === 'intermediate') return 'Intermediate';
+  if (['junior', 'junior/grad', 'grad', 'graduate'].includes(normalized)) return 'Junior/Grad';
+  return value;
+};
 export const focusOptions = ['Technical', 'Behavioral', 'Combined'];
 export const controlModeOptions = [
   { value: 'question_limited', label: 'Question-limited' },

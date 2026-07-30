@@ -1,14 +1,20 @@
 import { enqueueBackgroundJob } from '../../jobs/backgroundJobQueue.js';
+import { logger } from '../../utils/logger.js';
 import { recordAgentTraceEvent } from '../aiControl/agentTraceService.js';
 import { getNextQuestionOrder } from '../interviewStateService.js';
-import { appendTranscriptTurn, updateLatestTranscriptTurnMetadata } from '../sessionService.js';
+import {
+  appendTranscriptTurn,
+  createInterviewQuestion,
+  updateLatestTranscriptTurnMetadata,
+} from '../sessionService.js';
+import { markQuestionPoolItemAsked } from '../questions/questionPoolComposerService.js';
 import {
   buildQuestionScopeTracePayload,
   QUESTION_SCOPE_TURN_TYPES,
 } from './questionScopeClarificationService.js';
 
 export const buildQuestionScopeRequestMetadata = (observation = {}) => ({
-  turnType: QUESTION_SCOPE_TURN_TYPES.REQUEST,
+  turnType: observation.requestTurnType || QUESTION_SCOPE_TURN_TYPES.REQUEST,
   countsAsQuestion: false,
   countsAsAnswer: false,
   parentQuestionId: observation.parentQuestionId || observation.rootQuestionId || null,
@@ -18,9 +24,13 @@ export const buildQuestionScopeRequestMetadata = (observation = {}) => ({
   ambiguityMode: observation.ambiguityMode || null,
   clarificationContextVersion: observation.clarificationContextVersion || null,
   scopeResponseReason: observation.scopeResponseReason || null,
+  clarificationIntent: observation.intentType || null,
 });
 
 const resolveScenario = (observation = {}) => {
+  if (observation.kind === 'skip_question_request' && observation.nextQuestion) {
+    return 'switch_topic';
+  }
   if (observation.turnType === QUESTION_SCOPE_TURN_TYPES.RESPONSE) {
     return 'question_scope_clarification';
   }
@@ -37,23 +47,37 @@ const resolvePreservedQuestionOrder = (session = {}) => {
 export const buildQuestionScopeControllerOutput = ({ session = {}, observation = {} } = {}) => {
   const responseText = String(observation.responseText || '').trim();
   const scenario = resolveScenario(observation);
+  const skippedToNextQuestion = observation.kind === 'skip_question_request'
+    && Boolean(observation.nextQuestion);
+  const nextRootQuestionId = skippedToNextQuestion
+    ? observation.nextRootQuestionId
+    : observation.rootQuestionId;
   const questionDecision = {
     turnKind: 'repair',
     scenario,
     sourcePolicy: observation.clarificationContextVersion
       ? 'versioned_prepared_scope_context'
       : 'deterministic_scope_fallback',
-    parentQuestionId: observation.parentQuestionId || observation.rootQuestionId || null,
-    rootQuestionId: observation.rootQuestionId || null,
-    preparedQuestionId: observation.preparedQuestionId || null,
-    catalogQuestionId: observation.catalogQuestionId || null,
+    parentQuestionId: skippedToNextQuestion
+      ? null
+      : observation.parentQuestionId || observation.rootQuestionId || null,
+    rootQuestionId: nextRootQuestionId || null,
+    preparedQuestionId: skippedToNextQuestion
+      ? observation.nextQuestion?.preparedQuestionId || observation.nextQuestion?.questionId || null
+      : observation.preparedQuestionId || null,
+    catalogQuestionId: skippedToNextQuestion
+      ? observation.nextQuestion?.catalogQuestionId || null
+      : observation.catalogQuestionId || null,
     ambiguityMode: observation.ambiguityMode || null,
     clarificationContextVersion: observation.clarificationContextVersion || null,
     scopeResponseReason: observation.scopeResponseReason || null,
+    clarificationIntent: observation.intentType || null,
   };
 
   return {
-    questionType: 'question_scope_clarification',
+    questionType: skippedToNextQuestion
+      ? observation.nextQuestion?.questionType || observation.nextQuestion?.type || 'interview_question'
+      : 'question_scope_clarification',
     nextQuestion: responseText,
     displayText: responseText,
     interviewerTurn: {
@@ -62,12 +86,18 @@ export const buildQuestionScopeControllerOutput = ({ session = {}, observation =
       question: responseText,
       displayText: responseText,
     },
-    rationale: 'Answered a candidate scope question without advancing the active interview question.',
-    rationaleSummary: 'Kept the active root question while resolving or bounding its scope.',
-    stage: observation.stage || null,
-    topic: observation.topic || null,
-    questionCategory: observation.questionCategory || null,
-    turnKind: 'repair',
+    rationale: skippedToNextQuestion
+      ? 'Skipped the active question without scoring it and moved to the next prepared question.'
+      : 'Answered a candidate scope question without advancing the active interview question.',
+    rationaleSummary: skippedToNextQuestion
+      ? 'Preserved answer eligibility while moving to a fresh root question.'
+      : 'Kept the active root question while resolving or bounding its scope.',
+    stage: skippedToNextQuestion ? observation.nextQuestion?.stage || null : observation.stage || null,
+    topic: skippedToNextQuestion ? observation.nextQuestion?.topic || null : observation.topic || null,
+    questionCategory: skippedToNextQuestion
+      ? observation.nextQuestion?.category || null
+      : observation.questionCategory || null,
+    turnKind: skippedToNextQuestion ? 'root_question' : 'repair',
     turnType: observation.turnType,
     scenario,
     sourcePolicy: questionDecision.sourcePolicy,
@@ -78,8 +108,11 @@ export const buildQuestionScopeControllerOutput = ({ session = {}, observation =
     ambiguityMode: questionDecision.ambiguityMode,
     clarificationContextVersion: questionDecision.clarificationContextVersion,
     scopeResponseReason: questionDecision.scopeResponseReason,
+    clarificationIntent: questionDecision.clarificationIntent,
     questionDecision,
-    nextQuestionOrder: resolvePreservedQuestionOrder(session),
+    nextQuestionOrder: skippedToNextQuestion
+      ? getNextQuestionOrder(session, { countsAsQuestion: true })
+      : resolvePreservedQuestionOrder(session),
     controllerAction: observation.actionType,
     fallbackAction: observation.actionType,
     selectionSource: 'deterministic_question_scope_policy',
@@ -127,28 +160,57 @@ export const executeQuestionScopeControllerTurn = async ({
     buildQuestionScopeRequestMetadata(observation),
   );
   await onSentence?.(result.displayText, 0);
+  const isFreshRootQuestion = result.turnKind === 'root_question';
+  const persistedQuestionId = isFreshRootQuestion
+    ? await createInterviewQuestion({
+      sessionId: session.id,
+      questionOrder: result.nextQuestionOrder,
+      questionType: result.questionType,
+      sourceType: observation.nextQuestion?.sourceType || observation.nextQuestion?.sourceStage || 'prepared_question_pool',
+      questionText: result.displayText,
+      basedOnCv: Boolean(observation.nextQuestion?.linkedCvEvidence?.length),
+      basedOnJd: Boolean(observation.nextQuestion?.linkedJdRequirement?.length),
+    })
+    : result.rootQuestionId;
+  if (isFreshRootQuestion && result.preparedQuestionId) {
+    try {
+      await markQuestionPoolItemAsked({
+        sessionId: session.id,
+        questionId: result.preparedQuestionId,
+        askedTurnIndex: result.nextQuestionOrder,
+        rankTrace: observation.nextQuestion?.rankTrace || {},
+      });
+    } catch (error) {
+      logger.warn('Skipped question next-root asked-state update failed', {
+        sessionId: session.id,
+        preparedQuestionId: result.preparedQuestionId,
+        error: error.message,
+      });
+    }
+  }
   await appendTranscriptTurn(session.id, {
     role: 'ai',
     text: result.displayText,
     timestamp: new Date().toISOString(),
-    questionId: observation.rootQuestionId,
+    questionId: persistedQuestionId,
     metadata: {
-      turnKind: 'repair',
-      turnType: observation.turnType,
-      countsAsQuestion: false,
+      turnKind: result.turnKind,
+      turnType: result.turnType,
+      countsAsQuestion: result.turnKind === 'root_question',
       countsAsAnswer: false,
-      parentQuestionId: observation.parentQuestionId || observation.rootQuestionId,
-      rootQuestionId: observation.rootQuestionId,
-      preparedQuestionId: observation.preparedQuestionId || null,
-      catalogQuestionId: observation.catalogQuestionId || null,
+      parentQuestionId: result.parentQuestionId,
+      rootQuestionId: result.rootQuestionId,
+      preparedQuestionId: result.preparedQuestionId,
+      catalogQuestionId: result.catalogQuestionId,
       ambiguityMode: observation.ambiguityMode || null,
       clarificationContextVersion: observation.clarificationContextVersion || null,
       scopeResponseReason: observation.scopeResponseReason,
+      clarificationIntent: observation.intentType || null,
       controllerAction: observation.actionType,
       selectionSource: plan.selectionSource,
-      stage: observation.stage || null,
-      topic: observation.topic || null,
-      questionCategory: observation.questionCategory || null,
+      stage: result.stage || null,
+      topic: result.topic || null,
+      questionCategory: result.questionCategory || null,
       questionDecision: result.questionDecision,
     },
   });

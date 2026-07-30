@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { applyRuntimeRetentionIndex } from '../runtimeRetentionIndex.js';
 
 const CompanyValueSchema = new mongoose.Schema(
   {
@@ -94,6 +95,7 @@ const CompanyValuesProfileSchema = new mongoose.Schema(
 
 CompanyValuesProfileSchema.index({ userId: 1, jdFingerprint: 1 }, { unique: true });
 CompanyValuesProfileSchema.index({ sessionId: 1 }, { sparse: true });
+applyRuntimeRetentionIndex(CompanyValuesProfileSchema);
 
 export const CompanyValuesProfile =
   mongoose.models.CompanyValuesProfile ||

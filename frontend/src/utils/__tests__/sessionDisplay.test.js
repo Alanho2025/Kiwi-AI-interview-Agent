@@ -77,5 +77,8 @@ describe('sessionDisplay', () => {
     expect(parseStoredSessionDefaults(JSON.stringify({ seniorityLevel: 'Advanced' }))).toMatchObject({
       seniorityLevel: 'Senior',
     });
+    expect(parseStoredSessionDefaults(JSON.stringify({ seniorityLevel: 'senior' }))).toMatchObject({
+      seniorityLevel: 'Senior',
+    });
   });
 });

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { AiLog } from '../../../src/db/models/aiLogModel.js';
 import { AiUsageEvent } from '../../../src/db/models/aiUsageEventModel.js';
+import { CompanyValuesProfile } from '../../../src/db/models/companyValuesProfileModel.js';
 import { CvQuestionSeed } from '../../../src/db/models/cvQuestionSeedModel.js';
 import { InterviewQuestionPoolItem } from '../../../src/db/models/interviewQuestionPoolItemModel.js';
 import { JdQuestionFilter } from '../../../src/db/models/jdQuestionFilterModel.js';
@@ -9,6 +10,7 @@ import { UserCoachingMemory } from '../../../src/db/models/userCoachingMemoryMod
 
 const models = [
   AiLog,
+  CompanyValuesProfile,
   CvQuestionSeed,
   InterviewQuestionPoolItem,
   JdQuestionFilter,

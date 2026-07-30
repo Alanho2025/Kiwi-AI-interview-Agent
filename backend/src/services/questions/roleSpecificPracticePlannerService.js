@@ -9,9 +9,12 @@ const CLASSIFICATION_STRENGTH = {
   gap: 0,
 };
 
-const getEvidenceIds = (mapItem = {}) => mapItem.classification === 'gap'
-  ? []
-  : ensureArray(mapItem.sourceEvidence).map((evidence) => evidence?.evidenceId).filter(Boolean);
+const getEvidenceIds = (mapItem = {}) => {
+  const safeMapItem = mapItem || {};
+  return safeMapItem.classification === 'gap'
+    ? []
+    : ensureArray(safeMapItem.sourceEvidence).map((evidence) => evidence?.evidenceId).filter(Boolean);
+};
 
 const getProofAngle = (mapItem = {}, isGap = false) => {
   const safeMapItem = mapItem || {};

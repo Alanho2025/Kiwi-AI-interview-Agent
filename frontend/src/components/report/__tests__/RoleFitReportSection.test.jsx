@@ -37,7 +37,14 @@ describe('RoleFitReportSection', () => {
         },
         diagnosis: { mainIssue: 'Your answer directly addressed this focus area.' },
         betterAnswerPlan: { direction: 'Keep the example and make the result easy to hear.' },
+        clarificationCoaching: { feedback: 'You stated a clear assumption.', tip: 'Keep naming the scope.' },
+        aiJudgementCoaching: { feedback: 'You explained how you verified the result.', tip: 'Keep the check concrete.' },
       }],
+      coachingProgress: {
+        clarification: { practised: 1, scopeConfirmed: 0, explicitAssumptions: 1 },
+        aiJudgement: { assessed: 1, verifiedWorkflows: 1 },
+        coachingHypotheses: ['missing_result'],
+      },
       questionReasoning: [{
         questionId: 'question-1',
         topic: 'Reliable production delivery',
@@ -52,6 +59,9 @@ describe('RoleFitReportSection', () => {
     expect(screen.getByText(/Question alignment: 20/i)).toBeInTheDocument();
     expect(screen.getByText(/Evidence fit: 18/i)).toBeInTheDocument();
     expect(screen.getByText(/Concision: 4/i)).toBeInTheDocument();
+    expect(screen.getByText('Clarification coaching')).toBeInTheDocument();
+    expect(screen.getByText('AI judgement coaching')).toBeInTheDocument();
+    expect(screen.getByText('Practice progress')).toBeInTheDocument();
     expect(screen.queryByText(/proofPointId|coverageId|schemaVersion|evidence-delivery/i)).not.toBeInTheDocument();
   });
 

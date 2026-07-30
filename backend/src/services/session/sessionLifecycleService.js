@@ -14,7 +14,13 @@ import { query } from '../../db/postgres.js';
 import { SessionAnalysis } from '../../db/models/sessionAnalysisModel.js';
 import { InterviewPlan } from '../../db/models/interviewPlanModel.js';
 import { SessionReport } from '../../db/models/sessionReportModel.js';
-import { normalizeControlMode, normalizeQuestionLimit, normalizeTimeLimitMinutes, resolveInterviewModeConfig } from '../../config/interviewBlueprints.js';
+import {
+  normalizeControlMode,
+  normalizeQuestionLimit,
+  normalizeSeniorityLevelKey,
+  normalizeTimeLimitMinutes,
+  resolveInterviewModeConfig,
+} from '../../config/interviewBlueprints.js';
 import { clampVarchar, fetchSessionRowById, fetchOwnedSessionRowById } from './sessionShared.js';
 import {
   fetchSessionDependencies,
@@ -32,6 +38,7 @@ import {
 } from './sessionViewBuilder.js';
 
 const normalizeSessionMode = (value) => (value === 'voice' ? 'voice' : 'text');
+export const resolveStoredSeniorityLevel = (value) => normalizeSeniorityLevelKey(value || 'junior');
 
 const resolveSessionSetup = ({ settings = {}, sessionSetup = {}, mode = 'text' } = {}) => {
   const controlMode = normalizeControlMode(sessionSetup.controlMode || settings.controlMode);
@@ -68,7 +75,7 @@ export const createSession = async ({
   const normalizedAnalysis = normalizeAnalysisPayload(analysisResult);
   const resolvedTargetRole = clampVarchar(targetRole || normalizedAnalysis.jobTitle || 'Target Role');
   const resolvedCandidateName = clampVarchar(normalizedAnalysis.candidateName || candidateName || 'Candidate');
-  const resolvedSeniorityLevel = clampVarchar(settings.seniorityLevel || 'Junior/Grad');
+  const resolvedSeniorityLevel = clampVarchar(resolveStoredSeniorityLevel(settings.seniorityLevel));
   const resolvedFocusArea = clampVarchar(settings.focusArea || 'Combined');
   const setup = resolveSessionSetup({ settings, sessionSetup, mode });
   const resolvedMode = setup.deliveryMode;

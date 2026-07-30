@@ -52,6 +52,7 @@ export const evaluateTurnClarificationCoaching = ({
   if (scopeResponseTurn) {
     return {
       clarificationStatus: 'scope_confirmed',
+      groundedBy: 'scope_confirmation_event',
       coachingFeedback: 'You confirmed the question scope before answering, which helped make your response targeted and relevant.',
       actionableTip: 'Continue seeking scope confirmation when facing broad technical or scenario questions.',
     };
@@ -60,6 +61,7 @@ export const evaluateTurnClarificationCoaching = ({
   if (hasExplicitAssumption) {
     return {
       clarificationStatus: 'explicit_assumption',
+      groundedBy: 'accepted_answer',
       coachingFeedback: 'You clearly stated your working assumption upfront, helping the interviewer follow your thought process.',
       actionableTip: 'Stating explicit assumptions is an effective strategy for handling ambiguous interview scenarios.',
     };
@@ -68,6 +70,7 @@ export const evaluateTurnClarificationCoaching = ({
   if (degradedRephraseTurn) {
     return {
       clarificationStatus: 'degraded_rephrase',
+      groundedBy: 'scope_rephrase_event',
       coachingFeedback: 'You attempted to clarify the scope, but the specific context was unavailable, so a fallback rephrase was provided.',
       actionableTip: 'When specific scenario context is unavailable, state a clear working assumption before answering.',
     };
@@ -76,6 +79,7 @@ export const evaluateTurnClarificationCoaching = ({
   if (['bounded_scenario', 'open_scope_probe'].includes(ambiguityMode) || requiresClarificationSignal) {
     return {
       clarificationStatus: 'no_assumption_stated',
+      groundedBy: 'question_scope_and_accepted_answer',
       coachingFeedback: 'Your response addressed the topic, but for open-scoped questions, stating your assumed context upfront makes your answer safer and clearer.',
       actionableTip: 'Before answering open-ended technical questions, take a moment to state your assumed scale, environment, or constraints.',
     };
@@ -83,6 +87,7 @@ export const evaluateTurnClarificationCoaching = ({
 
   return {
     clarificationStatus: 'none',
+    groundedBy: 'accepted_answer',
     coachingFeedback: 'The question scope was clear and your answer directly addressed the requested evidence.',
     actionableTip: null,
   };

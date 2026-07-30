@@ -27,6 +27,17 @@ describe('TurnBreakdownSection', () => {
             mainGapKey: 'professionalJudgement',
             normalizedScore: 7.5,
           },
+          answerAssessment: {
+            status: 'partly_addressed',
+            score: 61,
+            summary: 'Your answer is relevant, but needs clearer validation.',
+            missingSignals: ['validation'],
+            nextStep: 'Explain how you verified the response.',
+          },
+          strongerAnswer: {
+            status: 'ready',
+            answer: 'I would state the safety concern, explain my escalation, and confirm the documented outcome.',
+          },
         }]}
       />
     );
@@ -38,6 +49,13 @@ describe('TurnBreakdownSection', () => {
     expect(screen.queryByText('not applicable')).not.toBeInTheDocument();
     expect(screen.queryByText('STARR Evidence')).not.toBeInTheDocument();
     expect(screen.queryByText('Business')).not.toBeInTheDocument();
+    expect(screen.getByText('Answer result')).toBeInTheDocument();
+    expect(screen.getByText('Partly addressed')).toBeInTheDocument();
+    expect(screen.getByText('61/100')).toBeInTheDocument();
+    expect(screen.getByText(/Practice signal for your next answer/)).toBeInTheDocument();
+    expect(screen.getByText('What to add: validation.')).toBeInTheDocument();
+    expect(screen.getByText('A stronger answer')).toBeInTheDocument();
+    expect(screen.getByText(/I would state the safety concern/)).toBeInTheDocument();
   });
 
   it('shows STARR for behavioural answers', () => {
@@ -59,8 +77,8 @@ describe('TurnBreakdownSection', () => {
     expect(screen.getByText('STARR Evidence')).toBeInTheDocument();
   });
 
-  it('renders the logic score bar with a visible fill when the score is present', () => {
-    const { container } = render(
+  it('renders STARR evidence for behavioural answers with scores', () => {
+    render(
       <TurnBreakdownSection
         turnBreakdowns={[
           {
@@ -80,12 +98,8 @@ describe('TurnBreakdownSection', () => {
       />
     );
 
-    expect(screen.getByText('Logic')).toBeInTheDocument();
-    expect(screen.getByText('7/10')).toBeInTheDocument();
-
-    const visibleFills = [...container.querySelectorAll('[style]')]
-      .filter((node) => node.getAttribute('style')?.includes('width: 70%'));
-
-    expect(visibleFills.some((node) => node.getAttribute('style')?.includes('background-color: rgb(139, 92, 246)'))).toBe(true);
+    expect(screen.getByText('STARR Evidence')).toBeInTheDocument();
+    expect(screen.getByText('Situation')).toBeInTheDocument();
+    expect(screen.getByText('Action')).toBeInTheDocument();
   });
 });

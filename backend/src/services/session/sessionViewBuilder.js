@@ -20,29 +20,13 @@ import {
 } from './sessionShared.js';
 import { sanitizeRoleFitDiagnostics } from '../roleFit/roleFitDiagnosticsService.js';
 
-export const sanitizeQuestionPoolForClient = (questionPool = []) => questionPool.map(({
-  sourceType,
-  sourceId,
-  matchedRequirementId,
-  matchedSkill,
-  cvEvidenceRefs,
-  generationReason,
-  confidence,
-  planPriority,
-  proofPointId,
-  coverageContractIds,
-  testedRoleIntentIds,
-  recommendedEvidenceIds,
-  evidenceAngle,
-  preparationGuidance,
-  evidenceGuidance,
-  hiringLogicCoverage,
-  evidenceMapStrength,
-  coveragePriority,
-  roleFitReason,
-  rankTrace,
-  ...safeItem
-}) => safeItem);
+export const sanitizeQuestionPoolForClient = (questionPool = []) => questionPool.map((item = {}) => ({
+  text: item.text || '',
+  fallbackText: item.fallbackText || '',
+  category: item.category || '',
+  stage: item.stage || '',
+  questionRole: item.questionRole || '',
+}));
 
 export const sanitizeRoleFitForClient = (roleFit = {}) => {
   if (roleFit?.readiness && typeof roleFit.enabled === 'boolean') return roleFit;
@@ -62,31 +46,9 @@ export const sanitizeRoleFitForClient = (roleFit = {}) => {
 };
 
 export const sanitizeTranscriptMetadataForClient = (metadata = {}) => {
-  const {
-    proofPointId,
-    coverageContractIds,
-    testedRoleIntentIds,
-    recommendedEvidenceIds,
-    evidenceAngle,
-    evidenceMapStrength,
-    preparationGuidance,
-    evidenceGuidance,
-    hiringLogicCoverage,
-    evidenceTarget,
-    evidenceUsed,
-    rankTrace,
-    questionDecision,
-    questionRanking,
-    topRootCandidates,
-    rejectedCandidates,
-    alternativesConsidered,
-    whyThisQuestion,
-    rationaleSummary,
-    selectedAngle,
-    shortReason,
-    baseQuestionText,
-    ...safeMetadata
-  } = metadata || {};
+  const safeMetadata = {};
+  if (typeof metadata?.topic === 'string') safeMetadata.topic = metadata.topic;
+  if (metadata?.latency && typeof metadata.latency === 'object') safeMetadata.latency = metadata.latency;
   return safeMetadata;
 };
 
@@ -117,10 +79,18 @@ export const sanitizeLiveSessionForClient = (session = {}) => ({
     questionPool: sanitizeQuestionPoolForClient(session.interviewPlan.questionPool || []),
   } : session.interviewPlan,
   transcript: Array.isArray(session.transcript)
-    ? session.transcript.map((turn) => ({
-      ...turn,
-      metadata: sanitizeTranscriptMetadataForClient(turn.metadata),
-    }))
+    ? session.transcript.map((turn) => {
+      const {
+        questionId: _questionId,
+        preparedQuestionId: _preparedQuestionId,
+        rootQuestionId: _rootQuestionId,
+        ...safeTurn
+      } = turn;
+      return {
+        ...safeTurn,
+        metadata: sanitizeTranscriptMetadataForClient(turn.metadata),
+      };
+    })
     : [],
 });
 const isNonEmptyObject = (value) => Boolean(value && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length);
@@ -193,7 +163,6 @@ const mapTranscriptTurns = (transcript) => transcript?.turns?.map((turn) => ({
   text: turn.text,
   displayText: buildTranscriptDisplayText(turn),
   timestamp: new Date(turn.timestamp).toISOString(),
-  questionId: turn.questionId,
   metadata: sanitizeTranscriptMetadataForClient(turn.metadata),
 })) || [];
 

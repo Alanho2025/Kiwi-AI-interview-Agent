@@ -22,6 +22,14 @@ const FORBIDDEN_KEYS = new Set([
   'rawreasoning',
   'chainofthought',
 ]);
+const RESTRICTED_PROMPT_REQUEST_PATTERNS = [
+  /\b(?:share|show|provide|paste|disclose|reveal|give|submit|enter|send|list)\b[\s\S]{0,80}\b(?:password|credential|api[ _-]?key|secret|access token|private key)\b/i,
+  /\b(?:share|show|provide|paste|disclose|reveal|give|submit|enter|send|list)\b[\s\S]{0,80}\b(?:source code|proprietary code|confidential code|internal code)\b/i,
+  /\b(?:share|show|provide|paste|disclose|reveal|give|submit|enter|send|list)\b[\s\S]{0,80}\b(?:customer|client)\s+(?:data|details|names?|information)\b/i,
+  /\b(?:share|show|provide|paste|disclose|reveal|give|submit|enter|send|list)\b[\s\S]{0,80}\b(?:system prompt|internal prompt|prompt template|nda[- ]protected)\b/i,
+  /\b(?:what(?:'s|\s+is)|tell\s+me)\s+(?:your|the)\s+(?:password|credential|api[ _-]?key|secret|access token|private key)\b/i,
+  /\btell\s+me\s+(?:your\s+)?(?:customer|client)\s+(?:data|details|names?|information)\b/i,
+];
 
 const normalizeSignalText = (value = '') => normalizeKey(String(value || '').replace(/[^a-z0-9+#.]+/gi, ' '));
 const uniqueNormalizedValues = (values = []) => [...new Set(ensureArray(values).map(normalizeKey).filter(Boolean))];
@@ -36,6 +44,9 @@ const hasForbiddenCatalogField = (value) => {
     FORBIDDEN_KEYS.has(normalizeKey(key).replace(/[^a-z0-9]+/g, '')) || hasForbiddenCatalogField(nestedValue)
   ));
 };
+
+const hasRestrictedPromptRequest = (item = {}) => ensureArray(item.promptVariants)
+  .some((variant) => RESTRICTED_PROMPT_REQUEST_PATTERNS.some((pattern) => pattern.test(String(variant?.text || ''))));
 
 export const validateQuestionCatalogItem = (item = {}) => {
   const errors = [];
@@ -58,6 +69,7 @@ export const validateQuestionCatalogItem = (item = {}) => {
     }
   }
   if (hasForbiddenCatalogField(item)) errors.push('contains_candidate_or_session_field');
+  if (hasRestrictedPromptRequest(item)) errors.push('contains_restricted_prompt_request');
   return { valid: errors.length === 0, errors };
 };
 

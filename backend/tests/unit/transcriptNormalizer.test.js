@@ -210,6 +210,23 @@ describe('transcriptNormalizer', () => {
             expect(result.normalizedText).not.toMatch(/\s{2,}/);
             expect(result.normalizedText).toBe('React Query with PostgreSQL');
         });
+        it('should normalize candidate answer STT misrecognitions', () => {
+            const testCases = [
+                { input: 'front end with react and types javascript', expected: 'types JavaScript', replacement: 'TypeScript' },
+                { input: 'it can combine with the web sunkit', expected: 'web sunkit', replacement: 'WebSocket' },
+                { input: 'considering by lan chen', expected: 'lan chen', replacement: 'LangChain' },
+                { input: 'use github c oc id which i can read', expected: 'c oc id', replacement: 'CI/CD' },
+                { input: 'put into mpn run build and docker', expected: 'mpn run build', replacement: 'npm run build' },
+                { input: 'use sql manager to save env', expected: 'sql manager', replacement: 'Secrets Manager' },
+                { input: 'merge to the man branch', expected: 'merge to the man', replacement: 'merge to main' },
+            ];
+
+            testCases.forEach(({ input, replacement }) => {
+                const result = normalizeTranscript(input);
+                expect(result.normalizedText).toContain(replacement);
+                expect(result.changed).toBe(true);
+            });
+        });
     });
 });
 

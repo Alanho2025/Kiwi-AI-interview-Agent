@@ -1,6 +1,6 @@
 import { CompanyValuesProfile } from '../../db/models/companyValuesProfileModel.js';
 import { conflict } from '../../utils/appError.js';
-import { buildRetentionExpiry } from '../retention/retentionPolicy.js';
+import { buildRetentionCutoff, buildRetentionExpiry } from '../retention/retentionPolicy.js';
 
 const terminalStatuses = new Set(['ready', 'fallback', 'failed']);
 
@@ -14,6 +14,12 @@ const buildPrivateRetentionFields = () => ({
   containsSensitiveData: true,
   accessScope: 'private',
   schemaVersion: 'v2',
+});
+
+const buildActiveCompanyValuesProfileFilter = (filter, now) => ({
+  ...filter,
+  deletedAt: null,
+  updatedAt: { $gt: buildRetentionCutoff(now) },
 });
 
 const markReviewConfidence = (item) => (
@@ -47,19 +53,24 @@ const applyRoleFitReviewConfidence = (roleFitProfile = {}) => ({
     : roleFitProfile.roleIntent,
 });
 
-export const getCompanyValuesProfile = async (sessionId) => {
+export const getCompanyValuesProfile = async (sessionId, now = new Date()) => {
   if (!sessionId) return null;
-  return CompanyValuesProfile.findOne({ sessionId }).lean();
+  return CompanyValuesProfile.findOne(buildActiveCompanyValuesProfileFilter({ sessionId }, now)).lean();
 };
 
-export const getCompanyValuesProfileByFingerprint = async ({ userId, jdFingerprint } = {}) => {
+export const getCompanyValuesProfileByFingerprint = async ({ userId, jdFingerprint } = {}, now = new Date()) => {
   if (!userId || !jdFingerprint) return null;
-  return CompanyValuesProfile.findOne({ userId: String(userId), jdFingerprint }).lean();
+  return CompanyValuesProfile.findOne(buildActiveCompanyValuesProfileFilter({
+    userId: String(userId),
+    jdFingerprint,
+  }, now)).lean();
 };
 
-export const getCompanyValuesProfilesByUserId = async (userId) => {
+export const getCompanyValuesProfilesByUserId = async (userId, now = new Date()) => {
   if (!userId) return [];
-  return CompanyValuesProfile.find({ userId: String(userId) }).sort({ updatedAt: -1 }).lean();
+  return CompanyValuesProfile.find(buildActiveCompanyValuesProfileFilter({
+    userId: String(userId),
+  }, now)).sort({ updatedAt: -1 }).lean();
 };
 
 export const markCompanyValuesStatus = async ({

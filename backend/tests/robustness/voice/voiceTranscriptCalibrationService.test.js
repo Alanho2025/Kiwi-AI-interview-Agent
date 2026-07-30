@@ -190,4 +190,18 @@ describe('voice transcript calibration service', () => {
     ]);
     expect(merged.corrections).toEqual([]);
   });
+
+  it('calibrates candidate answer acronyms from N-best candidates correctly', () => {
+    const decision = calibrateTranscript({
+      rawText: 'I used github c oc id for automated deploy',
+      nBestCandidates: [
+        { index: 0, text: 'I used github c oc id for automated deploy', confidence: 0.81 },
+        { index: 1, text: 'I used github CI/CD for automated deploy', confidence: 0.79 },
+      ],
+      glossaryItems: [buildGlossaryItem('CI/CD', { reason: 'technical_acronym' })],
+    });
+
+    expect(decision.decisionType).toBe('nbest_rerank');
+    expect(decision.calibratedTranscript).toBe('I used github CI/CD for automated deploy');
+  });
 });

@@ -22,6 +22,10 @@ export const generateReport = async ({ sessionId }) => apiPost('/report/generate
 export const qaReport = async ({ sessionId, userPrompt = '' }) => apiPost('/report/qa', { sessionId, userPrompt });
 export const qaReportCheckOnly = async ({ sessionId }) => apiPost('/report/qa-check', { sessionId });
 export const getReport = async (sessionId) => apiGet(`/report/${sessionId}`);
+export const getReportDiagnostics = async (sessionId) => apiGet(`/report/${sessionId}/diagnostics`);
+export const saveReportReflection = async ({ sessionId, reflection, focusArea }) => (
+  apiPost(`/report/${sessionId}/reflections`, { reflection, focusArea })
+);
 
 /**
  * Purpose: Execute the main responsibility for exportReport.

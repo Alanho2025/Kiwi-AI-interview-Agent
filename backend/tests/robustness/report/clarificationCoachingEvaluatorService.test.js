@@ -36,6 +36,7 @@ describe('CP4 report clarification and AI judgement coaching evaluators', () => 
     });
 
     expect(result.clarificationStatus).toBe('scope_confirmed');
+    expect(result.groundedBy).toBe('scope_confirmation_event');
     expect(result.coachingFeedback).toContain('confirmed the question scope');
     expect(result.actionableTip).toContain('seeking scope confirmation');
     expect(result.ambiguityMode).toBeUndefined(); // Projection boundary enforced
@@ -136,6 +137,7 @@ describe('CP4 report clarification and AI judgement coaching evaluators', () => 
     });
 
     expect(verifiedResult.aiJudgementStatus).toBe('ai_workflow_verified');
+    expect(verifiedResult.groundedBy).toBe('accepted_answer');
     expect(verifiedResult.coachingFeedback).toContain('personal verification and workflow ownership');
 
     const answerTurnToolsOnly = {
@@ -216,8 +218,10 @@ describe('CP4 report clarification and AI judgement coaching evaluators', () => 
     expect(alignments.length).toBe(1);
     expect(alignments[0].clarificationCoaching).toBeDefined();
     expect(alignments[0].clarificationCoaching.clarificationStatus).toBe('no_assumption_stated');
+    expect(alignments[0].clarificationCoaching.groundedBy).toBe('question_scope_and_accepted_answer');
     expect(alignments[0].clarificationCoaching.ambiguityMode).toBeUndefined(); // Projection boundary enforced
     expect(alignments[0].aiJudgementCoaching).toBeDefined();
     expect(alignments[0].aiJudgementCoaching.aiJudgementStatus).toBe('ai_workflow_verified');
+    expect(alignments[0].aiJudgementCoaching.groundedBy).toBe('accepted_answer');
   });
 });

@@ -16,6 +16,7 @@ import {
   getSessionById,
   appendTranscriptTurn,
   createInterviewQuestion,
+  getLatestQuestionForSession,
 } from './sessionService.js';
 import { getNextQuestionOrder, hasReachedQuestionLimit, hasReachedTimeLimit } from './interviewStateService.js';
 import { ensureSessionArtifactsIndexed } from './ragIndexService.js';
@@ -372,10 +373,14 @@ const runInterviewController = async ({
   capabilityRegistry = agentRegistry,
 }) => {
   const isVoiceMode = ['duplex_voice', 'realtime_voice'].includes(payload.inputMode);
+  const latestQuestion = isVoiceMode
+    ? await getLatestQuestionForSession(session.id)
+    : null;
   const questionScopeObservation = isVoiceMode
     ? resolveQuestionScopeObservation({
         session,
         candidateText: payload.answer || '',
+        activeQuestion: latestQuestion,
       })
     : { kind: 'none', reason: 'not_voice_mode' };
 

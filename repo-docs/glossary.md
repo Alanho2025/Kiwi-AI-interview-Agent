@@ -22,7 +22,8 @@
 | stepSummary | `performanceTrace` 里按 step 名称聚合的耗时摘要；用于看同一环节出现几次、累计耗时和最慢一次 | [match 与问题准备](modules/feature-match-and-question-prep.md) |
 | slowestSteps | `performanceTrace` 里按 `durationMs` 排序的最慢 measured steps；用于快速定位 CV-JD match latency 热点 | [match 与问题准备](modules/feature-match-and-question-prep.md) |
 | prepared question pool | 访谈前生成的候选问题池；运行时仍会被 ranker、dedupe、follow-up 控制影响 | [interviewer agent](modules/agent-interviewer.md) |
-| Question Catalog `2026.1` | 首个经 CP1 content 与 CP2 Voice policy 双重人工核准的 reusable question 版本；global catalog 不含 CV/JD/transcript 或 user/session data，只有 `approved` item 可复制进新 Voice session 的 private prepared pool | [match 与问题准备](modules/feature-match-and-question-prep.md) |
+| Question Catalog `2026.1` | 首个 reusable question source version；global catalog 不含 CV/JD/transcript 或 user/session data。只有数据库 lifecycle 为 `approved` 的 item 才可复制进新 Voice session 的 private prepared pool，source manifest 不等于实际 activation | [match 与问题准备](modules/feature-match-and-question-prep.md) |
+| Question Catalog `2026.2` | 含 versioned scope clarification context 的后续 reusable question source version；Voice loader 只在数据库有 matching `approved` item 时优先使用，否则回退 `2026.1` 或既有安全路径 | [voice interview](modules/feature-voice-interview.md) |
 | Senior | 新 Voice session 的最高 seniority 设置值；backend canonical key 为 `senior`。旧 `Advanced` input/display defaults 会在兼容读取时映射为 `Senior`，不重写历史 session | [match 与问题准备](modules/feature-match-and-question-prep.md) |
 | ANSWER_QUESTION_SCOPE | CP3 的 deterministic Voice action；只用 prepared versioned context 回答候选人的 scope question，并保持同一个 root question | [voice interview](modules/feature-voice-interview.md) |
 | ambiguityMode | prepared question 的 scope policy：`none`、`bounded_scenario` 或 `open_scope_probe`；`ambiguityMode=none` 不允许 semantic scope response | [match 与问题准备](modules/feature-match-and-question-prep.md) |
@@ -56,5 +57,6 @@
 | TranscriptRiskSection | report page 的 transcript risk 顯示元件；目前只展示 review evidence 和 boundary copy，不提供持久化 review actions | [voice interview](modules/feature-voice-interview.md) |
 | bounded repair | 报告 QA 后有限次 wording repair；不能掩盖 deterministic blocking flags | [report QA agent](modules/agent-report-qa.md) |
 | retention | 数据保留、audit、cleanup、backup/quarantine 的后台能力；不等同于已完成 account-wide deletion guarantee | [数据与保留](modules/data-persistence-retention.md) |
+| retentionUntil | 敏感 Mongo artifact 写入时记录的保留到期时间；Saved JD 的新旧资料实际统一以 `updatedAt` 七天 cutoff 和对应 TTL index 处理，不能只依赖这个字段判断旧资料是否会清除 | [数据与保留](modules/data-persistence-retention.md) |
 | TRUST_PROXY_HOPS=1 | Backend 明確信任前方正好一層 reverse proxy；WebSocket limiter 才可使用 right-most valid `X-Forwarded-For`，未啟用時只使用 direct socket address | [EC2 deployment runtime](modules/deployment-runtime.md) |
 | stop() | Recording 或 retention worker 的 graceful shutdown 方法；停止下一輪 interval，並等待目前 active run 結束 | [EC2 deployment runtime](modules/deployment-runtime.md) |

@@ -86,16 +86,137 @@ describe('voice question scope clarification policy', () => {
     expect(observation.responseText).not.toContain('product');
   });
 
-  it('does not activate the CP3 lane for a question whose ambiguity mode is none', () => {
+  it('treats a scope-help request as non-scoring even when semantic prepared scope is unavailable', () => {
     const observation = resolveQuestionScopeObservation({
       session: { transcript: [rootQuestion({ ambiguityMode: 'none' })] },
       candidateText: 'Should I focus on personal AI use or a project I built?',
     });
 
     expect(observation).toMatchObject({
-      kind: 'none',
-      reason: 'ambiguity_mode_none',
+      kind: 'clarification_request',
+      intentType: 'ask_focus_or_scope',
+      countsAsAnswer: false,
     });
+  });
+
+  it.each([
+    [
+      'Can you clarify and clear describe what are you asking? Because I think you mentioned quite long sentences and I cannot really follow.',
+      'did_not_understand',
+    ],
+    ['Could you repeat the question', 'request_repeat'],
+    ['Can you make the question shorter and simpler', 'request_shorter_question'],
+    ['Could you rephrase that in a different way', 'request_rephrase'],
+    ['What does that question mean', 'ask_question_meaning'],
+    ['I did not understand what you are asking', 'did_not_understand'],
+    ['Can you give me an example of the kind of answer you mean', 'ask_example_type'],
+    ['Could you say that more slowly', 'request_slower_delivery'],
+    ['What timeframe should the example come from', 'ask_timeframe'],
+    ['Are you asking me to describe my own contribution', 'confirm_candidate_understanding'],
+    ['That question is too complex and has too many parts', 'question_too_complex'],
+    ['That question was too long and wordy', 'question_too_long'],
+    ['The question feels too broad and ambiguous', 'question_too_ambiguous'],
+    ['I am not sure how to answer that question', 'uncertain_help_request'],
+  ])('recognizes general voice clarification without requiring an ambiguity-mode flag: %s', (candidateText, intentType) => {
+    const observation = resolveQuestionScopeObservation({
+      session: { transcript: [rootQuestion({ ambiguityMode: 'none' })] },
+      candidateText,
+    });
+
+    expect(observation).toMatchObject({
+      kind: 'clarification_request',
+      intentType,
+      rootQuestionId: 'question-3',
+      countsAsQuestion: false,
+      countsAsAnswer: false,
+    });
+    expect(observation.responseText).toBeTruthy();
+  });
+
+  it('does not swallow a substantive answer that ends with a conversational check', () => {
+    const observation = resolveQuestionScopeObservation({
+      session: { transcript: [rootQuestion({ ambiguityMode: 'none' })] },
+      candidateText: 'I led the rollout, clarified the requirements with finance, tested the workflow, and measured the result. Is that what you mean?',
+    });
+
+    expect(observation).toMatchObject({ kind: 'none' });
+  });
+
+  it('does not mistake an answer about clarifying requirements for a clarification request', () => {
+    const observation = resolveQuestionScopeObservation({
+      session: { transcript: [rootQuestion({ ambiguityMode: 'none' })] },
+      candidateText: 'I clarified the requirements with the product manager before I designed the workflow.',
+    });
+
+    expect(observation).toMatchObject({ kind: 'none' });
+  });
+
+  it.each([
+    'I do not know where to start, so I mapped the workflow, removed two bottlenecks, and reduced cycle time by 30 percent.',
+    'The requirement was too broad, so I narrowed it to onboarding, delivered the new workflow, and measured the result.',
+    'I could not follow the initial data lineage, so I mapped every source, tested the joins, and fixed the reporting gap.',
+    'Can you clarify what conversion means? I treated it as completed checkout, built the metric, and reduced reporting errors by 20 percent.',
+  ])('keeps mixed or clarification-like substantive content as an answer: %s', (candidateText) => {
+    const observation = resolveQuestionScopeObservation({
+      session: { transcript: [rootQuestion({ ambiguityMode: 'none' })] },
+      candidateText,
+    });
+
+    expect(observation).toMatchObject({
+      kind: 'none',
+      reason: 'substantive_answer_content',
+    });
+  });
+
+  it('recovers a clarification request without scoring when the active root is unavailable', () => {
+    const observation = resolveQuestionScopeObservation({
+      session: { transcript: [] },
+      candidateText: 'Could you repeat the question?',
+    });
+
+    expect(observation).toMatchObject({
+      kind: 'clarification_recovery',
+      intentType: 'request_repeat',
+      countsAsQuestion: false,
+      countsAsAnswer: false,
+      rootQuestionId: null,
+      scopeResponseReason: 'active_root_question_unavailable',
+    });
+  });
+
+  it('fails closed without an active root even when the candidate text looks substantive', () => {
+    const observation = resolveQuestionScopeObservation({
+      session: { transcript: [] },
+      candidateText: 'I built the service and reduced latency by 40 percent.',
+    });
+
+    expect(observation).toMatchObject({
+      kind: 'clarification_recovery',
+      intentType: 'active_question_unavailable',
+      countsAsQuestion: false,
+      countsAsAnswer: false,
+      rootQuestionId: null,
+      scopeResponseReason: 'active_root_question_unavailable',
+    });
+  });
+
+  it('uses distinct deterministic responses for shorter, complex, ambiguous, and meaning requests', () => {
+    const candidates = [
+      'Can you make the question shorter',
+      'That question is too complex',
+      'That question is too ambiguous',
+      'What does that question mean',
+    ];
+    const responses = candidates.map((candidateText) => resolveQuestionScopeObservation({
+      session: { transcript: [rootQuestion({ ambiguityMode: 'none' })] },
+      candidateText,
+    }).responseText);
+
+    expect(new Set(responses).size).toBe(candidates.length);
+    expect(responses[0]).not.toContain('How do you use AI?');
+    expect(responses[1]).toContain('one part at a time');
+    expect(responses[2]).toContain('State that scope');
+    expect(responses[3]).toContain('It is asking for');
   });
 
   it('accepts a substantive assumption-framed answer without manufacturing a clarification turn', () => {
@@ -151,6 +272,127 @@ describe('voice question scope clarification policy', () => {
       countsAsQuestion: false,
       countsAsAnswer: false,
     });
+  });
+
+  it('offers a non-scoring skip after two prior clarification responses', () => {
+    const transcript = [
+      rootQuestion({ ambiguityMode: 'none' }),
+      ...[1, 2].flatMap((index) => ([
+        {
+          role: 'user',
+          text: `Clarification ${index}`,
+          metadata: {
+            turnType: QUESTION_SCOPE_TURN_TYPES.REQUEST,
+            countsAsQuestion: false,
+            countsAsAnswer: false,
+            rootQuestionId: 'question-3',
+          },
+        },
+        {
+          role: 'ai',
+          text: `Help response ${index}`,
+          questionId: 'question-3',
+          metadata: {
+            turnType: QUESTION_SCOPE_TURN_TYPES.RESPONSE,
+            countsAsQuestion: false,
+            countsAsAnswer: false,
+            rootQuestionId: 'question-3',
+          },
+        },
+      ])),
+    ];
+    const observation = resolveQuestionScopeObservation({
+      session: { transcript },
+      candidateText: 'I still do not understand the question',
+    });
+
+    expect(observation).toMatchObject({
+      kind: 'clarification_skip_offer',
+      countsAsAnswer: false,
+      scopeResponseReason: 'repeated_clarification_skip_offered',
+    });
+    expect(observation.responseText).toContain('skip this question');
+  });
+
+  it('moves to a fresh root after the candidate accepts the bounded skip offer', () => {
+    const transcript = [
+      rootQuestion({ ambiguityMode: 'none' }),
+      ...[1, 2].map((index) => ({
+        role: 'ai',
+        text: `Help response ${index}`,
+        questionId: 'question-3',
+        metadata: {
+          turnType: QUESTION_SCOPE_TURN_TYPES.RESPONSE,
+          countsAsQuestion: false,
+          countsAsAnswer: false,
+          rootQuestionId: 'question-3',
+        },
+      })),
+    ];
+    const observation = resolveQuestionScopeObservation({
+      session: {
+        currentQuestionIndex: 1,
+        totalQuestions: 3,
+        transcript,
+        interviewPlan: {
+          questionPool: [
+            { questionId: 'question-3', text: 'How do you use AI?', category: 'technical' },
+            { questionId: 'question-4', text: 'Tell me about a delivery improvement.', category: 'behavioural' },
+          ],
+        },
+      },
+      candidateText: 'skip this question',
+    });
+
+    expect(observation).toMatchObject({
+      kind: 'skip_question_request',
+      nextRootQuestionId: 'question-4',
+      countsAsAnswer: false,
+      turnType: 'interview_question',
+    });
+    expect(observation.responseText).toContain('Tell me about a delivery improvement.');
+  });
+
+  it('sanitizes an unsafe legacy pool question before speaking it after skip', () => {
+    const transcript = [
+      rootQuestion({ ambiguityMode: 'none' }),
+      ...[1, 2].map((index) => ({
+        role: 'ai',
+        text: `Help response ${index}`,
+        questionId: 'question-3',
+        metadata: {
+          turnType: QUESTION_SCOPE_TURN_TYPES.RESPONSE,
+          countsAsQuestion: false,
+          countsAsAnswer: false,
+          rootQuestionId: 'question-3',
+        },
+      })),
+    ];
+    const observation = resolveQuestionScopeObservation({
+      session: {
+        currentQuestionIndex: 1,
+        totalQuestions: 3,
+        transcript,
+        interviewPlan: {
+          questionPool: [
+            { questionId: 'question-3', text: 'How do you use AI?', category: 'technical' },
+            {
+              questionId: 'question-4',
+              text: 'I want to validate one possible gap around Limited direct evidence for communication skills. What evidence do you have for meeting the requirement?',
+              category: 'behavioural',
+            },
+          ],
+        },
+      },
+      candidateText: 'skip this question',
+    });
+
+    expect(observation).toMatchObject({
+      kind: 'skip_question_request',
+      nextRootQuestionId: 'question-4',
+    });
+    expect(observation.responseText).toContain('Can you give me one practical example');
+    expect(observation.responseText).not.toMatch(/I want to validate|limited direct evidence/i);
   });
 
   it('ignores a normal answer that merely mentions focus', () => {
@@ -211,6 +453,7 @@ describe('voice question scope clarification policy', () => {
 
     expect(tracePayload).toMatchObject({
       selectedAction: AGENT_ACTION_TYPES.ANSWER_QUESTION_SCOPE,
+      intentType: 'ask_focus_or_scope',
       scopeResponseReason: 'candidate_requested_focus',
       clarificationContextVersion: 'scope-2026.2-v1',
       rootQuestionRef: 'question-3',

@@ -4,6 +4,7 @@ import {
   buildAnswerAlignments,
   buildRoleFitReportSummary,
 } from '../../../src/services/report/answerAlignmentService.js';
+import { buildAnswerRewriteExamples } from '../../../src/services/agents/reportGenerator/reportCoachingBuilder.js';
 import { buildReportDraft } from '../../../src/services/agents/reportGenerator/reportDraftBuilder.js';
 import { validateReportOutput } from '../../../src/services/schemaValidationService.js';
 
@@ -118,6 +119,8 @@ describe('answer alignment service', () => {
       confidence: expect.stringMatching(/high|medium/),
       angleUsed: 'production delivery ownership',
     })]);
+    expect(alignments[0].clarificationCoaching).toEqual(expect.objectContaining({ groundedBy: 'accepted_answer' }));
+    expect(alignments[0].aiJudgementCoaching).toEqual(expect.objectContaining({ groundedBy: 'question_type' }));
   });
 
   it('diagnoses answers that miss the recommended evidence angle without inventing support', () => {
@@ -159,9 +162,16 @@ describe('answer alignment service', () => {
     expect(buildAnswerAlignments(buildInput(excludedPairs))).toEqual([]);
   });
 
-  it('returns an explicit unavailable state without breaking a legacy report', () => {
+  it('adds a generic answer assessment for accepted legacy answers without role-fit evidence', () => {
+    const genericPair = {
+      ...acceptedPair,
+      questionTurn: {
+        ...acceptedPair.questionTurn,
+        metadata: { countsAsQuestion: true },
+      },
+    };
     const summary = buildRoleFitReportSummary({
-      questionAnswerPairs: [acceptedPair],
+      questionAnswerPairs: [genericPair],
       interviewPlan: { questionPool: [] },
       analysisResult: {},
       session: { id: 'legacy-session', userId: 'legacy-user' },
@@ -173,12 +183,46 @@ describe('answer alignment service', () => {
       answerAlignments: [],
       evidenceUsageMap: { totalUses: 0, items: [] },
     }));
+    expect(summary.candidateTurnAssessments).toEqual([expect.objectContaining({
+      status: expect.stringMatching(/directly_addressed|partly_addressed|needs_clearer_connection/),
+      score: expect.any(Number),
+      source: 'generic_question_alignment',
+    })]);
+  });
+
+  it('does not assess excluded transcript turns in a candidate-facing legacy summary', () => {
+    const summary = buildRoleFitReportSummary({
+      questionAnswerPairs: [{
+        ...acceptedPair,
+        answerTurn: { ...acceptedPair.answerTurn, metadata: { transcriptStatus: 'rejected' } },
+      }],
+      interviewPlan: { questionPool: [] },
+      analysisResult: {},
+      session: { id: 'legacy-session', userId: 'legacy-user' },
+    });
+
+    expect(summary.candidateTurnAssessments).toEqual([]);
+  });
+
+  it('creates one rewrite fallback for every answered interview turn', () => {
+    const rewrites = buildAnswerRewriteExamples({
+      turnBreakdowns: Array.from({ length: 4 }, (_, index) => ({
+        question: `Question ${index + 1}`,
+        answer: `Answer ${index + 1}`,
+      })),
+    });
+
+    expect(rewrites).toHaveLength(4);
+    expect(rewrites.map((item) => item.question)).toEqual([
+      'Question 1', 'Question 2', 'Question 3', 'Question 4',
+    ]);
   });
 
   it('reports must-cover outcomes and question reasons without exposing CV snippets', () => {
     const summary = buildRoleFitReportSummary(buildInput());
 
     expect(summary.status).toBe('ready');
+    expect(summary.schemaVersion).toBe('role_fit_report_v2');
     expect(summary.roleIntentCoverage).toMatchObject({ total: 1, covered: 1, missing: 0 });
     expect(summary.evidenceUsageMap).toMatchObject({ totalUses: 1 });
     expect(summary.roleFitDiagnostics).toMatchObject({
@@ -196,6 +240,10 @@ describe('answer alignment service', () => {
       topic: 'Production delivery reliability',
     });
     expect(JSON.stringify(summary.questionReasoning)).not.toContain('reduced failed releases by 35%');
+    expect(summary.coachingProgress).toEqual(expect.objectContaining({
+      schemaVersion: 'role_fit_coaching_progress_v1',
+      clarification: expect.objectContaining({ practised: 1 }),
+    }));
   });
 
   it('preserves the Role-Fit extension through report v7 schema validation', () => {

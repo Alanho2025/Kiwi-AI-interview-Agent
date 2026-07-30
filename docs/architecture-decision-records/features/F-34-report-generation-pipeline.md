@@ -1,0 +1,198 @@
+# Feature RFC: F-34 面試評估報告與輔導生成管線 (Report & Coaching Generation Pipeline)
+
+> **文件狀態**：Approved  
+> **系統成熟度 (Readiness Level)**：Tested Implementation  
+> **核心模組路徑**：`backend/src/services/aiControl/reportActionExecutor.js`  
+> **Git 演進 Commit 追蹤**：`PR #136`, Commit `f81902a`  
+> **主要負責人 / 日期**：Kiwi AI Team / 2026-07-30  
+> **實作狀態 (Implementation Status)**：Verified  
+> **校驗測試路徑 (Verified by Tests)**：`backend/tests/robustness/report/reportFrameworkPipeline.test.js`  
+
+---
+
+## 1. 演進軌跡與背景動機 (Genesis & Evolution Trace)
+
+### 1.1 零基礎生活白話比喻 (Layman Analogy for Beginners)
+> 💡 **小白導讀**：
+> 想像面試結束後生成成績單與審核：
+> * **報告生成與修復管線 (本 Feature)**：面試結束時，控制層觸發 `GENERATE_REPORT_DRAFT`。由 [reportActionExecutor.js](../../backend/src/services/aiControl/reportActionExecutor.js) 呼叫 AI 產生初稿報告，隨即自動丟給 `reportQa` 稽核員審查。若品質不達標，自動發起 `runReportQaRepairLoop` 進行多輪修復，最後回傳包含 `{ report, qaResult, repairHistory, tools, isComplete, completedBecause }` 的結構化結果！
+
+### 1.2 基於 Git 歷史的從 0 到 1 演進歷程
+* **初始版本**：簡單對話總結，無 QA 審查與修復機制。
+* **現行架構**：實作 [reportActionExecutor.js](../../backend/src/services/aiControl/reportActionExecutor.js) 與 [reportQaRepairOrchestratorService.js](../../backend/src/services/report/reportQaRepairOrchestratorService.js)，導入「生成 ➔ QA 評估 ➔ 多輪 Repair 循環」管線。
+
+---
+
+## 2. 邊界與成功標準 (Scope & Success Criteria)
+
+### 2.1 涵蓋與非涵蓋範圍 (Scope Boundaries)
+* **In-Scope (包含範圍)**：
+  - 報告初稿生成 (`reportGenerator`)、QA 評估 (`reportQa`)、多輪自動修復循環 (`runReportQaRepairLoop`)。
+* **Out-of-Scope (排除範圍)**：
+  - 排除 PDF 實體檔案產出（由獨立控制器處理）。
+
+### 2.2 成功標準與量化 KPIs (Acceptance Criteria & Metrics)
+| 衡量指標 (Metric) | 目標值 (Target) | 驗證方式 / 自動化測試路徑 |
+| :--- | :--- | :--- |
+| **報告修復成功率** | `> 90%` | `backend/tests/robustness/report/reportFrameworkQa.test.js` |
+| **結構完整度** | `100%` 包含五維得分與評語 | 自動化模式測試 |
+
+---
+
+## 3. 架構與系統流向 (Architecture & Flow)
+
+### 3.1 系統資料流與狀態轉移圖 (Data Flow & State Machine Diagram)
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Controller as Master AI Controller
+    participant Executor as reportActionExecutor.js
+    participant Gen as agentRegistry.reportGenerator
+    participant QA as agentRegistry.reportQa
+    participant Repair as runReportQaRepairLoop
+
+    Controller->>Executor: executeReportAction({ action, session, decisionContext })
+    Executor->>Gen: 產生初稿報告 (initialReport)
+    Executor->>QA: 進行 QA 品質評價 (initialQaResult)
+    Executor->>Repair: 觸發 runReportQaRepairLoop({ report, qaResult, session, maxAttempts: 2 })
+    Repair-->>Executor: 回傳最終修復成果 (repairResult)
+    Executor-->>Controller: 回傳 { report, qaResult, repairHistory, tools, isComplete, completedBecause }
+```
+
+### 3.2 流程文字逐步拆解導覽 (Step-by-Step Narrative Walkthrough for Beginners)
+1. **第一步（觸發報告生成）**：控制層發送 `GENERATE_REPORT_DRAFT` Action 指令。
+2. **第二步（生成初稿）**：呼叫 `agentRegistry.reportGenerator` 根據面試 Session 與證據包產出初稿。
+3. **第三步（QA 評估）**：呼叫 `agentRegistry.reportQa` 檢查初稿之 Evidence Grounding 與分數覆蓋率。
+4. **第四步（自動修復與回傳）**：呼叫 `runReportQaRepairLoop` 自動修正缺失，打包完整結果回傳。
+
+---
+
+## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
+
+### 4.1 關鍵函數 / 邏輯區塊：`executeReportAction`
+* **現行程式碼位置**：[`backend/src/services/aiControl/reportActionExecutor.js:L5-L54`](../../backend/src/services/aiControl/reportActionExecutor.js#L5-L54)
+
+#### 現行真實程式碼 (Current Real Code Snippet)
+```javascript
+export const executeReportAction = async ({
+  selectedAction,
+  decisionContext,
+  agentRegistry,
+  session,
+  retrievalBundle = null,
+} = {}) => {
+  if (selectedAction !== AGENT_ACTION_TYPES.GENERATE_REPORT_DRAFT) {
+    return {
+      report: null,
+      qaResult: null,
+      repairHistory: [],
+      isComplete: true,
+      completedBecause: 'no_viable_action',
+    };
+  }
+
+  const initialReport = await agentRegistry.reportGenerator({
+    session,
+    analysisResult: session.analysisResult || {},
+    interviewPlan: session.interviewPlan || {},
+    retrievalBundle,
+    evidenceBundle: decisionContext?.evidenceBundle,
+    decisionContext,
+  });
+
+  const initialQaResult = await agentRegistry.reportQa({
+    report: initialReport,
+    analysisResult: session.analysisResult || {},
+    retrievalBundle,
+  });
+
+  const repairResult = await runReportQaRepairLoop({
+    report: initialReport,
+    qaResult: initialQaResult,
+    session,
+    retrievalBundle,
+    maxAttempts: 2,
+    agentRegistry,
+  });
+
+  return { 
+    report: repairResult.report, 
+    qaResult: repairResult.qaResult, 
+    repairHistory: repairResult.repairHistory || [],
+    tools: [AGENT_TOOL_NAMES.DRAFT_INTERVIEW_REPORT, AGENT_TOOL_NAMES.REVIEW_REPORT_QUALITY], 
+    isComplete: true, 
+    completedBecause: repairResult.qaResult?.passed ? 'report_generated_and_qa_passed' : 'report_generated_needs_review',
+  };
+};
+```
+
+#### 【逐行白話文解讀 (Line-by-Line Explanation for Beginners)】
+* **第 12-20 行**：非報告生成 Action 時傳回安全的預設空結構。
+* **第 22-29 行**：生成報告初稿。
+* **第 31-35 行**：進行 QA 品質評價。
+* **第 37-44 行**：帶入 `retrievalBundle`、`maxAttempts: 2` 與 `agentRegistry` 觸發 QA 自動修復循環 (`runReportQaRepairLoop`)。
+* **第 46-53 行**：封裝包含修復歷史、使用工具 (`tools`) 與最終 completion 原因的結果物件。
+
+#### 替代寫法 A (Naive Single-Pass Generation)
+```javascript
+// 替代寫法：單次產出後直接回傳，無視報告內容可能包含的邏輯矛盾與低 Grounding 缺陷
+const report = await generateReport(session);
+return report;
+```
+
+#### 微觀工程對比矩陣 (Micro Trade-off Analysis)
+| 對比維度 | 現行寫法 (QA Repair Loop) | 替代寫法 A (Naive Single-Pass) |
+| :--- | :--- | :--- |
+| **報告可信度** | **極高** (經過 QA 多輪修復) | 差 (容易包含 LLM 幻覺) |
+| **架構完整性** | **完整** (回傳 QA 歷史與邊界狀態) | 低 |
+
+---
+
+## 5. 爆炸半徑與失敗矩陣 (Blast Radius & Failure Matrix)
+- 影響面試完成後的報告呈現。
+
+---
+
+## 6. 運維與回滾步驟 (Incident Response & Rollback Runbook)
+- 檢查日誌：`runReportQaRepairLoop`
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「你們的面試報告是如何生成的？」  
+> **回答範例**：「我們採取了帶有 QA 自動修復循環的管線。當面試完成時，`reportActionExecutor` 會先調用報告生成器產出初稿，隨即交由獨立的 `reportQa` 進行比對。若發現 Evidence 覆蓋不足，會發起 `runReportQaRepairLoop`（帶入 maxAttempts: 2）進行修復，最後才傳回前台。」
+
+## 8. 2026-07-30 CP4 coaching integrity 同步
+
+- `backend/src/services/report/answerAlignmentService.js` 只從 accepted answer 建立 clarification / AI judgement coaching 與 `role_fit_coaching_progress_v1`；這些欄位不會改寫 alignment score。
+- `backend/src/services/agents/reportQaAgent.js` 將缺少 coaching、無 allowlisted source、內部 metadata 洩漏、score mutation 和無效 hypothesis 列為 blocking flags。
+- 驗證：report-focused backend suite 32 tests passed。
+
+## 9. 2026-07-30 QA rewrite projection 同步
+
+- report QA rewrite 回應和 persisted report read 都走 candidate-safe sanitizer，排除 report version、repair、rewrite、catalog、evidence 與 coverage internals。
+
+## 10. 2026-07-30 Shared candidate report publication boundary
+
+- `buildCandidateReportProjection` 現在是 generate、QA、read、QA rewrite 與 JSON/TXT export 的 server-owned allowlist。它只保留 candidate 可用的 report status、三個 canonical scores、簡短 score explanation、最多三個 priorities、逐題 feedback、answer rewrite、legacy limitation 與 material transcript risk。
+- Candidate payload 不再包含 Role-Fit breakdown/coaching、QA flags/prompt、execution cost、token usage、commercial stress、raw evidence/trace、internal IDs、candidate reflection 或 scoring formula；nested email、phone、street address 會在投影後再遮蔽。
+- Shared report boundary 同時適用 Voice 與 Text session；Voice clarification runtime 的分類改動仍是 voice-only。
+- `GET /api/report/:sessionId/diagnostics` 是獨立的 non-production、authenticated、owner-scoped surface；它包含 question selection/match-gap refs、turn eligibility、QA、cost 與 owner-scoped harness timelines。Production fail closed，diagnostics PII 仍遮蔽。
+- 驗證：report robustness group 100 tests、HTTP report integration、diagnostics controller 與 frontend report API/component tests 通過。
+
+## 11. 2026-07-30 Candidate per-question assessment and stronger answer
+
+- 新生成的報告會僅以既有 accepted-answer dataset 為每一個已回答問題建立 candidate-safe `answerAssessment`。有 Role-Fit contract 的題目沿用既有 alignment；沒有 proof strategy 的題目只提供 generic question directness，絕不宣稱 role-intent 或 CV evidence 已符合。
+- Candidate projection 以 canonical question 配對 assessment，並只輸出 practice-oriented `status`、0–100 coaching score、summary、missing signals、next step，以及可安全展示的 stronger answer。proof/evidence IDs、source、rank trace 和其他內部 metadata 不會傳到 candidate。
+- HTML 每題卡片保留原本 framework score，並新增獨立的 Answer result 與 A stronger answer 區塊；前者不是 hiring decision。展開既有 report 不會由此 UI 新增 LLM 呼叫；本 slice 未改變既有「report 不存在時 page load 自動生成」行為。原先重複的全域 HTML rewrite 區塊已移除；既有 JSON/TXT/PDF 輸出格式未重設計。
+- Rewrite fallback 不再只建立前三題，而是依實際 accepted-answer count 建立每題輸入；clarification、repair、pending、rejected、unconfirmed、system 與 acknowledgement turn 不會產生 assessment 或 rewrite。舊報告沒有新欄位時維持原樣，需 regenerate 才會得到此功能。
+- Independent audit status: **blocked**. The existing report-coaching normalizer still pairs LLM rewrites to fallback rows by array index, so same-text questions with reordered LLM rewrites can be misassigned. A follow-up must use a canonical `(question, weak answer)` identity in `reportCoachingService.js`, then emit unavailable when the pair cannot be proven. Until that repair and regression test land, this stronger-answer presentation is not release-complete for duplicate questions.
+- 驗證：後端 `answerAlignmentService` / candidate-projection focused tests 17 passed，前端 `TurnBreakdownSection` 3 tests passed，backend/frontend ESLint passed；independent audit passed candidate-safety checks but found the duplicate-question blocking defect. 尚未執行人工作業瀏覽器視覺驗收、真實 LLM provider 或 production rollout。
+
+## 12. 2026-07-30 CP4 Framework Breakdown, Self-Intro Detection, Tech Stack Context & Grounded Stronger Answer Updates
+
+- **Self-Intro Keyword Detection**: Updated `isSelfIntroductionQuestion` in `turnRubricService.js` to include `briefly introduce`, ensuring opening turns combining self-introduction and motivation (e.g., *"Could you briefly introduce yourself..."*) are accurately classified as `self_intro` and evaluated using the 4-dimension **Introduction Framework** (`Background`, `Role Relevance`, `Evidence`, `Clarity`).
+- **Dynamic Fallback Framework Breakdown**: Updated `TurnBreakdownSection.jsx` and `turnRubricService.js`: question cards lacking explicit `frameworkBreakdown` now dynamically generate the 4-card Introduction Framework (for self-intro) or 6-dimension Role-Specific Reasoning grid (`Context/Goal`, `Approach`, `Judgement/Trade-offs`, `Risk/Quality/Ethics`, `Validation/Verification`, `Outcome/Value`), eliminating plain Micro-Scores bars.
+- **Tech Stack Context Hints**: Updated `roleAnswerAnalysisService.js` to incorporate candidate `techStack` and `jobTitle` from turn metadata/context into rule-based breakdown reasons.
+- **Grounded Stronger Answer Fallback**: Updated `reportCoachingBuilder.js` and `TurnBreakdownSection.jsx` to generate grounded fallback rewrites for answered turns, ensuring `A STRONGER ANSWER` section consistently displays a candidate-safe green example answer instead of unavailable warning boxes.
+- **Verification**: Verified 52 backend robustness tests (`realtimeVoiceTurnMocked`, `questionScopeClarificationService`, `answerAlignmentService`, `reportFrameworkPipeline`, `roleSpecificFrameworkRobustness`) and 3 frontend Vitest component tests passed cleanly.

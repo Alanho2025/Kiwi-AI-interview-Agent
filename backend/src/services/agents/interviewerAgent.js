@@ -24,6 +24,7 @@ import {
   buildForceShiftProjectQuestion,
   buildProbeFrictionQuestion,
   buildProbeStressQuestion,
+  buildProbeTradeOffQuestion,
   buildProbingQuestion,
   buildReactTrace,
   buildRepetitionRepairSwitchQuestion,
@@ -166,24 +167,24 @@ export const runInterviewerAgent = async ({
   }
 
   if (actionType === AGENT_ACTION_TYPES.ASK_PROBING_QUESTION) {
-    selectedQuestion = buildProbingQuestion({ targetTopic: targetTopic || decisionContext?.currentTopic || evidenceBundle?.validationTargets?.[0] || 'project' });
+    selectedQuestion = buildProbingQuestion({ targetTopic: targetTopic || decisionContext?.currentTopic || evidenceBundle?.validationTargets?.[0] || 'project', candidateText: environment?.latestAnswer?.text || lastUserAnswer });
   } else if (actionType === AGENT_ACTION_TYPES.REPHRASE_QUESTION) {
     selectedQuestion = buildRephrasedQuestion({ targetTopic: targetTopic || decisionContext?.currentTopic || 'project', environment });
   } else if (actionType === AGENT_ACTION_TYPES.ASK_DEEP_DIVE_QUESTION) {
     selectedQuestion = focusArea === 'behavioral'
-      ? buildProbingQuestion({ targetTopic: targetTopic || decisionContext?.currentTopic || 'behavioural_example' })
+      ? buildProbingQuestion({ targetTopic: targetTopic || decisionContext?.currentTopic || 'behavioural_example', candidateText: environment?.latestAnswer?.text || lastUserAnswer })
       : buildDeepDiveQuestion({ targetTopic: targetTopic || decisionContext?.currentTopic || 'project' });
   } else if (actionType === AGENT_ACTION_TYPES.ASK_VALIDATION_QUESTION) {
     if (!selectedQuestion?.preparedQuestionId) {
       selectedQuestion = focusArea === 'behavioral'
-        ? buildProbingQuestion({ targetTopic: targetTopic || decisionContext?.currentTopic || 'behavioural_example' })
+        ? buildProbingQuestion({ targetTopic: targetTopic || decisionContext?.currentTopic || 'behavioural_example', candidateText: environment?.latestAnswer?.text || lastUserAnswer })
         : buildValidationQuestion({ targetTopic: targetTopic || decisionContext?.matchState?.validationTargets?.[0] || 'claim' });
     }
   } else if (actionType === AGENT_ACTION_TYPES.SWITCH_TOPIC) {
     if (!selectedQuestion?.preparedQuestionId) {
       selectedQuestion = probeType === 'repetition_repair_switch'
         ? buildRepetitionRepairSwitchQuestion({ targetTopic: targetTopic || decisionContext?.coverageState?.missingTopics?.[0] || 'role_fit' })
-        : buildSwitchTopicQuestion({ targetTopic: targetTopic || decisionContext?.coverageState?.missingTopics?.[0] || 'role_fit' });
+        : buildSwitchTopicQuestion({ targetTopic: targetTopic || decisionContext?.coverageState?.missingTopics?.[0] || 'role_fit', previousTopic: decisionContext?.currentTopic || '' });
     }
   } else if (actionType === AGENT_ACTION_TYPES.ASK_ABDUCTIVE_PROBE_QUESTION) {
     selectedQuestion = buildAbductiveProbeQuestion({ targetTopic: targetTopic || decisionContext?.abductiveState?.probeTopic || 'decision_tradeoff', hiddenGap: decisionContext?.abductiveState?.hiddenGap || '' });
@@ -192,7 +193,7 @@ export const runInterviewerAgent = async ({
       if ((category || decisionContext?.interviewStructure?.forceCategory) === 'technical' || probeType === 'technical_recovery' || targetTopic === 'technical') {
         selectedQuestion = getNextPoolQuestion(session, { freshOnly: true, category: 'technical' }) || buildTechnicalRecoveryQuestion({ targetTopic: decisionContext?.matchState?.validationTargets?.[0] || 'implementation', session, decisionContext });
       } else {
-        selectedQuestion = buildSectionShiftQuestion({ nextSectionKey: targetTopic || decisionContext?.sectionState?.nextSectionKey || 'motivation' });
+        selectedQuestion = buildSectionShiftQuestion({ nextSectionKey: targetTopic || decisionContext?.sectionState?.nextSectionKey || 'motivation', previousTopic: decisionContext?.currentTopic || '' });
       }
     }
   } else if (actionType === AGENT_ACTION_TYPES.FORCE_SHIFT_PROJECT) {
@@ -201,6 +202,8 @@ export const runInterviewerAgent = async ({
     selectedQuestion = buildProbeStressQuestion({ targetTopic: targetTopic || 'technical_depth' });
   } else if (actionType === AGENT_ACTION_TYPES.PROBE_FRICTION) {
     selectedQuestion = buildProbeFrictionQuestion({ targetTopic: targetTopic || 'ownership' });
+  } else if (actionType === AGENT_ACTION_TYPES.PROBE_TRADE_OFF) {
+    selectedQuestion = buildProbeTradeOffQuestion({ targetTopic: targetTopic || decisionContext?.currentTopic || 'technical_depth' });
   } else if (actionType === AGENT_ACTION_TYPES.ANSWER_CANDIDATE_QUESTION) {
     selectedQuestion = {
       type: 'answer_candidate_question',
@@ -315,7 +318,10 @@ export const runInterviewerAgent = async ({
   try {
     const llmStartedAt = Date.now();
     microPlan = await runBoundedQuestionMicroPlanning({
-      planningFrame: turnPlan.planningFrame,
+      planningFrame: {
+        ...turnPlan.planningFrame,
+        deliveryMode: session?.mode || session?.settings?.deliveryMode || 'text',
+      },
       fallbackQuestion: selectedQuestion.fallbackText || selectedQuestion.text,
       focusArea,
     });

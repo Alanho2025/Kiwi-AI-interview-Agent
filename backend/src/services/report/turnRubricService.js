@@ -26,7 +26,7 @@ const buildStarrRubric = ({ topic = '', targetedDimensions = [] } = {}) => {
 };
 
 const isSelfIntroductionQuestion = (questionText = '') =>
-  /quick introduction|tell me a bit about yourself|introduce yourself|about yourself/.test(questionText);
+  /quick introduction|tell me a bit about yourself|introduce yourself|about yourself|briefly introduce/.test(questionText);
 
 const asksForPastExampleEvidence = (questionText = '') =>
   /specific project|specific example|tell me about a time|can you describe.*project|project where|built .*engine|what did you personally do|what did you build|how did you know|what was the result|outcome|validated|validation|performance/.test(questionText);
@@ -298,7 +298,7 @@ export const analyzeTurnStructure = ({ question = '', answer = '', metadata = {}
     };
   }
   if (rubric.rubricType === 'role_specific') {
-    const frameworkBreakdown = analyzeRoleSpecificAnswer({ answer, rubric });
+    const frameworkBreakdown = analyzeRoleSpecificAnswer({ answer, rubric, context: metadata });
     return {
       ...rubric,
       frameworkBreakdown,
@@ -311,19 +311,15 @@ export const analyzeTurnStructure = ({ question = '', answer = '', metadata = {}
     };
   }
   if (!rubric.starApplicable) {
+    const frameworkBreakdown = analyzeRoleSpecificAnswer({ answer, rubric, context: metadata });
     return {
       ...rubric,
-      structureBreakdown: {
-        relevance: answer ? 'partial' : 'missing',
-        clarity: wordCount(answer) >= 8 ? 'partial' : 'missing',
-        completion: answer ? 'partial' : 'missing',
-        scores: {},
-        mainMissingElement: answer ? 'specificity' : 'answer',
-        scoreReason: answer ? 'The answer was captured, but this turn is not scored with STARR.' : 'No substantive answer was captured.',
-      },
+      frameworkBreakdown,
+      structureBreakdown: frameworkBreakdown,
       starrBreakdown: null,
       starrQualityScore: null,
-      missingElementExplanation: null,
+      frameworkQualityScore: frameworkBreakdown.normalizedScore,
+      missingElementExplanation: frameworkBreakdown.scoreReason,
     };
   }
   const starrBreakdown = analyzeStarrBreakdown(answer);

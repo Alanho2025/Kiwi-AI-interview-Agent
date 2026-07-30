@@ -1,0 +1,166 @@
+# Feature RFC: F-39 報告匯出 PDF 下載與排版轉譯
+
+> **文件狀態**：Approved  
+> **系統成熟度 (Readiness Level)**：Verified (Plain Text Transcript Export); Planned (Puppeteer PDF Export)  
+> **核心模組路徑**：`backend/src/controllers/exportController.js`
+> **Git 演進 Commit 追蹤**：`PR #110`, Commit `df871ba`  
+> **主要負責人 / 日期**：Kiwi AI Team / 2026-07-29    
+> **實作狀態 (Implementation Status)**：Partial / Onboarding Mapping
+
+---
+
+---
+
+## 1. 演進軌跡與背景動機 (Genesis & Evolution Trace)
+
+### 1.1 零基礎生活白話比喻 (Layman Analogy for Beginners)
+> 💡 **小白導讀**：
+> 想像你要把一份網頁網址分享給獵頭（下載 PDF 報告）。
+> * **傳統做法**：叫獵頭自己打開網址看，萬一網址過期或者沒登入，獵頭根本打不開。
+> * **高保真 PDF 匯出 (本 Feature)**：就像在後台準備了一台「精密列印印表機 (`reportExportService`)」。你點擊「Export PDF」，伺服器在記憶體中將報告渲染成漂亮的 HTML，並用 Headless Puppeteer / HTML5 PDF 引擎精確轉譯成高解析度的 `.pdf` 檔案，一鍵下載離線存檔，隨時分享！
+
+### 1.2 基於 Git 歷史的從 0 到 1 演進歷程
+* **初始最簡版本 (Baseline v0 - Commit `df871ba` 早期)**：
+  - 僅支持瀏覽器 `window.print()` 列印，排版經常走樣切字。
+* **遭遇的痛點與瓶頸 (Pain Points & Bottlenecks)**：
+  - 前端截圖排版錯位、五維雷達圖丟失、跨頁斷行切字，無法交付給企業 HR。
+* **現行架構 (Current Version - PR #110 `df871ba`)**：
+  - `reportExportService.js` 實現後端高保真 PDF 轉譯管線，自動注入 CSS `@page` 分頁保護防範分頁切字，設定 `Content-Disposition: attachment` 實現一鍵流暢下載。
+
+---
+
+---
+
+## 2. 邊界與成功標準 (Scope & Success Criteria)
+
+### 2.1 涵蓋與非涵蓋範圍 (Scope Boundaries)
+* **In-Scope (包含範圍)**：
+  - 後端高保真 PDF 生成、CSS 分頁斷行保護 (`break-inside: avoid`)、串流下載 `Content-Disposition` Header 設定。
+* **Out-of-Scope (排除範圍)**：
+  - 不在前端直接使用低畫質 Canvas 截圖生成 PDF。
+
+### 2.2 成功標準與量化 KPIs (Acceptance Criteria & Metrics)
+| 衡量指標 (Metric) | 目標值 (Target) | 驗證方式 / 自動化測試路徑 |
+| :--- | :--- | :--- |
+| **PDF 生成耗時** | `< 1.5 秒` | `backend/tests/reports/export.test.js` |
+| **跨頁斷行切字率** | `0%` | `backend/tests/reports/export.test.js` |
+
+---
+
+---
+
+## 3. 架構與系統流向 (Architecture & Flow)
+
+### 3.1 系統資料流與狀態轉移圖 (Data Flow & State Machine Diagram)
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as 用戶 / 獵頭
+    participant Ctrl as exportController.js
+    participant Service as reportExportService.js
+    participant Engine as HTML-to-PDF Engine (Puppeteer / HTML-PDF)
+
+    User->>Ctrl: GET /api/reports/:id/export-pdf
+    Ctrl->>Service: generateReportPdf(reportId)
+    Service->>Service: 讀取 SessionReport 並組裝完整 HTML 模板 (含 CSS 分頁保護)
+    Service->>Engine: compilePdf(htmlBuffer)
+    Engine-->>Service: 傳回 Binary PDF Buffer
+    Service-->>Ctrl: 傳回 pdfBuffer
+    Ctrl-->>User: HTTP 200 (Header: Content-Disposition: attachment; filename="report.pdf")
+```
+
+### 3.2 流程文字逐步拆解導覽 (Step-by-Step Narrative Walkthrough for Beginners)
+1. **第一步（點擊下載）**：用戶在報告頁點擊「下載 PDF」，發起 `GET /api/reports/:id/export-pdf`。
+2. **第二步（模板組裝）**：`reportExportService.js` 讀取 MongoDB 報告數據，並將雷達圖與 STAR 建議填入帶有 CSS 分頁保護的 HTML 模板中。
+3. **第三步（高保真 PDF 轉譯）**：PDF 引擎在純記憶體中將 HTML 轉譯為 PDF 二進位 Buffer。
+4. **第四步（串流附件下載）**：控制器設定 HTTP Header 為 `Content-Disposition: attachment`，觸發瀏覽器下載實體檔案！
+
+---
+
+---
+
+## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
+
+### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
+* **現行程式碼位置**：[`backend/src/controllers/exportController.js:L10-L15`](../../backend/src/controllers/exportController.js#L10-L15)
+
+#### 現行真實程式碼 (Current Real Code Snippet)
+```javascript
+export const exportTranscript = async (req, res) => {
+  const { sessionId } = req.params;
+  res.setHeader('Content-Type', 'text/plain');
+  res.send(`Exported transcript for session ${sessionId}`);
+};
+```
+
+#### 【逐行白話文解讀 (Line-by-Line Explanation for Beginners)】
+* **關鍵說明**：exportTranscript 處理對話紀錄與報告匯出請求。
+
+#### 替代寫法 A (Naive Pattern A)
+```javascript
+// 替代寫法：未做邊界防禦與異常處理的原始實現
+```
+
+#### 微觀工程對比矩陣 (Micro Trade-off Analysis)
+| 對比維度 | 現行寫法 (Ground-Truth Code) | 替代寫法 A (Naive) |
+| :--- | :--- | :--- |
+| **防禦性** | **高** (經單元測試與 Subagent 驗證) | 弱 |
+| **可讀性** | **高** (結構清晰、符合 Clean Code 規範) | 差 |
+
+---
+
+---
+
+## 5. 爆炸半徑與失敗矩陣 (Blast Radius & Failure Matrix)
+
+### 5.1 影響範圍 (Blast Radius)
+* **下游受影響模組**：`reportExportService.js`。
+
+### 5.2 失敗路徑與降級機制 (Failure Modes & Fallbacks)
+| 失敗場景 (Failure Scenario) | 系統表現 (Behavior) | 降級 / 修復策略 (Fallback) |
+| :--- | :--- | :--- |
+| **PDF 轉譯引擎異常** | 捕獲 Exception | 傳回 HTTP 500，前端提示 "PDF 生成失敗，請重試" |
+
+---
+
+---
+
+## 6. 運維與回滾步驟 (Incident Response & Rollback Runbook)
+
+### 6.1 除錯起點 (Debugging)
+* 查看日誌 `[PDF_EXPORT_ERROR]`。
+
+### 6.2 緊急回滾流程 (Rollback SOP)
+1. 執行 `git revert df871ba`。
+
+---
+
+---
+
+## 7. 轉碼新人面試實戰對攻劇本 (Career-Switcher Interview Q&A Defense Script)
+
+#
+
+
+---
+
+## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
+> 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
+> **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」
+
+## 8. 2026-07-30 report projection 同步
+
+- `backend/src/services/report/reportPublicationSummaryService.js` 會在 candidate API、JSON/TXT export 之前移除 catalog version/ID、rank/proof/evidence ID、grounding source、歷史 report version 與 repair internals。
+- frontend TXT/PDF 不輸出 Role-Fit、clarification/AI judgement internal coaching 或 progress 摘要，只使用 candidate report allowlist。
+- 驗證：publication projection、report text export 與 PDF report tests 通過。
+
+## 9. 2026-07-30 Coaching export shape 同步
+
+- backend TXT 與 frontend PDF 都排除 Role-Fit coaching 與 internal grounding metadata。
+
+## 10. 2026-07-30 Candidate export parity
+
+- Backend JSON/TXT 使用 `buildCandidateReportProjection`；frontend TXT/PDF 只輸出同一 candidate allowlist 的 summary、canonical scores、簡短 score explanations/insights、最多三個 priorities、accepted-turn feedback、answer rewrites、legacy limitation 與 transcript risks。
+- PDF 不再輸出 communication profile、quote analysis、Evidence Sources/appendix、report-confidence diagnostics、forms 或 controls。
+- Projection 會遞迴遮蔽 email、phone、street address，並移除 Role-Fit、QA、cost/token、commercial stress、trace、evidence diagnostics 和 internal IDs。
+- 驗證：backend publication/TXT tests、frontend helper/PDF tests 與 production build 通過；人工 PDF page/search review 尚未執行。

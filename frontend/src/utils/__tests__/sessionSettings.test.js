@@ -6,6 +6,7 @@ describe('sessionSettings seniority compatibility', () => {
   it('uses Senior in new payloads and maps old Advanced defaults forward', () => {
     expect(seniorityOptions).toContain('Senior');
     expect(sanitizeSessionSettings({ seniorityLevel: 'Senior' }).seniorityLevel).toBe('Senior');
+    expect(sanitizeSessionSettings({ seniorityLevel: 'senior' }).seniorityLevel).toBe('Senior');
     expect(sanitizeSessionSettings({ seniorityLevel: 'Advanced' }).seniorityLevel).toBe('Senior');
   });
 });

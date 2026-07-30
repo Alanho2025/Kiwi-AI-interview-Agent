@@ -20,7 +20,7 @@ export const buildQuestionPlanHints = ({ rubric, requirementChecks, microScores,
     ...(transitionProfile.careerTransitionSignal >= 0.7 ? ['career transition story', 'recent project depth'] : []),
   ]).slice(0, 6);
 
-  const nzEnabled = Boolean(settings.enableNZCultureFit);
+  const nzEnabled = settings.enableNZCultureFit !== false;
   const nzQuestions = nzEnabled
     ? pickNzCultureQuestions({ difficulty: rubric.roleLevel || 'all', count: 2 })
     : [];

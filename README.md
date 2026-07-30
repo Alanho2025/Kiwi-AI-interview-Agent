@@ -191,6 +191,9 @@ npm run test:e2e:role-fit-visual  # Visual validation checks
 ## 🔎 Important Quality Documents & References
 
 To inspect the architectural details and specifications of individual features, read:
+- **High-Level Agent Architecture Sitemap**: [`docs/architecture-decision-records/HIGH_LEVEL_AGENT_ARCHITECTURE_MAPPING.md`](file:///Users/heminghan/Kiwi-AI-interview-Agent/docs/architecture-decision-records/HIGH_LEVEL_AGENT_ARCHITECTURE_MAPPING.md) — 5-Layer Agent Architecture & RFC Mapping.
+- **68 Feature RFC Master Index**: [`docs/architecture-decision-records/features/README.md`](file:///Users/heminghan/Kiwi-AI-interview-Agent/docs/architecture-decision-records/features/README.md) — Complete 68 independent Feature RFC suite.
+- **Auto Docs Sync Skill**: [`.agents/skills/auto-docs-sync/SKILL.md`](file:///Users/heminghan/Kiwi-AI-interview-Agent/.agents/skills/auto-docs-sync/SKILL.md) — Automatic code-to-docs synchronization mandate.
 - **Marker Review Guide**: [`docs/marker-review-guide.md`](file:///Users/heminghan/Kiwi-AI-interview-Agent/docs/marker-review-guide.md) — Scoring rubrics, implemented vs. backlog list.
 - **Product Harness Verdict**: [`docs/harness/goal.md`](file:///Users/heminghan/Kiwi-AI-interview-Agent/docs/harness/goal.md) — Canonical live milestone status.
 - **Voice Interactivity Contracts**: [`VOICE_INTERVIEW_PRODUCT_BEHAVIOR.md`](file:///Users/heminghan/Kiwi-AI-interview-Agent/VOICE_INTERVIEW_PRODUCT_BEHAVIOR.md) — Voice state machine specification.

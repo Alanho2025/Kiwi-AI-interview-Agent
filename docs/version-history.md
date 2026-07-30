@@ -1,5 +1,35 @@
 # Version History
 
+## 2026-07-30 - Context-Aware Dialogue, Organic Trade-Off Probing & NZ Culture Support (F-74)
+
+- Added `PROBE_TRADE_OFF` action to `actionPlanner.js` and `interviewerAgentQuestionBuilder.js` for organic, narrative-rooted trade-off questions when candidate answers are smooth.
+- Implemented NZ culturally nuanced ownership probing (*"That sounds like a great team effort! What was your specific piece of the puzzle there?"*) when candidate references team/we.
+- Enabled dynamic conversational bridging across topic and section switches by propagating `previousTopic` into transition prompts (*"That makes sense for frontend. Moving on to backend..."*).
+
+## 2026-07-30 - Fix Context-Aware Dialogue & Clarification Placeholders
+
+- Replaced rigid `'this requirement'` and `'this area of the role'` placeholders with dynamic skill/topic extraction (`extractTopicFromFrame`, `extractTargetSkillFromQuestion`, `resolveVoiceGapTopic`).
+- Updated `questionScopeClarificationService.js` to explicitly state target skills (e.g. *"I am asking specifically about your experience with AWS"*) when candidates ask *"What's the requirement?"*.
+- Prevented duplicate company names in `buildOpeningQuestion` when `roleLabel` already contains the company name.
+
+## 2026-07-30 - Fix JD Section Heading Leak in Match Focus Areas & Requirement Pool
+
+- Fixed bug where raw JD section headers (such as `"Skills & Experience:"`) leaked into Match Focus Areas / Preparation Priorities (`ProofStrategyReviewPanel`) and requirement pool items.
+- Added `isJobDescriptionSectionHeading` filtering to `proofStrategyClientSummaryService.js` and `questionPoolComposerService.js` to strictly exclude section titles from candidate focus areas and practice questions.
+
+## 2026-07-30 - Interview Stress Level Mode (F-73)
+
+- Added `stressLevel` setting support (`supportive` | `standard` | `high_pressure`) across session mapping, environment context, action planning, and interviewer agent persona.
+- Implemented early `PROBE_STRESS` and `PROBE_FRICTION` action triggering in `high_pressure` mode with 10x traffic/latency constraint testing and outage recovery probing.
+- Added supportive coaching mode fallback to filter out intense stress probes in favor of gentle scaffolding.
+
+## 2026-07-30 - Candidate Answer STT Calibration & Normalization Optimization (F-18 / F-72)
+
+- Added candidate-answer STT safe replacements in `transcriptReplacements.js` for verified live transcript misrecognitions (`WebSocket`, `TypeScript`, `LangChain`, `CI/CD`, `npm run build`, `Secrets Manager`, `EC2`, `merge to main`, etc.).
+- Enhanced `speechPhraseHintService.js` regex to capture hyphenated/slashed acronyms (`CI/CD`), alphanumeric terms (`EC2`, `RDS`, `S3`, `VAD`), and tools (`WebSocket`, `Docker`) from CV/JD context into Azure STT Phrase List hints.
+- Updated `transcriptCalibrationService.js` `textContainsTerm` to support space-stripped acronym matching (e.g. `c oc id` -> `CI/CD`) during deterministic N-Best reranking.
+- Preserved 100% untouched `rawTranscript` for fluency/expression evaluation while providing `calibratedTranscript` for candidate technical competency evaluation.
+
 ## 2026-07-16 - Product Harness G0-G6 Local Shadow/Observe Foundation
 
 - Added Product Harness foundation (Milestones M1 to M5) to enable queryable `WorkflowRun` correlation across text/voice context, actions, gates, memory, and failures.

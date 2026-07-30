@@ -1,4 +1,11 @@
 {
+  "name": "kiwi-ai-interview-agent",
+  "private": true,
+  "scripts": {
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "dev": "npm --prefix backend run dev"
+  },
   "dependencies": {
     "@react-oauth/google": "^0.13.4",
     "jspdf": "^4.2.1",

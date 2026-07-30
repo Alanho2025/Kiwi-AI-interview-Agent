@@ -19,7 +19,7 @@ import {
 } from '../utils/nzWorkplaceHelpers.js';
 
 export const buildNzWorkplaceFit = ({ session = {}, transcript = null } = {}) => {
-  const enabled = Boolean(session?.settings?.enableNZCultureFit);
+  const enabled = session?.settings?.enableNZCultureFit !== false;
   if (!enabled) {
     return {
       enabled: false,
@@ -33,7 +33,7 @@ export const buildNzWorkplaceFit = ({ session = {}, transcript = null } = {}) =>
     };
   }
 
-  const turns = candidateTurns(transcript || session.transcript || []);
+  const turns = candidateTurns(transcript || session?.transcript || []);
   const sentences = splitSentences(turns);
   const transcriptText = turns.join(' ');
   const tokenCount = tokenize(transcriptText).length;

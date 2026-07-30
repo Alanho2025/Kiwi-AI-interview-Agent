@@ -190,4 +190,21 @@ describe('role-specific report frameworks', () => {
 
     expect(rubric).toMatchObject({ roleDomain, capabilityGroup, frameworkKey, starApplicable: false });
   });
+
+  it('incorporates tech stack and job title context into framework breakdown reasons', () => {
+    const structure = analyzeTurnStructure({
+      question: 'Tell me about how you built the recommendation workflow.',
+      answer: 'We worked on a recommendation project and discussed business value.',
+      metadata: {
+        questionFamily: 'role_specific',
+        evidenceMode: 'past_example',
+        capabilityGroup: 'technical_or_tool_skill',
+        techStack: ['RAG 檢索', 'LLM API 串接'],
+        jobTitle: 'Junior AI Integration Engineer',
+      },
+    });
+
+    const approachDimension = structure.frameworkBreakdown?.dimensions?.find((d) => d.key === 'approach');
+    expect(approachDimension?.reason).toContain('such as RAG 檢索 or LLM API 串接');
+  });
 });

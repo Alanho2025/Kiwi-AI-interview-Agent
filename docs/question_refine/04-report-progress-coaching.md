@@ -1,8 +1,8 @@
 # QI-CP4 — Report Alignment and Progress Coaching
 
-> **Status: Draft for human review.**
+> **Status: Local implementation and deterministic regression coverage are complete; human tone/privacy review remains required.**
 > **Depends on: CP1 catalog provenance, CP2 recommendation trace and CP3 clarification event contract.**
-> **Execution mode: documents and acceptance design only until separately approved.**
+> **Execution mode: candidate-safe report projection is implemented for API, UI, TXT and PDF; it does not imply human/browser/provider validation.**
 
 Master authority: [Voice Question Intelligence Master Plan](../voice-question-intelligence-master-plan.md). Read this file with the current accepted-answer/report QA services; do not infer candidate-visible behavior from internal trace fields.
 
@@ -16,7 +16,7 @@ Extend report coaching from generic STAR/alignment feedback to explain whether a
 
 - Report alignment is built from accepted answers; repair, repeat, clarification, system and similar turns are excluded.
 - Existing dimensions include question alignment, evidence fit/clarity, role-intent fit, naturalness and concision.
-- Current output lacks explicit clarification judgement, assumption framing and reliable AI delivery coaching.
+- Current output includes clarification and AI-judgement coaching with allowlisted grounding sources, per-session progress hypotheses and optional candidate-provided private reflection. Coaching does not alter the answer score.
 
 ## 2. Scope and non-goals
 
@@ -77,6 +77,8 @@ It must not label a person as incapable, claim a real interview outcome, infer p
 6. Each feedback claim has a grounded source: accepted answer, approved catalog expectation, reviewed role intent or candidate-provided reflection.
 7. Unsupported claim, missing source, internal metadata leakage or candidate-visible score inconsistency remains a blocking report QA failure.
 
+Candidate API, QA-rewrite response, JSON/TXT/PDF projection remove catalog/version, proof/evidence, role-intent/coverage, turn/question, claim/source/chunk IDs, grounding sources, traces and rewrite internals. QA treats those identifier forms in coaching text as a blocking metadata leak and rejects any nonempty proof/coverage reference that is not present in the report's declared contract.
+
 ## 5. BDD acceptance scenarios
 
 ### Scope clarification is coaching, not a second answer
@@ -128,8 +130,14 @@ Required evidence:
 - legacy report reader tests and candidate-safe UI/API projection checks if a new field is exposed;
 - privacy review of reflection and progress records.
 
-CP4 reviewer accepts/revises/blocks report wording, dimensions, source boundaries and progress-map semantics. Approval allows CP5 evaluation/rollout planning or explicit CP4 implementation only. It does not prove browser, live provider or production behavior.
+CP4 reviewer accepts/revises/blocks report wording, dimensions, source boundaries and progress-map semantics. Local QA blocks missing coaching, invalid source/status, internal metadata leakage, score mutation and invalid progress hypotheses. Reviewer approval allows CP5 evaluation/rollout planning; it does not prove browser, live provider or production behavior.
 
 ## 7. Stop conditions and rollback
 
 Any ungrounded coaching claim, candidate-visible leakage, score mutation by a non-answer turn, retention ambiguity or false hiring implication is a first-failure hard stop. Other deterministic issues use Master Plan §13's three-attempt policy. Rollback returns to current report dimensions for new reports, preserving raw accepted-answer and QA evidence for investigation.
+
+## 8. Implementation and Local Acceptance Status (2026-07-30)
+
+- **CP4 Implementation**: Local CP4 implementation is complete. `answerAlignmentService.js`, `reportCoachingBuilder.js`, `turnRubricService.js`, `roleAnswerAnalysisService.js`, and `TurnBreakdownSection.jsx` deliver candidate-safe coaching, 4/5/6-dimension framework card grids, self-intro detection (`briefly introduce`), candidate tech-stack hints, and grounded fallback rewrites.
+- **Candidate Safety**: Candidate report projection ([reportPublicationSummaryService.js](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/report/reportPublicationSummaryService.js)) strictly allowlists candidate-safe fields. Internal selection traces, catalog IDs, rank scores, and prompt internals remain excluded.
+- **Automated Verification**: 52 backend robustness tests (`realtimeVoiceTurnMocked.test.js`, `questionScopeClarificationService.test.js`, `answerAlignmentService.test.js`, `reportFrameworkPipeline.test.js`, `roleSpecificFrameworkRobustness.test.js`) and 3 frontend Vitest component tests (`TurnBreakdownSection.test.jsx`) passed cleanly with 0 ESLint errors.

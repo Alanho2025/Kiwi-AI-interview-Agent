@@ -207,6 +207,7 @@ describe('interview controller action completeness with realistic voice-length t
       'ASK_POOL_QUESTION',
       'PROBE_STRESS',
       'PROBE_FRICTION',
+      'PROBE_TRADE_OFF',
     ]).toContain(plan.selectedAction);
   });
 

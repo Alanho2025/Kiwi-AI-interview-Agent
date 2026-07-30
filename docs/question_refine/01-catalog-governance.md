@@ -1,7 +1,7 @@
 # QI-CP1 — Question Catalog Governance and Curated Seed
 
-> **Status: CP1 content review is approved and the `2026.1` staging catalog is activated.**
-> **Execution mode: only the 21 digest-bound `approved` entries can enter a new Voice session; later content changes require a new review and activation.**
+> **Status: CP1 local implementation and deterministic validation are complete.**
+> **Execution mode: runtime accepts only database `approved` entries; the actual Mongo activation state is an external read-only check, not asserted by this document.**
 
 Master authority: [Voice Question Intelligence Master Plan](../voice-question-intelligence-master-plan.md). This checkpoint is the only authority for CP1-specific scope; it does not override the Master Plan, root `AGENTS.md`, or `VOICE_INTERVIEW_PRODUCT_BEHAVIOR.md`.
 
@@ -21,7 +21,7 @@ Create a versioned, no-PII question catalog and curated seed process that can sa
 
 - `InterviewQuestionPoolItem` is private and session-scoped: it carries `userId`, `sessionId`, evidence links, status, rank trace and retention. It is not a global catalog.
 - Existing question sources include CV seeds, JD requirements / filters, match gaps, common templates and fallback. `backend/src/data/nzCultureQuestions.js` remains separate curated source data.
-- `QuestionCatalogItem`, the versioned `2026.1` seed, deterministic AI/ML taxonomy, lifecycle validation and explicit-approval script are implemented. Product Owner approval is recorded by `heminghan`; staging Mongo database `test` contains 21 unique approved entries.
+- `QuestionCatalogItem`, versioned `2026.1` and `2026.2` source manifests, deterministic AI/ML taxonomy, lifecycle validation and explicit-approval script are implemented. Source-controlled review manifests are digest-bound; their presence is not evidence that a database has been seeded or activated.
 
 ### Target outcome
 
@@ -71,8 +71,10 @@ New Voice sessions can select only `approved` reusable content after a runtime c
   targetLevels: ["junior", "intermediate", "senior"],
   roleEligibility: {
     roleFamilies: ["software", "data", "ai_solution"],
-    requiredJdSignals: [],
-    optionalCandidateSignals: ["ai_project", "coding_project"]
+    requiredCandidateSignals: [],
+    requiresExplicitAiDelivery: false,
+    requiresAiOrDigitalSignal: false,
+    requiresMlSignal: false
   },
   promptVariants: [],
   expectedSignals: ["ownership", "verification", "result"],
@@ -87,7 +89,7 @@ New Voice sessions can select only `approved` reusable content after a runtime c
 }
 ```
 
-`promptVariants` may contain reusable wording and placeholders, but not copied CV/JD/private evidence. Contextualization happens only when a future session creates its private snapshot.
+`promptVariants` may contain reusable wording and placeholders, but not copied CV/JD/private evidence. Validation rejects direct solicitations (for example, “What is your API key?”) and requests for credentials, secrets, confidential/internal source code, customer data, internal prompts or NDA-protected material; conceptual security questions remain allowed. Contextualization happens only when a future session creates its private snapshot.
 
 ### 5.2 Catalog-to-session snapshot contract
 
@@ -108,6 +110,8 @@ CP1/CP2 now write these optional fields to a Voice session pool item:
 ```
 
 The composer receives only `approved` items, only for Voice sessions, and copies the selected wording plus provenance into the private pool. Text sessions do not load catalog content. If Mongo/catalog loading is unavailable, the existing pool remains usable and the preparation result records `catalog_unavailable`.
+
+The snapshot is server-private. Candidate session payloads expose only question wording and basic presentation fields; catalog IDs/version, expected signals, coverage/selection policy, ambiguity mode and clarification response text are removed before they leave the server.
 
 ### 5.3 AI-delivery signal taxonomy
 
@@ -208,7 +212,7 @@ The owner reviews:
 
 Possible decision: `approved`, `revise`, `blocked`, or `deferred`. CP1 approval permits activation of this reviewed catalog version only; it does not authorize CP3 work, report changes, or automatic future catalog publishing.
 
-For the implemented seed, activation was a deliberate database action: the CP1 draft content and CP2 executable policy were approved first, then `npm run question-catalog:seed` stored 21 drafts and `QUESTION_CATALOG_REVIEWER=heminghan npm run question-catalog:approve` activated all 21. A read-only post-check confirmed database `test`, 21 unique IDs, lifecycle `approved` for all entries, and matching CP1/CP2 source digests.
+For an external activation, the CP1 draft content and CP2 executable policy must be approved first, then `npm run question-catalog:seed` may store drafts and `QUESTION_CATALOG_REVIEWER=... npm run question-catalog:approve` may activate the reviewed set. This repository has source-controlled review manifests and local validation only; a read-only post-check of the target Mongo environment is still required before claiming any item is active.
 
 The active review surfaces are the generated [full catalog, variants and taxonomy artifact](reviews/cp1-2026.1-catalog-full-review.md) and the compact [CP1 decision sheet](reviews/cp1-2026.1-catalog-review.md). A byte-for-byte drift test keeps the generated artifact aligned with source. Activation requires an approved source-controlled CP1 review manifest whose reviewed ID set and SHA-256 governance digest both match the question items, AI-delivery taxonomy and ML aliases, plus a separately approved CP2 executable-policy manifest. An environment reviewer name alone cannot activate content.
 

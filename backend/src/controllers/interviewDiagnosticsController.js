@@ -1,17 +1,11 @@
 import { formatSuccess } from '../utils/responseFormatter.js';
-import { forbidden } from '../utils/appError.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { resolveUserFromRequest } from '../services/authService.js';
 import { loadOwnedSessionOrThrow, requireSessionId } from '../services/interview/interviewSessionService.js';
 import { getInterviewQuestionDiagnostics } from '../services/questions/interviewQuestionDiagnosticsService.js';
 import { queryOwnedHarnessRunTimelines } from '../services/harness/harnessRunQueryService.js';
 import { getRequestLogMeta, logger } from '../utils/logger.js';
-
-const assertDeveloperDiagnosticsAvailable = () => {
-  if (process.env.NODE_ENV === 'production') {
-    throw forbidden('Developer diagnostics are disabled in production.');
-  }
-};
+import { assertDeveloperDiagnosticsAvailable } from '../services/diagnostics/developerDiagnosticsPolicyService.js';
 
 export const getQuestionDiagnostics = asyncHandler(async (req, res) => {
   assertDeveloperDiagnosticsAvailable();

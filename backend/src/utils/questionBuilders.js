@@ -6,8 +6,13 @@
 const isSeniorLevel = (level = '') => ['senior', 'advanced'].includes(String(level).trim().toLowerCase());
 
 export const buildOpeningQuestion = ({ roleLabel = 'the role', companyName = '', level = 'junior' } = {}) => {
-    const companyClause = companyName ? ` with ${companyName}` : '';
-    const roleContext = companyName ? `the ${roleLabel} role at ${companyName}` : `the ${roleLabel} role`;
+    const cleanCompany = String(companyName || '').trim();
+    let cleanRole = String(roleLabel || 'the role').trim();
+    if (cleanCompany && cleanRole.toLowerCase().endsWith(cleanCompany.toLowerCase())) {
+        cleanRole = cleanRole.slice(0, -cleanCompany.length).trim();
+    }
+    const companyClause = cleanCompany ? ` with ${cleanCompany}` : '';
+    const roleContext = cleanCompany ? `the ${cleanRole} role at ${cleanCompany}` : `the ${cleanRole} role`;
     if (isSeniorLevel(level)) {
         return `Hi, thanks for joining today${companyClause}. To get us started, could you introduce yourself and walk me through the parts of your background that best prepare you for ${roleContext}?`;
     }
