@@ -10,14 +10,16 @@
  */
 
 import express from 'express';
-import { saveSession, getSession, getSessionHistory, resumeSession, deleteSession } from '../../controllers/sessionController.js';
+import { saveSession, getSession, getSessionHistory, resumeSession, deleteSession, getProgressAnalytics } from '../../controllers/sessionController.js';
 
 const router = express.Router();
 
 router.post('/save', saveSession);
 router.get('/history', getSessionHistory);
+router.get('/progress-analytics', getProgressAnalytics);
 router.get('/:sessionId', getSession);
 router.post('/resume', resumeSession);
 router.delete('/:sessionId', deleteSession);
 
 export default router;
+

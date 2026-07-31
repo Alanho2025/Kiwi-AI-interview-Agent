@@ -25,3 +25,6 @@ export {
   getLatestQuestionForSession,
   createInterviewResponse,
 } from './session/sessionQuestionService.js';
+
+export { calculateProgressAnalytics } from './session/progressAnalyticsService.js';
+

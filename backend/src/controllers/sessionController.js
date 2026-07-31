@@ -10,8 +10,9 @@
  */
 
 import { formatSuccess } from '../utils/responseFormatter.js';
-import { getOwnedSessionById, listSessionsByUserId, updateSession, softDeleteOwnedSession } from '../services/sessionService.js';
+import { getOwnedSessionById, listSessionsByUserId, updateSession, softDeleteOwnedSession, calculateProgressAnalytics } from '../services/sessionService.js';
 import { resolveUserFromRequest } from '../services/authService.js';
+
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { badRequest, notFound } from '../utils/appError.js';
 import { logger, getRequestLogMeta } from '../utils/logger.js';
@@ -50,7 +51,20 @@ export const getSession = asyncHandler(async (req, res) => {
   res.json(formatSuccess('Session retrieved', { session }));
 });
 
+export const getProgressAnalytics = asyncHandler(async (req, res) => {
+
+  const user = await resolveUserFromRequest(req);
+  const { targetRole, deliveryMode } = req.query;
+  const analytics = await calculateProgressAnalytics({
+    userId: user.id,
+    targetRole: targetRole ? String(targetRole) : null,
+    deliveryMode: deliveryMode === 'voice' ? 'voice' : 'text',
+  });
+  res.json(formatSuccess('Progress analytics retrieved', analytics));
+});
+
 export const getSessionHistory = asyncHandler(async (req, res) => {
+
   const user = await resolveUserFromRequest(req);
   const sessions = await listSessionsByUserId(user.id, req.query.limit || 20);
   res.json(formatSuccess('Session history retrieved', { sessions }));

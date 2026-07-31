@@ -1,6 +1,14 @@
 # Version History
 
+## 2026-07-31 - Deterministic Candidate Progress Analytics API & 5-Layer Filter (Phase A - F-142)
+
+- Implemented `progressAnalyticsService.js` providing deterministic multi-session aggregation (0 LLM calls, p95 <= 50ms).
+- Enforced 5-Layer Comparability Pipeline (`user_id`, `deleted_at IS NULL`, `completed`, `ready`/`ready_after_repair`, `deliveryMode`, `schemaVersion: 'v7'`, `target_role`).
+- Implemented edge handling: returns `analyticsStatus: "insufficient_data"` for N < 2 comparable sessions and `availabilityStatus: "unavailable"` for missing/legacy report fields (never defaulting to 0).
+- Registered `GET /api/session/progress-analytics` before `/:sessionId` in `sessionRoutes.js` and added Vitest unit/integration test suite.
+
 ## 2026-07-30 - Context-Aware Dialogue, Organic Trade-Off Probing & NZ Culture Support (F-74)
+
 
 - Added `PROBE_TRADE_OFF` action to `actionPlanner.js` and `interviewerAgentQuestionBuilder.js` for organic, narrative-rooted trade-off questions when candidate answers are smooth.
 - Implemented NZ culturally nuanced ownership probing (*"That sounds like a great team effort! What was your specific piece of the puzzle there?"*) when candidate references team/we.
