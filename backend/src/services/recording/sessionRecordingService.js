@@ -69,10 +69,15 @@ const getReadyRecordingMetadata = async (mp3Path) => {
 };
 
 const resolveRecordingSource = async ({ sessionId, userId }) => {
-  const resumableStatus = await recordingUploadService.getSessionStatus({
-    sessionId,
-    userId,
-  });
+  let resumableStatus = null;
+  try {
+    resumableStatus = await recordingUploadService.getSessionStatus({
+      sessionId,
+      userId,
+    });
+  } catch {
+    // DB or table unavailable in offline/test mode
+  }
 
   // Once a resumable manifest exists, never silently fall back
   // to the legacy single-file recording.
