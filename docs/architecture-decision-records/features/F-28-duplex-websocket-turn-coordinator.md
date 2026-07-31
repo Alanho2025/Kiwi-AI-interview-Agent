@@ -41,8 +41,9 @@
 ### 2.2 成功標準與量化 KPIs (Acceptance Criteria & Metrics)
 | 衡量指標 (Metric) | 目標值 (Target) | 驗證方式 / 自動化測試路徑 |
 | :--- | :--- | :--- |
-| **首包語音延遲 (First Byte Latency)** | `< 3 秒` | `npm run test:all` (Voice suite) |
-| **打斷響應時間 (Barge-in Response)** | `< 150ms` | `backend/tests/voice/duplex.test.js` |
+| **首包語音延遲 (First Byte Latency)** | `< 3 秒` | `backend/tests/robustness/voice/voiceLatencyAcceptanceGate.test.js` |
+| **打斷響應時間 (Barge-in Response)** | `< 150ms` | `backend/tests/integration/voice/duplexVoiceSocket.integration.test.js` |
+| **二工狀態機與並發故障注入** | `Pass 100%` | `backend/tests/robustness/voice/duplexVoiceChaos.test.js` |
 
 ---
 

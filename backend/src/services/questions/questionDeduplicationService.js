@@ -129,11 +129,14 @@ const meaningfulTokens = (text = '') => buildQuestionFingerprint(text)
 const textSimilarity = (source = '', target = '') => {
   const sourceTokens = new Set(meaningfulTokens(source));
   const targetTokens = new Set(meaningfulTokens(target));
-  if (sourceTokens.size < 5 || targetTokens.size < 5) return 0;
+  if (sourceTokens.size < 2 || targetTokens.size < 2) return 0;
   const intersection = [...sourceTokens].filter((token) => targetTokens.has(token)).length;
   const containment = intersection / Math.min(sourceTokens.size, targetTokens.size);
   const union = sourceTokens.size + targetTokens.size - intersection;
   const jaccard = union ? intersection / union : 0;
+  if (sourceTokens.size < 5 || targetTokens.size < 5) {
+    return (containment >= 0.85 || jaccard >= 0.8) ? Math.max(containment, jaccard) : 0;
+  }
   return Math.max(containment >= 0.85 ? containment : 0, jaccard >= 0.75 ? jaccard : 0);
 };
 

@@ -1,6 +1,14 @@
 # Change Log
 
-## [2026-07-31 21:45 NZST] Issue #142 Multi-Session Progress Analytics Scope Correction (Pure Option B) & Data Rigor Resolution
+## [2026-08-01 00:16 NZST] CV-JD Match & Interview Preparation Robustness Suite & Short Question Deduplication Fix
+
+### Changed / Added
+
+- **Short Question Deduplication Fix**: Resolved bug in `questionDeduplicationService.js` where `textSimilarity` returned `0` for questions with under 5 tokens, allowing repetitive short questions to slip into interview prep pools. Short questions (2-4 tokens) now correctly evaluate similarity when Jaccard/Containment $\ge 0.85$.
+- **Match Scoring Robustness Suite**: Created `matchScoringService.test.js` covering `STRICT_TECH_PATTERNS` regex accuracy across 15 technical stacks, composite requirement string splitting, `software_it` domain weighted scoring, and `PRIMARY_TECH` hard requirement strict `not_met` overrides.
+- **Vector Embedding Fallback Suite**: Created `huggingFaceEmbeddingService.test.js` verifying graceful fallback from HuggingFace API network/rate-limit errors (429/500/Timeout) to the deterministic `weighted_hash_ngram_v2` vectorizer.
+- **Catalog Degradation Suite**: Created `questionCatalogDegradation.test.js` verifying smooth degradation to `catalog_unavailable` template pools when Mongo catalog DB is offline or empty.
+- **Automated Verification & Docs Sync**: 20/20 Vitest tests passed across 4 robustness test files. 0 ESLint errors in modified files. Feature RFC `F-18-question-cosine-deduplication-ranker.md` updated.
 
 ### Changed / Added
 

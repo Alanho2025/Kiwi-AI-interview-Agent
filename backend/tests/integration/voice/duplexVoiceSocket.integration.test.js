@@ -57,6 +57,7 @@ describe('duplex voice WebSocket integration', () => {
           jsonMessages.push(payload);
           if (payload.type === 'session_start') sendJson({ type: 'listening_started', source: 'integration_mock' });
           if (payload.type === 'ping') sendJson({ type: 'pong', source: 'integration_mock' });
+          if (payload.type === 'barge_in') sendJson({ type: 'barge_in_acknowledged', source: 'integration_mock' });
           if (payload.type === 'session_stop') sendJson({ type: 'session_stopped', source: 'integration_mock' });
         }),
         handleBinaryAudio: vi.fn(async (message) => {
@@ -114,6 +115,55 @@ describe('duplex voice WebSocket integration', () => {
     socket.close();
   });
 
+  it('buffers messages during async session initialization and processes them when ready', async () => {
+    let resolveSessionLoading;
+    const slowLoadingPromise = new Promise((resolve) => { resolveSessionLoading = resolve; });
+
+    dependencyMocks.loadOwnedSessionOrThrow = vi.fn().mockImplementation(async () => {
+      await slowLoadingPromise;
+      return {
+        id: 'session-1',
+        userId: 'user-1',
+        status: 'in_progress',
+        mode: 'voice',
+        transcript: [],
+      };
+    });
+
+    const socket = new WebSocket(`${baseWsUrl}/api/interview/session-1/voice/duplex?token=${token}&language=en-NZ&sampleRate=16000`);
+    sockets.push(socket);
+    await waitForOpen(socket);
+
+    // Send messages BEFORE session initialization completes
+    socket.send(JSON.stringify({ type: 'session_start', language: 'en-NZ' }));
+    socket.send(JSON.stringify({ type: 'ping', clientTimestamp: 999 }));
+
+    // Unblock session loading
+    resolveSessionLoading();
+
+    const listening = await waitForMessage(socket, (payload) => payload.type === 'listening_started');
+    expect(listening.source).toBe('integration_mock');
+    expect(jsonMessages.map((item) => item.type)).toContain('session_start');
+    expect(jsonMessages.map((item) => item.type)).toContain('ping');
+
+    socket.close();
+  });
+
+  it('immediately routes interrupt control payloads (barge_in / cancel_assistant_audio)', async () => {
+    const socket = new WebSocket(`${baseWsUrl}/api/interview/session-1/voice/duplex?token=${token}`);
+    sockets.push(socket);
+    await waitForOpen(socket);
+
+    socket.send(JSON.stringify({ type: 'session_start' }));
+    await waitForMessage(socket, (payload) => payload.type === 'listening_started');
+
+    socket.send(JSON.stringify({ type: 'barge_in', timestamp: Date.now() }));
+    const receivedBargeIn = await waitForMessage(socket, () => jsonMessages.some((m) => m.type === 'barge_in'));
+    expect(jsonMessages).toContainEqual(expect.objectContaining({ type: 'barge_in' }));
+
+    socket.close();
+  });
+
   it('rejects unauthenticated duplex sockets before loading a session', async () => {
     const socket = new WebSocket(`${baseWsUrl}/api/interview/session-1/voice/duplex`);
     sockets.push(socket);
@@ -125,4 +175,24 @@ describe('duplex voice WebSocket integration', () => {
     expect(dependencyMocks.loadOwnedSessionOrThrow).not.toHaveBeenCalled();
     socket.close();
   });
+
+  it('handles invalid JSON gracefully without crashing the WebSocket connection', async () => {
+    const socket = new WebSocket(`${baseWsUrl}/api/interview/session-1/voice/duplex?token=${token}`);
+    sockets.push(socket);
+    await waitForOpen(socket);
+
+    socket.send(JSON.stringify({ type: 'session_start' }));
+    await waitForMessage(socket, (payload) => payload.type === 'listening_started');
+
+    // Send malformed non-JSON text
+    socket.send('NOT_VALID_JSON{{{');
+
+    // Connection remains active and responsive to subsequent ping
+    socket.send(JSON.stringify({ type: 'ping', test: 123 }));
+    const pong = await waitForMessage(socket, (payload) => payload.type === 'pong');
+    expect(pong).toBeDefined();
+
+    socket.close();
+  });
 });
+

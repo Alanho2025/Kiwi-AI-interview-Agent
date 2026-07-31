@@ -163,4 +163,21 @@ describe('question deduplication contract', () => {
       expect.objectContaining({ questionId: 'duplicate', reason: 'duplicate_fingerprint' }),
     ]);
   });
+
+  it('rejects short questions (2-4 tokens) when text similarity is high', () => {
+    const history = buildQuestionHistory([
+      rootTurn({ text: 'Tell me about your SQL experience in production', topic: 'database', questionId: 'sql-1' }),
+    ]);
+    const result = evaluateQuestionNovelty({
+      candidate: {
+        topic: 'database',
+        questionFamily: 'experience',
+        text: 'Tell me about your SQL experience in production settings',
+      },
+      history,
+    });
+
+    expect(result.allowed).toBe(false);
+    expect(result.reason).toBe('near_duplicate_text');
+  });
 });
