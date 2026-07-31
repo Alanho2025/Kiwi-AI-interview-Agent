@@ -41,12 +41,12 @@ export function TranscriptRiskSection({ risks = [] }) {
                       Affected: {(risk.affectedTurnIds || []).join(', ') || 'interview transcript'}.
                     </p>
                   </div>
-                  {risk.needsUserConfirmation ? (
-                    <span className="rounded-full bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-800">
-                      Confirmation needed
+                  {risk.transcriptTrustStatus === 'Provisional' || risk.needsUserConfirmation ? (
+                    <span className="rounded-full bg-amber-100 border border-amber-300 px-2.5 py-1 text-xs font-semibold text-amber-900">
+                      Provisional / 待人工確認
                     </span>
                   ) : (
-                    <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-900">
+                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-800">
                       Review later
                     </span>
                   )}

@@ -1,9 +1,10 @@
 /**
- * File responsibility: Conservative realtime transcript calibration.
+ * File responsibility: Conservative realtime transcript calibration & phonetic corruption detection.
  * Main responsibilities:
  * - Keep ASR correction bounded to term-level evidence from provider candidates.
+ * - Detect near-match phonetic glossary corruptions (Double Metaphone + Levenshtein) when N-best fails.
+ * - Aggregate multi-segment minConfidence & risk summaries for transcript trust evaluation.
  * - Preserve raw transcript text and expose auditable calibration metadata.
- * - Prevent CV/JD context from becoming candidate spoken evidence.
  */
 
 import { collapseSpacing } from '../../utils/textNormalizers.js';
@@ -36,7 +37,7 @@ const resolveCandidateText = (candidate = {}) => cleanText(
   || candidate.ITN
   || candidate.MaskedITN
   || candidate.Lexical
-  || ''
+  || '',
 );
 
 export const normalizeNBestCandidates = (nBestCandidates = []) => {
@@ -79,7 +80,7 @@ const findMatchedGlossaryItem = ({ candidateText, rawText, glossaryItems = [] })
   )) || null;
 };
 
-const levenshteinDistance = (leftValue = '', rightValue = '') => {
+export const levenshteinDistance = (leftValue = '', rightValue = '') => {
   const left = leftValue.slice(0, MAX_COMPARISON_LENGTH);
   const right = rightValue.slice(0, MAX_COMPARISON_LENGTH);
   if (left === right) return 0;
@@ -105,13 +106,159 @@ const levenshteinDistance = (leftValue = '', rightValue = '') => {
   return previous[right.length];
 };
 
-const textSimilarity = (left = '', right = '') => {
+export const textSimilarity = (left = '', right = '') => {
   const normalizedLeft = normalizeForSearch(left);
   const normalizedRight = normalizeForSearch(right);
   const maxLength = Math.max(normalizedLeft.length, normalizedRight.length);
   if (!maxLength) return 1;
   const distance = levenshteinDistance(normalizedLeft, normalizedRight);
   return Math.max(0, 1 - (distance / maxLength));
+};
+
+export const computeSoundexCode = (word = '') => {
+  const norm = String(word || '')
+    .toLowerCase()
+    .replace(/^c(?=[aou])/g, 'k')
+    .replace(/^g(?=[eiy])/g, 'j')
+    .replace(/[^a-z]+/g, '');
+  if (!norm) return '';
+  const first = norm[0].toUpperCase();
+  const mappings = {
+    b: '1', f: '1', p: '1', v: '1',
+    c: '2', g: '2', j: '2', k: '2', q: '2', s: '2', x: '2', z: '2',
+    d: '3', t: '3',
+    l: '4',
+    m: '5', n: '5',
+    r: '6',
+  };
+  let code = first;
+  let prev = mappings[norm[0]] || '';
+  for (let i = 1; i < norm.length; i += 1) {
+    const char = norm[i];
+    const mapped = mappings[char] || '';
+    if (mapped && mapped !== prev) {
+      code += mapped;
+      prev = mapped;
+    } else if (!mapped && char !== 'h' && char !== 'w') {
+      prev = '';
+    }
+  }
+  return (code + '0000').slice(0, 4);
+};
+
+export const detectNearMatchGlossaryCorruptions = ({
+  rawText = '',
+  glossaryItems = [],
+} = {}) => {
+  const usableItems = glossaryItems.filter(isUsableGlossaryItem);
+  if (!usableItems.length || !rawText) return [];
+
+  const rawTokens = normalizeForSearch(rawText).split(/\s+/).filter(Boolean);
+  const detectedCorruptions = [];
+
+  for (const item of usableItems) {
+    const termNorm = normalizeForSearch(item.term);
+    const termTokens = termNorm.split(/\s+/).filter(Boolean);
+    if (!termTokens.length) continue;
+
+    if (textContainsTerm(rawText, item.term)) continue;
+
+    const minWindow = Math.max(1, termTokens.length - 1);
+    const maxWindow = Math.min(rawTokens.length, termTokens.length + 2);
+
+    for (let windowLen = minWindow; windowLen <= maxWindow; windowLen += 1) {
+      for (let index = 0; index <= rawTokens.length - windowLen; index += 1) {
+        const windowTokens = rawTokens.slice(index, index + windowLen);
+        const windowText = windowTokens.join(' ');
+        const windowStripped = windowTokens.join('');
+
+        const distance = levenshteinDistance(windowText, termNorm);
+        const similarity = textSimilarity(windowText, termNorm);
+        const strippedSimilarity = textSimilarity(windowStripped, termNorm.replace(/\s+/g, ''));
+        const effectiveSimilarity = Math.max(similarity, strippedSimilarity);
+
+        const windowPhonetic = windowTokens.map(computeSoundexCode).join('');
+        const termPhonetic = termTokens.map(computeSoundexCode).join('');
+        const phoneticMatch = windowPhonetic === termPhonetic || textSimilarity(windowPhonetic, termPhonetic) >= 0.65;
+
+        if (effectiveSimilarity >= 0.40 || (effectiveSimilarity >= 0.35 && phoneticMatch)) {
+          const matchStrength = (effectiveSimilarity >= 0.50 || (effectiveSimilarity >= 0.40 && phoneticMatch)) ? 'strong' : 'weak';
+          detectedCorruptions.push({
+            rawSpan: windowText,
+            candidateTerm: item.term,
+            normalizedTerm: item.normalizedTerm || normalizeForSearch(item.term),
+            similarity: Number(effectiveSimilarity.toFixed(4)),
+            distance,
+            phoneticMatch,
+            matchStrength,
+            source: item.source,
+            sourceRef: item.sourceRef || null,
+            scoringImpacting: true,
+            ambiguityCount: 1,
+          });
+        }
+      }
+    }
+  }
+
+  return detectedCorruptions;
+};
+
+export const buildMergedTranscriptRiskSummary = (segments = []) => {
+  const validSegments = Array.isArray(segments) ? segments.filter(Boolean) : [];
+  if (!validSegments.length) {
+    return {
+      totalSegments: 0,
+      minSegmentConfidence: null,
+      averageConfidence: null,
+      lowConfidenceSegmentCount: 0,
+      technicalRiskSegmentCount: 0,
+      requiresConfirmation: false,
+      riskLevel: 'low',
+      riskSegments: [],
+    };
+  }
+
+  const confidences = validSegments
+    .map((s) => Number(s.confidence?.stt ?? s.confidence))
+    .filter((c) => Number.isFinite(c));
+
+  const minSegmentConfidence = confidences.length ? Math.min(...confidences) : null;
+  const averageConfidence = confidences.length
+    ? Number((confidences.reduce((sum, val) => sum + val, 0) / confidences.length).toFixed(4))
+    : null;
+
+  const lowConfidenceSegmentCount = validSegments.filter((s) => {
+    const conf = Number(s.confidence?.stt ?? s.confidence);
+    return Number.isFinite(conf) && conf < 0.70;
+  }).length;
+
+  const riskSegments = validSegments.filter((s) => (
+    s.decisionType === 'possible_term_corruption'
+    || Boolean(s.termCorruption)
+    || (Array.isArray(s.corrections) && s.corrections.some((c) => c.scoringImpacting))
+  ));
+
+  const technicalRiskSegmentCount = riskSegments.length;
+  const requiresConfirmation = (minSegmentConfidence !== null && minSegmentConfidence < 0.65) || technicalRiskSegmentCount > 0;
+  const riskLevel = technicalRiskSegmentCount > 0 || (minSegmentConfidence !== null && minSegmentConfidence < 0.60)
+    ? 'high'
+    : (lowConfidenceSegmentCount > 0 ? 'medium' : 'low');
+
+  return {
+    totalSegments: validSegments.length,
+    minSegmentConfidence: minSegmentConfidence !== null ? Number(minSegmentConfidence.toFixed(4)) : null,
+    averageConfidence,
+    lowConfidenceSegmentCount,
+    technicalRiskSegmentCount,
+    requiresConfirmation,
+    riskLevel,
+    riskSegments: riskSegments.map((s) => ({
+      rawText: s.rawTranscript || s.rawText || '',
+      decisionType: s.decisionType || 'no_change',
+      termCorruption: s.termCorruption || null,
+    })),
+  };
 };
 
 const isBoundedTranscriptAlternative = ({ rawText, candidateText }) => {
@@ -199,13 +346,40 @@ export const calibrateTranscript = ({
     return decision;
   }
 
-  return buildBaseDecision({
+  const nearMatchCorruptions = detectNearMatchGlossaryCorruptions({
+    rawText: topText,
+    glossaryItems,
+  });
+
+  const baseDecision = buildBaseDecision({
     rawTranscript: topText,
     candidates,
     selectedTranscript: topText,
     selectedIndex: 0,
     startedAt,
   });
+
+  if (nearMatchCorruptions.length > 0) {
+    const primaryCorruption = nearMatchCorruptions[0];
+    baseDecision.decisionType = 'possible_term_corruption';
+    baseDecision.termCorruption = primaryCorruption;
+    baseDecision.ambiguityCount = nearMatchCorruptions.length;
+    baseDecision.matchStrength = primaryCorruption.matchStrength;
+    baseDecision.scoringImpacting = true;
+    baseDecision.corrections = nearMatchCorruptions.map((corr) => ({
+      rawSpan: corr.rawSpan,
+      correctedSpan: corr.candidateTerm,
+      glossaryTerm: corr.candidateTerm,
+      source: corr.source,
+      reason: 'near_match_phonetic_detection',
+      similarity: corr.similarity,
+      matchStrength: corr.matchStrength,
+      scoringImpacting: true,
+      userConfirmed: false,
+    }));
+  }
+
+  return baseDecision;
 };
 
 export const mergeStaticNormalizationIntoCalibration = ({ calibration, normalized }) => {

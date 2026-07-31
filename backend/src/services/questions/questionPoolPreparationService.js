@@ -3,7 +3,7 @@ import { InterviewQuestionPoolItem } from '../../db/models/interviewQuestionPool
 import { InterviewPlan } from '../../db/models/interviewPlanModel.js';
 import { ensureArray, normalizeKey, normalizeText } from '../../utils/commonHelpers.js';
 import { callDeepSeek } from '../deepseekService.js';
-import { buildModeCompatibility, stableQuestionId } from './questionArtifactHelpers.js';
+import { buildModeCompatibility, extractTargetTechnicalTerms, stableQuestionId } from './questionArtifactHelpers.js';
 import { composeInterviewQuestionPool } from './questionPoolComposerService.js';
 import { loadApprovedQuestionCatalogItems } from './questionCatalogRepository.js';
 import {
@@ -175,6 +175,15 @@ const isRootQuestion = (item = {}) => (
 const normalizeRootQuestion = (item = {}) => ({
   ...item,
   turnKind: 'root_question',
+  targetTechnicalTerms: Array.isArray(item.targetTechnicalTerms) && item.targetTechnicalTerms.length
+    ? item.targetTechnicalTerms
+    : extractTargetTechnicalTerms({
+      questionText: item.text || item.fallbackText || '',
+      topic: item.topic || '',
+      matchedSkill: item.matchedSkill || '',
+      basedOnSkills: item.basedOnSkills || [],
+      questionId: item.questionId || item.id || null,
+    }),
   assessmentKey: item.assessmentKey || buildAssessmentKey({ ...item, turnKind: 'root_question' }),
   questionFingerprint: item.questionFingerprint || buildQuestionFingerprint(item.text || item.fallbackText),
 });

@@ -1,4 +1,5 @@
 import { lookupRealWorldTradeOff } from '../../config/realWorldInterviewPatterns.js';
+import { extractTargetTechnicalTerms } from '../questions/questionArtifactHelpers.js';
 
 export const normalizeText = (value = '') => String(value || '').trim();
 export const tokenize = (value = '') => normalizeText(value).toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
@@ -39,18 +40,31 @@ export const buildQuestionConstraints = ({ question = {}, focusArea = 'combined'
   return constraints;
 };
 
-export const normalizeQuestionIntent = ({ question = {}, actionType = '', focusArea = 'combined' } = {}) => {
+export const normalizeQuestionIntent = ({ question = {}, actionType = '', focusArea = 'combined', analysisResult = {} } = {}) => {
   if (!question) return question;
   const fallbackText = normalizeText(question.fallbackText || question.text);
+  const targetTechnicalTerms = Array.isArray(question.targetTechnicalTerms) && question.targetTechnicalTerms.length
+    ? question.targetTechnicalTerms
+    : extractTargetTechnicalTerms({
+      questionText: question.text || fallbackText,
+      topic: question.topic || '',
+      matchedSkill: question.matchedSkill || '',
+      basedOnSkills: question.basedOnSkills || [],
+      evidenceRefs: question.evidenceRefs || [],
+      analysisResult,
+      questionId: question.id || question.questionId || null,
+    });
   return {
     ...question,
     questionGoal: question.questionGoal || inferQuestionGoal(question, actionType),
     evidenceNeed: Array.isArray(question.evidenceNeed) ? question.evidenceNeed : inferEvidenceNeed(question, actionType),
     constraints: Array.isArray(question.constraints) ? question.constraints : buildQuestionConstraints({ question, focusArea }),
+    targetTechnicalTerms,
     fallbackText,
     text: question.text || fallbackText,
   };
 };
+
 
 export const buildRoleLockedQuestion = (retrievedItem, fallback = {}) => ({
   type: fallback.type || fallback.stage || 'technical_core',
