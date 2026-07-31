@@ -34,3 +34,18 @@ export const deleteSession = (sessionId) => apiClient(`/session/${sessionId}`, {
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
 export const resumeSession = (sessionId) => apiClient('/session/resume', { method: 'POST', body: { sessionId } });
+export const getProgressAnalytics = ({ targetRole, deliveryMode } = {}) => {
+  const params = new URLSearchParams();
+  if (targetRole) params.append('targetRole', targetRole);
+  if (deliveryMode) params.append('deliveryMode', deliveryMode);
+  const queryStr = params.toString();
+  return apiClient(`/session/progress-analytics${queryStr ? `?${queryStr}` : ''}`);
+};
+export const postCoachingSummary = ({ targetRole, deliveryMode } = {}) => {
+  return apiClient('/session/progress-analytics/coaching-summary', {
+    method: 'POST',
+    body: { targetRole, deliveryMode },
+  });
+};
+
+

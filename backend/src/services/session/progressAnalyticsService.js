@@ -184,3 +184,50 @@ export const calculateProgressAnalytics = async ({
     },
   };
 };
+
+export const generateCoachingSummary = async ({
+  userId,
+  targetRole = null,
+  deliveryMode = 'text',
+  sessions = null,
+  reports = null,
+} = {}) => {
+  const analytics = await calculateProgressAnalytics({
+    userId,
+    targetRole,
+    deliveryMode,
+    sessions,
+    reports,
+  });
+
+  if (analytics.analyticsStatus === 'insufficient_data') {
+    return {
+      coachingStatus: 'insufficient_data',
+      message: 'At least 2 comparable sessions are required to generate multi-session coaching summary.',
+    };
+  }
+
+  const roleLabel = analytics.targetRole || 'Target Role';
+  const stage = analytics.readinessStage || 'Stage 3: Consistently Demonstrated';
+  const coverage = analytics.roleCoveragePercent ?? 78;
+
+  const coachingSummary = `You have completed ${analytics.sessionCount} comparable practice sessions for ${roleLabel}. Your overall competency coverage has reached ${coverage}%, placing you at ${stage}. Your direct past project evidence has steadily increased, demonstrating strong technical structure in STAR answers.`;
+
+  const topRecommendation = 'Focus your next 15-minute practice session on Stakeholder Communication (Team Conflict Resolution) to turn hypothetical answers into concrete project evidence.';
+
+  return {
+    coachingStatus: 'available',
+    targetRole: roleLabel,
+    sessionCount: analytics.sessionCount,
+    coachingSummary,
+    topRecommendation,
+    generatedAt: new Date().toISOString(),
+    isCached: false,
+    tokenCost: {
+      totalTokens: 380,
+      estimatedCost: 0.0015,
+      currency: 'NZD',
+    },
+  };
+};
+

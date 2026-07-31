@@ -19,6 +19,8 @@ import { RecentActivitySection } from '../components/home/RecentActivitySection.
 import { SessionHistorySection } from '../components/home/SessionHistorySection.jsx';
 import { StartSessionCard } from '../components/home/StartSessionCard.jsx';
 import { StatsSection } from '../components/home/StatsSection.jsx';
+import { ProgressAnalyticsBanner } from '../components/home/ProgressAnalyticsBanner.jsx';
+
 import { getCurrentUser, logoutFromSession } from '../api/authApi.js';
 import { getSessionHistory, deleteSession } from '../api/sessionApi.js';
 import {
@@ -237,7 +239,9 @@ export default function HomePage() {
             />
           </div>
           <StatsSection stats={stats} />
+          <ProgressAnalyticsBanner targetRole={stats.latestRole} deliveryMode="text" />
           <div id="tour-session-history">
+
             <SessionHistorySection
               historyLoading={historyLoading}
               sessionHistoryRows={sessionHistoryRows}
