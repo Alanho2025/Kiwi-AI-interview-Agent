@@ -1,5 +1,13 @@
 # Change Log
 
+## [2026-07-31 13:24 NZST] Issue #138 Resumable Recording Fallback & Truncated MP3 Prevention
+
+### Changed / Added
+
+- **Manifest-First Recording Source Resolution**: Implemented `resolveRecordingSource({ sessionId, userId })` in `sessionRecordingService.js`. When an active resumable upload manifest exists, legacy single-file fallback is strictly blocked unless the resumable pipeline reaches `ready` status.
+- **Canonical API Status & Download Alignment**: Updated `recordingController.js` and `sessionRecordingService.js` so both `/status` and `/download` endpoints consume the canonical `resolveRecordingSource` helper, attaching provenance metadata (`recordingSource: 'resumable_chunks' | 'legacy_single_file'`) without duplicate filesystem probing.
+- **Automated Verification**: Added 3 scenario unit tests to `recordingUploadGuard.test.js` verifying: (1) Stale 8 KB legacy MP3 + incomplete resumable upload returns 404 (legacy blocked), (2) Ready resumable upload returns published MP3, and (3) No resumable record + valid legacy MP3 returns legacy file. 100% test pass.
+
 ## [2026-07-31 11:18 NZST] CI Performance Test Threshold & Main Push Delay Removal
 
 ### Changed / Added

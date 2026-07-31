@@ -70,14 +70,6 @@ export const uploadSessionAudio = asyncHandler(async (req, res) => {
 
 export const getSessionAudioStatus = asyncHandler(async (req, res) => {
   const user = await resolveUserFromRequest(req);
-  const resumableStatus = await recordingUploadService.getSessionStatus({
-    sessionId: req.params.sessionId,
-    userId: user.id,
-  });
-  if (resumableStatus) {
-    res.json(formatSuccess('Session recording status loaded', resumableStatus));
-    return;
-  }
   const result = await getSessionRecordingStatus({
     sessionId: req.params.sessionId,
     userId: user.id,
