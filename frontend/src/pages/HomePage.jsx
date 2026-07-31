@@ -239,7 +239,7 @@ export default function HomePage() {
             />
           </div>
           <StatsSection stats={stats} />
-          <ProgressAnalyticsBanner targetRole={stats.latestRole} deliveryMode="text" />
+          <ProgressAnalyticsBanner targetRole={stats.latestRole} deliveryMode="voice" />
           <div id="tour-session-history">
 
             <SessionHistorySection

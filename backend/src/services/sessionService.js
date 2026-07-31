@@ -26,6 +26,6 @@ export {
   createInterviewResponse,
 } from './session/sessionQuestionService.js';
 
-export { calculateProgressAnalytics, generateCoachingSummary } from './session/progressAnalyticsService.js';
+export { calculateProgressAnalytics } from './session/progressAnalyticsService.js';
 
 

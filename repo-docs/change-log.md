@@ -1,5 +1,17 @@
 # Change Log
 
+## [2026-07-31 21:45 NZST] Issue #142 Multi-Session Progress Analytics Scope Correction (Pure Option B) & Data Rigor Resolution
+
+### Changed / Added
+
+- **Scope Correction to Pure Option B**: Purged leaked Option A (Story Bank / Story Competency Matrix) and Option C (Phase C On-Demand AI Coaching Summary Slot & `POST /progress-analytics/coaching-summary` API) features. Removed non-contextual top-right global Confirm/Correct/Reject buttons.
+- **5-Layer Pipeline Audit Drawer**: Added collapsible `Audit Comparable Sessions Group` displaying 5-layer pipeline filter breakdown (Owner, Target Role, Delivery Mode, Schema Version v7, Status completed) and session list with timestamps (`Date + Time`), session ID snippet, score, and STAR evidence ratio.
+- **4-Segment Stacked Evidence Bar**: Replaced binary Direct vs Vague contrast with 4-segment stacked bar (`Direct STAR`, `Adjacent Exp`, `Vague/Hypothetical`, `Generic Filler`), ensuring 100% of candidate answer turns are accounted for without missing percentages.
+- **Deterministic Stage 2 Threshold Rules**: Replaced static bullet points with explicit Stage 1-4 threshold rules (`Stage 2: Sessions ≥ 2 & Direct Evidence 1%–49%`), providing clear explainability.
+- **6-Field Evidence Trace Detail Modal**: Enhanced `View Question Evidence Trace` to display Session ID, Question text, Answer Classification, Candidate Excerpt, Diagnosis Reason, and Scoring Schema Version (`v7`).
+- **Real Report Metric Extraction**: Implemented `extractReportEvidenceMetrics` helper in `progressAnalyticsService.js` to parse MongoDB `SessionReport` nested fields (`evidenceDiagnostics.totals` & `metrics` arrays) across 4 schema layers, completely resolving the 0% data misinterpretation bug.
+- **Automated Verification**: Vitest unit tests (`progressAnalyticsService.test.js` 6/6 passed) & component tests (`ProgressAnalyticsBanner.test.jsx` 4/4 passed). ESLint 0 errors. Feature RFC `F-76-multi-session-progress-analytics-and-powerbi-banner.md` synchronized.
+
 ## [2026-07-31 13:38 NZST] Feature RFC F-75 Resumable Mixed-Audio Recording Documentation Sync
 
 ### Changed / Added

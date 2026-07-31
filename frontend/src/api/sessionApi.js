@@ -41,11 +41,5 @@ export const getProgressAnalytics = ({ targetRole, deliveryMode } = {}) => {
   const queryStr = params.toString();
   return apiClient(`/session/progress-analytics${queryStr ? `?${queryStr}` : ''}`);
 };
-export const postCoachingSummary = ({ targetRole, deliveryMode } = {}) => {
-  return apiClient('/session/progress-analytics/coaching-summary', {
-    method: 'POST',
-    body: { targetRole, deliveryMode },
-  });
-};
 
 

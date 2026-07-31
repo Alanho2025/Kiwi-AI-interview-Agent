@@ -158,6 +158,14 @@ describe('progressAnalyticsService (Phase A Deterministic Aggregation)', () => {
       expect(result.evidenceEvolution).toHaveLength(2);
       expect(result.evidenceEvolution[0].directPastPercent).toBe(40); // 2/5 = 40%
       expect(result.evidenceEvolution[1].directPastPercent).toBe(80); // 4/5 = 80%
+
+      // Pure Option B response fields
+      expect(result.competencyBreakdown).toBeDefined();
+      expect(result.competencyBreakdown.total).toBe(9);
+      expect(result.stageCriteriaReasons).toBeDefined();
+      expect(result.stageCriteriaReasons.length).toBeGreaterThan(0);
+      expect(result.comparableSessionList).toHaveLength(2);
+      expect(result.recommendedFocus).toBeDefined();
     });
 
     it('calculates deterministic progress analytics for N=5 valid sessions and maps readiness stage', async () => {
@@ -193,6 +201,7 @@ describe('progressAnalyticsService (Phase A Deterministic Aggregation)', () => {
       expect(result.readinessStage).toBe('Stage 4: Strong Practice Evidence');
       expect(result.evidenceEvolution).toHaveLength(5);
       expect(result.evidenceEvolution[4].directPastPercent).toBe(100);
+      expect(result.comparableSessionList).toHaveLength(5);
     });
 
     it('handles missing fields gracefully by marking availabilityStatus: "unavailable" without crashing', async () => {
