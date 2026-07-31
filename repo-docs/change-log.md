@@ -1,5 +1,15 @@
 # Change Log
 
+## [2026-07-31 13:35 NZST] Issue #140 Mixed Candidate & Assistant Audio Session Recording
+
+### Changed / Added
+
+- **Web Audio Session Audio Mixer**: Created `sessionAudioMixer.js` using Web Audio API (`AudioContext` & `MediaStreamAudioDestinationNode`). Combines candidate microphone stream and AI assistant playback node into a single mixed stream for `MediaRecorder`, with independent gain controls (1.0 candidate mic, 0.8 AI assistant).
+- **Direct Playback Queue Integration**: Connected mixer directly to the HTML5 `<audio>` playback element node (`assistantAudioElement.__sessionAudioMixerSourceNode`), preventing duplicate playback instances, audio desynchronization, or echo.
+- **Graceful Mic-Only Fallback & Topology Metadata**: Added automatic fallback to `mic_only` stream if Web Audio API is unsupported. Exposed `recordingTopology` (`mixed` or `mic_only`) on `useSessionAudioRecorder`.
+- **VAD Isolation & Barge-In Cutoff**: Kept VAD input bound exclusively to `micStream` to prevent AI speaker output from triggering false user speech frames. Provided `muteAssistant` / `unmuteAssistant` handlers for barge-in audio cutoff.
+- **Automated Verification**: Added unit tests in `sessionAudioMixer.test.js` verifying mixed stream creation, AudioContext fallback, mute/unmute gain changes, and resource cleanup. 100% frontend test suite pass (43/43 tests, 0 lint errors).
+
 ## [2026-07-31 13:27 NZST] Issue #139 Voice Upload Priority Release & Post-Interview Flush
 
 ### Changed / Added

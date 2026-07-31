@@ -19,6 +19,7 @@ export function useSessionAudioRecorder({ sessionId, uploadRegistry = recordingU
   const stopPromiseRef = useRef(null);
   const finalizationPromiseRef = useRef(null);
   const [isRecordingSessionAudio, setIsRecordingSessionAudio] = useState(false);
+  const [recordingTopology, setRecordingTopology] = useState('mic_only');
   const [recordingStatus, setRecordingStatus] = useState({ state: 'idle', error: null });
   const manager = useMemo(
     () => (sessionId ? uploadRegistry.getOrCreate(sessionId) : null),
@@ -35,8 +36,9 @@ export function useSessionAudioRecorder({ sessionId, uploadRegistry = recordingU
     pendingWritesRef.current = pendingWritesRef.current.then(() => manager.enqueueChunk({ sequence, blob, mimeType }));
   }, [manager]);
 
-  const startRecording = useCallback((stream) => {
+  const startRecording = useCallback((stream, { topology = 'mixed' } = {}) => {
     if (!stream || recorderRef.current || typeof MediaRecorder === 'undefined' || !manager) return false;
+    setRecordingTopology(topology || 'mic_only');
     const mimeType = resolveRecorderMimeType();
     const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
     recorder.ondataavailable = (event) => enqueueBlob(event.data, recorder.mimeType || mimeType || 'audio/webm');
@@ -95,6 +97,7 @@ export function useSessionAudioRecorder({ sessionId, uploadRegistry = recordingU
   return {
     isRecordingSessionAudio,
     recordingStatus,
+    recordingTopology,
     startRecording,
     stopCurrentSegment,
     finalizeLocalRecording,
