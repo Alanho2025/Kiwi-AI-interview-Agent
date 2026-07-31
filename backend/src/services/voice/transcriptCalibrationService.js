@@ -87,23 +87,27 @@ export const levenshteinDistance = (leftValue = '', rightValue = '') => {
   if (!left.length) return right.length;
   if (!right.length) return left.length;
 
-  const previous = Array.from({ length: right.length + 1 }, (_, index) => index);
-  const current = Array.from({ length: right.length + 1 }, () => 0);
+  const rightLen = right.length;
+  const previous = new Int32Array(rightLen + 1);
+  const current = new Int32Array(rightLen + 1);
+
+  for (let i = 0; i <= rightLen; i += 1) previous[i] = i;
 
   for (let leftIndex = 1; leftIndex <= left.length; leftIndex += 1) {
     current[0] = leftIndex;
-    for (let rightIndex = 1; rightIndex <= right.length; rightIndex += 1) {
-      const substitutionCost = left[leftIndex - 1] === right[rightIndex - 1] ? 0 : 1;
+    const leftChar = left[leftIndex - 1];
+    for (let rightIndex = 1; rightIndex <= rightLen; rightIndex += 1) {
+      const substitutionCost = leftChar === right[rightIndex - 1] ? 0 : 1;
       current[rightIndex] = Math.min(
         previous[rightIndex] + 1,
         current[rightIndex - 1] + 1,
         previous[rightIndex - 1] + substitutionCost,
       );
     }
-    for (let index = 0; index <= right.length; index += 1) previous[index] = current[index];
+    for (let index = 0; index <= rightLen; index += 1) previous[index] = current[index];
   }
 
-  return previous[right.length];
+  return previous[rightLen];
 };
 
 export const textSimilarity = (left = '', right = '') => {
@@ -113,6 +117,13 @@ export const textSimilarity = (left = '', right = '') => {
   if (!maxLength) return 1;
   const distance = levenshteinDistance(normalizedLeft, normalizedRight);
   return Math.max(0, 1 - (distance / maxLength));
+};
+
+const textSimilarityNorm = (normLeft = '', normRight = '', distance) => {
+  const maxLength = Math.max(normLeft.length, normRight.length);
+  if (!maxLength) return 1;
+  const dist = distance !== undefined ? distance : levenshteinDistance(normLeft, normRight);
+  return Math.max(0, 1 - (dist / maxLength));
 };
 
 export const computeSoundexCode = (word = '') => {
@@ -154,6 +165,8 @@ export const detectNearMatchGlossaryCorruptions = ({
   if (!usableItems.length || !rawText) return [];
 
   const rawTokens = normalizeForSearch(rawText).split(/\s+/).filter(Boolean);
+  if (!rawTokens.length) return [];
+  const rawTokenPhonetics = rawTokens.map(computeSoundexCode);
   const detectedCorruptions = [];
 
   for (const item of usableItems) {
@@ -163,6 +176,8 @@ export const detectNearMatchGlossaryCorruptions = ({
 
     if (textContainsTerm(rawText, item.term)) continue;
 
+    const termPhonetic = termTokens.map(computeSoundexCode).join('');
+    const termNormStripped = termNorm.replace(/\s+/g, '');
     const minWindow = Math.max(1, termTokens.length - 1);
     const maxWindow = Math.min(rawTokens.length, termTokens.length + 2);
 
@@ -173,13 +188,12 @@ export const detectNearMatchGlossaryCorruptions = ({
         const windowStripped = windowTokens.join('');
 
         const distance = levenshteinDistance(windowText, termNorm);
-        const similarity = textSimilarity(windowText, termNorm);
-        const strippedSimilarity = textSimilarity(windowStripped, termNorm.replace(/\s+/g, ''));
+        const similarity = textSimilarityNorm(windowText, termNorm, distance);
+        const strippedSimilarity = textSimilarityNorm(windowStripped, termNormStripped);
         const effectiveSimilarity = Math.max(similarity, strippedSimilarity);
 
-        const windowPhonetic = windowTokens.map(computeSoundexCode).join('');
-        const termPhonetic = termTokens.map(computeSoundexCode).join('');
-        const phoneticMatch = windowPhonetic === termPhonetic || textSimilarity(windowPhonetic, termPhonetic) >= 0.65;
+        const windowPhonetic = rawTokenPhonetics.slice(index, index + windowLen).join('');
+        const phoneticMatch = windowPhonetic === termPhonetic || textSimilarityNorm(windowPhonetic, termPhonetic) >= 0.65;
 
         if (effectiveSimilarity >= 0.40 || (effectiveSimilarity >= 0.35 && phoneticMatch)) {
           const matchStrength = (effectiveSimilarity >= 0.50 || (effectiveSimilarity >= 0.40 && phoneticMatch)) ? 'strong' : 'weak';

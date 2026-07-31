@@ -158,7 +158,7 @@ describe('duplex voice WebSocket integration', () => {
     await waitForMessage(socket, (payload) => payload.type === 'listening_started');
 
     socket.send(JSON.stringify({ type: 'barge_in', timestamp: Date.now() }));
-    const receivedBargeIn = await waitForMessage(socket, () => jsonMessages.some((m) => m.type === 'barge_in'));
+    await waitForMessage(socket, () => jsonMessages.some((m) => m.type === 'barge_in'));
     expect(jsonMessages).toContainEqual(expect.objectContaining({ type: 'barge_in' }));
 
     socket.close();

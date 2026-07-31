@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { compareCvToJobDescription } from '../../../src/services/matchService.js';
 import { removeHtmlTags, normalizeWhitespace, normalizeBullets, validateText } from '../../../src/utils/textProcessing.js';
 
@@ -29,6 +29,17 @@ const buildRubric = (requirements = []) => ({
 });
 
 describe('Jobsync Match Optimization - Tests & Edge Cases', () => {
+  let previousAiTestMode;
+
+  beforeEach(() => {
+    previousAiTestMode = process.env.AI_TEST_MODE;
+    process.env.AI_TEST_MODE = 'mock';
+  });
+
+  afterEach(() => {
+    if (previousAiTestMode === undefined) delete process.env.AI_TEST_MODE;
+    else process.env.AI_TEST_MODE = previousAiTestMode;
+  });
   describe('Text Preprocessing Utilities', () => {
     it('removes HTML tags and maps list items to standard bullet format', () => {
       const htmlText = '<div><h1>Job Title</h1><ul><li>Python</li><li>React</li></ul><br>Details</div>';

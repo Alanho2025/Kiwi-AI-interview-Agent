@@ -16,6 +16,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import { RETENTION_DAYS } from '../../src/config/retentionConfig.js';
 import * as sessionShared from '../../src/services/session/sessionShared.js';
 
 describe('sessionShared', () => {
@@ -42,13 +43,13 @@ describe('sessionShared', () => {
     });
 
     describe('retentionDate', () => {
-        it('should return date 90 days from now', () => {
+        it('should return retention expiry date based on RETENTION_DAYS', () => {
             const before = Date.now();
             const result = sessionShared.retentionDate();
             const after = Date.now();
 
-            const expectedMin = new Date(before + 90 * 24 * 60 * 60 * 1000);
-            const expectedMax = new Date(after + 90 * 24 * 60 * 60 * 1000);
+            const expectedMin = new Date(before + RETENTION_DAYS * 24 * 60 * 60 * 1000);
+            const expectedMax = new Date(after + RETENTION_DAYS * 24 * 60 * 60 * 1000);
 
             expect(result.getTime()).toBeGreaterThanOrEqual(expectedMin.getTime());
             expect(result.getTime()).toBeLessThanOrEqual(expectedMax.getTime());

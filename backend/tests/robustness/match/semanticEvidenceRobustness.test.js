@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { buildUniversalRoleProfile } from '../../../src/services/jobDescription/jdUniversalParserService.js';
 import { compareCvToJobDescription } from '../../../src/services/matchService.js';
@@ -28,6 +28,10 @@ const buildRubric = (requirements = []) => ({
 describe('semantic evidence match robustness', () => {
   const previousMatchEngine = process.env.MATCH_ENGINE;
   const previousAiTestMode = process.env.AI_TEST_MODE;
+
+  beforeEach(() => {
+    process.env.AI_TEST_MODE = 'mock';
+  });
 
   afterEach(() => {
     if (previousMatchEngine === undefined) delete process.env.MATCH_ENGINE;

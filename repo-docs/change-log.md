@@ -4,11 +4,16 @@
 
 ### Changed / Added
 
-- **Short Question Deduplication Fix**: Resolved bug in `questionDeduplicationService.js` where `textSimilarity` returned `0` for questions with under 5 tokens, allowing repetitive short questions to slip into interview prep pools. Short questions (2-4 tokens) now correctly evaluate similarity when Jaccard/Containment $\ge 0.85$.
+- **Domain 4 Full Test Coverage Expansion**: Created dedicated robustness test suites for previously untested Domain 4 features:
+  - **F-11 Python NLP CV Entity Extraction**: Created `pythonNlpService.test.js` (testing disabled fallback, empty input safety, and parameter validation).
+  - **F-13 File Repository SHA256 Deduplication**: Created `sha256Deduplication.test.js` (testing binary buffer checksum generation, `buildCvHash`, `buildJdHash`, and `buildMatchCacheKey`).
+  - **F-15 Skill Gap & Risk Analysis**: Created `matchGapRiskAnalysis.test.js` (testing `buildExplanation` gaps, risks, strengths extraction, and commercial delivery risk flags).
+  - **F-48 ETL CV-JD Feature Vectorization**: Created `cvJdFeatureVectorization.test.js` (testing 256-dim `weighted_hash_ngram_v2` vectorizer, `cosineSimilarity`, `embedBatch`, and `normalizeForRetrieval`).
+- **Short Question Deduplication Fix**: Resolved bug in `questionDeduplicationService.js` where `textSimilarity` returned `0` for questions with under 5 tokens.
 - **Match Scoring Robustness Suite**: Created `matchScoringService.test.js` covering `STRICT_TECH_PATTERNS` regex accuracy across 15 technical stacks, composite requirement string splitting, `software_it` domain weighted scoring, and `PRIMARY_TECH` hard requirement strict `not_met` overrides.
-- **Vector Embedding Fallback Suite**: Created `huggingFaceEmbeddingService.test.js` verifying graceful fallback from HuggingFace API network/rate-limit errors (429/500/Timeout) to the deterministic `weighted_hash_ngram_v2` vectorizer.
+- **Vector Embedding Fallback Suite**: Created `huggingFaceEmbeddingService.test.js` verifying graceful fallback from HuggingFace API network/rate-limit errors (429/500/Timeout).
 - **Catalog Degradation Suite**: Created `questionCatalogDegradation.test.js` verifying smooth degradation to `catalog_unavailable` template pools when Mongo catalog DB is offline or empty.
-- **Automated Verification & Docs Sync**: 20/20 Vitest tests passed across 4 robustness test files. 0 ESLint errors in modified files. Feature RFC `F-18-question-cosine-deduplication-ranker.md` updated.
+- **Automated Verification**: 32/32 Vitest tests passed across 8 robustness test files in Domain 4. 0 ESLint errors in modified/created files.
 
 ### Changed / Added
 

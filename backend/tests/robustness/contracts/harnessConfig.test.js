@@ -1,9 +1,12 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { loadEnv } from '../../../src/config/env.js';
 import {
   getHarnessExecutionMode,
   isHarnessShadowEnabled,
 } from '../../../src/config/harnessConfig.js';
+
+loadEnv();
 
 describe('M1 harness feature flag', () => {
   const originalValue = process.env.ENABLE_HARNESS_SHADOW;

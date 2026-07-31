@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createRoutedRealtimeSpeechSession } from '../../../src/services/voice/realtimeSpeechProviderRouter.js';
-import { getTtsProviderOrder, synthesizeSpeech } from '../../../src/services/voice/ttsProviderRouter.js';
+import { getTtsProviderOrder } from '../../../src/services/voice/ttsProviderRouter.js';
 import warmContextService from '../../../src/services/voice/voiceTurnWarmContextService.js';
 import { buildTurnActiveSpeechPhraseContext } from '../../../src/services/voice/speechPhraseHintService.js';
 import { normalizeTranscript } from '../../../src/services/voice/transcriptNormalizer.js';
