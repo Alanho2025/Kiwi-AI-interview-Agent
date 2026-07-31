@@ -274,7 +274,7 @@ const buildSpokenRequirementTopic = (requirement = {}) => {
     .replace(/^excellent\s+/i, '')
     .replace(/^proven\s+/i, '')
     .replace(/^demonstrated\s+/i, '')
-    .replace(/^experience\s+(?:in|with)\s+/i, '')
+    .replace(/^experience\s+(?:(?:in|with)\s+)?/i, '')
     .replace(/^ability\s+to\s+/i, '')
     .replace(/^knowledge\s+of\s+/i, '')
     .replace(/^proficiency\s+(?:in|with)\s+/i, '')
@@ -316,6 +316,12 @@ const inferRequirementQuestionStrategy = (requirement = {}, context = {},) => {
   }
   
   if (isBehaviouralRequirement) {
+    const template = selectQuestionTemplate({
+      templates: BEHAVIOURAL_QUESTION_TEMPLATES,
+      sessionId: context.sessionId,
+      topic: spokenTopic,
+      questionIntent: 'behavioural_star',
+    });
     return {
       excludeFromInterview: false,
       category: 'behavioural',
@@ -326,10 +332,15 @@ const inferRequirementQuestionStrategy = (requirement = {}, context = {},) => {
         'personal_action',
         'result_or_impact',
       ],
-      text: `Tell me about a time you demonstrated ${spokenTopic}. What did you personally do, and what was the result?`,
+      text: template(spokenTopic),
     };
   }
-
+  const template = selectQuestionTemplate({
+    templates: TECHNICAL_QUESTION_TEMPLATES,
+    sessionId: context.sessionId,
+    topic: spokenTopic,
+    questionIntent: 'technical_evidence',
+  });
   return {
     excludeFromInterview: false,
     category: 'technical',
@@ -342,7 +353,7 @@ const inferRequirementQuestionStrategy = (requirement = {}, context = {},) => {
       'validation_method',
       'result_or_impact',
     ],
-    text: `Tell me about a project where you applied ${spokenTopic}. What did you personally implement, and how did you validate it?`,
+    text: template(spokenTopic),
   };
 };
 

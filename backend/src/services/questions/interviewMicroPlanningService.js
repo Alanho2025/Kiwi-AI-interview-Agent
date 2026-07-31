@@ -48,7 +48,19 @@ const hasInternalAssessmentPreamble = (text = '') =>
   INTERNAL_ASSESSMENT_PATTERNS.some((pattern) => pattern.test(String(text || '')));
 
 const extractTopicFromFrame = (planningFrame = {}, questionText = '') => {
-  const topic = planningFrame.targetTopic || planningFrame.topic || planningFrame.matchedSkill;
+  console.log('MICRO_PLAN_TOPIC_DEBUG', {
+    targetTopic: planningFrame.targetTopic,
+    topic: planningFrame.topic,
+    matchedSkill: planningFrame.matchedSkill,
+    parentTopic: planningFrame.parentTopic,
+    currentTopic: planningFrame.currentTopic,
+    questionText,
+  });
+  const topic =
+    planningFrame.targetTopic
+    || planningFrame.topic
+    || planningFrame.matchedSkill
+    || planningFrame.parentQuestion?.parentTopic;
   if (topic && typeof topic === 'string' && !/\b(evidence|gap|requirement|match_gap)\b/i.test(topic)) {
     return topic;
   }

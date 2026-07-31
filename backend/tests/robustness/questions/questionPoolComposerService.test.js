@@ -540,8 +540,13 @@ describe('questionPoolComposerService', () => {
     expect(question).toBeDefined();
     expect(question.category).toBe('technical');
     expect(question.questionIntent).toBe('technical_evidence');
-    expect(question.text).toContain('implement');
-    expect(question.text).toContain('validate');
+    expect(question.text).toMatch(
+      /\b(implement|build|built|change|approach|technical decisions)\b/i
+    );
+
+    expect(question.text).toMatch(
+      /\b(validate|test|evaluate|worked)\b/i
+    );
   });
   it('treats problem-solving as behavioural even when upstream category is generic', () => {
     const items = buildInterviewQuestionPoolItems({

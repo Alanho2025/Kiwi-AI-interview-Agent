@@ -127,4 +127,5 @@ describe('interviewMicroPlanningService', () => {
     expect(plan.riskFlags).toContain('overlong_spoken_question_rewritten');
     expect(plan.finalSpokenQuestion.split(/\s+/).length).toBeLessThanOrEqual(30);
   });
+  
 });
