@@ -262,7 +262,7 @@ export function useVoiceInterviewSession({
     isCompleted,
     isMicStreaming,
     lifecycle,
-    sessionAudioRecorder.isRecordingSessionAudio,
+    sessionAudioRecorder,
   ]);
 
   useEffect(() => {
