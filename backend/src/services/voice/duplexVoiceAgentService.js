@@ -684,6 +684,26 @@ export const createDuplexVoiceAgentSession = ({
         return;
       }
 
+      if (payload.type === 'transcript_confirmed' || payload.type === 'confirm_transcript' || payload.type === 'resolve_transcript_confirmation') {
+        const activeTurnCoordinator = createDuplexTurnCoordinator({
+          session: activeSession || session,
+          userId,
+          voiceName,
+          language,
+          asrSource: activeSttProviderName,
+          sendJson,
+          bargeInController,
+          logger,
+          getPendingTranscriptConfirmation,
+          setPendingTranscriptConfirmation,
+        });
+        await activeTurnCoordinator.resolvePendingTranscriptConfirmationDirectly({
+          decision: payload.decision || 'confirm',
+          replyText: payload.text || payload.replyText || 'yes',
+        });
+        return;
+      }
+
       if (payload.type === 'barge_in' || payload.type === 'cancel_assistant_audio') {
         bargeInController.handleBargeIn(payload.reason || payload.type);
         return;

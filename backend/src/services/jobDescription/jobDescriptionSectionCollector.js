@@ -64,6 +64,11 @@ const BOILERPLATE_ITEM_PATTERNS = [
   /^posted\s+date:?$/i,
   /^salary:?$/i,
   /^location:?$/i,
+  /in return,\s*you'?ll get/i,
+  /be part of our journey/i,
+  /make sustainable living/i,
+  /apply now and make an impact/i,
+  /opportunity to learn from passionate/i,
 ];
 
   blocks.forEach((block, index) => {

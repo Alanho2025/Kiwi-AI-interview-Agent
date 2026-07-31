@@ -28,7 +28,7 @@ export const recordAgentTraceEvent = async ({ sessionId, workflowRunId = null, e
   await SessionAnalysis.findOneAndUpdate(
     { sessionId },
     { $push: { agentTraceEvents: event } },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
   );
   return event;
 };

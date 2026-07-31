@@ -1,5 +1,16 @@
 # Change Log
 
+## [2026-08-01 09:20 NZST] CV-JD Match & Evidence Pipeline Audit & Fix (Issues #150-#158)
+
+### Changed / Added
+
+- **#150 CV Experience Boundary Normalization**: Implemented `extractExperienceEntries` in `cvEvidenceProfileBuilder.js` to preserve job title, company, date range, and bullet points within single coherent experience blocks, preventing line-by-line splitting from stripping bullet context. Cleaned date range header prefixes in `extractQuantifiedEvidence`.
+- **#153 Project Tech Stack Policy Unification**: Refactored `hasProjectTechEvidence` to `isProjectTechOnlyEvidence` in `evidenceJudgeService.js`. Ensured project tech stack listings backed by verified project responsibilities or outcome evidence can achieve `'met'` status while capping standalone tech stack mentions at `'partial'`.
+- **#152 Structured Property Confidence Calculation**: Refactored `calculateConfidence()` in `matchResultBuilder.js` to inspect explicit structured properties (`item.evidenceStrength`, `item.missingEvidence`) rather than fragile regex tests on `notes` strings.
+- **#154 Gap Amplification Refinement**: Updated `buildExplanation()` gap filter logic in `matchResultFormatter.js` and `matchScoringService.js` to require `status === 'not_met'` or explicit evidence deficits, preventing partial matches from being over-amplified into candidate gaps.
+- **#155/#156 Upstream Company Context Filtering**: Enforced `reviewed !== false` filtering in `normalizeCompanyMotivationFit` in `companyMotivationFitService.js`, preventing unreviewed or invalid company context items from polluting role evidence maps, question preparation, or UI components.
+- **Automated Verification**: 41/41 Vitest test files (182/182 tests) passed cleanly across backend test suites. 0 ESLint errors.
+
 ## [2026-08-01 00:16 NZST] CV-JD Match & Interview Preparation Robustness Suite & Short Question Deduplication Fix
 
 ### Changed / Added

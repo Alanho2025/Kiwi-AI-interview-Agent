@@ -1,4 +1,14 @@
-export const buildVoiceStatus = (type, title, message) => ({ type, title, message });
+const normaliseText = (value, fallback = '') => {
+  if (value instanceof Error) return value.message || fallback;
+  if (typeof value !== 'string') return fallback;
+  return value.trim() || fallback;
+};
+
+export const buildVoiceStatus = (type, title, message) => ({
+  type,
+  title: normaliseText(title, 'Voice status'),
+  message: normaliseText(message, 'Voice mode is updating.'),
+});
 
 export const formatDurationLabel = (valueMs = 0) => {
   const totalSeconds = Math.max(0, Math.round(valueMs / 1000));

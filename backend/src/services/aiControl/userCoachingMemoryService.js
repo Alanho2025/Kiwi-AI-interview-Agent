@@ -55,7 +55,7 @@ export const persistUserCoachingMemory = async ({ userId, reflectionRecord = {},
         latestSummary,
       },
     },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
   );
   return { memoryRecords: nextRecords, latestSummary };
 };

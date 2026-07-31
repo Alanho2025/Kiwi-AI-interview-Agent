@@ -1,5 +1,12 @@
 # Version History
 
+## 2026-08-01 - CV-JD Match Accuracy & Parser Fixes
+
+- Fixed JD Parser boilerplate filtering in `jobDescriptionSectionCollector.js` and `jobDescriptionRequirementClassifier.js` to exclude company marketing pitch sentences (*"In return, you'll get exposure..."*, *"Be part of our journey..."*) from candidate `mustHaveRequirements`.
+- Expanded `CV_TECHNICAL_SKILLS` in `cvSkillTaxonomy.js` and `TOOL_PATTERN` in `cvEvidenceProfileBuilder.js` with missing collaboration tools (`Notion`, `PowerPoint`, `Confluence`), data engineering concepts (`ETL/ELT`, `dbt`, `Databricks`), and AI tools (`LangGraph`, `Pytest`, `Playwright`).
+- Updated `DEGREE_PATTERN` in `matchScoringConstants.js` and `matchScoringService.js` to include `information technology`, `information systems`, and `data engineering` to properly score IT master degrees like **Master of Information Technology**.
+- Verified all backend match/CV/JD robustness unit tests pass (`7/7` match scoring tests passing).
+
 ## 2026-07-31 - Realtime Confirmation Safety Gate & Dialogue Grounding Policy (Phase 4 - Issue #146)
 
 - Implemented 2-level confirmation prompt generator `buildTwoLevelTranscriptConfirmationPrompt` in `transcriptUnderstandingSummary.js`: generates specific term prompts (`"Just to confirm, did you mean 'Databricks'?"`) for strong single matches, and neutral restatements (`"I may have misheard one tool or system name. Could you repeat the tool name?"`) for weak or ambiguous matches to avoid Answer Priming / leaking terms from CV/JD.

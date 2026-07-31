@@ -54,7 +54,7 @@ export const persistTrajectoryStep = async ({ sessionId, step = {} } = {}) => {
       $push: { trajectoryRecords: step },
       $set: { latestTrajectoryRecord: step },
     },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
   );
   return step;
 };

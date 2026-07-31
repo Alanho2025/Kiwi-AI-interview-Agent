@@ -9,7 +9,7 @@
  * - Prefer composition and small helpers over repeated inline logic.
  */
 
-import { validateAnalyzeOutput, validateInterviewPlan } from '../schemaValidationService.js';
+import { validateInterviewPlan } from '../schemaValidationService.js';
 import {
   buildCanonicalRoleMeta,
   buildInterviewPlanPayload,
@@ -143,7 +143,7 @@ const buildAnalysisSetup = ({ baseSession, plan, analysis, normalizedAnalysis, c
     cvHumanReviewedFileId: selectedCV?.id || baseSession.cvFileId || '',
     jdReviewStatus: Object.keys(structuredJDRubric).length ? 'verified' : 'unreviewed',
     jdHumanReviewedRawJD: rawJD,
-    settings: plan?.settingsSnapshot || baseSession.settings,
+    settings: { ...baseSession.settings, ...(plan?.settingsSnapshot || {}) },
     sessionMode: baseSession.mode || 'text',
     roleFitDiagnostics: sanitizeRoleFitDiagnostics(normalizedAnalysis.roleFitDiagnostics || {}),
   };
@@ -174,7 +174,7 @@ export const buildSessionDetails = ({ row, plan, transcript, analysis, report, c
   const roleMeta = buildCanonicalRoleMeta({
     resolvedTargetRole: row.target_role,
     normalizedAnalysis,
-    settings: plan?.settingsSnapshot || baseSession.settings,
+    settings: { ...baseSession.settings, ...(plan?.settingsSnapshot || {}) },
   });
 
   return {
@@ -184,7 +184,7 @@ export const buildSessionDetails = ({ row, plan, transcript, analysis, report, c
     canonicalRole: roleMeta.canonicalRole,
     roleFamily: roleMeta.roleFamily,
     interviewModeKey: roleMeta.interviewModeKey,
-    settings: plan?.settingsSnapshot || baseSession.settings,
+    settings: { ...baseSession.settings, ...(plan?.settingsSnapshot || {}) },
     analysisResult: clientAnalysis,
     interviewPlan: validatedPlan ? {
       ...validatedPlan,
@@ -254,12 +254,12 @@ export const buildSessionListItem = ({ row, plan, report, analysis }) => {
   };
 };
 
-export const buildSessionPlanUpdatePayload = ({ current, data }) => {
-  const normalizedAnalysis = data.analysisResult ? validateAnalyzeOutput(data.analysisResult) : current.analysisResult;
+export const buildSessionPlanUpdatePayload = ({ current = {}, data = {}, normalizedAnalysis = null } = {}) => {
+  if (!current?.id) return null;
   if (!data.settings && !normalizedAnalysis) return null;
 
   return validateInterviewPlan({
-    ...(data.settings ? { settingsSnapshot: data.settings } : {}),
+    ...(data.settings ? { settingsSnapshot: { ...(current.settings || {}), ...data.settings } } : {}),
     ...(normalizedAnalysis
       ? {
           candidateName: normalizedAnalysis.candidateName,

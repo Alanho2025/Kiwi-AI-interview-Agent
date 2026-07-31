@@ -8,17 +8,22 @@ export const calculateConfidence = ({ parsedCvProfile, macroScores, microScores,
   const hardMissingCount = requirementChecks.filter((item) => item.type === 'hard' && item.status === 'not_met' && !isNonTechnicalHardRequirement(item, rubric)).length;
   const contradictionCount = requirementChecks.filter((item) => {
     const notes = String(item.notes || '');
+    const strength = item.evidenceStrength || (notes.match(/evidenceStrength=(\w+)/i)?.[1] || '');
+    const hasMissingEvidence = Boolean(item.missingEvidence) || /missingEvidence=/i.test(notes);
     return (
-      /evidenceStrength=strong/i.test(notes) && item.status === 'not_met'
-    ) || (
-      /missingEvidence=/i.test(notes) && ['met', 'partial'].includes(item.status)
+      (strength === 'strong' && item.status === 'not_met')
+      || (hasMissingEvidence && ['met', 'partial'].includes(item.status))
     );
   }).length;
-  const weakHardEvidenceCount = requirementChecks.filter((item) =>
-    item.type === 'hard'
-    && ['met', 'partial'].includes(item.status)
-    && /evidenceStrength=weak/i.test(String(item.notes || ''))
-  ).length;
+  const weakHardEvidenceCount = requirementChecks.filter((item) => {
+    const notes = String(item.notes || '');
+    const strength = item.evidenceStrength || (notes.match(/evidenceStrength=(\w+)/i)?.[1] || '');
+    return (
+      item.type === 'hard'
+      && ['met', 'partial'].includes(item.status)
+      && strength === 'weak'
+    );
+  }).length;
   const penalty = Math.min(0.18, hardMissingCount * 0.025)
     + Math.min(0.16, contradictionCount * 0.04)
     + Math.min(0.08, weakHardEvidenceCount * 0.02);

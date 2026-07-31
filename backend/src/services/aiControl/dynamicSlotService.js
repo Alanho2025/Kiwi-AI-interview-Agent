@@ -59,7 +59,7 @@ export const persistDynamicSlotState = async ({ sessionId, dynamicSlots = {} } =
       $push: { dynamicSlotRecords: dynamicSlots },
       $set: { latestDynamicSlots: dynamicSlots },
     },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
   );
   return dynamicSlots;
 };

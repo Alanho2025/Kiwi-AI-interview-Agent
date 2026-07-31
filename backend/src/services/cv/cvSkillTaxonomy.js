@@ -8,6 +8,14 @@ const EXTRA_CV_SKILLS = [
   ['Express', ['express', 'express.js']],
   ['Jest', ['jest']],
   ['Pytest', ['pytest']],
+  ['Notion', ['notion']],
+  ['PowerPoint', ['powerpoint', 'power point', 'ppt']],
+  ['Confluence', ['confluence']],
+  ['ETL/ELT', ['etl/elt', 'etl', 'elt', 'data pipelines']],
+  ['dbt', ['dbt', 'dtb']],
+  ['Databricks', ['databricks']],
+  ['LangGraph', ['langgraph']],
+  ['Playwright', ['playwright']],
 ];
 
 const normalizeAlias = (value = '') => String(value || '').trim().toLowerCase();

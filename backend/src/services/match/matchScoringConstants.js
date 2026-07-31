@@ -2,7 +2,7 @@ export const STATUS_ORDER = { not_met: 0, inferred: 1, partial: 2, met: 3 };
 
 export const CORE_STACK_PATTERN = /c#|\.net|mvc|java(script)?|react|vue|angular|html|css|sql|aws|api|node|postgres/i;
 export const COMMERCIAL_EXPERIENCE_PATTERN = /\b\d+\+?\s+years?|professional experience|commercial experience/i;
-export const DEGREE_PATTERN = /computer science|software engineering|tertiary qualification|degree|bachelor|master/i;
+export const DEGREE_PATTERN = /computer science|software engineering|information technology|information systems|data engineering|tertiary qualification|degree|bachelor|master/i;
 
 export const SECTION_EVIDENCE_STRENGTH = {
   experience: 'strong',
