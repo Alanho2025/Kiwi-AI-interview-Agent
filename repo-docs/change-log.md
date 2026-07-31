@@ -1,5 +1,12 @@
 # Change Log
 
+## [2026-07-31 13:38 NZST] Feature RFC F-75 Resumable Mixed-Audio Recording Documentation Sync
+
+### Changed / Added
+
+- **Created Feature RFC F-75**: Created `F-75-resumable-mixed-session-audio-recording.md` under `docs/architecture-decision-records/features/` detailing: (1) Manifest-first recording source resolution & legacy fallback block, (2) 3-priority upload scheduler & post-interview flush, and (3) Web Audio API candidate + AI assistant mixed stream recording.
+- **Registered Feature RFC**: Registered `F-75` in Domain 6 of `docs/architecture-decision-records/features/README.md`.
+
 ## [2026-07-31 13:35 NZST] Issue #140 Mixed Candidate & Assistant Audio Session Recording
 
 ### Changed / Added
