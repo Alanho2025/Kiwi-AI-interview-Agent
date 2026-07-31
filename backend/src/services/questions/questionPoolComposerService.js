@@ -16,7 +16,57 @@ import {
   questionRetentionDate,
   stableQuestionId,
 } from './questionArtifactHelpers.js';
+const BEHAVIOURAL_QUESTION_TEMPLATES = [
+  (topic) =>
+    `Tell me about a time you demonstrated ${topic}. What did you personally do, and what was the outcome?`,
 
+  (topic) =>
+    `Can you walk me through a situation where you needed to demonstrate ${topic}? What was your role, and how did it turn out?`,
+
+  (topic) =>
+    `Describe a real example where you demonstrated ${topic}. What actions did you take, and what changed as a result?`,
+
+  (topic) =>
+    `Think of a situation where ${topic} was important. How did you approach it, and what was the result?`,
+];
+
+const TECHNICAL_QUESTION_TEMPLATES = [
+  (topic) =>
+    `Tell me about a project involving ${topic}. What did you personally implement, and how did you validate it?`,
+
+  (topic) =>
+    `Can you describe a practical example involving ${topic}? What approach did you take, and how did you know it worked?`,
+
+  (topic) =>
+    `Walk me through a piece of work involving ${topic}. What technical decisions did you make, and how did you test the result?`,
+
+  (topic) =>
+    `What is the strongest example from your experience involving ${topic}? What did you build or change, and how did you evaluate it?`,
+];
+const stableStringHash = (value = '') => {
+  let hash = 0;
+
+  for (const char of String(value)) {
+    hash = ((hash << 5) - hash) + char.charCodeAt(0);
+    hash |= 0;
+  }
+
+  return Math.abs(hash);
+};
+
+const selectQuestionTemplate = ({
+  templates = [],
+  sessionId = '',
+  topic = '',
+  questionIntent = '',
+} = {}) => {
+  if (!templates.length) return null;
+
+  const seed = `${sessionId}:${questionIntent}:${normalizeKey(topic)}`;
+  const index = stableStringHash(seed) % templates.length;
+
+  return templates[index];
+};
 const sourcePriority = {
   match_gap: 6,
   match_validation: 5,
@@ -212,35 +262,144 @@ const mapSeedQuestion = (seed, decision, context) => {
     metadata: { filterDecision: decision || null, evidenceSummary: seed.evidenceSummary },
   });
 };
+const buildSpokenRequirementTopic = (requirement = {}) => {
+  const rawTopic = normalizeText(
+    requirement.requirement
+    || requirement.label
+    || requirement.skill
+  );
 
-const buildRequirementItems = (analysisResult, context) => ensureArray(analysisResult?.requirementChecks)
-  .filter((item) => {
-    const topic = item?.requirement || item?.label || item?.skill;
-    return Boolean(topic && !isJobDescriptionSectionHeading(topic));
-  })
-  .slice(0, 6)
-  .map((requirement) => {
-    const topic = requirement.requirement || requirement.label || requirement.skill;
-    return buildBaseItem({
-      ...context,
-      sourceStage: 'match_validation',
-      sourceType: 'jd_requirement',
-      category: normalizeKey(requirement.category).includes('behaviour') ? 'behavioural' : 'technical',
-      stage: 'role_requirement',
-      topic,
-      questionIntent: 'validate_requirement',
-      text: `Tell me about one example that shows your evidence for ${topic}. What did you personally do, and what was the result?`,
-      linkedJdRequirement: [requirement],
-      requirementId: requirement.requirementId || requirement.id || normalizeKey(topic),
-      roleDomain: requirement.roleDomain || resolveRoleDomain(analysisResult),
-      requirementCategory: requirement.category || '',
-      capabilityGroup: requirement.capabilityGroup || '',
-      expectedSignal: ['direct_evidence', 'personal_action', 'result_or_impact'],
-      priorityWeight: requirement.met === false ? 0.82 : 0.64,
-      coverageWeight: 0.78,
-      riskWeight: requirement.met === false ? 0.85 : 0.5,
-    });
-  });
+  return rawTopic
+    .replace(/^strong\s+/i, '')
+    .replace(/^excellent\s+/i, '')
+    .replace(/^proven\s+/i, '')
+    .replace(/^demonstrated\s+/i, '')
+    .replace(/^experience\s+(?:in|with)\s+/i, '')
+    .replace(/^ability\s+to\s+/i, '')
+    .replace(/^knowledge\s+of\s+/i, '')
+    .replace(/^proficiency\s+(?:in|with)\s+/i, '')
+    .replace(/^familiarity\s+with\s+/i, '')
+    .replace(/\s+skills?$/i, '')
+    .trim();
+};
+const inferRequirementQuestionStrategy = (requirement = {}, context = {},) => {
+  const rawTopic = normalizeText(
+    requirement.requirement
+    || requirement.label
+    || requirement.skill
+  );
+
+  const spokenTopic = buildSpokenRequirementTopic(requirement);
+
+  const category = normalizeKey(requirement.category);
+  const capabilityGroup = normalizeKey(requirement.capabilityGroup);
+  const lower = rawTopic.toLowerCase();
+
+  const isQualification = (
+    capabilityGroup === 'professional_credential'
+    || category.includes('qualification')
+    || category.includes('credential')
+    || /qualification|degree|bachelor|master|diploma|certificate|licen[cs]e|registration/.test(lower)
+  );
+  const isBehaviouralRequirement = (
+    category.includes('behaviour')
+    || category.includes('soft')
+    || capabilityGroup.includes('behaviour')
+    || capabilityGroup.includes('interpersonal')
+    || /communication|communicate|stakeholder|teamwork|collaboration|collaborative|leadership|lead\b|ownership|adaptability|adaptable|problem[- ]solving|attention to detail|customer focus|client relationship|conflict|prioriti[sz]ation|time management|organised|organized/.test(lower)
+  );
+  if (isQualification) {
+    return {
+      excludeFromInterview: true,
+      exclusionReason: 'qualification_verified_outside_interview',
+    };
+  }
+  
+  if (isBehaviouralRequirement) {
+    return {
+      excludeFromInterview: false,
+      category: 'behavioural',
+      questionIntent: 'behavioural_star',
+      evidenceMode: 'past_example',
+      expectedSignal: [
+        'specific_example',
+        'personal_action',
+        'result_or_impact',
+      ],
+      text: `Tell me about a time you demonstrated ${spokenTopic}. What did you personally do, and what was the result?`,
+    };
+  }
+
+  return {
+    excludeFromInterview: false,
+    category: 'technical',
+    questionIntent: 'technical_evidence',
+    evidenceMode: 'past_example',
+    expectedSignal: [
+      'technical_context',
+      'personal_ownership',
+      'approach',
+      'validation_method',
+      'result_or_impact',
+    ],
+    text: `Tell me about a project where you applied ${spokenTopic}. What did you personally implement, and how did you validate it?`,
+  };
+};
+
+const buildRequirementItems = (analysisResult, context) =>
+  ensureArray(analysisResult?.requirementChecks)
+    .filter((item) => {
+      const topic = item?.requirement || item?.label || item?.skill;
+
+      return Boolean(
+        topic
+        && !isJobDescriptionSectionHeading(topic)
+      );
+    })
+    .map((requirement) => {
+      const topic = requirement.requirement
+        || requirement.label
+        || requirement.skill;
+
+      const strategy = inferRequirementQuestionStrategy(requirement,context);
+
+      return {
+        requirement,
+        topic,
+        strategy,
+      };
+    })
+    .filter(({ strategy }) => !strategy.excludeFromInterview)
+    .slice(0, 6)
+    .map(({ requirement, topic, strategy }) =>
+      buildBaseItem({
+        ...context,
+        sourceStage: 'match_validation',
+        sourceType: 'jd_requirement',
+        category: strategy.category,
+        stage: 'role_requirement',
+        topic,
+        questionIntent: strategy.questionIntent,
+        evidenceMode: strategy.evidenceMode,
+        text: strategy.text,
+        fallbackText: strategy.text,
+        linkedJdRequirement: [requirement],
+        requirementId:
+          requirement.requirementId
+          || requirement.id
+          || normalizeKey(topic),
+        roleDomain:
+          requirement.roleDomain
+          || resolveRoleDomain(analysisResult),
+        requirementCategory: requirement.category || '',
+        capabilityGroup: requirement.capabilityGroup || '',
+        expectedSignal: strategy.expectedSignal,
+        evidenceNeed: strategy.expectedSignal,
+        priorityWeight: requirement.met === false ? 0.82 : 0.64,
+        coverageWeight: 0.78,
+        riskWeight: requirement.met === false ? 0.85 : 0.5,
+      })
+    );
 
 const INTERNAL_GAP_LANGUAGE = /\b(?:limited|missing|insufficient)\s+(?:direct\s+)?evidence\b|\b(?:possible|match)\s+gap\b|\b(?:coverage|score|risk|requirement)\b/i;
 

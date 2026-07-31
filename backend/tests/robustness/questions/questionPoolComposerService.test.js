@@ -394,4 +394,230 @@ describe('questionPoolComposerService', () => {
 
     expect(pool.some((item) => item.catalogQuestionId === 'ai_assisted_delivery')).toBe(false);
   });
+  it('excludes qualification requirements from the interview question pool', () => {
+    const items = buildInterviewQuestionPoolItems({
+      userId: 'user-1',
+      sessionId: 'session-1',
+      analysisResult: {
+        requirementChecks: [
+          {
+            requirement: 'A tertiary qualification in Computer Science, Data Engineering, Information Systems, or a related field',
+            category: 'qualification',
+            capabilityGroup: 'professional_credential',
+            met: true,
+          },
+          {
+            requirement: 'Strong problem-solving skills and attention to detail',
+            category: 'behavioural',
+            capabilityGroup: 'behavioural_competency',
+            met: false,
+          },
+        ],
+      },
+      settings: {},
+    });
+
+    const qualificationQuestion = items.find((item) =>
+      String(item.topic).toLowerCase().includes('tertiary qualification')
+    );
+
+    const problemSolvingQuestion = items.find((item) =>
+      String(item.topic).toLowerCase().includes('problem-solving')
+    );
+
+    expect(qualificationQuestion).toBeUndefined();
+    expect(problemSolvingQuestion).toBeDefined();
+
+    expect(
+      items.some((item) =>
+        String(item.text).includes(
+          'Tell me about one example that shows your evidence for'
+        )
+      )
+    ).toBe(false);
+  });
+  it('selects up to six interviewable requirements after excluding qualifications', () => {
+    const requirementChecks = [
+      {
+        requirement: 'Bachelor degree in Computer Science',
+        category: 'qualification',
+        capabilityGroup: 'professional_credential',
+      },
+      {
+        requirement: 'Relevant tertiary qualification',
+        category: 'credential',
+        capabilityGroup: 'professional_credential',
+      },
+      {
+        requirement: 'AWS certification',
+        category: 'qualification',
+        capabilityGroup: 'professional_credential',
+      },
+      ...Array.from({ length: 7 }, (_, index) => ({
+        requirement: `Technical capability ${index + 1}`,
+        category: 'technical',
+        capabilityGroup: 'technical_skill',
+        met: false,
+      })),
+    ];
+
+    const items = buildInterviewQuestionPoolItems({
+      userId: 'user-1',
+      sessionId: 'session-1',
+      analysisResult: {
+        requirementChecks,
+      },
+      settings: {},
+    });
+
+    const requirementItems = items.filter(
+      (item) => item.sourceType === 'jd_requirement'
+    );
+
+    expect(requirementItems).toHaveLength(6);
+
+    expect(
+      requirementItems.some((item) =>
+        /degree|qualification|certification/i.test(item.topic)
+      )
+    ).toBe(false);
+
+    expect(
+      requirementItems.map((item) => item.topic)
+    ).toEqual([
+      'Technical capability 1',
+      'Technical capability 2',
+      'Technical capability 3',
+      'Technical capability 4',
+      'Technical capability 5',
+      'Technical capability 6',
+    ]);
+  });
+  it('classifies soft-skill requirements as behavioural questions', () => {
+    const items = buildInterviewQuestionPoolItems({
+      userId: 'user-1',
+      sessionId: 'session-1',
+      analysisResult: {
+        requirementChecks: [
+          {
+            requirement: 'Strong communication and stakeholder management skills',
+            category: 'must_have',
+            capabilityGroup: '',
+            met: false,
+          },
+        ],
+      },
+    });
+
+    const question = items.find((item) =>
+      item.topic.includes('stakeholder management')
+    );
+
+    expect(question).toBeDefined();
+    expect(question.category).toBe('behavioural');
+    expect(question.questionIntent).toBe('behavioural_star');
+  });
+  it('classifies technical requirements as technical questions', () => {
+    const items = buildInterviewQuestionPoolItems({
+      userId: 'user-1',
+      sessionId: 'session-1',
+      analysisResult: {
+        requirementChecks: [
+          {
+            requirement: 'Experience building REST APIs with Node.js',
+            category: 'must_have',
+            capabilityGroup: 'technical_skill',
+            met: false,
+          },
+        ],
+      },
+    });
+
+    const question = items.find((item) =>
+      item.topic.includes('REST APIs')
+    );
+
+    expect(question).toBeDefined();
+    expect(question.category).toBe('technical');
+    expect(question.questionIntent).toBe('technical_evidence');
+    expect(question.text).toContain('implement');
+    expect(question.text).toContain('validate');
+  });
+  it('treats problem-solving as behavioural even when upstream category is generic', () => {
+    const items = buildInterviewQuestionPoolItems({
+      userId: 'user-1',
+      sessionId: 'session-1',
+      analysisResult: {
+        requirementChecks: [
+          {
+            requirement: 'Strong problem-solving skills and attention to detail',
+            category: 'must_have',
+            capabilityGroup: '',
+            met: false,
+          },
+        ],
+      },
+    });
+
+    const question = items.find((item) =>
+      item.topic.includes('problem-solving')
+    );
+
+    expect(question).toBeDefined();
+    expect(question.category).toBe('behavioural');
+  });
+  it('converts raw JD requirement wording into a natural spoken topic', () => {
+    const items = buildInterviewQuestionPoolItems({
+      userId: 'user-1',
+      sessionId: 'session-1',
+      analysisResult: {
+        requirementChecks: [
+          {
+            requirement: 'Experience building REST APIs with Node.js',
+            category: 'technical',
+            capabilityGroup: 'technical_skill',
+            met: false,
+          },
+        ],
+      },
+    });
+
+    const question = items.find((item) =>
+      item.sourceType === 'jd_requirement'
+    );
+
+    expect(question).toBeDefined();
+    expect(question.text).toContain('building REST APIs with Node.js');
+    expect(question.text).not.toContain(
+      'involving Experience building REST APIs with Node.js'
+    );
+  });
+  it('removes JD-style prefixes and suffixes from behavioural topics', () => {
+    const items = buildInterviewQuestionPoolItems({
+      userId: 'user-1',
+      sessionId: 'session-1',
+      analysisResult: {
+        requirementChecks: [
+          {
+            requirement: 'Strong communication and stakeholder management skills',
+            category: 'must_have',
+            capabilityGroup: '',
+            met: false,
+          },
+        ],
+      },
+    });
+
+    const question = items.find((item) =>
+      item.sourceType === 'jd_requirement'
+    );
+
+    expect(question).toBeDefined();
+    expect(question.category).toBe('behavioural');
+    expect(question.text).toContain(
+      'communication and stakeholder management'
+    );
+    expect(question.text).not.toContain('Strong communication');
+    expect(question.text).not.toContain('management skills');
+  });
 });

@@ -65,7 +65,7 @@ describe('question metadata persistence guards', () => {
     const metadata = masterAiService.buildQuestionTranscriptMetadata?.({
       stage: 'role_requirement',
       topic: 'clinical safety',
-      questionType: 'validate_requirement',
+      questionType: 'technical_evidence',
       questionFamily: 'role_specific',
       evidenceMode: 'past_example',
       roleDomain: 'healthcare',
