@@ -1,5 +1,39 @@
 # Change Log
 
+## [2026-07-31 13:38 NZST] Feature RFC F-75 Resumable Mixed-Audio Recording Documentation Sync
+
+### Changed / Added
+
+- **Created Feature RFC F-75**: Created `F-75-resumable-mixed-session-audio-recording.md` under `docs/architecture-decision-records/features/` detailing: (1) Manifest-first recording source resolution & legacy fallback block, (2) 3-priority upload scheduler & post-interview flush, and (3) Web Audio API candidate + AI assistant mixed stream recording.
+- **Registered Feature RFC**: Registered `F-75` in Domain 6 of `docs/architecture-decision-records/features/README.md`.
+
+## [2026-07-31 13:35 NZST] Issue #140 Mixed Candidate & Assistant Audio Session Recording
+
+### Changed / Added
+
+- **Web Audio Session Audio Mixer**: Created `sessionAudioMixer.js` using Web Audio API (`AudioContext` & `MediaStreamAudioDestinationNode`). Combines candidate microphone stream and AI assistant playback node into a single mixed stream for `MediaRecorder`, with independent gain controls (1.0 candidate mic, 0.8 AI assistant).
+- **Direct Playback Queue Integration**: Connected mixer directly to the HTML5 `<audio>` playback element node (`assistantAudioElement.__sessionAudioMixerSourceNode`), preventing duplicate playback instances, audio desynchronization, or echo.
+- **Graceful Mic-Only Fallback & Topology Metadata**: Added automatic fallback to `mic_only` stream if Web Audio API is unsupported. Exposed `recordingTopology` (`mixed` or `mic_only`) on `useSessionAudioRecorder`.
+- **VAD Isolation & Barge-In Cutoff**: Kept VAD input bound exclusively to `micStream` to prevent AI speaker output from triggering false user speech frames. Provided `muteAssistant` / `unmuteAssistant` handlers for barge-in audio cutoff.
+- **Automated Verification**: Added unit tests in `sessionAudioMixer.test.js` verifying mixed stream creation, AudioContext fallback, mute/unmute gain changes, and resource cleanup. 100% frontend test suite pass (43/43 tests, 0 lint errors).
+
+## [2026-07-31 13:27 NZST] Issue #139 Voice Upload Priority Release & Post-Interview Flush
+
+### Changed / Added
+
+- **Finalized Manifest Latency Release**: Updated `recordingUploadManager.js` so that once a local manifest is finalized (`manifest.finalized === true`), `RECORDING_LATENCY_CRITICAL_STATES` checks no longer pause the upload pump, allowing all pending IndexedDB chunks to flush immediately.
+- **State Transition Auto-Flush Trigger**: Updated `recordingUploadRegistry.js` to automatically trigger `manager.start()` whenever `voicePriorityState` transitions out of latency-critical states (e.g. to `interview_ended`). Added `resumeAllUnresolved()` to scan and resume unresolved manifests upon App / Report bootstrap.
+- **Session Completion Priority Reset**: Updated `useVoiceInterviewSession.js` to explicitly transition `voicePriorityState` to `interview_ended` before local finalization and voice session cleanup.
+- **Automated Verification**: Added test in `recordingUploadManager.test.js` verifying that transitioning from a critical state (`user_speaking`) to `interview_ended` flushes pending chunks without requiring any new chunk to be enqueued. 100% frontend test suite pass (15/15 recording tests, 24/24 voice tests).
+
+## [2026-07-31 13:24 NZST] Issue #138 Resumable Recording Fallback & Truncated MP3 Prevention
+
+### Changed / Added
+
+- **Manifest-First Recording Source Resolution**: Implemented `resolveRecordingSource({ sessionId, userId })` in `sessionRecordingService.js`. When an active resumable upload manifest exists, legacy single-file fallback is strictly blocked unless the resumable pipeline reaches `ready` status.
+- **Canonical API Status & Download Alignment**: Updated `recordingController.js` and `sessionRecordingService.js` so both `/status` and `/download` endpoints consume the canonical `resolveRecordingSource` helper, attaching provenance metadata (`recordingSource: 'resumable_chunks' | 'legacy_single_file'`) without duplicate filesystem probing.
+- **Automated Verification**: Added 3 scenario unit tests to `recordingUploadGuard.test.js` verifying: (1) Stale 8 KB legacy MP3 + incomplete resumable upload returns 404 (legacy blocked), (2) Ready resumable upload returns published MP3, and (3) No resumable record + valid legacy MP3 returns legacy file. 100% test pass.
+
 ## [2026-07-31 11:18 NZST] CI Performance Test Threshold & Main Push Delay Removal
 
 ### Changed / Added

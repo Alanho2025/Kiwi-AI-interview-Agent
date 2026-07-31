@@ -57,6 +57,7 @@
 * 📄 [F-33-voice-audio-buffer-latency.md](./F-33-voice-audio-buffer-latency.md) - F-33 語音首包音訊 Buffer 與 3s 延遲優化
 * 📄 [F-61-realtime-voice-duplex-agent.md](./F-61-realtime-voice-duplex-agent.md) - F-61 全雙工語音 Agent
 * 📄 [F-72-candidate-answer-stt-calibration.md](./F-72-candidate-answer-stt-calibration.md) - F-72 候選人回答側轉寫校準與精準度優化
+* 📄 [F-75-resumable-mixed-session-audio-recording.md](./F-75-resumable-mixed-session-audio-recording.md) - F-75 斷點續傳雙軌混音面試錄音與防殘缺檔 Fallback 機制
 
 ### 🟢 領域七：報告、評估與復盤 (Reports & Coaching)
 * 📄 [F-34-report-generation-pipeline.md](./F-34-report-generation-pipeline.md) - F-34 面試評估報告與輔導生成管線

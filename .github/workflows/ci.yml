@@ -337,7 +337,7 @@ jobs:
     timeout-minutes: 30
     needs: ci-summary
     if: >-
-      github.event_name == 'push' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
       github.ref == 'refs/heads/main' &&
       vars.AWS_EC2_DEPLOY_ROLE_ARN != '' &&
       vars.AWS_EC2_DEPLOY_INSTANCE_ID != ''

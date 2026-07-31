@@ -84,8 +84,13 @@ export const createIndexedDbRecordingChunkStore = ({ openDatabase = openRecordin
     await Promise.all(chunks.filter((chunk) => chunk.state === 'uploading')
       .map((chunk) => updateChunk(sessionId, chunk.sequence, { state: 'pending' })));
   };
+  const listUnresolvedManifests = () => withStore(
+    RECORDING_MANIFEST_STORE,
+    'readonly',
+    (store) => requestResult(store.getAll()),
+  ).then((manifests) => (manifests || []).filter((manifest) => !manifest.remoteFinalized));
 
-  return { getManifest, putManifest, putChunk, listChunks, updateChunk, deleteChunk, resetUploading };
+  return { getManifest, putManifest, putChunk, listChunks, updateChunk, deleteChunk, resetUploading, listUnresolvedManifests };
 };
 
 export const indexedDbRecordingChunkStore = createIndexedDbRecordingChunkStore();

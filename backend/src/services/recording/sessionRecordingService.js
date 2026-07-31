@@ -14,7 +14,7 @@ import { fileURLToPath } from 'url';
 import { badRequest, notFound } from '../../utils/appError.js';
 import { loadOwnedSessionOrThrow, requireSessionId } from '../interview/interviewSessionService.js';
 import { recordingChunkStorageService } from './recordingChunkStorageService.js';
-
+import { recordingUploadService } from './recordingUploadService.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, '../../..');
@@ -68,20 +68,100 @@ const getReadyRecordingMetadata = async (mp3Path) => {
   return stats.isFile() && stats.size > 0 ? stats : null;
 };
 
-const findReadyRecordingPath = async (sessionId) => {
-  const candidates = [
-    recordingChunkStorageService.getPublishedMp3Path(sessionId),
-    getSessionRecordingPath(sessionId),
-  ];
-  for (const candidate of candidates) {
+const resolveRecordingSource = async ({ sessionId, userId }) => {
+  let resumableStatus = null;
+  try {
+    resumableStatus = await recordingUploadService.getSessionStatus({
+      sessionId,
+      userId,
+    });
+  } catch {
+    // DB or table unavailable in offline/test mode
+  }
+
+  // Once a resumable manifest exists, never silently fall back
+  // to the legacy single-file recording.
+  if (resumableStatus) {
+    if (!resumableStatus.available || resumableStatus.state !== 'ready') {
+      return {
+        source: 'resumable_chunks',
+        state: resumableStatus.state,
+        available: false,
+        progress: resumableStatus,
+        mp3Path: null,
+        metadata: null,
+      };
+    }
+
+    const mp3Path =
+      recordingChunkStorageService.getPublishedMp3Path(sessionId);
+
     try {
-      const metadata = await getReadyRecordingMetadata(candidate);
-      if (metadata) return { mp3Path: candidate, metadata };
+      const metadata = await getReadyRecordingMetadata(mp3Path);
+
+      if (!metadata) {
+        return {
+          source: 'resumable_chunks',
+          state: 'processing',
+          available: false,
+          progress: resumableStatus,
+          mp3Path: null,
+          metadata: null,
+        };
+      }
+
+      return {
+        source: 'resumable_chunks',
+        state: 'ready',
+        available: true,
+        progress: resumableStatus,
+        mp3Path,
+        metadata,
+      };
     } catch {
-      // Continue to the legacy path.
+      return {
+        source: 'resumable_chunks',
+        state: 'processing',
+        available: false,
+        progress: resumableStatus,
+        mp3Path: null,
+        metadata: null,
+      };
     }
   }
-  return null;
+
+  // Legacy fallback is allowed only when no resumable manifest exists.
+  const legacyPath = getSessionRecordingPath(sessionId);
+
+  try {
+    const metadata = await getReadyRecordingMetadata(legacyPath);
+
+    if (!metadata) {
+      return {
+        source: null,
+        state: 'missing',
+        available: false,
+        mp3Path: null,
+        metadata: null,
+      };
+    }
+
+    return {
+      source: 'legacy_single_file',
+      state: 'ready',
+      available: true,
+      mp3Path: legacyPath,
+      metadata,
+    };
+  } catch {
+    return {
+      source: null,
+      state: 'missing',
+      available: false,
+      mp3Path: null,
+      metadata: null,
+    };
+  }
 };
 
 export const saveSessionRecording = async ({ sessionId, userId, file }) => {
@@ -113,24 +193,25 @@ export const getSessionRecordingStatus = async ({ sessionId, userId }) => {
   await ensureRecordingDirs();
   await loadOwnedSessionOrThrow({ sessionId, userId });
 
-  try {
-    const ready = await findReadyRecordingPath(sessionId);
-    if (!ready) throw new Error('Recording file is missing.');
-    return {
-      sessionId,
-      status: 'ready',
-      available: true,
-      filename: `interview-session-${sanitizeSessionId(sessionId)}.mp3`,
-      fileSizeBytes: ready.metadata.size,
-    };
-  } catch {
-    return {
-      sessionId,
-      status: 'missing',
-      available: false,
-      filename: null,
-    };
-  }
+  const resolved = await resolveRecordingSource({
+    sessionId,
+    userId,
+  });
+
+  return {
+    sessionId,
+    status: resolved.state,
+    state: resolved.state,
+    available: resolved.available,
+    recordingSource: resolved.source,
+    filename: resolved.available
+      ? `interview-session-${sanitizeSessionId(sessionId)}.mp3`
+      : null,
+    fileSizeBytes: resolved.metadata?.size ?? null,
+    receivedChunks: resolved.progress?.receivedChunks ?? null,
+    totalChunks: resolved.progress?.totalChunks ?? null,
+    missingSequences: resolved.progress?.missingSequences ?? [],
+  };
 };
 
 export const loadSessionRecordingForDownload = async ({ sessionId, userId }) => {
@@ -138,13 +219,22 @@ export const loadSessionRecordingForDownload = async ({ sessionId, userId }) => 
   await ensureRecordingDirs();
   await loadOwnedSessionOrThrow({ sessionId, userId });
 
-  const ready = await findReadyRecordingPath(sessionId);
-  if (!ready) {
-    throw notFound('Recording not found', 'No MP3 recording is available for this session yet.');
+  const resolved = await resolveRecordingSource({
+    sessionId,
+    userId,
+  });
+
+  if (!resolved.available || !resolved.mp3Path) {
+    throw notFound(
+      'Recording not ready',
+      resolved.state === 'awaiting_missing_chunks'
+        ? 'Recording upload is waiting for missing chunks.'
+        : 'The recording is still uploading or processing.',
+    );
   }
 
   return {
-    mp3Path: ready.mp3Path,
+    mp3Path: resolved.mp3Path,
     filename: `interview-session-${sanitizeSessionId(sessionId)}.mp3`,
   };
 };

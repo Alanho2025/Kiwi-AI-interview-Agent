@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo } from 'react';
 import { createVoiceLatencyTrace } from '../../utils/voiceLatencyTrace.js';
+import { createSessionAudioMixer } from '../../utils/sessionAudioMixer.js';
 import { DEFAULT_VAD_CONFIG } from '../../utils/voiceActivityDetectionCore.js';
 import {
   DEFAULT_LANGUAGE,
@@ -88,9 +89,13 @@ export function useVoiceSessionLifecycleController({
       setVoiceStatus(buildVoiceStatus('info', 'Opening microphone', 'Duplex Voice Agent is ready to hear your answer.'));
 
       setSendAudio?.(false);
-      const stream = micMediaStream || await startStream({ sendAudio: false, stream: permissionResult.stream });
-      sessionAudioRecorder.startRecording(stream);
-      await vad.startVad({ stream, ignoreFirstMs: VAD_WARMUP_IGNORE_MS });
+      const micStream = micMediaStream || await startStream({ sendAudio: false, stream: permissionResult.stream });
+      const mixer = createSessionAudioMixer({
+        micStream,
+        assistantAudioElement: audioQueue?.audioRef?.current || null,
+      });
+      sessionAudioRecorder.startRecording(mixer.mixedStream, { topology: mixer.topology });
+      await vad.startVad({ stream: micStream, ignoreFirstMs: VAD_WARMUP_IGNORE_MS });
       activeVoiceTurnTraceRef.current?.mark('mic_ready');
       setVoiceState('listening');
       setVoiceStatus(buildVoiceStatus('info', 'Listening', 'Answer naturally. KiwiCoach will stop recording when you pause.'));
@@ -102,6 +107,7 @@ export function useVoiceSessionLifecycleController({
   }, [
     activeSessionId,
     activeVoiceTurnTraceRef,
+    audioQueue?.audioRef,
     clearPendingSpeechEnd,
     enabled,
     isAssistantSpeakingRef,
