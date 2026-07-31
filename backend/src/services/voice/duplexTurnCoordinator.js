@@ -517,6 +517,7 @@ export const createDuplexTurnCoordinator = ({
         reviewDecision: transcriptReviewDecision,
         turnType: 'transcript_confirmation',
         countsAsQuestion: false,
+        isClarificationTurn: true,
         timestamp: new Date().toISOString(),
       });
       sendJson?.({

@@ -167,7 +167,7 @@ describe('voice transcript calibration service', () => {
     const calibration = calibrateTranscript({
       rawText: 'I used post gray sql for durable storage.',
       nBestCandidates: [],
-      glossaryItems: [buildGlossaryItem('PostgreSQL')],
+      glossaryItems: [],
     });
     const normalized = normalizeTranscript(calibration.selectedTranscript);
     const merged = mergeStaticNormalizationIntoCalibration({ calibration, normalized });

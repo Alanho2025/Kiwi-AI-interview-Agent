@@ -144,3 +144,14 @@ export const buildQuestionFingerprint = (text = '') => {
 ## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
 > 💡 **面試官問**：「請介紹一下這個 Feature 的架構選擇？」  
 > **回答範例**：「此 Feature 主要在對應的核心模組中實作。我們基於現有 Staging 架構進行邊界防護與單元測試驗證，確保邏輯受控。」
+
+---
+
+## 8. 2026-08-01 短題目去重修復與 Match / Preparation 魯棒性測試補強
+
+- 修復 `backend/src/services/questions/questionDeduplicationService.js` 中 `textSimilarity` 對小於 5 Token 短題目過濾過嚴導致 `0` 相似度而漏去重的問題。允許 2~4 Token 的短題目在 Jaccard / Containment 相似度 $\ge 0.85$ 時觸發去重。
+- 新增/補強 Match 與 Question Prep 核心模組的魯棒性單元測試：
+  - `backend/tests/robustness/match/matchScoringService.test.js`: 補齊 `STRICT_TECH_PATTERNS` 正則驗證、`splitCompositeRequirement` 複合句拆解與 `software_it` 領域加權分層測試。
+  - `backend/tests/robustness/match/huggingFaceEmbeddingService.test.js`: 補齊 HuggingFace API 異常（429/500/Timeout）至 `buildDeterministicEmbedding` 的無縫降級測試。
+  - `backend/tests/robustness/questions/questionCatalogDegradation.test.js`: 補齊 Mongo Catalog DB 離線/不可用時 `catalog_unavailable` 平滑降級與 domain 回退鏈測試。
+  - `backend/tests/robustness/questions/questionDeduplicationService.test.js`: 補齊 short question near-duplicate 測試案例。

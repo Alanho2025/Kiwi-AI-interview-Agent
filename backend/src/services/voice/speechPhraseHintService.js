@@ -1,4 +1,5 @@
 import { buildSpeechPhraseList } from '../../config/speechPhraseList.js';
+import { extractTargetTechnicalTerms } from '../questions/questionArtifactHelpers.js';
 
 const MAX_PHRASES = 120;
 const MAX_PHRASE_LENGTH = 80;
@@ -197,3 +198,102 @@ export const buildSessionSpeechPhraseList = (session = {}) => {
   const { phraseList } = buildSessionSpeechPhraseContext(session);
   return phraseList;
 };
+
+const SOFT_TARGET_CAP = 30;
+const HARD_MAX_CAP = 40;
+
+/**
+ * Builds turn-specific 3-tier active STT phrase hints for a specific interview question.
+ *
+ * Tier 1: Current question targetTechnicalTerms (Priority 1)
+ * Tier 2: Session top matched skills (Priority 2)
+ * Tier 3: Global interview fallbacks (Priority 3)
+ *
+ * Applies early cutoff by relevance threshold (only high/medium priority terms).
+ * Applies Soft Ceiling of 30 and Hard Cap of 40.
+ */
+export const buildTurnActiveSpeechPhraseContext = ({
+  activeQuestion = {},
+  session = {},
+} = {}) => {
+  const selectedItems = new Map();
+  let currentQuestionCount = 0;
+  let sessionFallbackCount = 0;
+  let globalFallbackCount = 0;
+  let droppedCount = 0;
+
+  const addItem = (item, tierLabel) => {
+    if (!item || !item.term) return false;
+    const key = normalizeTermKey(item.term);
+    if (!key || key.length < 2 || GENERIC_PHRASES.has(key)) return false;
+    if (selectedItems.has(key)) return false;
+
+    if (selectedItems.size >= HARD_MAX_CAP) {
+      droppedCount += 1;
+      return false;
+    }
+
+    selectedItems.set(key, item);
+    if (tierLabel === 'current_question') currentQuestionCount += 1;
+    else if (tierLabel === 'session') sessionFallbackCount += 1;
+    else if (tierLabel === 'global') globalFallbackCount += 1;
+    return true;
+  };
+
+  const questionTerms = Array.isArray(activeQuestion.targetTechnicalTerms)
+    ? activeQuestion.targetTechnicalTerms
+    : extractTargetTechnicalTerms({
+      questionText: activeQuestion.text || activeQuestion.fallbackText || '',
+      topic: activeQuestion.topic || '',
+      matchedSkill: activeQuestion.matchedSkill || '',
+      basedOnSkills: activeQuestion.basedOnSkills || [],
+      evidenceRefs: activeQuestion.evidenceRefs || [],
+      questionId: activeQuestion.id || activeQuestion.questionId || null,
+    });
+
+  for (const item of questionTerms) {
+    if (item.priority === 'high' || item.priority === 'medium') {
+      addItem(item, 'current_question');
+    }
+  }
+
+  if (selectedItems.size < SOFT_TARGET_CAP) {
+    const sessionGlossary = buildSessionContextualGlossary(session);
+    for (const item of sessionGlossary) {
+      if (selectedItems.size >= SOFT_TARGET_CAP) break;
+      if (item.priority === 'high' || item.priority === 'medium') {
+        addItem(item, 'session');
+      }
+    }
+  }
+
+  if (selectedItems.size < SOFT_TARGET_CAP) {
+    const globalPhrases = ['prompt engineering', 'test-driven development', 'Codex', 'Databricks', 'XGBoost'];
+    for (const term of globalPhrases) {
+      if (selectedItems.size >= SOFT_TARGET_CAP) break;
+      const item = buildGlossaryItem({
+        term,
+        source: 'global_fallback',
+        fieldPath: 'GLOBAL_FALLBACK',
+        priority: 'medium',
+      });
+      addItem(item, 'global');
+    }
+  }
+
+  const contextualGlossary = Array.from(selectedItems.values());
+  const phraseList = buildSpeechPhraseList(contextualGlossary.map((item) => item.term)).slice(0, HARD_MAX_CAP);
+
+  return {
+    phraseList,
+    contextualGlossary,
+    selectedCount: phraseList.length,
+    droppedCount,
+    currentQuestionCount,
+    sessionFallbackCount,
+    globalFallbackCount,
+    softCap: SOFT_TARGET_CAP,
+    hardCap: HARD_MAX_CAP,
+  };
+};
+

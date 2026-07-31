@@ -80,5 +80,5 @@ export const GLOBAL_INTERVIEW_PHRASES = [
 const cleanPhrase = (value) => String(value || '').trim();
 
 export function buildSpeechPhraseList(extraPhrases = []) {
-  return Array.from(new Set([...GLOBAL_INTERVIEW_PHRASES, ...extraPhrases].map(cleanPhrase).filter(Boolean)));
+  return Array.from(new Set([...extraPhrases, ...GLOBAL_INTERVIEW_PHRASES].map(cleanPhrase).filter(Boolean)));
 }

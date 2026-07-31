@@ -1,0 +1,114 @@
+{
+  "sessionId": "98d6deba-17c9-4f3a-a181-63a71fb3342d",
+  "sttProvider": "Azure realtime STT",
+  "language": "en-NZ",
+  "durationSeconds": 478,
+  "description": "Ground-truth ASR regression fixture reproducing repeatable technical-term errors from recorded interview session 98d6deba.",
+  "syntheticSessionContext": {
+    "jobTitle": "AI Engineer",
+    "companyName": "TechRetail Solutions",
+    "candidateName": "Anonymized Candidate",
+    "parsedCvProfile": {
+      "skills": ["Databricks", "XGBoost", "POS system", "data modelling", "agent harness", "AI engine", "AI-powered tools"]
+    },
+    "parsedJdProfile": {
+      "title": "AI Engineer",
+      "sections": {
+        "technicalSkills": ["Databricks", "XGBoost", "POS system", "data modelling", "agent harness", "AI engine", "AI-powered tools"]
+      }
+    }
+  },
+  "cases": [
+    {
+      "id": "case-1-ai-powered-tools",
+      "expectedTerm": "AI-powered tools",
+      "rawAsr": "airport tools",
+      "errorType": "technical_phrase_substitution",
+      "scoringImpact": "high",
+      "expectedBehaviour": "nbest_rerank",
+      "syntheticUtterance": "I used airport tools to streamline code analysis and pull request reviews.",
+      "nBestCandidates": [
+        { "text": "I used airport tools to streamline code analysis and pull request reviews.", "confidence": 0.79 },
+        { "text": "I used AI-powered tools to streamline code analysis and pull request reviews.", "confidence": 0.74 }
+      ]
+    },
+    {
+      "id": "case-2-databricks",
+      "expectedTerm": "Databricks",
+      "rawAsr": "data breaks",
+      "errorType": "product_tool_substitution",
+      "scoringImpact": "high",
+      "expectedBehaviour": "nbest_rerank",
+      "syntheticUtterance": "We processed large datasets using data breaks on AWS.",
+      "nBestCandidates": [
+        { "text": "We processed large datasets using data breaks on AWS.", "confidence": 0.81 },
+        { "text": "We processed large datasets using Databricks on AWS.", "confidence": 0.76 }
+      ]
+    },
+    {
+      "id": "case-3-pos-system",
+      "expectedTerm": "POS system",
+      "rawAsr": "LP's sister",
+      "errorType": "domain_phrase_substitution",
+      "scoringImpact": "high",
+      "expectedBehaviour": "detect_or_flag",
+      "syntheticUtterance": "I integrated the API with our LP's sister for store checkout operations.",
+      "nBestCandidates": [
+        { "text": "I integrated the API with our LP's sister for store checkout operations.", "confidence": 0.72 }
+      ]
+    },
+    {
+      "id": "case-4-data-modelling",
+      "expectedTerm": "data modelling",
+      "rawAsr": "Dunham modelling",
+      "errorType": "technical_phrase_substitution",
+      "scoringImpact": "high",
+      "expectedBehaviour": "nbest_rerank",
+      "syntheticUtterance": "My focus was on Dunham modelling and schema optimization.",
+      "nBestCandidates": [
+        { "text": "My focus was on Dunham modelling and schema optimization.", "confidence": 0.77 },
+        { "text": "My focus was on data modelling and schema optimization.", "confidence": 0.73 }
+      ]
+    },
+    {
+      "id": "case-5-xgboost",
+      "expectedTerm": "XGBoost",
+      "rawAsr": "extreme boost",
+      "errorType": "model_name_substitution",
+      "scoringImpact": "high",
+      "expectedBehaviour": "nbest_rerank",
+      "syntheticUtterance": "We trained an extreme boost classifier for tabular predictive analytics.",
+      "nBestCandidates": [
+        { "text": "We trained an extreme boost classifier for tabular predictive analytics.", "confidence": 0.82 },
+        { "text": "We trained an XGBoost classifier for tabular predictive analytics.", "confidence": 0.78 }
+      ]
+    },
+    {
+      "id": "case-6-agent-harness",
+      "expectedTerm": "agent harness",
+      "rawAsr": "ancient harness",
+      "rawAsrAlternative": "injured hernias",
+      "errorType": "architecture_term_substitution",
+      "scoringImpact": "high",
+      "expectedBehaviour": "nbest_rerank",
+      "syntheticUtterance": "The autonomous agent harness was built with custom runtime guards.",
+      "nBestCandidates": [
+        { "text": "The autonomous ancient harness was built with custom runtime guards.", "confidence": 0.75 },
+        { "text": "The autonomous agent harness was built with custom runtime guards.", "confidence": 0.71 }
+      ]
+    },
+    {
+      "id": "case-7-ai-engine",
+      "expectedTerm": "AI engine",
+      "rawAsr": "air engine",
+      "errorType": "technical_phrase_substitution",
+      "scoringImpact": "medium",
+      "expectedBehaviour": "nbest_rerank",
+      "syntheticUtterance": "We deployed the backend air engine using Docker containers.",
+      "nBestCandidates": [
+        { "text": "We deployed the backend air engine using Docker containers.", "confidence": 0.80 },
+        { "text": "We deployed the backend AI engine using Docker containers.", "confidence": 0.76 }
+      ]
+    }
+  ]
+}

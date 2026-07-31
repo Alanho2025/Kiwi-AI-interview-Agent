@@ -1,5 +1,30 @@
 # Change Log
 
+## [2026-08-01 00:16 NZST] CV-JD Match & Interview Preparation Robustness Suite & Short Question Deduplication Fix
+
+### Changed / Added
+
+- **Domain 4 Full Test Coverage Expansion**: Created dedicated robustness test suites for previously untested Domain 4 features:
+  - **F-11 Python NLP CV Entity Extraction**: Created `pythonNlpService.test.js` (testing disabled fallback, empty input safety, and parameter validation).
+  - **F-13 File Repository SHA256 Deduplication**: Created `sha256Deduplication.test.js` (testing binary buffer checksum generation, `buildCvHash`, `buildJdHash`, and `buildMatchCacheKey`).
+  - **F-15 Skill Gap & Risk Analysis**: Created `matchGapRiskAnalysis.test.js` (testing `buildExplanation` gaps, risks, strengths extraction, and commercial delivery risk flags).
+  - **F-48 ETL CV-JD Feature Vectorization**: Created `cvJdFeatureVectorization.test.js` (testing 256-dim `weighted_hash_ngram_v2` vectorizer, `cosineSimilarity`, `embedBatch`, and `normalizeForRetrieval`).
+- **Short Question Deduplication Fix**: Resolved bug in `questionDeduplicationService.js` where `textSimilarity` returned `0` for questions with under 5 tokens.
+- **Match Scoring Robustness Suite**: Created `matchScoringService.test.js` covering `STRICT_TECH_PATTERNS` regex accuracy across 15 technical stacks, composite requirement string splitting, `software_it` domain weighted scoring, and `PRIMARY_TECH` hard requirement strict `not_met` overrides.
+- **Vector Embedding Fallback Suite**: Created `huggingFaceEmbeddingService.test.js` verifying graceful fallback from HuggingFace API network/rate-limit errors (429/500/Timeout).
+- **Catalog Degradation Suite**: Created `questionCatalogDegradation.test.js` verifying smooth degradation to `catalog_unavailable` template pools when Mongo catalog DB is offline or empty.
+- **Automated Verification**: 32/32 Vitest tests passed across 8 robustness test files in Domain 4. 0 ESLint errors in modified/created files.
+
+### Changed / Added
+
+- **Scope Correction to Pure Option B**: Purged leaked Option A (Story Bank / Story Competency Matrix) and Option C (Phase C On-Demand AI Coaching Summary Slot & `POST /progress-analytics/coaching-summary` API) features. Removed non-contextual top-right global Confirm/Correct/Reject buttons.
+- **5-Layer Pipeline Audit Drawer**: Added collapsible `Audit Comparable Sessions Group` displaying 5-layer pipeline filter breakdown (Owner, Target Role, Delivery Mode, Schema Version v7, Status completed) and session list with timestamps (`Date + Time`), session ID snippet, score, and STAR evidence ratio.
+- **4-Segment Stacked Evidence Bar**: Replaced binary Direct vs Vague contrast with 4-segment stacked bar (`Direct STAR`, `Adjacent Exp`, `Vague/Hypothetical`, `Generic Filler`), ensuring 100% of candidate answer turns are accounted for without missing percentages.
+- **Deterministic Stage 2 Threshold Rules**: Replaced static bullet points with explicit Stage 1-4 threshold rules (`Stage 2: Sessions ≥ 2 & Direct Evidence 1%–49%`), providing clear explainability.
+- **6-Field Evidence Trace Detail Modal**: Enhanced `View Question Evidence Trace` to display Session ID, Question text, Answer Classification, Candidate Excerpt, Diagnosis Reason, and Scoring Schema Version (`v7`).
+- **Real Report Metric Extraction**: Implemented `extractReportEvidenceMetrics` helper in `progressAnalyticsService.js` to parse MongoDB `SessionReport` nested fields (`evidenceDiagnostics.totals` & `metrics` arrays) across 4 schema layers, completely resolving the 0% data misinterpretation bug.
+- **Automated Verification**: Vitest unit tests (`progressAnalyticsService.test.js` 6/6 passed) & component tests (`ProgressAnalyticsBanner.test.jsx` 4/4 passed). ESLint 0 errors. Feature RFC `F-76-multi-session-progress-analytics-and-powerbi-banner.md` synchronized.
+
 ## [2026-07-31 13:38 NZST] Feature RFC F-75 Resumable Mixed-Audio Recording Documentation Sync
 
 ### Changed / Added

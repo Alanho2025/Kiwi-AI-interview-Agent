@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { buildRoleEvidenceMap } from '../../../src/services/match/roleEvidenceMapService.js';
 import { buildSemanticEvidenceContext, getSemanticMatchesForLabel } from '../../../src/services/match/semanticEvidenceService.js';
@@ -61,6 +61,17 @@ const tracedEvidence = {
 };
 
 describe('grounded role evidence map robustness', () => {
+  let previousAiTestMode;
+
+  beforeEach(() => {
+    previousAiTestMode = process.env.AI_TEST_MODE;
+    process.env.AI_TEST_MODE = 'mock';
+  });
+
+  afterEach(() => {
+    if (previousAiTestMode === undefined) delete process.env.AI_TEST_MODE;
+    else process.env.AI_TEST_MODE = previousAiTestMode;
+  });
   it('classifies direct evidence only when a strong score has an explicit source trace', () => {
     const map = buildRoleEvidenceMap({
       roleFitProfile,

@@ -1,6 +1,9 @@
 # 開源 AI 面試練習專案之候選人進度與成長追蹤機制調研
 
+> **學術文獻綜述**：完整的 HCI 與教育評估學術論文調研詳見 [role-fit-interview-coaching-literature-review.md](file:///Users/heminghan/Kiwi-AI-interview-Agent/docs/references/role-fit-interview-coaching-literature-review.md)。
+
 本文件調查並分析了當前開源社群中（如 GitHub 上的熱門專案）如何設計與實作 AI 面試練習（AI Mock Interview）中的「候選人進度與成長追蹤機制」，為 Kiwi AI Interview Agent 的多期練習成長看板提供設計參考與技術文獻。
+
 
 ---
 

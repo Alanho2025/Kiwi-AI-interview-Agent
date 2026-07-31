@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { buildInterviewEnvironment } from '../../../src/services/aiControl/interviewEnvironmentService.js';
 import { compareCvToJobDescriptionWithSafeguard } from '../../../src/services/match/guardedMatchService.js';
@@ -65,6 +65,17 @@ const blockedJdRubric = {
 };
 
 describe('guarded match human review override', () => {
+  let previousAiTestMode;
+
+  beforeEach(() => {
+    previousAiTestMode = process.env.AI_TEST_MODE;
+    process.env.AI_TEST_MODE = 'mock';
+  });
+
+  afterEach(() => {
+    if (previousAiTestMode === undefined) delete process.env.AI_TEST_MODE;
+    else process.env.AI_TEST_MODE = previousAiTestMode;
+  });
   it('keeps a blocked JD at zero when the JD has not been human reviewed', async () => {
     const result = await compareCvToJobDescriptionWithSafeguard(cvText, 'Data Engineer JD', blockedJdRubric);
 

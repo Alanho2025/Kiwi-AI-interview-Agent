@@ -14,11 +14,33 @@ const stripJsonFence = (text = '') => String(text || '')
   .replace(/```$/i, '')
   .trim();
 
+export const repairMalformedJson = (text = '') => {
+  let cleaned = stripJsonFence(text);
+  if (!cleaned) return '';
+  // Remove trailing commas in objects and arrays
+  cleaned = cleaned.replace(/,\s*([}\]])/g, '$1');
+  // If JSON starts with { but doesn't end with }, attempt closing braces
+  if (cleaned.startsWith('{') && !cleaned.endsWith('}')) {
+    const openBraces = (cleaned.match(/\{/g) || []).length;
+    const closeBraces = (cleaned.match(/\}/g) || []).length;
+    if (openBraces > closeBraces) {
+      cleaned += '}'.repeat(openBraces - closeBraces);
+    }
+  }
+  return cleaned;
+};
+
 export const parseJsonSafely = (text, fallback = null) => {
   try {
-    return safeJsonParse(stripJsonFence(text));
+    const raw = stripJsonFence(text);
+    return safeJsonParse(raw);
   } catch {
-    return fallback;
+    try {
+      const repaired = repairMalformedJson(text);
+      return safeJsonParse(repaired);
+    } catch {
+      return fallback;
+    }
   }
 };
 

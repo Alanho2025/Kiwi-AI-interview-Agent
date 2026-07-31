@@ -210,46 +210,63 @@ export const callDeepSeek = async (
     top_p,
     generationConfig,
     timeoutMs,
+    maxRetries = 2,
+    backoffMs = 100,
   } = {},
 ) => {
-  try {
-    const apiKey = resolveDeepSeekApiKey();
-    if (!apiKey) {
-      return { content: buildMockDeepSeekResponse(), usage: null };
-    }
-
-    const response = await fetch('https://api.deepseek.com/chat/completions', {
-      method: 'POST',
-      signal: buildTimeoutSignal(timeoutMs),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify(buildChatPayload({
-        prompt,
-        systemInstruction,
-        usageMetadata,
-        temperature,
-        top_p,
-        generationConfig,
-      }))
-    });
-
-    if (!response.ok) {
-      throw new Error(`DeepSeek API error: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    const usage = extractUsage(data);
-    if (!skipAutoRecord) await autoRecordUsage(usage, 'callDeepSeek', usageMetadata);
-    return {
-      content: data.choices[0].message.content,
-      usage,
-    };
-  } catch (error) {
-    console.error('DeepSeek API Error:', error);
-    throw error;
+  const apiKey = resolveDeepSeekApiKey();
+  if (!apiKey) {
+    return { content: buildMockDeepSeekResponse(), usage: null };
   }
+
+  let lastError = null;
+  for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
+    try {
+      const response = await fetch('https://api.deepseek.com/chat/completions', {
+        method: 'POST',
+        signal: buildTimeoutSignal(timeoutMs),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify(buildChatPayload({
+          prompt,
+          systemInstruction,
+          usageMetadata,
+          temperature,
+          top_p,
+          generationConfig,
+        })),
+      });
+
+      if (response.status === 429 && attempt < maxRetries) {
+        const retryAfterSec = Number(response.headers.get('retry-after') || 0);
+        const delay = retryAfterSec > 0 ? retryAfterSec * 1000 : backoffMs * (2 ** attempt);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        continue;
+      }
+
+      if (!response.ok) {
+        throw new Error(`DeepSeek API error: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      const usage = extractUsage(data);
+      if (!skipAutoRecord) await autoRecordUsage(usage, 'callDeepSeek', usageMetadata);
+      return {
+        content: data.choices[0]?.message?.content || '',
+        usage,
+      };
+    } catch (error) {
+      lastError = error;
+      if (attempt < maxRetries) {
+        await new Promise((resolve) => setTimeout(resolve, backoffMs * (2 ** attempt)));
+      }
+    }
+  }
+
+  console.error('DeepSeek API Error after retries:', lastError);
+  throw lastError;
 };
 
 /**

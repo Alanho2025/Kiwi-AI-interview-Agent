@@ -48,11 +48,15 @@ export function buildConfidenceGate(confidence) {
   return { status, shouldConfirm, shouldRecordAgain };
 }
 
+const MAX_CONFIRMATION_TURNS_PER_SESSION = 3;
+
 export function assessRealtimeVoiceTranscript({
   transcriptText = '',
   asrConfidence = null,
   vad = null,
   rules = DEFAULT_ACCEPTANCE_RULES,
+  sessionConfirmationCount = 0,
+  riskSummary = null,
 } = {}) {
   const text = normalizeText(transcriptText);
   const words = countWords(text);
@@ -137,16 +141,29 @@ export function assessRealtimeVoiceTranscript({
     }, traceContext);
   }
 
-  if (confidenceGate.status === 'low') {
+  const needsConfirmation = confidenceGate.status === 'low' || Boolean(riskSummary?.requiresConfirmation);
+
+  if (needsConfirmation) {
     const hasContentfulAnswer = hasContentfulLowConfidenceEvidence({
       words,
       characters: text.length,
       speechDurationMs,
       sttSegmentCount,
       rules,
-    });
+    }) || Boolean(riskSummary?.technicalRiskSegmentCount > 0);
 
     if (hasContentfulAnswer) {
+      if (sessionConfirmationCount >= MAX_CONFIRMATION_TURNS_PER_SESSION) {
+        return traceGateDecision({
+          ok: true,
+          decision: 'accept',
+          reason: 'MAX_CONFIRMATION_CAP_REACHED_PROVISIONAL_FALLBACK',
+          message: null,
+          provisional: true,
+          ...basePayload,
+        }, traceContext);
+      }
+
       const confirmationConfidenceGate = {
         ...confidenceGate,
         shouldConfirm: true,
@@ -161,6 +178,7 @@ export function assessRealtimeVoiceTranscript({
         requiresUnderstandingConfirmation: true,
         shouldProcessAnswer: false,
         countsAsQuestion: false,
+        isClarificationTurn: true,
         confidenceGate: confirmationConfidenceGate,
         metrics: basePayload.metrics,
         transcriptQuality: 'low_confidence_but_contentful',

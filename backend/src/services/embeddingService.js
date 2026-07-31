@@ -35,7 +35,7 @@ const tokenize = (text = '') =>
     .toLowerCase()
     .replace(/\bci\s*\/\s*cd\b/g, 'cicd')
     .replace(/\bnode\.js\b/g, 'node')
-    .replace(/[^a-z0-9+#\s]/g, ' ')
+    .replace(/[^\p{L}\p{N}+#\s]/gu, ' ')
     .split(/\s+/)
     .filter(Boolean);
 

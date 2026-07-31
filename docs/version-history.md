@@ -1,6 +1,35 @@
 # Version History
 
+## 2026-07-31 - Realtime Confirmation Safety Gate & Dialogue Grounding Policy (Phase 4 - Issue #146)
+
+- Implemented 2-level confirmation prompt generator `buildTwoLevelTranscriptConfirmationPrompt` in `transcriptUnderstandingSummary.js`: generates specific term prompts (`"Just to confirm, did you mean 'Databricks'?"`) for strong single matches, and neutral restatements (`"I may have misheard one tool or system name. Could you repeat the tool name?"`) for weak or ambiguous matches to avoid Answer Priming / leaking terms from CV/JD.
+- Enforced Confirmation Frequency Cap (`MAX_CONFIRMATION_TURNS_PER_SESSION = 3`) in `speechConfidenceGate.js` to protect candidate dialogue flow. When cap is reached, falls back to `accept` with `provisional: true` without repeatedly interrupting candidate speech.
+- Enforced non-scoring repair turn status (`countsAsQuestion: false`, `isClarificationTurn: true`). Created test suite `confirmationGateAndPrompts.test.js` (24/24 total robustness tests passing).
+
+## 2026-07-31 - Single-Segment Near-Match Corruption & Risk Summary Aggregator (Phase 3A & 3B - Issues #145, #147)
+
+- Implemented `detectNearMatchGlossaryCorruptions` in `transcriptCalibrationService.js` combining Double Metaphone / Soundex phonetic code generation with variable-window Levenshtein distance token matching to catch N-best full-failure misrecognitions across Engineering, Data Science & Analytics, NZ Education & Teaching, NZ Legal & Compliance, Business Analysis (BA), Strategy/Management Consulting, and Digital Marketing (e.g. `data breaks` ➔ `Databricks`, `en sea` ➔ `NCEA`, `te fah ree key` ➔ `Te Whāriki`, `employment relations act` ➔ `ERA`, `power BI` ➔ `PowerBI`, `pie spark` ➔ `PySpark`, `beep man` ➔ `BPMN`, `you eighty` ➔ `UAT`, `messy principle` ➔ `MECE`, `sea ay sea` ➔ `CAC`).
+- Implemented `buildMergedTranscriptRiskSummary` in `transcriptCalibrationService.js` to aggregate multi-segment `minSegmentConfidence`, `lowConfidenceSegmentCount`, `technicalRiskSegmentCount`, and `requiresConfirmation` status instead of relying on simple arithmetic average.
+- Expanded `DOMAIN_TERM_PATTERN` & `inferTermReason` in `questionArtifactHelpers.js` & `speechPhraseHintService.js` to support Data, Education, Legal, BA, Consulting, and Marketing acronyms & frameworks (`NCEA`, `NZC`, `IEP`, `ERA`, `AML/CFT`, `NZLS`, `ETL`, `ELT`, `PowerBI`, `Tableau`, `PySpark`, `Polars`, `Pandas`, `Te Whāriki`).
+- Satisfied CPU P95 SLA execution target (< 10ms). Created 107-case total benchmark suite (`syntheticAsrAdversarialSuite.json` & `phoneticTermCorruptionDetection.test.js`, 20/20 robustness test suites passing).
+
+## 2026-07-31 - ASR Technical Term Reliability & Canonical Question Contract (Phase 1, 2A & 2B - Issues #143, #144)
+
+- Implemented `bwerCalculator.js` providing quantitative Biased Word Error Rate (B-WER) and N-Best Recall@K metrics for offline ASR benchmarking without live human speech testing.
+- Created Ground-Truth regression fixture (`session_98d6deba_technical_terms.json`) and robustness test suite (`bwerAndNbestRecall.test.js`) verifying 1.0 (100%) baseline raw ASR error and catching N-best full-failure cases.
+- Implemented Phase 2A Canonical Question `targetTechnicalTerms` contract with sourceRef traceability (`evidenceId`, `questionId`, `fieldPath`), `normalizedTerm`, `reason`, `priority`, and safe flags (`questionArtifactHelpers.js`, `interviewerAgentQuestionBuilder.js`, `questionPoolPreparationService.js`). Verified JSON persistence/restore without DB schema migration.
+- Implemented Phase 2B 3-Tier Active STT Phrase Hint Generator (`buildTurnActiveSpeechPhraseContext` in `speechPhraseHintService.js`) with Priority 1 Current Question Terms, Priority 2 Session Terms, and Priority 3 Global Fallbacks, applying Soft Ceiling (30), Hard Cap (40), and early cutoff by relevance threshold.
+- Updated `buildSpeechPhraseList` (`speechPhraseList.js`) to prioritize dynamic turn terms over static global phrases.
+
+## 2026-07-31 - Deterministic Candidate Progress Analytics API & 5-Layer Filter (Phase A - F-142)
+
+- Implemented `progressAnalyticsService.js` providing deterministic multi-session aggregation (0 LLM calls, p95 <= 50ms).
+- Enforced 5-Layer Comparability Pipeline (`user_id`, `deleted_at IS NULL`, `completed`, `ready`/`ready_after_repair`, `deliveryMode`, `schemaVersion: 'v7'`, `target_role`).
+- Implemented edge handling: returns `analyticsStatus: "insufficient_data"` for N < 2 comparable sessions and `availabilityStatus: "unavailable"` for missing/legacy report fields (never defaulting to 0).
+- Registered `GET /api/session/progress-analytics` before `/:sessionId` in `sessionRoutes.js` and added Vitest unit/integration test suite.
+
 ## 2026-07-30 - Context-Aware Dialogue, Organic Trade-Off Probing & NZ Culture Support (F-74)
+
 
 - Added `PROBE_TRADE_OFF` action to `actionPlanner.js` and `interviewerAgentQuestionBuilder.js` for organic, narrative-rooted trade-off questions when candidate answers are smooth.
 - Implemented NZ culturally nuanced ownership probing (*"That sounds like a great team effort! What was your specific piece of the puzzle there?"*) when candidate references team/we.
