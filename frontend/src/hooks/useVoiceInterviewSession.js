@@ -246,6 +246,7 @@ export function useVoiceInterviewSession({
     if (!isAutoLoopActive && !isMicStreaming && !sessionAudioRecorder.isRecordingSessionAudio) return;
 
     completedCleanupDoneRef.current = true;
+    sessionAudioRecorder.setVoicePriorityState('interview_ended');
     lifecycle.finalizeLocalRecording('session_completed')
       .then(() => lifecycle.stopVoiceSession('session_completed'))
       .catch((error) => {

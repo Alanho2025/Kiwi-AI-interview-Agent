@@ -1,5 +1,14 @@
 # Change Log
 
+## [2026-07-31 13:27 NZST] Issue #139 Voice Upload Priority Release & Post-Interview Flush
+
+### Changed / Added
+
+- **Finalized Manifest Latency Release**: Updated `recordingUploadManager.js` so that once a local manifest is finalized (`manifest.finalized === true`), `RECORDING_LATENCY_CRITICAL_STATES` checks no longer pause the upload pump, allowing all pending IndexedDB chunks to flush immediately.
+- **State Transition Auto-Flush Trigger**: Updated `recordingUploadRegistry.js` to automatically trigger `manager.start()` whenever `voicePriorityState` transitions out of latency-critical states (e.g. to `interview_ended`). Added `resumeAllUnresolved()` to scan and resume unresolved manifests upon App / Report bootstrap.
+- **Session Completion Priority Reset**: Updated `useVoiceInterviewSession.js` to explicitly transition `voicePriorityState` to `interview_ended` before local finalization and voice session cleanup.
+- **Automated Verification**: Added test in `recordingUploadManager.test.js` verifying that transitioning from a critical state (`user_speaking`) to `interview_ended` flushes pending chunks without requiring any new chunk to be enqueued. 100% frontend test suite pass (15/15 recording tests, 24/24 voice tests).
+
 ## [2026-07-31 13:24 NZST] Issue #138 Resumable Recording Fallback & Truncated MP3 Prevention
 
 ### Changed / Added

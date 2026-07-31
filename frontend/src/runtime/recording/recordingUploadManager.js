@@ -153,12 +153,12 @@ export const createRecordingUploadManager = ({
   };
 
   const pump = async () => {
+    const manifest = await synchronizeManifest();
     const priorityState = getVoicePriorityState();
-    if (RECORDING_LATENCY_CRITICAL_STATES.has(priorityState)) {
+    if (!manifest.finalized && RECORDING_LATENCY_CRITICAL_STATES.has(priorityState)) {
       publish({ state: 'paused_for_voice' });
       return;
     }
-    const manifest = await synchronizeManifest();
     const chunks = await store.listChunks(sessionId);
     if (manifest.finalized && Number.isInteger(manifest.totalChunks)) {
       const uploadedChunks = Math.max(0, manifest.totalChunks - chunks.length);
@@ -203,7 +203,8 @@ export const createRecordingUploadManager = ({
       publish({ state: result.state || 'queued', pendingChunks: 0, progressPercent: 100 });
       return;
     }
-    publish({ state: latestManifest?.finalized ? 'locally_durable' : 'receiving', pendingChunks: 0 });
+    const finalState = latestManifest?.remoteState || (latestManifest?.finalized ? 'locally_durable' : 'receiving');
+    publish({ state: finalState, pendingChunks: 0 });
   };
 
   const start = () => {

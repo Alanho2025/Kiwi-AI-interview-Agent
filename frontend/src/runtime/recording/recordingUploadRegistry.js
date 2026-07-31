@@ -4,6 +4,7 @@ import {
   initializeRecordingUpload,
   uploadRecordingChunk,
 } from '../../api/recordingApi.js';
+import { RECORDING_LATENCY_CRITICAL_STATES } from './recordingConstants.js';
 import { indexedDbRecordingChunkStore } from './indexedDbRecordingChunkStore.js';
 import { createRecordingUploadManager } from './recordingUploadManager.js';
 
@@ -34,9 +35,38 @@ export const createRecordingUploadRegistry = ({
     return manager;
   };
 
+  const setVoicePriorityState = (sessionId, state) => {
+    const previousState = voiceStates.get(sessionId) || null;
+    voiceStates.set(sessionId, state);
+    const manager = managers.get(sessionId);
+    if (manager) {
+      if (
+        RECORDING_LATENCY_CRITICAL_STATES.has(previousState) &&
+        !RECORDING_LATENCY_CRITICAL_STATES.has(state)
+      ) {
+        void manager.start();
+      }
+    }
+  };
+
+  const resumeAllUnresolved = async () => {
+    if (!store.listUnresolvedManifests) return [];
+    const manifests = await store.listUnresolvedManifests().catch(() => []);
+    const started = [];
+    for (const manifest of manifests) {
+      if (manifest?.sessionId) {
+        const manager = getOrCreate(manifest.sessionId);
+        void manager.start();
+        started.push(manifest.sessionId);
+      }
+    }
+    return started;
+  };
+
   return {
     getOrCreate,
-    setVoicePriorityState: (sessionId, state) => voiceStates.set(sessionId, state),
+    setVoicePriorityState,
+    resumeAllUnresolved,
   };
 };
 

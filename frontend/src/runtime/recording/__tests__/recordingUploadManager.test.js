@@ -226,4 +226,36 @@ describe('recording upload manager', () => {
     await manager.start();
     expect(api.uploadChunk).toHaveBeenCalledTimes(1);
   });
+
+  it('flushes pending chunks without a new chunk when transitioning from critical state to interview_ended', async () => {
+    const store = createMemoryStore();
+    const api = createApi();
+    let voiceState = 'user_speaking';
+    const manager = createRecordingUploadManager({
+      sessionId: 'session-1',
+      store,
+      api,
+      checksumBlob: async () => 'hash',
+      getVoicePriorityState: () => voiceState,
+    });
+
+    await manager.enqueueChunk({ sequence: 0, blob: new Blob(['chunk-0']), mimeType: 'audio/webm' });
+    await manager.enqueueChunk({ sequence: 1, blob: new Blob(['chunk-1']), mimeType: 'audio/webm' });
+
+    await manager.start();
+    expect(api.uploadChunk).not.toHaveBeenCalled();
+    expect(manager.getSnapshot().state).toBe('paused_for_voice');
+
+    // Transition to interview_ended without enqueuing any new chunk
+    voiceState = 'interview_ended';
+    await manager.finalizeLocalCapture({ totalChunks: 2, totalBytes: 14 });
+    await manager.start();
+
+    expect(api.uploadChunk).toHaveBeenCalledTimes(2);
+    expect(api.finalize).toHaveBeenCalledWith(expect.objectContaining({
+      uploadId: 'upload-1',
+      totalChunks: 2,
+    }));
+    expect(manager.getSnapshot().state).toBe('queued');
+  });
 });
