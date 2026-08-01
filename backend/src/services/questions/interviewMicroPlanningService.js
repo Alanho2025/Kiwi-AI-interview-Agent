@@ -187,31 +187,112 @@ const buildPrompt = ({ planningFrame = {} } = {}) => `Return strict JSON only:
   "riskFlags": []
 }
 
-Rules:
-- Ask exactly one question.
+Your task:
+Turn the selected question plan into one natural interview question.
+Preserve what the system needs to assess, but do not preserve the original sentence structure.
+
+Core rules:
+- Ask exactly one primary question.
 - finalSpokenQuestion must be ready for text-to-speech.
-- Use natural spoken English for a real interview.
-- Keep the original assessment goal, but polish awkward wording.
-- Avoid unnatural verb-object pairs such as "showed documentation".
-- Convert rubric-style requirements into natural interview questions.
-- For credential, education, eligibility, or related-field requirements, do not ask unnatural questions such as "evidence for studying..." or "shows your evidence for...".
-- If the CV already shows the credential, ask for one relevant coursework, project, or practical example that prepared the candidate for this role.
-- If credential evidence is missing or ambiguous, ask a simple verification question instead of a behavioural evidence question.
-- Never expose internal rubric labels, requirement names, or assessment wording in finalSpokenQuestion.
-- Prefer common verbs: created, wrote, improved, explained, documented, clarified, validated.
-- For documentation-related questions, ask about creating, improving, or using documentation to help others.
-- Do not invent CV, JD, match, or transcript facts.
-- Do not switch broad scenario.
+- Use natural spoken English that a real interviewer would use.
+- Rewrite the question rather than copying the source or fallback wording.
+- Preserve the assessment intent, target topic, and evidence need.
+- Ask for one concrete example when past experience is required.
+- Ask only for the most important evidence needed in this turn.
+- Keep the question concise, preferably under 24 words and never over 30 words for voice.
+- Use the candidate's previous answer when the frame contains relevant transcript context.
+- For follow-ups, directly target the missing detail instead of repeating the root question.
+- For root questions, introduce the topic naturally and ask for one focused example.
+- Vary the sentence structure based on the topic and conversation context.
+
+Do not:
+- Do not copy fallbackQuestion, source question text, or JD wording verbatim.
+- Do not merely replace a topic inside a generic sentence template.
+- Do not use the phrase "What is the strongest example from your experience involving".
+- Do not repeatedly begin questions with the same frame used in recent interviewer questions.
+- Do not ask two or three separate questions joined together.
+- Do not expose internal rubric labels, match gaps, requirement names, evidence scores, or assessment wording.
+- Do not invent CV, JD, match, project, or transcript facts.
+- Do not switch to a different topic or scenario.
+- Do not ask a generic interview-bank question when specific CV, JD, match, or transcript context is available.
 - Do not ask technical implementation questions in behavioural-only mode.
-- Do not ask generic interview-bank questions when CV/JD/match evidence is available.
-- For follow-ups, stay on the parent topic unless the scenario is switch_topic, shift_section, or wrap_up.
+- Do not turn a technical topic into a vague behavioural question.
+- Do not repeat a root question as a follow-up.
 
-Examples:
-Bad: "Tell me about one example that shows your evidence for studying information systems, computer science, data, software, or a related field."
-Good: "Which coursework or project from your IT study has prepared you most for this automation role?"
+Question design guidance:
 
-Bad: "What evidence do you have for meeting the related field requirement?"
-Good: "Can you briefly explain how your study background connects to this role?"
+For a technical root question:
+- Ground it in one project or practical example.
+- Focus on the most relevant angle, such as ownership, implementation, decision, trade-off, data quality, deployment, or validation.
+- Choose the angle that best matches the planning frame instead of asking for all of them.
+
+For a behavioural root question:
+- Ask for one real situation.
+- Focus on the candidate's personal action and the relevant behaviour.
+- Do not force the full STAR structure into one long question.
+
+For a follow-up:
+- Use the parent topic and the candidate's previous answer.
+- Ask only for the most important missing evidence.
+- Examples of useful follow-up angles include:
+  ownership, specific action, technical depth, decision reason,
+  trade-off, validation, result, stakeholder response, or reflection.
+- Do not restart with "Tell me about a time" when the candidate is already discussing an example.
+
+For credential or education requirements:
+- When the credential is already visible, ask how relevant coursework or a project prepared the candidate.
+- When it is genuinely unclear, ask a brief verification question.
+- Do not ask for "evidence of meeting the requirement".
+
+For stakeholder or communication topics:
+- Ask about the audience, what the candidate changed in their communication, or the resulting alignment.
+- Do not simply ask whether they have communication skills.
+
+For technical tools or platforms:
+- Ask how the candidate used the tool in a real project.
+- Select one useful angle based on the frame, such as what they owned, why they chose it, or how they validated it.
+- Do not copy a long list of tools from the JD unless the list itself is necessary.
+
+For data topics:
+- Ask about the actual data problem, preparation, transformation, quality, modelling, or validation.
+- Avoid generic wording that could apply to any technical skill.
+
+For AI or ML topics:
+- Ask about application, evaluation, limitations, safety, or trade-offs based on the frame.
+- Avoid treating every AI topic as a generic software implementation question.
+
+Quality check before returning:
+1. Is this one question?
+2. Does it sound natural when spoken aloud?
+3. Does it assess the intended target?
+4. Is it grounded in the supplied frame?
+5. Is it different in structure from generic fallback wording?
+6. Does it avoid asking for evidence already provided?
+7. Is it concise enough for a live interview?
+
+Bad:
+"What is the strongest example from your experience involving cloud data platforms such as Azure, AWS, or GCP? What did you build or change, and how did you evaluate it?"
+
+Better:
+"Tell me about a cloud deployment you worked on and which part you personally owned."
+
+Bad follow-up:
+"Can you walk me through a specific project where you were responsible for the architecture and deployment, and what part did you personally own?"
+
+Better follow-up when EC2 was already mentioned:
+"Why did you choose EC2 for that deployment?"
+
+Bad:
+"What is the strongest example from your experience involving structured and unstructured datasets?"
+
+Better:
+"How did you handle data quality in a project that used different types of data?"
+
+Bad:
+"Tell me about a time you demonstrated stakeholder communication. What did you personally do, and what was the outcome?"
+
+Better:
+"How did you adapt your explanation for a non-technical stakeholder?"
 
 Planning frame:
 ${JSON.stringify(planningFrame, null, 2)}`;
@@ -321,7 +402,7 @@ export const runBoundedQuestionMicroPlanning = async ({
   try {
     const { content } = await callModel(
       buildPrompt({ planningFrame }),
-      'You are a bounded interview micro-planner. Return strict JSON only.',
+      `You are an experienced interviewer responsible for converting a bounded assessment plan into one concise, natural spoken question. Preserve the assessment intent, but never copy generic template wording. Return strict JSON only.`,
       {
         usageMetadata: {
           stage: 'interview',

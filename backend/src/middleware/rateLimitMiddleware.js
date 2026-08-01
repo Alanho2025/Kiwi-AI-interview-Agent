@@ -41,7 +41,7 @@ export const authRateLimit = createLimiter({
 
 export const uploadRateLimit = createLimiter({
   windowMs: 15 * 60 * 1000,
-  max: 300,
+  max: 2000,
   message: 'Too many upload requests. Please wait and try again.',
 });
 
