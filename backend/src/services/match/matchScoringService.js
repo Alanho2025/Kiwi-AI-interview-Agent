@@ -207,7 +207,9 @@ const describeEvidenceQuality = ({ requirementType = 'soft', status = 'not_met',
   if (isCommercialRequirement && !hasCommercialSignals) return 'missing direct commercial proof';
   if (transferableOnly) return 'transferable evidence only';
   if (projectOnly) return 'project-based evidence only';
-  if (matchedSection === 'skills' && evidenceStrength === 'weak') return 'skills-list evidence only; interviewer should validate applied depth';
+  if (['skills', 'keyCompetencies'].includes(matchedSection)) {
+    return 'skills-list evidence only; interviewer should validate applied depth';
+  }
   if (status === 'partial') return requirementType === 'hard' ? 'partial direct evidence' : 'partial evidence found';
   if (status === 'inferred') return 'limited direct proof';
   return 'missing direct proof';
@@ -273,13 +275,20 @@ const applyEvidenceStrengthPolicy = ({ requirement = {}, finalStatus = 'not_met'
     // Hard technical requirement MUST have actual strict tech evidence in profile text
     if (!hasExactSemanticEvidence && !hasStrictTechInEvidence && !hasStrictTechInProfile) {
       nextStatus = 'not_met';
-    } else if (matchedSection === 'skills' && nextStatus === 'met' && evidenceStrength === 'weak') {
-      nextStatus = 'partial';
-    }
+    } 
   }
 
-  if ((requirement.type === 'hard' || requirement.mustHave === true) && matchedSection === 'skills' && evidenceStrength === 'weak') {
-    nextStatus = nextStatus === 'met' ? 'partial' : nextStatus;
+  const isHardRequirement =
+    requirement.type === 'hard'
+    || requirement.mustHave === true;
+
+  const isListOnlyEvidence = [
+    'skills',
+    'keyCompetencies',
+  ].includes(matchedSection);
+
+  if (isHardRequirement && isListOnlyEvidence && nextStatus === 'met') {
+    nextStatus = 'partial';
   }
 
   if (COMMERCIAL_EXPERIENCE_PATTERN.test(requirement.label) && matchedSection === 'projects') {
@@ -303,6 +312,7 @@ export const computeRequirementStatus = (requirement, evidenceProfile = {}, sema
       evidenceStrength: baseMatch.evidenceStrength,
       semanticMatches: baseMatch.semanticMatches,
       label: requirement.label,
+      evidenceProfile,
     });
     return {
       ...baseMatch,
@@ -460,17 +470,76 @@ const sanitizeRequirementEvidence = ({ requirement = {}, status = 'not_met', evi
   });
 };
 
-const resolveRequirementFinalStatus = ({ requirement = {}, judgement = null, match = {} } = {}) => {
-  if (!judgement?.status) return match.finalStatus;
-  if ((STATUS_ORDER[judgement.status] || 0) >= (STATUS_ORDER[match.finalStatus] || 0)) return judgement.status;
-
+const resolveRequirementFinalStatus = ({
+  requirement = {},
+  judgement = null,
+  match = {},
+  evidenceProfile = {},
+} = {}) => {
   const label = requirement.label || requirement.text || '';
-  const hasQualificationSectionMatch = isQualificationLabel(label)
+  const isHardRequirement =
+    requirement.type === 'hard'
+    || requirement.mustHave === true;
+
+  const experienceText = Array.isArray(evidenceProfile.sections?.experience)
+    ? evidenceProfile.sections.experience.join(' ')
+    : String(evidenceProfile.sections?.experience || '');
+
+  const projectsText = Array.isArray(evidenceProfile.sections?.projects)
+    ? evidenceProfile.sections.projects
+      .map((project) => (
+        typeof project === 'string'
+          ? project
+          : [
+            project.title,
+            project.text,
+            ...(project.responsibilities || []),
+            ...(project.outcomes || []),
+            ...(project.techStack || []),
+          ].filter(Boolean).join(' ')
+      ))
+      .join(' ')
+    : String(evidenceProfile.sections?.projects || '');
+
+  const hasAppliedEvidence =
+    hasStrictTechEvidence(label, experienceText)
+    || hasStrictTechEvidence(label, projectsText);
+
+  const isSkillsListOnly =
+    isHardRequirement
+    && match.matchedSection === 'skills'
+    && !hasAppliedEvidence;
+
+  // A named skill in the Skills section proves presence,
+  // but not applied hard-requirement experience.
+  if (isSkillsListOnly) {
+    return (STATUS_ORDER[match.finalStatus] || 0) > STATUS_ORDER.partial
+      ? 'partial'
+      : match.finalStatus;
+  }
+
+  if (!judgement?.status) {
+    return match.finalStatus;
+  }
+
+  if (
+    (STATUS_ORDER[judgement.status] || 0)
+    >= (STATUS_ORDER[match.finalStatus] || 0)
+  ) {
+    return judgement.status;
+  }
+
+  const hasQualificationSectionMatch =
+    isQualificationLabel(label)
     && match.matchedSection === 'education'
     && ['met', 'partial'].includes(match.finalStatus);
-  const hasExactHardTechMatch = isHardTechnicalRequirement(requirement, label)
+
+  const hasExactHardTechMatch =
+    isHardTechnicalRequirement(requirement, label)
     && match.evidenceStrength !== 'missing'
-    && (match.evidence || []).some((item) => hasStrictTechEvidence(label, item));
+    && (match.evidence || []).some((item) =>
+      hasStrictTechEvidence(label, item)
+    );
 
   if (hasQualificationSectionMatch || hasExactHardTechMatch) {
     return match.finalStatus;
@@ -518,7 +587,7 @@ export const buildRequirementChecks = (requirements = [], _cvText, evidenceProfi
       getSemanticMatchesForLabel(semanticEvidenceContext, requirement.label),
       requirement
     ).slice(0, 3);
-    const finalStatus = resolveRequirementFinalStatus({ requirement, judgement, match });
+    const finalStatus = resolveRequirementFinalStatus({ requirement, judgement, match, evidenceProfile });
     const judgementEvidence = semanticEvidence.map((item) => `Matched evidence (${item.evidenceStrength || 'weak'}, ${Number(item.score || 0).toFixed(2)}): ${item.text}`);
     const rawEvidence = [...(requirement.evidence || []), ...match.evidence, ...judgementEvidence];
     const cleanedEvidence = sanitizeRequirementEvidence({ requirement, status: finalStatus, evidence: rawEvidence });
