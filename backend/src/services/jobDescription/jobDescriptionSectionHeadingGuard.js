@@ -57,14 +57,25 @@ const HEADING_LABELS = new Set([
   'why join us',
   'why us',
   'why work for us',
+  'additional information',
+  'additional info',
+  'further information',
+  'a typical day could include',
+  'a typical day will include',
+  'a typical day might include',
+  'it would be a bonus if you also have exposure to',
+  'it would be a bonus if you have exposure to',
+  'it would be a bonus if you also have',
   'you will',
 ]);
 
 export const normalizeJobDescriptionHeadingCandidate = (value = '') => String(value || '')
-  .replace(/^[\s•\-*]+/g, '')
+  .replace(/^[\s•\-*#_]+/g, '')
+  .replace(/[\s#*_]+$/g, '')
   .replace(/\s+/g, ' ')
   .trim()
   .replace(/[.:：;]+$/g, '')
+  .replace(/^[\s•\-*#_]+|[\s#*_]+$/g, '')
   .replace(/\s*&\s*/g, ' and ')
   .replace(/\s+/g, ' ')
   .toLowerCase();
@@ -73,6 +84,7 @@ export const isJobDescriptionSectionHeading = (value = '') => {
   const normalized = normalizeJobDescriptionHeadingCandidate(value);
   if (!normalized) return false;
   if (HEADING_LABELS.has(normalized)) return true;
+  if (/^a typical day/i.test(normalized) || /^it would be a bonus if/i.test(normalized)) return true;
   return /^about .{1,60}$/.test(normalized) && !/\b(experience|qualification|python|javascript|sql|aws|react|node|customer|project|workflow)\b/i.test(normalized);
 };
 

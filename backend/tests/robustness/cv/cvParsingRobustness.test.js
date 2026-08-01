@@ -513,4 +513,32 @@ Python`);
     expect(profile.education).toMatch(/Master of Electrical Engineering/i);
     expect(profile.volunteer).toMatch(/Buddy Program/i);
   });
+  it('extracts Alan CV tools into structured skills and skill evidence', () => {
+    const profile = buildCvProfile(`
+  Alan Ho
+
+  Skills
+  Documentation and Collaboration: Notion, PowerPoint
+  Data Engineering: Databricks, ETL/ELT
+  Cloud Platforms: AWS
+  `);
+
+    expect(skillLabels(profile)).toEqual(expect.arrayContaining([
+      'notion',
+      'powerpoint',
+      'databricks',
+      'aws',
+    ]));
+
+    const skillEvidence = profile.evidenceProfile.evidenceItems
+      .filter((item) => item.sourceType === 'skill')
+      .map((item) => item.text.toLowerCase());
+
+    expect(skillEvidence).toEqual(expect.arrayContaining([
+      'notion',
+      'powerpoint',
+      'databricks',
+      'aws',
+    ]));
+  });
 });

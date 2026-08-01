@@ -10,9 +10,9 @@ import { unique, normalizeWhitespace } from './jobDescriptionShared.js';
 const SECTION_MARKERS = [
   { key: 'roleContext', pattern: /^(?:about the role|the role)\s*:?$/i },
   { key: 'companyContext', pattern: /^(?:about us|about the company|company overview|about (?!the role).+)\s*:?$/i },
-  { key: 'responsibilities', pattern: /^(?:the position includes the following duties|the position includes|duties|responsibilities|key responsibilities|what you(?:'|’)ll be doing|what you will be doing|what you(?:'|’)ll do|what you will do)\s*:?$/i },
+  { key: 'responsibilities', pattern: /^(?:the position includes the following duties|the position includes|duties|responsibilities|key responsibilities|what you(?:'|’)ll be doing|what you will be doing|what you(?:'|’)ll do|what you will do|a typical day (?:could|might|will) include|a typical day)\s*:?$/i },
   { key: 'coreRequirements', pattern: /^(?:we are seeking someone with|we are looking for someone with|what we(?:'|’)re looking for|what we are looking for|requirements|core requirements|must have|essential requirements|what you(?:'|’)ll bring|what you bring)\s*:?$/i },
-  { key: 'bonusRequirements', pattern: /^(?:pluses|bonus|bonus requirements|nice to have|preferred|desirable)\s*:?$/i },
+  { key: 'bonusRequirements', pattern: /^(?:pluses|bonus|bonus requirements|nice to have|preferred|desirable|it would be a bonus if.*)\s*:?$/i },
   { key: 'benefits', pattern: /^(?:benefits|what we offer|why join us|what(?:'|’)s in it for you)\s*:?$/i },
   { key: 'stop', pattern: /^(?:employer questions|application questions|your application will include|how to apply|apply now)\s*:?$/i },
 ];

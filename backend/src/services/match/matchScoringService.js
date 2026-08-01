@@ -19,6 +19,8 @@ const STATUS_ORDER = { not_met: 0, inferred: 1, partial: 2, met: 3 };
 const CORE_STACK_PATTERN = /c#|\.net|mvc|java(script)?|react|vue|angular|html|css|sql|aws|api|node|postgres/i;
 const COMMERCIAL_EXPERIENCE_PATTERN = /\b\d+\+?\s+years?|professional experience|commercial experience/i;
 const DEGREE_PATTERN = /computer science|software engineering|information technology|information systems|data engineering|tertiary qualification|degree|bachelor|master/i;
+const RELATED_QUALIFICATION_FIELD_PATTERN = /computer science|software engineering|information technology|information systems|data engineering/i;
+const IN_PROGRESS_EDUCATION_PATTERN = /\b(?:in progress|currently studying|current student|expected(?:\s+graduation)?|ongoing|present)\b/i;
 const SECTION_EVIDENCE_STRENGTH = {
   experience: 'strong',
   projects: 'strong',
@@ -135,6 +137,27 @@ const capEvidenceStrengthForStatus = (strength = 'missing', status = 'not_met') 
   return EVIDENCE_STRENGTH_BY_ORDER[cappedOrder] || 'missing';
 };
 
+const hasRelatedQualification = (education = []) => (
+  (Array.isArray(education) ? education : [education]).some((entry) => (
+    RELATED_QUALIFICATION_FIELD_PATTERN.test(String(entry || ''))
+  ))
+);
+
+const isCompletedRelatedQualification = (education = []) => {
+  const currentYear = new Date().getFullYear();
+
+  return (Array.isArray(education) ? education : [education]).some((entry) => {
+    const text = String(entry || '');
+    const years = [...text.matchAll(/\b(?:19|20)\d{2}\b/g)].map((match) => Number(match[0]));
+    const endYear = years.at(-1);
+
+    return hasRelatedQualification(text)
+      && !IN_PROGRESS_EDUCATION_PATTERN.test(text)
+      && Boolean(endYear)
+      && endYear < currentYear;
+  });
+};
+
 const topSemanticMatch = (semanticMatches = []) => semanticMatches[0] || null;
 
 const statusFromSemanticMatch = (match = null) => {
@@ -176,20 +199,29 @@ const splitCompositeRequirement = (label = '') => {
   if (/chatgpt|claude|other ai tools/i.test(raw)) return ['ChatGPT', 'Claude', 'AI tools'];
   if (/data, reporting, or dashboards/i.test(raw)) return ['data', 'reporting', 'dashboards'];
   if (/basic coding or api integrations/i.test(raw)) return ['basic coding', 'API integrations'];
+  if (/tertiary qualification.*(?:computer science|data engineering|information systems).*related field.*equivalent practical experience/i.test(raw)) {
+    return ['computer science', 'data engineering', 'information systems'];
+  }
 
   const cleaned = raw
-    .replace(/^(?:proficiency in|knowledge of|experience in|strong experience with|experience with|foundations in|exposure to|ability to|good)\s+/i, '')
+    .replace(/^(?:proficiency in|proficiency with|knowledge of|understanding of|experience in|strong experience with|experience with|foundations in|exposure to|ability to|good|skills in)\s+/i, '')
+    .replace(/^(?:collaboration tools|productivity tools|communication tools|development tools|tools|frameworks|languages|services|databases|concepts|skills)\s*:\s*/i, '')
+    .replace(/^(?:core\s+)?(?:data\s+engineering\s+)?(?:cloud\s+data\s+platforms|cloud\s+platforms|platforms|tools|technologies|services|frameworks|languages|databases|operating\s+systems|concepts)\s+(?:such\s+as|e\.g\.|including|like)\s+/i, '')
+    .replace(/\b(?:such as|e\.g\.|including|like)\b/i, '')
+    .replace(/\s*(?:\(|,)?\s*or\s+equivalent(?:\s+[a-z0-9&/()+,.' -]{1,40})?\s*\)?$/i, '')
     .replace(/\s+(?:for|in|with|using|to)\s+[a-z0-9&/()+,.' -]{1,80}$/i, '');
 
   const parts = cleaned
     .split(/,|\bor\b|\band\b|\//i)
     .map((item) => item
-      .replace(/^(?:proficiency in|knowledge of|experience in|strong experience with|experience with|foundations in|exposure to|ability to|good)\s+/i, '')
+      .replace(/^(?:proficiency in|proficiency with|knowledge of|understanding of|experience in|strong experience with|experience with|foundations in|exposure to|ability to|good|such as|e\.g\.|including|like)\s+/i, '')
+      .replace(/^(?:core\s+)?(?:data\s+engineering\s+)?(?:collaboration\s+tools|tools|software|skills|concepts)\s*(?::|\s+)\s*/i, '')
       .replace(/\s+(?:for|in|with|using|to|development|engineering)\s+[a-z0-9&/()+,.' -]{1,80}$/i, '')
       .replace(/\s+(?:for|in|with|using|to|development|engineering)$/i, '')
-      .replace(/[.;]+$/g, '')
+      .replace(/[.;()]+$/g, '')
+      .replace(/^[.;()]+/g, '')
       .trim())
-    .filter((item) => item.length > 1);
+    .filter((item) => item.length > 1 && !/^(?:or|etc)$/i.test(item));
 
   return [...new Set(parts.filter((item) => normalizeText(item) !== normalizeText(raw)))];
 };
@@ -228,15 +260,16 @@ const computeEnhancedMatch = (label, criterionType, evidenceProfile, semanticEvi
   const semanticStatus = statusFromSemanticMatch(bestSemanticMatch);
   const combinedSignal = sectionMatch.scoreSignal + capabilityMatch.boost + achievementBoost.boost + semanticBoost(bestSemanticMatch);
   const status = statusMax([statusFromCombinedSignal(sectionMatch.status, combinedSignal), semanticStatus]);
+  const matchedSection = sectionMatch.matchedSection || bestSemanticMatch?.section || bestSemanticMatch?.sourceType || '';
   const evidenceStrength = inferEvidenceStrength({
-    matchedSection: sectionMatch.matchedSection,
+    matchedSection,
     semanticMatches,
     status,
   });
   return {
     status,
     combinedSignal,
-    matchedSection: sectionMatch.matchedSection,
+    matchedSection,
     matchedCapabilities: capabilityMatch.matchedCapabilities,
     evidenceStrength,
     semanticMatches,
@@ -298,7 +331,8 @@ const applyEvidenceStrengthPolicy = ({ requirement = {}, finalStatus = 'not_met'
   return nextStatus;
 };
 
-const isDisjunctiveRequirement = (label = '') => /\b(?:or|either|any of)\b|\//i.test(label);
+const isDisjunctiveRequirement = (label = '') =>
+  /\b(?:or|either|any of|such as|e\.g\.|for example|including|like|equivalent)\b|[,:/]/i.test(label);
 
 export const computeRequirementStatus = (requirement, evidenceProfile = {}, semanticEvidenceContext = {}) => {
   const childLabels = splitCompositeRequirement(requirement.label);
@@ -349,7 +383,7 @@ export const computeRequirementStatus = (requirement, evidenceProfile = {}, sema
     else finalStatus = 'not_met';
   }
 
-  if (COMMERCIAL_EXPERIENCE_PATTERN.test(requirement.label) && childMatches.some((item) => item.status === 'not_met')) {
+  if (!isDisjunctive && COMMERCIAL_EXPERIENCE_PATTERN.test(requirement.label) && childMatches.some((item) => item.status === 'not_met')) {
     finalStatus = finalStatus === 'met' ? 'partial' : statusMin([finalStatus, 'partial']);
   }
 
@@ -375,15 +409,30 @@ export const computeRequirementStatus = (requirement, evidenceProfile = {}, sema
     baseMatch.evidenceStrength,
     ...childMatches.map((item) => item.evidenceStrength),
   ]);
-  finalStatus = applyEvidenceStrengthPolicy({
-    requirement,
-    finalStatus,
-    matchedSection,
-    evidenceStrength,
-    semanticMatches,
-    label: requirement.label,
-    evidenceProfile,
-  });
+
+  if (!isDisjunctive) {
+    finalStatus = applyEvidenceStrengthPolicy({
+      requirement,
+      finalStatus,
+      matchedSection,
+      evidenceStrength,
+      semanticMatches,
+      label: requirement.label,
+      evidenceProfile,
+    });
+  }
+
+  const isRelatedQualificationRequirement = /tertiary qualification.*(?:computer science|data engineering|information systems).*related field/i.test(requirement.label || '');
+  if (isRelatedQualificationRequirement) {
+    if (!hasRelatedQualification(evidenceProfile.sections?.education)) {
+      finalStatus = 'not_met';
+    } else if (
+      finalStatus === 'met'
+      && !isCompletedRelatedQualification(evidenceProfile.sections?.education)
+    ) {
+      finalStatus = 'partial';
+    }
+  }
 
   const PRIMARY_TECH = new Set(['java', 'angular', 'go', 'c++', 'c#', '.net', 'kubernetes']);
   const isHard = requirement.type === 'hard' || requirement.mustHave === true;

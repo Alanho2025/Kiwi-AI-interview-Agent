@@ -2,7 +2,7 @@ import { normalizeTaxonomyLabel } from '../taxonomyService.js';
 import { rankEvidenceWithSentenceTransformers } from '../pythonNlpService.js';
 import { rankSemanticEvidence } from './semanticMatchService.js';
 import { isJobDescriptionSectionHeading } from '../jobDescription/jobDescriptionSectionHeadingGuard.js';
-
+import { CV_TECHNICAL_SKILLS } from '../cv/cvSkillTaxonomy.js';
 const TOP_K = 3;
 const SCORE_FLOOR = 0.24;
 const EVIDENCE_STRENGTH_RANK = { strong: 3, partial: 2, weak: 1, missing: 0 };
@@ -65,32 +65,158 @@ const buildEvidenceCandidates = (evidenceProfile = {}) => {
     .filter((item) => item.text.trim());
 };
 
-const toMatchMap = (ranked = {}, evidence = []) => {
+const toMatchMap = (
+  ranked = {},
+  evidence = [],
+  requirements = []
+) => {
   const byLabel = {};
-  const evidenceById = new Map(evidence.flatMap((item) => [[item.id, item], [item.chunkId, item]]));
+
+  const evidenceById = new Map(
+    evidence.flatMap((item) => [
+      [item.id, item],
+      [item.chunkId, item],
+    ])
+  );
+
+  const requirementById = new Map(
+    requirements.map((requirement) => [
+      requirement.id,
+      requirement,
+    ])
+  );
+
   const matches = (ranked.matches || []).map((item) => {
-    const filteredMatches = (item.matches || [])
+    const requirement = requirementById.get(item.requirementId) || {
+      id: item.requirementId,
+      label: item.label,
+      text: item.label,
+    };
+
+    const explicitDegreeMatches = getExplicitDegreeMatches({
+      requirement,
+      evidence,
+    });
+
+    const explicitSkillMatches = getExplicitSkillMatches({
+      requirement,
+      evidence,
+    });
+
+    const explicitMatches = [...explicitDegreeMatches, ...explicitSkillMatches];
+
+    const semanticMatches = (item.matches || [])
       .filter((match) => Number(match.score) >= SCORE_FLOOR)
       .map((match) => ({
-        ...(evidenceById.get(match.evidenceId || match.id || match.chunkId) || {}),
+        ...(evidenceById.get(
+          match.evidenceId || match.id || match.chunkId
+        ) || {}),
         ...match,
         score: Number(Number(match.score || 0).toFixed(4)),
-      }))
-      .sort((a, b) => (
-        (EVIDENCE_STRENGTH_RANK[b.evidenceStrength] || 0) - (EVIDENCE_STRENGTH_RANK[a.evidenceStrength] || 0)
-        || Number(b.score || 0) - Number(a.score || 0)
-      ));
+      }));
+
+    const explicitMatchIds = new Set(
+      explicitMatches.map((match) => match.id)
+    );
+
+    const filteredMatches = [
+      ...explicitMatches,
+      ...semanticMatches.filter(
+        (match) => !explicitMatchIds.has(match.id)
+      ),
+    ].sort((a, b) => (
+      Number(b.score || 0) - Number(a.score || 0)
+      || (EVIDENCE_STRENGTH_RANK[b.evidenceStrength] || 0)
+      - (EVIDENCE_STRENGTH_RANK[a.evidenceStrength] || 0)
+    ));
+
     const normalized = {
       requirementId: item.requirementId,
       label: item.label,
       matches: filteredMatches,
     };
+
     byLabel[normalizeTaxonomyLabel(item.label)] = filteredMatches;
+
     return normalized;
   });
+
   return { byLabel, matches };
 };
+const normalizeComparableLabel = (value = '') =>
+  normalizeTaxonomyLabel(value)
+    .replace(/\bexperience with\b/g, '')
+    .replace(/\bproficiency with\b/g, '')
+    .replace(/\bknowledge of\b/g, '')
+    .trim();
 
+const TOOL_ALIASES = CV_TECHNICAL_SKILLS.flatMap((skill) => [
+  skill.label,
+  ...(skill.aliases || []),
+]).map((value) => ({
+  raw: value,
+  normalized: normalizeComparableLabel(value),
+}));
+
+const extractNamedToolsFromRequirement = (requirement = {}) => {
+  const text = normalizeComparableLabel(
+    requirement.label || requirement.text || ''
+  );
+
+  return [...new Set(
+    TOOL_ALIASES
+      .filter(({ normalized }) => (
+        normalized
+        && text.includes(normalized)
+      ))
+  )];
+};
+
+const DEGREE_PATTERN = /computer science|software engineering|information technology|information systems|data engineering|tertiary qualification|degree|bachelor|master/i;
+
+const getExplicitDegreeMatches = ({
+  requirement = {},
+  evidence = [],
+} = {}) => {
+  const reqText = requirement.label || requirement.text || '';
+  if (!DEGREE_PATTERN.test(reqText)) return [];
+
+  return evidence
+    .filter((item) => item.section === 'education' || item.sourceType === 'education')
+    .filter((item) => DEGREE_PATTERN.test(item.text))
+    .map((item) => ({
+      ...item,
+      score: 1,
+      evidenceStrength: 'strong',
+      matchType: 'explicit_degree',
+    }));
+};
+
+const getExplicitSkillMatches = ({
+  requirement = {},
+  evidence = [],
+} = {}) => {
+  const requiredTools = extractNamedToolsFromRequirement(requirement);
+
+  if (!requiredTools.length) {
+    return [];
+  }
+
+  return evidence
+    .filter((item) => item.sourceType === 'skill')
+    .filter((item) => {
+      const evidenceLabel = normalizeComparableLabel(item.text);
+
+      return requiredTools.some((tool) => (
+        evidenceLabel === tool
+      ));
+    })
+    .map((item) => ({
+      ...item,
+      score: 1,
+      matchType: 'explicit_skill',
+    }));
+};
 export const buildSemanticEvidenceContext = async ({ rubric = {}, evidenceProfile = {} } = {}) => {
   const requirements = buildRequirementCandidates(rubric);
   const evidence = buildEvidenceCandidates(evidenceProfile);
@@ -108,7 +234,11 @@ export const buildSemanticEvidenceContext = async ({ rubric = {}, evidenceProfil
     ? null
     : await rankEvidenceWithSentenceTransformers({ requirements, evidence, topK: TOP_K });
   const ranked = pythonRanked || await rankSemanticEvidence({ requirements, evidence, topK: TOP_K, minScore: SCORE_FLOOR });
-  const { byLabel, matches } = toMatchMap(ranked, evidence);
+  const { byLabel, matches } = toMatchMap(
+    ranked,
+    evidence,
+    requirements
+  );
 
   return {
     model: ranked.model,
@@ -125,21 +255,38 @@ export const getSemanticMatchesForLabel = (semanticEvidenceContext = {}, label =
 
 export const summarizeEvidenceStrength = (matches = []) => {
   const summary = { strong: 0, partial: 0, weak: 0, missing: 0 };
+
   for (const item of matches) {
     const topMatch = (item.matches || [])[0];
+
     if (!topMatch) {
       summary.missing += 1;
       continue;
     }
-    if (topMatch.evidenceStrength === 'strong' && topMatch.score >= 0.58) {
+
+    if (topMatch.matchType === 'explicit_skill') {
       summary.strong += 1;
       continue;
     }
-    if (topMatch.evidenceStrength === 'partial' || topMatch.score >= 0.48) {
+
+    if (
+      topMatch.evidenceStrength === 'strong'
+      && Number(topMatch.score || 0) >= 0.58
+    ) {
+      summary.strong += 1;
+      continue;
+    }
+
+    if (
+      topMatch.evidenceStrength === 'partial'
+      || Number(topMatch.score || 0) >= 0.48
+    ) {
       summary.partial += 1;
       continue;
     }
+
     summary.weak += 1;
   }
+
   return summary;
 };

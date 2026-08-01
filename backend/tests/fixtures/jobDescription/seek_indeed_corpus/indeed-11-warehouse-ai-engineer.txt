@@ -1,0 +1,84 @@
+# **AI Engineer**
+
+The Warehouse Group
+
+4.14.1 out of 5 stars
+
+Auckland City, Auckland
+
+Hybrid work
+
+Full-time
+
+&nbsp;
+
+## **Job details**
+
+Here’s how the job details align with your
+
+profile
+
+.
+
+### **Job type**
+
+- **Full-time**
+
+&nbsp;
+
+## **Location**
+
+**Auckland City, Auckland**
+
+&nbsp;
+
+## **Full job description**
+
+**Company Description**
+
+The Warehouse Group (TWG) has become a Kiwi household name, and we proudly recognise the role that we play in communities throughout New Zealand. We are the largest general merchandise retailer in NZ across The Warehouse, Warehouse Stationery & Noel Leeming. We are at an exciting point in our journey where our focus is on becoming brand centric, aiming to deliver an unparalleled experience for our customers. Agility and collaboration are cornerstones of our work culture, empowering us to adapt swiftly and work seamlessly together. By being brand-led and retail-focused, we are intentional about placing the right people in the right roles, allowing us to perform work that truly makes a difference.
+
+**Job Description**
+
+We’re looking for an AI Engineer to join our growing Data & AI team based in Auckland. This is an exciting opportunity for someone early in their data engineering career who’s keen to build their capability in a supportive, forward-thinking environment while working on meaningful AI and analytics initiatives across the business.
+
+Working alongside experienced technical leaders, you’ll help build and maintain reliable data pipelines and data assets that support AI solutions and business insights. You’ll gain exposure to modern data platforms and tools while collaborating closely with AI Engineers and delivery teams to bring data-driven solutions to life.
+
+A typical day could include:
+
+- Building and maintaining data pipelines to ingest, transform, and deliver data for AI and analytics use cases
+- Supporting the preparation of structured and unstructured datasets for AI solutions
+- Translate business requirements into clear, actionable briefs for the AI Engineering team
+- Create and maintain user-facing documentation, guides, and training materials for deployed AI solutions
+- Run internal workshops and demonstrations to build AI literacy and drive adoption
+- Act as first point of contact for business stakeholders on AI-related queries and change management
+- Monitor adoption metrics and gather feedback on deployed solutions to inform iteration priorities
+- Develop and deliver internal communications about the AI team’s roadmap, progress, and successes
+- Support the Business Engagement Lead on stakeholder management and executive reporting
+
+**Qualifications**
+
+What we’re looking for:
+
+- A tertiary qualification in Computer Science, Data Engineering, Information Systems, or a related field (or equivalent practical experience)
+- Basic understanding of AI/ML concepts and limitations - sufficient to have credible conversations with engineers
+- Proficiency with collaboration tools: PowerPoint, Confluence, Notion, or equivalent
+- Understanding of core data engineering concepts such as ETL/ELT, data modelling, and data quality
+- Strong problem-solving skills and attention to detail
+- A collaborative mindset and eagerness to learn and grow within a team environment
+
+It would be a bonus if you also have exposure to:
+
+- Cloud data platforms such as Azure, AWS, or GCP
+- Tools such as DTB, Airflow, Data Factory, or similar orchestration platforms
+- Structured and unstructured datasets
+- AI or machine learning data concepts
+- Git or other version-control tools
+
+**Additional Information**
+
+We are intentional about finding the right people, allowing us to perform work as a team that truly makes a difference for the business and our customers. In return, you’ll get exposure to exciting technology, meaningful projects, and the opportunity to learn from passionate and experienced people in the Data & AI space.
+
+**Apply now** and make an impact with one of Aotearoa’s most trusted retailers.
+
+**Be part of our journey to make sustainable living easy and affordable for everyone.**

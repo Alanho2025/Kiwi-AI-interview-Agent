@@ -50,7 +50,7 @@ const EVIDENCE_STRENGTH_BY_SOURCE = {
   project_responsibility: 'strong',
   project_tech_stack: 'strong',
   achievement: 'strong',
-  education: 'partial',
+  education: 'strong',
   volunteer: 'partial',
   key_competency: 'weak',
   skill: 'weak',

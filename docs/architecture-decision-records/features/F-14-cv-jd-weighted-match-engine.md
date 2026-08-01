@@ -1,11 +1,12 @@
 # Feature RFC: F-14 多維度 CV-JD 權重匹配引擎
 
 > **文件狀態**：Approved  
-> **系統成熟度 (Readiness Level)**：Production-Ready  
+> **系統成熟度 (Readiness Level)**：Partial
 > **核心模組路徑**：`backend/src/services/matchService.js`
 > **Git 演進 Commit 追蹤**：`PR #124`, Commit `6e453bc`, `df871ba`  
 > **主要負責人 / 日期**：Kiwi AI Team / 2026-07-29    
-> **實作狀態 (Implementation Status)**：Verified
+> **實作狀態 (Implementation Status)**：Partial
+> **校驗測試路徑 (Verified by Tests)**：`backend/tests/robustness/cv/cvParsingRobustness.test.js`, `backend/tests/robustness/jd/seekIndeedParserCorpus.test.js`, `backend/tests/robustness/match/matchRequirementBindingAndDisjunction.test.js`
 
 ---
 
@@ -29,6 +30,13 @@
   - **Disjunctive (OR) 或條件匹配邏輯**：符合多選一（如 `Java or C# or Python`）中的任意一個選項即可獲得 100% 滿分（`met`），徹底消除「缺其一即全盤扣分」的傳統缺陷。
   - **經歷優先級保護 (Section-Aware Priority)**：若候選人在工作經歷 (`experience`) 與專案 (`projects`) 中已展現該技能，優先判定為強佐證（`met`），防止被純技能清單 (`skills`) 誤判扣分。
   - **30 份真實 JD 與真實 CV 基準測試**：建立 [realCvJdMatchBenchmark.test.js](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/tests/robustness/match/realCvJdMatchBenchmark.test.js)，針對 Alan Ho 的真實 CV 與 30 份真實 Seek/Indeed/BigTech JDs 進行 100% 自動化迴歸測試。
+
+### 1.3 2026-08-01 解析與證據 hygiene 修正
+
+- JD parser 現在會辨識 `A typical day could include` 作為職責區塊，並把 `It would be a bonus if...` 當成 bonus 容器，而非可評分 requirement。
+- `Additional Information`、`Apply now`、雇主行銷與公司價值文案會在 section、requirement 與 role-intent 路徑排除；真正的職責與 bonus child items 仍保留。
+- Match 對 `such as`、`or equivalent` 與 OR 型清單逐項檢查；單一已證實的可替代工具可滿足該清單。CV taxonomy 中的顯式 skill evidence 會優先於泛化 semantic overlap。
+- 這一輪只證明本機 deterministic regression。它只把已知相關且結束年份早於當年的學歷判為 `met`；明顯未完成、當年結束與未來結束的資料維持 `partial`。學位完成狀態尚未成為結構化、可驗證欄位，且 role-intent source-identity 去重、confidence calibration 與 browser/real-provider 結果仍不是本 RFC 的已驗證結論。
 
 ---
 
