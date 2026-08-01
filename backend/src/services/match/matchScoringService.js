@@ -178,16 +178,17 @@ const splitCompositeRequirement = (label = '') => {
   if (/basic coding or api integrations/i.test(raw)) return ['basic coding', 'API integrations'];
 
   const cleaned = raw
-    .replace(/^foundations in\s+/i, '')
-    .replace(/^strong experience with\s+/i, '')
-    .replace(/^experience with\s+/i, '')
-    .replace(/^exposure to\s+/i, '')
-    .replace(/^ability to\s+/i, '')
-    .replace(/^good\s+/i, '');
+    .replace(/^(?:proficiency in|knowledge of|experience in|strong experience with|experience with|foundations in|exposure to|ability to|good)\s+/i, '')
+    .replace(/\s+(?:for|in|with|using|to)\s+[a-z0-9&/()+,.' -]{1,80}$/i, '');
 
   const parts = cleaned
     .split(/,|\bor\b|\band\b|\//i)
-    .map((item) => item.replace(/[.;]+$/g, '').trim())
+    .map((item) => item
+      .replace(/^(?:proficiency in|knowledge of|experience in|strong experience with|experience with|foundations in|exposure to|ability to|good)\s+/i, '')
+      .replace(/\s+(?:for|in|with|using|to|development|engineering)\s+[a-z0-9&/()+,.' -]{1,80}$/i, '')
+      .replace(/\s+(?:for|in|with|using|to|development|engineering)$/i, '')
+      .replace(/[.;]+$/g, '')
+      .trim())
     .filter((item) => item.length > 1);
 
   return [...new Set(parts.filter((item) => normalizeText(item) !== normalizeText(raw)))];
@@ -206,7 +207,9 @@ const describeEvidenceQuality = ({ requirementType = 'soft', status = 'not_met',
   if (isCommercialRequirement && !hasCommercialSignals) return 'missing direct commercial proof';
   if (transferableOnly) return 'transferable evidence only';
   if (projectOnly) return 'project-based evidence only';
-  if (matchedSection === 'skills' && evidenceStrength === 'weak') return 'skills-list evidence only; interviewer should validate applied depth';
+  if (['skills', 'keyCompetencies'].includes(matchedSection)) {
+    return 'skills-list evidence only; interviewer should validate applied depth';
+  }
   if (status === 'partial') return requirementType === 'hard' ? 'partial direct evidence' : 'partial evidence found';
   if (status === 'inferred') return 'limited direct proof';
   return 'missing direct proof';
@@ -246,29 +249,46 @@ const computeEnhancedMatch = (label, criterionType, evidenceProfile, semanticEvi
   };
 };
 
-const applyEvidenceStrengthPolicy = ({ requirement = {}, finalStatus = 'not_met', matchedSection = '', evidenceStrength = 'missing', semanticMatches = [], label = '' } = {}) => {
+const applyEvidenceStrengthPolicy = ({ requirement = {}, finalStatus = 'not_met', matchedSection = '', semanticMatches = [], label = '', evidenceProfile = {} } = {}) => {
   let nextStatus = finalStatus;
-  const bestSemantic = topSemanticMatch(semanticMatches);
 
   if (matchedSection === 'education' && !DEGREE_PATTERN.test(label || requirement.label || '')) {
     nextStatus = 'not_met';
   }
 
   if (isHardTechnicalRequirement(requirement, label || requirement.label)) {
-    const hasExactEvidence = (semanticMatches || []).some((item) => hasStrictTechEvidence(label || requirement.label, item.text || ''));
-    if (!hasExactEvidence) {
+    const targetLabel = label || requirement.label || '';
+    const hasExactSemanticEvidence = (semanticMatches || []).some((item) => hasStrictTechEvidence(targetLabel, item.text || ''));
+    const hasStrictTechInEvidence = (requirement.evidence || []).some((text) => hasStrictTechEvidence(targetLabel, text));
+    const sectionText = Array.isArray(evidenceProfile.sections?.[matchedSection])
+      ? evidenceProfile.sections[matchedSection].join(' ')
+      : String(evidenceProfile.sections?.[matchedSection] || '');
+    const experienceText = Array.isArray(evidenceProfile.sections?.experience) ? evidenceProfile.sections.experience.join(' ') : String(evidenceProfile.sections?.experience || '');
+    const skillsText = Array.isArray(evidenceProfile.sections?.skills) ? evidenceProfile.sections.skills.join(' ') : String(evidenceProfile.sections?.skills || '');
+    const projectsText = Array.isArray(evidenceProfile.sections?.projects) ? evidenceProfile.sections.projects.map((p) => typeof p === 'string' ? p : `${p.title || ''} ${p.text || ''}`).join(' ') : String(evidenceProfile.sections?.projects || '');
+
+    const hasStrictTechInProfile = hasStrictTechEvidence(targetLabel, sectionText)
+      || hasStrictTechEvidence(targetLabel, experienceText)
+      || hasStrictTechEvidence(targetLabel, skillsText)
+      || hasStrictTechEvidence(targetLabel, projectsText);
+
+    // Hard technical requirement MUST have actual strict tech evidence in profile text
+    if (!hasExactSemanticEvidence && !hasStrictTechInEvidence && !hasStrictTechInProfile) {
       nextStatus = 'not_met';
-    } else if (matchedSection === 'skills' && nextStatus === 'met') {
-      nextStatus = 'partial';
-    }
+    } 
   }
 
-  if ((requirement.type === 'hard' || requirement.mustHave === true) && matchedSection === 'skills' && evidenceStrength === 'weak') {
-    nextStatus = nextStatus === 'met' ? 'partial' : nextStatus;
-  }
+  const isHardRequirement =
+    requirement.type === 'hard'
+    || requirement.mustHave === true;
 
-  if ((requirement.type === 'hard' || requirement.mustHave === true) && bestSemantic?.sourceType === 'skill' && !['experience', 'project_outcome', 'project_responsibility'].includes(bestSemantic.sourceType)) {
-    nextStatus = nextStatus === 'met' ? 'partial' : nextStatus;
+  const isListOnlyEvidence = [
+    'skills',
+    'keyCompetencies',
+  ].includes(matchedSection);
+
+  if (isHardRequirement && isListOnlyEvidence && nextStatus === 'met') {
+    nextStatus = 'partial';
   }
 
   if (COMMERCIAL_EXPERIENCE_PATTERN.test(requirement.label) && matchedSection === 'projects') {
@@ -292,6 +312,7 @@ export const computeRequirementStatus = (requirement, evidenceProfile = {}, sema
       evidenceStrength: baseMatch.evidenceStrength,
       semanticMatches: baseMatch.semanticMatches,
       label: requirement.label,
+      evidenceProfile,
     });
     return {
       ...baseMatch,
@@ -314,15 +335,18 @@ export const computeRequirementStatus = (requirement, evidenceProfile = {}, sema
   const partialishCount = childMatches.filter((item) => ['met', 'partial'].includes(item.status)).length;
   const isDisjunctive = isDisjunctiveRequirement(requirement.label);
 
-  let finalStatus = 'not_met';
+  let finalStatus;
   if (isDisjunctive) {
-    if (metCount >= 1) finalStatus = 'met';
+    // Industry ATS Rule: Satisfying ANY ONE disjunctive option grants 100% full match credit (met)
+    if (metCount >= 1 || statuses.includes('met')) finalStatus = 'met';
     else if (partialishCount >= 1) finalStatus = 'partial';
     else if (statusMax(statuses) !== 'not_met') finalStatus = 'inferred';
+    else finalStatus = 'not_met';
   } else {
     if (metCount === childMatches.length) finalStatus = 'met';
     else if (partialishCount >= Math.max(1, Math.ceil(childMatches.length / 2))) finalStatus = 'partial';
     else if (statusMax(statuses) !== 'not_met') finalStatus = 'inferred';
+    else finalStatus = 'not_met';
   }
 
   if (COMMERCIAL_EXPERIENCE_PATTERN.test(requirement.label) && childMatches.some((item) => item.status === 'not_met')) {
@@ -358,20 +382,24 @@ export const computeRequirementStatus = (requirement, evidenceProfile = {}, sema
     evidenceStrength,
     semanticMatches,
     label: requirement.label,
+    evidenceProfile,
   });
 
   const PRIMARY_TECH = new Set(['java', 'angular', 'go', 'c++', 'c#', '.net', 'kubernetes']);
   const isHard = requirement.type === 'hard' || requirement.mustHave === true;
   if (isHard) {
-    const hasMissingPrimaryTech = childMatches.some((item) => {
-      const labelLower = item.label.toLowerCase();
-      const matchesPrimary = [...PRIMARY_TECH].some((tech) => 
-        new RegExp(`\\b${tech.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(labelLower)
-      );
-      return matchesPrimary && item.status === 'not_met';
-    });
-    if (hasMissingPrimaryTech) {
-      finalStatus = 'not_met';
+    const hasMetDisjunctiveOption = isDisjunctive && childMatches.some((item) => item.status === 'met' || item.status === 'partial');
+    if (!hasMetDisjunctiveOption) {
+      const hasMissingPrimaryTech = childMatches.some((item) => {
+        const labelLower = item.label.toLowerCase();
+        const matchesPrimary = [...PRIMARY_TECH].some((tech) => 
+          new RegExp(`\\b${tech.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(labelLower)
+        );
+        return matchesPrimary && item.status === 'not_met';
+      });
+      if (hasMissingPrimaryTech) {
+        finalStatus = 'not_met';
+      }
     }
   }
 
@@ -442,17 +470,76 @@ const sanitizeRequirementEvidence = ({ requirement = {}, status = 'not_met', evi
   });
 };
 
-const resolveRequirementFinalStatus = ({ requirement = {}, judgement = null, match = {} } = {}) => {
-  if (!judgement?.status) return match.finalStatus;
-  if ((STATUS_ORDER[judgement.status] || 0) >= (STATUS_ORDER[match.finalStatus] || 0)) return judgement.status;
-
+const resolveRequirementFinalStatus = ({
+  requirement = {},
+  judgement = null,
+  match = {},
+  evidenceProfile = {},
+} = {}) => {
   const label = requirement.label || requirement.text || '';
-  const hasQualificationSectionMatch = isQualificationLabel(label)
+  const isHardRequirement =
+    requirement.type === 'hard'
+    || requirement.mustHave === true;
+
+  const experienceText = Array.isArray(evidenceProfile.sections?.experience)
+    ? evidenceProfile.sections.experience.join(' ')
+    : String(evidenceProfile.sections?.experience || '');
+
+  const projectsText = Array.isArray(evidenceProfile.sections?.projects)
+    ? evidenceProfile.sections.projects
+      .map((project) => (
+        typeof project === 'string'
+          ? project
+          : [
+            project.title,
+            project.text,
+            ...(project.responsibilities || []),
+            ...(project.outcomes || []),
+            ...(project.techStack || []),
+          ].filter(Boolean).join(' ')
+      ))
+      .join(' ')
+    : String(evidenceProfile.sections?.projects || '');
+
+  const hasAppliedEvidence =
+    hasStrictTechEvidence(label, experienceText)
+    || hasStrictTechEvidence(label, projectsText);
+
+  const isSkillsListOnly =
+    isHardRequirement
+    && match.matchedSection === 'skills'
+    && !hasAppliedEvidence;
+
+  // A named skill in the Skills section proves presence,
+  // but not applied hard-requirement experience.
+  if (isSkillsListOnly) {
+    return (STATUS_ORDER[match.finalStatus] || 0) > STATUS_ORDER.partial
+      ? 'partial'
+      : match.finalStatus;
+  }
+
+  if (!judgement?.status) {
+    return match.finalStatus;
+  }
+
+  if (
+    (STATUS_ORDER[judgement.status] || 0)
+    >= (STATUS_ORDER[match.finalStatus] || 0)
+  ) {
+    return judgement.status;
+  }
+
+  const hasQualificationSectionMatch =
+    isQualificationLabel(label)
     && match.matchedSection === 'education'
     && ['met', 'partial'].includes(match.finalStatus);
-  const hasExactHardTechMatch = isHardTechnicalRequirement(requirement, label)
+
+  const hasExactHardTechMatch =
+    isHardTechnicalRequirement(requirement, label)
     && match.evidenceStrength !== 'missing'
-    && (match.evidence || []).some((item) => hasStrictTechEvidence(label, item));
+    && (match.evidence || []).some((item) =>
+      hasStrictTechEvidence(label, item)
+    );
 
   if (hasQualificationSectionMatch || hasExactHardTechMatch) {
     return match.finalStatus;
@@ -500,7 +587,7 @@ export const buildRequirementChecks = (requirements = [], _cvText, evidenceProfi
       getSemanticMatchesForLabel(semanticEvidenceContext, requirement.label),
       requirement
     ).slice(0, 3);
-    const finalStatus = resolveRequirementFinalStatus({ requirement, judgement, match });
+    const finalStatus = resolveRequirementFinalStatus({ requirement, judgement, match, evidenceProfile });
     const judgementEvidence = semanticEvidence.map((item) => `Matched evidence (${item.evidenceStrength || 'weak'}, ${Number(item.score || 0).toFixed(2)}): ${item.text}`);
     const rawEvidence = [...(requirement.evidence || []), ...match.evidence, ...judgementEvidence];
     const cleanedEvidence = sanitizeRequirementEvidence({ requirement, status: finalStatus, evidence: rawEvidence });
@@ -645,8 +732,8 @@ export const calculateScoreBreakdown = ({ rubric, macroScores, microScores, requ
     };
   }
 
-  const macroScore = sumWeightedScores(macroScores);
-  const microScore = sumWeightedScores(microScores);
+  const macroScore = macroScores.length ? sumWeightedScores(macroScores) : 0;
+  const microScore = microScores.length ? sumWeightedScores(microScores) : 0;
   const requirementScore = requirementChecks.length === 0
     ? 0
     : sumWeightedScores(
@@ -655,9 +742,13 @@ export const calculateScoreBreakdown = ({ rubric, macroScores, microScores, requ
           weight: item.importance === 'high' ? 1.5 : item.importance === 'low' ? 0.75 : 1,
         }))
       );
-  const overallScore = macroScore * (rubric.weights?.overall?.macro ?? 0.45)
-    + microScore * (rubric.weights?.overall?.micro ?? 0.35)
-    + requirementScore * (rubric.weights?.overall?.requirements ?? 0.2);
+
+  let overallScore = requirementScore;
+  if (macroScores.length > 0 && microScores.length > 0) {
+    overallScore = macroScore * (rubric.weights?.overall?.macro ?? 0.45)
+      + microScore * (rubric.weights?.overall?.micro ?? 0.35)
+      + requirementScore * (rubric.weights?.overall?.requirements ?? 0.2);
+  }
 
   return { macroScore, microScore, requirementScore, overallScore };
 };

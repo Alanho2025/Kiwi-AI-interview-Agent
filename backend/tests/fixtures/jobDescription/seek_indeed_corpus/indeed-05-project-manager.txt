@@ -1,0 +1,16 @@
+Position Title: IT Project Manager
+Company: Orion Health
+Location: Grafton, Auckland
+Job Type: Contract (12 Months)
+
+We are hiring an IT Project Manager to oversee healthcare software deployment projects.
+
+Key Tasks:
+- Manage project budgets, timelines, risk registers, and scope boundaries.
+- Coordinate software releases across engineering, QA, and clinical client teams.
+- Run daily standups, sprint planning, and retrospective meetings.
+
+Requirements:
+- PMP or PRINCE2 certification required.
+- 5+ years IT project management experience delivering software applications.
+- Excellent stakeholder management, conflict resolution, and Jira skills.

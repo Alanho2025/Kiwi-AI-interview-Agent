@@ -1,0 +1,26 @@
+Job Title: AI Solutions Engineer
+Company: Canva
+Location: Auckland, New Zealand
+Employment Type: Full-time
+
+Role Overview:
+Join our AI Innovation team to build generative AI features, agentic workflows, and semantic search capabilities.
+
+Key Responsibilities:
+• Develop LLM-powered applications using OpenAI, PyTorch, Python, and RAG architectures.
+• Implement vector database retrieval with Pinecone and PostgreSQL pgvector.
+• Evaluate model performance, prompt safety, and inference latency benchmarks.
+
+Requirements:
+• Master of Science degree in Artificial Intelligence or Computer Science.
+• 3+ years experience building AI/ML models or LLM agentic workflows in Python.
+• Deep understanding of semantic retrieval, vector search, and API integration.
+• Growth mindset and passion for cutting-edge AI technologies.
+
+Preferred Qualifications:
+• Published research papers in NLP or computer vision.
+• Experience with LangChain or LlamaIndex frameworks.
+
+Benefits:
+• Generous equity grant and flexible working hours.
+• Annual conference stipend and home office budget.

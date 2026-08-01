@@ -1,0 +1,16 @@
+Position Title: Senior Financial Analyst
+Company: Genesis Energy
+Location: Greenlane, Auckland
+Job Type: Full-time
+
+Genesis Energy is seeking a Senior Financial Analyst to support financial modeling, budgeting, and commercial forecasting.
+
+Duties:
+- Build financial models, variance analysis reports, and capital expenditure forecasts.
+- Extract and analyze financial datasets using SQL, Power BI, and Excel.
+- Present monthly financial performance summaries to executive management.
+
+Requirements:
+- CA or CPA accounting qualification or Bachelor of Commerce in Finance.
+- 4+ years financial analysis experience in energy, utilities, or corporate finance.
+- Advanced financial modeling expertise and strong communication skills.

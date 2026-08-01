@@ -1,0 +1,19 @@
+Job Title: Principal Software Engineering Manager - Azure AI
+Company: Microsoft
+Location: Auckland, New Zealand / Remote
+Organization: Cloud + AI
+
+Overview:
+Microsoft Azure AI is at the forefront of global artificial intelligence transformation. We are seeking a Principal Software Engineering Manager to lead an engineering organization building cloud AI developer services.
+
+Key Responsibilities:
+- Lead, grow, and empower an engineering organization of 12+ software engineers and engineering managers.
+- Architect high-throughput, low-latency microservices on Azure, Kubernetes, and C#.
+- Drive engineering excellence, live site reliability (SRE), and security compliance.
+- Partner with Product Management, Executive Leadership, and global Azure engineering teams.
+
+Qualifications:
+- 10+ years experience in software engineering with 4+ years managing software development managers or senior engineers.
+- Bachelor’s degree in Computer Science, Engineering, or equivalent experience.
+- Demonstrated technical expertise in C#, C++, Go, Java, or Rust, and microservice cloud architectures.
+- Exceptional executive communication, organizational culture building, and technical decision making.

@@ -1,0 +1,21 @@
+Job Title: Senior Consultant - SAP S/4HANA Digital Transformation
+Company: Deloitte New Zealand
+Location: Wellington, New Zealand
+Business Unit: Enterprise Technology & Performance
+
+About the Team:
+Deloitte’s SAP practice helps organizations transform their core operations. We are looking for a Senior Consultant specializing in SAP S/4HANA Finance and Supply Chain integration.
+
+Key Responsibilities:
+- Design, configure, and implement SAP S/4HANA modules (FI/CO, MM, SD) for government and commercial clients.
+- Facilitate business process blueprinting workshops and translate functional requirements into SAP configuration.
+- Support data migration, integration testing, and user change management.
+
+Requirements:
+- 4+ years hands-on experience in SAP implementation or advisory roles.
+- SAP S/4HANA Certified Application Associate credential.
+- Tertiary degree in Information Systems, Accounting, or Supply Chain Management.
+- Strong analytical skills, structured problem-solving, and client communication.
+
+What We Offer:
+- Flexible working arrangements, funded professional certifications, and clear career progression.

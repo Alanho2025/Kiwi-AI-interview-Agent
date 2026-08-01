@@ -1,0 +1,16 @@
+Position Title: Lead Data Scientist
+Company: ASB Bank
+Location: Auckland CBD
+Job Type: Permanent
+
+ASB Bank is looking for a Lead Data Scientist to build predictive credit risk and fraud detection models.
+
+Responsibilities:
+- Train machine learning models using Python, Scikit-Learn, XGBoost, and PyTorch.
+- Query large-scale transactional datasets with SQL and PySpark on AWS.
+- Present model findings and risk metrics to executive stakeholders.
+
+Qualifications:
+- Master’s or PhD degree in Statistics, Mathematics, Data Science, or Physics.
+- 5+ years experience building production ML models in banking or finance.
+- Mastery of Python, SQL, predictive modeling, and statistical analysis.

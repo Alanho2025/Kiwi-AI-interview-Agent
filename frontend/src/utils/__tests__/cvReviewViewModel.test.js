@@ -27,7 +27,8 @@ describe('buildCvReviewViewModel', () => {
       'Core skills',
       'Experience evidence',
       'Project evidence',
-      'Education and credentials',
+      'Education credentials',
+      'Certifications and licenses',
       'Key competencies',
     ]);
     expect(JSON.stringify(viewModel.fields)).not.toContain('candidate@example.com');

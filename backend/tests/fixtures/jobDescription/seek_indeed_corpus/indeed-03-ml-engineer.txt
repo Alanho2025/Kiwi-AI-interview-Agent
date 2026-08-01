@@ -1,0 +1,16 @@
+Position Title: Machine Learning Engineer
+Company: Soul Machines
+Location: Auckland Central
+Job Type: Full-time
+
+Join Soul Machines to deploy autonomous digital human avatars powered by neural networks.
+
+Core Duties:
+- Build MLOps pipelines using Docker, Kubernetes, Ray, and MLflow.
+- Fine-tune deep learning models using PyTorch and CUDA on GPU clusters.
+- Optimize model inference latency for real-time video and audio streaming.
+
+Required Skills:
+- Master’s degree in Computer Science or Artificial Intelligence.
+- 3+ years ML engineering experience with Python, PyTorch, C++, and Docker.
+- Experience with GPU cluster orchestration and model deployment.

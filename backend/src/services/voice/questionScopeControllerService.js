@@ -43,7 +43,15 @@ const resolvePreservedQuestionOrder = (session = {}) => {
     ? currentQuestionIndex
     : getNextQuestionOrder(session, { countsAsQuestion: false });
 };
+const resolveFreshRootQuestionOrder = (session = {}) => {
+  const currentQuestionIndex = Number(session.currentQuestionIndex);
 
+  if (Number.isFinite(currentQuestionIndex)) {
+    return currentQuestionIndex + 1;
+  }
+
+  return getNextQuestionOrder(session, { countsAsQuestion: true });
+};
 export const buildQuestionScopeControllerOutput = ({ session = {}, observation = {} } = {}) => {
   const responseText = String(observation.responseText || '').trim();
   const scenario = resolveScenario(observation);
@@ -111,7 +119,7 @@ export const buildQuestionScopeControllerOutput = ({ session = {}, observation =
     clarificationIntent: questionDecision.clarificationIntent,
     questionDecision,
     nextQuestionOrder: skippedToNextQuestion
-      ? getNextQuestionOrder(session, { countsAsQuestion: true })
+      ? resolveFreshRootQuestionOrder(session)
       : resolvePreservedQuestionOrder(session),
     controllerAction: observation.actionType,
     fallbackAction: observation.actionType,

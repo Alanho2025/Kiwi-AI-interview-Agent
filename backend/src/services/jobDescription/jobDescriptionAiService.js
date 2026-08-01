@@ -21,7 +21,7 @@ export const extractSkillsWithAI = async (rawJD, { disabled = false } = {}) => {
   }
 
   try {
-    const prompt = `You are a strict job-description parser for IT roles. Extract only what is explicitly stated.
+    const prompt = `You are a strict, domain-agnostic job description parser. Extract only what is explicitly stated in the job description across any professional domain (including IT/software, data/AI, engineering, product/project management, operations, finance, marketing, etc.).
 Return JSON only with this schema:
 {
   "technicalSkills": string[],
@@ -29,7 +29,7 @@ Return JSON only with this schema:
   "macroCriteria": string[],
   "requirements": string[]
 }
-Technical skills may include software development, data, AI/ML, IT infrastructure, and common engineering skills.
+Domain skills may include technical tools, software, methodologies, domain knowledge, certifications, and specialized practices.
 Job description:\n${rawJD.slice(0, 5000)}`;
     const { content: response } = await callDeepSeek(prompt, 'Return valid JSON only. No prose.', {
       usageMetadata: { stage: 'jd_parse', operation: 'llm_chat', feature: 'jd_skill_extraction' },

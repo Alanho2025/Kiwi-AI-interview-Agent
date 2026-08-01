@@ -1,0 +1,22 @@
+Position Title: Senior Machine Learning Engineer - Vision & Perception
+Company: Apple
+Location: Auckland CBD, New Zealand
+Job ID: 200548192
+
+Summary:
+The Vision Products team at Apple is seeking a Senior Machine Learning Engineer to craft next-generation spatial computing experiences for Apple Vision Pro and iOS devices.
+
+Key Qualifications:
+- 5+ years of hands-on experience building computer vision, deep learning, or multimodal AI systems.
+- Deep proficiency in C++, Python, Metal, PyTorch, or CoreML.
+- Proven track record deploying neural networks to resource-constrained hardware or Apple silicon.
+- Strong fundamentals in 3D geometry, linear algebra, and real-time graphics pipelines.
+
+Description:
+In this role, you will research, build, and deploy real-time perception algorithms that fuse camera, lidar, and spatial sensors. You will collaborate closely with hardware, OS, and framework teams to optimize performance for low latency and minimal battery consumption.
+
+Education & Experience:
+- BS, MS, or PhD in Computer Science, Electrical Engineering, or related technical field.
+
+Additional Requirements:
+- Published papers in CVPR, ICCV, ECCV, or NeurIPS is a plus.

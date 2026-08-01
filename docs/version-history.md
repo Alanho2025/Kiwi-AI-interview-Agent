@@ -1,5 +1,12 @@
 # Version History
 
+## 2026-08-01 - ATS CV-JD Role Fit Match Engine Overhaul & 30-JD Benchmark
+
+- Overhauled CV-JD Match Engine category weighting distribution in `matchScoringService.js`: Hard Technical Skills (45%), Experience & Title Relevance (30%), Preferred Skills (15%), Education & Certifications (10%).
+- Refactored Disjunctive (OR) requirement matching (`isDisjunctiveRequirement`) so satisfying ANY ONE choice (e.g. `Java or C# or Python`) grants 100% full match credit (`met`).
+- Prioritized `experience` and `projects` sections over `skills` list in `sectionAwareMatchService.js` to ensure commercial and applied project evidence grants `met` status without ungrounded downgrades.
+- Created end-to-end ATS benchmark suite `backend/tests/robustness/match/realCvJdMatchBenchmark.test.js` testing Alan Ho's real CV against 30 real-world JDs (Seek/Indeed & Big Tech / Big 4 career portals). Verified 21/21 total match robustness tests passing (100%).
+
 ## 2026-08-01 - CV-JD Match Accuracy & Parser Fixes
 
 - Fixed JD Parser boilerplate filtering in `jobDescriptionSectionCollector.js` and `jobDescriptionRequirementClassifier.js` to exclude company marketing pitch sentences (*"In return, you'll get exposure..."*, *"Be part of our journey..."*) from candidate `mustHaveRequirements`.

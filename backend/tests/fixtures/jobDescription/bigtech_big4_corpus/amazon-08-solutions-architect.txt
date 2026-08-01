@@ -1,0 +1,19 @@
+Job Title: Senior Solutions Architect - Enterprise Cloud
+Company: Amazon Web Services (AWS)
+Location: Auckland, New Zealand
+Job ID: 2519482
+
+DESCRIPTION:
+AWS is seeking a Senior Solutions Architect to guide enterprise customers in New Zealand through their cloud modernizations and architecture designs.
+
+BASIC QUALIFICATION:
+- 7+ years of experience in infrastructure architecture, database architecture, or network design.
+- 3+ years of experience displaying technical leadership in customer-facing roles.
+- AWS Certified Solutions Architect Associate or Professional certification.
+- Hands-on experience with Linux, Python, Terraform, Docker, and IP networking.
+- Bachelor's degree in Computer Science, Engineering, or related field.
+
+PREFERRED QUALIFICATION:
+- Experience architecting microservices, serverless applications (AWS Lambda), and container orchestration (EKS/ECS).
+- Master's degree or MBA.
+- Demonstrated ability to communicate complex technical concepts to CTOs and VP of Engineering level executives.

@@ -1,0 +1,18 @@
+Job Title: Cloud & DevOps Delivery Manager
+Company: Accenture New Zealand
+Location: Wellington, New Zealand
+Practice: Accenture Cloud First
+
+About Accenture:
+Accenture Cloud First helps clients accelerate their cloud journey. We are looking for a Cloud & DevOps Delivery Manager to lead high-profile cloud migration projects.
+
+Responsibilities:
+- Manage multi-million dollar cloud delivery programs utilizing Agile, DevOps, and CI/CD methodologies.
+- Oversee technical delivery teams across AWS, Azure, GCP, Kubernetes, and Ansible automation.
+- Drive project financials, resource allocation, client expectations, and service level agreements (SLAs).
+
+Requirements:
+- 7+ years experience in IT delivery management, project management, or cloud consulting.
+- Bachelor’s degree in Technology, Engineering, or Business.
+- Certified Agile Practitioner (Scrum Master / SAFe) or PMP.
+- Strong client leadership, risk mitigation, and commercial negotiation skills.

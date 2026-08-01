@@ -465,4 +465,52 @@ Python`);
       fitLimits: firstProjectEvidence.fitLimits,
     }));
   });
+
+  it('preserves detailed experience over 1500 characters and project text over 1200 characters without arbitrary truncation', () => {
+    const longExperienceText = 'Software Engineer at Global Tech\n' + 'Developed data pipelines and managed cloud deployments for enterprise clients across multiple regions. '.repeat(15);
+    const longProjectText = 'KIWI Mock Interview Platform\n' + 'Built voice-based AI interview platform with CV-JD matching, adaptive questioning, and structured report feedback. '.repeat(12);
+
+    const cvText = `Alan Ho\n\nExperience\n${longExperienceText}\n\nProjects\n${longProjectText}`;
+    const profile = buildCvProfile(cvText);
+
+    expect(profile.experience.length).toBeGreaterThan(1500);
+    expect(profile.experience).toBe(longExperienceText.trim());
+    expect(profile.projects.length).toBeGreaterThan(1200);
+    expect(profile.projects).toBe(longProjectText.trim());
+  });
+
+  it('completely extracts all key highlights from Alan Ho real CV without truncating projects or work history', async () => {
+    const rawCvText = await loadCv('alan-ho-cv.txt');
+    const profile = buildCvProfile(rawCvText);
+
+    // 1. Check Personal & Contact Details
+    expect(profile.candidateName).toBe('Alan Ho');
+    expect(profile.contact.email).toBe('alan.ho0828@gmail.com');
+    expect(profile.contact.phone).toMatch(/020 4184 4951/);
+
+    // 2. Check Work Experience Completeness (Both Senior & Junior roles preserved)
+    expect(profile.experience).toMatch(/Senior Electrical Engineer, Foxconn/i);
+    expect(profile.experience).toMatch(/Junior Electrical Engineer, Foxconn/i);
+    expect(profile.experience).toMatch(/45 issue summaries/i);
+    expect(profile.experience).toMatch(/15 validation cycles/i);
+    expect(profile.experience).toMatch(/15% to 5%/i);
+
+    // 3. Check Projects Completeness (Both KIWI AI Agent & Food AI / RepoPath preserved)
+    expect(profile.projects).toMatch(/KIWI Mock Interview AI Agent/i);
+    expect(profile.projects).toMatch(/Full-Stack Food AI agent/i);
+    expect(profile.projects).toMatch(/1,900 menu items/i);
+
+    // 4. Check Technical Skills Extraction
+    const skills = skillLabels(profile);
+    expect(skills).toEqual(expect.arrayContaining(['python', 'javascript', 'sql', 'react', 'node.js', 'express', 'postgresql']));
+
+    // 5. Check Evidence Profile & Quantified Achievements
+    expect(profile.evidenceProfile.quantifiedEvidence.join(' ')).toMatch(/15% to 5%/);
+    expect(profile.evidenceProfile.quantifiedEvidence.join(' ')).toMatch(/45 issue summaries|15 validation cycles|1,900 menu items/i);
+
+    // 6. Check Education & Volunteer
+    expect(profile.education).toMatch(/Master of Information Technology/i);
+    expect(profile.education).toMatch(/Master of Electrical Engineering/i);
+    expect(profile.volunteer).toMatch(/Buddy Program/i);
+  });
 });

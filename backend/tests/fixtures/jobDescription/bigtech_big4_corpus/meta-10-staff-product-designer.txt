@@ -1,0 +1,22 @@
+Job Title: Staff Product Designer - Design Systems
+Company: Meta
+Location: Auckland, New Zealand / Remote
+Department: Product Design
+
+About the Job:
+Meta is seeking a Staff Product Designer to shape the evolution of our global design system used across Facebook, Instagram, WhatsApp, and Quest devices.
+
+Responsibilities:
+- Design scalable UI component libraries, tokens, and interaction patterns in Figma.
+- Collaborate closely with React, React Native, and iOS/Android front-end engineers.
+- Conduct user research, accessibility evaluations (WCAG 2.1 AAA), and usability testing.
+- Define visual direction, typography scales, and motion guidelines.
+
+Minimum Qualifications:
+- 6+ years experience in product design, UI/UX design, or design systems at scale.
+- Mastered proficiency in Figma, design tokens, responsive layout, and prototyping.
+- Strong portfolio showcasing complex component systems, visual craft, and design rationale.
+
+Preferred Qualifications:
+- Bachelor’s or Master’s degree in Design, HCI, or Human Factors.
+- Basic understanding of HTML, CSS, React, and design token build scripts.

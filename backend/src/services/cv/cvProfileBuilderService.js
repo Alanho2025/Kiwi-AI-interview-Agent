@@ -95,6 +95,23 @@ const buildWarnings = (sections = [], skillItems = []) => {
   return warnings;
 };
 
+const SECTION_MAX_LIMITS = {
+  personal_statement: 2000,
+  summary: 2000,
+  experience: 8000,
+  projects: 6000,
+  education: 3000,
+  certifications: 2000,
+  key_competencies: 4000,
+  volunteer: 3000,
+};
+
+const getSafeSectionText = (sections = [], key, fallbackLimit = 4000) => {
+  const content = sectionTextByKey(sections, key);
+  const limit = SECTION_MAX_LIMITS[key] || fallbackLimit;
+  return content.length > limit ? content.slice(0, limit) : content;
+};
+
 export const buildCvProfile = (text = '', options = {}) => {
   const normalizedText = normalizeLineBreaks(text);
   const sections = extractCvSections(normalizedText);
@@ -108,14 +125,14 @@ export const buildCvProfile = (text = '', options = {}) => {
     rawLength: normalizedText.length,
     tokenCount: normalizedText.split(/\s+/).filter(Boolean).length,
     contact,
-    personalStatement: sectionTextByKey(sections, 'personal_statement').slice(0, 800),
-    summary: (sectionTextByKey(sections, 'summary') || sectionTextByKey(sections, 'personal_statement')).slice(0, 500),
-    experience: sectionTextByKey(sections, 'experience').slice(0, 1200),
-    education: sectionTextByKey(sections, 'education').slice(0, 800),
-    projects: sectionTextByKey(sections, 'projects').slice(0, 1000),
-    certifications: sectionTextByKey(sections, 'certifications').slice(0, 500),
-    keyCompetencies: sectionTextByKey(sections, 'key_competencies').slice(0, 1000),
-    volunteer: sectionTextByKey(sections, 'volunteer').slice(0, 600),
+    personalStatement: getSafeSectionText(sections, 'personal_statement'),
+    summary: getSafeSectionText(sections, 'summary') || getSafeSectionText(sections, 'personal_statement'),
+    experience: getSafeSectionText(sections, 'experience'),
+    education: getSafeSectionText(sections, 'education'),
+    projects: getSafeSectionText(sections, 'projects'),
+    certifications: getSafeSectionText(sections, 'certifications'),
+    keyCompetencies: getSafeSectionText(sections, 'key_competencies'),
+    volunteer: getSafeSectionText(sections, 'volunteer'),
     skills: skillItems,
     sections,
     evidenceMap,

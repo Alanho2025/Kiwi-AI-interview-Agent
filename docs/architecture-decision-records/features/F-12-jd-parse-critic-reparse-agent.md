@@ -2,10 +2,11 @@
 
 > **文件狀態**：Approved  
 > **系統成熟度 (Readiness Level)**：Production-Ready  
-> **核心模組路徑**：`backend/src/services/jobDescription/jdParseCriticAgent.js`
-> **Git 演進 Commit 追蹤**：`PR #110`, Commit `df871ba`  
-> **主要負責人 / 日期**：Kiwi AI Team / 2026-07-29    
-> **實作狀態 (Implementation Status)**：Partial / Onboarding Mapping
+> **核心模組路徑**：`backend/src/services/jobDescription/jobDescriptionRubricBuilder.js`, `backend/src/services/jobDescription/jobDescriptionInterviewTargetBuilder.js`, `backend/src/services/jobDescription/extractors/roleFamilyResolver.js`
+> **Git 演進 Commit 追蹤**：`PR #110`, Commit `df871ba`, Update `2026-08-01`  
+> **主要負責人 / 日期**：Kiwi AI Team / 2026-08-01    
+> **實作狀態 (Implementation Status)**：Verified (Domain-Agnostic, 100% Degree Exclusion Filtered, 30 Real JDs Passing)  
+> **校驗測試路徑 (Verified by Tests)**：`backend/tests/robustness/jd/seekIndeedParserCorpus.test.js`, `backend/tests/robustness/jd/bigTechBig4ParserCorpus.test.js`  
 
 ---
 

@@ -1,0 +1,18 @@
+Job Title: Senior Data Analytics Consultant
+Company: KPMG New Zealand
+Location: Auckland, New Zealand
+Division: Advisory - Lighthouse (Data & AI)
+
+About Lighthouse:
+KPMG Lighthouse is our Center of Excellence for Data, Analytics, and AI. We enable clients to unlock value from complex datasets.
+
+Responsibilities:
+- Build analytical models, SQL queries, and interactive Power BI dashboards for corporate clients.
+- Extract, clean, and integrate data from ERP systems, cloud warehouses (Snowflake, BigQuery), and relational databases.
+- Perform statistical data analysis to identify revenue leakage, operational bottlenecks, and fraud patterns.
+
+Requirements:
+- 3+ years experience in data analytics, business intelligence, or data science consulting.
+- Bachelor’s or Master’s degree in Statistics, Data Science, Mathematics, or Information Technology.
+- Advanced proficiency in SQL, Python, R, Power BI, and Tableau.
+- Excellent storytelling skills with data and senior client management ability.

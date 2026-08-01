@@ -1,0 +1,19 @@
+Job Title: Manager - Cybersecurity & Digital Trust
+Company: PwC New Zealand
+Location: Auckland CBD, New Zealand
+Line of Service: Trust & Risk Assurance
+
+Role Overview:
+PwC is looking for a Manager to join our Cybersecurity and Digital Trust practice, helping clients defend against advanced cyber threats and maintain regulatory compliance.
+
+Key Responsibilities:
+- Conduct cybersecurity risk assessments, penetration testing oversight, and ISO 27001 / NIST framework audits.
+- Design cloud security architectures across AWS, Azure, and Microsoft 365 environments.
+- Respond to cybersecurity incidents, forensic investigations, and regulatory security reviews.
+- Manage client engagements, project delivery, and team mentoring.
+
+Qualifications & Requirements:
+- 6+ years experience in cybersecurity, threat detection, or IT security auditing.
+- CISSP, CISM, CISA, or CCSP certification required.
+- Bachelor’s degree in Computer Science, Information Security, or related field.
+- Deep expertise in identity & access management (IAM), firewalls, zero trust architecture, and SIEM tooling.
