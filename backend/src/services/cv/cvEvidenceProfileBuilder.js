@@ -14,6 +14,36 @@ const extractKeyCompetencies = (sections = []) => {
 
 const extractSectionEntries = (text = '') => String(text || '').split('\n').map((line) => line.trim()).filter(Boolean);
 
+const extractExperienceEntries = (text = '') => {
+  const rawText = String(text || '').trim();
+  if (!rawText) return [];
+  const lines = rawText.split('\n').map((l) => l.trim()).filter(Boolean);
+  if (lines.length <= 1) return lines;
+
+  const blocks = [];
+  let currentBlock = [];
+
+  const isEntryHeader = (line) => (
+    /^(?:senior|junior|lead|principal|staff|full-stack|frontend|backend|software|engineer|developer|intern|tutor|assistant|designer|manager|consultant)\b/i.test(line)
+    || /[-–|]\s*(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec|Present|Current|\d{4})/i.test(line)
+    || /^(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec|January|February|March|April|June|July|August|September|October|November|December)\s+\d{4}/i.test(line)
+  );
+
+  for (const line of lines) {
+    if (isEntryHeader(line) && currentBlock.length > 0 && currentBlock.some((l) => !isEntryHeader(l) || l.startsWith('-') || l.startsWith('•') || l.startsWith('*'))) {
+      blocks.push(currentBlock.join('\n'));
+      currentBlock = [line];
+    } else {
+      currentBlock.push(line);
+    }
+  }
+  if (currentBlock.length > 0) {
+    blocks.push(currentBlock.join('\n'));
+  }
+
+  return blocks.length ? blocks : lines;
+};
+
 const EVIDENCE_STRENGTH_BY_SOURCE = {
   experience: 'strong',
   project_outcome: 'strong',
@@ -27,7 +57,7 @@ const EVIDENCE_STRENGTH_BY_SOURCE = {
   summary: 'weak',
 };
 
-const TOOL_PATTERN = /\b(Python|JavaScript|TypeScript|React|Node\.js|Node|Express|SQL|PostgreSQL|Postgres|MongoDB|AWS|Azure|Azure Speech|GCP|Redis|Elasticsearch|Kafka|Excel|Power BI|Tableau|Salesforce|HubSpot|Figma|Docker|Kubernetes|Linux|Git|DeepSeek|OpenAI|WebSocket|Tailwind|Vite|Vitest|Playwright|Vercel|Render|Java|Unity|Trello|Photoshop|Sketch|InDesign|jQuery)\b/gi;
+const TOOL_PATTERN = /\b(Python|JavaScript|TypeScript|React|Node\.js|Node|Express|SQL|PostgreSQL|Postgres|MongoDB|Databricks|dbt|ETL\/ELT|ETL|ELT|AWS|Azure|Azure Speech|GCP|Redis|Elasticsearch|Kafka|Excel|Power BI|Tableau|Salesforce|HubSpot|Figma|Docker|Kubernetes|Linux|Git|DeepSeek|OpenAI|LangGraph|Playwright|Pytest|Notion|PowerPoint|Confluence|WebSocket|Tailwind|Vite|Vitest|Vercel|Render|Java|Unity|Trello|Photoshop|Sketch|InDesign|jQuery)\b/gi;
 
 const TECHNICAL_PRODUCT_EVIDENCE_PATTERN = /\b(designed|developed|built|implemented|evaluated|benchmarked|automated|integrated|deployed|analysed|analyzed|tested|validated|coordinated|documented|reported|workflow|prototype|system|agent|matching|adaptive questioning|voice interaction|quality checks?|rubrics?|evidence checks?|latency benchmarks?|full-stack|websocket|azure speech|llm|api|rag|react|express|python|postgresql|mongodb|deepseek|tailwind|npi|design of experiments|failure analysis|product quality|technical trade-off)\b/i;
 
@@ -166,6 +196,11 @@ const dedupeEvidenceItems = (items = []) => {
   });
 };
 
+const cleanQuantifiedText = (text = '') => String(text || '')
+  .replace(/^(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec|January|February|March|April|June|July|August|September|October|November|December)\s+\d{4}\s*[-–]\s*(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec|January|February|March|April|June|July|August|September|October|November|December)?\s*(?:\d{4}|present|current)?\s*/gi, '')
+  .replace(/^(?:Senior|Junior|Lead|Principal|Staff|Full-Stack|Frontend|Backend|Software|Engineer|Developer|Intern|Tutor|Assistant|Designer|Manager|Consultant)[^,\n]*,\s*[^,\n]*\n?/i, '')
+  .trim();
+
 const extractQuantifiedEvidence = ({ achievements = [], evidenceItems = [], normalizedText = '' } = {}) => {
   const achievementTexts = achievements.map((item) => item?.text || item).filter(Boolean);
   const evidenceTexts = evidenceItems.map((item) => item?.text || item).filter(Boolean);
@@ -176,7 +211,7 @@ const extractQuantifiedEvidence = ({ achievements = [], evidenceItems = [], norm
     .filter((line) => /(?:\d+(?:\.\d+)?%|percent|reduced|improved|increased|decreased|saved|cut)/i.test(line));
 
   return [...new Set([...achievementTexts, ...evidenceTexts, ...lineTexts]
-    .map((text) => String(text || '').trim())
+    .map(cleanQuantifiedText)
     .filter(isQuantifiedEvidenceCandidate))];
 };
 
@@ -190,7 +225,7 @@ export const buildCvEvidenceProfile = (cvProfile = {}, normalizedText = '', opti
   const sections = Array.isArray(cvProfile.sections) ? cvProfile.sections : [];
   const personalStatement = sectionByKey(sections, 'personal_statement') || cvProfile.summary || '';
   const keyCompetencies = extractKeyCompetencies(sections);
-  const experienceEntries = extractSectionEntries(sectionByKey(sections, 'experience') || cvProfile.experience || '');
+  const experienceEntries = extractExperienceEntries(sectionByKey(sections, 'experience') || cvProfile.experience || '');
   const projects = normalizeProjectsSection(sectionByKey(sections, 'projects') || cvProfile.projects || '');
   const educationEntries = extractSectionEntries(sectionByKey(sections, 'education') || cvProfile.education || '');
   const volunteerEntries = extractSectionEntries(sectionByKey(sections, 'volunteer') || '');

@@ -61,6 +61,7 @@ const mapSessionRow = (row) => ({
     timeLimitSeconds: row.time_limit_seconds || null,
     timeLimitMinutes: row.time_limit_seconds ? Math.round(Number(row.time_limit_seconds) / 60) : null,
     enableNZCultureFit: row.enable_nz_culture_fit,
+    stressLevel: row.stress_level || row.settings?.stressLevel || 'standard',
   },
   cvFileId: row.cv_file_id,
 });

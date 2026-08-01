@@ -18,7 +18,7 @@ const toPercent = (value) => clampScore(value * 100);
 const STATUS_ORDER = { not_met: 0, inferred: 1, partial: 2, met: 3 };
 const CORE_STACK_PATTERN = /c#|\.net|mvc|java(script)?|react|vue|angular|html|css|sql|aws|api|node|postgres/i;
 const COMMERCIAL_EXPERIENCE_PATTERN = /\b\d+\+?\s+years?|professional experience|commercial experience/i;
-const DEGREE_PATTERN = /computer science|software engineering|tertiary qualification|degree|bachelor|master/i;
+const DEGREE_PATTERN = /computer science|software engineering|information technology|information systems|data engineering|tertiary qualification|degree|bachelor|master/i;
 const SECTION_EVIDENCE_STRENGTH = {
   experience: 'strong',
   projects: 'strong',
@@ -83,10 +83,34 @@ const isHardTechnicalRequirement = (requirement = {}, label = '') =>
   );
 
 const filterSemanticMatchesForRequirement = (label = '', semanticMatches = [], requirement = {}) => {
-  if (!isHardTechnicalRequirement(requirement, label)) return semanticMatches;
+  const normLabel = String(label || '').toLowerCase();
+
   return semanticMatches.filter((match) => {
-    if (!hasStrictTechEvidence(label, match.text || '')) return false;
-    if (match.evidenceStrength === 'weak' && Number(match.score || 0) < 0.72) return false;
+    const text = String(match.text || '').toLowerCase();
+
+    if (/\b(?:ai|ml|machine learning|llm|deepseek|openai|nlp|rag|agent)\b/i.test(normLabel)) {
+      if (!/\b(?:ai|ml|machine learning|llm|deepseek|openai|nlp|rag|agent|vector|prompt|neural)\b/i.test(text)) {
+        return false;
+      }
+    }
+
+    if (/\b(?:collaborat|teamwork|cross-functional|stakeholder)\b/i.test(normLabel)) {
+      if (!/\b(?:team|client|engineer|stakeholder|coordinated|supported|co-hosted|cross-functional|collaborat|partnered)\b/i.test(text)) {
+        return false;
+      }
+    }
+
+    if (/\b(?:powerpoint|notion|confluence|presentation|slides)\b/i.test(normLabel)) {
+      if (!/\b(?:powerpoint|notion|confluence|document|documentation|slides|presentation|report)\b/i.test(text)) {
+        return false;
+      }
+    }
+
+    if (isHardTechnicalRequirement(requirement, label)) {
+      if (!hasStrictTechEvidence(label, match.text || '')) return false;
+      if (match.evidenceStrength === 'weak' && Number(match.score || 0) < 0.72) return false;
+    }
+
     return true;
   });
 };
@@ -254,7 +278,9 @@ const applyEvidenceStrengthPolicy = ({ requirement = {}, finalStatus = 'not_met'
   return nextStatus;
 };
 
-const computeRequirementStatus = (requirement, evidenceProfile = {}, semanticEvidenceContext = {}) => {
+const isDisjunctiveRequirement = (label = '') => /\b(?:or|either|any of)\b|\//i.test(label);
+
+export const computeRequirementStatus = (requirement, evidenceProfile = {}, semanticEvidenceContext = {}) => {
   const childLabels = splitCompositeRequirement(requirement.label);
   const baseMatch = computeEnhancedMatch(requirement.label, 'requirement', evidenceProfile, semanticEvidenceContext, requirement);
 
@@ -286,17 +312,24 @@ const computeRequirementStatus = (requirement, evidenceProfile = {}, semanticEvi
   const statuses = childMatches.map((item) => item.status);
   const metCount = childMatches.filter((item) => item.status === 'met').length;
   const partialishCount = childMatches.filter((item) => ['met', 'partial'].includes(item.status)).length;
+  const isDisjunctive = isDisjunctiveRequirement(requirement.label);
 
   let finalStatus = 'not_met';
-  if (metCount === childMatches.length) finalStatus = 'met';
-  else if (partialishCount >= Math.max(1, Math.ceil(childMatches.length / 2))) finalStatus = 'partial';
-  else if (statusMax(statuses) !== 'not_met') finalStatus = 'inferred';
+  if (isDisjunctive) {
+    if (metCount >= 1) finalStatus = 'met';
+    else if (partialishCount >= 1) finalStatus = 'partial';
+    else if (statusMax(statuses) !== 'not_met') finalStatus = 'inferred';
+  } else {
+    if (metCount === childMatches.length) finalStatus = 'met';
+    else if (partialishCount >= Math.max(1, Math.ceil(childMatches.length / 2))) finalStatus = 'partial';
+    else if (statusMax(statuses) !== 'not_met') finalStatus = 'inferred';
+  }
 
   if (COMMERCIAL_EXPERIENCE_PATTERN.test(requirement.label) && childMatches.some((item) => item.status === 'not_met')) {
     finalStatus = finalStatus === 'met' ? 'partial' : statusMin([finalStatus, 'partial']);
   }
 
-  if (CORE_STACK_PATTERN.test(requirement.label) && childMatches.filter((item) => item.status === 'not_met').length >= 2) {
+  if (!isDisjunctive && CORE_STACK_PATTERN.test(requirement.label) && childMatches.filter((item) => item.status === 'not_met').length >= 2) {
     finalStatus = finalStatus === 'met' ? 'partial' : finalStatus;
   }
 
@@ -723,7 +756,7 @@ export const buildExplanation = ({ microScores, requirementChecks, cvEvidencePro
 
   const gaps = requirementChecks
     .filter((item) => item.status !== 'met')
-    .filter((item) => item.status === 'not_met' || item.importance === 'high' || /missing direct commercial proof|limited direct proof|project-based evidence only|partial direct evidence|skills-list evidence only/.test(item.notes || ''))
+    .filter((item) => item.status === 'not_met' || (item.mustHave && item.status === 'inferred') || /missing direct commercial proof|skills-list evidence only|missing direct proof/.test(item.notes || ''))
     .slice(0, 5)
     .map((item) => buildExplanationItem({ label: buildGapLabel(item), evidence: item.evidence, detail: item.notes || 'Direct proof is limited' }));
 

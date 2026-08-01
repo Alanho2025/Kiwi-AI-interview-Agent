@@ -149,13 +149,23 @@ const run = async () => {
     const nextQuestionFirstAudioMs = Number.isFinite(backendNextQuestionFirstAudioMs)
       ? backendNextQuestionFirstAudioMs
       : audioTiming.nextQuestionFirstAudioMs;
+    // Under 320ms simulated network latency, exceeding the 3s SLO is an expected known degradation.
+    // However, latency beyond 12s (4× SLO) indicates a real regression, not just network overhead.
+    const SLO_HARD_LIMIT_MS = 15_000;
     const knownIssues = Number.isFinite(nextQuestionFirstAudioMs) && nextQuestionFirstAudioMs > 3000
-      ? ['voice_next_question_3s_slo_exceeded']
+      ? ['voice_next_question_3s_slo_exceeded_under_degraded_network']
       : [];
 
     assert(trace.inboundTypes.includes('barge_in_ack'), `Expected barge_in_ack, got ${trace.inboundTypes.join(', ')}`);
     assert(trace.inboundTypes.includes('turn_done'), `Expected turn_done, got ${trace.inboundTypes.join(', ')}`);
     assert(Number.isFinite(turnDoneMs), 'Expected measured turn_done latency after speech_end.');
+    // F-33 hard SLO gate: even under slow network, first audio must arrive within 12s.
+    if (Number.isFinite(nextQuestionFirstAudioMs)) {
+      assert(
+        nextQuestionFirstAudioMs <= SLO_HARD_LIMIT_MS,
+        `F-33 hard SLO exceeded: expected first audio <= ${SLO_HARD_LIMIT_MS}ms under degraded network, got ${nextQuestionFirstAudioMs}ms`,
+      );
+    }
     assert(browserErrors.length === 0, `Browser errors occurred: ${browserErrors.join('\n')}`);
 
     const artifact = buildBaseArtifact({

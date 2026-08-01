@@ -389,72 +389,72 @@ export const createDuplexTurnCoordinator = ({
     };
   };
 
-  const processFinalTranscript = async ({ transcriptText, transcriptProvenance = null, asrConfidence = null, vad = null } = {}) => {
-    const processConfirmedPendingTranscript = async ({
-      pending,
-      confirmationReply,
-      confirmationDecision = 'confirm',
-      resolvedTranscriptText = null,
-    }) => {
-      sendJson?.({
-        type: 'agent_thinking',
-        tool: AGENT_TOOL_NAMES.ORCHESTRATE_DUPLEX_VOICE,
-        timestamp: new Date().toISOString(),
-      });
+  const processConfirmedPendingTranscript = async ({
+    pending,
+    confirmationReply,
+    confirmationDecision = 'confirm',
+    resolvedTranscriptText = null,
+  }) => {
+    sendJson?.({
+      type: 'agent_thinking',
+      tool: AGENT_TOOL_NAMES.ORCHESTRATE_DUPLEX_VOICE,
+      timestamp: new Date().toISOString(),
+    });
 
-      const speechToken = bargeInController?.startAssistantSpeech?.();
-      sentenceIndex = 0;
+    const speechToken = bargeInController?.startAssistantSpeech?.();
+    sentenceIndex = 0;
 
-      const transcriptForPlanning = String(resolvedTranscriptText || pending.originalTranscript || '').trim();
+    const transcriptForPlanning = String(resolvedTranscriptText || pending.originalTranscript || '').trim();
 
-      const result = await processRealtimeTurnWithDelayedBridge({
-        transcriptText: transcriptForPlanning,
-        transcriptProvenance: pending.transcriptProvenance || transcriptProvenance,
-        asrConfidence: pending.asrConfidence,
-        vad: pending.vad,
-        speechToken,
-        skipTranscriptGate: true,
-        transcriptConfirmation: {
-          confirmedByUser: true,
-          confirmationReply,
-          confirmationDecision,
-          pendingConfirmationId: pending.id,
-          workflowRunId: pending.harnessWorkflowRunId || null,
-          resolvedTranscriptText: transcriptForPlanning,
-          usedClarification: transcriptForPlanning !== String(pending.originalTranscript || '').trim(),
-          originalAssessment: pending.assessment || null,
-          transcriptReviewDecision: pending.transcriptReviewDecision || null,
-          evidenceBoundary: {
-            rawTranscriptImmutable: true,
-            clarificationCanReplaceRawTranscript: false,
-            clarificationCanAffectCoaching: true,
-          },
+    const result = await processRealtimeTurnWithDelayedBridge({
+      transcriptText: transcriptForPlanning,
+      transcriptProvenance: pending.transcriptProvenance || null,
+      asrConfidence: pending.asrConfidence,
+      vad: pending.vad,
+      speechToken,
+      skipTranscriptGate: true,
+      transcriptConfirmation: {
+        confirmedByUser: true,
+        confirmationReply,
+        confirmationDecision,
+        pendingConfirmationId: pending.id,
+        workflowRunId: pending.harnessWorkflowRunId || null,
+        resolvedTranscriptText: transcriptForPlanning,
+        usedClarification: transcriptForPlanning !== String(pending.originalTranscript || '').trim(),
+        originalAssessment: pending.assessment || null,
+        transcriptReviewDecision: pending.transcriptReviewDecision || null,
+        evidenceBoundary: {
+          rawTranscriptImmutable: true,
+          clarificationCanReplaceRawTranscript: false,
+          clarificationCanAffectCoaching: true,
         },
-        acknowledgementSource: 'duplex_confirmed_bridge_acknowledgement',
-        sentenceSource: 'duplex_confirmed_interview_sentence',
-      });
+      },
+      acknowledgementSource: 'duplex_confirmed_bridge_acknowledgement',
+      sentenceSource: 'duplex_confirmed_interview_sentence',
+    });
 
-      bargeInController?.finishAssistantSpeech?.(speechToken);
-      sendJson?.({
-        type: 'assistant_speech_done',
-        tool: AGENT_TOOL_NAMES.SYNTHESIZE_ASSISTANT_SPEECH,
-        timestamp: new Date().toISOString(),
-      });
+    bargeInController?.finishAssistantSpeech?.(speechToken);
+    sendJson?.({
+      type: 'assistant_speech_done',
+      tool: AGENT_TOOL_NAMES.SYNTHESIZE_ASSISTANT_SPEECH,
+      timestamp: new Date().toISOString(),
+    });
 
-      sendJson?.({
-        type: 'turn_done',
-        tool: AGENT_TOOL_NAMES.ORCHESTRATE_DUPLEX_VOICE,
-        session: sanitizeLiveSessionForClient(result?.updatedSession || session),
-        transcription: result?.transcription || null,
-        latency: result?.latency || null,
-        isComplete: Boolean(result?.agentResult?.isComplete),
-        completedBecause: result?.agentResult?.completedBecause || null,
-        timestamp: new Date().toISOString(),
-      });
+    sendJson?.({
+      type: 'turn_done',
+      tool: AGENT_TOOL_NAMES.ORCHESTRATE_DUPLEX_VOICE,
+      session: sanitizeLiveSessionForClient(result?.updatedSession || session),
+      transcription: result?.transcription || null,
+      latency: result?.latency || null,
+      isComplete: Boolean(result?.agentResult?.isComplete),
+      completedBecause: result?.agentResult?.completedBecause || null,
+      timestamp: new Date().toISOString(),
+    });
 
-      return result;
-    };
+    return result;
+  };
 
+  const processFinalTranscript = async ({ transcriptText, transcriptProvenance = null, asrConfidence = null, vad = null } = {}) => {
     const streamTranscriptConfirmationPrompt = async ({
       assessment,
       transcriptText,
@@ -845,5 +845,24 @@ export const createDuplexTurnCoordinator = ({
     }
   };
 
-  return { processFinalTranscript };
+  const resolvePendingTranscriptConfirmationDirectly = async ({ _decision = 'confirm', replyText = 'yes' } = {}) => {
+    const pending = getPendingTranscriptConfirmation?.() || null;
+    if (!pending) return null;
+    setPendingTranscriptConfirmation(null);
+    sendJson?.({
+      type: 'transcript_confirmation_resolved',
+      decision: _decision,
+      turnType: 'transcript_confirmation',
+      countsAsQuestion: false,
+      timestamp: new Date().toISOString(),
+    });
+    return processConfirmedPendingTranscript({
+      pending,
+      confirmationReply: replyText,
+      confirmationDecision: _decision,
+      resolvedTranscriptText: pending.originalTranscript,
+    });
+  };
+
+  return { processFinalTranscript, resolvePendingTranscriptConfirmationDirectly };
 };

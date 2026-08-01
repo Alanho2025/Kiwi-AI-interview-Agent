@@ -514,7 +514,7 @@ export const persistEvaluatorRecord = async ({ sessionId, evaluation = {} } = {}
       $push: { evaluatorRecords: evaluation },
       $set: { latestEvaluatorRecord: evaluation },
     },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
   );
   return evaluation;
 };

@@ -37,7 +37,7 @@ export const rebuildBoundedMemory = async ({ sessionId, maxRecords = 6 } = {}) =
         latestReflectionRecord: nextRecords.at(-1) || null,
       },
     },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
   );
   return nextRecords;
 };

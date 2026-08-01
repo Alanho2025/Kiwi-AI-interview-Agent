@@ -21,7 +21,9 @@ describe('M1 harness WorkflowRun repository', () => {
     expect(model.findOneAndUpdate).toHaveBeenCalledWith(
       { workflowRunId: 'run-1' },
       { $setOnInsert: run },
-      expect.objectContaining({ upsert: true, new: true }),
+      expect.objectContaining({
+        upsert: true, returnDocument: 'after',
+        setDefaultsOnInsert: true, }),
     );
   });
 
@@ -94,7 +96,9 @@ describe('M1 harness WorkflowRun repository', () => {
       expect.objectContaining({
         $set: expect.objectContaining({ executionControls }),
       }),
-      { new: true },
+      expect.objectContaining({
+        returnDocument: 'after',
+      }),
     );
   });
 });

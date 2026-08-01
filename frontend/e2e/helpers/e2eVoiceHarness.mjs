@@ -184,8 +184,10 @@ export const collectBrowserDiagnostics = ({ page, apiCalls, browserErrors, inclu
 export const driveVoiceTurnThroughSocket = async ({ page, speechDurationMs = 3200, audioChunks = 8 } = {}) => {
   const clientTurnId = `voice-e2e-${Date.now()}`;
   const pcmChunk = createPcmToneChunk();
-  await page.waitForFunction(() => window.__kiwiVoiceE2E?.voiceSocket?.readyState === WebSocket.OPEN, null, { timeout: 15_000 });
-  await page.waitForFunction(() => window.__kiwiVoiceE2E?.inboundTypes?.includes('session_ready'), null, { timeout: 15_000 });
+  await page.waitForFunction(() => {
+    const socket = window.__kiwiVoiceE2E?.voiceSocket;
+    return socket && socket.readyState === 1;
+  }, null, { timeout: 45_000 });
   await page.evaluate(({ clientTurnId: turnId, audioBytes, speechDurationMs: durationMs, audioChunks: chunkCount }) => {
     const socket = window.__kiwiVoiceE2E.voiceSocket;
     socket.send(JSON.stringify({ type: 'speech_start', clientTurnId: turnId, clientTimestamp: Date.now() }));

@@ -55,7 +55,7 @@ const persistPromptRewrittenReport = async ({ sessionId, userId, report, qaResul
         },
       },
     },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
   );
 
   return SessionReport.findOneAndUpdate(
@@ -73,7 +73,7 @@ const persistPromptRewrittenReport = async ({ sessionId, userId, report, qaResul
       accessScope: 'private',
       schemaVersion: 'v7',
     },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
   );
 };
 

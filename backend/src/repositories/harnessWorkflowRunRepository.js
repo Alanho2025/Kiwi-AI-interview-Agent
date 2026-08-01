@@ -32,7 +32,7 @@ export const createHarnessWorkflowRunRepository = ({ model = HarnessWorkflowRun 
   appendCanonicalRun: async (run) => model.findOneAndUpdate(
     { workflowRunId: run.workflowRunId },
     { $setOnInsert: run },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
   ),
 
   finalizeCanonicalRun: async (run) => model.findOneAndUpdate(
@@ -64,7 +64,7 @@ export const createHarnessWorkflowRunRepository = ({ model = HarnessWorkflowRun 
         timeline: { $each: run.timeline || [] },
       },
     },
-    { new: true }
+    { returnDocument: 'after' }
   ),
 
   findOwnedRuns: async (filters = {}) => model

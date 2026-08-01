@@ -17,7 +17,7 @@ export const createDecisionRecord = async ({ sessionId, record = {} } = {}) => {
   await SessionAnalysis.findOneAndUpdate(
     { sessionId },
     { $push: { decisionRecords: payload } },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
   );
 
   return payload;

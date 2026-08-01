@@ -95,7 +95,7 @@ export const updateAgentMemory = async ({
   await SessionAnalysis.findOneAndUpdate(
     { sessionId },
     { $set: { agentMemory: nextMemory } },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
   );
 
   return nextMemory;

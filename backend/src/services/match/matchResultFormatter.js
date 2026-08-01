@@ -108,7 +108,7 @@ export const buildExplanation = ({ microScores, requirementChecks, cvEvidencePro
 
   const gaps = requirementChecks
     .filter((item) => item.status !== 'met')
-    .filter((item) => item.status === 'not_met' || item.importance === 'high' || /missing direct commercial proof|limited direct proof|project-based evidence only|partial direct evidence|skills-list evidence only/.test(item.notes || ''))
+    .filter((item) => item.status === 'not_met' || (item.mustHave && item.status === 'inferred') || /missing direct commercial proof|skills-list evidence only|missing direct proof/.test(item.notes || ''))
     .slice(0, 5)
     .map((item) => buildExplanationItem({ label: buildGapLabel(item), evidence: item.evidence, detail: item.notes || 'Direct proof is limited' }));
 

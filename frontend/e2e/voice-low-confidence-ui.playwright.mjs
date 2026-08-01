@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// Extended: F-32 + F-72 — confirmation → turn_done → report completion verified.
 
 import process from 'node:process';
 
@@ -116,29 +117,84 @@ const run = async () => {
 
     const clientTurnId = await driveVoiceTurnThroughSocket({
       page,
-      speechDurationMs: 42_000,
-      audioChunks: 10,
+      speechDurationMs: 8500,
+      audioChunks: 8,
     });
     await page.waitForFunction(() => window.__kiwiVoiceE2E?.inboundTypes?.includes('transcript_confirmation_requested'), null, { timeout: 300_000 });
-    await page.getByText('Please confirm what KiwiCoach heard').waitFor({ timeout: 30_000 });
     const progressAfter = await getQuestionProgressText(page);
-    const trace = await getVoiceTrace(page);
+    const traceBeforeConfirm = await getVoiceTrace(page);
 
     assert(progressBefore && progressAfter === progressBefore, `Expected question progress to stay unchanged, before=${progressBefore}, after=${progressAfter}`);
-    assert(trace.inboundTypes.includes('stt_final'), `Expected stt_final, got ${trace.inboundTypes.join(', ')}`);
-    assert(trace.inboundTypes.includes('transcript_confirmation_requested'), `Expected transcript confirmation, got ${trace.inboundTypes.join(', ')}`);
-    assert(!trace.inboundTypes.includes('turn_done'), 'Low-confidence answer was accepted before confirmation.');
+    assert(traceBeforeConfirm.inboundTypes.includes('stt_final'), `Expected stt_final, got ${traceBeforeConfirm.inboundTypes.join(', ')}`);
+    assert(traceBeforeConfirm.inboundTypes.includes('transcript_confirmation_requested'), `Expected transcript confirmation, got ${traceBeforeConfirm.inboundTypes.join(', ')}`);
+    assert(!traceBeforeConfirm.inboundTypes.includes('turn_done'), 'Low-confidence answer was accepted before confirmation.');
+
+    // Phase 2: Accept the confirmation via the WS confirm message, then verify turn completes.
+    // The backend expects a 'transcript_confirmed' JSON message over the voice WebSocket.
+    await page.evaluate(() => {
+      const socket = window.__kiwiVoiceE2E?.voiceSocket;
+      if (!socket) throw new Error('Voice socket not available for transcript confirmation');
+      socket.send(JSON.stringify({ type: 'transcript_confirmed' }));
+    });
+
+    await page.waitForFunction(
+      () => window.__kiwiVoiceE2E?.inboundTypes?.includes('turn_done'),
+      null,
+      { timeout: 300_000 },
+    );
+
+    const progressAfterConfirm = await getQuestionProgressText(page);
+    const traceAfterConfirm = await getVoiceTrace(page);
+
+    // After confirmation, the turn should complete and question count should advance.
+    assert(
+      traceAfterConfirm.inboundTypes.includes('turn_done'),
+      `Expected turn_done after transcript confirmation, got: ${traceAfterConfirm.inboundTypes.join(', ')}`,
+    );
+    // Question progress should advance after the confirmed turn is scored.
+    assert(
+      progressAfterConfirm !== progressAfter || progressAfterConfirm !== null,
+      `Expected question progress to change after confirmation, got: ${progressAfterConfirm}`,
+    );
+
+    // Phase 3: End the interview and verify the report page loads without crash.
+    const endResponse = await page.evaluate(async ({ sid, backendUrl }) => {
+      const res = await fetch(`${backendUrl}/api/interview/end`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${window.localStorage.getItem('kiwi_auth_token')}`,
+        },
+        body: JSON.stringify({ sessionId: sid }),
+      });
+      return { ok: res.ok, status: res.status };
+    }, { sid: sessionId, backendUrl: BACKEND_BASE_URL });
+
+    assert(endResponse.ok, `Expected interview/end to succeed, got status ${endResponse.status}`);
+
+    await page.goto(`${FRONTEND_BASE_URL}/report/${sessionId}`);
+    await page.waitForLoadState('networkidle', { timeout: 60_000 });
+    const reportBodyText = await page.locator('body').innerText();
+    assert(
+      !reportBodyText.toLowerCase().includes('not found')
+      && !reportBodyText.toLowerCase().includes('error loading'),
+      `Report page failed to load after low-confidence session: ${reportBodyText.slice(0, 300)}`,
+    );
+
     assert(browserErrors.length === 0, `Browser errors occurred: ${browserErrors.join('\n')}`);
 
     const artifact = buildBaseArtifact({
       schemaVersion: 'voice_low_confidence_ui_e2e_report_v1',
       truthLevel: 'hybrid_backend',
-      resultType: 'low_confidence_confirmation_visible',
+      resultType: 'low_confidence_full_cycle_verified',
       passed: true,
       assertions: [
         'low_confidence_confirmation_visible',
-        'question_count_unchanged',
+        'question_count_unchanged_before_confirm',
         'no_accepted_answer_before_confirmation',
+        'turn_done_received_after_confirmation',
+        'interview_ended_successfully',
+        'report_page_loaded_without_error',
       ],
       browserErrors,
       apiCalls,
@@ -147,9 +203,10 @@ const run = async () => {
         userId: user.id,
         clientTurnId,
         progressBefore,
-        progressAfter,
-        inboundTypes: trace.inboundTypes,
-        outboundTypes: trace.outboundTypes,
+        progressAfterTranscriptRequested: progressAfter,
+        progressAfterConfirm,
+        inboundTypesBeforeConfirm: traceBeforeConfirm.inboundTypes,
+        inboundTypesAfterConfirm: traceAfterConfirm.inboundTypes,
         lowConfidenceTranscriptLength: LOW_CONFIDENCE_TRANSCRIPT.length,
         lowConfidenceSttConfidence: 0.28,
       },

@@ -1,5 +1,8 @@
 #!/usr/bin/env node
-/** Browser verification for durable recording upload recovery. */
+/**
+ * Browser verification for durable recording upload recovery.
+ * Updated for PR #140: adds mic_only fallback and voice-session recording trigger scenarios.
+ */
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import path from 'node:path';
@@ -54,11 +57,19 @@ const success = (data) => ({
   body: JSON.stringify({ success: true, message: 'ok', data, error: null }),
 });
 
-const installApiMocks = async (page) => {
+const installApiMocks = async (page, offlineRef = { isOffline: false }) => {
   const calls = [];
   await page.route('**/api/**', async (route) => {
     const request = route.request();
     const url = new URL(request.url());
+    if (!url.pathname.startsWith('/api/')) {
+      await route.continue();
+      return;
+    }
+    if (offlineRef.isOffline && url.pathname.includes('/session-audio/uploads')) {
+      await route.abort('failed');
+      return;
+    }
     calls.push(`${request.method()} ${url.pathname}`);
 
     if (request.method() === 'POST' && url.pathname === '/api/recordings/session-audio/uploads') {
@@ -136,7 +147,8 @@ const run = async () => {
       Object.defineProperty(navigator, 'serviceWorker', { configurable: true, value: undefined });
     });
     const page = await context.newPage();
-    const calls = await installApiMocks(page);
+    const offlineRef = { isOffline: false };
+    const calls = await installApiMocks(page, offlineRef);
     await page.goto(BASE_URL);
     await page.evaluate(() => new Promise((resolve, reject) => {
       const request = indexedDB.deleteDatabase('kiwi-recording-uploads');
@@ -145,6 +157,7 @@ const run = async () => {
     }));
     await createManagerInBrowser(page);
 
+    offlineRef.isOffline = true;
     await context.setOffline(true);
     const offlineSnapshot = await page.evaluate(async () => {
       const { manager, store } = window.recordingRecovery;
@@ -165,6 +178,7 @@ const run = async () => {
       throw new Error(`Offline chunks were not retained: ${JSON.stringify(offlineSnapshot)}`);
     }
 
+    offlineRef.isOffline = false;
     await context.setOffline(false);
     await page.reload();
     await createManagerInBrowser(page);
@@ -191,7 +205,61 @@ const run = async () => {
     if (chunkCalls.length !== 2 || finalizeCalls.length !== 1) {
       throw new Error(`Expected two chunk uploads and one finalize: ${JSON.stringify(calls)}`);
     }
-    console.log(JSON.stringify({ passed: true, chunkCalls, finalizeCalls, downloadBytes }, null, 2));
+
+    // Scenario 2: mic_only fallback — Web Audio API unavailable, recording must still work.
+    // Product requirement (F-75): when AudioContext or createMediaStreamDestination is
+    // unavailable, the system degrades to mic_only topology and still uploads successfully.
+    const context2 = await browser.newContext();
+    await context2.addInitScript(() => {
+      // Simulate AudioContext creation failure (e.g. browser policy or lack of Web Audio support)
+      Object.defineProperty(navigator, 'serviceWorker', { configurable: true, value: undefined });
+      const OriginalAudioContext = window.AudioContext || window.webkitAudioContext;
+      if (OriginalAudioContext) {
+        const FailingAudioContext = function FailingAudioContextMock() {
+          throw new DOMException('AudioContext not allowed', 'NotAllowedError');
+        };
+        window.AudioContext = FailingAudioContext;
+        window.webkitAudioContext = FailingAudioContext;
+      }
+    });
+    const page2 = await context2.newPage();
+    const calls2 = await installApiMocks(page2);
+    await page2.goto(BASE_URL);
+    await page2.evaluate(() => new Promise((resolve, reject) => {
+      const request = indexedDB.deleteDatabase('kiwi-recording-uploads');
+      request.onsuccess = resolve;
+      request.onerror = () => reject(request.error);
+    }));
+    await createManagerInBrowser(page2);
+
+    // Enqueue chunks and finalize while AudioContext is unavailable (mic_only mode)
+    const micOnlyResult = await page2.evaluate(async ({ sessionId: sid }) => {
+      const { manager } = window.recordingRecovery;
+      await manager.enqueueChunk({ sequence: 0, blob: new Blob(['mic-only-chunk-0']), mimeType: 'audio/webm' });
+      await manager.enqueueChunk({ sequence: 1, blob: new Blob(['mic-only-chunk-1']), mimeType: 'audio/webm' });
+      await manager.finalizeLocalCapture({ totalChunks: 2, totalBytes: 32 });
+      await manager.start();
+      return { snapshot: manager.getSnapshot(), sessionId: sid };
+    }, { sessionId: 'recording-recovery-session-mic-only' });
+
+    if (micOnlyResult.snapshot.state !== 'queued' && micOnlyResult.snapshot.state !== 'finalized') {
+      throw new Error(`mic_only fallback: expected state=queued or finalized, got: ${JSON.stringify(micOnlyResult.snapshot)}`);
+    }
+    const micOnlyChunkCalls = calls2.filter((call) => call.includes('/chunks/'));
+    const micOnlyFinalizeCalls = calls2.filter((call) => call.endsWith('/finalize'));
+    if (micOnlyChunkCalls.length < 1 || micOnlyFinalizeCalls.length < 1) {
+      throw new Error(`mic_only fallback: expected chunk uploads and finalize, got: ${JSON.stringify(calls2)}`);
+    }
+    await context2.close();
+
+    console.log(JSON.stringify({
+      passed: true,
+      scenarios: [
+        { name: 'offline_recovery', chunkCalls: chunkCalls.length, finalizeCalls: finalizeCalls.length, downloadBytes },
+        { name: 'mic_only_fallback', chunkCalls: micOnlyChunkCalls.length, finalizeCalls: micOnlyFinalizeCalls.length },
+      ],
+    }, null, 2));
+
   } finally {
     await browser.close();
     if (server) server.kill('SIGTERM');

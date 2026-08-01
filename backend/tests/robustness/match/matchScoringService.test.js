@@ -163,4 +163,33 @@ describe('matchScoringService robustness unit suite', () => {
       expect(breakdown.overallScore).toBeCloseTo(80 * 0.45 + 90 * 0.35 + 100 * 0.2, 1);
     });
   });
+
+  describe('Match Accuracy & Skill Taxonomy Fixes', () => {
+    it('correctly matches Master of Information Technology as degree requirement evidence', () => {
+      const requirements = [
+        {
+          id: 'req-qual',
+          label: 'A tertiary qualification in Computer Science, Data Engineering, Information Systems, or a related field',
+          mustHave: true,
+          type: 'hard',
+          category: 'qualification',
+        },
+      ];
+
+      const cvText = 'Master of Information Technology, University of Auckland. Relevant areas: Artificial intelligence, data mining, data modelling.';
+      const evidenceProfile = {
+        evidenceItems: [
+          { section: 'education', text: cvText },
+        ],
+        sections: {
+          education: [cvText],
+        },
+      };
+
+      const checks = buildRequirementChecks(requirements, cvText, evidenceProfile, {});
+      const qualCheck = checks.find((c) => c.id === 'req-qual' || c.label.includes('qualification'));
+      expect(qualCheck).toBeDefined();
+      expect(qualCheck.status).not.toBe('not_met');
+    });
+  });
 });
