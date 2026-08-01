@@ -2,11 +2,11 @@
 
 > **文件狀態**：Approved  
 > **系統成熟度 (Readiness Level)**：Production-Ready  
-> **核心模組路徑**：`backend/src/middleware/uploadMiddleware.js`  
-> **Git 演進 Commit 追蹤**：`PR #110`, Commit `df871ba`  
-> **主要負責人 / 日期**：Kiwi AI Team / 2026-07-30  
+> **核心模組路徑**：`backend/src/services/cv/cvProfileBuilderService.js`, `backend/src/middleware/uploadMiddleware.js`  
+> **Git 演進 Commit 追蹤**：`PR #110`, Commit `df871ba`, Update `2026-08-01`  
+> **主要負責人 / 日期**：Kiwi AI Team / 2026-08-01  
 > **實作狀態 (Implementation Status)**：Verified  
-> **校驗測試路徑 (Verified by Tests)**：`backend/tests/services/cvParse.test.js`  
+> **校驗測試路徑 (Verified by Tests)**：`backend/tests/robustness/cv/cvParsingRobustness.test.js` (Alan Ho Real CV Test)  
 
 ---
 

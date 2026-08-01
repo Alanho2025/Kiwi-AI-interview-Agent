@@ -94,19 +94,17 @@ export const getResolvedCurrentQuestionIndex = (session = {}) => {
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
 export const getResolvedTotalQuestions = (session = {}) => {
-  const resolved = resolveInterviewSessionConfig(session);
-  const candidates = [
-    session?.totalQuestions,
-    session?.questionLimit,
-    session?.settings?.totalQuestions,
-    session?.settings?.questionLimit,
-    resolved?.plannedQuestionCount,
-    resolved?.totalQuestions,
-  ].map(toPositiveInteger).filter(Boolean);
+  const userChoice = toPositiveInteger(
+    session?.settings?.questionLimit ??
+    session?.settings?.totalQuestions ??
+    session?.questionLimit ??
+    session?.totalQuestions
+  );
+  if (userChoice) return userChoice;
 
-  if (candidates.length) {
-    return Math.max(...candidates);
-  }
+  const resolved = resolveInterviewSessionConfig(session);
+  const blueprintChoice = toPositiveInteger(resolved?.plannedQuestionCount ?? resolved?.totalQuestions);
+  if (blueprintChoice) return blueprintChoice;
 
   const poolLength = getQuestionPool(session).length;
   return poolLength > 1 ? Math.min(8, poolLength) : 8;
@@ -147,9 +145,9 @@ export const hasReachedTimeLimit = (session = {}) => {
 
   const answeredQuestionCount = getAnsweredQuestionCount(session);
 
-  // Do not auto-end immediately after the first real answer.
-  // This prevents stale open sessions from ending before the interview has actually started.
-  if (answeredQuestionCount < 2) {
+  // Require at least 1 real user turn before triggering time-limit completion.
+  // This prevents stale unstarted sessions from completing instantly while allowing wrap-up once interview turns begin.
+  if (answeredQuestionCount < 1) {
     return false;
   }
 
@@ -207,7 +205,7 @@ export const getNextQuestionOrder = (session = {}, { countsAsQuestion = true } =
   const currentQuestionIndex = getResolvedCurrentQuestionIndex(session);
   if (!countsAsQuestion) return countableQuestionCount || currentQuestionIndex;
   if (hasReachedQuestionLimit(session)) return countableQuestionCount || currentQuestionIndex;
-  return countableQuestionCount > 0 ? countableQuestionCount + 1 : currentQuestionIndex + 1;
+  return countableQuestionCount > 0 ? countableQuestionCount + 1 : currentQuestionIndex;
 };
 
 /**

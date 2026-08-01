@@ -2,24 +2,24 @@ import { normalizeText, tokenize, tokenSet, unique } from './matchShared.js';
 
 const SECTION_WEIGHTS_BY_KIND = {
   technical: {
+    experience: 1.3,
     projects: 1.2,
-    skills: 1.15,
-    experience: 1,
+    skills: 1.0,
     personalStatement: 0.7,
     education: 0.75,
   },
   behavioural: {
+    experience: 1.3,
     keyCompetencies: 1.2,
-    experience: 1.05,
+    projects: 0.9,
     volunteer: 0.9,
     personalStatement: 0.85,
-    projects: 0.9,
   },
   role_fit: {
-    personalStatement: 1.2,
-    projects: 1,
-    education: 1.1,
-    experience: 0.9,
+    experience: 1.2,
+    personalStatement: 1.1,
+    projects: 1.0,
+    education: 0.9,
   },
 };
 
@@ -51,6 +51,8 @@ const LOW_VALUE_OVERLAP_TOKENS = new Set([
 
 const STRICT_TECH_PATTERNS = {
   aws: /\b(aws|amazon web services|ec2|lambda|s3|rds|ecs|eks|cloudwatch|iam)\b/i,
+  azure: /\bazure\b/i,
+  gcp: /\b(gcp|google cloud)\b/i,
   redis: /\bredis\b/i,
   elasticsearch: /\belasticsearch\b/i,
   kafka: /\b(kafka|distributed queue|distributed queueing|message queue|event streaming)\b/i,
@@ -58,6 +60,7 @@ const STRICT_TECH_PATTERNS = {
   python: /\bpython\b/i,
   postgres: /\b(postgresql|postgres)\b/i,
   typescript: /\btypescript\b/i,
+  javascript: /\b(javascript|js)\b/i,
   nextjs: /\b(next\.js|nextjs)\b/i,
   vue: /\b(vue|vue\.js)\b/i,
   react: /\breact\b/i,
@@ -65,6 +68,20 @@ const STRICT_TECH_PATTERNS = {
   express: /\bexpress\b/i,
   docker: /\b(docker|container|containerised|containerized)\b/i,
   kubernetes: /\b(kubernetes|k8s)\b/i,
+  java: /\bjava\b/i,
+  csharp: /\b(c#|c sharp|\.net|dotnet)\b/i,
+  terraform: /\bterraform\b/i,
+  ansible: /\bansible\b/i,
+  graphql: /\bgraphql\b/i,
+  figma: /\bfigma\b/i,
+  git: /\b(git|github|gitlab)\b/i,
+  cicd: /\b(ci\/cd|cicd|continuous integration)\b/i,
+  powerbi: /\b(power bi|powerbi)\b/i,
+  tableau: /\btableau\b/i,
+  snowflake: /\bsnowflake\b/i,
+  pytorch: /\bpytorch\b/i,
+  tensorflow: /\btensorflow\b/i,
+  llm: /\b(llm|large language model|rag|retrieval augmented generation|openai|vector search)\b/i,
 };
 
 const CLOUD_NATIVE_PATTERN = /\b(cloud-native|cloud native|kubernetes|k8s|docker|container|containerised|containerized|aws|azure|gcp|serverless|lambda|ecs|eks|ci\/cd|pipeline)\b/i;
@@ -86,14 +103,15 @@ const hasStrictTechEvidence = (label = '', text = '') => {
   const keys = getStrictTechKeys(label);
   if (!keys.length) return true;
   const evidenceText = String(text || '');
-  return keys.every((key) => {
+  // For disjunctive requirements or composite lists, satisfying ANY matching key is sufficient
+  return keys.some((key) => {
     if (key === 'cloud_native') return CLOUD_NATIVE_PATTERN.test(evidenceText);
     return STRICT_TECH_PATTERNS[key]?.test(evidenceText);
   });
 };
 
 const LABEL_ALIASES = {
-  'cloud infrastructure': ['cloud platform', 'azure infrastructure', 'platform reliability', 'platform', 'cloud environments'],
+  'cloud infrastructure': ['cloud platform', 'azure infrastructure', 'platform reliability', 'platform', 'cloud environments', 'aws', 'azure', 'gcp'],
   docker: ['container', 'containers', 'containerized', 'containerisation', 'docker-based'],
   kubernetes: ['k8s', 'kubernetes'],
   documentation: ['documented', 'runbook', 'runbooks', 'technical documentation', 'knowledge base', 'operational documentation'],
@@ -143,30 +161,26 @@ const expandAliases = (value = '') => {
 
 const cleanTokens = (text = '') => unique(tokenize(text).filter((token) => token.length > 1 && !STOPWORDS.has(token)));
 
-const detectEducationSignal = (label = '', text = '') => {
-  const normalizedLabel = normalizeText(label);
-  const normalizedTextValue = normalizeText(text);
-  if (!/qualification|computer science|software engineering|degree|bachelor|master/i.test(normalizedLabel)) return false;
-  return /(bachelor|master|degree|university|institute|computer science|software engineering|information technology)/i.test(normalizedTextValue);
-};
-
 const directMatchScore = (label, text) => {
   const expandedLabel = expandAliases(label);
   const expandedText = expandAliases(text);
   const labelTokens = cleanTokens(expandedLabel);
   const textTokens = tokenSet(expandedText);
-  const direct = labelTokens.length > 0 && labelTokens.every((token) => textTokens.has(token));
   const overlap = labelTokens.filter((token) => textTokens.has(token));
+  
   if (
-    labelTokens.length >= 4
+    labelTokens.length >= 1
     && overlap.length > 0
     && overlap.length <= 5
     && overlap.every((token) => LOW_VALUE_OVERLAP_TOKENS.has(token))
   ) {
     return { direct: false, overlap: [], ratio: 0, phraseBoost: 0 };
   }
+
   const ratio = labelTokens.length ? overlap.length / labelTokens.length : 0;
-  const phraseBoost = overlap.length >= 2 ? 0.22 : overlap.length === 1 ? 0.08 : 0;
+  // If ratio >= 0.35 or overlap has 2+ non-low-value tokens, consider direct match
+  const direct = ratio >= 0.35 || overlap.length >= 2 || hasStrictTechEvidence(label, text);
+  const phraseBoost = overlap.length >= 2 ? 0.35 : overlap.length === 1 ? 0.15 : 0;
   return { direct, overlap, ratio, phraseBoost };
 };
 
@@ -178,24 +192,37 @@ export const computeSectionAwareMatch = ({ label, criterionType = 'micro', evide
   let bestSection = 'experience';
   let bestScore = 0;
   let bestOverlap = [];
+  let bestDirect = false;
 
-  for (const [sectionKey, text] of Object.entries(serialized)) {
+  const sectionPriority = { experience: 3, projects: 2, keyCompetencies: 2, skills: 1, personalStatement: 1, education: 1, volunteer: 1 };
+
+  for (const [sectionName, text] of Object.entries(serialized)) {
     if (!text) continue;
-    if (sectionKey === 'education' && !isQualificationRequirement(label)) continue;
+    if (sectionName === 'education' && !isQualificationRequirement(label)) continue;
     if (!hasStrictTechEvidence(label, text)) continue;
-    const weight = sectionWeights[sectionKey] ?? 0.5;
+
     const { direct, overlap, ratio, phraseBoost } = directMatchScore(label, text);
-    const educationBoost = sectionKey === 'education' && detectEducationSignal(label, text) ? 0.95 : 0;
-    const score = ((direct ? 1.05 : 0) + ratio + phraseBoost + educationBoost) * weight;
-    if (score > bestScore) {
-      bestScore = score;
-      bestSection = sectionKey;
+    const weight = sectionWeights[sectionName] || 1;
+    const weightedScore = ((direct ? 1.05 : 0) + ratio + phraseBoost) * weight;
+
+    const currentPriority = sectionPriority[sectionName] || 1;
+    const bestPriority = sectionPriority[bestSection] || 1;
+
+    // Prefer experience/projects over plain skills section when both have direct match
+    if (
+      weightedScore > bestScore ||
+      (direct && !bestDirect) ||
+      (direct && bestDirect && currentPriority > bestPriority && weightedScore >= bestScore * 0.85)
+    ) {
+      bestScore = weightedScore;
+      bestSection = sectionName;
       bestOverlap = overlap;
+      bestDirect = direct;
     }
   }
 
   let status = 'not_met';
-  if (bestScore >= 1.25) status = 'met';
+  if (bestDirect || bestScore >= 1.25) status = 'met';
   else if (bestScore >= 0.72) status = 'partial';
   else if (bestScore > 0.24) status = 'inferred';
 

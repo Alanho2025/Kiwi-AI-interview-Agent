@@ -24,8 +24,11 @@
   - 直接把 CV 與 JD 拼在一起發給大模型，讓 LLM 自由輸出一個 0-100 的分數。
 * **遭遇的痛點與瓶頸 (Pain Points & Bottlenecks)**：
   - 致命的黑盒效應與分數波動 (Variance > 20分)；同一份履歷刷頁重新計算分數會變，商業上完全不可解釋。
-* **現行架構 (Current Version - PR #124 `6e453bc`)**：
-  - 確定性規則分池引擎：`matchService` 將匹配拆解為技能池 (40%)、經歷池 (30%)、教育/認證池 (15%) 與文化/語言池 (15%)。確定性算法計算基礎分，LLM 僅對語意關聯性提供佐證，並引入 `Math.min/max` 邊界 Clamp。
+* **現行架構 (Current Version - PR #124 `6e453bc` & ATS Benchmark Overhaul 2026-08)**：
+  - **ATS 產業權重模型**：硬核技術技能 (45%)、工作經驗與職責相關性 (30%)、加分/優先技能 (15%)、學歷與專業認證 (10%)。
+  - **Disjunctive (OR) 或條件匹配邏輯**：符合多選一（如 `Java or C# or Python`）中的任意一個選項即可獲得 100% 滿分（`met`），徹底消除「缺其一即全盤扣分」的傳統缺陷。
+  - **經歷優先級保護 (Section-Aware Priority)**：若候選人在工作經歷 (`experience`) 與專案 (`projects`) 中已展現該技能，優先判定為強佐證（`met`），防止被純技能清單 (`skills`) 誤判扣分。
+  - **30 份真實 JD 與真實 CV 基準測試**：建立 [realCvJdMatchBenchmark.test.js](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/tests/robustness/match/realCvJdMatchBenchmark.test.js)，針對 Alan Ho 的真實 CV 與 30 份真實 Seek/Indeed/BigTech JDs 進行 100% 自動化迴歸測試。
 
 ---
 
@@ -35,14 +38,16 @@
 
 ### 2.1 涵蓋與非涵蓋範圍 (Scope Boundaries)
 * **In-Scope (包含範圍)**：
-  - 雙向匹配計算、多維度加權算式、一致性打分 Schema 驗證、分池得分防護 Clamp。
+  - 雙向匹配計算、多維度加權算式、Disjunctive OR 滿足性判斷、經歷區塊權重優先級、分池得分防護 Clamp。
 * **Out-of-Scope (排除範圍)**：
   - 不允許 LLM 無依據覆蓋確定性規則算出的基礎分數。
 
 ### 2.2 成功標準與量化 KPIs (Acceptance Criteria & Metrics)
 | 衡量指標 (Metric) | 目標值 (Target) | 驗證方式 / 自動化測試路徑 |
 | :--- | :--- | :--- |
-| **打分波動度 (Variance)** | `< 2 分` | `backend/tests/services/matchScore.test.js` |
+| **打分波動度 (Variance)** | `< 2 分` | `backend/tests/robustness/match/matchScoringService.test.js` |
+| **ATS OR 條件匹配正確率** | `100%` | `backend/tests/robustness/match/matchRequirementBindingAndDisjunction.test.js` |
+| **真實 CV-JD 基準測試通過率** | `100% (5/5 Baseline)` | `backend/tests/robustness/match/realCvJdMatchBenchmark.test.js` |
 
 ---
 

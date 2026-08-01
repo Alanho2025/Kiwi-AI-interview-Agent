@@ -3,7 +3,8 @@ export const CV_REVIEW_FIELDS = [
   { key: 'coreSkills', label: 'Core skills' },
   { key: 'experienceEvidence', label: 'Experience evidence' },
   { key: 'projectEvidence', label: 'Project evidence' },
-  { key: 'educationCredentials', label: 'Education and credentials' },
+  { key: 'educationCredentials', label: 'Education credentials' },
+  { key: 'certifications', label: 'Certifications and licenses' },
   { key: 'keyCompetencies', label: 'Key competencies' },
 ];
 
@@ -35,10 +36,7 @@ const truncate = (value = '', maxLength = 260) => {
 const buildProjectEvidenceText = (profile = {}) => {
   const directProjectText = getSectionText(profile, 'projects');
 
-  // Prefer the canonical projects section when it exists. Do not merge generated
-  // evidenceProfile rows back into the editable review field because reviewed CVs
-  // rebuild evidenceProfile from this text. Re-merging generated evidence causes
-  // repeated save cycles to multiply evidenceItems.
+  // Prefer the canonical projects section when it exists.
   if (directProjectText) {
     return directProjectText;
   }
@@ -66,7 +64,7 @@ const buildFallbackAnalysis = (reviewProfile = {}) => {
   const strongestEvidence = [
     reviewProfile.experienceEvidence && { label: 'Experience evidence', text: truncate(reviewProfile.experienceEvidence) },
     reviewProfile.projectEvidence && { label: 'Project evidence', text: truncate(reviewProfile.projectEvidence) },
-    reviewProfile.educationCredentials && { label: 'Education and credentials', text: truncate(reviewProfile.educationCredentials) },
+    reviewProfile.educationCredentials && { label: 'Education credentials', text: truncate(reviewProfile.educationCredentials) },
   ].filter(Boolean);
 
   return {
@@ -89,12 +87,20 @@ export const buildCvReviewFormModel = (selectedCV = {}) => {
   const display = selectedCV.display || {};
   const keyCompetenciesText = getSectionText(profile, 'keyCompetencies') || getSectionText(profile, 'key_competencies');
 
+  // Fix Issue 5: Use full profile.skills / selectedCV.skills list instead of truncated display.topSkills (slice 0, 8)
+  const fullSkills = (Array.isArray(profile.skills) && profile.skills.length > 0)
+    ? profile.skills
+    : (Array.isArray(selectedCV.skills) && selectedCV.skills.length > 0)
+      ? selectedCV.skills
+      : (display.topSkills || selectedCV.topSkills || []);
+
   return {
     candidateSummary: display.summary || profile.summary || profile.personalStatement || selectedCV.summary || '',
-    coreSkills: normalizeList(display.topSkills || selectedCV.topSkills || profile.skills),
+    coreSkills: normalizeList(fullSkills),
     experienceEvidence: getSectionText(profile, 'experience'),
     projectEvidence: buildProjectEvidenceText(profile),
-    educationCredentials: [getSectionText(profile, 'education'), getSectionText(profile, 'certifications')].filter(Boolean).join('\n'),
+    educationCredentials: getSectionText(profile, 'education'),
+    certifications: getSectionText(profile, 'certifications'),
     keyCompetencies: splitListText(keyCompetenciesText),
   };
 };
@@ -105,6 +111,7 @@ export const buildReviewedCvProfilePayload = (reviewProfile = {}) => ({
   experienceEvidence: String(reviewProfile.experienceEvidence || '').trim(),
   projectEvidence: String(reviewProfile.projectEvidence || '').trim(),
   educationCredentials: String(reviewProfile.educationCredentials || '').trim(),
+  certifications: String(reviewProfile.certifications || '').trim(),
   keyCompetencies: normalizeList(reviewProfile.keyCompetencies),
 });
 

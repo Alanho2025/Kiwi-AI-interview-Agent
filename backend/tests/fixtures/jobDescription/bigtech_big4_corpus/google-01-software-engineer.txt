@@ -1,0 +1,23 @@
+Job Title: Software Engineer III, AI Infrastructure
+Company: Google
+Location: Auckland, New Zealand / Remote
+Category: Engineering & Technology
+
+About the job:
+At Google, our software engineers develop the next-generation technologies that change how billions of users connect, explore, and interact with information and one another. In this role, you will build core AI infrastructure that powers large language models and distributed vector retrieval.
+
+Minimum qualifications:
+- Bachelor’s degree in Computer Science, Computer Engineering, or equivalent practical experience.
+- 4 years of experience with software development in C++, Java, or Python.
+- 3 years of experience with data structures, algorithms, and distributed systems design.
+
+Preferred qualifications:
+- Master’s degree or PhD in Computer Science or Artificial Intelligence.
+- Experience with PyTorch, TensorFlow, GPU cluster management, or CUDA programming.
+- Experience building large-scale storage, vector search, or RPC network protocols.
+
+Responsibilities:
+- Design, implement, and maintain high-performance C++ and Python services for Google AI Infrastructure.
+- Collaborate with research teams to optimize neural network inference latency and resource efficiency.
+- Author technical design documents, perform code reviews, and drive unit and integration testing.
+- Participate in on-call rotations and lead root-cause analysis for production incidents.

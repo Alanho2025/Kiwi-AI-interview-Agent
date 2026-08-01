@@ -1,5 +1,9 @@
 const toLabels = (items = []) => items.map((item) => item.label || item.name || item.text || '').filter(Boolean);
 
+const EDUCATION_PATTERN = /\b(degree|bachelor'?s?|master'?s?|phd|doctorate|diploma|gpa|university|tertiary|academic qualification)\b/i;
+
+const isNonEducationRequirement = (label = '') => !EDUCATION_PATTERN.test(label);
+
 export const buildJobDescriptionInterviewTargets = ({ roleFamily, groupedTechnicalSkills, softSkills, requirementGroups, title }) => {
   const technicalFocus = [
     ...toLabels(groupedTechnicalSkills.softwareDevelopment),
@@ -20,8 +24,8 @@ export const buildJobDescriptionInterviewTargets = ({ roleFamily, groupedTechnic
 
   const gapFocusCandidates = [
     ...toLabels(requirementGroups.niceToHaveRequirements),
-    ...toLabels(requirementGroups.mustHaveRequirements).slice(0, 4),
-  ].slice(0, 6);
+    ...toLabels(requirementGroups.mustHaveRequirements),
+  ].filter(isNonEducationRequirement).slice(0, 6);
 
   return {
     technicalFocus,
@@ -29,6 +33,6 @@ export const buildJobDescriptionInterviewTargets = ({ roleFamily, groupedTechnic
     motivationFocus,
     gapFocusCandidates,
     prioritySkills: technicalFocus.slice(0, 6),
-    experienceFocus: toLabels(requirementGroups.responsibilities).slice(0, 5),
+    experienceFocus: toLabels(requirementGroups.responsibilities).filter(isNonEducationRequirement).slice(0, 5),
   };
 };

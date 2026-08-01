@@ -1,0 +1,25 @@
+Job Title: Senior Data Engineer
+Company: Fonterra
+Location: Hamilton, Waikato
+Employment Type: Permanent Full-time
+
+About Us:
+Fonterra is a global dairy nutrition company seeking an experienced Senior Data Engineer to transform global supply chain datasets.
+
+Key Responsibilities:
+• Build and optimize data pipelines using SQL, Python, Snowflake, and dbt.
+• Maintain data warehouse architecture and ensure high data quality standards.
+• Work with business intelligence analysts to deliver Power BI dashboards.
+
+Requirements:
+• 4+ years of data engineering experience with SQL, Python, and Snowflake.
+• Tertiary qualification in Data Analytics, Computer Science, or Information Systems.
+• Experience building ETL pipelines and managing cloud data warehouses.
+• Excellent analytical skills and stakeholder communication.
+
+Nice to Have:
+• Familiarity with PySpark and Azure Data Factory.
+
+Benefits:
+• Staff discount on dairy products.
+• Superannuation matching and professional development allowance.

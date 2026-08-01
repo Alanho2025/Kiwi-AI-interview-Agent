@@ -20,6 +20,7 @@ export const normalizeReviewedCvProfile = (reviewProfile = {}) => ({
   experienceEvidence: normalizeText(reviewProfile.experienceEvidence),
   projectEvidence: normalizeText(reviewProfile.projectEvidence),
   educationCredentials: normalizeText(reviewProfile.educationCredentials),
+  certifications: normalizeText(reviewProfile.certifications || reviewProfile.certificationsCredentials),
   keyCompetencies: normalizeList(reviewProfile.keyCompetencies),
 });
 
@@ -29,6 +30,7 @@ const hasReviewContent = (reviewProfile = {}) => Boolean(
   || reviewProfile.experienceEvidence
   || reviewProfile.projectEvidence
   || reviewProfile.educationCredentials
+  || reviewProfile.certifications
   || reviewProfile.keyCompetencies.length
 );
 
@@ -40,33 +42,25 @@ const buildSection = (key, title, content) => ({
 });
 
 const upsertReviewedSections = (existingSections = [], reviewProfile = {}) => {
-  const preservedSections = existingSections.filter((section) => !REVIEW_SECTION_KEYS.has(section.key));
-  const reviewedSections = [
-    buildSection('personal_statement', 'Candidate summary', reviewProfile.candidateSummary),
-    buildSection('skills', 'Core skills', reviewProfile.coreSkills.join('\n')),
-    buildSection('experience', 'Experience evidence', reviewProfile.experienceEvidence),
-    buildSection('projects', 'Project evidence', reviewProfile.projectEvidence),
-    buildSection('education', 'Education and credentials', reviewProfile.educationCredentials),
-    buildSection('key_competencies', 'Key competencies', reviewProfile.keyCompetencies.join('\n')),
-  ].filter((section) => section.content);
+  const existingMap = new Map((existingSections || []).map((sec) => [sec.key, sec]));
+  const updatedMap = new Map(existingMap);
 
-  return [...preservedSections, ...reviewedSections];
+  if (reviewProfile.candidateSummary) updatedMap.set('personal_statement', buildSection('personal_statement', 'Candidate summary', reviewProfile.candidateSummary));
+  if (reviewProfile.coreSkills.length) updatedMap.set('skills', buildSection('skills', 'Core skills', reviewProfile.coreSkills.join('\n')));
+  if (reviewProfile.experienceEvidence) updatedMap.set('experience', buildSection('experience', 'Experience evidence', reviewProfile.experienceEvidence));
+  if (reviewProfile.projectEvidence) updatedMap.set('projects', buildSection('projects', 'Project evidence', reviewProfile.projectEvidence));
+  if (reviewProfile.educationCredentials) updatedMap.set('education', buildSection('education', 'Education credentials', reviewProfile.educationCredentials));
+  if (reviewProfile.certifications) updatedMap.set('certifications', buildSection('certifications', 'Certifications and licenses', reviewProfile.certifications));
+  if (reviewProfile.keyCompetencies.length) updatedMap.set('key_competencies', buildSection('key_competencies', 'Key competencies', reviewProfile.keyCompetencies.join('\n')));
+
+  return Array.from(updatedMap.values());
 };
 
-const buildReviewedCvText = (reviewProfile = {}) => [
-  'Candidate summary',
-  reviewProfile.candidateSummary,
-  'Core skills',
-  reviewProfile.coreSkills.join('\n'),
-  'Experience evidence',
-  reviewProfile.experienceEvidence,
-  'Project evidence',
-  reviewProfile.projectEvidence,
-  'Education and credentials',
-  reviewProfile.educationCredentials,
-  'Key competencies',
-  reviewProfile.keyCompetencies.join('\n'),
-].filter(Boolean).join('\n');
+const buildReviewedCvText = (baseProfile = {}, reviewProfile = {}) => {
+  const sections = upsertReviewedSections(baseProfile.sections || [], reviewProfile);
+  const reviewedText = sections.map((sec) => `${sec.title || sec.key}\n${sec.content}`).join('\n\n');
+  return reviewedText || baseProfile.normalizedText || '';
+};
 
 export const buildReviewedCvProfile = ({ baseProfile = {}, reviewProfile = {}, reviewedAt = new Date().toISOString() } = {}) => {
   const normalizedReview = normalizeReviewedCvProfile(reviewProfile);
@@ -78,20 +72,18 @@ export const buildReviewedCvProfile = ({ baseProfile = {}, reviewProfile = {}, r
   const reviewedProfile = {
     ...baseProfile,
     schemaVersion: baseProfile.schemaVersion || 'cv_profile_v1',
-    personalStatement: normalizedReview.candidateSummary,
-    summary: normalizedReview.candidateSummary,
-    experience: normalizedReview.experienceEvidence,
-    projects: normalizedReview.projectEvidence,
-    education: normalizedReview.educationCredentials,
-    certifications: '',
-    keyCompetencies: normalizedReview.keyCompetencies.join('\n'),
-    skills: normalizedReview.coreSkills.map((label) => ({
-      label,
-      sourceType: 'human_review',
-      confidence: 1,
-    })),
+    personalStatement: normalizedReview.candidateSummary || baseProfile.personalStatement || baseProfile.summary || '',
+    summary: normalizedReview.candidateSummary || baseProfile.summary || baseProfile.personalStatement || '',
+    experience: normalizedReview.experienceEvidence || baseProfile.experience || '',
+    projects: normalizedReview.projectEvidence || baseProfile.projects || '',
+    education: normalizedReview.educationCredentials || baseProfile.education || '',
+    certifications: normalizedReview.certifications || baseProfile.certifications || '',
+    keyCompetencies: normalizedReview.keyCompetencies.length ? normalizedReview.keyCompetencies.join('\n') : baseProfile.keyCompetencies || '',
+    skills: normalizedReview.coreSkills.length
+      ? normalizedReview.coreSkills.map((label) => ({ label, sourceType: 'human_review', confidence: 1 }))
+      : baseProfile.skills || [],
     sections,
-    warnings: [],
+    warnings: baseProfile.warnings || [],
     confidence: Math.max(Number(baseProfile.confidence) || 0, 0.95),
     metadata: {
       ...(baseProfile.metadata || {}),
@@ -100,7 +92,7 @@ export const buildReviewedCvProfile = ({ baseProfile = {}, reviewProfile = {}, r
       inputTrustLevel: 'human_reviewed',
     },
   };
-  const reviewedText = buildReviewedCvText(normalizedReview);
+  const reviewedText = buildReviewedCvText(baseProfile, normalizedReview);
 
   const evidenceProfile = buildCvEvidenceProfile(reviewedProfile, reviewedText);
 

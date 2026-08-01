@@ -1,0 +1,20 @@
+Position Title: Senior Frontend Developer
+Company: Pushpay
+Location: Auckland, NZ (Hybrid)
+Job Type: Full-time
+
+We are seeking a Senior Frontend Developer to build responsive, accessible web interfaces for our giving platform.
+
+What You Will Do:
+- Write clean, maintainable code using React, TypeScript, Next.js, and Tailwind CSS.
+- Optimize web application performance and cross-browser accessibility (WCAG).
+- Partner with UI/UX designers and GraphQL backend engineers.
+
+What We Are Looking For:
+- 4+ years of professional front-end engineering experience.
+- Bachelor of Computer Science or equivalent practical experience.
+- Deep expertise in HTML5, CSS3, JavaScript ES6+, React, and state management.
+- Strong passion for polished design systems and micro-interactions.
+
+Pluses:
+- Experience with WebSockets and real-time streaming interfaces.

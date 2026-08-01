@@ -1,0 +1,21 @@
+Job Title: Senior Business Analyst
+Company: Air New Zealand
+Location: Auckland CBD, New Zealand
+Employment Type: Full-time
+
+Role Purpose:
+Support digital transformation across flight operations and customer booking workflows.
+
+Key Responsibilities:
+• Gather business requirements, map business processes, and draft functional specs.
+• Facilitate workshops with key business stakeholders and engineering teams.
+• Validate acceptance criteria and support user acceptance testing (UAT).
+
+Requirements:
+• 5+ years experience as a Business Analyst in large enterprise environments.
+• Degree in Business Administration, Information Systems, or related field.
+• Proficiency in BPMN process mapping, Jira, Confluence, and SQL queries.
+• Exceptional written and verbal communication skills.
+
+Bonus:
+• CBAP certification.

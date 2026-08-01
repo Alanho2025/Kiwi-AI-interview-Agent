@@ -1,0 +1,25 @@
+Job Title: Lead DevOps Engineer
+Company: Datacom
+Location: Wellington, New Zealand
+Employment Type: Full-time
+
+Position Summary:
+Datacom is looking for a Lead DevOps Engineer to drive cloud infrastructure modernization for government and enterprise clients.
+
+Key Responsibilities:
+• Design and manage infrastructure as code using Terraform, Ansible, and AWS.
+• Configure Kubernetes clusters, Docker containers, and CI/CD automation pipelines.
+• Implement monitoring, logging, and security compliance policies.
+
+Requirements:
+• 6+ years experience in DevOps, Cloud Engineering, or Systems Administration.
+• Bachelor of IT degree or relevant AWS Solutions Architect Certification.
+• Hands-on mastery of Linux, Shell Scripting, Python, and CloudFormation.
+• Strong technical leadership and incident troubleshooting capability.
+
+Bonus Points:
+• CKA (Certified Kubernetes Administrator) credentials.
+
+Benefits:
+• Modern Wellington CBD office with catered lunches.
+• Comprehensive health and life insurance.

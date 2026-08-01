@@ -108,8 +108,30 @@ export function AnalyzePage() {
     }
   }, []);
 
+  const syncCanonicalRequirementsFromSections = (rubric = {}) => {
+    const sections = rubric.sections || {};
+    const mustHaves = (sections.mustHaveRequirements || []).map((line, index) => ({
+      id: `req-must-${index + 1}`,
+      label: line,
+      mustHave: true,
+      type: 'hard',
+      category: 'technical_skill',
+      importance: 'high',
+    }));
+    const niceToHaves = (sections.niceToHaveRequirements || []).map((line, index) => ({
+      id: `req-nice-${index + 1}`,
+      label: line,
+      mustHave: false,
+      type: 'soft',
+      category: 'preferred_skill',
+      importance: 'medium',
+    }));
+    const updatedReqs = [...mustHaves, ...niceToHaves];
+    return updatedReqs.length ? updatedReqs : (rubric.requirements || []);
+  };
+
   const handleSelectSavedJD = (fingerprint) => {
-    const selected = savedJDs.find(jd => jd.jdFingerprint === fingerprint);
+    const selected = savedJDs.find((jd) => jd.jdFingerprint === fingerprint);
     if (!selected) return;
 
     resetAnalysisState();
@@ -120,9 +142,18 @@ export function AnalyzePage() {
     setStructuredJDRubric(selected.jdRubric);
     setSummarizedRawJD(selected.rawJD || '');
     setJdHumanReviewedRawJD(selected.rawJD || '');
-    setJdReviewStatus('verified'); // Auto-verify saved JDs
-    setActiveWorkflowStep(WORKFLOW_STEP_IDS.SESSION_SETUP); // Proceed straight to session setup
-    setPageStatus(buildStatusMessage('success', 'Saved JD selected', `Loaded "${selected.title || 'Saved JD'}". You can now proceed directly to session setup.`));
+
+    // Fix Issue 2: Respect true saved review status instead of forcing 'verified'
+    const savedReviewStatus = selected.jdRubric?.metadata?.humanReviewStatus || selected.humanReviewStatus || 'unreviewed';
+    setJdReviewStatus(savedReviewStatus);
+
+    if (savedReviewStatus === 'verified') {
+      setActiveWorkflowStep(WORKFLOW_STEP_IDS.SESSION_SETUP);
+      setPageStatus(buildStatusMessage('success', 'Saved JD selected', `Loaded verified "${selected.title || 'Saved JD'}". Proceed to session setup.`));
+    } else {
+      setActiveWorkflowStep(WORKFLOW_STEP_IDS.JD_REVIEW);
+      setPageStatus(buildStatusMessage('info', 'Saved JD selected (Unreviewed)', `Loaded "${selected.title || 'Saved JD'}". Please review the JD fields before matching.`));
+    }
   };
 
   const isVoiceReady = voiceDeviceCheck?.browser?.status === 'ok'
@@ -517,7 +548,12 @@ export function AnalyzePage() {
   };
 
   const handleStructuredJDRubricChange = (nextRubric) => {
-    const reviewedRubric = stampHumanReviewMetadata(nextRubric, 'edited');
+    const syncedRequirements = syncCanonicalRequirementsFromSections(nextRubric);
+    const updatedRubric = {
+      ...nextRubric,
+      requirements: syncedRequirements,
+    };
+    const reviewedRubric = stampHumanReviewMetadata(updatedRubric, 'edited');
     setStructuredJDRubric(reviewedRubric);
     setStructuredJD(formatStructuredJobDescription(reviewedRubric));
     setJdReviewStatus('edited');
@@ -559,7 +595,12 @@ export function AnalyzePage() {
       return;
     }
 
-    let verifiedRubric = stampHumanReviewMetadata(structuredJDRubric, 'verified');
+    const syncedRequirements = syncCanonicalRequirementsFromSections(structuredJDRubric);
+    const rubricWithReqs = {
+      ...structuredJDRubric,
+      requirements: syncedRequirements,
+    };
+    let verifiedRubric = stampHumanReviewMetadata(rubricWithReqs, 'verified');
     if (verifiedRubric.roleFit?.jdFingerprint) {
       try {
         const confirmed = await confirmRoleFitReview({

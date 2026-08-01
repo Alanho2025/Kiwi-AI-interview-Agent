@@ -1,0 +1,16 @@
+Position Title: Senior Cloud Architect
+Company: Spark New Zealand
+Location: Auckland CBD
+Job Type: Full-time
+
+Spark is hiring a Senior Cloud Architect to design enterprise multi-cloud architectures across AWS and Azure.
+
+Responsibilities:
+- Author cloud architecture blueprints, security standards, and disaster recovery plans.
+- Guide enterprise migration strategies for legacy monolithic applications.
+- Mentor cloud engineering teams in serverless design and Infrastructure as Code.
+
+Requirements:
+- AWS Certified Solutions Architect Professional or Azure Solutions Architect Expert.
+- 8+ years IT experience with 4+ years in cloud architecture design.
+- Deep expertise in networking, IAM, Terraform, and cloud cost governance.

@@ -38,7 +38,8 @@ const toTitleCase = (value = '') => String(value || '')
   .replace(/\bAi\b/g, 'AI')
   .replace(/\bMl\b/g, 'ML')
   .replace(/\bUi\b/g, 'UI')
-  .replace(/\bUx\b/g, 'UX');
+  .replace(/\bUx\b/g, 'UX')
+  .replace(/\bDevops\b/g, 'DevOps');
 
 const normalizeCandidate = (value = '') => String(value || '').replace(/\s+/g, ' ').trim().replace(/[.:;,-]+$/g, '').trim();
 const ROLE_TITLE_TRAILING_CONTEXT_PATTERN = /\s+(?:at|with|for)\s+[A-Z][A-Za-z0-9&.'’ -]{1,80}(?:,|\s+you(?:'|’)ll|\s+you\s+will|\s+you\s+are|\s+is\b|\s+are\b).*$/i;
@@ -95,6 +96,7 @@ const buildJoinedTitleCandidate = (first = '', second = '') => {
 const extractInlineTitle = (line = '') => {
   const text = normalizeCandidate(line);
   if (!text) return '';
+  if (/^(company|location|employment type|job type|salary|contract type)\s*:/i.test(text)) return '';
   const splitMatch = text.search(FIELD_OR_SECTION_SPLIT);
   const head = splitMatch > 0 ? text.slice(0, splitMatch).trim() : text;
   const labelled = /^job title:|^role title:|^position title:/i.test(head) ? cleanLineLabel(head) : head;

@@ -1,7 +1,12 @@
 import { TECHNICAL_SKILL_FAMILIES, SOFT_SKILL_TAXONOMY } from './lexicons/jobDescriptionSkillTaxonomy.js';
 
 const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-const buildAliasRegex = (alias = '') => new RegExp(`(^|[^a-z0-9])${escapeRegex(alias.toLowerCase())}([^a-z0-9]|$)`, 'i');
+const buildAliasRegex = (alias = '') => {
+  const escaped = escapeRegex(alias.toLowerCase());
+  // For single-letter skills like 'c', ensure right boundary does not match # or + (e.g. c# or c++)
+  const rightBoundary = (alias.length === 1 && /[a-z]/i.test(alias)) ? '([^a-z0-9+#]|$)' : '([^a-z0-9]|$)';
+  return new RegExp(`(^|[^a-z0-9])${escaped}${rightBoundary}`, 'i');
+};
 const collectTexts = (...groups) => groups.flat().filter(Boolean).map((item) => typeof item === 'string' ? item : item.text || item.label || '').filter(Boolean);
 
 const findMatches = (texts = [], taxonomy = [], family = 'softwareDevelopment') => {

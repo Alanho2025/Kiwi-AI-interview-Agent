@@ -1,0 +1,28 @@
+Job Title: Senior Software Engineer
+Company: Xero
+Location: Auckland CBD, New Zealand
+Employment Type: Full-time
+
+About the Role:
+We are looking for a Senior Software Engineer to join our core billing team in Auckland. You will design, build, and maintain scalable web applications that support millions of global users.
+
+Key Responsibilities:
+• Design and implement RESTful APIs using React, Node.js, and TypeScript.
+• Collaborate with cross-functional teams in an Agile environment to deliver high-quality features.
+• Conduct thorough code reviews, write unit tests, and maintain CI/CD pipelines.
+• Support production systems and perform root-cause failure investigations.
+
+Requirements:
+• 5+ years of software development experience with JavaScript, TypeScript, React, and Node.js.
+• Bachelor of Computer Science degree or equivalent tertiary qualification.
+• Solid understanding of PostgreSQL, Docker, and AWS cloud services.
+• Strong problem-solving mindset and team communication skills.
+
+Bonus Requirements:
+• Experience with GraphQL and microservices architecture is advantageous.
+• AWS Certified Developer certification is a plus.
+
+Benefits:
+• Competitive salary package with annual bonus.
+• Flexible hybrid work environment (2 days in office, 3 days remote).
+• Health insurance cover and wellness allowance.
