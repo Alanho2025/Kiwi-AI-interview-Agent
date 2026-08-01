@@ -249,7 +249,7 @@ const computeEnhancedMatch = (label, criterionType, evidenceProfile, semanticEvi
   };
 };
 
-const applyEvidenceStrengthPolicy = ({ requirement = {}, finalStatus = 'not_met', matchedSection = '', evidenceStrength = 'missing', semanticMatches = [], label = '', evidenceProfile = {} } = {}) => {
+const applyEvidenceStrengthPolicy = ({ requirement = {}, finalStatus = 'not_met', matchedSection = '', semanticMatches = [], label = '', evidenceProfile = {} } = {}) => {
   let nextStatus = finalStatus;
 
   if (matchedSection === 'education' && !DEGREE_PATTERN.test(label || requirement.label || '')) {
