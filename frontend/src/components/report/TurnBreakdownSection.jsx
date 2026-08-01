@@ -272,35 +272,28 @@ function AnswerAssessment({ assessment }) {
   );
 }
 
-function buildFallbackStrongerAnswerText(turn = {}) {
-  const questionText = (turn.question || '').toLowerCase();
-  const rawAnswer = String(turn.answer || '').trim();
-  if (!rawAnswer) return null;
-
-  if (/introduce yourself|briefly introduce|about yourself|quick introduction/i.test(questionText)) {
-    return `To give a brief introduction, I recently graduated from the University of Auckland with an Electrical Engineering background. What excites me about the Junior AI Integration Engineer role at ZURU is the opportunity to bridge business needs with AI technology, leveraging my experience in building AI applications and cross-departmental collaboration.`;
+function StrongerAnswer({ rewrite }) {
+  if (rewrite?.status === 'unavailable') {
+    return (
+      <section>
+        <h5 className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-600">Stronger answer unavailable</h5>
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <p className="text-sm leading-relaxed text-slate-700">
+            A grounded stronger answer is not available for this response.
+          </p>
+        </div>
+      </section>
+    );
   }
 
-  if (/ai workflow|recommendation|project|built|system/i.test(questionText)) {
-    return `In this project, I owned the AI engine design and data integration for the recommendation system. We evaluated the recommendation system against clear metrics to maximize performance, achieving an 85% project rating and delivering a clear business solution for users.`;
-  }
-
-  return `To strengthen this response, clearly state your context and goal first: "${rawAnswer.slice(0, 120)}...". Then specify your personal ownership, technical approach, validation method, and measurable outcome.`;
-}
-
-function StrongerAnswer({ rewrite, turn = {} }) {
-  const answerText = (rewrite?.status === 'ready' && rewrite?.answer)
-    ? rewrite.answer
-    : buildFallbackStrongerAnswerText(turn);
-
-  if (!answerText) return null;
+  if (rewrite?.status !== 'ready' || !rewrite.answer) return null;
 
   return (
     <section>
       <h5 className="mb-2 text-xs font-semibold uppercase tracking-wider text-emerald-700">A stronger answer</h5>
       <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
         <p className="text-sm leading-relaxed text-emerald-900">
-          {answerText}
+          {rewrite.answer}
         </p>
       </div>
     </section>
@@ -384,7 +377,7 @@ export function TurnBreakdownSection({ turnBreakdowns }) {
                         </p>
                       </div>
                     </div>
-                    <StrongerAnswer rewrite={turn.strongerAnswer} turn={turn} />
+                    <StrongerAnswer rewrite={turn.strongerAnswer} />
                   </div>
                 )}
               </div>

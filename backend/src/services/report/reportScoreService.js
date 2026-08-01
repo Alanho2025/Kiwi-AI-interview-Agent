@@ -14,10 +14,11 @@ export const computeInterviewPerformanceScore = (evidenceSummary = {}, candidate
   const strength = Number(evidenceSummary.averageStrength || 0);
   const strengthScore = Math.min(100, (strength / 4) * 100);
   const totals = evidenceSummary.totals || {};
-  const directTurns = Number(totals.direct_past_experience || 0) + Number(totals.indirect_adjacent_experience || 0);
+  const directTurns = Number(totals.direct_past_experience || 0);
+  const adjacentTurns = Number(totals.indirect_adjacent_experience || 0);
   const hypotheticalTurns = Number(totals.hypothetical_understanding || 0);
   const genericTurns = Number(totals.generic_filler || 0);
-  const totalTurns = directTurns + hypotheticalTurns + genericTurns;
+  const totalTurns = directTurns + adjacentTurns + hypotheticalTurns + genericTurns;
   const directRatioScore = totalTurns > 0 ? Math.min(100, (directTurns / totalTurns) * 100) : 0;
   const turnScores = ensureArray(candidateFeedback.turnBreakdowns)
     .map((turn) => {

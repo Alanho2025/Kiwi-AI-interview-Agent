@@ -117,6 +117,43 @@ const normalizeRewrite = (item = {}, fallback = {}) => {
   };
 };
 
+const normalizeRewriteIdentityPart = (value = '') => ensureString(value).trim().replace(/\s+/g, ' ').toLowerCase();
+
+const buildRewriteIdentity = ({ question = '', weak = '' } = {}) => {
+  const normalizedQuestion = normalizeRewriteIdentityPart(question);
+  const normalizedWeakAnswer = normalizeRewriteIdentityPart(weak);
+  if (!normalizedQuestion || !normalizedWeakAnswer) return '';
+  return `${normalizedQuestion}\u0000${normalizedWeakAnswer}`;
+};
+
+const normalizeAnswerRewriteExamples = (candidateExamples = [], fallbackExamples = []) => {
+  const fallbackList = ensureArray(fallbackExamples);
+  const candidateQueues = ensureArray(candidateExamples).reduce((queues, item) => {
+    const identity = buildRewriteIdentity(item);
+    if (!identity) return queues;
+    const queue = queues.get(identity) || [];
+    queue.push(item);
+    queues.set(identity, queue);
+    return queues;
+  }, new Map());
+  const fallbackIdentityCounts = fallbackList.reduce((counts, item) => {
+    const identity = buildRewriteIdentity(item);
+    if (identity) counts.set(identity, (counts.get(identity) || 0) + 1);
+    return counts;
+  }, new Map());
+
+  return fallbackList
+    .map((fallback) => {
+      const identity = buildRewriteIdentity(fallback);
+      const candidates = candidateQueues.get(identity) || [];
+      const isUniquePair = identity
+        && fallbackIdentityCounts.get(identity) === 1
+        && candidates.length === 1;
+      return normalizeRewrite(isUniquePair ? candidates[0] : {}, fallback);
+    })
+    .filter((item) => item.weak && (item.better || item.status === 'unavailable'));
+};
+
 const normalizeQuoteAnalysis = (item = {}, fallback = {}) => ({
   quote: ensureString(item.quote, fallback.quote || ''),
   context: ensureString(item.context, fallback.context || ''),
@@ -282,6 +319,30 @@ const normalizeCommunicationProfile = (profile = {}, fallback = {}) => ({
   fillerWords: ensureString(profile.fillerWords, fallback.fillerWords || ''),
 });
 
+const normalizeTurnBreakdowns = (candidateTurns = [], fallbackTurns = [], context = {}) => {
+  const candidatesByIdentity = ensureArray(candidateTurns).reduce((queues, turn) => {
+    const identity = buildRewriteIdentity({ question: turn.question, weak: turn.answer });
+    if (!identity) return queues;
+    queues.set(identity, [...(queues.get(identity) || []), turn]);
+    return queues;
+  }, new Map());
+  const fallbackList = ensureArray(fallbackTurns);
+  const fallbackCounts = fallbackList.reduce((counts, turn) => {
+    const identity = buildRewriteIdentity({ question: turn.question, weak: turn.answer });
+    if (identity) counts.set(identity, (counts.get(identity) || 0) + 1);
+    return counts;
+  }, new Map());
+
+  return fallbackList.map((fallback) => {
+    const identity = buildRewriteIdentity({ question: fallback.question, weak: fallback.answer });
+    const candidates = candidatesByIdentity.get(identity) || [];
+    const candidate = identity && fallbackCounts.get(identity) === 1 && candidates.length === 1
+      ? candidates[0]
+      : fallback;
+    return normalizeTurnBreakdown(candidate, fallback, context);
+  }).filter((item) => item.question && item.feedback);
+};
+
 /**
  * Purpose: Execute the main responsibility for normalizeCandidateFeedback.
  * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
@@ -312,29 +373,18 @@ const normalizeCandidateFeedback = (candidateFeedback = {}, fallback = {}, conte
   coachingAdvice: ensureArray(candidateFeedback.coachingAdvice)
     .map((item, index) => applyTrust(normalizeAdvice(item, ensureArray(fallback.coachingAdvice)[index] || {}), ensureArray(fallback.coachingAdvice)[index] || {}, { ...context, type: 'coaching' }))
     .filter((item) => item.theme && item.advice && item.example),
-  answerRewriteExamples: ensureArray(candidateFeedback.answerRewriteExamples)
-    .map((item, index) => {
-      const fallbackList = ensureArray(fallback.answerRewriteExamples);
-      const itemQ = ensureString(item.question).trim().toLowerCase();
-      const itemW = ensureString(item.weak).trim().toLowerCase();
-      const matchedFallback = fallbackList.find((fb) => {
-        const fbQ = ensureString(fb.question).trim().toLowerCase();
-        const fbW = ensureString(fb.weak).trim().toLowerCase();
-        return itemQ && fbQ && itemQ === fbQ && itemW && fbW && itemW === fbW;
-      }) || fallbackList.find((fb) => {
-        const fbQ = ensureString(fb.question).trim().toLowerCase();
-        const fbW = ensureString(fb.weak).trim().toLowerCase();
-        return (itemQ && fbQ && itemQ === fbQ) || (itemW && fbW && itemW === fbW);
-      }) || fallbackList[index] || {};
-      return normalizeRewrite(item, matchedFallback);
-    })
-    .filter((item) => item.weak && (item.better || item.status === 'unavailable')),
+  answerRewriteExamples: normalizeAnswerRewriteExamples(
+    candidateFeedback.answerRewriteExamples,
+    fallback.answerRewriteExamples,
+  ),
   quoteAnalyses: ensureArray(candidateFeedback.quoteAnalyses)
     .map((item, index) => normalizeQuoteAnalysis(item, ensureArray(fallback.quoteAnalyses)[index] || {}))
     .filter((item) => item.quote && item.critique),
-  turnBreakdowns: ensureArray(candidateFeedback.turnBreakdowns)
-    .map((item, index) => normalizeTurnBreakdown(item, ensureArray(fallback.turnBreakdowns)[index] || {}, context))
-    .filter((item) => item.question && item.feedback),
+  turnBreakdowns: normalizeTurnBreakdowns(
+    candidateFeedback.turnBreakdowns,
+    fallback.turnBreakdowns,
+    context,
+  ),
 });
 
 /**

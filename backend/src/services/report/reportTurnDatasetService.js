@@ -13,6 +13,9 @@ const EXCLUDED_USER_TURN_TYPES = new Set([
   'system',
   'bridge_acknowledgement',
   'acknowledgement',
+  'candidate_question',
+  'candidate_question_intent',
+  'candidate_question_request',
 ]);
 
 const isAcceptedAnswer = (turn = {}) => {

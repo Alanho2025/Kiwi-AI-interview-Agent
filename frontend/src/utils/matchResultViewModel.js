@@ -158,8 +158,11 @@ const resolvePreparationDecision = (decisionKey, topics) => {
 };
 
 export const buildMatchResultViewModel = (analysisResult = {}) => {
-  const decisionKey = analysisResult?.decision?.label || 'manual_review';
-  const topics = selectPreparationTopics(buildTopicCandidates(analysisResult));
+  const safeAnalysisResult = analysisResult && typeof analysisResult === 'object' && !Array.isArray(analysisResult)
+    ? analysisResult
+    : {};
+  const decisionKey = safeAnalysisResult.decision?.label || 'manual_review';
+  const topics = selectPreparationTopics(buildTopicCandidates(safeAnalysisResult));
   const decision = resolvePreparationDecision(decisionKey, topics);
 
   return {

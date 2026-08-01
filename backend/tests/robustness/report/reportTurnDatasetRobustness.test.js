@@ -100,4 +100,27 @@ describe('report turn dataset', () => {
     });
     expect(dataset.excludedUserTurnCount).toBe(1);
   });
+
+  it('keeps a persisted candidate question out of the scored answer dataset', () => {
+    const transcript = [
+      { role: 'ai', text: 'Do you have any questions for us?', questionId: 'q-close', metadata: { turnType: 'interview_question', countsAsQuestion: true } },
+      { role: 'user', text: 'What would success look like in this role?', metadata: { turnType: 'candidate_question', countsAsQuestion: true, countsAsAnswer: true } },
+    ];
+
+    const dataset = buildReportTurnDataset(transcript);
+
+    expect(dataset.questionAnswerPairs).toEqual([]);
+    expect(dataset.acceptedAnswers).toEqual([]);
+    expect(dataset.scoredAnswerCount).toBe(0);
+  });
+
+  it('keeps a rhetorical question inside an accepted candidate answer', () => {
+    const dataset = buildReportTurnDataset([
+      { role: 'ai', text: 'How did you validate the change?', questionId: 'q-validation', metadata: { turnType: 'interview_question', countsAsQuestion: true } },
+      { role: 'user', text: 'I asked, "What could fail?" and then ran the regression suite.', metadata: { turnType: 'user_answer', countsAsAnswer: true } },
+    ]);
+
+    expect(dataset.questionAnswerPairs).toHaveLength(1);
+    expect(dataset.acceptedAnswers[0].text).toContain('What could fail?');
+  });
 });

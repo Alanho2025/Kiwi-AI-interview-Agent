@@ -143,6 +143,30 @@ describe('answer alignment service', () => {
     expect(alignment.groundingStatus).toBe('limited');
   });
 
+  it('does not let off-topic STAR structure or question wording supply alignment', () => {
+    const [alignment] = buildAnswerAlignments(buildInput([{
+      ...acceptedPair,
+      answerTurn: {
+        ...acceptedPair.answerTurn,
+        text: 'At university our group disagreed about a presentation. I organised a meeting, assigned slides, resolved the conflict, and everyone felt happier afterward.',
+      },
+    }]));
+
+    expect(alignment.scoreBreakdown.questionAlignment).toBeLessThanOrEqual(7);
+    expect(alignment.scoreBreakdown.roleIntentFit).toBeLessThanOrEqual(5);
+    expect(alignment.label).not.toBe('strong');
+  });
+
+  it('does not use question wording as candidate-authored role-intent evidence', () => {
+    const [alignment] = buildAnswerAlignments(buildInput([{
+      ...acceptedPair,
+      answerTurn: { ...acceptedPair.answerTurn, text: 'Production delivery reliability is important.' },
+    }]));
+
+    expect(alignment.scoreBreakdown.questionAlignment).toBeGreaterThan(7);
+    expect(alignment.scoreBreakdown.roleIntentFit).toBeLessThanOrEqual(5);
+  });
+
   it('does not create alignment for repair, confirmation, or rejected transcript turns', () => {
     const excludedPairs = [
       {

@@ -127,12 +127,14 @@ const buildScoreBreakdown = ({ answer, question, roleIntentText, mapItems, detec
   const bestClassification = mapItems.find((item) => item.classification === 'direct')?.classification
     || mapItems.find((item) => item.classification === 'adjacent')?.classification
     || mapItems[0]?.classification;
+  const hasCandidateRoleEvidence = signals.hasPersonalAction || detectedEvidenceUsed.length > 0;
   const questionAlignment = clamp(
-    questionOverlap >= 0.15 ? 22 : signals.hasPastContext && signals.hasPersonalAction ? 16 : 7,
+    questionOverlap >= 0.15 ? 22 : questionOverlap >= 0.05 ? 14 : 3,
     22,
   );
   const roleIntentFit = clamp(
-    roleIntentOverlap >= 0.35 ? 22 : roleIntentOverlap >= 0.15 ? 18 : questionOverlap >= 0.15 ? 14 : 5,
+    !hasCandidateRoleEvidence ? 3
+      : roleIntentOverlap >= 0.35 ? 22 : roleIntentOverlap >= 0.15 ? 18 : roleIntentOverlap >= 0.05 ? 10 : 3,
     22,
   );
   const evidenceFit = clamp(

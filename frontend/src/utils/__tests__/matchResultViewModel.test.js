@@ -3,6 +3,18 @@ import { describe, expect, it } from 'vitest';
 import { buildMatchResultViewModel } from '../matchResultViewModel.js';
 
 describe('buildMatchResultViewModel', () => {
+  it('treats a missing analysis payload as an empty manual-review result', () => {
+    expect(buildMatchResultViewModel(null)).toEqual({
+      decision: {
+        label: 'Needs more evidence',
+        tone: 'warning',
+        summary: 'The available CV evidence needs closer validation before it can support this role confidently.',
+      },
+      topics: [],
+      topicShortfall: false,
+    });
+  });
+
   it('uses text-only fit categories and selects no more than two evidence gaps', () => {
     const viewModel = buildMatchResultViewModel({
       decision: { label: 'weak_match' },

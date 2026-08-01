@@ -43,4 +43,24 @@ describe('cross-role report view fallbacks', () => {
     expect(text).not.toMatch(/project evidence|STAR-style|direct past experience|real examples/i);
     expect(text).toMatch(/role-specific|framework|reasoning|evidence/i);
   });
+
+  it('does not blame answer length when only the planned question count differs', () => {
+    const priorities = buildFallbackImprovementPriorities({
+      report,
+      interviewMetrics: { plannedQuestionCount: 10, interviewerQuestionCount: 4 },
+      evidenceDiagnostics: { totals: {} },
+    });
+
+    expect(priorities.map((item) => item.title)).not.toContain('Practise concise answers');
+  });
+
+  it('shows concision coaching only when answer-length evidence exists', () => {
+    const priorities = buildFallbackImprovementPriorities({
+      report,
+      interviewMetrics: { averageAnswerDurationSeconds: 105 },
+      evidenceDiagnostics: { totals: {} },
+    });
+
+    expect(priorities.map((item) => item.title)).toContain('Practise concise answers');
+  });
 });

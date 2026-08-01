@@ -421,3 +421,29 @@
 ### Verification
 
 - Seven focused backend Vitest files / 89 tests passed. Browser text, live voice/provider, Mongo persistence, and production deployment were not run.
+
+## [2026-08-02 01:05 NZST] Report UI rewrite and framework projection safety
+
+- `reportCoachingService` 與 candidate projection 只按 exact question/answer pair 掛載 stronger answer；partial、index、ambiguous 或 unmatched pair fail safe 為 unavailable。
+- Candidate report 的 shared allowlist 現在保留 UI 所需 framework fields；`TurnBreakdownSection` 不再生成學校、公司、職位、技術或成果等 candidate facts。
+- 同步文件：F-34。驗證：backend focused Vitest 14/14、frontend component Vitest 4/4、backend/frontend ESLint passed；browser/manual、live provider、production 未執行。
+
+## [2026-08-02 01:16 NZST] Report turn eligibility and feedback identity
+
+- Candidate-question intent不再成為 scored report card；LLM coaching的 reorder、omission、unknown insertion與duplicate以 exact Q&A identity fail safe，不再依 array index移位。
+- 同步文件：F-34。驗證：backend focused Vitest 23/23、backend ESLint passed；browser/manual、live provider、production 未執行。
+
+## [2026-08-02 01:20 NZST] Report rubric and answer-result semantic truth
+
+- Unknown/direct question不再默認STARR；role-specific dimensions不再因answer length取得partial credit；Answer result不再以off-topic STAR structure或question wording補足relevance/role-intent fit。
+- 同步文件：F-34。驗證：backend focused Vitest 50/50、backend ESLint passed；browser/manual、live provider、production 未執行。
+
+## [2026-08-02 01:26 NZST] Report fallback score and coaching causality
+
+- Legacy score不再把adjacent evidence算成direct；question-count mismatch不再自行觸發concision advice，只有明確duration、word-count或focus evidence才顯示。
+- 同步文件：F-34。驗證：backend focused Vitest 15/15、frontend focused Vitest 4/4、backend/frontend ESLint passed；browser/manual、live provider、production 未執行。
+
+## [2026-08-02 01:35 NZST] Report UI semantic-integrity browser gate
+
+- Headed Chromium以本地Vite與candidate projection fixture驗證desktop/mobile turn cards、duplicate question順序、framework、Answer result、ready/unavailable stronger answer及private-copy negative check；console 0 errors。
+- Live backend/provider、human usability與production rollout仍未執行。

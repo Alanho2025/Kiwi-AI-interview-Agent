@@ -119,18 +119,28 @@ export const redactSensitiveReportValues = (value) => {
 
 const normalizeQuestion = (value = '') => String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
 
+const buildRewriteIdentity = (question = '', answer = '') => {
+  const normalizedQuestion = normalizeQuestion(question);
+  const normalizedAnswer = normalizeQuestion(answer);
+  if (!normalizedQuestion || !normalizedAnswer) return '';
+  return `${normalizedQuestion}\u0000${normalizedAnswer}`;
+};
+
 const asArray = (value = []) => Array.isArray(value) ? value : [];
 
 const buildRewriteQueues = (rewrites = []) => asArray(rewrites).reduce((queues, rewrite) => {
-  const question = normalizeQuestion(rewrite?.question);
-  if (!question) return queues;
-  const queue = queues.get(question) || [];
+  const identity = buildRewriteIdentity(rewrite?.question, rewrite?.weak);
+  if (!identity) return queues;
+  const queue = queues.get(identity) || [];
   queue.push(rewrite);
-  queues.set(question, queue);
+  queues.set(identity, queue);
   return queues;
 }, new Map());
 
-const takeMatchingRewrite = (queues, question = '') => queues.get(normalizeQuestion(question))?.shift() || null;
+const takeMatchingRewrite = (queues, question = '', answer = '') => {
+  const queue = queues.get(buildRewriteIdentity(question, answer));
+  return queue?.length === 1 ? queue.shift() : null;
+};
 
 const buildAssessmentQueues = (assessments = []) => asArray(assessments).reduce((queues, assessment) => {
   const question = normalizeQuestion(assessment?.question);
@@ -151,7 +161,35 @@ const projectTurnAssessment = (assessment = null) => {
 const projectTurnRewrite = (rewrite = null) => {
   if (!rewrite) return { status: 'unavailable', unavailableReason: 'A grounded stronger answer could not be matched to this question.' };
   if (rewrite.status === 'ready' && rewrite.better) return { status: 'ready', answer: rewrite.better };
-  return { status: 'unavailable', unavailableReason: rewrite.failureReason || 'A grounded stronger answer could not be generated reliably.' };
+  return { status: 'unavailable', unavailableReason: 'A grounded stronger answer could not be generated reliably.' };
+};
+
+const projectFrameworkBreakdown = (breakdown = null) => {
+  if (!breakdown || typeof breakdown !== 'object') return null;
+  return {
+    ...pickDefined(breakdown, ['normalizedScore', 'summary']),
+    dimensions: asArray(breakdown.dimensions).map((dimension) => pickDefined(dimension, [
+      'key',
+      'label',
+      'status',
+      'score',
+      'reason',
+    ])),
+  };
+};
+
+const projectStarBreakdown = (breakdown = null) => {
+  if (!breakdown || typeof breakdown !== 'object') return null;
+  return pickDefined(breakdown, [
+    'situation',
+    'task',
+    'action',
+    'result',
+    'resultOrReaction',
+    'reflection',
+    'mainMissingElement',
+    'scoreReason',
+  ]);
 };
 
 const buildCandidateFeedbackProjection = (feedback = {}, roleFit = {}) => {
@@ -179,22 +217,29 @@ const buildCandidateFeedbackProjection = (feedback = {}, roleFit = {}) => {
   projection.turnBreakdowns = (feedback.turnBreakdowns || []).map((turn) => {
     const assessment = projectTurnAssessment(takeMatchingAssessment(assessmentQueues, turn.question));
     const candidateTurn = {
-      ...pickDefined(turn, ['question', 'answer', 'answerSummary', 'feedback', 'status']),
+      ...pickDefined(turn, [
+        'question',
+        'answer',
+        'answerSummary',
+        'feedback',
+        'status',
+        'rubricType',
+        'frameworkKey',
+        'frameworkLabel',
+        'starApplicable',
+        'structureLabel',
+      ]),
       scores: pickDefined(turn.scores || {}, ['business', 'logic', 'evidence']),
+      frameworkBreakdown: projectFrameworkBreakdown(turn.frameworkBreakdown),
+      starBreakdown: projectStarBreakdown(turn.starBreakdown || turn.starrBreakdown),
+      strongerAnswer: projectTurnRewrite(takeMatchingRewrite(rewriteQueues, turn.question, turn.answer)),
     };
     if (!assessment) return candidateTurn;
     return {
       ...candidateTurn,
       answerAssessment: assessment,
-      strongerAnswer: projectTurnRewrite(takeMatchingRewrite(rewriteQueues, turn.question)),
     };
   });
-  projection.answerRewriteExamples = (feedback.answerRewriteExamples || []).map((item) => pickDefined(item, [
-    'weak',
-    'better',
-    'status',
-    'failureReason',
-  ]));
   return projection;
 };
 

@@ -141,7 +141,9 @@ export function AnalysisStatusCard({
               {matchViewModel.topics.length ? (
                 <>
                   <div className="space-y-3">
-                    {matchViewModel.topics.map((topic, index) => <PreparationTopicCard key={topic.id} topic={topic} index={index} />)}
+                    {matchViewModel.topics.map((topic, index) => (
+                      <PreparationTopicCard key={`${topic.id || topic.topic || 'topic'}-${index}`} topic={topic} index={index} />
+                    ))}
                   </div>
                   {matchViewModel.topicShortfall ? (
                     <p className="mt-3 rounded-xl border border-amber-100 bg-amber-50 p-4 text-sm leading-6 text-amber-900">

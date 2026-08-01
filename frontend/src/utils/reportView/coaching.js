@@ -15,6 +15,11 @@ import {
   hasReasoningOnlyTurns,
 } from './shared.js';
 
+const hasConcisionEvidence = (metrics = {}) => Number(metrics.overlongAnswerCount || 0) > 0
+  || Number(metrics.unfocusedAnswerCount || 0) > 0
+  || Number(metrics.averageAnswerDurationSeconds || 0) > 90
+  || Number(metrics.averageAnswerWordCount || 0) > 120;
+
 /**
  * Purpose: Execute the main responsibility for buildFallbackImprovementPriorities.
  * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
@@ -64,7 +69,7 @@ export const buildFallbackImprovementPriorities = ({ report, interviewMetrics, e
       example: 'Swap "quality is important" for "I checked [actual criterion] using [actual verification method] and responded with [actual action]."',
     });
   }
-  if ((interviewMetrics.plannedQuestionCount || 0) && interviewMetrics.interviewerQuestionCount !== interviewMetrics.plannedQuestionCount) {
+  if (hasConcisionEvidence(interviewMetrics)) {
     advice.push({
       title: 'Practise concise answers',
       detail: 'Keeping answers focused can help the interview stay on track and make your strongest evidence easier to notice.',
