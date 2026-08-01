@@ -44,7 +44,7 @@ export const ANALYZE_TOUR_STEPS = [
   },
   {
     target: '#tour-analyze-actions',
-    content: 'The checklist shows what is still blocking the match. Once every required item is ready, generate the match analysis and start the interview.',
+    content: 'Use this control panel for the current next step. It keeps the primary action and its status in one compact place.',
     placement: 'top',
     spotlightClicks: true,
   }
@@ -58,15 +58,6 @@ export const WORKFLOW_STEP_IDS = {
   SESSION_SETUP: 'session_setup',
   MATCH_RESULT: 'match_result',
 };
-
-export const workflowHeaderSteps = (sessionMode) => [
-  { id: 1, label: 'CV' },
-  { id: 2, label: 'CV Check' },
-  { id: 3, label: 'JD' },
-  { id: 4, label: 'JD Check' },
-  { id: 5, label: sessionMode === 'voice' ? 'Device' : 'Setup' },
-  { id: 6, label: 'Match' },
-];
 
 export const resolveDraftWorkflowStep = (draft = {}) => {
   const selectedCvId = draft.selectedCV?.id;

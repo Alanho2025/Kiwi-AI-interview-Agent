@@ -1,5 +1,100 @@
 # Change Log
 
+## [2026-08-01 22:12 NZST] Match preparation filters qualifications and calibrates strong-fit copy
+
+### Changed / Added
+
+- Candidate-facing Match preparation topics now exclude education and qualification requirements, even when the internal Match engine retains them for eligibility evidence.
+- A `Strong match` display becomes `Partial match` when two high-priority preparation topics have no direct Experience or Projects evidence. This display calibration does not change backend Match scoring or question planning.
+
+### Verification
+
+- `frontend/src/utils/__tests__/matchResultViewModel.test.js`: 5 tests passed; frontend ESLint passed. Browser validation is not included.
+
+## [2026-08-01 22:03 NZST] Report score bands now describe interview performance
+
+### Changed / Added
+
+- Report score bands now use performance language rather than Match verdicts: `Strong performance`, `Promising performance`, `Developing performance`, or `Needs stronger interview evidence`.
+- Backend locks the deterministic band and the frontend recalculates it from the numeric interview-only score, so an AI response or legacy feedback cannot reintroduce `Strong match` into a Report.
+
+### Verification
+
+- Focused backend score-band tests: 4 tests passed; focused frontend score-band tests: 8 tests passed. Backend and frontend ESLint passed. Browser visual review is not included.
+
+## [2026-08-01 21:51 NZST] Candidate PDF and local text export remove CV–JD score surfaces
+
+### Changed / Added
+
+- PDF export now shows one `Interview performance` card only when the candidate payload contains a numeric interview-only score. Legacy reports without that score do not receive a fabricated `0.00` card.
+- The local text-download fallback emits only `Interview Performance` and its matching explanation; it no longer writes CV–JD, macro, micro, requirements, or blended score lines.
+
+### Verification
+
+- Focused frontend candidate-report, PDF, and text-export tests: 15 tests passed; frontend ESLint passed. Browser/PDF visual review is not included.
+
+## [2026-08-01 21:42 NZST] Candidate web report removes CV–JD score surfaces
+
+### Changed / Added
+
+- The web report now shows one `Interview performance` score card and one corresponding explanation. It ignores legacy CV–JD and Match-decision fields even if an older report contains them.
+- Removed CV–JD report language from the report tour, the landing-page report FAQ, and the unused score-breakdown component.
+
+### Verification
+
+- Focused frontend candidate-report surface tests: 5 tests passed; frontend ESLint passed. Browser visual review is not included.
+
+## [2026-08-01 21:34 NZST] Candidate report JSON and TXT remove CV–JD scores
+
+### Changed / Added
+
+- Candidate report JSON now projects only the interview-only `overall` score. It does not expose `cvJdMatch`, macro, micro, or requirements fields.
+- Legacy reports without a stored interview-performance score expose no candidate score rather than presenting a prior blended score as interview performance.
+- Candidate TXT export labels the sole score as `Interview Performance` and omits CV–JD score lines.
+
+### Verification
+
+- Focused backend publication/TXT export tests cover the new and legacy projection paths. PDF and web report surfaces are changed in the following frontend slice.
+
+## [2026-08-01 21:26 NZST] Report overall now reflects interview performance only
+
+### Changed / Added
+
+- Report `overall` now equals the interview-performance score. The former 50/50 CV–JD Match and interview blend is removed from the report scoring contract.
+- Stored report score explanations and the report-draft overview now describe interview-answer evidence and framework quality only; they no longer embed CV–JD score, confidence, or a Match decision.
+- Match scoring and role-evidence artifacts remain available to the Match and question-planning flows, but are no longer report-score inputs.
+
+### Verification
+
+- Focused backend report score/explanation tests are updated for the interview-only contract. Candidate API, PDF, TXT, and web-surface removal are tracked in the following slices.
+
+## [2026-08-01 21:18 NZST] Candidate-facing Match preparation brief
+
+### Changed / Added
+
+- Replaced the Match score, confidence, score cards, evidence map, requirement diagnostics, and question-count dashboard with a compact interview-preparation brief.
+- The brief shows only a text fit (`Strong match`, `Partial match`, or `Needs more evidence`) and up to five complete topic cards: the topic, a CV example, its evidence gap, and a likely follow-up question.
+- Only CV evidence traced to `Experience` or `Projects` can appear as an example. If neither source exists, the brief states that no direct work or project example was found. It displays at most two evidence-gap topics.
+- Match scoring, role evidence, question planning, and their backend outputs remain in place; this slice changes only the candidate-facing projection.
+
+### Verification
+
+- Focused frontend Match/navigation component and view-model tests: 10 tests passed; frontend ESLint passed.
+- Browser visual review, real AI evaluation, and report-score changes were not run in this slice.
+
+## [2026-08-01 21:12 NZST] Match navigation and action-control simplification
+
+### Changed / Added
+
+- Removed the redundant numbered 1–6 header progress indicator from Analyze. The clickable six-stage bar remains, but shows only each original stage name and its state icon.
+- Replaced the large `Setup checklist` with a compact `Match control` panel that presents the current next step and retains the existing generate, retry, continue, and completed-match regeneration actions.
+- CV/JD review gates, input-driven Match clearing, and interview mode behaviour are unchanged.
+
+### Verification
+
+- Focused frontend component tests: 5 tests passed; frontend ESLint passed.
+- Browser visual verification and the remaining Match-content redesign were not run as part of this navigation/control slice.
+
 ## [2026-08-01 20:10 NZST] JD container hygiene and CV-JD disjunctive evidence handling
 
 ### Changed / Added

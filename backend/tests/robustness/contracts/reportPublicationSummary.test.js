@@ -176,10 +176,9 @@ describe('candidate-safe report publication summary', () => {
 
     expect(projection.report.candidateFeedback.improvementPriorities).toHaveLength(3);
     expect(projection.report.scores).toEqual({
-      overall: 72,
-      cvJdMatch: 75,
-      interviewPerformance: 69,
+      overall: 69,
     });
+    expect(JSON.stringify(projection)).not.toMatch(/cv[-–]?jd|cvJdMatch/i);
     expect(projection).not.toHaveProperty('executionCost');
     expect(projection).not.toHaveProperty('commercialStressTest');
     expect(projection).not.toHaveProperty('candidateReflections');
@@ -211,6 +210,14 @@ describe('candidate-safe report publication summary', () => {
     });
     expect(JSON.stringify(projection)).not.toMatch(/generic_question_alignment|private-proof|private-evidence/);
     expect(JSON.stringify(projection)).not.toMatch(/candidate@example\\.com|\\+64 21 555 123|9999|internal_flag/);
+  });
+
+  it('omits any legacy score fallback when no interview-performance score was persisted', () => {
+    const projection = buildCandidateReportProjection({
+      report: { scores: { overall: 72, cvJdMatch: 75, interview: 68, micro: 67, macro: 76, requirements: 74 } },
+    });
+
+    expect(projection.report.scores).toEqual({});
   });
 
   it('redacts nested email, phone, and street-address values without hiding ordinary scores', () => {

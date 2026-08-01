@@ -4,78 +4,109 @@ import { describe, expect, it } from 'vitest';
 import { AnalysisStatusCard } from '../AnalysisStatusCard.jsx';
 
 const analysisResult = {
-  overallScore: 41,
-  confidence: 0.74,
-  decision: { label: 'weak_match' },
-  scoreBreakdown: { macro: 33, micro: 41, requirements: 34 },
-  explanation: {
-    strengths: [{ label: 'Python', evidence: ['Built an AI interview workflow.'] }],
-    gaps: [{ label: 'Limited direct evidence for AI tool fluency' }],
-    risks: [],
-    summary: 'Limited strong matches were found.',
-  },
+  decision: { label: 'moderate_match' },
   requirementChecks: [
     {
-      id: 'ai-workflow',
-      label: 'Experience building AI workflows',
+      id: 'workflow',
+      label: 'Build AI workflows',
       type: 'hard',
       importance: 'high',
       status: 'partial',
-      notes: 'project-based evidence only; evidenceStrength=partial',
-      evidence: ['Designed AI agent product workflows.'],
+      notes: 'missingEvidence=The CV does not state the production outcome; interviewProbe=Which workflow did you own end to end?',
+    },
+    {
+      id: 'stakeholder',
+      label: 'Stakeholder communication',
+      type: 'hard',
+      importance: 'high',
+      status: 'not_met',
+      notes: 'interviewProbe=Which external stakeholder did you work with directly?',
     },
   ],
-  matchingDetails: {
-    semanticEvidenceModel: { scorer: 'deterministic-fallback' },
-    semanticEvidenceMatches: [
+  roleEvidenceMap: {
+    items: [
       {
-        label: 'Experience building AI workflows',
-        matches: [{
-          score: 0.67,
-          evidenceStrength: 'partial',
-          text: 'Designed AI agent product workflows.',
+        roleIntentId: 'workflow',
+        roleIntent: 'Build AI workflows',
+        priority: 'high',
+        classification: 'adjacent',
+        limitation: 'The CV does not state the production outcome.',
+        sourceEvidence: [{
+          text: 'Built an AI interview workflow for university students.',
+          title: 'Kiwi Voice Coach',
+          sourceTrace: { section: 'projects' },
+        }],
+      },
+      {
+        roleIntentId: 'stakeholder',
+        roleIntent: 'Stakeholder communication',
+        priority: 'high',
+        classification: 'gap',
+        sourceEvidence: [],
+      },
+      {
+        roleIntentId: 'data',
+        roleIntent: 'Measure product adoption',
+        priority: 'medium',
+        classification: 'direct',
+        sourceEvidence: [{
+          text: 'Tracked adoption metrics and iterated on internal tools.',
+          sourceTrace: { section: 'experience' },
         }],
       },
     ],
   },
-  roleEvidenceMap: {
-    intentCoverage: { highPriorityTotal: 1, strong: 0, partial: 1, missing: 0 },
-    items: [{
-      roleIntentId: 'intent:workflow',
-      roleIntent: 'Experience building AI workflows',
-      priority: 'high',
-      classification: 'weak',
-      score: 56,
-      sourceEvidence: [{ text: 'Designed AI agent product workflows.', sourceTrace: { section: 'projects' } }],
-      limitation: 'The CV wording is related, but applied ownership and outcome evidence are limited.',
-    }],
-  },
 };
 
-describe('AnalysisStatusCard match output copy', () => {
-  it('keeps debug scorer and internal matching terms out of the user-facing result', () => {
-    render(<AnalysisStatusCard status="success" analysisResult={analysisResult} questionPoolInfo={{}} />);
+describe('AnalysisStatusCard preparation brief', () => {
+  it('shows only a text fit plus complete, grounded interview-preparation cards', () => {
+    render(<AnalysisStatusCard status="success" analysisResult={analysisResult} />);
 
-    expect(screen.queryByText(/deterministic-fallback/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Semantic similarity/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/role intent/i)).not.toBeInTheDocument();
-    expect(screen.getByText(/Closest CV evidence/i)).toBeInTheDocument();
+    expect(screen.getByText('Partial match')).toBeInTheDocument();
+    expect(screen.getByText('Interview topics to prepare')).toBeInTheDocument();
+    expect(screen.getByText('Build AI workflows')).toBeInTheDocument();
+    expect(screen.getByText('Project')).toBeInTheDocument();
+    expect(screen.getByText(/Built an AI interview workflow/i)).toBeInTheDocument();
+    expect(screen.getAllByText('No direct work or project example found.').length).toBeGreaterThan(0);
+    expect(screen.getByText('The CV does not state the production outcome.')).toBeInTheDocument();
+    expect(screen.getByText('Which workflow did you own end to end?')).toBeInTheDocument();
+    expect(screen.queryByText(/Match score|Evidence confidence|Role evidence map|Priority requirement checks/i)).not.toBeInTheDocument();
+  });
+
+  it('keeps the completed Match visible while interview preparation is running', () => {
+    render(<AnalysisStatusCard status="success" analysisResult={analysisResult} planStatus="preparing" />);
+
+    expect(screen.getByText('Match analysis complete')).toBeInTheDocument();
+    expect(screen.getByText('Preparing your interview focus')).toBeInTheDocument();
+    expect(screen.queryByText(/^41$/)).not.toBeInTheDocument();
+  });
+
+  it('makes a grounded-topic shortfall explicit instead of inventing extra topics', () => {
+    render(<AnalysisStatusCard
+      status="success"
+      analysisResult={{
+        roleEvidenceMap: {
+          items: [{
+            roleIntentId: 'one',
+            roleIntent: 'Build AI workflows',
+            priority: 'high',
+            classification: 'direct',
+            sourceEvidence: [{ text: 'Built a workflow prototype.', sourceTrace: { section: 'projects' } }],
+          }],
+        },
+      }}
+    />);
+
+    expect(screen.getByText(/fewer than three grounded topics/i)).toBeInTheDocument();
+    expect(screen.getByText('Build AI workflows')).toBeInTheDocument();
   });
 
   it('renders backend-driven Match stages without a fake percentage', () => {
     render(<AnalysisStatusCard
       status="matching"
       progressStages={{
-        input_validation: {
-          id: 'input_validation',
-          label: 'Checking your inputs',
-          status: 'completed',
-        },
-        evidence_match: {
-          id: 'evidence_match',
-          label: 'Matching your CV evidence',
-          status: 'started',
-        },
+        input_validation: { id: 'input_validation', label: 'Checking your inputs', status: 'completed' },
+        evidence_match: { id: 'evidence_match', label: 'Matching your CV evidence', status: 'started' },
       }}
       currentStage="evidence_match"
     />);
@@ -83,19 +114,5 @@ describe('AnalysisStatusCard match output copy', () => {
     expect(screen.getByText('Checking your inputs')).toBeInTheDocument();
     expect(screen.getByText('Matching your CV evidence')).toBeInTheDocument();
     expect(screen.queryByText(/%/)).not.toBeInTheDocument();
-    expect(screen.queryByText(/critic|embedding|provider/i)).not.toBeInTheDocument();
-  });
-
-  it('keeps the completed Match visible while interview preparation is running', () => {
-    render(<AnalysisStatusCard
-      status="success"
-      analysisResult={analysisResult}
-      planStatus="preparing"
-      questionPoolInfo={null}
-    />);
-
-    expect(screen.getByText('Match analysis complete')).toBeInTheDocument();
-    expect(screen.getByText('Preparing your interview focus')).toBeInTheDocument();
-    expect(screen.getByText('41')).toBeInTheDocument();
   });
 });

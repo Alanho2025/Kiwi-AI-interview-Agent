@@ -218,8 +218,9 @@ export const exportReport = asyncHandler(async (req, res) => {
  * Returns: Formatted text string.
  */
 export function formatReportAsText(report) {
+  const candidateReport = toCandidateReportRecord(report);
   const lines = [];
-  const r = report.report || {};
+  const r = candidateReport.report || {};
   const formatScore = (value, suffix = '') => {
     const parsed = Number(value);
     return Number.isFinite(parsed) ? `${parsed.toFixed(2)}${suffix}` : 'Not available';
@@ -233,7 +234,7 @@ export function formatReportAsText(report) {
   lines.push('KIWI AI INTERVIEW AGENT - INTERVIEW REPORT');
   lines.push('==========================================');
   lines.push(`Generated: ${r.generatedAt ? new Date(r.generatedAt).toLocaleString() : new Date().toLocaleString()}`);
-  lines.push(`Report Status: ${report.latestStatus || 'unknown'}`);
+  lines.push(`Report Status: ${candidateReport.latestStatus || 'unknown'}`);
   lines.push('');
   
   // Candidate & Role Information
@@ -268,12 +269,10 @@ export function formatReportAsText(report) {
   }
   
   // Scores
-  if (r.scores) {
+  if (r.scores?.overall !== undefined) {
     lines.push('SCORES');
     lines.push('======');
-    if (r.scores.overall !== undefined) lines.push(`Overall Score: ${formatScore(r.scores.overall, '/100')}`);
-    if (r.scores.cvJdMatch !== undefined) lines.push(`CV-JD Match: ${formatScore(r.scores.cvJdMatch, '/100')}`);
-    if (r.scores.interviewPerformance !== undefined) lines.push(`Interview Performance: ${formatScore(r.scores.interviewPerformance, '/100')}`);
+    if (r.scores.overall !== undefined) lines.push(`Interview Performance: ${formatScore(r.scores.overall, '/100')}`);
     lines.push('');
   }
 

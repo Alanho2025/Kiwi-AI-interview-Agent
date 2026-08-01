@@ -38,6 +38,12 @@
 - Match 對 `such as`、`or equivalent` 與 OR 型清單逐項檢查；單一已證實的可替代工具可滿足該清單。CV taxonomy 中的顯式 skill evidence 會優先於泛化 semantic overlap。
 - 這一輪只證明本機 deterministic regression。它只把已知相關且結束年份早於當年的學歷判為 `met`；明顯未完成、當年結束與未來結束的資料維持 `partial`。學位完成狀態尚未成為結構化、可驗證欄位，且 role-intent source-identity 去重、confidence calibration 與 browser/real-provider 結果仍不是本 RFC 的已驗證結論。
 
+### 1.4 2026-08-01 Match 導航與操作面板收斂
+
+- Analyze 頁面移除重複的 header 1–6 流程指示器。可切換頁面的 stage bar 保留，且每個 stage 只顯示完成／阻擋狀態與既有名稱，不再重複顯示檔名或狀態小字。
+- 右側 `Match control` 取代逐項 `Setup checklist`。它只保留當前下一步、既有主操作（產生、重試或開始面試）與已完成時的 `Regenerate match`。
+- 這是候選人準備流程的呈現收斂；不改變 CV/JD review gate、voice/text interview mode、舊 Match 在輸入變動時的清空行為，或任何 Match 計分／證據生成邏輯。
+
 ---
 
 ---

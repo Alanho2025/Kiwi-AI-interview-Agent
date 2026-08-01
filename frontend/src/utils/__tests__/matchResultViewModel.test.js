@@ -1,180 +1,173 @@
 import { describe, expect, it } from 'vitest';
+
 import { buildMatchResultViewModel } from '../matchResultViewModel.js';
 
 describe('buildMatchResultViewModel', () => {
-  it('turns raw decision and confidence fields into user-facing match copy', () => {
+  it('uses text-only fit categories and selects no more than two evidence gaps', () => {
     const viewModel = buildMatchResultViewModel({
-      overallScore: 77.2,
-      confidence: 0.84,
-      decision: { label: 'moderate_match' },
-      scoreBreakdown: { macro: 70, micro: 82, requirements: 65 },
-      explanation: {
-        strengths: [{ label: 'Python and SQL', evidence: ['Built analytics scripts with Python and SQL.'] }],
-        gaps: [{ label: 'Limited commercial delivery proof' }],
-        risks: [],
-      },
-      requirementChecks: [],
-    });
-
-    expect(viewModel.decision.label).toBe('Promising but needs validation');
-    expect(viewModel.overallScore).toBe(77);
-    expect(viewModel.confidencePercent).toBe(84);
-    expect(viewModel.summary).toContain('Python and SQL');
-    expect(viewModel.scoreCards.map((item) => item.title)).toEqual(['Responsibility fit', 'Skill and tool fit', 'Must-have evidence']);
-  });
-
-  it('prioritises missing hard requirements before matched requirements', () => {
-    const viewModel = buildMatchResultViewModel({
-      decision: { label: 'not_qualified' },
+      decision: { label: 'weak_match' },
       requirementChecks: [
-        { id: 'sql', label: 'SQL', type: 'hard', importance: 'high', status: 'met', evidence: ['SQL project'] },
-        { id: 'prod', label: 'Production data pipelines', type: 'hard', importance: 'high', status: 'not_met' },
-        { id: 'docs', label: 'Documentation', type: 'soft', importance: 'medium', status: 'partial' },
+        { id: 'gap-one', label: 'Production delivery', importance: 'high', status: 'not_met' },
+        { id: 'gap-two', label: 'External stakeholder management', importance: 'high', status: 'not_met' },
+        { id: 'gap-three', label: 'Security review', importance: 'high', status: 'not_met' },
       ],
-    });
-
-    expect(viewModel.requirementChecks[0]).toMatchObject({
-      label: 'Production data pipelines',
-      status: 'Missing evidence',
-      tone: 'danger',
-    });
-    expect(viewModel.requirementChecks[1].label).toBe('Documentation');
-    expect(viewModel.requirementChecks[2].label).toBe('SQL');
-  });
-
-  it('surfaces semantic judgement evidence fields from requirement notes', () => {
-    const viewModel = buildMatchResultViewModel({
-      requirementChecks: [
-        {
-          id: 'stakeholder',
-          label: 'Stakeholder communication',
-          type: 'soft',
-          importance: 'high',
-          status: 'partial',
-          notes: 'section=projects; capabilities=communication; evidenceStrength=partial; Team updates are related; missingEvidence=External stakeholder proof; interviewProbe=Ask about client updates',
-          evidence: ['Presented weekly updates to a cross-functional team.'],
-        },
-      ],
-    });
-
-    expect(viewModel.requirementChecks[0]).toMatchObject({
-      evidenceStrength: 'partial',
-      missingEvidence: 'External stakeholder proof',
-      interviewProbe: 'Ask about client updates',
-    });
-  });
-
-  it('groups the grounded role evidence map and exposes high-priority coverage', () => {
-    const viewModel = buildMatchResultViewModel({
       roleEvidenceMap: {
-        intentCoverage: { highPriorityTotal: 2, strong: 1, partial: 1, missing: 0 },
         items: [
+          { roleIntentId: 'gap-one', roleIntent: 'Production delivery', priority: 'high', classification: 'gap' },
+          { roleIntentId: 'gap-two', roleIntent: 'External stakeholder management', priority: 'high', classification: 'gap' },
+          { roleIntentId: 'gap-three', roleIntent: 'Security review', priority: 'high', classification: 'gap' },
           {
-            roleIntentId: 'intent:sql',
-            roleIntent: 'Production SQL experience',
+            roleIntentId: 'project',
+            roleIntent: 'Build AI workflows',
             priority: 'high',
             classification: 'direct',
-            score: 88,
-            sourceEvidence: [{ text: 'Built SQL pipelines.', sourceTrace: { section: 'experience' } }],
-            limitation: '',
+            sourceEvidence: [{ text: 'Built a workflow automation prototype.', sourceTrace: { section: 'projects' } }],
           },
           {
-            roleIntentId: 'intent:stakeholder',
-            roleIntent: 'Stakeholder communication',
-            priority: 'high',
-            classification: 'adjacent',
-            score: 68,
-            sourceEvidence: [{ text: 'Presented internal project updates.', sourceTrace: { section: 'projects' } }],
-            limitation: 'External stakeholder scope is not explicit.',
+            roleIntentId: 'experience',
+            roleIntent: 'Measure adoption',
+            priority: 'medium',
+            classification: 'direct',
+            sourceEvidence: [{ text: 'Tracked adoption data for a product launch.', sourceTrace: { section: 'experience' } }],
+          },
+          {
+            roleIntentId: 'extra',
+            roleIntent: 'Write technical documentation',
+            priority: 'low',
+            classification: 'direct',
+            sourceEvidence: [{ text: 'Wrote operating guides.', sourceTrace: { section: 'projects' } }],
           },
         ],
       },
     });
 
-    expect(viewModel.roleIntentCoverage).toEqual({ highPriorityTotal: 2, strong: 1, partial: 1, missing: 0 });
-    expect(viewModel.roleEvidenceGroups.direct[0]).toMatchObject({
-      label: 'Production SQL experience',
-      sourceSection: 'experience',
-    });
-    expect(viewModel.roleEvidenceGroups.adjacent[0].limitation).toMatch(/External stakeholder/i);
+    expect(viewModel.decision.label).toBe('Needs more evidence');
+    expect(viewModel.topics).toHaveLength(5);
+    expect(viewModel.topics.filter((topic) => topic.needsEvidence)).toHaveLength(2);
+    expect(viewModel.topics.map((topic) => topic.topic)).not.toContain('Security review');
   });
 
-  it('removes section-heading role evidence items and keeps coverage counts aligned with visible items', () => {
+  it('uses only Experience or Projects as a CV example and makes the missing evidence explicit', () => {
     const viewModel = buildMatchResultViewModel({
       roleEvidenceMap: {
-        intentCoverage: { highPriorityTotal: 3, strong: 0, partial: 1, missing: 2 },
         items: [
           {
-            roleIntentId: 'intent:skills-heading',
-            roleIntent: 'Skills & Experience:',
+            roleIntentId: 'tools',
+            roleIntent: 'AI coding tools',
             priority: 'high',
-            classification: 'gap',
-            score: 26,
-            limitation: 'The available evidence is below the grounded match threshold.',
+            classification: 'direct',
+            sourceEvidence: [
+              { text: 'Listed Cursor and Claude Code.', sourceTrace: { section: 'skills' } },
+              { text: 'Used Cursor to ship an internal tool.', sourceTrace: { section: 'projects' } },
+            ],
           },
           {
-            roleIntentId: 'intent:roles-heading',
-            roleIntent: 'Roles & Responsibilities:',
+            roleIntentId: 'security',
+            roleIntent: 'Security review',
             priority: 'high',
-            classification: 'gap',
-            score: 30,
-            limitation: 'The available evidence is below the grounded match threshold.',
-          },
-          {
-            roleIntentId: 'intent:workflow',
-            roleIntent: 'Translate real workflows into working AI tools',
-            priority: 'high',
-            classification: 'gap',
-            score: 34,
-            limitation: 'The available evidence is below the grounded match threshold.',
+            classification: 'direct',
+            sourceEvidence: [{ text: 'Listed OWASP.', sourceTrace: { section: 'skills' } }],
           },
         ],
       },
     });
 
-    expect(viewModel.roleEvidenceGroups.gap.map((item) => item.label)).toEqual([
-      'Translate real workflows into working AI tools',
-    ]);
-    expect(viewModel.roleIntentCoverage).toEqual({
-      highPriorityTotal: 1,
-      strong: 0,
-      partial: 0,
-      missing: 1,
-    });
+    const toolsTopic = viewModel.topics.find((topic) => topic.id === 'tools');
+    const securityTopic = viewModel.topics.find((topic) => topic.id === 'security');
+
+    expect(toolsTopic.example).toMatchObject({ source: 'Project', text: 'Used Cursor to ship an internal tool.' });
+    expect(securityTopic.example).toBeNull();
+    expect(securityTopic.evidenceLimit).toBe('The CV does not provide a direct example for this topic.');
+    expect(securityTopic.followUp).toBe('Can you walk me through a specific example of Security review?');
   });
 
-  it('caps displayed evidence strength by requirement status', () => {
+  it('marks a topic shortfall rather than inventing additional preparation topics', () => {
     const viewModel = buildMatchResultViewModel({
-      requirementChecks: [
-        {
-          id: 'workflow',
-          label: 'Ability to deconstruct complex business workflows and re-engineer them for automation',
-          type: 'hard',
-          importance: 'high',
-          status: 'not_met',
-          notes: 'limited direct proof; evidenceStrength=strong; missingEvidence=CV shows workflow redesign examples; interviewProbe=Ask for workflow automation evidence',
-          evidence: ['Matched in experience: engineer'],
-        },
-        {
-          id: 'ai-tools',
-          label: 'Comfortable using AI coding tools such as Cursor, GitHub Copilot, or Claude Code',
-          type: 'hard',
-          importance: 'high',
-          status: 'partial',
-          notes: 'project-based evidence only; evidenceStrength=strong; missingEvidence=CV mentions direct tool use',
-          evidence: ['Matched in projects: ai'],
-        },
-      ],
+      roleEvidenceMap: {
+        items: [{
+          roleIntentId: 'one',
+          roleIntent: 'Build AI workflows',
+          priority: 'high',
+          classification: 'direct',
+          sourceEvidence: [{ text: 'Built a workflow prototype.', sourceTrace: { section: 'projects' } }],
+        }],
+      },
     });
 
-    expect(viewModel.requirementChecks[0]).toMatchObject({
-      status: 'Missing evidence',
-      evidenceStrength: 'missing',
-      evidence: '',
+    expect(viewModel.topics).toHaveLength(1);
+    expect(viewModel.topicShortfall).toBe(true);
+  });
+
+  it('filters qualification requirements and downgrades a strong verdict when two core topics lack direct evidence', () => {
+    const qualification = 'A tertiary qualification in Computer Science, Data Engineering, Information Systems, or a related field';
+    const viewModel = buildMatchResultViewModel({
+      decision: { label: 'strong_match' },
+      requirementChecks: [
+        { id: 'qualification', label: qualification, category: 'qualification', importance: 'high', status: 'met' },
+        { id: 'education', label: 'Education in Data Engineering', category: 'education', importance: 'high', status: 'met' },
+        { id: 'etl', label: 'ETL and data modelling', importance: 'high', status: 'not_met' },
+        { id: 'pipelines', label: 'Data pipeline delivery', importance: 'high', status: 'not_met' },
+        { id: 'collaboration', label: 'Collaboration tools', importance: 'medium', status: 'met' },
+      ],
+      roleEvidenceMap: {
+        items: [
+          {
+            roleIntentId: 'qualification',
+            roleIntent: qualification,
+            priority: 'high',
+            classification: 'direct',
+            sourceEvidence: [{ text: 'Built a GitHub project.', sourceTrace: { section: 'projects' } }],
+          },
+          { roleIntentId: 'etl', roleIntent: 'ETL and data modelling', priority: 'high', classification: 'gap' },
+          { roleIntentId: 'pipelines', roleIntent: 'Data pipeline delivery', priority: 'high', classification: 'gap' },
+          {
+            roleIntentId: 'collaboration',
+            roleIntent: 'Collaboration tools',
+            priority: 'medium',
+            classification: 'direct',
+            sourceEvidence: [{ text: 'Maintained team documentation in Notion.', sourceTrace: { section: 'projects' } }],
+          },
+        ],
+      },
     });
-    expect(viewModel.requirementChecks[1]).toMatchObject({
-      status: 'Partly matched',
-      evidenceStrength: 'partial',
+
+    expect(viewModel.decision.label).toBe('Partial match');
+    expect(viewModel.topics.map((topic) => topic.topic)).not.toContain(qualification);
+    expect(viewModel.topics.map((topic) => topic.topic)).not.toContain('Education in Data Engineering');
+    expect(viewModel.topics.filter((topic) => topic.needsEvidence).map((topic) => topic.topic)).toEqual([
+      'ETL and data modelling',
+      'Data pipeline delivery',
+    ]);
+  });
+
+  it('keeps a strong verdict when high-priority topics have direct work or project examples', () => {
+    const viewModel = buildMatchResultViewModel({
+      decision: { label: 'strong_match' },
+      requirementChecks: [
+        { id: 'etl', label: 'ETL and data modelling', importance: 'high', status: 'not_met' },
+        { id: 'pipelines', label: 'Data pipeline delivery', importance: 'high', status: 'not_met' },
+      ],
+      roleEvidenceMap: {
+        items: [
+          {
+            roleIntentId: 'etl',
+            roleIntent: 'ETL and data modelling',
+            priority: 'high',
+            classification: 'gap',
+            sourceEvidence: [{ text: 'Built ETL jobs for analytics reporting.', sourceTrace: { section: 'experience' } }],
+          },
+          {
+            roleIntentId: 'pipelines',
+            roleIntent: 'Data pipeline delivery',
+            priority: 'high',
+            classification: 'gap',
+            sourceEvidence: [{ text: 'Built a data pipeline project.', sourceTrace: { section: 'projects' } }],
+          },
+        ],
+      },
     });
+
+    expect(viewModel.topics.every((topic) => topic.example)).toBe(true);
+    expect(viewModel.decision.label).toBe('Strong match');
   });
 });

@@ -228,11 +228,9 @@ export const runReportGeneratorAgent = async ({ session = {}, analysisResult = {
     session,
   });
   const reportScores = buildReportScores({
-    cvJdScore: analysisResult.overallScore || 0,
     interviewScore: computeInterviewPerformanceScore(evidenceSummary, {
       turnBreakdowns: deterministicTurnBreakdowns,
     }),
-    analysisResult,
     evidenceSummary,
   });
   const transcriptRisks = detectReportTranscriptRisks({ transcript, session });

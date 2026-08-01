@@ -6,6 +6,7 @@
 > **Git 演進 Commit 追蹤**：`PR #124`, Commit `6e453bc`  
 > **主要負責人 / 日期**：Kiwi AI Team / 2026-07-29    
 > **實作狀態 (Implementation Status)**：Partial / Onboarding Mapping
+> **校驗測試路徑 (Verified by Tests)**：`frontend/src/utils/__tests__/matchResultViewModel.test.js`, `frontend/src/components/analyze/__tests__/AnalysisStatusCard.test.jsx`
 
 ---
 
@@ -25,7 +26,19 @@
 * **遭遇的痛點與瓶頸 (Pain Points & Bottlenecks)**：
   - 用戶無法得知履歷的盲點與短板，後端無法生成有針對性的面試題目。
 * **現行架構 (Current Version - PR #124 `6e453bc`)**：
-  - `matchService` 導出 `gaps`（缺失技能陣列）與 `risks`（履歷疑點陣列），利用 $O(N+M)$ 時間複雜度的 `Set` 集合演算法毫秒級比對，並於 `AnalyzePage.jsx` 呈現警告標籤。
+  - `matchService` 導出 `gaps`（缺失技能陣列）與 `risks`（履歷疑點陣列），供 Match 解釋與題庫規劃使用；候選人頁面只投影準備所需的內容。
+
+### 1.3 2026-08-01 候選人準備頁面投影收斂
+
+- Match 結果不再向候選人呈現 score breakdown、evidence confidence、role-evidence diagnostics 或 requirement checklist。這些 Match artifacts 仍保留給題庫與內部流程使用。
+- 候選人頁面在資料足夠時投影 3–5 張完整準備卡：文字化整體 fit、CV 的工作／專案例子、證據不足處，以及可能的追問。少於三個 grounded topics 時會明確提示資料不足，不會捏造額外主題。
+- `skills`、education 或語意相似文字不會作為候選人可用的 CV example；找不到 `experience` 或 `projects` source trace 時，頁面明確顯示找不到直接例子。
+- 最多顯示兩個 evidence-gap topic，避免 Match 結果變成完整 diagnostics dashboard。這項顯示規則不改變後端 gap/risk 計算或題庫選題。
+
+### 1.4 2026-08-01 Qualification topic exclusion and fit calibration
+
+- education／qualification requirement 即使在後端 Match 仍作 eligibility evidence，也不會進入候選人面試準備 topics；它不是可用 work/project interview story 的 preparation theme。
+- 若 candidate-facing topics 中有兩個 high-priority requirement 缺少直接 work/project evidence，view model 會把 `Strong match` 顯示為 `Partial match`。此 UI calibration 不改後端 Match score、eligibility decision 或 question planner。
 
 ---
 

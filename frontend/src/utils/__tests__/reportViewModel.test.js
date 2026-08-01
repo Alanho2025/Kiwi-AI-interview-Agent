@@ -42,4 +42,16 @@ describe('report view model', () => {
     expect(viewModel.answerRewriteTips[0]).toMatchObject({ status: 'unavailable', better: '' });
     expect(viewModel.legacyReportNotice).toMatch(/Regenerate this report for corrected scoring/i);
   });
+
+  it('uses interview-performance language instead of a historical match band', () => {
+    const viewModel = buildReportViewModel({
+      report: {
+        scores: { overall: 82 },
+        candidateFeedback: { scoreBand: 'Strong match' },
+      },
+      qaResult: {},
+    });
+
+    expect(viewModel.scoreBand).toBe('Strong performance');
+  });
 });

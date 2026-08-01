@@ -13,7 +13,7 @@ import { buildPlainEnglishMetrics } from '../../../src/services/agents/reportGen
 import { generateCandidateFeedback } from '../../../src/services/reportCoachingService.js';
 
 describe('report framework pipeline', () => {
-  it('uses the blended overall score in the candidate-facing overall metric', () => {
+  it('uses interview performance as the report overall score', () => {
     const scores = buildReportScores({ cvJdScore: 64.3, interviewScore: 53 });
     const metrics = buildPlainEnglishMetrics({
       scores,
@@ -21,9 +21,39 @@ describe('report framework pipeline', () => {
       interviewMetrics: { plannedQuestionCount: 15, scoredCandidateAnswerCount: 15 },
     });
 
-    expect(scores.overall).toBe(58.6);
-    expect(metrics.find((item) => item.id === 'overall_fit')?.displayValue).toBe('58.60/100');
-    expect(metrics.find((item) => item.id === 'cv_jd_match')?.displayValue).toBe('64.30/100');
+    expect(scores.overall).toBe(53);
+    expect(scores.interviewPerformance).toBe(53);
+    expect(scores).not.toHaveProperty('cvJdMatch');
+    expect(metrics.find((item) => item.id === 'interview_performance')?.displayValue).toBe('53.00/100');
+    expect(metrics.find((item) => item.id === 'cv_jd_match')).toBeUndefined();
+  });
+
+  it('does not put Match score, confidence, or a Match decision in the report overview', () => {
+    const draft = reportDraftBuilder.buildReportDraft({
+      session: { id: 'session-1' },
+      analysisResult: {
+        overallScore: 91,
+        confidence: 0.92,
+        decision: { label: 'strong_match' },
+      },
+      evidenceSummary: {
+        averageStrength: 2.5,
+        strongestExamples: [],
+        totals: {
+          direct_past_experience: 2,
+          indirect_adjacent_experience: 1,
+          hypothetical_understanding: 0,
+          generic_filler: 0,
+        },
+      },
+      interviewMetrics: { candidateTurnCount: 3, plannedQuestionCount: 3, interviewerQuestionCount: 3 },
+      candidateFeedback: { turnBreakdowns: [] },
+      scores: { overall: 53, interviewPerformance: 53 },
+    });
+    const overview = draft.sections.find((section) => section.id === 'interview_performance_overview');
+
+    expect(overview?.content).toContain('Interview performance score 53');
+    expect(overview?.content).not.toMatch(/CV-JD|confidence|strong_match|match decision/i);
   });
 
   it('does not score a validation follow-up with stale motivation metadata', () => {

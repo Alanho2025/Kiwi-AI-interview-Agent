@@ -5,7 +5,7 @@ import { buildScoreExplanations } from '../../src/services/report/reportScoringE
 describe('report scoring explanation v5', () => {
   it('explains interview performance using applicable framework turn scores', () => {
     const explanations = buildScoreExplanations({
-      scores: { overall: 72, cvJdMatch: 74, interviewPerformance: 70 },
+      scores: { overall: 70, interviewPerformance: 70 },
       candidateFeedback: {
         turnBreakdowns: [
           {
@@ -27,6 +27,11 @@ describe('report scoring explanation v5', () => {
     });
 
     expect(explanations.interviewPerformance.formula).toBe('Average of applicable framework turn scores, converted to 0–100');
+    expect(explanations.overall).toMatchObject({
+      formula: 'Interview performance score',
+      explanation: 'The overall score reflects the evidence and framework quality of your interview answers.',
+    });
+    expect(explanations).not.toHaveProperty('cvJdMatch');
     expect(explanations.frameworkRules.turnLevelBreakdowns).toEqual([
       expect.objectContaining({ frameworkKey: 'role_specific_reasoning', score: 8, mainGapKey: 'validationVerification' }),
       expect.objectContaining({ frameworkKey: 'behavioural_starr', score: 6, mainGapKey: 'reflection' }),

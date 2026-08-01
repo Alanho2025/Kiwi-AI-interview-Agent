@@ -35,24 +35,16 @@ export const computeInterviewPerformanceScore = (evidenceSummary = {}, candidate
 };
 
 export const buildReportScores = ({
-  cvJdScore = 0,
   interviewScore = 0,
-  analysisResult = {},
   evidenceSummary = {},
 } = {}) => {
-  const resolvedCvJdScore = Number(cvJdScore || analysisResult.overallScore || 0);
   const resolvedInterviewScore = Number(interviewScore || 0);
 
   return {
-    overall: Number(((resolvedCvJdScore * 0.5) + (resolvedInterviewScore * 0.5)).toFixed(1)),
-    cvJdMatch: resolvedCvJdScore,
+    overall: resolvedInterviewScore,
     interviewPerformance: resolvedInterviewScore,
-    macro: Number(analysisResult.scoreBreakdown?.macro || 0),
-    micro: Number(analysisResult.scoreBreakdown?.micro || 0),
-    requirements: Number(analysisResult.scoreBreakdown?.requirements || 0),
     evidenceStrength: Number(evidenceSummary.averageStrength || 0),
     directEvidenceTurns: Number(evidenceSummary.totals?.direct_past_experience || 0),
     hypotheticalTurns: Number(evidenceSummary.hypotheticalOnlyTurns ?? evidenceSummary.totals?.hypothetical_understanding ?? 0),
   };
 };
-

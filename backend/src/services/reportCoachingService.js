@@ -183,7 +183,6 @@ const normalizeScoreExplanations = (scoreExplanations = {}, fallback = {}) => {
 
   return {
     overall: normalizeOne('overall'),
-    cvJdMatch: normalizeOne('cvJdMatch'),
     interview: normalizeOne('interview'),
   };
 };
@@ -291,7 +290,7 @@ const normalizeCommunicationProfile = (profile = {}, fallback = {}) => ({
  */
 const normalizeCandidateFeedback = (candidateFeedback = {}, fallback = {}, context = {}) => ({
   overallTakeaway: ensureString(candidateFeedback.overallTakeaway, fallback.overallTakeaway || ''),
-  scoreBand: ensureString(candidateFeedback.scoreBand, fallback.scoreBand || ''),
+  scoreBand: ensureString(fallback.scoreBand, ''),
   generationSource: ensureString(candidateFeedback.generationSource, fallback.generationSource || 'fallback'),
   scoreExplanations: normalizeScoreExplanations(candidateFeedback.scoreExplanations, fallback.scoreExplanations || {}),
   communicationProfile: normalizeCommunicationProfile(candidateFeedback.communicationProfile, fallback.communicationProfile || {}),
@@ -378,7 +377,6 @@ Required JSON shape:
   ],
   "scoreExplanations": {
     "overall": { "summary": "string", "helped": "string", "lowered": "string", "next": "string" },
-    "cvJdMatch": { "summary": "string", "helped": "string", "lowered": "string", "next": "string" },
     "interview": { "summary": "string", "helped": "string", "lowered": "string", "next": "string" }
   },
   "communicationProfile": {
@@ -439,6 +437,7 @@ Deterministic fallback content you may improve stylistically, but do not contrad
 ${JSON.stringify(deterministicFeedback, null, 2)}
 
 Rules:
+- scoreBand MUST copy the deterministic fallback exactly. It describes interview performance, never role match.
 - Keep the same number of items per array as the fallback when possible.
 - If evidence is weak, say so directly but constructively.
 - If hypothetical answers appeared, coaching should explicitly push the candidate toward real past examples.
@@ -447,7 +446,7 @@ Rules:
 - quoteAnalyses MUST extract exact, verbatim quotes from the candidate's transcript to show them exactly what they said, explain why it was weak/strong, and how to improve it. Include at least 2-3 quote analyses.
 - communicationProfile MUST analyze their communication style, tone, conciseness, and use of filler words (if any) based on the transcript.
 - If nzWorkplaceFit.enabled is true, coachingAdvice and communicationProfile should include NZ workplace communication guidance grounded in nzWorkplaceFit. Focus on observable behaviours such as teamwork, humility with confidence, initiative, open communication, respect, relationship-building, and sustainable delivery. Do not claim the candidate culturally "fits" New Zealand; discuss interview communication behaviours only.
-- scoreExplanations MUST explain Overall, CV-JD Match, and Interview scores with one short summary, one helped factor, one lowered factor, and one next lever.
+- scoreExplanations MUST explain the interview-performance overall score with one short summary, one helped factor, one lowered factor, and one next lever.
 - turnBreakdowns MUST provide a turn-by-turn analysis of each major question asked. Summarize the question and answer, provide constructive feedback, score (0-10) for business understanding, logic/structure, and evidence strength, and explain each micro-score in dimensionReasons.
 - Every strength, improvement priority, coaching advice, and turn breakdown MUST include evidenceLabel, confidenceLevel, evidenceSources, evidenceReason, needsUserConfirmation, and feedbackStatus.
 - Do not mark unsupported or weakly supported skill claims as high-confidence strengths. Use needs_user_confirmation or downgraded_feedback when evidence is thin.

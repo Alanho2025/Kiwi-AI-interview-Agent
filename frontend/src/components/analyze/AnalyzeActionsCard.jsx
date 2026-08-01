@@ -10,7 +10,7 @@
  */
 
 import { Button } from '../common/Button.jsx';
-import { AlertTriangle, CheckCircle2, Circle } from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
 
 /**
  * Purpose: Execute the main responsibility for AnalyzeActionsCard.
@@ -97,78 +97,21 @@ export function AnalyzeActionsCard({
     return 'Setup is ready. Generate the match to create your interview plan.';
   })();
 
-  const workflowSteps = [
-    {
-      label: 'CV added',
-      detail: selectedCV ? selectedCV.name : 'Upload or choose a CV.',
-      complete: Boolean(selectedCV),
-      blocked: false,
-    },
-    {
-      label: 'CV reviewed',
-      detail: isCvHumanVerified ? 'The reviewed CV fields are ready.' : 'Check the parsed CV fields before matching.',
-      complete: isCvHumanVerified,
-      blocked: Boolean(selectedCV && !isCvHumanVerified),
-    },
-    {
-      label: 'Job description added',
-      detail: hasRawJD ? 'The target job description is ready.' : 'Paste the target job description.',
-      complete: hasRawJD,
-      blocked: false,
-    },
-    {
-      label: 'Job description reviewed',
-      detail: canUseJDSummary ? 'The parsed job fields are ready.' : hasRawJD ? 'Parse and review the job fields.' : 'Add a job description first.',
-      complete: Boolean(canUseJDSummary),
-      blocked: Boolean(hasRawJD && (!hasCurrentJDSummary || requiresJdHumanReview)),
-    },
-    {
-      label: isVoiceSession ? 'Voice check' : 'Session setup',
-      detail: isVoiceSession
-        ? isVoiceReady ? 'Microphone and speaker are ready.' : 'Check your microphone and speaker.'
-        : 'Text interview setup is ready.',
-      complete: setupReady,
-      blocked: Boolean(isVoiceSession && !isVoiceReady),
-    },
-    {
-      label: 'Match analysis',
-      detail: generatedSessionId
-        ? 'Your interview plan is ready.'
-        : analysisStatus === 'success'
-          ? isPreparingPlan
-            ? 'Match complete. Interview preparation is running.'
-            : planFailed
-              ? 'Match complete. Interview preparation needs another try.'
-              : 'Match analysis is saved.'
-          : 'Generate the match after all inputs are reviewed.',
-      complete: analysisStatus === 'success',
-      blocked: false,
-    },
-  ];
-
-  const StepIcon = ({ complete, blocked }) => {
-    if (complete) return <CheckCircle2 className="h-4 w-4 text-emerald-600" />;
-    if (blocked) return <AlertTriangle className="h-4 w-4 text-amber-600" />;
-    return <Circle className="h-4 w-4 text-gray-300" />;
-  };
+  const isMatchReady = analysisStatus === 'success' && Boolean(generatedSessionId);
 
   return (
     <div
-      className="sticky bottom-0 z-20 -mx-4 flex flex-col gap-4 border-t border-theme glass/95 p-4 shadow-[0_-8px_20px_rgba(15,23,42,0.08)] backdrop-blur print:static print:mx-0 print:border print:shadow-none print:backdrop-blur-0 sm:static sm:mx-0 sm:rounded-2xl sm:border sm:p-6 sm:shadow-sm"
+      className="sticky bottom-0 z-20 -mx-4 flex flex-col gap-3 border-t border-theme glass/95 p-4 shadow-[0_-8px_20px_rgba(15,23,42,0.08)] backdrop-blur print:static print:mx-0 print:border print:shadow-none print:backdrop-blur-0 sm:static sm:mx-0 sm:rounded-2xl sm:border sm:p-4 sm:shadow-sm"
       data-qa="qa:card:analysis-actions"
     >
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-faint">Setup checklist</p>
-        <div className="mt-3 space-y-2">
-          {workflowSteps.map((step) => (
-            <div key={step.label} className="flex gap-3 rounded-xl border border-gray-100 bg-transparent px-3 py-3">
-              <StepIcon complete={step.complete} blocked={step.blocked} />
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-primary">{step.label}</p>
-                <p className="mt-1 truncate text-xs text-muted">{step.detail}</p>
-              </div>
-            </div>
-          ))}
+      <div className="rounded-xl border border-theme bg-white/45 px-3 py-3">
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-faint">Match control</p>
+        <div className="mt-2 flex items-start gap-2">
+          {isMatchReady ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" /> : null}
+          <div>
+            <p className="text-sm font-semibold text-primary">{isMatchReady ? 'Interview plan ready' : 'Next step'}</p>
+            <p className="mt-1 text-xs leading-5 text-muted">{helperText}</p>
+          </div>
         </div>
       </div>
       {analysisStatus === 'success' && generatedSessionId ? (
@@ -203,9 +146,17 @@ export function AnalyzeActionsCard({
           {buttonLabel}
         </Button>
       )}
-      <p className="text-center text-xs leading-5 text-muted">
-        {helperText}
-      </p>
+      {isMatchReady ? (
+        <Button
+          variant="secondary"
+          size="sm"
+          className="w-full"
+          onClick={onGeneratePlan}
+          disabled={isGenerating}
+        >
+          Regenerate match
+        </Button>
+      ) : null}
     </div>
   );
 }

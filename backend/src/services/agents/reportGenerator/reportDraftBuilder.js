@@ -20,27 +20,16 @@ import { buildCandidateEvidenceReferences } from '../../report/reportEvidenceRef
 export { computeInterviewPerformanceScore } from '../../report/reportScoreService.js';
 
 
-export const buildSummary = ({ analysisResult, evidenceSummary, interviewMetrics, reflectionRecords = [] }) => {
+export const buildSummary = ({ evidenceSummary, interviewMetrics, reflectionRecords = [] }) => {
   const direct = evidenceSummary.totals.direct_past_experience || 0;
   const adjacent = evidenceSummary.totals.indirect_adjacent_experience || 0;
   const hypothetical = evidenceSummary.totals.hypothetical_understanding || 0;
-  const strengths = joinLabels(analysisResult.explanation?.strengths || [], 4);
   const reflections = ensureArray(reflectionRecords).length;
 
-  const decision = resolveCandidateFacingDecision({ analysisResult, evidenceSummary, interviewMetrics });
-  return `Decision: ${decision}. Top matched areas: ${strengths || 'role fit, communication'}. Direct evidence turns: ${direct}. Adjacent evidence turns: ${adjacent}. Hypothetical turns: ${hypothetical}. Planned questions answered: ${Math.min(interviewMetrics.candidateTurnCount, interviewMetrics.plannedQuestionCount || interviewMetrics.candidateTurnCount)} of ${interviewMetrics.plannedQuestionCount || interviewMetrics.candidateTurnCount}. Reflection records: ${reflections}.`;
+  return `Interview evidence summary. Direct evidence turns: ${direct}. Adjacent evidence turns: ${adjacent}. Hypothetical turns: ${hypothetical}. Planned questions answered: ${Math.min(interviewMetrics.candidateTurnCount, interviewMetrics.plannedQuestionCount || interviewMetrics.candidateTurnCount)} of ${interviewMetrics.plannedQuestionCount || interviewMetrics.candidateTurnCount}. Reflection records: ${reflections}.`;
 };
 
-const resolveCandidateFacingDecision = ({ analysisResult = {}, evidenceSummary = {}, interviewMetrics = {} } = {}) => {
-  const rawDecision = analysisResult.decision?.label || 'manual_review';
-  if (rawDecision === 'manual_review') return 'manual_review';
-  const incomplete = !interviewMetrics.interviewCompletedByLimit && Number(interviewMetrics.plannedQuestionCount || 0) > 0;
-  const weakEvidence = Number(evidenceSummary.averageStrength || 0) < 2;
-  if (incomplete || weakEvidence) return 'insufficient_evidence';
-  return rawDecision === 'not_qualified' ? 'needs_stronger_evidence' : rawDecision;
-};
-
-export const buildGapText = ({ analysisResult, evidenceSummary, interviewMetrics, candidateFeedback = {} }) => {
+export const buildGapText = ({ evidenceSummary, interviewMetrics, candidateFeedback = {} }) => {
   const gaps = [];
   const hasPastExampleQuestion = ensureArray(candidateFeedback.turnBreakdowns).some((turn) => (
     turn.frameworkKey === 'behavioural_starr'
@@ -52,7 +41,6 @@ export const buildGapText = ({ analysisResult, evidenceSummary, interviewMetrics
   }
   if ((evidenceSummary.totals.indirect_adjacent_experience || 0) > 0) gaps.push('Several answers were adjacent to the asked technology rather than direct role-specific evidence.');
   if (!interviewMetrics.interviewCompletedByLimit) gaps.push('The interview did not cleanly finish the planned question set.');
-  if (!gaps.length && (analysisResult.explanation?.gaps || []).length) return joinLabels(analysisResult.explanation.gaps, 4);
   return gaps.join(' ');
 };
 
@@ -142,7 +130,6 @@ export const buildReportDraft = ({
   roleFit = {},
 }) => {
   const strongEvidenceText = buildStrongEvidenceText(evidenceSummary);
-  const candidateFacingDecision = resolveCandidateFacingDecision({ analysisResult, evidenceSummary, interviewMetrics });
   const hasHighStrengthInterviewEvidence = ensureArray(evidenceSummary.strongestExamples).length > 0;
   const averageInteractionScore = ensureArray(evaluatorRecords).length
     ? Number((ensureArray(evaluatorRecords).reduce((sum, item) => sum + Number(item.overallInteractionScore || 0), 0) / ensureArray(evaluatorRecords).length).toFixed(2))
@@ -163,9 +150,7 @@ export const buildReportDraft = ({
   const baseScores = Object.keys(scores).length > 0
     ? scores
     : buildReportScores({
-        cvJdScore: analysisResult.overallScore || 0,
         interviewScore: computeInterviewPerformanceScore(evidenceSummary, candidateFeedback),
-        analysisResult,
         evidenceSummary,
       });
   const computedScores = {
@@ -196,9 +181,9 @@ export const buildReportDraft = ({
     summary: buildSummary({ analysisResult, evidenceSummary, interviewMetrics, reflectionRecords }),
     sections: [
       {
-        id: 'match_overview',
-        title: 'Match overview',
-        content: `Overall score ${computedScores.overall || 0}, CV-JD match ${computedScores.cvJdMatch || 0}, confidence ${analysisResult.confidence || 0}. Candidate-facing decision: ${candidateFacingDecision}. Average evidence strength: ${evidenceSummary.averageStrength} out of 4.`,
+        id: 'interview_performance_overview',
+        title: 'Interview performance overview',
+        content: `Interview performance score ${computedScores.overall || 0}. Average evidence strength: ${evidenceSummary.averageStrength} out of 4.`,
       },
       {
         id: 'strengths',

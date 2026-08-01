@@ -4,22 +4,11 @@ export const buildScoreExplanations = ({ scores = {}, candidateFeedback = {} } =
   return {
     overall: {
       score: scores.overall || 0,
-      formula: '50% CV-JD match + 50% interview performance',
+      formula: 'Interview performance score',
       inputs: {
-        cvJdMatch: scores.cvJdMatch || 0,
         interviewPerformance: scores.interviewPerformance || 0,
       },
-      explanation: 'The overall score blends CV-JD requirement match with actual interview performance to measure true role readiness.',
-    },
-    cvJdMatch: {
-      score: scores.cvJdMatch || 0,
-      formula: 'Match score from macro fit, micro evidence, requirement coverage, and risk signals.',
-      components: {
-        macro: scores.macro || 0,
-        micro: scores.micro || 0,
-        requirements: scores.requirements || 0,
-      },
-      explanation: 'This score evaluates how well the uploaded CV aligns with the specific JD requirements based on parsed evidence.',
+      explanation: 'The overall score reflects the evidence and framework quality of your interview answers.',
     },
     interviewPerformance: {
       score: scores.interviewPerformance || 0,
@@ -54,7 +43,7 @@ export const buildScoreExplanations = ({ scores = {}, candidateFeedback = {} } =
 
 export const getScoreLimitations = () => {
   return [
-    'Scores are based on available CV, JD, transcript, and session evidence.',
+    'Scores are based on the available interview transcript and session evidence.',
     'Scores should be treated as coaching signals, not final hiring decisions.',
     'Low transcript confidence or incomplete answers may reduce scoring confidence.',
   ];

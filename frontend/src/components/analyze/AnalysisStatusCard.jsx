@@ -1,338 +1,111 @@
-/**
- * File responsibility: Reusable UI component.
- * Main responsibilities:
- * - Keep presentation, state orchestration, and display helpers separated so React components stay reusable.
- * - Main file role: AnalysisStatusCard should render the UI block and receive data through props so the component stays reusable.
- * - Prefer extending behaviour by adding small helpers or sibling modules instead of growing one large file.
- * Maintenance notes:
- * - Keep this file focused on one layer of responsibility.
- * - Prefer composition and small helpers over repeated inline logic.
- */
+import { AlertTriangle, CheckCircle2, Target } from 'lucide-react';
 
-import { Card, CardHeader, CardTitle, CardContent } from '../common/Card.jsx';
-import { CheckCircle2, AlertTriangle, ShieldCheck, Target, TrendingUp } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '../common/Card.jsx';
+import { LoadingInsightPanel } from '../common/LoadingInsightPanel.jsx';
 import { cn } from '../../utils/formatters.js';
 import { buildMatchResultViewModel } from '../../utils/matchResultViewModel.js';
-import { LoadingInsightPanel } from '../common/LoadingInsightPanel.jsx';
-import { ProofStrategyReviewPanel } from './ProofStrategyReviewPanel.jsx';
 import { MatchProgressPanel } from './MatchProgressPanel.jsx';
 
 const toneStyles = {
-  success: {
-    badge: 'bg-emerald-100 text-emerald-800',
-    panel: 'border-emerald-100 bg-emerald-50',
-    icon: 'bg-emerald-100 text-emerald-700',
-  },
-  info: {
-    badge: 'bg-sky-100 text-sky-800',
-    panel: 'border-sky-100 bg-sky-50',
-    icon: 'bg-sky-100 text-sky-700',
-  },
-  warning: {
-    badge: 'bg-amber-100 text-amber-800',
-    panel: 'border-amber-100 bg-amber-50',
-    icon: 'bg-amber-100 text-amber-700',
-  },
-  danger: {
-    badge: 'bg-red-100 text-red-800',
-    panel: 'border-red-100 bg-red-50',
-    icon: 'bg-red-100 text-red-700',
-  },
+  success: 'border-emerald-100 bg-emerald-50',
+  info: 'border-sky-100 bg-sky-50',
+  warning: 'border-amber-100 bg-amber-50',
+  danger: 'border-red-100 bg-red-50',
 };
 
-const getTone = (tone = 'info') => toneStyles[tone] || toneStyles.info;
-
-const ScoreExplanationCard = ({ item }) => (
-  <div className="rounded-xl border border-gray-100 glass p-4">
-    <div className="flex items-start justify-between gap-3">
-      <div>
-        <p className="text-sm font-semibold text-primary">{item.title}</p>
-        <p className="mt-1 text-xs text-faint">{item.description}</p>
+const FitSummary = ({ decision }) => (
+  <section className={cn('rounded-2xl border p-5', toneStyles[decision.tone] || toneStyles.warning)}>
+    <div className="flex items-start gap-3">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/70">
+        <Target className="h-5 w-5 text-primary" />
       </div>
-      <span className="shrink-0 rounded-full bg-chip px-2.5 py-1 text-xs font-semibold text-muted">{item.label}</span>
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-faint">Overall fit</p>
+        <h3 className="mt-1 text-xl font-semibold text-primary">{decision.label}</h3>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">{decision.summary}</p>
+      </div>
     </div>
-    <p className="mt-4 text-2xl font-semibold text-primary">{item.score}/100</p>
-    <p className="mt-2 text-xs leading-5 text-muted">{item.explanation}</p>
-  </div>
+  </section>
 );
 
-const EvidenceBlock = ({ title, items, emptyText, tone = 'info' }) => {
-  const styles = getTone(tone);
-
-  return (
-    <div className="rounded-xl border border-gray-100 glass p-4">
-      <p className="text-sm font-semibold text-primary">{title}</p>
-      {items.length ? (
-        <div className="mt-3 space-y-3">
-          {items.map((item) => (
-            <div key={item.id || item.label} className="rounded-lg bg-transparent p-3">
-              <p className="text-sm font-semibold text-primary">{item.label}</p>
-              <p className="mt-1 text-xs leading-5 text-muted">{item.detail}</p>
-              {item.evidence ? (
-                <p className={cn('mt-2 rounded-md px-2.5 py-2 text-xs leading-5', styles.badge)}>
-                  Evidence: {item.evidence}
-                </p>
-              ) : null}
-            </div>
-          ))}
-        </div>
-      ) : (
-        <p className="mt-3 text-sm text-faint">{emptyText}</p>
-      )}
-    </div>
-  );
-};
-
-const RequirementStatusPill = ({ tone, children }) => {
-  const styles = getTone(tone);
-  return <span className={cn('rounded-full px-2.5 py-1 text-xs font-semibold', styles.badge)}>{children}</span>;
-};
-
-const RequirementChecks = ({ items }) => {
-  if (!items.length) {
-    return (
-      <div className="rounded-xl border border-gray-100 glass p-4">
-        <p className="text-sm font-semibold text-primary">Priority requirement checks</p>
-        <p className="mt-3 text-sm text-faint">No requirement checks were produced.</p>
-      </div>
-    );
-  }
-
-  const visibleItems = items.slice(0, 5);
-  const hiddenItems = items.slice(5);
-
-  const renderRequirement = (item) => (
-    <div key={item.id || item.label} className="rounded-lg bg-transparent p-3">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <p className="text-sm font-semibold text-primary">{item.label}</p>
-          {item.originalLabel && item.originalLabel !== item.label ? (
-            <p className="mt-1 text-xs leading-5 text-faint">Original JD: {item.originalLabel}</p>
-          ) : null}
-          <p className="mt-1 text-xs text-faint">{item.meta}</p>
-        </div>
-        <RequirementStatusPill tone={item.tone}>{item.status}</RequirementStatusPill>
-      </div>
-      <p className="mt-2 text-xs leading-5 text-muted">{item.reason}</p>
-      {item.evidenceStrength ? <p className="mt-2 text-xs font-semibold text-muted">Evidence strength: {item.evidenceStrength}</p> : null}
-      {item.evidence ? <p className="mt-2 text-xs leading-5 text-faint">Evidence: {item.evidence}</p> : null}
-      {item.missingEvidence ? <p className="mt-2 text-xs leading-5 text-faint">Missing evidence: {item.missingEvidence}</p> : null}
-      {item.interviewProbe ? <p className="mt-2 text-xs leading-5 text-faint">Interview probe: {item.interviewProbe}</p> : null}
-    </div>
-  );
-
-  return (
-    <div className="rounded-xl border border-gray-100 glass p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-sm font-semibold text-primary">Priority requirement checks</p>
-          <p className="mt-1 text-xs text-faint">Highest-risk missing or partial requirements are shown first.</p>
-        </div>
-        <ShieldCheck className="h-5 w-5 shrink-0 text-gray-400" />
-      </div>
-      <div className="mt-3 space-y-2">{visibleItems.map(renderRequirement)}</div>
-      {hiddenItems.length ? (
-        <details className="mt-3 rounded-lg border border-gray-100 glass">
-          <summary className="cursor-pointer px-3 py-2 text-xs font-semibold text-muted">Show {hiddenItems.length} more checks</summary>
-          <div className="space-y-2 border-t border-gray-100 p-3">{hiddenItems.map(renderRequirement)}</div>
-        </details>
-      ) : null}
-    </div>
-  );
-};
-
-const EvidenceStrengthSummary = ({ breakdown = {}, semanticEvidenceMatches = [] }) => {
-  const hasBreakdown = Object.values(breakdown || {}).some((value) => Number(value) > 0);
-  const visibleMatches = semanticEvidenceMatches
-    .map((item) => ({
-      label: item.label,
-      match: (item.matches || [])[0],
-    }))
-    .filter((item) => item.label && item.match);
-
-  if (!hasBreakdown && !visibleMatches.length) {
-    return null;
+const CvExample = ({ example }) => {
+  if (!example) {
+    return <p className="mt-1 text-sm leading-6 text-muted">No direct work or project example found.</p>;
   }
 
   return (
-    <div className="rounded-xl border border-gray-100 glass p-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <p className="text-sm font-semibold text-primary">Evidence strength diagnostics</p>
-          <p className="mt-1 text-xs text-faint">Closest CV evidence for the main JD requirements.</p>
-        </div>
-      </div>
-
-      {hasBreakdown ? (
-        <div className="mt-3 flex flex-wrap gap-2">
-          <span className="rounded-lg bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-800">Strong {breakdown.strong || 0}</span>
-          <span className="rounded-lg bg-sky-100 px-3 py-1.5 text-xs font-semibold text-sky-800">Partial {breakdown.partial || 0}</span>
-          <span className="rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-800">Weak {breakdown.weak || 0}</span>
-          <span className="rounded-lg bg-red-100 px-3 py-1.5 text-xs font-semibold text-red-800">Missing {breakdown.missing || 0}</span>
-        </div>
-      ) : null}
-
-      {visibleMatches.length ? (
-        <div className="mt-4 space-y-2">
-          {visibleMatches.slice(0, 3).map((item) => {
-            const similarity = Math.round(Number(item.match.score || 0) * 100);
-            const strength = item.match.evidenceStrength || 'weak';
-            return (
-              <div key={item.label} className="rounded-lg bg-transparent p-3">
-                <p className="text-sm font-semibold text-primary">{item.label}</p>
-                <p className="mt-1 text-xs leading-5 text-muted">Match signal: {similarity}%</p>
-                <p className="mt-1 text-xs leading-5 text-muted">Evidence strength: {strength}</p>
-                {strength === 'weak' && similarity >= 75 ? (
-                  <p className="mt-1 text-xs leading-5 text-faint">
-                    The wording is related, but the CV evidence still needs direct applied proof.
-                  </p>
-                ) : null}
-                <p className="mt-2 text-xs leading-5 text-faint">{item.match.text}</p>
-              </div>
-            );
-          })}
-        </div>
-      ) : null}
+    <div className="mt-1 text-sm leading-6 text-muted">
+      <span className="mr-2 rounded-full bg-chip px-2 py-0.5 text-xs font-semibold text-primary">{example.source}</span>
+      {example.title ? <span className="font-medium text-primary">{example.title}: </span> : null}
+      {example.text}
     </div>
   );
 };
 
-const roleEvidenceCopy = {
-  direct: { title: 'Direct evidence', tone: 'success', empty: 'No focus area has direct CV proof yet.' },
-  adjacent: { title: 'Adjacent evidence', tone: 'info', empty: 'No transferable evidence was identified.' },
-  weak: { title: 'Weak evidence', tone: 'warning', empty: 'No weak evidence signals were identified.' },
-  gap: { title: 'Evidence gaps', tone: 'danger', empty: 'No unsupported focus areas were identified.' },
-};
+const PreparationTopicCard = ({ topic, index }) => (
+  <article className="rounded-xl border border-gray-100 glass p-4">
+    <div className="flex items-start gap-3">
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-chip text-xs font-semibold text-primary">{index + 1}</span>
+      <div className="min-w-0">
+        <h3 className="text-base font-semibold leading-6 text-primary">{topic.topic}</h3>
+        <span className={cn(
+          'mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold',
+          topic.needsEvidence ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800',
+        )}>
+          {topic.needsEvidence ? 'Evidence to prepare' : 'Use this CV example'}
+        </span>
 
-const RoleEvidenceMap = ({ groups = {}, coverage = {} }) => {
-  const totalItems = Object.values(groups).reduce((total, items) => total + items.length, 0);
-  if (!totalItems) return null;
-
-  return (
-    <div className="rounded-xl border border-gray-100 glass p-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <p className="text-sm font-semibold text-primary">Role evidence map</p>
-          <p className="mt-1 text-xs text-faint">Each focus area is tied to traceable CV evidence or shown as a gap.</p>
-        </div>
-        <div className="flex flex-wrap gap-2 text-xs font-semibold">
-          <span className="rounded-lg bg-emerald-100 px-2.5 py-1 text-emerald-800">Strong {coverage.strong || 0}</span>
-          <span className="rounded-lg bg-sky-100 px-2.5 py-1 text-sky-800">Partial {coverage.partial || 0}</span>
-          <span className="rounded-lg bg-red-100 px-2.5 py-1 text-red-800">Missing {coverage.missing || 0}</span>
-        </div>
-      </div>
-
-      <div className="mt-4 grid gap-3 lg:grid-cols-2">
-        {Object.entries(roleEvidenceCopy).map(([classification, copy]) => {
-          const items = groups[classification] || [];
-          const styles = getTone(copy.tone);
-          return (
-            <div key={classification} className="rounded-lg border border-gray-100 p-3">
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-sm font-semibold text-primary">{copy.title}</p>
-                <span className={cn('rounded-lg px-2 py-1 text-xs font-semibold', styles.badge)}>{items.length}</span>
-              </div>
-              {items.length ? (
-                <div className="mt-3 space-y-3">
-                  {items.slice(0, 4).map((item) => (
-                    <div key={item.id} className="rounded-md bg-transparent p-2">
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="text-xs font-semibold text-primary">{item.label}</p>
-                        <span className="shrink-0 text-xs font-semibold text-muted">{item.score}/100</span>
-                      </div>
-                      {item.evidence ? <p className="mt-1 text-xs leading-5 text-muted">Evidence: {item.evidence}</p> : null}
-                      {item.sourceSection ? <p className="mt-1 text-xs text-faint">CV section: {item.sourceSection}</p> : null}
-                      {item.limitation ? <p className="mt-1 text-xs leading-5 text-faint">Limit: {item.limitation}</p> : null}
-                    </div>
-                  ))}
-                </div>
-              ) : <p className="mt-3 text-xs text-faint">{copy.empty}</p>}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-};
-
-const MatchSummary = ({ viewModel }) => {
-  const styles = getTone(viewModel.decision.tone);
-  const Icon = viewModel.decision.tone === 'success' ? TrendingUp : viewModel.decision.tone === 'danger' ? AlertTriangle : Target;
-
-  return (
-    <div className={cn('rounded-2xl border p-5', styles.panel)}>
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div className="flex items-start gap-4">
-          <div className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-full', styles.icon)}>
-            <Icon className="h-5 w-5" />
+        <div className="mt-4 space-y-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-faint">CV example</p>
+            <CvExample example={topic.example} />
           </div>
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-faint">CV-JD Match</p>
-            <h3 className="mt-1 text-xl font-semibold text-primary">{viewModel.decision.label}</h3>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">{viewModel.summary}</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-faint">Evidence gap</p>
+            <p className="mt-1 text-sm leading-6 text-muted">{topic.evidenceLimit}</p>
           </div>
-        </div>
-        <div className="grid grid-cols-2 gap-3 lg:min-w-56">
-          <div className="rounded-xl glass/80 p-4 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wide text-faint">Match score</p>
-            <p className="mt-2 text-3xl font-semibold text-primary">{viewModel.overallScore}</p>
-          </div>
-          <div className="rounded-xl glass/80 p-4 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wide text-faint">Evidence confidence</p>
-            <p className="mt-2 text-3xl font-semibold text-primary">{viewModel.confidencePercent}%</p>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-faint">Likely follow-up</p>
+            <p className="mt-1 text-sm leading-6 text-muted">{topic.followUp}</p>
           </div>
         </div>
       </div>
-      <p className="mt-4 rounded-lg glass/70 px-3 py-2 text-xs leading-5 text-muted">{viewModel.decision.summary}</p>
     </div>
-  );
-};
+  </article>
+);
 
-/**
- * Purpose: Execute the main responsibility for AnalysisStatusCard.
- * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
- * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
- * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
- */
 export function AnalysisStatusCard({
   status,
-  matchRate,
   analysisResult,
-  questionPoolInfo,
   progressStages = {},
   currentStage = null,
   planStatus = 'idle',
 }) {
-  const matchViewModel = buildMatchResultViewModel(analysisResult, matchRate);
+  const matchViewModel = buildMatchResultViewModel(analysisResult);
 
   return (
     <Card data-qa="qa:card:match-analysis">
       <CardHeader>
         <div>
           <CardTitle>Match Analysis</CardTitle>
-          <p className="mt-1 text-sm text-faint">Review the CV-JD fit before KiwiCoach builds the interview session.</p>
+          <p className="mt-1 text-sm text-faint">Use this preparation brief to decide what examples to practise before the interview.</p>
         </div>
       </CardHeader>
       <CardContent>
         {status === 'idle' && <div className="py-6 text-center text-sm text-faint">Upload a CV, paste the JD, and review the JD summary before matching.</div>}
 
-        {status === 'summarizing' && (
+        {status === 'summarizing' ? (
           <LoadingInsightPanel
             stage="jd"
             skeletonLayout="match"
             title="KiwiCoach is structuring the JD..."
             message="Extracting role responsibilities, must-have requirements, and skill signals."
           />
-        )}
+        ) : null}
 
-        {status === 'matching' && (
-          <MatchProgressPanel
-            progressStages={progressStages}
-            currentStage={currentStage}
-          />
-        )}
+        {status === 'matching' ? <MatchProgressPanel progressStages={progressStages} currentStage={currentStage} /> : null}
 
-        {status === 'error' && (
+        {status === 'error' ? (
           <div className="rounded-xl border border-red-100 bg-red-50 p-4">
             <div className="flex items-start gap-3">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-700">
@@ -344,9 +117,9 @@ export function AnalysisStatusCard({
               </div>
             </div>
           </div>
-        )}
+        ) : null}
 
-        {status === 'success' && (
+        {status === 'success' ? (
           <div className="space-y-4">
             <div className="flex items-center gap-4">
               <div className="flex h-10 w-10 items-center justify-center rounded-full [background:var(--accent-glow)]">
@@ -354,77 +127,55 @@ export function AnalysisStatusCard({
               </div>
               <div>
                 <p className="text-sm font-medium text-primary">Match analysis complete</p>
-                <p className="text-xs text-faint">Use this as the quick read before starting the interview.</p>
+                <p className="text-xs text-faint">This is an interview preparation brief, not a hiring decision.</p>
               </div>
             </div>
 
-            <MatchSummary viewModel={matchViewModel} />
+            <FitSummary decision={matchViewModel.decision} />
 
-            <ProofStrategyReviewPanel questionPoolInfo={questionPoolInfo} />
+            <section aria-labelledby="preparation-topics-title">
+              <div className="mb-3">
+                <h2 id="preparation-topics-title" className="text-base font-semibold text-primary">Interview topics to prepare</h2>
+                <p className="mt-1 text-sm text-faint">Use each CV example, then prepare for the stated evidence gap and follow-up.</p>
+              </div>
+              {matchViewModel.topics.length ? (
+                <>
+                  <div className="space-y-3">
+                    {matchViewModel.topics.map((topic, index) => <PreparationTopicCard key={topic.id} topic={topic} index={index} />)}
+                  </div>
+                  {matchViewModel.topicShortfall ? (
+                    <p className="mt-3 rounded-xl border border-amber-100 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+                      This Match produced fewer than three grounded topics. Review the CV and JD before adding more topics.
+                    </p>
+                  ) : null}
+                </>
+              ) : (
+                <p className="rounded-xl border border-amber-100 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+                  No grounded interview topics were produced. Review the CV and JD, then regenerate the Match.
+                </p>
+              )}
+            </section>
 
             {planStatus === 'preparing' ? (
-              <section
-                className="rounded-2xl border border-sky-100 bg-sky-50/70 p-5"
-                aria-live="polite"
-                data-qa="qa:panel:interview-preparation-progress"
-              >
+              <section className="rounded-2xl border border-sky-100 bg-sky-50/70 p-5" aria-live="polite" data-qa="qa:panel:interview-preparation-progress">
                 <div className="flex items-start gap-3">
                   <div className="mt-0.5 h-4 w-4 animate-spin rounded-full border-2 border-sky-200 border-t-sky-600" />
                   <div>
                     <p className="text-sm font-semibold text-primary">Preparing your interview focus</p>
-                    <p className="mt-1 text-sm leading-6 text-muted">
-                      Your saved Match remains available while KiwiCoach prepares the practice session.
-                    </p>
+                    <p className="mt-1 text-sm leading-6 text-muted">Your saved Match remains available while KiwiCoach prepares the practice session.</p>
                   </div>
                 </div>
               </section>
             ) : null}
 
             {planStatus === 'failed' ? (
-              <section
-                className="rounded-2xl border border-amber-100 bg-amber-50/70 p-5"
-                data-qa="qa:panel:interview-preparation-failed"
-              >
+              <section className="rounded-2xl border border-amber-100 bg-amber-50/70 p-5" data-qa="qa:panel:interview-preparation-failed">
                 <p className="text-sm font-semibold text-amber-900">Interview preparation needs another try</p>
-                <p className="mt-1 text-sm leading-6 text-amber-800">
-                  Your Match is saved. Retry preparation without rerunning the Match.
-                </p>
+                <p className="mt-1 text-sm leading-6 text-amber-800">Your Match is saved. Retry preparation without rerunning the Match.</p>
               </section>
             ) : null}
-
-            <div className="grid gap-3 lg:grid-cols-3">
-              {matchViewModel.scoreCards.map((item) => <ScoreExplanationCard key={item.key} item={item} />)}
-            </div>
-
-            <div className="grid gap-3 lg:grid-cols-2">
-              <EvidenceBlock
-                title="What matched well"
-                items={matchViewModel.matchedEvidence}
-                emptyText="No strong CV evidence was identified yet."
-                tone="success"
-              />
-              <EvidenceBlock
-                title="What to validate or improve"
-                items={matchViewModel.improvementEvidence}
-                emptyText="No major risk or gap was highlighted by the current rubric."
-                tone="warning"
-              />
-            </div>
-
-            <EvidenceStrengthSummary
-              breakdown={matchViewModel.evidenceStrengthBreakdown}
-              semanticEvidenceMatches={matchViewModel.semanticEvidenceMatches}
-              semanticEvidenceModel={matchViewModel.semanticEvidenceModel}
-            />
-
-            <RoleEvidenceMap
-              groups={matchViewModel.roleEvidenceGroups}
-              coverage={matchViewModel.roleIntentCoverage}
-            />
-
-            <RequirementChecks items={matchViewModel.requirementChecks} />
           </div>
-        )}
+        ) : null}
       </CardContent>
     </Card>
   );

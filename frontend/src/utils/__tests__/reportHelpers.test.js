@@ -12,7 +12,8 @@ describe('report export text formatting', () => {
         jobTitle: 'Frontend Developer',
         summary: 'Evidence is useful but incomplete.',
         scores: {
-          overall: 'not-scored',
+          overall: 72,
+          cvJdMatch: 91,
           macro: 72,
           evidenceStrength: null,
         },
@@ -30,7 +31,9 @@ describe('report export text formatting', () => {
 
     expect(text).toContain('Candidate: Aroha Candidate');
     expect(text).toContain('Target Role: Frontend Developer');
-    expect(text).toContain('Overall Score: Not available');
+    expect(text).toContain('Interview Performance: 72.00/100');
+    expect(text).not.toContain('Overall Score:');
+    expect(text).not.toContain('CV-JD Match:');
     expect(text).toContain('Add measurable outcomes');
     expect(text).toContain('Report Status: needs_review');
     expect(text).not.toContain('Coverage Score: 61/100');
@@ -71,6 +74,24 @@ describe('report export text formatting', () => {
     expect(text).toContain('One transcript segment had low confidence.');
     expect(text).not.toContain('HOW YOUR ANSWERS MATCHED THIS ROLE');
     expect(text).not.toContain('Reliable production delivery');
+    expect(text).not.toContain('SCORES');
+    expect(text).not.toContain('CV-JD Match:');
     expect(text).not.toMatch(/proofPointId|coverageId|evidenceId/);
+  });
+
+  it('does not turn legacy score fields or a blank overall value into interview performance', () => {
+    const text = formatReportAsText({
+      report: {
+        scores: { overall: ' ', cvJdMatch: 88, macro: 70, micro: 73, requirements: 80 },
+        scoreExplanations: {
+          overall: { explanation: 'Historic blended score explanation.' },
+        },
+      },
+    });
+
+    expect(text).not.toContain('SCORES');
+    expect(text).not.toContain('SCORE EXPLANATIONS');
+    expect(text).not.toContain('Historic blended score explanation.');
+    expect(text).not.toContain('CV-JD Match:');
   });
 });

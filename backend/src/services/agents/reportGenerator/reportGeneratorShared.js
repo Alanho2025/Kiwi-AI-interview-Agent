@@ -64,10 +64,10 @@ export const isQuestionTurn = (turn = {}) => {
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
 export const getScoreBand = (overallScore = 0) => {
-  if (overallScore >= 80) return 'Strong match';
-  if (overallScore >= 65) return 'Promising match';
-  if (overallScore >= 45) return 'Developing match';
-  return 'Needs stronger evidence';
+  if (overallScore >= 80) return 'Strong performance';
+  if (overallScore >= 65) return 'Promising performance';
+  if (overallScore >= 45) return 'Developing performance';
+  return 'Needs stronger interview evidence';
 };
 
 /**

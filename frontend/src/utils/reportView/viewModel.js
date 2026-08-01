@@ -62,7 +62,7 @@ export const buildReportViewModel = (reportData) => {
     companyMotivationFit,
     commercialStressTest,
     takeaway: candidateFeedback.overallTakeaway || buildTakeaway({ report, qa, evidenceDiagnostics }),
-    scoreBand: candidateFeedback.scoreBand || getScoreBand(Number(report.scores?.overall || 0)),
+    scoreBand: getScoreBand(Number(report.scores?.overall || 0)),
     generationSource: candidateFeedback.generationSource || '',
     dataInsights: (candidateFeedback.plainEnglishMetrics || []).length
       ? candidateFeedback.plainEnglishMetrics

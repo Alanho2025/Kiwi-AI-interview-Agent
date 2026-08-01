@@ -1,19 +1,17 @@
 import { Card, CardContent, CardHeader, CardTitle } from '../common/Card.jsx';
 
 const SCORE_KEYS = [
-  ['overall', 'Overall score'],
-  ['cvJdMatch', 'CV–JD match'],
-  ['interviewPerformance', 'Interview performance'],
+  ['overall', 'Interview performance'],
 ];
 
-export function CandidateReportSummary({ scoreExplanations = {}, dataInsights = [] }) {
+export function CandidateReportSummary({ scoreExplanations = {}, dataInsights = [], hasInterviewPerformance = false }) {
   const explanations = SCORE_KEYS
     .map(([key, label]) => ({
       key,
       label,
       explanation: scoreExplanations?.[key]?.explanation || '',
     }))
-    .filter((item) => item.explanation);
+    .filter((item) => hasInterviewPerformance && item.explanation);
   const insights = Array.isArray(dataInsights) ? dataInsights.slice(0, 3) : [];
   if (!explanations.length && !insights.length) return null;
 
