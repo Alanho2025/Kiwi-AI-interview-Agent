@@ -1,8 +1,10 @@
 # Candidate Turn Assessment and Grounded Better-Answer Goal
 
-> **實作狀態 (Implementation Status)**：Planned / Owner-approved Goal and Spec; runtime implementation is not yet authorised by this document.
+> **實作狀態 (Implementation Status)**：Partial / local implementation exists；independent audit blocked duplicate/reordered rewrite matching。
 >
-> **校驗測試路徑 (Verified by Tests)**：None — documentation-only planning stage.
+> **校驗測試路徑 (Verified by Tests)**：Focused backend/frontend tests passed at the recorded 2026-07-30 checkpoint；release-complete status was not verified。
+
+> **Remediation authority**：本文件保留為歷史 planning baseline。後續 UI-visible semantic remediation 以 [Candidate Report UI Semantic Integrity Goal](report-ui-semantic-integrity-goal.md) 與 [Specification](report-ui-semantic-integrity-spec.md) 為準；不得沿用本文件舊的 runtime file budget 或「尚未實作」聲稱。
 
 日期：2026-07-30 Pacific/Auckland
 

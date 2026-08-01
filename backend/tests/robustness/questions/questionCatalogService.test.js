@@ -325,7 +325,10 @@ describe('question catalog seed and AI-delivery taxonomy', () => {
       catalogVersion: QUESTION_CATALOG_VERSION,
       reviewer: 'heminghan',
       reviewRecord: QUESTION_CATALOG_REVIEW,
-      policyReviewRecord: QUESTION_SELECTION_POLICY_REVIEW,
+      policyReviewRecord: {
+        ...QUESTION_SELECTION_POLICY_REVIEW,
+        policyVersion: QUESTION_CATALOG_VERSION,
+      },
     })).resolves.toEqual({
       matchedCount: reviewedCatalogQuestionIds.length,
       modifiedCount: reviewedCatalogQuestionIds.length,

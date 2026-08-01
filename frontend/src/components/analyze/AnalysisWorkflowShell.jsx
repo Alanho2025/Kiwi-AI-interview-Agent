@@ -29,7 +29,7 @@ export function AnalysisWorkflowShell({ steps = [], activeStepId, onStepChange }
               disabled={step.blocked}
               onClick={() => onStepChange?.(step.id)}
               className={cn(
-                'flex min-h-14 items-center gap-2.5 rounded-xl border px-3 py-2 text-left transition-colors',
+                'flex min-h-12 items-center gap-2.5 rounded-xl border px-3 py-2 text-left transition-colors',
                 toneStyles[tone],
                 active && 'ring-2 ring-accent/15',
                 !step.blocked && 'hover:border-theme'
@@ -40,7 +40,6 @@ export function AnalysisWorkflowShell({ steps = [], activeStepId, onStepChange }
               </span>
               <span className="min-w-0">
                 <span className="block text-sm font-semibold">{step.label}</span>
-                <span className="mt-0.5 block truncate text-xs opacity-80">{step.detail}</span>
               </span>
             </button>
           );

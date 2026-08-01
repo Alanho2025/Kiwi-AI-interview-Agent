@@ -72,43 +72,23 @@ const friendlyEvidenceLabel = (value = '') => {
   return titleCase(value);
 };
 
-const resolveCvJdScore = (report = {}) => {
-  const scores = report.scores || {};
-  const candidate = scores.cvJdMatch ?? scores.requirements ?? scores.macro ?? scores.overall;
-  const parsed = Number(candidate);
-  return Number.isFinite(parsed) ? parsed : 0;
+const hasInterviewPerformance = (value) => {
+  const normalized = typeof value === 'string' ? value.trim() : value;
+  return (typeof normalized === 'number' || typeof normalized === 'string')
+    && normalized !== ''
+    && Number.isFinite(Number(normalized));
 };
 
-const resolveInterviewScore = (report = {}) => {
-  const scores = report.scores || {};
-  const directScore = scores.interviewPerformance ?? scores.interview ?? scores.micro;
-  if (Number.isFinite(Number(directScore))) return Number(directScore);
-
-  const evidenceStrength = Number(scores.evidenceStrength);
-  if (Number.isFinite(evidenceStrength)) return evidenceStrength <= 4 ? (evidenceStrength / 4) * 100 : evidenceStrength;
-  return 0;
-};
-
-const scoreRows = (report = {}) => [
-  {
-    label: 'Overall',
-    value: Number(report.scores?.overall || 0),
-    detail: 'Blended CV fit and interview evidence',
-    color: COLOR.brand,
-  },
-  {
-    label: 'CV-JD match',
-    value: resolveCvJdScore(report),
-    detail: 'Role requirement alignment',
-    color: COLOR.blue,
-  },
-  {
-    label: 'Interview',
-    value: resolveInterviewScore(report),
+const scoreRows = (report = {}) => {
+  const overall = report.scores?.overall;
+  if (!hasInterviewPerformance(overall)) return [];
+  return [{
+    label: 'Interview performance',
+    value: Number(overall),
     detail: 'Answer quality signal',
-    color: COLOR.amber,
-  },
-];
+    color: COLOR.brand,
+  }];
+};
 
 class PdfLayout {
   constructor(pdf) {
@@ -341,14 +321,12 @@ const drawCover = (layout, reportData, vm) => {
   drawCallout(layout, 'Overall feedback', vm.takeaway || report.summary || 'No summary available.', COLOR.brand);
 
   const cards = scoreRows(report);
-  const cardGap = 6;
-  const cardWidth = (CONTENT_WIDTH - cardGap * 2) / 3;
-  layout.ensureSpace(44);
-  const cardY = layout.y;
-  cards.forEach((card, index) => {
-    drawScoreCard(layout, card, PAGE.margin + index * (cardWidth + cardGap), cardY, cardWidth);
-  });
-  layout.y = cardY + 44;
+  if (cards.length) {
+    layout.ensureSpace(44);
+    const cardY = layout.y;
+    drawScoreCard(layout, cards[0], PAGE.margin, cardY, CONTENT_WIDTH);
+    layout.y = cardY + 44;
+  }
 
   const firstPriority = vm.improvementPriorities?.[0] || {};
   if (firstPriority.title || firstPriority.action || firstPriority.actionStep) {
@@ -362,17 +340,18 @@ const drawCover = (layout, reportData, vm) => {
 };
 
 const drawInsights = (layout, vm) => {
-  const explanations = Object.entries(vm.scoreExplanations || {})
-    .filter(([, value]) => value?.explanation)
-    .slice(0, 3);
+  const explanations = hasInterviewPerformance(vm.report?.scores?.overall)
+    ? Object.entries(vm.scoreExplanations || {})
+      .filter(([key, value]) => key === 'overall' && value?.explanation)
+    : [];
   const insights = (vm.dataInsights || []).slice(0, 3);
   if (!explanations.length && !insights.length) return;
 
-  layout.sectionTitle('Score Summary', 'A concise explanation of the report scores and supporting evidence.');
-  explanations.forEach(([key, value]) => {
+  layout.sectionTitle('Interview Insights', 'A concise view of your interview answer quality and supporting evidence.');
+  explanations.forEach(([, value]) => {
     drawItemCard(
       layout,
-      titleCase(key),
+      'Interview performance',
       value.explanation,
       { color: COLOR.blue },
     );

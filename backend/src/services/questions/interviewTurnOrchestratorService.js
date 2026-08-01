@@ -4,6 +4,11 @@ import { getPreparedQuestionPool } from './questionPoolComposerService.js';
 import { rankPreparedQuestionPool, selectBestPreparedQuestion } from './questionPoolRankerService.js';
 import { resolveFollowUpAssessmentContract } from './questionAssessmentContractService.js';
 import { buildFollowUpVsNextRootComparison } from './questionCatalogSelectionService.js';
+import {
+  applySessionQuestionSetSelectionPolicy,
+  getQuestionTurnSlot,
+  getSessionQuestionSet,
+} from './sessionQuestionSetService.js';
 
 export const ROOT_SCENARIOS = new Set([
   'root_cv_evidence',
@@ -240,6 +245,8 @@ const buildFollowUpContext = ({ session = {}, selectedCandidate = null, answerSi
 export const buildBoundedPlanningFrame = ({ turnPlan = {}, mode = 'combined', fallbackDraftQuestion = '' } = {}) => ({
   scenario: turnPlan.scenario,
   turnKind: turnPlan.turnKind,
+  phase: turnPlan.turnSlot?.phase || null,
+  intendedPurpose: turnPlan.turnSlot?.intendedPurpose || null,
   parentQuestion: turnPlan.followUpContext?.parentQuestionId ? {
     parentQuestionId: turnPlan.followUpContext.parentQuestionId,
     parentTopic: turnPlan.followUpContext.parentTopic,
@@ -282,6 +289,7 @@ export const buildInterviewTurnPlan = async ({
   decisionContext = {},
   actionInput = {},
   poolItems = null,
+  loadQuestionSet = getSessionQuestionSet,
 } = {}) => {
   const orchestratorStartedAt = Date.now();
   const answerSignalStartedAt = Date.now();
@@ -293,23 +301,56 @@ export const buildInterviewTurnPlan = async ({
   const mode = normalizeMode(decisionContext?.interviewStructure?.focusAreaKey || session?.settings?.focusArea || actionInput.category || 'combined');
   const requestedTurnKind = resolveTurnKind({ actionType, session, answerSignals, decisionContext });
   let turnKind = requestedTurnKind === 'follow_up' && !latestTurn(session, 'ai') ? 'root_question' : requestedTurnKind;
-  const category = mode === 'technical' ? 'technical' : mode === 'behavioural' ? 'behavioural' : actionInput.category || null;
+  const turn = Number(decisionContext?.interviewStructure?.nextTurnIndex || session?.currentQuestionIndex || 1);
+  let questionSet = null;
+  if (session?.id && session?.userId) {
+    try {
+      questionSet = await loadQuestionSet({ sessionId: session.id, userId: session.userId });
+    } catch {
+      questionSet = null;
+    }
+  }
+  const turnSlot = getQuestionTurnSlot({ questionSet, turn });
+  const category = turnSlot && ['warm_up', 'closing'].includes(turnSlot.phase)
+    ? null
+    : (mode === 'technical' ? 'technical' : mode === 'behavioural' ? 'behavioural' : actionInput.category || null);
   let rootPool = poolItems;
   if (!rootPool) {
     try {
-      rootPool = await getPreparedQuestionPool({ sessionId: session.id, category });
+      rootPool = await getPreparedQuestionPool({
+        sessionId: session.id,
+        category,
+        questionRoles: questionSet ? ['root_question', 'fallback_root', 'wrap_up'] : null,
+      });
     } catch {
       rootPool = [];
     }
   }
+  const phaseTurnPolicy = applySessionQuestionSetSelectionPolicy({
+    questionSet,
+    turn,
+    requestedTurnKind: turnKind,
+    poolItems: rootPool,
+  });
+  turnKind = phaseTurnPolicy.turnKind;
+  const rootCandidateSelection = applySessionQuestionSetSelectionPolicy({
+    questionSet,
+    turn,
+    requestedTurnKind: 'root_question',
+    poolItems: rootPool,
+  });
   const rankStartedAt = Date.now();
   const rankedRootCandidates = rankPreparedQuestionPool({
-    poolItems: rootPool,
+    poolItems: rootCandidateSelection.candidates,
     session,
     decisionContext,
     evaluatorState: decisionContext.evaluatorState,
     actionInput: { ...actionInput, actionType },
   });
+  rankedRootCandidates.rejectedCandidates = [
+    ...ensureArray(rootCandidateSelection.excludedCandidates),
+    ...ensureArray(rankedRootCandidates.rejectedCandidates),
+  ];
   const rootCandidateRankMs = Date.now() - rankStartedAt;
   const roleFitQuestionRankingEnabled = ensureArray(session?.interviewPlan?.roleFit?.proofStrategy?.mustCover).length > 0;
   const followUpContextStartedAt = Date.now();
@@ -374,6 +415,11 @@ export const buildInterviewTurnPlan = async ({
     } : null,
     followUpIntent,
     followUpComparison,
+    turnSlot: phaseTurnPolicy.turnSlot,
+    phaseSelection: {
+      forcedRootQuestion: phaseTurnPolicy.forcedRootQuestion,
+      excludedCandidates: rootCandidateSelection.excludedCandidates,
+    },
     evidenceTarget: followUpContext?.evidenceTarget || null,
     evidencePackage,
     rankTrace: selectedRootCandidate?.rankTrace || null,

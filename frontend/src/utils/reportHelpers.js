@@ -48,6 +48,13 @@ const formatScore = (value, suffix = '') => {
     return Number.isFinite(parsed) ? `${parsed.toFixed(2)}${suffix}` : 'Not available';
 };
 
+const hasInterviewPerformance = (value) => {
+    const normalized = typeof value === 'string' ? value.trim() : value;
+    return (typeof normalized === 'number' || typeof normalized === 'string')
+        && normalized !== ''
+        && Number.isFinite(Number(normalized));
+};
+
 const formatListItem = (item) => {
     if (typeof item === 'string') return item;
     if (!item || typeof item !== 'object') return String(item ?? '');
@@ -99,18 +106,17 @@ export const formatReportAsText = (report) => {
         lines.push('');
     }
 
-    if (r.scores) {
+    if (hasInterviewPerformance(r.scores?.overall)) {
         lines.push('SCORES');
         lines.push('======');
-        if (r.scores.overall !== undefined) lines.push(`Overall Score: ${formatScore(r.scores.overall, '/100')}`);
-        if (r.scores.cvJdMatch !== undefined) lines.push(`CV-JD Match: ${formatScore(r.scores.cvJdMatch, '/100')}`);
-        if (r.scores.interviewPerformance !== undefined) lines.push(`Interview Performance: ${formatScore(r.scores.interviewPerformance, '/100')}`);
+        lines.push(`Interview Performance: ${formatScore(r.scores.overall, '/100')}`);
         lines.push('');
     }
 
-    const scoreExplanations = Object.entries(r.scoreExplanations || {})
-        .filter(([, item]) => item?.explanation)
-        .slice(0, 3);
+    const scoreExplanations = hasInterviewPerformance(r.scores?.overall)
+        ? Object.entries(r.scoreExplanations || {})
+            .filter(([key, item]) => key === 'overall' && item?.explanation)
+        : [];
     if (scoreExplanations.length) {
         lines.push('SCORE EXPLANATIONS');
         lines.push('==================');

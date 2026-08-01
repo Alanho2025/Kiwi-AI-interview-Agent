@@ -199,16 +199,13 @@ const buildCandidateFeedbackProjection = (feedback = {}, roleFit = {}) => {
 };
 
 const buildCandidateScores = (scores = {}) => {
-  const projection = pickDefined(scores, ['overall']);
-  const cvJdMatch = scores.cvJdMatch ?? scores.requirements ?? scores.macro;
-  const interviewPerformance = scores.interviewPerformance ?? scores.micro;
-  if (cvJdMatch !== undefined) projection.cvJdMatch = cvJdMatch;
-  if (interviewPerformance !== undefined) projection.interviewPerformance = interviewPerformance;
-  return projection;
+  const interviewPerformance = scores.interviewPerformance;
+  if (interviewPerformance === undefined) return {};
+  return { overall: interviewPerformance };
 };
 
 const buildScoreExplanations = (explanations = {}) => Object.fromEntries(
-  ['overall', 'cvJdMatch', 'interviewPerformance']
+  ['overall']
     .filter((key) => explanations?.[key]?.explanation)
     .map((key) => [key, { explanation: explanations[key].explanation }]),
 );

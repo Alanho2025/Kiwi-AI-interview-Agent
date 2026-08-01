@@ -18,7 +18,7 @@ describe('Phase 2 - F-36, F-38 & F-76: STAR Review, Coaching Rewrites & Progress
     vi.spyOn(deepseekModule, 'callDeepSeek').mockResolvedValueOnce({
       content: JSON.stringify({
         overallTakeaway: 'Great progress overall.',
-        scoreBand: 'Good',
+        scoreBand: 'Strong match',
         turnBreakdowns: [
           {
             question: 'Describe a project challenge.',
@@ -40,6 +40,7 @@ describe('Phase 2 - F-36, F-38 & F-76: STAR Review, Coaching Rewrites & Progress
 
     const deterministicFeedback = {
       overallTakeaway: 'The answer includes context but lacks measurable outcome.',
+      scoreBand: 'Developing performance',
       turnBreakdowns: [
         {
           question: 'Describe a project challenge.',
@@ -69,6 +70,7 @@ describe('Phase 2 - F-36, F-38 & F-76: STAR Review, Coaching Rewrites & Progress
     expect(turn.starBreakdown.result).toBe('missing');
     expect(turn.starBreakdown.mainMissingElement).toBe('result');
     expect(turn.starBreakdown.scoreReason).toContain('does not provide a measurable result');
+    expect(feedback.scoreBand).toBe('Developing performance');
   });
 
   it('computes multi-session progress analytics rollup returning insufficient_data when session list is empty', async () => {

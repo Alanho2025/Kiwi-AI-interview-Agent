@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
 import { QUESTION_CATALOG_SEED } from '../../../src/data/questionCatalogSeed2026_1.js';
+import { QUESTION_CATALOG_SEED as QUESTION_CATALOG_SEED_2026_2 } from '../../../src/data/questionCatalogSeed2026_2.js';
 import {
   buildCatalogQuestionSnapshots,
   buildCatalogCoverageOutcome,
   buildFollowUpVsNextRootComparison,
   resolveCatalogSelectionContext,
   resolveCatalogReservationPlan,
+  resolveScenarioEligibility,
+  SCENARIO_COVERAGE_SLOT,
 } from '../../../src/services/questions/questionCatalogSelectionService.js';
 
 const catalogItem = (id) => ({
@@ -14,6 +17,10 @@ const catalogItem = (id) => ({
   lifecycle: 'approved',
 });
 const approvedCatalog = () => QUESTION_CATALOG_SEED.map((item) => ({ ...item, lifecycle: 'approved' }));
+const approved2026_2CatalogItem = (id) => ({
+  ...QUESTION_CATALOG_SEED_2026_2.find((item) => item.catalogQuestionId === id),
+  lifecycle: 'approved',
+});
 
 const softwareContext = {
   userId: 'user-1',
@@ -26,6 +33,64 @@ const softwareContext = {
 };
 
 describe('question catalog session snapshots and reservations', () => {
+  it.each([
+    ['technical, 8 questions, 15 minutes', { focusArea: 'technical', questionLimit: 8, timeLimitMinutes: 15 }, false],
+    ['technical, 12 questions, 15 minutes', { focusArea: 'technical', questionLimit: 12, timeLimitMinutes: 15 }, true],
+    ['technical, 8 questions, 30 minutes', { focusArea: 'technical', questionLimit: 8, timeLimitMinutes: 30 }, true],
+    ['combined, 12 questions, 15 minutes', { focusArea: 'combined', questionLimit: 12, timeLimitMinutes: 15 }, false],
+    ['combined, 15 questions, 15 minutes', { focusArea: 'combined', questionLimit: 15, timeLimitMinutes: 15 }, true],
+    ['combined, 8 questions, 30 minutes', { focusArea: 'combined', questionLimit: 8, timeLimitMinutes: 30 }, true],
+    ['behavioural, 15 questions, 30 minutes', { focusArea: 'behavioural', questionLimit: 15, timeLimitMinutes: 30 }, false],
+  ])('applies the scenario eligibility policy for %s', (_label, settings, expectedEligible) => {
+    const selectionContext = resolveCatalogSelectionContext({
+      analysisResult: softwareContext.analysisResult,
+      settings: { seniorityLevel: 'senior', ...settings },
+    });
+
+    expect(resolveScenarioEligibility(selectionContext).eligible).toBe(expectedEligible);
+  });
+
+  it('reserves one bounded technical scenario slot only when the session is eligible', () => {
+    const catalogItem2026_2 = approved2026_2CatalogItem('coding_ownership_and_verification');
+    const eligible = buildCatalogQuestionSnapshots({
+      catalogItems: [catalogItem2026_2],
+      context: {
+        ...softwareContext,
+        settings: { ...softwareContext.settings, questionLimit: 12, timeLimitMinutes: 15 },
+      },
+    });
+    const ineligible = buildCatalogQuestionSnapshots({
+      catalogItems: [catalogItem2026_2],
+      context: softwareContext,
+    });
+
+    expect(eligible.items).toEqual([
+      expect.objectContaining({
+        coverageSlot: SCENARIO_COVERAGE_SLOT,
+        selectionPolicy: expect.objectContaining({ minAsked: 1, maxAsked: 1, reservationPriority: 75 }),
+      }),
+    ]);
+    expect(ineligible.items).toEqual([]);
+    expect(ineligible.rejected).toEqual([
+      expect.objectContaining({ reason: 'scenario_technical_session_too_short' }),
+    ]);
+
+    const reservationPlan = resolveCatalogReservationPlan({
+      poolItems: eligible.items,
+      selectionContext: eligible.selectionContext,
+      catalogStatus: 'catalog_unavailable',
+      session: { currentQuestionIndex: 11, questionLimit: 12, transcript: [] },
+    });
+    expect(reservationPlan.reservations).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        coverageSlot: SCENARIO_COVERAGE_SLOT,
+        minAsked: 1,
+        status: 'pending',
+        isUrgent: true,
+      }),
+    ]));
+  });
+
   it('snapshots the Software AI workflow question without copying candidate content into the catalog fields', () => {
     const result = buildCatalogQuestionSnapshots({
       catalogItems: [catalogItem('ai_assisted_delivery')],
@@ -277,7 +342,7 @@ describe('question catalog session snapshots and reservations', () => {
         coverageSlot: 'software_ai_workflow',
         targetLevel: expect.stringMatching(/^(junior|intermediate|senior)$/),
       }));
-      expect(plan.reservations).toEqual([
+      expect(plan.reservations.filter((reservation) => reservation.coverageSlot !== SCENARIO_COVERAGE_SLOT)).toEqual([
         expect.objectContaining({ coverageSlot: 'software_ai_workflow', minAsked: 1, status: 'pending' }),
       ]);
       wordingByLevel.add(snapshots.items[0].text);
@@ -310,7 +375,9 @@ describe('question catalog session snapshots and reservations', () => {
     });
 
     expect(snapshots.selectionContext.roleFamily).toBe('ml');
-    expect(plan.reservations.filter((reservation) => reservation.minAsked > 0).map((reservation) => reservation.coverageSlot).sort())
+    expect(plan.reservations
+      .filter((reservation) => reservation.minAsked > 0 && reservation.coverageSlot !== SCENARIO_COVERAGE_SLOT)
+      .map((reservation) => reservation.coverageSlot).sort())
       .toEqual([...expectedSlots].sort());
     expect(plan.reservations.map((reservation) => reservation.coverageSlot)).not.toContain('software_ai_workflow');
   });

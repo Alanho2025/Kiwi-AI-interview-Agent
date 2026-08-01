@@ -9,9 +9,8 @@
  * - Prefer composition and small helpers over repeated inline logic.
  */
 
-import React from 'react';
 import { Card, CardContent } from '../common/Card.jsx';
-import { formatNumber, titleCase } from '../../utils/reportViewBuilder.js';
+import { formatNumber } from '../../utils/reportViewBuilder.js';
 
 const clampScore = (value = 0) => {
   const score = Number(value || 0);
@@ -19,13 +18,11 @@ const clampScore = (value = 0) => {
   return Math.max(0, Math.min(100, score));
 };
 
-const resolveInterviewScore = (report = {}) => {
-  const interviewPerformance = report.scores?.interviewPerformance;
-  if (Number.isFinite(Number(interviewPerformance))) return Number(interviewPerformance);
-
-  const evidenceStrength = Number(report.scores?.evidenceStrength);
-  if (Number.isFinite(evidenceStrength)) return evidenceStrength <= 4 ? (evidenceStrength / 4) * 100 : evidenceStrength;
-  return 0;
+const hasInterviewPerformance = (value) => {
+  const normalized = typeof value === 'string' ? value.trim() : value;
+  return (typeof normalized === 'number' || typeof normalized === 'string')
+    && normalized !== ''
+    && Number.isFinite(Number(normalized));
 };
 
 const resolveScoreExplanation = ({ key, score, candidateFeedback = {}, report = {} }) => {
@@ -36,27 +33,15 @@ const resolveScoreExplanation = ({ key, score, candidateFeedback = {}, report = 
 
   const strengths = report.candidateFeedback?.strengthHighlights || candidateFeedback.strengthHighlights || [];
   const priorities = report.candidateFeedback?.improvementPriorities || candidateFeedback.improvementPriorities || [];
-  const firstStrength = strengths[0]?.title || strengths[0]?.explanation || 'Clear role alignment in some areas';
+  const firstStrength = strengths[0]?.title || strengths[0]?.explanation || 'Some answers gave clear, specific evidence.';
   const firstPriority = priorities[0]?.title || priorities[0]?.action || 'Add clearer evidence and measurable outcomes';
 
   const templates = {
     overall: {
-      summary: score >= 75 ? 'Strong base, with a few areas to improve.' : 'Useful signal, but the evidence needs more depth.',
+      summary: score >= 75 ? 'Your answers have a strong base, with a few areas to improve.' : 'Your answers show useful signals, but the evidence needs more depth.',
       helped: firstStrength,
       lowered: score >= 75 ? 'Some answers could still be more specific.' : firstPriority,
-      next: 'Improve the weakest evidence gap first.',
-    },
-    cvJdMatch: {
-      summary: score >= 75 ? 'Your CV matches several core role signals.' : 'The CV fit is directional, not fully convincing yet.',
-      helped: firstStrength,
-      lowered: 'Missing or unclear proof for some job requirements.',
-      next: 'Rewrite CV bullets around the target requirements.',
-    },
-    interview: {
-      summary: score >= 75 ? 'Your answers were mostly clear and relevant.' : 'Your answers need stronger examples to land better.',
-      helped: 'Logical answer flow and role-relevant intent.',
-      lowered: firstPriority,
-      next: 'Use STAR plus one measurable result per answer.',
+      next: 'Strengthen the weakest answer with one concrete example and outcome.',
     },
   };
 
@@ -98,11 +83,6 @@ function ScoreExplanationCard({ title, score, subtitle, ringClass, accentClass, 
   );
 }
 
-const formatDecisionLabel = (value = 'manual_review') => {
-  if (value === 'manual_review') return 'manual review suggested';
-  return titleCase(value);
-};
-
 /**
  * Purpose: Execute the main responsibility for ReportHeroCard.
  * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
@@ -113,17 +93,12 @@ export function ReportHeroCard({ report, qa, takeaway, scoreBand, generationSour
   const candidateFeedback = report.candidateFeedback || {};
   const scores = {
     overall: report.scores?.overall,
-    cvJdMatch: report.scores?.cvJdMatch ?? report.scores?.overall,
-    interview: resolveInterviewScore(report),
   };
+  const hasScore = hasInterviewPerformance(scores.overall);
 
   const explanations = {
     overall: resolveScoreExplanation({ key: 'overall', score: scores.overall, candidateFeedback, report }),
-    cvJdMatch: resolveScoreExplanation({ key: 'cvJdMatch', score: scores.cvJdMatch, candidateFeedback, report }),
-    interview: resolveScoreExplanation({ key: 'interview', score: scores.interview, candidateFeedback, report }),
   };
-
-  const decision = report.summary?.match(/Decision:\s*([^.]*)\./i)?.[1] || 'manual_review';
 
   return (
     <Card className="border-theme glass">
@@ -137,10 +112,9 @@ export function ReportHeroCard({ report, qa, takeaway, scoreBand, generationSour
               <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-primary">Your interview feedback</h1>
               <p className="mt-3 max-w-2xl text-base leading-7 text-muted">{takeaway}</p>
               <div className="mt-5 flex flex-wrap gap-2">
-                <span className="rounded-lg bg-chip px-3 py-1.5 text-sm font-medium text-primary">{scoreBand}</span>
+                {hasScore ? <span className="rounded-lg bg-chip px-3 py-1.5 text-sm font-medium text-primary">{scoreBand}</span> : null}
                 {generationSource === 'ai' ? <span className="rounded-lg bg-chip px-3 py-1.5 text-sm font-medium text-primary">AI-assisted coaching</span> : null}
                 {generationSource === 'fallback' ? <span className="rounded-lg bg-chip px-3 py-1.5 text-sm font-medium text-primary">Basic coaching mode</span> : null}
-                <span className="rounded-lg glass px-3 py-1.5 text-sm font-medium text-muted shadow-sm">Review status: {formatDecisionLabel(decision)}</span>
                 <span className="rounded-lg glass px-3 py-1.5 text-sm font-medium text-muted shadow-sm">Report QA: {qa.passed ? 'Passed' : 'Needs review'}</span>
               </div>
             </div>
@@ -157,32 +131,18 @@ export function ReportHeroCard({ report, qa, takeaway, scoreBand, generationSour
             </div>
           </div>
 
-          <div className="grid w-full gap-3 md:grid-cols-3">
-            <ScoreExplanationCard
-              title="Overall"
-              score={scores.overall}
-              subtitle="CV fit + interview evidence"
-              ringClass="ring-emerald-100"
-              accentClass="text-emerald-600"
-              explanation={explanations.overall}
-            />
-            <ScoreExplanationCard
-              title="CV-JD match"
-              score={scores.cvJdMatch}
-              subtitle="CV fit signal"
-              ringClass="ring-gray-100"
-              accentClass="text-faint"
-              explanation={explanations.cvJdMatch}
-            />
-            <ScoreExplanationCard
-              title="Interview"
-              score={scores.interview}
-              subtitle="Answer quality signal"
-              ringClass="ring-sky-100"
-              accentClass="text-sky-600"
-              explanation={explanations.interview}
-            />
-          </div>
+          {hasScore ? (
+            <div className="grid w-full gap-3">
+              <ScoreExplanationCard
+                title="Interview performance"
+                score={scores.overall}
+                subtitle="Answer quality signal"
+                ringClass="ring-emerald-100"
+                accentClass="text-emerald-600"
+                explanation={explanations.overall}
+              />
+            </div>
+          ) : null}
         </div>
       </CardContent>
     </Card>

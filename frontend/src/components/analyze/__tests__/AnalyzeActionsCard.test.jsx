@@ -20,7 +20,11 @@ describe('AnalyzeActionsCard', () => {
     render(<AnalyzeActionsCard {...readyProps} sessionMode="voice" isVoiceReady />);
 
     expect(screen.getByRole('button', { name: 'Continue to voice interview' })).toBeInTheDocument();
-    expect(screen.getAllByText('Your interview plan is ready.').length).toBeGreaterThan(0);
+    expect(screen.getByText('Match control')).toBeInTheDocument();
+    expect(screen.getByText('Interview plan ready')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Regenerate match' })).toBeInTheDocument();
+    expect(screen.queryByText('Setup checklist')).not.toBeInTheDocument();
+    expect(screen.queryByText('CV added')).not.toBeInTheDocument();
     expect(screen.queryByText(/Generate the match to create your interview plan/i)).not.toBeInTheDocument();
   });
 

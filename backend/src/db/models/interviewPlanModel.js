@@ -61,6 +61,7 @@ const InterviewPlanSchema = new mongoose.Schema(
     planPreview: { type: String, default: '' },
     strategy: { type: mongoose.Schema.Types.Mixed, default: {} },
     questionPlanSnapshot: { type: mongoose.Schema.Types.Mixed, default: {} },
+    sessionQuestionSet: { type: mongoose.Schema.Types.Mixed, default: null },
     questionPool: { type: [QuestionPoolItemSchema], default: [] },
     fallbackRules: { type: mongoose.Schema.Types.Mixed, default: {} },
     retentionUntil: { type: Date },

@@ -18,6 +18,7 @@ describe('end-to-end voice scope clarification with catalog 2026.2', () => {
         userId: 'user-2026-2',
         sessionId: 'session-2026-2',
         targetLevel: 'senior',
+        settings: { focusArea: 'technical', questionLimit: 12, timeLimitMinutes: 15 },
         analysisResult: {
           jobTitle: 'Senior Software Engineer with AI tools',
           parsedJdProfile: {

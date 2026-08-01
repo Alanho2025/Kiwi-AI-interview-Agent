@@ -218,9 +218,15 @@ export const generateInterviewPlan = asyncHandler(async (req, res) => {
   });
   let preparedQuestionPool = [];
   let questionPoolReadiness = null;
-  let questionPoolCatalogStatus = session.mode === 'voice' ? 'catalog_unavailable' : 'not_applicable';
+  let questionPoolCatalogStatus = 'catalog_unavailable';
   let questionPoolCatalogCoverage = { status: 'not_applicable', reservations: [] };
   try {
+    const preparedQuestionSettings = {
+      ...settings,
+      ...(session.settings || {}),
+      questionLimit: session.questionLimit || session.totalQuestions || session.settings?.questionLimit,
+      timeLimitSeconds: session.timeLimitSeconds || session.settings?.timeLimitSeconds,
+    };
     const preparation = await prepareInterviewQuestionPool({
       userId: user.id,
       sessionId: session.id,
@@ -229,7 +235,7 @@ export const generateInterviewPlan = asyncHandler(async (req, res) => {
       jdFingerprint: companyValuesContext.jdFingerprint,
       analysisResult: resolvedAnalysis,
       jdRubric: jdRubric || resolvedAnalysis?.parsedJdProfile || null,
-      settings,
+      settings: preparedQuestionSettings,
       deliveryMode: session.mode || mode || sessionSetup?.deliveryMode || 'text',
     });
     preparedQuestionPool = preparation.items;

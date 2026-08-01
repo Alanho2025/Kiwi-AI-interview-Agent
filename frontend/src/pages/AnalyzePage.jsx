@@ -12,7 +12,6 @@
 import { useCallback, useRef, useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AppHeader } from '../components/layout/AppHeader.jsx';
-import { StepProgress } from '../components/layout/StepProgress.jsx';
 import { CVManagementCard } from '../components/analyze/CVManagementCard.jsx';
 import { JobContextCard } from '../components/analyze/JobContextCard.jsx';
 import { NZSettingsCard } from '../components/analyze/NZSettingsCard.jsx';
@@ -47,7 +46,6 @@ import {
   firstNonEmptyObject,
   ANALYZE_TOUR_STEPS,
   WORKFLOW_STEP_IDS,
-  workflowHeaderSteps,
   resolveDraftWorkflowStep,
 } from '../utils/analyzePageBuilder.js';
 
@@ -73,9 +71,7 @@ export function AnalyzePage() {
   const {
     analysisStatus,
     analysisResult,
-    matchRate,
     generatedSessionId,
-    questionPoolInfo,
     planStatus,
     progressStages,
     currentStage,
@@ -179,27 +175,16 @@ export function AnalyzePage() {
   const isCvHumanVerified = Boolean(selectedCV?.id && cvReviewStatus === 'verified' && cvHumanReviewedFileId === selectedCV.id);
   const isSessionSetupReady = sessionMode !== 'voice' || isVoiceReady;
   const displayedAnalysisStatus = isSummarizingJD ? 'summarizing' : analysisStatus;
-  const workflowStepOrder = [
-    WORKFLOW_STEP_IDS.CV_UPLOAD,
-    WORKFLOW_STEP_IDS.CV_REVIEW,
-    WORKFLOW_STEP_IDS.JD_INPUT,
-    WORKFLOW_STEP_IDS.JD_REVIEW,
-    WORKFLOW_STEP_IDS.SESSION_SETUP,
-    WORKFLOW_STEP_IDS.MATCH_RESULT,
-  ];
-  const currentStep = workflowStepOrder.indexOf(activeWorkflowStep) + 1 || 1;
   const workflowSteps = [
     {
       id: WORKFLOW_STEP_IDS.CV_UPLOAD,
       label: 'Upload CV',
-      detail: selectedCV ? selectedCV.name : 'Upload or choose a recent CV.',
       complete: Boolean(selectedCV),
       blocked: false,
     },
     {
       id: WORKFLOW_STEP_IDS.CV_REVIEW,
       label: 'Check CV Parse',
-      detail: isCvHumanVerified ? 'Reviewed CV profile is ready.' : 'Review extracted evidence before JD matching.',
       complete: isCvHumanVerified,
       blocked: !selectedCV,
       warning: Boolean(selectedCV && !isCvHumanVerified),
@@ -207,14 +192,12 @@ export function AnalyzePage() {
     {
       id: WORKFLOW_STEP_IDS.JD_INPUT,
       label: 'Paste JD',
-      detail: rawJD.trim() ? 'JD text is ready to summarise.' : 'Paste the target job description.',
       complete: Boolean(rawJD.trim()),
       blocked: !isCvHumanVerified,
     },
     {
       id: WORKFLOW_STEP_IDS.JD_REVIEW,
       label: 'Check JD Parse',
-      detail: isJdHumanVerified ? 'Reviewed JD summary is ready.' : 'Summarise and review parsed JD fields.',
       complete: isJdHumanVerified,
       blocked: !rawJD.trim() || !isCvHumanVerified,
       warning: Boolean(hasCurrentJDSummary && !isJdHumanVerified),
@@ -222,9 +205,6 @@ export function AnalyzePage() {
     {
       id: WORKFLOW_STEP_IDS.SESSION_SETUP,
       label: sessionMode === 'voice' ? 'Device Check' : 'Session Setup',
-      detail: sessionMode === 'voice'
-        ? isVoiceReady ? 'Voice devices are ready.' : 'Check microphone and speaker.'
-        : 'Choose interview mode and question settings.',
       complete: isSessionSetupReady,
       blocked: !isJdHumanVerified,
       warning: Boolean(sessionMode === 'voice' && !isVoiceReady && isJdHumanVerified),
@@ -232,15 +212,6 @@ export function AnalyzePage() {
     {
       id: WORKFLOW_STEP_IDS.MATCH_RESULT,
       label: 'Match Result',
-      detail: generatedSessionId
-        ? 'Interview plan is ready.'
-        : analysisResult
-          ? planStatus === 'preparing'
-            ? 'Match complete. Preparing the interview session.'
-            : planStatus === 'failed'
-              ? 'Match complete. Interview preparation needs another try.'
-              : 'Match analysis is saved.'
-          : 'Generate match analysis.',
       complete: Boolean(analysisResult),
       blocked: !isJdHumanVerified || !isSessionSetupReady,
     },
@@ -347,7 +318,7 @@ export function AnalyzePage() {
       questionPoolInfo: setup.questionPoolInfo || null,
     });
     setActiveWorkflowStep(WORKFLOW_STEP_IDS.MATCH_RESULT);
-    setPageStatus(buildStatusMessage('success', 'Match analysis complete', 'Review the score breakdown before starting the interview session.'));
+    setPageStatus(buildStatusMessage('success', 'Match analysis complete', 'Review the preparation brief before starting the interview session.'));
   }, [hydrateMatchAnalysis]);
 
   useEffect(() => {
@@ -717,7 +688,7 @@ export function AnalyzePage() {
 
       setActiveWorkflowStep(WORKFLOW_STEP_IDS.MATCH_RESULT);
       const modeLabel = sessionMode === 'voice' ? 'voice' : 'text';
-      setPageStatus(buildStatusMessage('success', 'Match analysis complete', `Review the score breakdown before continuing to the ${modeLabel} interview session.`));
+      setPageStatus(buildStatusMessage('success', 'Match analysis complete', `Review the preparation brief before continuing to the ${modeLabel} interview session.`));
     } catch (error) {
       console.error(error);
       if (error.phase === 'plan') {
@@ -766,9 +737,7 @@ export function AnalyzePage() {
 
   return (
     <div className="min-h-screen bg-transparent flex flex-col">
-      <AppHeader>
-        <StepProgress currentStep={currentStep} steps={workflowHeaderSteps(sessionMode)} />
-      </AppHeader>
+      <AppHeader />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-8">
         <div className="space-y-5 sm:space-y-6">
@@ -842,9 +811,7 @@ export function AnalyzePage() {
               {isMatchWorkflowStep ? (
                 <AnalysisStatusCard
                   status={analysisStatus}
-                  matchRate={matchRate}
                   analysisResult={analysisResult}
-                  questionPoolInfo={questionPoolInfo}
                   planStatus={planStatus}
                   progressStages={progressStages}
                   currentStage={currentStage}

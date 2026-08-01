@@ -38,6 +38,7 @@ describe('report Role Evidence Map cutover', () => {
     };
     const candidateFeedback = buildDeterministicCandidateFeedback({
       analysisResult,
+      scores: { overall: 80 },
       explanation: analysisResult.explanation,
       evidenceSummary,
       interviewMetrics,
@@ -60,5 +61,6 @@ describe('report Role Evidence Map cutover', () => {
       sourceType: 'role_evidence_map',
     });
     expect(JSON.stringify(report.evidenceDiagnostics.internalSourceReferences)).not.toContain('legacy duplicate');
+    expect(candidateFeedback.scoreBand).toBe('Strong performance');
   });
 });

@@ -21,7 +21,7 @@ const firstLabel = (items = [], fallback = '') => items.find((item) => item?.tit
   || fallback;
 
 const buildScoreExplanations = ({ analysisResult = {}, evidenceSummary = {}, interviewMetrics = {}, explanation = {}, turnBreakdowns = [] }) => {
-  const cvScore = Number(analysisResult.overallScore || 0);
+  const interviewScore = Number(evidenceSummary.averageStrength || 0) * 25;
   const averageEvidence = Number(evidenceSummary.averageStrength || 0);
   const strengths = buildStrengthHighlights({ explanation });
   const priorities = buildImprovementPriorities({ analysisResult, evidenceSummary, interviewMetrics, turnBreakdowns });
@@ -30,16 +30,10 @@ const buildScoreExplanations = ({ analysisResult = {}, evidenceSummary = {}, int
 
   return {
     overall: {
-      summary: cvScore >= 75 && averageEvidence >= 2.5 ? 'Strong base across CV fit and interview evidence.' : 'The result is useful, but stronger evidence would make it more convincing.',
+      summary: interviewScore >= 75 && averageEvidence >= 2.5 ? 'Your interview answers provide a strong base.' : 'The interview is useful, but stronger answer evidence would make it more convincing.',
       helped,
       lowered,
       next: 'Improve the weakest evidence gap first.',
-    },
-    cvJdMatch: {
-      summary: cvScore >= 75 ? 'Your CV matches several important JD signals.' : 'The CV-JD match needs clearer requirement-level proof.',
-      helped,
-      lowered: 'Some JD requirements are not clearly proven in the CV.',
-      next: 'Rewrite CV bullets around must-have requirements.',
     },
     interview: {
       summary: averageEvidence >= 2.5 ? 'Your interview answers include usable evidence.' : 'Your interview answers need clearer role-specific reasoning and evidence.',
@@ -58,7 +52,7 @@ const buildScoreExplanations = ({ analysisResult = {}, evidenceSummary = {}, int
  */
 export const buildDeterministicCandidateFeedback = ({ analysisResult, scores = {}, explanation, evidenceSummary, interviewMetrics, interviewPlan, turnBreakdowns = [] }) => ({
   overallTakeaway: buildCandidateTakeaway({ analysisResult, scores, evidenceSummary, interviewMetrics }),
-  scoreBand: getScoreBand(scores.overall ?? analysisResult.overallScore ?? 0),
+  scoreBand: getScoreBand(scores.overall || 0),
   scoreExplanations: buildScoreExplanations({ analysisResult, evidenceSummary, interviewMetrics, explanation, turnBreakdowns }),
   plainEnglishMetrics: buildPlainEnglishMetrics({ analysisResult, scores, evidenceSummary, interviewMetrics }),
   strengthHighlights: buildStrengthHighlights({ explanation }),

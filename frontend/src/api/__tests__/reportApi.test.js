@@ -51,7 +51,7 @@ describe('report PDF export', () => {
         jobTitle: 'Frontend Developer',
         generatedAt: '2026-06-02T10:00:00.000Z',
         summary: 'Candidate gave some React evidence.',
-        scores: { overall: 74, macro: 70, micro: 78 },
+        scores: { overall: 74 },
         candidateFeedback: {
           overallTakeaway: 'Useful interview evidence with clear gaps.',
           scoreBand: 'Promising match',
@@ -83,6 +83,9 @@ describe('report PDF export', () => {
     expect(renderedText).toContain('TARGET ROLE');
     expect(renderedText).toContain('Frontend Developer');
     expect(renderedText).toContain('Needs review');
+    expect(renderedText).toContain('INTERVIEW PERFORMANCE');
+    expect(renderedText).not.toContain('CV-JD MATCH');
+    expect(renderedText).not.toContain('Blended CV fit');
     expect(renderedText).not.toContain('Evidence Sources');
     expect(renderedText).not.toContain('Transcript answer about React testing');
     expect(renderedText).not.toContain('NaN');
@@ -112,6 +115,26 @@ describe('report PDF export', () => {
     expect(renderedText).not.toContain('No evidence available');
   });
 
+  it('does not turn a legacy score bag into a PDF interview-performance score', async () => {
+    const { generateReportPDF } = await import('../reportApi.js');
+
+    await generateReportPDF({
+      sessionId: 'legacy-score-bag',
+      report: {
+        scores: { overall: ' ', cvJdMatch: 88, macro: 70, micro: 73, requirements: 80 },
+        scoreExplanations: {
+          overall: { explanation: 'Historic blended score explanation.' },
+        },
+      },
+      qaResult: {},
+    });
+
+    const renderedText = pdfMocks.instances.at(-1).textCalls.join('\n');
+    expect(renderedText).not.toContain('INTERVIEW PERFORMANCE');
+    expect(renderedText).not.toContain('Historic blended score explanation.');
+    expect(renderedText).not.toContain('CV-JD MATCH');
+  });
+
   it('exports all scored turns rather than only the first eight', async () => {
     const { generateReportPDF } = await import('../reportApi.js');
     const turns = Array.from({ length: 15 }, (_, index) => ({
@@ -127,7 +150,9 @@ describe('report PDF export', () => {
       qaResult: {},
     });
 
-    expect(pdfMocks.instances.at(-1).textCalls.join('\n')).toContain('Q15: Question 15?');
+    const renderedText = pdfMocks.instances.at(-1).textCalls.join('\n');
+    expect(renderedText).toContain('Q15: Question 15?');
+    expect(renderedText).not.toContain('INTERVIEW PERFORMANCE');
   });
 
   it('does not send an unavailable rewrite payload to jsPDF', async () => {

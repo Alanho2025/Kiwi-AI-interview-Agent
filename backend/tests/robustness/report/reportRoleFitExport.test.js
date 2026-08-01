@@ -67,7 +67,18 @@ describe('candidate report text export', () => {
     });
 
     expect(text).toContain('Candidate-safe summary.');
+    expect(text).toContain('Interview Performance: 65.00/100');
+    expect(text).not.toMatch(/CV-JD Match|Overall Score/i);
     expect(text).not.toMatch(/COMMERCIAL STRESS TEST|LLM Tokens|EVIDENCE DIAGNOSTICS|INTERVIEW METRICS|QUALITY ASSURANCE/i);
     expect(text).not.toMatch(/candidate@example\\.com|private_flag|4444/);
+  });
+
+  it('omits score output for a legacy report without interview performance', () => {
+    const text = formatReportAsText({
+      latestStatus: 'ready',
+      report: { scores: { overall: 70, cvJdMatch: 75, interview: 65, micro: 65 } },
+    });
+
+    expect(text).not.toMatch(/SCORES|Interview Performance|CV-JD|Overall Score/i);
   });
 });

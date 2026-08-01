@@ -1,8 +1,10 @@
 # Candidate Turn Assessment and Grounded Better-Answer Specification
 
-> **實作狀態 (Implementation Status)**：Planned / Owner-approved specification; no runtime code has been changed.
+> **實作狀態 (Implementation Status)**：Partial / local implementation exists；independent audit blocked duplicate/reordered rewrite matching。
 >
-> **校驗測試路徑 (Verified by Tests)**：None — documentation-only planning stage.
+> **校驗測試路徑 (Verified by Tests)**：Focused backend/frontend tests passed at the recorded 2026-07-30 checkpoint；release-complete status was not verified。
+
+> **Remediation authority**：本文件保留為歷史 implementation baseline。新的 slice boundaries、blast radius、allowed files、BDD與 stop rules 以 [Candidate Report UI Semantic Integrity Specification](report-ui-semantic-integrity-spec.md) 為準。
 
 日期：2026-07-30 Pacific/Auckland
 

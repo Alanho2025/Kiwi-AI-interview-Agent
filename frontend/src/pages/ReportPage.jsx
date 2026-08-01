@@ -31,7 +31,7 @@ import { resolveReportPublicationSummary } from '../utils/reportPublicationSumma
 const REPORT_TOUR_STEPS = [
   {
     target: '#tour-report-hero',
-    content: 'Your performance at a glance — see your overall score, CV-JD match, and interview quality in one place.',
+    content: 'Your performance at a glance — see your interview performance and the clearest next improvement in one place.',
     placement: 'bottom',
     disableBeacon: true,
   },
@@ -51,6 +51,13 @@ const REPORT_TOUR_STEPS = [
     placement: 'center',
   }
 ];
+
+const hasInterviewPerformance = (value) => {
+  const normalized = typeof value === 'string' ? value.trim() : value;
+  return (typeof normalized === 'number' || typeof normalized === 'string')
+    && normalized !== ''
+    && Number.isFinite(Number(normalized));
+};
 
 /**
  * Purpose: Execute the main responsibility for ReportPage.
@@ -134,6 +141,7 @@ export function ReportPage() {
               <CandidateReportSummary
                 scoreExplanations={viewModel.scoreExplanations}
                 dataInsights={viewModel.dataInsights}
+                hasInterviewPerformance={hasInterviewPerformance(viewModel.report?.scores?.overall)}
               />
             </div>
             <TranscriptRiskSection risks={viewModel.transcriptRisks} />

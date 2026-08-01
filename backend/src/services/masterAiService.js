@@ -49,6 +49,10 @@ import {
   markQuestionPoolItemAsked,
   reconcileQuestionPoolFromTranscript,
 } from './questions/questionPoolComposerService.js';
+import {
+  recordAcceptedAnswerCoverage,
+  recordSessionQuestionSelection,
+} from './questions/sessionQuestionSetService.js';
 import { buildCatalogCoverageOutcome } from './questions/questionCatalogSelectionService.js';
 import { cleanupQuestionArtifactsAfterReport } from './questions/questionArtifactCleanupService.js';
 import { indexReportSessionArtifactsSafely } from './reportIndexingGuardService.js';
@@ -360,8 +364,63 @@ export const buildPreparedQuestionStateDiagnostic = ({ markResult, sessionId, pr
         code: 'prepared_question_asked_state_update_missed',
         sessionId,
         preparedQuestionId,
-      }
+    }
 );
+
+export const persistPreparedRootQuestionSelection = async ({
+  session = {},
+  preparedQuestionId = null,
+  nextQuestionOrder = null,
+  questionDecision = {},
+  markPreparedQuestionAsked = markQuestionPoolItemAsked,
+  recordQuestionSelection = recordSessionQuestionSelection,
+  log = logger,
+} = {}) => {
+  let markResult;
+  try {
+    markResult = await markPreparedQuestionAsked({
+      sessionId: session.id,
+      questionId: preparedQuestionId,
+      askedTurnIndex: nextQuestionOrder,
+      rankTrace: questionDecision?.rankTrace || {},
+    });
+  } catch (error) {
+    log.warn('Prepared question pool asked-state update failed', {
+      sessionId: session.id,
+      preparedQuestionId,
+      error: error.message,
+    });
+    return { marked: false, selectionRecorded: false };
+  }
+
+  const diagnostic = buildPreparedQuestionStateDiagnostic({
+    markResult,
+    sessionId: session.id,
+    preparedQuestionId,
+  });
+  if (diagnostic) {
+    log.warn('Prepared question pool asked-state update missed its row', diagnostic);
+    return { marked: false, selectionRecorded: false };
+  }
+
+  try {
+    await recordQuestionSelection({
+      sessionId: session.id,
+      userId: session.userId,
+      turn: nextQuestionOrder,
+      questionDecision,
+    });
+    return { marked: true, selectionRecorded: true };
+  } catch (error) {
+    log.warn('Session question-set selection trace update failed', {
+      sessionId: session.id,
+      userId: session.userId,
+      preparedQuestionId,
+      error: error.message,
+    });
+    return { marked: true, selectionRecorded: false };
+  }
+};
 
 const runInterviewController = async ({
   session,
@@ -541,6 +600,22 @@ const runInterviewController = async ({
     sessionId: session.id,
     workflowRunId,
   });
+
+  try {
+    await recordAcceptedAnswerCoverage({
+      sessionId: session.id,
+      userId: session.userId,
+      transcript: session.transcript,
+      answerText: payload.answer || environment?.latestAnswer?.text || '',
+      evaluation: evaluatorOutput,
+    });
+  } catch (error) {
+    logger.warn('Accepted-answer question coverage update failed', {
+      sessionId: session.id,
+      userId: session.userId,
+      error: error.message,
+    });
+  }
 
   let evidenceBundle;
   if (warmContext) {
@@ -871,26 +946,12 @@ decisionType: AGENT_DECISION_TYPES.EXECUTE_ACTION,
     : parentQuestionId;
   const preparedQuestionId = interviewerOutput?.questionDecision?.preparedQuestionId || interviewerOutput?.preparedQuestionId || null;
   if (shouldMarkPreparedRootQuestionAsked({ interviewerOutput })) {
-    try {
-      const markResult = await markQuestionPoolItemAsked({
-        sessionId: session.id,
-        questionId: preparedQuestionId,
-        askedTurnIndex: nextQuestionOrder,
-        rankTrace: interviewerOutput.questionDecision?.rankTrace || interviewerOutput.rankTrace || {},
-      });
-      const diagnostic = buildPreparedQuestionStateDiagnostic({
-        markResult,
-        sessionId: session.id,
-        preparedQuestionId,
-      });
-      if (diagnostic) logger.warn('Prepared question pool asked-state update missed its row', diagnostic);
-    } catch (error) {
-      logger.warn('Prepared question pool asked-state update failed', {
-        sessionId: session.id,
-        preparedQuestionId,
-        error: error.message,
-      });
-    }
+    await persistPreparedRootQuestionSelection({
+      session,
+      preparedQuestionId,
+      nextQuestionOrder,
+      questionDecision: interviewerOutput.questionDecision || {},
+    });
   }
 
   await appendTranscriptTurn(session.id, {

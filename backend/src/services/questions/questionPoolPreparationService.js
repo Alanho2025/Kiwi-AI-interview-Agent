@@ -1,10 +1,16 @@
 import { resolveInterviewModeConfig } from '../../config/interviewBlueprints.js';
+import { isUserInterviewMemoryPlanningEnabled } from '../../config/harnessConfig.js';
 import { InterviewQuestionPoolItem } from '../../db/models/interviewQuestionPoolItemModel.js';
 import { InterviewPlan } from '../../db/models/interviewPlanModel.js';
 import { ensureArray, normalizeKey, normalizeText } from '../../utils/commonHelpers.js';
+import { logger } from '../../utils/logger.js';
 import { callDeepSeek } from '../deepseekService.js';
 import { buildModeCompatibility, extractTargetTechnicalTerms, stableQuestionId } from './questionArtifactHelpers.js';
 import { composeInterviewQuestionPool } from './questionPoolComposerService.js';
+import {
+  refreshUserInterviewMemoryProjection,
+  resolveAnalysisRoleKey,
+} from '../aiControl/userInterviewMemoryService.js';
 import { loadApprovedQuestionCatalogItems } from './questionCatalogRepository.js';
 import {
   resolveCatalogReservationPlan,
@@ -20,22 +26,17 @@ import {
 
 const RESERVE_BUFFER_SIZE = 2;
 const MAX_RESERVE_QUESTIONS = 3;
-const isVoiceDeliveryMode = (value = '') => normalizeKey(value) === 'voice';
-
 const buildCatalogPreparationCoverage = ({
-  deliveryMode = 'text',
   catalogLoad = {},
   items = [],
   settings = {},
   analysisResult = {},
 } = {}) => {
-  if (!isVoiceDeliveryMode(deliveryMode)) return { status: 'not_applicable', reservations: [] };
-  if (catalogLoad.status !== 'ready') return { status: catalogLoad.status || 'catalog_unavailable', reservations: [] };
   const selectionContext = resolveCatalogSelectionContext({ analysisResult, settings });
   const plan = resolveCatalogReservationPlan({
     poolItems: items,
     selectionContext,
-    catalogStatus: 'ready',
+    catalogStatus: catalogLoad.status,
     session: {
       analysisResult,
       settings,
@@ -45,6 +46,9 @@ const buildCatalogPreparationCoverage = ({
     },
   });
   const reservations = plan.reservations.filter((reservation) => reservation.minAsked > 0);
+  if (!reservations.length && catalogLoad.status !== 'ready') {
+    return { status: catalogLoad.status || 'catalog_unavailable', reservations: [] };
+  }
   return {
     status: reservations.some((reservation) => reservation.status === 'degraded')
       ? 'degraded'
@@ -268,31 +272,49 @@ export const prepareInterviewQuestionPool = async ({
   persistReserveQuestions = null,
   proofStrategy = null,
   loadProofStrategy = loadPersistedProofStrategy,
+  refreshUserInterviewMemory = refreshUserInterviewMemoryProjection,
+  isPlanningEnabled = isUserInterviewMemoryPlanningEnabled,
   ...context
 } = {}) => {
-  let catalogLoad = { status: 'not_applicable', items: [] };
-  if (isVoiceDeliveryMode(deliveryMode)) {
-    catalogLoad = { status: 'catalog_unavailable', items: [] };
+  let catalogLoad = { status: 'catalog_unavailable', items: [] };
+  try {
+    catalogLoad = await loadCatalogItems({
+      analysisResult: context.analysisResult,
+    }) || catalogLoad;
+  } catch (error) {
+    catalogLoad = {
+      status: 'catalog_unavailable',
+      items: [],
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+  let userInterviewMemoryProjection = null;
+  const planningEnabled = isPlanningEnabled();
+  if (planningEnabled && context.userId && context.sessionId) {
     try {
-      catalogLoad = await loadCatalogItems({
-        analysisResult: context.analysisResult,
-      }) || catalogLoad;
+      userInterviewMemoryProjection = await refreshUserInterviewMemory({
+        userId: context.userId,
+        currentSessionId: context.sessionId,
+        currentRoleKey: resolveAnalysisRoleKey(context.analysisResult),
+        planningEnabled,
+      });
     } catch (error) {
-      catalogLoad = {
-        status: 'catalog_unavailable',
-        items: [],
+      logger.warn('User interview memory projection skipped during question-pool preparation', {
+        sessionId: context.sessionId,
+        userId: context.userId,
         error: error instanceof Error ? error.message : String(error),
-      };
+      });
+      userInterviewMemoryProjection = null;
     }
   }
   const items = await composePool({
     settings,
     deliveryMode,
     catalogItems: ensureArray(catalogLoad.items),
+    userInterviewMemoryProjection,
     ...context,
   });
   const catalogCoverage = buildCatalogPreparationCoverage({
-    deliveryMode,
     catalogLoad,
     items,
     settings,

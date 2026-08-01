@@ -9,30 +9,28 @@
  * - Prefer composition and small helpers over repeated inline logic.
  */
 
-import { getDecisionLabel } from './reportGeneratorShared.js';
-
 /**
  * Purpose: Execute the main responsibility for buildCandidateTakeaway.
  * Inputs: Uses the function parameters defined below and expects callers to pass validated data for this layer.
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-export const buildCandidateTakeaway = ({ analysisResult = {}, scores = {}, evidenceSummary, interviewMetrics }) => {
-  const overallScore = Number(scores.overall ?? analysisResult.overallScore ?? 0);
+export const buildCandidateTakeaway = ({ scores = {}, evidenceSummary, interviewMetrics }) => {
+  const overallScore = Number(scores.overall || 0);
   const evidenceStrength = Number(evidenceSummary.averageStrength || 0);
   const directTurns = Number(evidenceSummary.totals.direct_past_experience || 0);
   const hypotheticalTurns = Number(evidenceSummary.totals.hypothetical_understanding || 0);
 
   if (overallScore >= 80 && evidenceStrength >= 2.8) {
-    return 'You come across as a strong fit for the role, with solid alignment and convincing examples from past work.';
+    return 'Your interview answers were strong, with convincing examples from past work.';
   }
 
   if (overallScore >= 65 && directTurns >= hypotheticalTurns) {
-    return 'You show good alignment with the role, and your next step is to make your strongest examples more specific and memorable.';
+    return 'Your answers were effective overall, and your next step is to make the strongest examples more specific and memorable.';
   }
 
   if (overallScore >= 45 && evidenceStrength < 2) {
-    return 'You show partial fit for the role, but your answers need more real project evidence to feel convincing.';
+    return 'Your answers show some useful evidence, but they need more real project detail to feel convincing.';
   }
 
   if (!interviewMetrics.interviewCompletedByLimit && (interviewMetrics.plannedQuestionCount || 0) > 0) {
@@ -43,11 +41,7 @@ export const buildCandidateTakeaway = ({ analysisResult = {}, scores = {}, evide
     return 'You show useful role understanding, but too many answers stayed theoretical instead of proving what you have already done.';
   }
 
-  if (getDecisionLabel(analysisResult) === 'not_qualified') {
-    return 'The report found role-critical gaps, so the main priority is building clearer evidence against the must-have requirements.';
-  }
-
-  return 'This interview shows some relevant signals, but you need stronger, more detailed examples to make your fit feel clear and credible.';
+  return 'This interview shows some useful signals, but you need stronger, more detailed examples to make your answers clear and credible.';
 };
 
 /**
@@ -56,9 +50,8 @@ export const buildCandidateTakeaway = ({ analysisResult = {}, scores = {}, evide
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-export const buildPlainEnglishMetrics = ({ analysisResult = {}, scores = {}, evidenceSummary, interviewMetrics }) => {
-  const overallScore = Number(scores.overall ?? analysisResult.overallScore ?? 0);
-  const cvJdScore = Number(scores.cvJdMatch ?? analysisResult.overallScore ?? 0);
+export const buildPlainEnglishMetrics = ({ scores = {}, evidenceSummary, interviewMetrics }) => {
+  const overallScore = Number(scores.overall || 0);
   const evidenceStrength = Number(evidenceSummary.averageStrength || 0);
   const directTurns = Number(evidenceSummary.totals.direct_past_experience || 0);
   const hypotheticalTurns = Number(evidenceSummary.totals.hypothetical_understanding || 0);
@@ -71,19 +64,19 @@ export const buildPlainEnglishMetrics = ({ analysisResult = {}, scores = {}, evi
 
   return [
     {
-      id: 'overall_fit',
-      label: 'Overall role fit',
+      id: 'interview_performance',
+      label: 'Interview performance',
       value: overallScore,
       displayValue: `${overallScore.toFixed(2)}/100`,
       unit: 'score',
       interpretation:
         overallScore >= 80
-          ? 'Your profile and interview answers point to strong alignment with this role.'
+          ? 'Your answers consistently used clear reasoning and convincing evidence.'
           : overallScore >= 65
-            ? 'You are reasonably aligned with the role, but there are still noticeable gaps to close.'
+            ? 'Your answers were reasonably clear, but there are still noticeable gaps to close.'
             : overallScore >= 45
-              ? 'You have some relevant signals, but the case for fit is not strong yet.'
-              : 'The current interview evidence does not yet support a strong match for this role.',
+              ? 'You have some useful signals, but the answer quality is not strong yet.'
+              : 'The current interview evidence does not yet support a strong performance assessment.',
     },
     {
       id: 'evidence_strength',
@@ -97,14 +90,6 @@ export const buildPlainEnglishMetrics = ({ analysisResult = {}, scores = {}, evi
           : evidenceStrength >= 2
             ? 'Some answers had useful detail, but several still needed clearer actions or outcomes.'
             : 'Most answers were too general. You would benefit from using concrete project stories with measurable results.',
-    },
-    {
-      id: 'cv_jd_match',
-      label: 'CV-JD match',
-      value: cvJdScore,
-      displayValue: `${cvJdScore.toFixed(2)}/100`,
-      unit: 'score',
-      interpretation: 'This score reflects CV alignment with the job description and is separate from interview performance.',
     },
     {
       id: 'direct_examples',

@@ -19,7 +19,10 @@ describe('Voice selection policy human review document', () => {
     const scenarioById = Object.fromEntries(snapshot.scenarios.map((scenario) => [scenario.scenarioId, scenario]));
 
     expect(scenarioById.software_junior_8.requiredCoverageSlots).toEqual(['software_ai_workflow']);
-    expect(scenarioById.data_intermediate_15.requiredCoverageSlots).toEqual(['software_ai_workflow']);
+    expect(scenarioById.data_intermediate_15.requiredCoverageSlots).toEqual([
+      'software_ai_workflow',
+      'scenario_problem_solving',
+    ]);
     expect(scenarioById.ai_solution_senior_8.requiredCoverageSlots).toEqual([
       'ai_solution_delivery',
       'ai_solution_second_family',
@@ -28,8 +31,15 @@ describe('Voice selection policy human review document', () => {
       explicitAiDelivery: false,
       requiredCoverageSlots: ['software_ai_workflow'],
     });
-    expect(scenarioById.ml_intermediate_15.requiredCoverageSlots).toEqual(['ml_foundation']);
-    expect(scenarioById.ml_senior_15.requiredCoverageSlots).toEqual(['ml_foundation', 'ml_operations']);
+    expect(scenarioById.ml_intermediate_15.requiredCoverageSlots).toEqual([
+      'ml_foundation',
+      'scenario_problem_solving',
+    ]);
+    expect(scenarioById.ml_senior_15.requiredCoverageSlots).toEqual([
+      'ml_foundation',
+      'scenario_problem_solving',
+      'ml_operations',
+    ]);
     expect(scenarioById.non_tech_no_signal_8).toMatchObject({
       aiJudgementEligibility: 'ai_or_digital_signal_not_confirmed',
       requiredCoverageSlots: [],

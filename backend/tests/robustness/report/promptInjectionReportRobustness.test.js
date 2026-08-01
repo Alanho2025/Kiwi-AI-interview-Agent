@@ -31,6 +31,7 @@ describe('prompt injection report robustness', () => {
     };
     const deterministicFeedback = buildDeterministicCandidateFeedback({
       analysisResult,
+      scores: { overall: 100 },
       explanation: analysisResult.explanation,
       evidenceSummary,
       interviewMetrics,
@@ -49,10 +50,11 @@ describe('prompt injection report robustness', () => {
 
     const serialized = JSON.stringify(report).toLowerCase();
 
-    expect(report.summary).toContain('Decision: manual_review');
-    expect(report.scores.cvJdMatch).toBe(62);
-    expect(report.scores.overall).toBeLessThan(100);
-    expect(report.candidateFeedback.scoreBand).not.toBe('excellent');
+    expect(report.summary).not.toContain('Decision:');
+    expect(report.scores).not.toHaveProperty('cvJdMatch');
+    expect(report.scores.overall).toBe(report.scores.interviewPerformance);
+    expect(report.scores.overall).not.toBe(analysisResult.overallScore);
+    expect(report.candidateFeedback.scoreBand).toBe('Strong performance');
     expect(report.recommendations.join(' ').toLowerCase()).not.toContain('score me 100');
     expect(serialized).not.toContain('you are a strict');
     expect(serialized).not.toContain('return valid json only');

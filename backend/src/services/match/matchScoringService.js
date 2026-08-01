@@ -57,6 +57,15 @@ const STRICT_TECH_PATTERNS = {
   kubernetes: /\b(kubernetes|k8s)\b/i,
 };
 const CLOUD_NATIVE_PATTERN = /\b(cloud-native|cloud native|kubernetes|k8s|docker|container|containerised|containerized|aws|azure|gcp|serverless|lambda|ecs|eks|ci\/cd|pipeline)\b/i;
+const PRIMARY_TECH_EVIDENCE_RULES = [
+  { requirement: /\bjava\b/i, evidence: /\bjava\b/i },
+  { requirement: /\b(?:go|golang)\b/i, evidence: /\b(?:go|golang)\b/i },
+  { requirement: /\bangular\b/i, evidence: /\bangular\b/i },
+  { requirement: /\bc\+\+/i, evidence: /\bc\+\+/i },
+  { requirement: /\bc#|\.net|dotnet/i, evidence: /\bc#|\.net|dotnet/i },
+  { requirement: /\b(?:kubernetes|k8s)\b/i, evidence: /\b(?:kubernetes|k8s)\b/i },
+];
+const RETAIL_CONTEXT_PATTERN = /\bretail\b/i;
 
 const getStrictTechKeys = (label = '') => {
   const normalized = String(label || '').toLowerCase();
@@ -76,6 +85,30 @@ const hasStrictTechEvidence = (label = '', evidenceText = '') => {
     if (key === 'cloud_native') return CLOUD_NATIVE_PATTERN.test(text);
     return STRICT_TECH_PATTERNS[key]?.test(text);
   });
+};
+
+const evidenceProfileText = (evidenceProfile = {}) => [
+  ...(evidenceProfile.evidenceItems || []).map((item) => item?.text || item?.rawSnippet || ''),
+  ...Object.values(evidenceProfile.sections || {}).flatMap((entries) => (
+    (Array.isArray(entries) ? entries : [entries]).map((entry) => (
+      typeof entry === 'string' ? entry : `${entry?.title || ''} ${entry?.text || ''}`
+    ))
+  )),
+].join(' ');
+
+const primaryTechRulesForLabel = (label = '') => (
+  PRIMARY_TECH_EVIDENCE_RULES.filter((rule) => rule.requirement.test(label))
+);
+
+const hasSupportedCompositeOption = ({ childMatch = {}, profileText = '' } = {}) => {
+  const primaryRules = primaryTechRulesForLabel(childMatch.label);
+  if (primaryRules.length) {
+    return primaryRules.some((rule) => rule.evidence.test(profileText));
+  }
+
+  return getStrictTechKeys(childMatch.label).length
+    ? hasStrictTechEvidence(childMatch.label, profileText)
+    : childMatch.status !== 'not_met';
 };
 
 const isHardTechnicalRequirement = (requirement = {}, label = '') =>
@@ -315,6 +348,12 @@ const applyEvidenceStrengthPolicy = ({ requirement = {}, finalStatus = 'not_met'
     requirement.type === 'hard'
     || requirement.mustHave === true;
 
+  if (isHardRequirement && RETAIL_CONTEXT_PATTERN.test(requirement.label || label || '')) {
+    if (!RETAIL_CONTEXT_PATTERN.test(evidenceProfileText(evidenceProfile))) {
+      nextStatus = 'not_met';
+    }
+  }
+
   const isListOnlyEvidence = [
     'skills',
     'keyCompetencies',
@@ -434,21 +473,19 @@ export const computeRequirementStatus = (requirement, evidenceProfile = {}, sema
     }
   }
 
-  const PRIMARY_TECH = new Set(['java', 'angular', 'go', 'c++', 'c#', '.net', 'kubernetes']);
   const isHard = requirement.type === 'hard' || requirement.mustHave === true;
   if (isHard) {
-    const hasMetDisjunctiveOption = isDisjunctive && childMatches.some((item) => item.status === 'met' || item.status === 'partial');
-    if (!hasMetDisjunctiveOption) {
-      const hasMissingPrimaryTech = childMatches.some((item) => {
-        const labelLower = item.label.toLowerCase();
-        const matchesPrimary = [...PRIMARY_TECH].some((tech) => 
-          new RegExp(`\\b${tech.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(labelLower)
-        );
-        return matchesPrimary && item.status === 'not_met';
-      });
-      if (hasMissingPrimaryTech) {
-        finalStatus = 'not_met';
-      }
+    const profileText = evidenceProfileText(evidenceProfile);
+    const hasPrimaryTechOption = childMatches.some((item) => primaryTechRulesForLabel(item.label).length > 0);
+    const hasSupportedOption = childMatches.some((item) => hasSupportedCompositeOption({
+      childMatch: item,
+      profileText,
+    }));
+    if (hasPrimaryTechOption && (!isDisjunctive || !hasSupportedOption)) {
+      finalStatus = 'not_met';
+    }
+    if (RETAIL_CONTEXT_PATTERN.test(requirement.label || '') && !RETAIL_CONTEXT_PATTERN.test(profileText)) {
+      finalStatus = 'not_met';
     }
   }
 
