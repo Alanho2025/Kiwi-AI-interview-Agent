@@ -186,6 +186,56 @@ describe('interviewTurnOrchestratorService', () => {
     expect(plan.selectedRootCandidate).toEqual(expect.objectContaining({ questionId: 'pool-1' }));
   });
 
+  it('uses a persisted warm-up slot to force a root and exclude later-phase candidates', async () => {
+    const questionSet = {
+      definition: {
+        turnSlots: [{
+          turn: 1,
+          phase: 'warm_up',
+          allowedQuestionKinds: ['root_question'],
+          intendedPurpose: 'establish_candidate_context',
+          policyReason: 'first_countable_turn_candidate_context',
+        }],
+        questionMap: {
+          'warm-up': { targetId: 'target-warm-up' },
+          'technical-later': { targetId: 'target-technical-later' },
+        },
+      },
+      runtimeState: {
+        coverageByTargetId: {
+          'target-warm-up': { status: 'unseen' },
+          'target-technical-later': { status: 'unseen' },
+        },
+      },
+    };
+    const plan = await buildInterviewTurnPlan({
+      session: { ...baseSession, userId: 'user-1' },
+      actionType: AGENT_ACTION_TYPES.ASK_DEEP_DIVE_QUESTION,
+      decisionContext: { ...baseDecisionContext, interviewStructure: { focusAreaKey: 'technical', nextTurnIndex: 1 } },
+      poolItems: [
+        { ...poolItems[0], questionId: 'technical-later', category: 'technical' },
+        {
+          ...poolItems[0],
+          questionId: 'warm-up',
+          category: 'opening',
+          stage: 'opening',
+          questionFamily: 'self_intro',
+          questionIntent: 'self_intro',
+          text: 'Could you introduce your most relevant background?',
+        },
+      ],
+      loadQuestionSet: async () => questionSet,
+    });
+
+    expect(plan.turnKind).toBe('root_question');
+    expect(plan.turnSlot).toEqual(expect.objectContaining({ phase: 'warm_up' }));
+    expect(plan.phaseSelection.forcedRootQuestion).toBe(true);
+    expect(plan.selectedRootCandidate.questionId).toBe('warm-up');
+    expect(plan.rejectedCandidates).toEqual(expect.arrayContaining([
+      expect.objectContaining({ questionId: 'technical-later', reason: 'phase_ineligible' }),
+    ]));
+  });
+
   it('records an explicit Role-Fit ranking latency marker without adding a new async decision step', async () => {
     const roleFitPool = [{
       ...poolItems[0],

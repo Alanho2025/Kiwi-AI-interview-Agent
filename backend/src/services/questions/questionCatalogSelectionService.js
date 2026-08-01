@@ -8,8 +8,45 @@ const DATA_ROLE_FAMILIES = new Set(['data', 'data_science', 'analytics', 'data_e
 const ML_ROLE_FAMILIES = new Set(['ml', 'ai_ml', 'machine_learning', 'data_science']);
 const AI_SECOND_FAMILIES = new Set(['prompt_and_context_design', 'rag_retrieval_design', 'agent_reliability_and_safety', 'ai_evaluation_and_cost']);
 const DIGITAL_ROLE_SIGNALS = /\b(digital|software|data|analytics|product|technology|automation|e-?commerce|platform|online|systems?)\b/;
+export const SCENARIO_COVERAGE_SLOT = 'scenario_problem_solving';
+const SCENARIO_RESERVATION_PRIORITY = 75;
 
 const resolveTargetLevel = (value = '') => normalizeSeniorityLevelKey(value);
+
+const resolveTimeLimitMinutes = (settings = {}) => {
+  const configuredMinutes = Number(settings.timeLimitMinutes);
+  if (Number.isFinite(configuredMinutes) && configuredMinutes > 0) return configuredMinutes;
+
+  const configuredSeconds = Number(settings.timeLimitSeconds);
+  if (Number.isFinite(configuredSeconds) && configuredSeconds > 0) return configuredSeconds / 60;
+  return 0;
+};
+
+const isBoundedTechnicalScenario = (catalogItem = {}) => (
+  normalizeKey(catalogItem.category) === 'technical'
+  && normalizeKey(catalogItem?.ambiguityPolicy?.mode) === 'bounded_scenario'
+);
+
+export const resolveScenarioEligibility = (selectionContext = {}) => {
+  const focusArea = normalizeKey(selectionContext.focusArea || 'combined').replace('behavioral', 'behavioural');
+  const questionLimit = Number(selectionContext.questionLimit) || 0;
+  const timeLimitMinutes = Number(selectionContext.timeLimitMinutes) || 0;
+  const hasThirtyMinuteLimit = timeLimitMinutes >= 30;
+
+  if (focusArea === 'technical') {
+    if (questionLimit >= 12) return { eligible: true, reasons: [`scenario_focus:${focusArea}`, `scenario_question_limit:${questionLimit}`] };
+    if (hasThirtyMinuteLimit) return { eligible: true, reasons: [`scenario_focus:${focusArea}`, 'scenario_time_limit:30'] };
+    return { eligible: false, reasons: ['scenario_technical_session_too_short'] };
+  }
+
+  if (focusArea === 'combined') {
+    if (questionLimit >= 15) return { eligible: true, reasons: [`scenario_focus:${focusArea}`, `scenario_question_limit:${questionLimit}`] };
+    if (hasThirtyMinuteLimit) return { eligible: true, reasons: [`scenario_focus:${focusArea}`, 'scenario_time_limit:30'] };
+    return { eligible: false, reasons: ['scenario_combined_session_too_short'] };
+  }
+
+  return { eligible: false, reasons: ['scenario_focus_not_supported'] };
+};
 
 const buildRoleText = (analysisResult = {}) => [
   analysisResult.jobTitle,
@@ -80,6 +117,7 @@ export const resolveCatalogSelectionContext = ({ analysisResult = {}, settings =
     targetLevel: resolveTargetLevel(settings.seniorityLevel || settings.level || 'junior'),
     focusArea: normalizeKey(settings.focusArea || settings.questionType || 'combined').replace('behavioral', 'behavioural'),
     questionLimit: Number(settings.questionLimit || settings.totalQuestions || 8),
+    timeLimitMinutes: resolveTimeLimitMinutes(settings),
     signalProfile,
     hasAiOrDigitalSignal: signalProfile.strongestSignal !== 'none' || DIGITAL_ROLE_SIGNALS.test(normalizedRoleText),
     explicitCandidateSignals: new Set([
@@ -94,6 +132,10 @@ export const resolveCatalogQuestionEligibility = ({ catalogItem = {}, selectionC
   const roleEligibility = catalogItem.roleEligibility || {};
   if (catalogItem.lifecycle !== 'approved') return { eligible: false, reasons: ['catalog_lifecycle_not_approved'] };
   if (!ensureArray(catalogItem.targetLevels).includes(selectionContext.targetLevel)) return { eligible: false, reasons: ['target_level_not_supported'] };
+  if (isBoundedTechnicalScenario(catalogItem)) {
+    const scenarioEligibility = resolveScenarioEligibility(selectionContext);
+    if (!scenarioEligibility.eligible) return { eligible: false, reasons: scenarioEligibility.reasons };
+  }
   const allowedRoleFamilies = ensureArray(roleEligibility.roleFamilies).map(normalizeKey).filter(Boolean);
   if (allowedRoleFamilies.length && !allowedRoleFamilies.includes('general') && !allowedRoleFamilies.includes(selectionContext.roleFamily)) {
     return { eligible: false, reasons: ['role_family_not_eligible'] };
@@ -127,6 +169,15 @@ const selectPrompt = (catalogItem = {}, targetLevel = '') => {
 
 const resolveSnapshotPolicy = ({ catalogItem = {}, selectionContext = {} } = {}) => {
   const selectionPolicy = { ...(catalogItem.selectionPolicy || {}) };
+  if (isBoundedTechnicalScenario(catalogItem)) {
+    return {
+      ...selectionPolicy,
+      coverageSlot: SCENARIO_COVERAGE_SLOT,
+      minAsked: 1,
+      maxAsked: 1,
+      reservationPriority: SCENARIO_RESERVATION_PRIORITY,
+    };
+  }
   if (selectionContext.questionLimit < 8) {
     return { ...selectionPolicy, minAsked: 0, reservationPriority: 0, coverageSlot: null };
   }
@@ -166,6 +217,9 @@ export const buildCatalogQuestionSnapshots = ({ catalogItems = [], context = {} 
       return;
     }
     const selectionPolicy = resolveSnapshotPolicy({ catalogItem, selectionContext });
+    const scenarioEligibility = isBoundedTechnicalScenario(catalogItem)
+      ? resolveScenarioEligibility(selectionContext)
+      : null;
     items.push({
       userId: context.userId,
       sessionId: context.sessionId,
@@ -205,7 +259,10 @@ export const buildCatalogQuestionSnapshots = ({ catalogItems = [], context = {} 
       reportDimensions: ensureArray(catalogItem.reportDimensions),
       containsSensitiveData: true,
       accessScope: 'private',
-      metadata: { catalogPromptVariantId: prompt.id || 'default' },
+      metadata: {
+        catalogPromptVariantId: prompt.id || 'default',
+        scenarioEligibility,
+      },
     });
   });
   return { items, rejected, selectionContext };
@@ -220,9 +277,18 @@ const getAskedSlotCounts = (transcript = []) => ensureArray(transcript)
   }, {});
 
 export const resolveCatalogCoverageExpectations = ({ selectionContext = {} } = {}) => {
-  if (Number(selectionContext.questionLimit || 0) < 8) return [];
+  const scenarioExpectations = resolveScenarioEligibility(selectionContext).eligible
+    ? [{
+        coverageSlot: SCENARIO_COVERAGE_SLOT,
+        questionFamily: 'scenario_problem_solving',
+        minAsked: 1,
+        maxAsked: 1,
+        reservationPriority: SCENARIO_RESERVATION_PRIORITY,
+      }]
+    : [];
+  if (Number(selectionContext.questionLimit || 0) < 8) return scenarioExpectations;
   if (selectionContext.roleFamily === 'ai_solution' && selectionContext.signalProfile?.explicitAiDelivery) {
-    return [
+    return [...scenarioExpectations,
       {
         coverageSlot: 'ai_solution_delivery',
         questionFamily: 'ai_assisted_delivery',
@@ -240,7 +306,7 @@ export const resolveCatalogCoverageExpectations = ({ selectionContext = {} } = {
     ];
   }
   if (['software', 'data'].includes(selectionContext.roleFamily)) {
-    return [{
+    return [...scenarioExpectations, {
       coverageSlot: 'software_ai_workflow',
       questionFamily: 'ai_assisted_delivery',
       minAsked: 1,
@@ -249,7 +315,7 @@ export const resolveCatalogCoverageExpectations = ({ selectionContext = {} } = {
     }];
   }
   if (selectionContext.roleFamily === 'ml') {
-    return [
+    return [...scenarioExpectations,
       {
         coverageSlot: 'ml_foundation',
         questionFamily: 'ml_foundation',
@@ -268,11 +334,16 @@ export const resolveCatalogCoverageExpectations = ({ selectionContext = {} } = {
         : []),
     ];
   }
-  return [];
+  return scenarioExpectations;
 };
 
 const isApprovedCatalogPoolItem = (item = {}) => (
   Boolean(item.catalogQuestionId) && ['approved'].includes(item.catalogLifecycle || item.lifecycle)
+);
+
+const isReservablePoolItem = (item = {}) => (
+  Boolean(item?.coverageSlot)
+  && (isApprovedCatalogPoolItem(item) || item.sourceType === 'scenario_policy')
 );
 
 export const resolveCatalogReservationPlan = ({
@@ -283,7 +354,7 @@ export const resolveCatalogReservationPlan = ({
 } = {}) => {
   const askedSlotCounts = getAskedSlotCounts(session.transcript);
   const candidatesBySlot = new Map();
-  ensureArray(poolItems).filter((item) => item?.coverageSlot && item?.catalogLifecycle === 'approved').forEach((item) => {
+  ensureArray(poolItems).filter(isReservablePoolItem).forEach((item) => {
     const entry = candidatesBySlot.get(item.coverageSlot) || [];
     entry.push(item);
     candidatesBySlot.set(item.coverageSlot, entry);
@@ -294,12 +365,12 @@ export const resolveCatalogReservationPlan = ({
     settings: {
       ...(session.settings || {}),
       questionLimit: session.questionLimit || session.totalQuestions || session.settings?.questionLimit,
+      timeLimitSeconds: session.timeLimitSeconds || session.settings?.timeLimitSeconds,
     },
   });
   const catalogIsActive = catalogStatus === 'ready' || approvedCatalogPoolItems.length > 0;
-  const expectations = catalogIsActive
-    ? resolveCatalogCoverageExpectations({ selectionContext: resolvedSelectionContext })
-    : [];
+  const expectations = resolveCatalogCoverageExpectations({ selectionContext: resolvedSelectionContext })
+    .filter((expectation) => catalogIsActive || expectation.coverageSlot === SCENARIO_COVERAGE_SLOT);
   const expectationsBySlot = new Map(expectations.map((expectation) => [expectation.coverageSlot, expectation]));
   const allCoverageSlots = new Set([...candidatesBySlot.keys(), ...expectationsBySlot.keys()]);
   const remainingQuestionSlots = Math.max(0, Number(session.questionLimit || session.totalQuestions || 8) - Number(session.currentQuestionIndex || 1) + 1);

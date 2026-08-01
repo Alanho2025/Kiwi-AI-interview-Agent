@@ -1,8 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   buildQuestionPoolReconciliationPlan,
   buildInterviewQuestionPoolItems,
   buildPreparedRootQuestionPoolQuery,
+  composeInterviewQuestionPool,
+  restorePreparedQuestionPoolFromQuestionSet,
 } from '../../../src/services/questions/questionPoolComposerService.js';
 import * as questionPoolComposerService from '../../../src/services/questions/questionPoolComposerService.js';
 import { validatePreparedQuestionPool } from '../../../src/services/schemaValidationService.js';
@@ -18,6 +20,96 @@ const baseArgs = {
 };
 
 describe('questionPoolComposerService', () => {
+  it.each(['text', 'voice'])('reuses the same persisted question set for %s preparation retries', async (deliveryMode) => {
+    const canonicalItems = [{ questionId: 'canonical-question', text: 'Tell me about API design.' }];
+    const loadQuestionSet = vi.fn(async () => ({ definition: { items: canonicalItems } }));
+    const restoreQuestionPool = vi.fn(async ({ items }) => items);
+    const persistQuestionSet = vi.fn();
+
+    const result = await composeInterviewQuestionPool({
+      userId: 'user-1',
+      sessionId: 'session-1',
+      deliveryMode,
+      loadQuestionSet,
+      restoreQuestionPool,
+      persistQuestionSet,
+    });
+
+    expect(result).toEqual(canonicalItems);
+    expect(loadQuestionSet).toHaveBeenCalledWith({ sessionId: 'session-1', userId: 'user-1' });
+    expect(restoreQuestionPool).toHaveBeenCalledWith(expect.objectContaining({
+      sessionId: 'session-1',
+      userId: 'user-1',
+      items: canonicalItems,
+    }));
+    expect(persistQuestionSet).not.toHaveBeenCalled();
+  });
+
+  it('fills a partial persisted pool while preserving existing asked state', async () => {
+    const existingItems = [{ questionId: 'canonical-question', userId: 'user-1', status: 'asked', askedTurnIndex: 2 }];
+    const questionPoolModel = {
+      find: vi.fn(() => ({
+        sort: vi.fn(() => ({ lean: vi.fn(async () => existingItems) })),
+      })),
+      insertMany: vi.fn(async (items) => existingItems.push(...items)),
+    };
+
+    const result = await restorePreparedQuestionPoolFromQuestionSet({
+      sessionId: 'session-1',
+      userId: 'user-1',
+      items: [
+        { questionId: 'canonical-question', userId: 'user-1', status: 'active' },
+        { questionId: 'missing-question', userId: 'user-1', status: 'active' },
+      ],
+      questionPoolModel,
+    });
+
+    expect(result).toEqual(existingItems);
+    expect(result).toEqual(expect.arrayContaining([
+      expect.objectContaining({ questionId: 'canonical-question', status: 'asked', askedTurnIndex: 2 }),
+      expect.objectContaining({ questionId: 'missing-question', status: 'active' }),
+    ]));
+    expect(questionPoolModel.find).toHaveBeenCalledWith({ sessionId: 'session-1', userId: 'user-1' });
+    expect(questionPoolModel.insertMany).toHaveBeenCalledWith([
+      expect.objectContaining({ questionId: 'missing-question' }),
+    ], { ordered: false });
+  });
+
+  it('does not restore another user pool and verifies a duplicate-write race contains every canonical item', async () => {
+    const storedItems = [{ questionId: 'victim-question', userId: 'victim', status: 'asked' }];
+    const questionPoolModel = {
+      find: vi.fn((query) => ({
+        sort: vi.fn(() => ({ lean: vi.fn(async () => storedItems.filter((item) => (
+          item.userId === query.userId && query.sessionId === 'shared-session'
+        ))) })),
+      })),
+      insertMany: vi.fn(async (items) => {
+        storedItems.push(...items);
+        const error = new Error('duplicate race');
+        error.code = 11000;
+        throw error;
+      }),
+    };
+
+    const attackerResult = await restorePreparedQuestionPoolFromQuestionSet({
+      sessionId: 'shared-session',
+      userId: 'attacker',
+      items: [],
+      questionPoolModel,
+    });
+    const ownerResult = await restorePreparedQuestionPoolFromQuestionSet({
+      sessionId: 'shared-session',
+      userId: 'owner',
+      items: [{ questionId: 'owner-question', userId: 'owner', status: 'active' }],
+      questionPoolModel,
+    });
+
+    expect(attackerResult).toEqual([]);
+    expect(ownerResult).toEqual([expect.objectContaining({ questionId: 'owner-question', userId: 'owner' })]);
+    expect(questionPoolModel.find).toHaveBeenCalledWith({ sessionId: 'shared-session', userId: 'attacker' });
+    expect(questionPoolModel.find).toHaveBeenCalledWith({ sessionId: 'shared-session', userId: 'owner' });
+  });
+
   it('uses a cross-role fallback while keeping the internal technical category', () => {
     const pool = questionPoolComposerService.ensureMinimumFallbacks?.([], {
       userId: 'user-cross-role',
@@ -346,14 +438,14 @@ describe('questionPoolComposerService', () => {
     expect(plan.questionIdsToMarkAsked).not.toContain('pool-3');
   });
 
-  it('snapshots an approved catalog question into the private prepared pool without replacing existing sources', () => {
+  it.each(['text', 'voice'])('snapshots an approved catalog question into the private prepared %s pool without replacing existing sources', (deliveryMode) => {
     const catalogItem = {
       ...QUESTION_CATALOG_SEED.find((item) => item.catalogQuestionId === 'ai_assisted_delivery'),
       lifecycle: 'approved',
     };
     const pool = buildInterviewQuestionPoolItems({
       ...baseArgs,
-      deliveryMode: 'voice',
+      deliveryMode,
       settings: { focusArea: 'Technical', seniorityLevel: 'Senior', questionLimit: 8 },
       analysisResult: {
         jobTitle: 'Software Engineer',
@@ -376,23 +468,35 @@ describe('questionPoolComposerService', () => {
     expect(pool.length).toBeGreaterThan(1);
   });
 
-  it('does not add catalog snapshots when the prepared pool belongs to a text session', () => {
-    const catalogItem = {
-      ...QUESTION_CATALOG_SEED.find((item) => item.catalogQuestionId === 'ai_assisted_delivery'),
-      lifecycle: 'approved',
-    };
+  it.each([
+    ['technical, 8 questions, 15 minutes', { focusArea: 'Technical', questionLimit: 8, timeLimitMinutes: 15 }, false],
+    ['technical, 12 questions, 15 minutes', { focusArea: 'Technical', questionLimit: 12, timeLimitMinutes: 15 }, true],
+    ['technical, 8 questions, 30 minutes', { focusArea: 'Technical', questionLimit: 8, timeLimitMinutes: 30 }, true],
+    ['combined, 12 questions, 15 minutes', { focusArea: 'Combined', questionLimit: 12, timeLimitMinutes: 15 }, false],
+    ['combined, 15 questions, 15 minutes', { focusArea: 'Combined', questionLimit: 15, timeLimitMinutes: 15 }, true],
+    ['combined, 8 questions, 30 minutes', { focusArea: 'Combined', questionLimit: 8, timeLimitMinutes: 30 }, true],
+  ])('adds one deterministic new-project scenario candidate for %s only when eligible', (_label, scenarioSettings, expectedScenario) => {
     const pool = buildInterviewQuestionPoolItems({
       ...baseArgs,
-      deliveryMode: 'text',
-      settings: { focusArea: 'Technical', seniorityLevel: 'Senior', questionLimit: 8 },
+      settings: { seniorityLevel: 'Senior', ...scenarioSettings },
       analysisResult: {
         jobTitle: 'Software Engineer',
         parsedJdProfile: { roleFamily: 'software_development' },
       },
-      catalogItems: [catalogItem],
     });
+    const scenarioItems = pool.filter((item) => item.sourceType === 'scenario_policy');
 
-    expect(pool.some((item) => item.catalogQuestionId === 'ai_assisted_delivery')).toBe(false);
+    expect(scenarioItems).toHaveLength(expectedScenario ? 1 : 0);
+    if (expectedScenario) {
+      expect(scenarioItems[0]).toEqual(expect.objectContaining({
+        category: 'technical',
+        stage: 'scenario',
+        topic: 'new_project_delivery',
+        questionIntent: 'scenario_problem_solving',
+        coverageSlot: 'scenario_problem_solving',
+        selectionPolicy: expect.objectContaining({ minAsked: 1, maxAsked: 1, reservationPriority: 75 }),
+      }));
+    }
   });
   it('excludes qualification requirements from the interview question pool', () => {
     const items = buildInterviewQuestionPoolItems({
@@ -436,7 +540,7 @@ describe('questionPoolComposerService', () => {
       )
     ).toBe(false);
   });
-  it('selects up to six interviewable requirements after excluding qualifications', () => {
+  it('sorts every interviewable requirement by canonical status before session-level capacity selection', () => {
     const requirementChecks = [
       {
         requirement: 'Bachelor degree in Computer Science',
@@ -453,12 +557,33 @@ describe('questionPoolComposerService', () => {
         category: 'qualification',
         capabilityGroup: 'professional_credential',
       },
-      ...Array.from({ length: 7 }, (_, index) => ({
-        requirement: `Technical capability ${index + 1}`,
+      ...Array.from({ length: 6 }, (_, index) => ({
+        requirement: `Already met capability ${index + 1}`,
         category: 'technical',
         capabilityGroup: 'technical_skill',
+        status: 'met',
         met: false,
       })),
+      {
+        requirement: 'Seventh input must-have gap',
+        category: 'technical',
+        capabilityGroup: 'technical_skill',
+        status: 'not_met',
+        mustHave: true,
+      },
+      {
+        requirement: 'Unproven hard requirement',
+        category: 'technical',
+        capabilityGroup: 'technical_skill',
+        status: 'inferred',
+        type: 'hard',
+      },
+      {
+        requirement: 'Partly evidenced requirement',
+        category: 'technical',
+        capabilityGroup: 'technical_skill',
+        status: 'partial',
+      },
     ];
 
     const items = buildInterviewQuestionPoolItems({
@@ -474,7 +599,7 @@ describe('questionPoolComposerService', () => {
       (item) => item.sourceType === 'jd_requirement'
     );
 
-    expect(requirementItems).toHaveLength(6);
+    expect(requirementItems).toHaveLength(9);
 
     expect(
       requirementItems.some((item) =>
@@ -485,13 +610,36 @@ describe('questionPoolComposerService', () => {
     expect(
       requirementItems.map((item) => item.topic)
     ).toEqual([
-      'Technical capability 1',
-      'Technical capability 2',
-      'Technical capability 3',
-      'Technical capability 4',
-      'Technical capability 5',
-      'Technical capability 6',
+      'Seventh input must-have gap',
+      'Unproven hard requirement',
+      'Partly evidenced requirement',
+      'Already met capability 1',
+      'Already met capability 2',
+      'Already met capability 3',
+      'Already met capability 4',
+      'Already met capability 5',
+      'Already met capability 6',
     ]);
+    expect(requirementItems[0]).toMatchObject({
+      metadata: {
+        requirementSelection: {
+          canonicalStatus: 'not_met',
+          isMustHave: true,
+        },
+      },
+    });
+    expect(requirementItems[0].priorityWeight).toBeCloseTo(0.93);
+    expect(requirementItems[0].riskWeight).toBeCloseTo(0.97);
+    expect(requirementItems.at(-1)).toMatchObject({
+      priorityWeight: 0.44,
+      riskWeight: 0.4,
+      metadata: {
+        requirementSelection: {
+          canonicalStatus: 'met',
+          isMustHave: false,
+        },
+      },
+    });
   });
   it('classifies soft-skill requirements as behavioural questions', () => {
     const items = buildInterviewQuestionPoolItems({

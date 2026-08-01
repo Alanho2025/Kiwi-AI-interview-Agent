@@ -7,7 +7,18 @@ import { getCvQuestionSeeds } from './cvQuestionSeedService.js';
 import { getJdQuestionFilter } from './jdQuestionFilterService.js';
 import { buildAssessmentKey, buildQuestionFingerprint } from './questionDeduplicationService.js';
 import { buildRoleFitQuestionPool } from './roleSpecificPracticePlannerService.js';
-import { buildCatalogQuestionSnapshots } from './questionCatalogSelectionService.js';
+import { applyUserInterviewMemoryQuestionPolicy } from '../aiControl/userInterviewMemoryService.js';
+import {
+  getSessionQuestionSet,
+  getSessionQuestionSetItems,
+  persistSessionQuestionSet,
+} from './sessionQuestionSetService.js';
+import {
+  buildCatalogQuestionSnapshots,
+  resolveCatalogSelectionContext,
+  resolveScenarioEligibility,
+  SCENARIO_COVERAGE_SLOT,
+} from './questionCatalogSelectionService.js';
 import { isJobDescriptionSectionHeading } from '../jobDescription/jobDescriptionSectionHeadingGuard.js';
 import {
   buildModeCompatibility,
@@ -75,8 +86,56 @@ const sourcePriority = {
   cv_seed: 3,
   common_template: 2,
   catalog: 4,
+  scenario_policy: 4,
   fallback: 1,
 };
+
+const REQUIREMENT_STATUS_POLICY = Object.freeze({
+  not_met: { rank: 0, priorityWeight: 0.88, riskWeight: 0.92 },
+  inferred: { rank: 1, priorityWeight: 0.74, riskWeight: 0.76 },
+  partial: { rank: 2, priorityWeight: 0.64, riskWeight: 0.64 },
+  met: { rank: 3, priorityWeight: 0.44, riskWeight: 0.4 },
+});
+
+const REQUIREMENT_IMPORTANCE_RANK = Object.freeze({
+  critical: 0,
+  high: 1,
+  medium: 2,
+  low: 3,
+});
+
+export const resolveCanonicalRequirementStatus = (value = '') => {
+  const status = normalizeKey(value);
+  return REQUIREMENT_STATUS_POLICY[status] ? status : 'not_met';
+};
+
+const resolveRequirementSelectionPriority = (requirement = {}, originalIndex = 0) => {
+  const canonicalStatus = resolveCanonicalRequirementStatus(requirement.status);
+  const statusPolicy = REQUIREMENT_STATUS_POLICY[canonicalStatus];
+  const importance = normalizeKey(requirement.importance || 'medium');
+  const importanceRank = REQUIREMENT_IMPORTANCE_RANK[importance] ?? REQUIREMENT_IMPORTANCE_RANK.medium;
+  const isMustHave = Boolean(requirement.mustHave || requirement.type === 'hard');
+  const importanceBoost = importanceRank <= REQUIREMENT_IMPORTANCE_RANK.high ? 0.03 : 0;
+  const mustHaveBoost = isMustHave ? 0.05 : 0;
+
+  return {
+    canonicalStatus,
+    statusRank: statusPolicy.rank,
+    isMustHave,
+    importance,
+    importanceRank,
+    originalIndex,
+    priorityWeight: Math.min(1, statusPolicy.priorityWeight + mustHaveBoost + importanceBoost),
+    riskWeight: Math.min(1, statusPolicy.riskWeight + mustHaveBoost),
+  };
+};
+
+const compareRequirementSelectionPriority = (left, right) => (
+  left.statusRank - right.statusRank
+  || Number(right.isMustHave) - Number(left.isMustHave)
+  || left.importanceRank - right.importanceRank
+  || left.originalIndex - right.originalIndex
+);
 
 const isVoiceDeliveryMode = (value = '') => normalizeKey(value) === 'voice';
 
@@ -367,7 +426,7 @@ const buildRequirementItems = (analysisResult, context) =>
         && !isJobDescriptionSectionHeading(topic)
       );
     })
-    .map((requirement) => {
+    .map((requirement, originalIndex) => {
       const topic = requirement.requirement
         || requirement.label
         || requirement.skill;
@@ -378,11 +437,15 @@ const buildRequirementItems = (analysisResult, context) =>
         requirement,
         topic,
         strategy,
+        selectionPriority: resolveRequirementSelectionPriority(requirement, originalIndex),
       };
     })
     .filter(({ strategy }) => !strategy.excludeFromInterview)
-    .slice(0, 6)
-    .map(({ requirement, topic, strategy }) =>
+    .sort((left, right) => compareRequirementSelectionPriority(
+      left.selectionPriority,
+      right.selectionPriority,
+    ))
+    .map(({ requirement, topic, strategy, selectionPriority }) =>
       buildBaseItem({
         ...context,
         sourceStage: 'match_validation',
@@ -406,9 +469,16 @@ const buildRequirementItems = (analysisResult, context) =>
         capabilityGroup: requirement.capabilityGroup || '',
         expectedSignal: strategy.expectedSignal,
         evidenceNeed: strategy.expectedSignal,
-        priorityWeight: requirement.met === false ? 0.82 : 0.64,
+        priorityWeight: selectionPriority.priorityWeight,
         coverageWeight: 0.78,
-        riskWeight: requirement.met === false ? 0.85 : 0.5,
+        riskWeight: selectionPriority.riskWeight,
+        metadata: {
+          requirementSelection: {
+            canonicalStatus: selectionPriority.canonicalStatus,
+            isMustHave: selectionPriority.isMustHave,
+            importance: selectionPriority.importance,
+          },
+        },
       })
     );
 
@@ -502,6 +572,42 @@ const dedupePool = (items = []) => {
   return deduped;
 };
 
+export const buildScenarioPolicyItem = ({ analysisResult = {}, context = {}, settings = {} } = {}) => {
+  const selectionContext = resolveCatalogSelectionContext({ analysisResult, settings });
+  const scenarioEligibility = resolveScenarioEligibility(selectionContext);
+  if (!scenarioEligibility.eligible) return null;
+
+  const text = 'Imagine you are starting a new project with incomplete requirements. How would you clarify the problem, set constraints, choose an approach, manage risks, and validate the outcome?';
+  return buildBaseItem({
+    ...context,
+    sourceStage: 'scenario_policy',
+    sourceType: 'scenario_policy',
+    category: 'technical',
+    stage: 'scenario',
+    topic: 'new_project_delivery',
+    competency: 'new_project_delivery',
+    questionIntent: 'scenario_problem_solving',
+    questionFamily: 'scenario_problem_solving',
+    evidenceMode: 'scenario_reasoning',
+    text,
+    fallbackText: text,
+    expectedSignal: ['problem_framing', 'constraints_and_assumptions', 'technical_approach', 'tradeoffs_and_risks', 'validation_plan'],
+    priorityWeight: 0.6,
+    coverageWeight: 0.9,
+    riskWeight: 0.55,
+    maxFollowUps: 1,
+    followUpStrategies: ['constraints', 'tradeoff', 'validation'],
+    coverageSlot: SCENARIO_COVERAGE_SLOT,
+    selectionPolicy: { minAsked: 1, maxAsked: 1, reservationPriority: 75 },
+    ambiguityMode: 'bounded_scenario',
+    clarificationContextVersion: 'scenario_policy_v1',
+    clarificationContext: {
+      responseText: 'Assume the project has a real user need but incomplete requirements, limited time, and at least one meaningful technical or delivery risk.',
+    },
+    metadata: { scenarioEligibility },
+  });
+};
+
 export const ensureMinimumFallbacks = (items, context) => {
   const hasTechnical = items.some((item) => ['technical', 'role_competency'].includes(item.category));
   const hasBehavioural = items.some((item) => item.category === 'behavioural');
@@ -555,27 +661,85 @@ export const buildInterviewQuestionPoolItems = ({ userId, sessionId, cvFileId = 
   const requirementItems = buildRequirementItems(analysisResult, context);
   const gapItems = buildGapItems(analysisResult, context, { deliveryMode });
   const catalogSnapshots = buildCatalogQuestionSnapshots({
-    catalogItems: isVoiceDeliveryMode(deliveryMode) ? catalogItems : [],
+    catalogItems,
     context: { ...context, analysisResult, settings, explicitCandidateSignals },
   });
+  const scenarioPolicyItem = buildScenarioPolicyItem({ analysisResult, context, settings });
   const deduped = dedupePool([
     ...baseItems,
     ...requirementItems,
     ...seedItems,
     ...gapItems,
     ...catalogSnapshots.items,
+    ...(scenarioPolicyItem ? [scenarioPolicyItem] : []),
   ]);
   return validatePreparedQuestionPool(ensureMinimumFallbacks(deduped, context));
 };
 
-export const composeInterviewQuestionPool = async ({ userId, sessionId, cvFileId = null, matchAnalysisId = null, jdFingerprint = '', analysisResult = {}, settings = {}, catalogItems = [], explicitCandidateSignals = [], deliveryMode = 'text' } = {}) => {
+const loadStoredQuestionPool = async ({ sessionId, userId, questionPoolModel = InterviewQuestionPoolItem } = {}) => (
+  questionPoolModel.find({ sessionId, userId }).sort({ priorityWeight: -1, createdAt: 1 }).lean()
+);
+
+export const restorePreparedQuestionPoolFromQuestionSet = async ({ sessionId, userId, items = [], questionPoolModel = InterviewQuestionPoolItem } = {}) => {
+  const existingItems = await loadStoredQuestionPool({ sessionId, userId, questionPoolModel });
+  const canonicalItems = ensureArray(items).filter((item) => item?.questionId);
+  if (!canonicalItems.length) return existingItems;
+  const existingQuestionIds = new Set(existingItems.map((item) => item.questionId).filter(Boolean));
+  const missingCanonicalItems = canonicalItems.filter((item) => !existingQuestionIds.has(item.questionId));
+  if (!missingCanonicalItems.length) return existingItems;
+  try {
+    await questionPoolModel.insertMany(missingCanonicalItems, { ordered: false });
+  } catch (error) {
+    if (error?.code !== 11000) throw error;
+  }
+  const restoredItems = await loadStoredQuestionPool({ sessionId, userId, questionPoolModel });
+  const restoredQuestionIds = new Set(restoredItems.map((item) => item.questionId).filter(Boolean));
+  const unresolvedQuestionIds = canonicalItems
+    .map((item) => item.questionId)
+    .filter((questionId) => !restoredQuestionIds.has(questionId));
+  if (unresolvedQuestionIds.length) {
+    throw new Error(`Canonical question pool restore is incomplete: ${unresolvedQuestionIds.join(', ')}`);
+  }
+  return restoredItems;
+};
+
+export const composeInterviewQuestionPool = async ({
+  userId,
+  sessionId,
+  cvFileId = null,
+  matchAnalysisId = null,
+  jdFingerprint = '',
+  analysisResult = {},
+  settings = {},
+  catalogItems = [],
+  explicitCandidateSignals = [],
+  deliveryMode = 'text',
+  userInterviewMemoryProjection = null,
+  loadQuestionSet = getSessionQuestionSet,
+  persistQuestionSet = persistSessionQuestionSet,
+  restoreQuestionPool = restorePreparedQuestionPoolFromQuestionSet,
+  questionPoolModel = InterviewQuestionPoolItem,
+} = {}) => {
   if (!userId || !sessionId) return [];
+  const existingQuestionSet = await loadQuestionSet({ sessionId, userId });
+  if (existingQuestionSet) {
+    return restoreQuestionPool({
+      sessionId,
+      userId,
+      items: getSessionQuestionSetItems(existingQuestionSet),
+      questionPoolModel,
+    });
+  }
+
+  const existingPoolItems = await loadStoredQuestionPool({ sessionId, userId, questionPoolModel });
+  if (existingPoolItems.length) return existingPoolItems;
+
   const [cvSeeds, jdFilter, companyProfile] = await Promise.all([
     cvFileId ? getCvQuestionSeeds({ userId, cvFileId, status: 'active' }) : Promise.resolve([]),
     getJdQuestionFilter({ userId, matchAnalysisId, jdFingerprint }),
     jdFingerprint ? CompanyValuesProfile.findOne({ userId: String(userId), jdFingerprint }).lean() : Promise.resolve(null),
   ]);
-  const rawItems = buildInterviewQuestionPoolItems({
+  const composedItems = buildInterviewQuestionPoolItems({
     userId,
     sessionId,
     cvFileId,
@@ -589,6 +753,11 @@ export const composeInterviewQuestionPool = async ({ userId, sessionId, cvFileId
     catalogItems,
     explicitCandidateSignals,
   });
+  const memoryAdjustedPool = applyUserInterviewMemoryQuestionPolicy({
+    items: composedItems,
+    projection: userInterviewMemoryProjection,
+  });
+  const rawItems = memoryAdjustedPool.items;
 
   const roleEvidenceMap = analysisResult?.roleEvidenceMap || {};
   const roleFitProfile = companyProfile?.roleFitProfile || {};
@@ -606,17 +775,28 @@ export const composeInterviewQuestionPool = async ({ userId, sessionId, cvFileId
     },
   });
   const items = roleFitQuestionPlan.items;
-
-  await InterviewQuestionPoolItem.deleteMany({ sessionId });
   if (!items.length) return [];
-  await InterviewQuestionPoolItem.insertMany(items, { ordered: false });
-  return InterviewQuestionPoolItem.find({ sessionId }).sort({ priorityWeight: -1, createdAt: 1 }).lean();
+  const persistedQuestionSet = await persistQuestionSet({ sessionId, userId, settings, items });
+  const canonicalItems = getSessionQuestionSetItems(persistedQuestionSet.questionSet);
+  if (!canonicalItems.length) {
+    throw new Error('Cannot compose a question pool before its canonical session question set is persisted.');
+  }
+  return restoreQuestionPool({
+    sessionId,
+    userId,
+    items: canonicalItems,
+    questionPoolModel,
+  });
 };
 
-export const buildPreparedRootQuestionPoolQuery = ({ sessionId, category = null, status = 'active' } = {}) => {
+export const buildPreparedRootQuestionPoolQuery = ({ sessionId, category = null, status = 'active', questionRoles = null } = {}) => {
   const query = { sessionId };
   if (status) query.status = status;
   if (category) query.category = normalizeCategory(category);
+  if (ensureArray(questionRoles).length) {
+    query.questionRole = { $in: ensureArray(questionRoles) };
+    return query;
+  }
   query.$or = [
     { questionRole: 'root_question' },
     { questionRole: { $exists: false } },
@@ -626,9 +806,9 @@ export const buildPreparedRootQuestionPoolQuery = ({ sessionId, category = null,
   return query;
 };
 
-export const getPreparedQuestionPool = async ({ sessionId, category = null, status = 'active' } = {}) => {
+export const getPreparedQuestionPool = async ({ sessionId, category = null, status = 'active', questionRoles = null } = {}) => {
   if (!sessionId) return [];
-  const query = buildPreparedRootQuestionPoolQuery({ sessionId, category, status });
+  const query = buildPreparedRootQuestionPoolQuery({ sessionId, category, status, questionRoles });
   return InterviewQuestionPoolItem.find(query).sort({ priorityWeight: -1, createdAt: 1 }).lean();
 };
 

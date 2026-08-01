@@ -7,6 +7,7 @@ const DEFAULT_FRESHNESS_DAYS = 90;
 const MIN_INDEPENDENT_SESSIONS = 2;
 const STRONG_EVIDENCE_THRESHOLD = 0.72;
 const WEAK_EVIDENCE_THRESHOLD = 0.45;
+const REVALIDATION_PRIORITY_BOOST = 0.18;
 
 const toKey = (value = '') => String(value || '')
   .trim()
@@ -51,13 +52,11 @@ const classifyDepth = ({ evidenceGainScore, specificity }) => {
 };
 
 const toContribution = ({ analysis, trajectory, now }) => {
+  const answeredQuestion = trajectory?.answeredQuestion;
+  if (!answeredQuestion?.topic || !answeredQuestion?.questionFamily) return null;
   const roleKey = resolveAnalysisRoleKey(analysis);
-  const competencyKey = toKey(trajectory.targetTopic || trajectory.actionInput?.targetTopic);
-  const questionFamilyKey = toKey(
-    trajectory.actionInput?.probeType
-    || trajectory.selectedAction
-    || trajectory.chosenAction
-  );
+  const competencyKey = toKey(answeredQuestion.topic);
+  const questionFamilyKey = toKey(answeredQuestion.questionFamily);
   const evidenceGainScore = resolveEvidenceGainScore(trajectory);
   const specificity = resolveSpecificity(trajectory);
   const createdAt = asIsoString(trajectory.createdAt, analysis.updatedAt || now);
@@ -92,12 +91,12 @@ const toContribution = ({ analysis, trajectory, now }) => {
   };
 };
 
-const isSourceComplete = (contribution) => Boolean(
-  contribution.roleKey
-  && contribution.competencyKey
-  && contribution.questionFamilyKey
-  && contribution.source.sessionId
-  && contribution.source.workflowRunId
+const isSourceComplete = (contribution = {}) => Boolean(
+  contribution?.roleKey
+  && contribution?.competencyKey
+  && contribution?.questionFamilyKey
+  && contribution?.source?.sessionId
+  && contribution?.source?.workflowRunId
 );
 
 const groupContributions = (contributions = []) => ensureArray(contributions).reduce((groups, contribution) => {
@@ -115,6 +114,66 @@ const recommendedNextDepth = (contributions = []) => (
   contributions.some((item) => item.demonstratedDepth === 'advanced') ? 'advanced_plus' : 'advanced'
 );
 
+const isRoutineRootCandidate = (item = {}) => (
+  item.questionRole === 'root_question'
+  && !['opening', 'closing'].includes(toKey(item.category || item.stage))
+);
+
+const matchesMemoryTarget = (item = {}, memoryTarget = {}) => (
+  toKey(item.topic) === toKey(memoryTarget.competencyKey)
+  && toKey(item.questionFamily) === toKey(memoryTarget.questionFamilyKey)
+);
+
+export const applyUserInterviewMemoryQuestionPolicy = ({
+  items = [],
+  projection = null,
+} = {}) => {
+  const sourceItems = ensureArray(items);
+  if (!projection?.planningEnabled || projection?.policy?.canAffectScoring !== false) {
+    return {
+      items: sourceItems,
+      decision: { status: 'not_applied', reasonCode: 'planning_disabled_or_scoring_policy_invalid' },
+    };
+  }
+
+  const suppressions = ensureArray(projection.routineRepeatSuppressions)
+    .filter((item) => item?.canSuppressRoutineRepeat);
+  const priorities = ensureArray(projection.routineRepeatPriorities);
+  const suppressedItems = sourceItems.filter((item) => (
+    isRoutineRootCandidate(item) && suppressions.some((target) => matchesMemoryTarget(item, target))
+  ));
+  const retainedItems = sourceItems.filter((item) => !suppressedItems.includes(item));
+  let boostedRootCount = 0;
+  const adjustedItems = retainedItems.map((item) => {
+    const priority = priorities.find((target) => isRoutineRootCandidate(item) && matchesMemoryTarget(item, target));
+    if (!priority) return item;
+    boostedRootCount += 1;
+    return {
+      ...item,
+      priorityWeight: Math.min(
+        1,
+        Number((Number(item.priorityWeight || 0) + REVALIDATION_PRIORITY_BOOST).toFixed(2)),
+      ),
+      crossSessionMemoryPolicy: {
+        policyVersion: projection.policyVersion,
+        reasonCode: priority.reasonCode,
+        action: 'retain_and_boost_for_revalidation',
+      },
+    };
+  });
+
+  return {
+    items: adjustedItems,
+    decision: {
+      status: 'applied',
+      roleKey: projection.currentRoleKey,
+      suppressedRootCount: suppressedItems.length,
+      boostedRootCount,
+      canAffectScoring: false,
+    },
+  };
+};
+
 export const buildUserInterviewMemoryProjection = ({
   analyses = [],
   currentRoleKey = '',
@@ -129,6 +188,7 @@ export const buildUserInterviewMemoryProjection = ({
     .filter(isSourceComplete);
   const applicable = contributions.filter((item) => item.roleKey === normalizedRoleKey);
   const routineRepeatSuppressions = [];
+  const routineRepeatPriorities = [];
   const revalidationDue = [];
   const gateResults = [];
 
@@ -137,7 +197,8 @@ export const buildUserInterviewMemoryProjection = ({
     const fresh = items.filter((item) => daysBetween(now, item.createdAt) <= freshnessDays);
     const independentSessionCount = new Set(fresh.map((item) => item.source.sessionId)).size;
     const strong = fresh.filter((item) => item.answerStrength === 'strong');
-    const hasConflict = fresh.some((item) => item.answerStrength === 'weak') && strong.length > 0;
+    const insufficient = fresh.filter((item) => ['weak', 'partial'].includes(item.answerStrength));
+    const hasConflict = insufficient.length > 0 && strong.length > 0;
     const strongSessionCount = new Set(strong.map((item) => item.source.sessionId)).size;
     const canSuppress = strongSessionCount >= MIN_INDEPENDENT_SESSIONS && !hasConflict;
     let reasonCode = 'promotion_threshold_not_met';
@@ -178,6 +239,18 @@ export const buildUserInterviewMemoryProjection = ({
         independentSessionCount,
       });
     }
+
+    if (insufficient.length) {
+      routineRepeatPriorities.push({
+        roleKey: first.roleKey,
+        competencyKey: first.competencyKey,
+        questionFamilyKey: first.questionFamilyKey,
+        reasonCode: hasConflict ? 'conflicting_evidence_requires_revalidation' : 'weak_or_partial_evidence_requires_revalidation',
+        independentSessionCount,
+        sourceEvidenceCount: insufficient.length,
+        canAffectScoring: false,
+      });
+    }
   });
 
   return {
@@ -191,6 +264,7 @@ export const buildUserInterviewMemoryProjection = ({
     planningEnabled: Boolean(planningEnabled),
     contributions,
     routineRepeatSuppressions,
+    routineRepeatPriorities,
     revalidationDue,
     gateResults,
     policy: {
@@ -228,6 +302,7 @@ export const refreshUserInterviewMemoryProjection = async ({
   persistProjection = persistSessionProjection,
 } = {}) => {
   if (!userId || !currentSessionId) return null;
+  if (!planningEnabled) return null;
   const analyses = await loadAnalyses({ userId, currentSessionId });
   const projection = buildUserInterviewMemoryProjection({
     analyses,

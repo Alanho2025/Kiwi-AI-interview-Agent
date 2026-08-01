@@ -33,6 +33,7 @@ const ACTION_PLANNER_ID = 'adaptive_action_planner';
 const POOL_RANKER_ID = 'prepared_question_pool_ranker';
 const TURN_ORCHESTRATOR_ID = 'interview_turn_orchestrator';
 const QUESTION_DECISION_ID = 'question_decision_tracer';
+const loadNoSessionQuestionSet = async () => null;
 
 const sharedPoolItems = [
   {
@@ -554,6 +555,7 @@ const runQuestionScenario = async (scenario = {}) => {
     decisionContext,
     actionInput: { ...(plan.actionInput || {}), actionType: plan.selectedAction },
     poolItems: scenario.poolItems,
+    loadQuestionSet: loadNoSessionQuestionSet,
   });
   const selectedQuestion = selectedQuestionFromTurnPlan({
     turnPlan,

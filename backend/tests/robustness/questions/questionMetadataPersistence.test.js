@@ -233,4 +233,50 @@ describe('question metadata persistence guards', () => {
       preparedQuestionId: 'missing-question',
     });
   });
+
+  it('does not write a selection trace when prepared asked-state persistence misses or fails', async () => {
+    const recordQuestionSelection = vi.fn();
+    const log = { warn: vi.fn() };
+    const input = {
+      session: { id: 'session-1', userId: 'user-1' },
+      preparedQuestionId: 'prepared-root-1',
+      nextQuestionOrder: 2,
+      questionDecision: { preparedQuestionId: 'prepared-root-1' },
+      recordQuestionSelection,
+      log,
+    };
+
+    await expect(masterAiService.persistPreparedRootQuestionSelection({
+      ...input,
+      markPreparedQuestionAsked: vi.fn().mockResolvedValue(null),
+    })).resolves.toEqual({ marked: false, selectionRecorded: false });
+    await expect(masterAiService.persistPreparedRootQuestionSelection({
+      ...input,
+      markPreparedQuestionAsked: vi.fn().mockRejectedValue(new Error('database unavailable')),
+    })).resolves.toEqual({ marked: false, selectionRecorded: false });
+
+    expect(recordQuestionSelection).not.toHaveBeenCalled();
+    expect(log.warn).toHaveBeenCalledTimes(2);
+  });
+
+  it('writes the selection trace only after prepared asked-state persistence succeeds', async () => {
+    const recordQuestionSelection = vi.fn().mockResolvedValue({});
+    const result = await masterAiService.persistPreparedRootQuestionSelection({
+      session: { id: 'session-1', userId: 'user-1' },
+      preparedQuestionId: 'prepared-root-1',
+      nextQuestionOrder: 2,
+      questionDecision: { preparedQuestionId: 'prepared-root-1' },
+      markPreparedQuestionAsked: vi.fn().mockResolvedValue({ questionId: 'prepared-root-1' }),
+      recordQuestionSelection,
+      log: { warn: vi.fn() },
+    });
+
+    expect(result).toEqual({ marked: true, selectionRecorded: true });
+    expect(recordQuestionSelection).toHaveBeenCalledWith({
+      sessionId: 'session-1',
+      userId: 'user-1',
+      turn: 2,
+      questionDecision: { preparedQuestionId: 'prepared-root-1' },
+    });
+  });
 });

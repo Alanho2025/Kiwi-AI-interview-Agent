@@ -2,10 +2,11 @@ import { buildCanonicalSha256Digest } from '../../data/questionCatalogReview2026
 import { ensureArray, normalizeKey } from '../../utils/commonHelpers.js';
 import { buildVoiceSelectionPolicyReviewSnapshot } from './questionCatalogPolicyReviewDocumentService.js';
 
-export const QUESTION_SELECTION_POLICY_VERSION = '2026.1';
+export const QUESTION_SELECTION_POLICY_VERSION = '2026.2';
 export const QUESTION_SELECTION_POLICY_SCOPE = Object.freeze([
   'role_level_question_count_matrix',
   'ai_ml_eligibility_and_coverage',
+  'scenario_problem_solving_eligibility_and_reservation',
   'follow_up_vs_next_root_comparison',
 ]);
 
@@ -51,8 +52,8 @@ export const QUESTION_SELECTION_POLICY_REVIEW = Object.freeze({
   approvedPolicyDigest: candidatePolicyDigest,
   decision: 'approved',
   reviewer: 'heminghan',
-  decidedAt: '2026-07-28T20:19:45.000Z',
-  decisionReason: 'Product Owner approved the CP2 Voice role, level, question-count, coverage, follow-up, and candidate-visibility policy.',
+  decidedAt: '2026-08-01T11:17:06.000Z',
+  decisionReason: 'Product Owner approved text/voice catalog parity and the deterministic scenario eligibility, reservation, and candidate-visibility policy.',
   candidateScenarioIds,
   reviewedScenarioIds: candidateScenarioIds,
 });

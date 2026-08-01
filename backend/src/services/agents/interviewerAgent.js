@@ -162,11 +162,49 @@ export const runInterviewerAgent = async ({
 
   if (!selectedQuestion) {
     selectedQuestion = turnPlan.turnKind === 'root_question'
+      && !turnPlan.turnSlot
       ? getNextPoolQuestion(session, { freshOnly, category: lockedCategory })
       : null;
   }
 
-  if (actionType === AGENT_ACTION_TYPES.ASK_PROBING_QUESTION) {
+  const phaseRequiresPreparedRoot = Boolean(
+    turnPlan.turnKind === 'root_question'
+    && turnPlan.turnSlot
+    && !turnPlan.turnSlot.allowedQuestionKinds?.includes('follow_up')
+  );
+  if (phaseRequiresPreparedRoot && !selectedQuestion) {
+    const reactTrace = buildReactTrace({
+      selectedAction: actionType,
+      decisionContext,
+      selectedQuestion: {
+        stage: 'system',
+        topic: 'required_phase_candidate_unavailable',
+      },
+      environment,
+      evaluatorState,
+    });
+    return {
+      questionType: 'system',
+      nextQuestion: null,
+      rationale: 'The canonical question set has no eligible root candidate for the required interview phase.',
+      stage: 'system',
+      topic: 'required_phase_candidate_unavailable',
+      followUpDepth: 0,
+      retrievalSnapshot: retrievalBundle,
+      isComplete: true,
+      completedBecause: 'required_phase_candidate_unavailable',
+      questionDecision: {
+        turnKind: 'root_question',
+        phase: turnPlan.turnSlot.phase,
+        sourcePolicy: 'session_question_set_required_phase',
+      },
+      reactTrace,
+    };
+  }
+
+  if (phaseRequiresPreparedRoot) {
+    // The deterministic turn-slot policy has already selected the only allowed root candidate.
+  } else if (actionType === AGENT_ACTION_TYPES.ASK_PROBING_QUESTION) {
     selectedQuestion = buildProbingQuestion({ targetTopic: targetTopic || decisionContext?.currentTopic || evidenceBundle?.validationTargets?.[0] || 'project', candidateText: environment?.latestAnswer?.text || lastUserAnswer });
   } else if (actionType === AGENT_ACTION_TYPES.REPHRASE_QUESTION) {
     selectedQuestion = buildRephrasedQuestion({ targetTopic: targetTopic || decisionContext?.currentTopic || 'project', environment });
@@ -255,10 +293,10 @@ export const runInterviewerAgent = async ({
     };
   }
 
-  if (focusArea === 'technical' && selectedQuestion && selectedQuestion.category === 'behavioural') {
+  if (!phaseRequiresPreparedRoot && focusArea === 'technical' && selectedQuestion && selectedQuestion.category === 'behavioural') {
     selectedQuestion = getNextPoolQuestion(session, { freshOnly: true, category: 'technical' });
   }
-  if (focusArea === 'behavioral' && selectedQuestion && selectedQuestion.category === 'technical') {
+  if (!phaseRequiresPreparedRoot && focusArea === 'behavioral' && selectedQuestion && selectedQuestion.category === 'technical') {
     selectedQuestion = getNextPoolQuestion(session, { freshOnly: true, category: 'behavioural' });
   }
 
@@ -271,11 +309,11 @@ export const runInterviewerAgent = async ({
   });
   selectedQuestion = normalizeQuestionIntent({ question: selectedQuestion, actionType, focusArea });
 
-  if (!selectedQuestion && (lockedCategory === 'technical' || category === 'technical' || decisionContext?.interviewStructure?.forceCategory === 'technical')) {
+  if (!selectedQuestion && !phaseRequiresPreparedRoot && (lockedCategory === 'technical' || category === 'technical' || decisionContext?.interviewStructure?.forceCategory === 'technical')) {
     selectedQuestion = buildTechnicalRecoveryQuestion({ targetTopic: targetTopic || decisionContext?.matchState?.validationTargets?.[0] || 'implementation', session, decisionContext });
   }
 
-  if (!selectedQuestion) {
+  if (!selectedQuestion && !phaseRequiresPreparedRoot) {
     selectedQuestion = focusArea === 'technical'
       ? buildTechnicalRecoveryQuestion({ targetTopic: targetTopic || decisionContext?.matchState?.validationTargets?.[0] || 'implementation', session, decisionContext })
       : {
@@ -292,7 +330,7 @@ export const runInterviewerAgent = async ({
         };
   }
 
-  if (focusArea === 'technical' && selectedQuestion?.category === 'behavioural') {
+  if (!phaseRequiresPreparedRoot && focusArea === 'technical' && selectedQuestion?.category === 'behavioural') {
     selectedQuestion = buildTechnicalRecoveryQuestion({ targetTopic: targetTopic || decisionContext?.matchState?.validationTargets?.[0] || 'implementation', session, decisionContext });
   }
 

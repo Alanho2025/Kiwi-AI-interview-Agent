@@ -1,5 +1,29 @@
 # Change Log
 
+## [2026-08-01 23:45 NZST] Question selection now follows session phase and accepted-answer coverage
+
+### Changed / Added
+
+- New-session question selection now enforces the persisted warm-up, core, and closing turn slots. A slot that permits only a root cannot be overwritten by a probing action; the closing slot can read the prepared wrap-up root. If such a canonical root is unavailable, the session stops rather than falling back to a legacy or generated out-of-phase question.
+- A high-confidence accepted answer marks its prepared target as strongly covered. It can also suppress an unasked sibling target only when two target terms are explicitly present. Weak, partial, and misunderstanding answers do not become strong coverage.
+- Each actual prepared root records a bounded, revision-guarded decision only after its asked-state update succeeds: phase/purpose, selected target, coverage transition, ranked candidates, and excluded-candidate reason codes. Raw answers are not copied into this trace.
+
+### Verification
+
+- `backend/tests/robustness/questions/sessionQuestionSetService.test.js`, `backend/tests/robustness/questions/interviewTurnOrchestratorService.test.js`, `backend/tests/robustness/questions/questionPoolComposerService.test.js`, `backend/tests/robustness/questions/questionMetadataPersistence.test.js`, and `backend/tests/robustness/questions/interviewerAgentSessionQuestionSetPolicy.test.js`: 70 tests passed; backend ESLint passed. Browser, live voice provider, Mongo persistence, and production validation were not run.
+
+## [2026-08-01 23:32 NZST] Question preparation now snapshots one canonical set per new session
+
+### Changed / Added
+
+- `InterviewPlan` now owns one private `SessionQuestionSet`. Text, voice, resume, and preparation retry for that session restore the same canonical prepared items rather than re-composing a new pool.
+- The definition records deterministic per-turn phase purpose and allowed question kinds, target contracts, the centralized coverage-state vocabulary, and the bounded structure required for later per-turn selection decisions. Existing `asked` runtime state is not reset during restore.
+- This slice does not yet write selector decisions, evaluate answer semantic coverage, alter cross-session history, migrate legacy sessions, or touch production data.
+
+### Verification
+
+- `backend/tests/robustness/questions/sessionQuestionSetService.test.js` and `backend/tests/robustness/questions/questionPoolComposerService.test.js`: 36 tests passed; backend ESLint passed. Browser, live voice provider, Mongo persistence, and production validation were not run.
+
 ## [2026-08-01 22:12 NZST] Match preparation filters qualifications and calibrates strong-fit copy
 
 ### Changed / Added
@@ -359,3 +383,41 @@
 
 ### Verification
 - Verified against source files in `backend/src/`, `frontend/src/`, `deploy/ec2/`, and automated Jest/Vitest test suites.
+
+## [2026-08-01] Question Catalog text/voice parity and new-project scenario gate
+
+### Changed / Added
+
+- Text and voice preparation now load the same approved Question Catalog candidate set; catalog content is no longer excluded solely because the session is text.
+- Added a deterministic `scenario_problem_solving` reservation with one `new_project_delivery` candidate. It is eligible only for Technical sessions with 12+ questions or 30+ minutes, and Combined sessions with 15+ questions or 30+ minutes. Behavioural-only sessions do not receive it.
+- Catalog bounded technical scenarios follow the same gate. The ranker treats the slot as one required question and marks early-ended unmet coverage as degraded instead of claiming it was asked.
+- The CP2 policy-review artifact now models the same deterministic scenario candidate and records the Product Owner-approved policy version/digest; it remains a local governance artifact, not Mongo activation evidence.
+
+### Verification
+
+- Local backend focused Vitest: 64 tests across catalog selection, preparation, composer, and CP2 policy-review suites passed; backend ESLint passed.
+- Mongo approved-catalog lifecycle, browser text flow, live voice/provider behavior, and production deployment were not run.
+
+## [2026-08-02 00:16 NZST] Same-role question refresh remains planning-only
+
+### Changed / Added
+
+- A new session can now use its same-user, same-normalized-role projection before the first canonical question-set snapshot. Two independent fresh strong answers with no weak/partial conflict remove only the matching routine root; opening, closing, and fallback roots are retained.
+- Weak, partial, or conflicting history does not remove a question. It preserves the matching root and adds a bounded `0.18` revalidation priority boost. Answer quality is attributed to the last countable AI question answered, not the next selected question.
+- This is an observe-only, default-off planning policy. It cannot affect scoring and records no raw answer or candidate-facing trace. If history refresh fails, preparation logs a warning and uses the ordinary pool.
+
+### Verification
+
+- Seven focused backend Vitest files / 89 tests and backend ESLint passed. Browser text, live voice/provider, Mongo persistence, production observe, user controls, and source-delete validation were not run.
+
+## [2026-08-02 00:35 NZST] Canonical JD requirement priority before question-pool capacity
+
+### Changed / Added
+
+- Requirement candidate priority now reads the Match pipeline's canonical `status` enum, not the stale boolean `met`. Missing or unknown status is conservatively treated as `not_met`.
+- The composer now ranks every interviewable JD requirement before session-level capacity selection. It no longer discards entries after the first six; the user's `questionLimit` remains the authority for how many countable questions the session asks.
+- Within a status tier, must-have/hard requirements, importance, then original JD order make selection deterministic. This slice does not change requirement category/mode mapping.
+
+### Verification
+
+- Seven focused backend Vitest files / 89 tests passed. Browser text, live voice/provider, Mongo persistence, and production deployment were not run.

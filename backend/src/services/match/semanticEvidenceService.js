@@ -108,10 +108,10 @@ const toMatchMap = (
     const semanticMatches = (item.matches || [])
       .filter((match) => Number(match.score) >= SCORE_FLOOR)
       .map((match) => ({
+        ...match,
         ...(evidenceById.get(
           match.evidenceId || match.id || match.chunkId
         ) || {}),
-        ...match,
         score: Number(Number(match.score || 0).toFixed(4)),
       }));
 
@@ -125,9 +125,9 @@ const toMatchMap = (
         (match) => !explicitMatchIds.has(match.id)
       ),
     ].sort((a, b) => (
-      Number(b.score || 0) - Number(a.score || 0)
-      || (EVIDENCE_STRENGTH_RANK[b.evidenceStrength] || 0)
+      (EVIDENCE_STRENGTH_RANK[b.evidenceStrength] || 0)
       - (EVIDENCE_STRENGTH_RANK[a.evidenceStrength] || 0)
+      || Number(b.score || 0) - Number(a.score || 0)
     ));
 
     const normalized = {

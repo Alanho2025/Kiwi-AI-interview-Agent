@@ -265,10 +265,14 @@ describe('question pool preparation readiness', () => {
     }));
   });
 
-  it('does not load or compose catalog content for text sessions', async () => {
+  it('loads approved catalog content for text sessions using the same preparation path as Voice', async () => {
     const existingItems = ['react', 'database', 'testing', 'automation', 'deployment']
       .map((topic, index) => root(`q${index}`, topic));
-    const loadCatalogItems = vi.fn(async () => ({ status: 'ready', items: [QUESTION_CATALOG_SEED[0]] }));
+    const catalogItem = {
+      ...QUESTION_CATALOG_SEED.find((item) => item.catalogQuestionId === 'ai_assisted_delivery'),
+      lifecycle: 'approved',
+    };
+    const loadCatalogItems = vi.fn(async () => ({ status: 'ready', items: [catalogItem] }));
     const composePool = vi.fn(async () => existingItems);
 
     const result = await prepareInterviewQuestionPool({
@@ -281,14 +285,14 @@ describe('question pool preparation readiness', () => {
       loadCatalogItems,
     });
 
-    expect(loadCatalogItems).not.toHaveBeenCalled();
-    expect(composePool).toHaveBeenCalledWith(expect.objectContaining({ catalogItems: [] }));
-    expect(result.catalogStatus).toBe('not_applicable');
-    expect(result.catalogCoverage).toEqual({ status: 'not_applicable', reservations: [] });
+    expect(loadCatalogItems).toHaveBeenCalledTimes(1);
+    expect(composePool).toHaveBeenCalledWith(expect.objectContaining({ catalogItems: [catalogItem] }));
+    expect(result.catalogStatus).toBe('ready');
+    expect(result.catalogCoverage).toEqual(expect.objectContaining({ status: 'not_required' }));
     expect(result.items).toEqual(existingItems);
   });
 
-  it('does not pass a request-supplied catalog version into the Voice catalog loader', async () => {
+  it('does not pass a request-supplied catalog version into the catalog loader', async () => {
     const loadCatalogItems = vi.fn(async () => ({ status: 'inactive', items: [] }));
     await prepareInterviewQuestionPool({
       deliveryMode: 'voice',
@@ -300,5 +304,56 @@ describe('question pool preparation readiness', () => {
     expect(loadCatalogItems).toHaveBeenCalledTimes(1);
     expect(loadCatalogItems.mock.calls[0][0]).not.toHaveProperty('catalogVersion');
     expect(loadCatalogItems.mock.calls[0][0]).not.toHaveProperty('settings');
+  });
+
+  it('passes the same-role memory projection to new-session pool composition only when planning is enabled', async () => {
+    const items = ['react', 'database', 'testing', 'automation', 'deployment']
+      .map((topic, index) => root(`q${index}`, topic));
+    const projection = {
+      planningEnabled: true,
+      currentRoleKey: 'backend_engineer',
+      policy: { canAffectScoring: false },
+    };
+    const refreshUserInterviewMemory = vi.fn(async () => projection);
+    const composePool = vi.fn(async () => items);
+
+    await prepareInterviewQuestionPool({
+      userId: 'user-1',
+      sessionId: 'session-1',
+      analysisResult: { matchingDetails: { questionPlanHints: { roleCanonical: 'Backend Engineer' } } },
+      settings: { questionLimit: 8, seniorityLevel: 'junior', focusArea: 'combined' },
+      composePool,
+      proofStrategy: {},
+      loadCatalogItems: async () => ({ status: 'catalog_unavailable', items: [] }),
+      refreshUserInterviewMemory,
+      isPlanningEnabled: () => true,
+    });
+
+    expect(refreshUserInterviewMemory).toHaveBeenCalledWith({
+      userId: 'user-1',
+      currentSessionId: 'session-1',
+      currentRoleKey: 'backend_engineer',
+      planningEnabled: true,
+    });
+    expect(composePool).toHaveBeenCalledWith(expect.objectContaining({
+      userInterviewMemoryProjection: projection,
+    }));
+
+    await prepareInterviewQuestionPool({
+      userId: 'user-1',
+      sessionId: 'session-2',
+      analysisResult: { matchingDetails: { questionPlanHints: { roleCanonical: 'Backend Engineer' } } },
+      settings: { questionLimit: 8, seniorityLevel: 'junior', focusArea: 'combined' },
+      composePool,
+      proofStrategy: {},
+      loadCatalogItems: async () => ({ status: 'catalog_unavailable', items: [] }),
+      refreshUserInterviewMemory,
+      isPlanningEnabled: () => false,
+    });
+
+    expect(refreshUserInterviewMemory).toHaveBeenCalledTimes(1);
+    expect(composePool).toHaveBeenLastCalledWith(expect.objectContaining({
+      userInterviewMemoryProjection: null,
+    }));
   });
 });
