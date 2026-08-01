@@ -22,6 +22,18 @@ describe('role-specific report frameworks', () => {
   });
 
   it.each([
+    'Which Python version do you currently use?',
+    'What performance metric would you use?',
+    'What outcome would you expect from this approach?',
+  ])('does not assign STARR to a direct or hypothetical question: %s', (question) => {
+    const rubric = inferTurnRubric({ question, metadata: {} });
+
+    expect(rubric.rubricType).toBe('direct');
+    expect(rubric.starApplicable).toBe(false);
+    expect(rubric.frameworkKey).not.toBe('behavioural_starr');
+  });
+
+  it.each([
     ['technical_or_tool_skill', 'past_example', 'role_specific_reasoning', 'Role-specific Reasoning'],
     ['compliance_ethics_safety', 'past_example', 'safety_quality_ethics', 'Safety, Quality & Ethics'],
     ['customer_or_client_focus', 'past_example', 'service_stakeholder_reasoning', 'Service & Stakeholder Reasoning'],
@@ -76,6 +88,19 @@ describe('role-specific report frameworks', () => {
       'Outcome / Value',
     ]);
     expect(structure.frameworkBreakdown?.totalScore).toBeGreaterThanOrEqual(45);
+  });
+
+  it('does not award role-specific dimension credit for answer length alone', () => {
+    const structure = analyzeTurnStructure({
+      question: 'How would you validate a production model before release?',
+      answer: 'I enjoy collaborative workplaces and friendly teams where people communicate openly and share ideas. My previous colleagues were supportive, and we held regular meetings about general priorities and upcoming social activities every week.',
+      metadata: { questionFamily: 'role_specific', capabilityGroup: 'technical_or_tool_skill' },
+    });
+
+    const validation = structure.frameworkBreakdown.dimensions.find((item) => item.key === 'validationVerification');
+    const risk = structure.frameworkBreakdown.dimensions.find((item) => item.key === 'riskQualityEthics');
+    expect(validation).toMatchObject({ status: 'missing', score: 0 });
+    expect(risk).toMatchObject({ status: 'missing', score: 0 });
   });
 
   it('scores a teacher scenario from reasoning without requiring past experience', () => {

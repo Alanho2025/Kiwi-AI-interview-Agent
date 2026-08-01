@@ -145,10 +145,29 @@ const sanitizeNonStarFeedback = (turn = {}, fallback = {}) => {
 };
 
 export const mergeTurnBreakdownsWithRubrics = (candidateTurns = [], deterministicTurns = []) => {
-  const maxLength = Math.max(candidateTurns?.length || 0, deterministicTurns?.length || 0);
-  return Array.from({ length: maxLength }).map((_, index) => {
-    const turn = candidateTurns[index] || {};
-    const fallback = deterministicTurns[index] || {};
+  const normalizeIdentityPart = (value = '') => String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
+  const buildIdentity = (turn = {}) => {
+    const question = normalizeIdentityPart(turn.question);
+    const answer = normalizeIdentityPart(turn.answer);
+    return question && answer ? `${question}\u0000${answer}` : '';
+  };
+  const candidatesByIdentity = (candidateTurns || []).reduce((queues, turn) => {
+    const identity = buildIdentity(turn);
+    if (identity) queues.set(identity, [...(queues.get(identity) || []), turn]);
+    return queues;
+  }, new Map());
+  const deterministicCounts = (deterministicTurns || []).reduce((counts, turn) => {
+    const identity = buildIdentity(turn);
+    if (identity) counts.set(identity, (counts.get(identity) || 0) + 1);
+    return counts;
+  }, new Map());
+
+  return (deterministicTurns || []).map((fallback) => {
+    const identity = buildIdentity(fallback);
+    const candidates = candidatesByIdentity.get(identity) || [];
+    const turn = identity && deterministicCounts.get(identity) === 1 && candidates.length === 1
+      ? candidates[0]
+      : {};
     const hasAlignedFallback = Boolean(fallback.question || fallback.answer);
     const merged = {
       ...turn,

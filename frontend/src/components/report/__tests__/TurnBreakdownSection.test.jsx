@@ -58,6 +58,28 @@ describe('TurnBreakdownSection', () => {
     expect(screen.getByText(/I would state the safety concern/)).toBeInTheDocument();
   });
 
+  it('shows a neutral unavailable state without generating candidate facts', () => {
+    const candidateProjection = { report: { candidateFeedback: { turnBreakdowns: [{
+      question: 'Please introduce yourself.',
+      answer: 'I enjoy solving practical problems.',
+      feedback: 'Add a grounded example.',
+      strongerAnswer: {
+        status: 'unavailable',
+        unavailableReason: 'private stack diagnostic',
+      },
+    }] } } };
+
+    render(
+      <TurnBreakdownSection turnBreakdowns={candidateProjection.report.candidateFeedback.turnBreakdowns} />
+    );
+
+    expect(screen.getByText('Stronger answer unavailable')).toBeInTheDocument();
+    expect(screen.getByText(/is not available for this response/i)).toBeInTheDocument();
+    expect(screen.queryByText(/private stack diagnostic/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/University of Auckland|ZURU|85% project rating|AI engine/i)).not.toBeInTheDocument();
+    expect(screen.queryByText('A stronger answer')).not.toBeInTheDocument();
+  });
+
   it('shows STARR for behavioural answers', () => {
     render(
       <TurnBreakdownSection turnBreakdowns={[{

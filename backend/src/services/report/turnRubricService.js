@@ -25,11 +25,22 @@ const buildStarrRubric = ({ topic = '', targetedDimensions = [] } = {}) => {
   };
 };
 
+const buildDirectRubric = () => ({
+  rubricType: 'direct',
+  frameworkKey: 'direct_answer',
+  frameworkLabel: 'Direct answer',
+  questionFamily: 'direct',
+  evidenceMode: 'knowledge_explanation',
+  starApplicable: false,
+  structureLabel: 'Direct answer',
+  dimensions: [],
+});
+
 const isSelfIntroductionQuestion = (questionText = '') =>
   /quick introduction|tell me a bit about yourself|introduce yourself|about yourself|briefly introduce/.test(questionText);
 
 const asksForPastExampleEvidence = (questionText = '') =>
-  /specific project|specific example|tell me about a time|can you describe.*project|project where|built .*engine|what did you personally do|what did you build|how did you know|what was the result|outcome|validated|validation|performance/.test(questionText);
+  /specific (?:project|example)|tell me about a time|can you describe.*(?:project|example|time when)|project where|what did you personally do|what did you build|what was the result of (?:that|your)|what outcome did you achieve/.test(questionText);
 
 export const inferTurnRubric = ({ question = '', metadata = {} } = {}) => {
   const questionText = lower(question);
@@ -166,7 +177,7 @@ export const inferTurnRubric = ({ question = '', metadata = {} } = {}) => {
     return buildStarrRubric({ topic });
   }
 
-  return buildStarrRubric({ topic });
+  return buildDirectRubric();
 };
 
 const toLabel = (score = 0) => (score >= 2 ? 'clear' : score >= 1 ? 'partial' : 'missing');

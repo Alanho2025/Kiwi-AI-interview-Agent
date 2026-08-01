@@ -4,9 +4,7 @@ const signalStatus = ({ answer = '', patterns = [] } = {}) => {
   if (!String(answer || '').trim()) return { status: 'missing', score: 0 };
   const matched = patterns.some((pattern) => pattern.test(answer));
   if (matched) return { status: 'clear', score: 10 };
-  return String(answer).split(/\s+/).filter(Boolean).length >= 12
-    ? { status: 'partial', score: 5 }
-    : { status: 'missing', score: 0 };
+  return { status: 'missing', score: 0 };
 };
 
 export const calculateFrameworkScore = (dimensions = []) => {

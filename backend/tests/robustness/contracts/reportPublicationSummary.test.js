@@ -104,24 +104,47 @@ describe('candidate-safe report publication summary', () => {
             { title: 'Four' },
           ],
           turnBreakdowns: [
-            { question: 'Question?', answer: 'Answer.', feedback: 'Feedback.' },
+            {
+              question: 'Question?',
+              answer: 'Answer.',
+              feedback: 'Feedback.',
+              rubricType: 'role_specific',
+              frameworkKey: 'safety_quality_ethics',
+              frameworkLabel: 'Safety, Quality and Ethics',
+              starApplicable: false,
+              structureLabel: 'Role-specific reasoning',
+              frameworkBreakdown: {
+                normalizedScore: 6,
+                dimensions: [{
+                  key: 'validationVerification',
+                  label: 'Validation / Verification',
+                  status: 'partial',
+                  score: 6,
+                  reason: 'The validation method needs more detail.',
+                }],
+              },
+            },
             { question: ' QUESTION?  ', answer: 'Second answer.', feedback: 'Second feedback.' },
             { question: 'Unmatched question?', answer: 'Third answer.', feedback: 'Third feedback.' },
+            { question: 'Unsafe reason?', answer: 'Fourth answer.', feedback: 'Fourth feedback.' },
           ],
           answerRewriteExamples: [
             {
               question: 'Question?',
-              weak: 'Weak.',
-              better: 'Better.',
+              weak: 'Second answer.',
+              better: 'Second better.',
               status: 'ready',
               evidenceUsed: ['private-evidence'],
             },
             {
               question: 'Question?',
-              weak: 'Second weak.',
-              better: 'Second better.',
+              weak: 'Answer.',
+              better: 'Better.',
               status: 'ready',
             },
+            { question: 'Unmatched question?', weak: 'Third answer.', better: 'private ambiguous rewrite one', status: 'ready' },
+            { question: 'Unmatched question?', weak: 'Third answer.', better: 'private ambiguous rewrite two', status: 'ready' },
+            { question: 'Unsafe reason?', weak: 'Fourth answer.', status: 'unavailable', failureReason: 'private stack diagnostic' },
           ],
           coachingAdvice: [{ title: 'Duplicate coaching' }],
           quoteAnalyses: [{ quote: 'Raw quote' }],
@@ -197,6 +220,21 @@ describe('candidate-safe report publication summary', () => {
         missingSignals: ['validation'],
       },
       strongerAnswer: { status: 'ready', answer: 'Better.' },
+      rubricType: 'role_specific',
+      frameworkKey: 'safety_quality_ethics',
+      frameworkLabel: 'Safety, Quality and Ethics',
+      starApplicable: false,
+      structureLabel: 'Role-specific reasoning',
+      frameworkBreakdown: {
+        normalizedScore: 6,
+        dimensions: [{
+          key: 'validationVerification',
+          label: 'Validation / Verification',
+          status: 'partial',
+          score: 6,
+          reason: 'The validation method needs more detail.',
+        }],
+      },
     });
     expect(projection.report.candidateFeedback.turnBreakdowns[0].answerAssessment).not.toHaveProperty('source');
     expect(projection.report.candidateFeedback.turnBreakdowns[0].answerAssessment).not.toHaveProperty('proofPointId');
@@ -208,8 +246,13 @@ describe('candidate-safe report publication summary', () => {
       status: 'unavailable',
       unavailableReason: expect.stringMatching(/could not be matched/i),
     });
+    expect(projection.report.candidateFeedback.turnBreakdowns[3].strongerAnswer).toMatchObject({
+      status: 'unavailable',
+      unavailableReason: expect.stringMatching(/could not be generated reliably/i),
+    });
+    expect(projection.report.candidateFeedback).not.toHaveProperty('answerRewriteExamples');
     expect(JSON.stringify(projection)).not.toMatch(/generic_question_alignment|private-proof|private-evidence/);
-    expect(JSON.stringify(projection)).not.toMatch(/candidate@example\\.com|\\+64 21 555 123|9999|internal_flag/);
+    expect(JSON.stringify(projection)).not.toMatch(/candidate@example\\.com|\\+64 21 555 123|9999|internal_flag|private ambiguous rewrite|private stack diagnostic/);
   });
 
   it('omits any legacy score fallback when no interview-performance score was persisted', () => {

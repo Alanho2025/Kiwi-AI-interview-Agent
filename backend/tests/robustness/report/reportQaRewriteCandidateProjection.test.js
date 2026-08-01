@@ -1,6 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { buildCandidateQaRewriteResponse } from '../../../src/controllers/reportQaRewriteController.js';
+import { generateCandidateFeedback } from '../../../src/services/reportCoachingService.js';
+import * as deepseekModule from '../../../src/services/deepseekService.js';
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe('report QA rewrite candidate projection', () => {
   it('removes report, QA, stored-record, and rewrite internals from the candidate response', () => {
@@ -30,5 +36,101 @@ describe('report QA rewrite candidate projection', () => {
     expect(result.report).not.toHaveProperty('roleFit');
     expect(result).not.toHaveProperty('executionCost');
     expect(result).not.toHaveProperty('commercialStressTest');
+  });
+
+  it('uses the shared candidate projection for framework fields in a QA rewrite response', () => {
+    const result = buildCandidateQaRewriteResponse({
+      sessionId: 'session-owner',
+      stored: {
+        latestStatus: 'ready',
+        report: {
+          candidateFeedback: {
+            turnBreakdowns: [{
+              question: 'How would you validate the result?',
+              answer: 'I would compare the outcome with the acceptance criteria.',
+              feedback: 'Name the measurement method.',
+              rubricType: 'role_specific',
+              frameworkKey: 'role_specific_reasoning',
+              frameworkLabel: 'Role-specific reasoning',
+              starApplicable: false,
+              frameworkBreakdown: {
+                normalizedScore: 6,
+                dimensions: [{ key: 'validationVerification', label: 'Validation', status: 'partial', score: 6, reason: 'Add the metric.' }],
+              },
+            }],
+          },
+          roleFit: { candidateTurnAssessments: [] },
+        },
+      },
+      rewriteApplied: true,
+    });
+
+    expect(result.report.candidateFeedback.turnBreakdowns[0]).toMatchObject({
+      rubricType: 'role_specific',
+      frameworkKey: 'role_specific_reasoning',
+      frameworkLabel: 'Role-specific reasoning',
+      starApplicable: false,
+      frameworkBreakdown: {
+        normalizedScore: 6,
+        dimensions: [{ key: 'validationVerification', status: 'partial', score: 6 }],
+      },
+    });
+    expect(result.stored.report.candidateFeedback.turnBreakdowns).toEqual(
+      result.report.candidateFeedback.turnBreakdowns,
+    );
+  });
+
+  it('matches reordered duplicate-question rewrites only by the exact question and weak answer pair', async () => {
+    vi.spyOn(deepseekModule, 'callDeepSeek').mockResolvedValueOnce({
+      content: JSON.stringify({
+        answerRewriteExamples: [
+          { question: 'Same question?', weak: 'Second answer.', better: 'Second answer with a grounded result.' },
+          { question: 'Same question?', weak: 'First answer.', better: 'First answer with a grounded result.' },
+        ],
+      }),
+    });
+
+    const result = await generateCandidateFeedback({
+      deterministicFeedback: {
+        answerRewriteExamples: [
+          { question: 'Same question?', weak: 'First answer.', status: 'unavailable' },
+          { question: 'Same question?', weak: 'Second answer.', status: 'unavailable' },
+        ],
+      },
+    });
+
+    expect(result.answerRewriteExamples.map((item) => item.better)).toEqual([
+      'First answer with a grounded result.',
+      'Second answer with a grounded result.',
+    ]);
+  });
+
+  it('does not use question-only, answer-only, or array-index fallback for a rewrite', async () => {
+    vi.spyOn(deepseekModule, 'callDeepSeek').mockResolvedValueOnce({
+      content: JSON.stringify({
+        answerRewriteExamples: [{
+          question: 'Expected question?',
+          weak: 'Different answer.',
+          better: 'This must not be attached by question or index.',
+        }],
+      }),
+    });
+
+    const result = await generateCandidateFeedback({
+      deterministicFeedback: {
+        answerRewriteExamples: [{
+          question: 'Expected question?',
+          weak: 'Expected answer.',
+          status: 'unavailable',
+        }],
+      },
+    });
+
+    expect(result.answerRewriteExamples).toEqual([expect.objectContaining({
+      question: 'Expected question?',
+      weak: 'Expected answer.',
+      better: '',
+      status: 'unavailable',
+    })]);
   });
 });

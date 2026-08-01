@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { AnalysisStatusCard } from '../AnalysisStatusCard.jsx';
 
@@ -114,5 +114,28 @@ describe('AnalysisStatusCard preparation brief', () => {
     expect(screen.getByText('Checking your inputs')).toBeInTheDocument();
     expect(screen.getByText('Matching your CV evidence')).toBeInTheDocument();
     expect(screen.queryByText(/%/)).not.toBeInTheDocument();
+  });
+
+  it('renders duplicate topic ids without React duplicate-key warnings', () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    try {
+      render(<AnalysisStatusCard
+        status="success"
+        analysisResult={{
+          roleEvidenceMap: {
+            items: [
+              { roleIntentId: 'Databricks', roleIntent: 'Databricks', priority: 'high', classification: 'direct' },
+              { roleIntentId: 'Databricks', roleIntent: 'Databricks', priority: 'medium', classification: 'adjacent' },
+            ],
+          },
+        }}
+      />);
+
+      expect(screen.getAllByRole('heading', { name: 'Databricks' })).toHaveLength(2);
+      expect(consoleError).not.toHaveBeenCalledWith(expect.stringContaining('same key'));
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 });

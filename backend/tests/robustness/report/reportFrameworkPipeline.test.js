@@ -8,7 +8,7 @@ import {
   analyzeTurnStructure,
   validateRubricQuestionAlignment,
 } from '../../../src/services/report/turnRubricService.js';
-import { buildReportScores } from '../../../src/services/report/reportScoreService.js';
+import { buildReportScores, computeInterviewPerformanceScore } from '../../../src/services/report/reportScoreService.js';
 import { buildPlainEnglishMetrics } from '../../../src/services/agents/reportGenerator/reportMetricBuilder.js';
 import { generateCandidateFeedback } from '../../../src/services/reportCoachingService.js';
 
@@ -171,6 +171,23 @@ describe('report framework pipeline', () => {
     expect(merged[0].feedback).not.toBe('Use STAR.');
   });
 
+  it('matches reordered and omitted coaching only to the exact deterministic turn', () => {
+    const deterministic = [
+      { question: 'Question one?', answer: 'Answer one.', feedback: 'Fallback one.', rubricType: 'direct' },
+      { question: 'Question two?', answer: 'Answer two.', feedback: 'Fallback two.', rubricType: 'direct' },
+      { question: 'Question three?', answer: 'Answer three.', feedback: 'Fallback three.', rubricType: 'direct' },
+    ];
+    const merged = reportGeneratorAgent.mergeTurnBreakdownsWithRubrics?.([
+      { question: 'Question three?', answer: 'Answer three.', feedback: 'Coach three.' },
+      { question: 'Unknown?', answer: 'Unknown answer.', feedback: 'Must be discarded.' },
+      { question: 'Question one?', answer: 'Answer one.', feedback: 'Coach one.' },
+    ], deterministic) || [];
+
+    expect(merged.map((turn) => turn.question)).toEqual(deterministic.map((turn) => turn.question));
+    expect(merged.map((turn) => turn.feedback)).toEqual(['Coach one.', 'Fallback two.', 'Coach three.']);
+    expect(JSON.stringify(merged)).not.toContain('Must be discarded.');
+  });
+
   it('allows grounded coaching wording while keeping deterministic framework fields locked', () => {
     const [merged] = reportGeneratorAgent.mergeTurnBreakdownsWithRubrics?.([{
       question: 'How would you handle the case?',
@@ -228,6 +245,15 @@ describe('report framework pipeline', () => {
     });
 
     expect(score).toBe(53);
+  });
+
+  it('does not count adjacent-only evidence as direct evidence in the legacy score', () => {
+    const score = computeInterviewPerformanceScore({
+      averageStrength: 0,
+      totals: { direct_past_experience: 0, indirect_adjacent_experience: 1 },
+    }, {});
+
+    expect(score).toBe(0);
   });
 
   it('preserves deterministic frameworks during report rewrites', () => {
