@@ -132,6 +132,132 @@ Master of Information Technology, University of Auckland (2022 - 2024)`;
     expect(status.finalStatus).toBe('met');
   });
 
+  it('5b. Disjunctive such-as Logic: evaluates Cloud data platforms such as Azure, AWS, or GCP as met when AWS is met', () => {
+    const cvProfile = {
+      experience: ['Deploys data pipelines on AWS EC2.'],
+      sections: [
+        { title: 'Experience', key: 'experience', content: 'Deploys data pipelines on AWS EC2.' },
+      ],
+    };
+
+    const cvEvidenceProfile = buildCvEvidenceProfile(cvProfile, '');
+
+    const disjunctiveRequirement = {
+      id: 'req-cloud-such-as',
+      label: 'Cloud data platforms such as Azure, AWS, or GCP',
+      mustHave: false,
+      type: 'soft',
+      category: 'tool_or_platform',
+    };
+
+    const status = computeRequirementStatus(disjunctiveRequirement, cvEvidenceProfile, {
+      byLabel: {
+        'aws': [{ text: 'Deploys data pipelines on AWS EC2', score: 0.85, evidenceStrength: 'strong', section: 'experience', sourceType: 'experience' }],
+        'azure': [],
+        'gcp': [],
+      },
+    });
+
+    expect(status.finalStatus).toBe('met');
+  });
+
+  it('5c. Collaboration tools disjunctive list: evaluates Proficiency with collaboration tools: PowerPoint, Confluence, Notion, or equivalent as met when Notion is met', () => {
+    const cvProfile = {
+      skills: ['Notion', 'Slack', 'Jira'],
+      sections: [{ title: 'Skills', key: 'skills', content: 'Notion, Slack, Jira' }],
+    };
+
+    const cvEvidenceProfile = buildCvEvidenceProfile(cvProfile, '');
+
+    const disjunctiveRequirement = {
+      id: 'req-collab-tools',
+      label: 'Proficiency with collaboration tools: PowerPoint, Confluence, Notion, or equivalent',
+      mustHave: false,
+      type: 'soft',
+      category: 'tool_or_platform',
+    };
+
+    const status = computeRequirementStatus(disjunctiveRequirement, cvEvidenceProfile, {
+      byLabel: {
+        'notion': [{ text: 'Skills: Notion, Slack, Jira', score: 0.88, evidenceStrength: 'strong', section: 'skills', sourceType: 'skills' }],
+      },
+    });
+
+    expect(status.finalStatus).toBe('met');
+  });
+
+  it('5d. Data engineering concepts list: evaluates Understanding of core data engineering concepts such as ETL/ELT, data modelling, and data quality as met when ETL is met', () => {
+    const cvProfile = {
+      experience: ['Built ETL pipelines using Python and SQL.'],
+      sections: [{ title: 'Experience', key: 'experience', content: 'Built ETL pipelines using Python and SQL.' }],
+    };
+
+    const cvEvidenceProfile = buildCvEvidenceProfile(cvProfile, '');
+
+    const disjunctiveRequirement = {
+      id: 'req-de-concepts',
+      label: 'Understanding of core data engineering concepts such as ETL/ELT, data modelling, and data quality',
+      mustHave: false,
+      type: 'soft',
+      category: 'domain_knowledge',
+    };
+
+    const status = computeRequirementStatus(disjunctiveRequirement, cvEvidenceProfile, {
+      byLabel: {
+        'etl': [{ text: 'Built ETL pipelines using Python and SQL', score: 0.9, evidenceStrength: 'strong', section: 'experience', sourceType: 'experience' }],
+      },
+    });
+
+    expect(status.finalStatus).toBe('met');
+  });
+
+  it('5e. Tertiary qualification in related field: evaluates Master of Information Technology as met for CS, DE, IS or related field', () => {
+    const cvProfile = {
+      education: 'Master of Information Technology, University of Auckland (2022 - 2024)',
+      sections: [{ title: 'Education', key: 'education', content: 'Master of Information Technology, University of Auckland (2022 - 2024)' }],
+    };
+
+    const cvEvidenceProfile = buildCvEvidenceProfile(cvProfile, '');
+
+    const degreeRequirement = {
+      id: 'req-tertiary-degree',
+      label: 'A tertiary qualification in Computer Science, Data Engineering, Information Systems, or a related field (or equivalent practical experience)',
+      mustHave: true,
+      type: 'hard',
+      category: 'qualification',
+    };
+
+    const status = computeRequirementStatus(degreeRequirement, cvEvidenceProfile, {});
+
+    expect(status.finalStatus).toBe('met');
+  });
+
+  it('5f. Related qualification safety: does not mark unrelated or in-progress study as met', () => {
+    const degreeRequirement = {
+      id: 'req-tertiary-degree',
+      label: 'A tertiary qualification in Computer Science, Data Engineering, Information Systems, or a related field (or equivalent practical experience)',
+      mustHave: true,
+      type: 'hard',
+      category: 'qualification',
+    };
+    const unrelatedProfile = buildCvEvidenceProfile({
+      education: 'Bachelor of Fine Arts, University of Auckland (2018 - 2021)',
+      sections: [{ title: 'Education', key: 'education', content: 'Bachelor of Fine Arts, University of Auckland (2018 - 2021)' }],
+    }, '');
+    const inProgressProfile = buildCvEvidenceProfile({
+      education: 'Master of Information Technology, University of Auckland (2025 - 2027, in progress)',
+      sections: [{ title: 'Education', key: 'education', content: 'Master of Information Technology, University of Auckland (2025 - 2027, in progress)' }],
+    }, '');
+    const currentYearProfile = buildCvEvidenceProfile({
+      education: 'Master of Information Technology, University of Auckland (Feb 2025 - Nov 2026)',
+      sections: [{ title: 'Education', key: 'education', content: 'Master of Information Technology, University of Auckland (Feb 2025 - Nov 2026)' }],
+    }, '');
+
+    expect(computeRequirementStatus(degreeRequirement, unrelatedProfile, {}).finalStatus).toBe('not_met');
+    expect(computeRequirementStatus(degreeRequirement, inProgressProfile, {}).finalStatus).toBe('partial');
+    expect(computeRequirementStatus(degreeRequirement, currentYearProfile, {}).finalStatus).toBe('partial');
+  });
+
   it('6. Non-Contradictory Reason Strings: outputs accurate note when explicit terms exist in keyCompetencies', () => {
     const requirement = {
       id: 'req-data',

@@ -64,10 +64,14 @@ const BOILERPLATE_ITEM_PATTERNS = [
   /^posted\s+date:?$/i,
   /^salary:?$/i,
   /^location:?$/i,
+  /^[*#_]*additional information[*#_]*:?$/i,
+  /^[*#_]*additional info[*#_]*:?$/i,
+  /^[*#_]*further information[*#_]*:?$/i,
   /in return,\s*you'?ll get/i,
   /be part of our journey/i,
   /make sustainable living/i,
-  /apply now and make an impact/i,
+  /apply now.*make an impact/i,
+  /intentional about (?:finding|placing) the right/i,
   /opportunity to learn from passionate/i,
 ];
 
@@ -79,7 +83,8 @@ const BOILERPLATE_ITEM_PATTERNS = [
     }
 
     segmentBlockItems(block.text).forEach((itemText) => {
-      if (BOILERPLATE_ITEM_PATTERNS.some((p) => p.test(itemText.trim()))) {
+      const cleanText = itemText.trim().replace(/^[*#_]+|[*#_]+$/g, '').trim();
+      if (BOILERPLATE_ITEM_PATTERNS.some((p) => p.test(itemText.trim()) || p.test(cleanText))) {
         return;
       }
       const resolvedSection = APPLICATION_INSTRUCTION_PATTERN.test(itemText) ? 'applicationInstructions' : currentSection;

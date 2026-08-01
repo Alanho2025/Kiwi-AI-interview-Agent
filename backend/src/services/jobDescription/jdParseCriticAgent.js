@@ -24,14 +24,15 @@ Your task is to check whether each parsed field is faithful to the original JD.
 
 Rules:
 1. Do not accept a company field unless the company name is explicitly stated.
-2. Extract responsibilities from sections such as "duties", "responsibilities", "what you will do", or "the position includes".
-3. Extract core requirements from sections such as "we are seeking someone with", "requirements", "must-have", or "essential".
-4. Extract bonus requirements from sections such as "pluses", "nice to have", "preferred", or "bonus".
-5. Do not move bonus requirements into core requirements.
-6. Do not split phrases incorrectly around "or".
-7. Preserve technical terms exactly, including Python, SQL, Linux, C++, Elasticsearch, Kibana, Grafana, and version control.
-8. If qualifications and core requirements duplicate each other, mark the duplication as low or medium severity.
-9. Return strict JSON only.
+2. Extract responsibilities from sections such as "duties", "responsibilities", "what you will do", "a typical day could include", "a day in the life", or "the position includes".
+3. If the raw JD contains daily tasks, duties, or a "typical day" section, but the parsed JSON has an empty sections.responsibilities array or misclassified those tasks into qualifications, you MUST return verdict: "revise" with a high severity issue for sections.responsibilities.
+4. Extract core requirements from sections such as "we are seeking someone with", "requirements", "must-have", or "essential".
+5. Extract bonus requirements from sections such as "pluses", "nice to have", "preferred", "bonus", or "it would be a bonus if...".
+6. Do not move bonus requirements into core requirements.
+7. Do not split phrases incorrectly around "or".
+8. Preserve technical terms exactly, including Python, SQL, Linux, C++, Elasticsearch, Kibana, Grafana, and version control.
+9. If qualifications and core requirements duplicate each other, mark the duplication as low or medium severity.
+10. Return strict JSON only.
 
 Return this JSON shape:
 {

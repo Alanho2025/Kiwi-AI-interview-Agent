@@ -12,10 +12,14 @@ const APPLICATION_PATTERNS = [
   /medical check/i,
   /drug screening/i,
   /apply online/i,
+  /additional information/i,
+  /additional info/i,
+  /further information/i,
   /in return,\s*you'?ll get/i,
   /be part of our journey/i,
   /make sustainable living/i,
-  /apply now and make an impact/i,
+  /apply now.*make an impact/i,
+  /intentional about (?:finding|placing) the right/i,
   /opportunity to learn from passionate/i,
 ];
 const HEADING_ONLY_PATTERN = /^(stack|tech stack|technology stack|tools|technologies|experience level|level|seniority|bonus|bonus requirements|nice[- ]?to[- ]?haves?|what we'?re looking for|what we are looking for|what you'?ll do|what you will do|responsibilities|roles?\s*(?:&|and)\s*responsibilities|requirements|qualifications|core requirements|skills\s*(?:&|and)\s*experience)$/i;

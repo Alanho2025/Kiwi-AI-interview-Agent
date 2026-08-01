@@ -1,5 +1,19 @@
 # Change Log
 
+## [2026-08-01 20:10 NZST] JD container hygiene and CV-JD disjunctive evidence handling
+
+### Changed / Added
+
+- JD parser recognises typical-day responsibility headings, bonus-section container wording, Markdown-wrapped headings, and Warehouse Group employer/application boilerplate. The boilerplate does not become a candidate requirement, role intent, evidence-map row, or preparation target.
+- CV-JD matching normalises `such as` / `or equivalent` lists, preserves explicit taxonomy skill evidence, and accepts one grounded alternative where a JD names interchangeable tools or platforms.
+- Role-family and title extraction now tolerate the tested AI Engineer listing formatting. The match-cache safeguard version changed so prior results do not silently reuse the earlier matching rules.
+- Issues #152 and #153 are implemented by this PR. Issues #150 and #151 are closed as `not planned` by product decision: this slice does not expand a closed tool-regex taxonomy or force education lines into a synthetic record.
+
+### Verification
+
+- `backend/tests/robustness/cv/cvParsingRobustness.test.js`, `backend/tests/robustness/jd/seekIndeedParserCorpus.test.js`, and `backend/tests/robustness/match/matchRequirementBindingAndDisjunction.test.js`: 57 tests passed locally.
+- Backend lint, GitHub CI, browser/PDF behaviour, and real-provider evaluation are recorded separately; they are not implied by the focused test result.
+
 ## [2026-08-01 09:20 NZST] CV-JD Match & Evidence Pipeline Audit & Fix (Issues #150-#158)
 
 ### Changed / Added

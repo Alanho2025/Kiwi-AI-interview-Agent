@@ -40,7 +40,7 @@ export const buildMatchSettingsHash = (settings = {}) => sha256Json({
   interviewType: settings.interviewType || settings.focusArea || 'combined',
   rubricVersion: settings.rubricVersion || 'v1',
   parserVersion: settings.parserVersion || 'v1',
-  safeguardVersion: settings.safeguardVersion || 'v1',
+  safeguardVersion: settings.safeguardVersion || 'v2_disjunctive_degree_fix',
 });
 
 export const buildMatchCacheKey = ({ userId = '', cvHash = '', jdHash = '', settingsHash = '' } = {}) => sha256Text(`${userId || 'anonymous'}:${cvHash}:${jdHash}:${settingsHash}`);

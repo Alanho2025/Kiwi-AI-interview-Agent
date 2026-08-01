@@ -11,7 +11,7 @@ const SCORE_RULES = {
   ],
   ai_ml: [
     [/ai engineer|machine learning engineer|ml engineer|ai-enabled|data and ai engineer|llm|rag|agentic|retrieval augmented generation/i, 3, 'title_or_role_signal'],
-    [/openai|azure openai|ai-first|model evaluation|\bevals\b|pytorch|cuda|tensorflow|mlops/i, 1.7, 'ai_skill_signal'],
+    [/openai|azure openai|ai-first|model evaluation|\bevals\b|pytorch|cuda|tensorflow|mlops|ai\/ml|\bdai\b|data and ai|data & ai|ai solutions|ai or machine learning|ai engineering|ai initiatives/i, 1.7, 'ai_skill_signal'],
     [/\bai tools\b|\bagentic workflows\b|\bai automation\b|\bprompt\b|deep learning|neural networks/i, 1.2, 'ai_delivery_signal'],
   ],
   it_infrastructure: [
@@ -26,13 +26,19 @@ const SCORE_RULES = {
   ],
 };
 
-const scoreFamily = (combined = '', family = 'general') => {
+const scoreFamily = (combined = '', family = 'general', title = '') => {
   const matchedSignals = [];
-  const score = (SCORE_RULES[family] || []).reduce((sum, [pattern, weight, label]) => {
+  let score = (SCORE_RULES[family] || []).reduce((sum, [pattern, weight, label]) => {
     if (!pattern.test(combined)) return sum;
     matchedSignals.push(label);
     return sum + weight;
   }, 0);
+
+  const titlePattern = SCORE_RULES[family]?.[0]?.[0];
+  if (titlePattern && titlePattern.test(title)) {
+    score += 2.5;
+  }
+
   return { family, score, matchedSignals };
 };
 
@@ -42,7 +48,7 @@ export const resolveRoleFamily = ({ title = '', flatText = '', groupedTechnicalS
   if (/graduate programme/i.test(title)) return { primary: 'general', secondary: undefined, confidence: 0.92, matchedSignals: ['graduate_programme'], scores: { general: 1 } };
 
   const scored = Object.keys(SCORE_RULES)
-    .map((family) => scoreFamily(combined, family))
+    .map((family) => scoreFamily(combined, family, title))
     .filter((item) => item.score > 0)
     .sort((a, b) => b.score - a.score);
 

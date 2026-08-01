@@ -33,13 +33,20 @@ const buildLegacyItems = (rubric = {}) => {
   const seen = new Set();
   const items = intentCandidates(rubric).flatMap((candidate) => {
     const statement = normalizeText(candidate.statement);
+    const cleanStatement = statement.replace(/^[*#_]+|[*#_]+$/g, '').trim();
     const key = statement.toLowerCase();
     if (
       !statement
       || seen.has(key)
       || UNTRUSTED_INSTRUCTION_PATTERN.test(statement)
       || BOILERPLATE_INTENT_PATTERN.test(statement)
+      || BOILERPLATE_INTENT_PATTERN.test(cleanStatement)
       || isJobDescriptionSectionHeading(statement)
+      || isJobDescriptionSectionHeading(cleanStatement)
+      || /[*#_]*additional information[*#_]*/i.test(statement)
+      || /apply now.*make an impact/i.test(statement)
+      || /intentional about (?:finding|placing) the right/i.test(statement)
+      || /be part of our journey to make sustainable living/i.test(statement)
     ) return [];
     seen.add(key);
     return [{

@@ -15,6 +15,8 @@ export const SECTION_HEADING_RULES = [
       /^the role:?$/i,
       /^about the role:?$/i,
       /^a day in the life:?$/i,
+      /^a typical day (?:could|might|will) include:?$/i,
+      /^a typical day:?$/i,
       /^you will:?$/i,
       /^duties:?$/i,
       /^the position includes(?: the following duties)?:?$/i,
@@ -75,6 +77,7 @@ export const SECTION_HEADING_RULES = [
       /^preferred experience:?$/i,
       /^desirable:?$/i,
       /^advantageous:?$/i,
+      /^it would be a bonus if.*$/i,
     ],
   },
   {
@@ -99,7 +102,19 @@ export const SECTION_HEADING_RULES = [
   },
   {
     type: 'applicationInstructions',
-    patterns: [/^how to apply:?$/i, /^application process:?$/i, /^apply now:?$/i, /^application notes:?$/i, /^next steps:?$/i, /^employer questions:?$/i, /^me pēhea te tono.*$/i, /^kua rite, kia rite.*$/i],
+    patterns: [
+      /^how to apply:?$/i,
+      /^application process:?$/i,
+      /^apply now:?$/i,
+      /^application notes:?$/i,
+      /^next steps:?$/i,
+      /^employer questions:?$/i,
+      /^[*#_]*additional information[*#_]*:?$/i,
+      /^[*#_]*additional info[*#_]*:?$/i,
+      /^[*#_]*further information[*#_]*:?$/i,
+      /^me pēhea te tono.*$/i,
+      /^kua rite, kia rite.*$/i,
+    ],
   },
 ];
 
