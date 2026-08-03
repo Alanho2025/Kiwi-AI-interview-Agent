@@ -1,12 +1,14 @@
-# Kiwi AI Interview Agent - 71 Feature RFC 獨立文件全景索引
+# Kiwi AI Interview Agent - 80 Feature RFC 獨立文件全景索引
 
-> 本目錄包含 Kiwi AI Interview Agent 全專案 **71 個 Feature** 的獨立 Feature RFC 文件（一 Feature 一獨立檔），全部遵循標準 RFC 7 大章節規範。
+> 本目錄目前包含 Kiwi AI Interview Agent 全專案 **80 個 Feature RFC** 的獨立文件（一 Feature 一獨立檔）。文件的 code-truth、implementation status 與 verified-test coverage 正在分批核對；本索引不把文件存在誤當成行為已驗證。
 > 
-> 💡 **高階導覽指南**：若要了解系統 **5 層 Agent 架構** 如何與這 71 個 Feature RFC 進行高階 Mapping 對照，請參閱：[HIGH_LEVEL_AGENT_ARCHITECTURE_MAPPING.md](../HIGH_LEVEL_AGENT_ARCHITECTURE_MAPPING.md)
+> 💡 **高階導覽指南**：若要了解系統 **5 層 Agent 架構** 如何與這 80 個 Feature RFC 進行高階 Mapping 對照，請參閱：[HIGH_LEVEL_AGENT_ARCHITECTURE_MAPPING.md](../HIGH_LEVEL_AGENT_ARCHITECTURE_MAPPING.md)
+>
+> 📋 **Code-truth inventory**：全量盤點、證據分級與目前未驗證邊界請參閱：[FEATURE_RFC_CODE_TRUTH_INVENTORY.md](../FEATURE_RFC_CODE_TRUTH_INVENTORY.md)
 
 ---
 
-## 📚 全專案 71 個獨立 Feature RFC 完整清單
+## 📚 全專案 80 個獨立 Feature RFC 清單
 
 ### 🟢 領域一：門戶、行銷與用戶導覽 (Product & Onboarding)
 * 📄 [F-01-landing-page-hero.md](./F-01-landing-page-hero.md) - F-01 品牌 Landing Page 與 Hero 展演
@@ -28,6 +30,10 @@
 * 📄 [F-13-file-repository-sha256-dedup.md](./F-13-file-repository-sha256-dedup.md) - F-13 檔案持久化 Repository 與去重防護
 * 📄 [F-14-cv-jd-weighted-match-engine.md](./F-14-cv-jd-weighted-match-engine.md) - F-14 多維度 CV-JD 權重匹配引擎
 * 📄 [F-15-skill-gap-and-risk-analysis.md](./F-15-skill-gap-and-risk-analysis.md) - F-15 技能缺口與風險分析
+* 📄 [F-77-cv-profile-human-review-gate.md](./F-77-cv-profile-human-review-gate.md) - F-77 CV Profile 人工審查與 Match 前置 Gate
+* 📄 [F-78-jd-role-fit-human-review.md](./F-78-jd-role-fit-human-review.md) - F-78 JD / Role-Fit 人工審查與版本 Gate
+* 📄 [F-79-jd-url-capture-and-analysis.md](./F-79-jd-url-capture-and-analysis.md) - F-79 JD URL 安全抓取、可見文字分析與 parser pipeline
+* 📄 [F-80-company-values-enrichment.md](./F-80-company-values-enrichment.md) - F-80 Company Values / Mission / Culture enrichment
 
 ### 🟢 領域四：能力 Taxonomy 與題庫智能 (Question Intelligence)
 * 📄 [F-16-nz-workplace-fit-taxonomy.md](./F-16-nz-workplace-fit-taxonomy.md) - F-16 紐西蘭職場適應性 Taxonomy 評分助手
@@ -66,6 +72,7 @@
 * 📄 [F-37-communication-authenticity-evidence-visualization.md](./F-37-communication-authenticity-evidence-visualization.md) - F-37 溝通真實性指標與 Evidence Visualizer
 * 📄 [F-38-report-coaching-actionable-improvement.md](./F-38-report-coaching-actionable-improvement.md) - F-38 報告輔導與可落地改善建議
 * 📄 [F-39-report-export-pdf-download.md](./F-39-report-export-pdf-download.md) - F-39 對話逐字稿匯出服務
+* 📄 [F-76-multi-session-progress-analytics-and-powerbi-banner.md](./F-76-multi-session-progress-analytics-and-powerbi-banner.md) - F-76 多 session 進度分析與 Power BI banner
 
 ### 🟢 領域八：RAG 與 AI 基建 (RAG & AI Infrastructure)
 * 📄 [F-48-etl-cv-jd-feature-vectorization.md](./F-48-etl-cv-jd-feature-vectorization.md) - F-48 CV/JD 向量嵌入與 RAG 檢索管道

@@ -1,6 +1,6 @@
-# Kiwi AI Interview Agent - 高階 Agent 架構與 71 Feature RFC 對照導覽 (High-Level Agent Architecture & RFC Sitemap)
+# Kiwi AI Interview Agent - 高階 Agent 架構與 80 Feature RFC 對照導覽 (High-Level Agent Architecture & RFC Sitemap)
 
-> **文件目的**：本文檔旨在為轉碼求職者、技術面試官與系統架構師提供 **高階 Agent 架構 (High-Level Agent Architecture)** 與 **71 個獨立 Feature RFC** 的雙向對照地圖。  
+> **文件目的**：本文檔旨在為轉碼求職者、技術面試官與系統架構師提供 **高階 Agent 架構 (High-Level Agent Architecture)** 與 **80 個獨立 Feature RFC** 的雙向對照地圖。
 > 當您需要向面試官說明 Agent 系統分層、Interview Agent 對話流、Report Agent 報告管線或 Harness 影子觀測時，本指南能指引您精確找到對應的代碼與 RFC 文件。
 
 ---
@@ -12,7 +12,7 @@ Kiwi AI 平台劃分為 5 個高階架構分層，每個分層對應具體的 Fe
 ```
 +-----------------------------------------------------------------------------------+
 | Layer 1: Presentation & Channel Layer (前端互動與語音熱路徑)                       |
-| 關鍵檔：F-01~F-04 (Landing/Tour/Pricing), F-27 (Text Chat), F-29~F-33 (Voice/VAD)  |
+| 關鍵檔：F-01~F-04 (Landing/Tour/Pricing), F-27 (Text Chat), F-29~F-33 (Voice/VAD), F-77/F-78 (Human Review UI)  |
 +-----------------------------------------------------------------------------------+
 | Layer 2: API Gateway & Security Guard Layer (安全防禦與門禁機制)                  |
 | 關鍵檔：F-05~F-09 (Auth/Privacy), F-50~F-55 (JWT, Rate-limit, XSS, Fingerprint)   |
@@ -36,13 +36,27 @@ Kiwi AI 平台劃分為 5 個高階架構分層，每個分層對應具體的 Fe
 
 | 您想了解的技術主題 (High-Level Concept) | 核心責任與產品合約 (Contract) | 必讀 獨立 Feature RFC 檔案連結 |
 | :--- | :--- | :--- |
-| **面試輪次狀態管控 (Turn-taking Engine)** | 確定性狀態機控制，保障對話不跳頁、不重複計數。 | [F-20-deterministic-interview-state-machine.md](./F-20-deterministic-interview-state-machine.md) |
-| **動態追問規劃器 (Abductive Action Planner)**| 根據候選人上輪回答，動態規劃追問 (Follow-up) 或切換主題。 | [F-21-abductive-action-planner.md](./F-21-abductive-action-planner.md) |
-| **對話意圖理解 (Fast Answer Understanding)** | 毫秒級判定回答完備度，過濾無效回答與背景雜音。 | [F-23-fast-answer-understanding.md](./F-23-fast-answer-understanding.md) |
-| **考題澄清與防守 (Scope Clarification)** | 當候選人反問或離題時，自動澄清範疇而不算作試題。 | [F-24-question-scope-clarification.md](./F-24-question-scope-clarification.md) |
-| **STAR 法則即時規準打分 (STAR Evaluator)** | 針對 S-T-A-R 四要素實時評分，並打包原文 Evidence。 | [F-25-star-rubric-evidence-bundling.md](./F-25-star-rubric-evidence-bundling.md) |
-| **雙工語音流控制 (Duplex Voice Coordinator)** | WebSocket 雙工串流，實現 3 秒低延遲發聲與 Barge-in 打斷。 | [F-28-duplex-websocket-turn-coordinator.md](./F-28-duplex-websocket-turn-coordinator.md)<br>[F-61-realtime-voice-duplex-agent.md](./F-61-realtime-voice-duplex-agent.md) |
-| **中央 Agent 派發 (Master AI Orchestrator)** | Master-Worker 模式，統一路由分發任務給各子 Agent。 | [F-63-master-ai-controller-agent.md](./F-63-master-ai-controller-agent.md) |
+| **面試輪次狀態管控 (Turn-taking Engine)** | 確定性狀態機控制，保障對話不跳頁、不重複計數。 | [F-20-deterministic-interview-state-machine.md](./features/F-20-deterministic-interview-state-machine.md) |
+| **動態追問規劃器 (Abductive Action Planner)**| 根據候選人上輪回答，動態規劃追問 (Follow-up) 或切換主題。 | [F-21-abductive-action-planner.md](./features/F-21-abductive-action-planner.md) |
+| **對話意圖理解 (Fast Answer Understanding)** | 毫秒級判定回答完備度，過濾無效回答與背景雜音。 | [F-23-fast-answer-understanding.md](./features/F-23-fast-answer-understanding.md) |
+| **考題澄清與防守 (Scope Clarification)** | 當候選人反問或離題時，自動澄清範疇而不算作試題。 | [F-24-question-scope-clarification.md](./features/F-24-question-scope-clarification.md) |
+| **STAR 法則即時規準打分 (STAR Evaluator)** | 針對 S-T-A-R 四要素實時評分，並打包原文 Evidence。 | [F-25-star-rubric-evidence-bundling.md](./features/F-25-star-rubric-evidence-bundling.md) |
+| **雙工語音流控制 (Duplex Voice Coordinator)** | WebSocket 雙工串流，實現 3 秒低延遲發聲與 Barge-in 打斷。 | [F-28-duplex-websocket-turn-coordinator.md](./features/F-28-duplex-websocket-turn-coordinator.md)<br>[F-61-realtime-voice-duplex-agent.md](./features/F-61-realtime-voice-duplex-agent.md) |
+| **中央 Agent 派發 (Master AI Orchestrator)** | Master-Worker 模式，統一路由分發任務給各子 Agent。 | [F-63-master-ai-controller-agent.md](./features/F-63-master-ai-controller-agent.md) |
+
+---
+
+## 🧭 2.5 CV/JD Review、URL 與 Company Understanding
+
+### 想了解 Match 前的資料如何從輸入變成可信 object？依序閱讀：
+
+| 技術主題 | 核心責任與產品合約 | 必讀 Feature RFC |
+| :--- | :--- | :--- |
+| **CV Profile Human Review** | 使用者確認七個 CV 欄位；服務合併 sections、重建 evidence/analysis，並寫入 `human_reviewed` metadata。 | [F-77-cv-profile-human-review-gate.md](./features/F-77-cv-profile-human-review-gate.md) |
+| **JD / Role-Fit Human Review** | 使用者確認 company understanding 與 role intent；後端以 owner、fingerprint、profile id、optimistic version gate Match。 | [F-78-jd-role-fit-human-review.md](./features/F-78-jd-role-fit-human-review.md) |
+| **JD URL Capture** | 驗證 HTTP(S) 與公開 DNS、抓取 bounded visible text，再交給 guarded JD parser 與 Role-Fit builder。 | [F-79-jd-url-capture-and-analysis.md](./features/F-79-jd-url-capture-and-analysis.md) |
+| **Company Values Enrichment** | 由 manual URL 或 Serper 找 official site，抓同 host pages，做 source-linked extraction，無證據時走 fallback。 | [F-80-company-values-enrichment.md](./features/F-80-company-values-enrichment.md) |
+| **Deterministic Match** | 將已通過 review 的 CV/JD objects 轉成 guarded、可追溯的 score/evidence output。 | [F-14-cv-jd-weighted-match-engine.md](./features/F-14-cv-jd-weighted-match-engine.md) |
 
 ---
 
@@ -52,13 +66,13 @@ Kiwi AI 平台劃分為 5 個高階架構分層，每個分層對應具體的 Fe
 
 | 您想了解的技術主題 (High-Level Concept) | 核心責任與產品合約 (Contract) | 必讀 獨立 Feature RFC 檔案連結 |
 | :--- | :--- | :--- |
-| **非同步報告生成管線 (Async Pipeline)** | 面試結束後非同步觸發背景任務，組裝評分與證據。 | [F-34-report-generation-pipeline.md](./F-34-report-generation-pipeline.md) |
-| **五維雷達圖算式 (Score & Radar Breakdown)**| 計算技術深度、溝通表達等 5 維度得分與加權比率。 | [F-35-overall-score-radar-breakdown.md](./F-35-overall-score-radar-breakdown.md) |
-| **逐題 STAR 復盤 (STAR Review Subagent)** | 對全場每個回答進行 S-T-A-R 深度復盤與對話逐字稿核對。 | [F-36-question-by-question-star-transcript-review.md](./F-36-question-by-question-star-transcript-review.md) |
-| **真實性證據視覺化 (Authenticity Snippets)** | 從對話逐字稿中萃取硬核 Evidence，防止 AI 無中生有。 | [F-37-communication-authenticity-evidence-visualization.md](./F-37-communication-authenticity-evidence-visualization.md) |
-| **可落地指導清單 (Actionable Coaching)** | 產出包含學習路徑、動詞替換與改進建議的 Coaching 清單。 | [F-38-report-coaching-actionable-improvement.md](./F-38-report-coaching-actionable-improvement.md) |
-| **內容品質修復 Agent (Parse Critic Agent)** | 稽核生成的報告品質，若發現格式或邏輯瑕疵自動修復。 | [F-12-jd-parse-critic-reparse-agent.md](./F-12-jd-parse-critic-reparse-agent.md) |
-| **PDF 匯出引擎 (Report Export Engine)** | 將 JSON 報告轉譯為格式優美的 PDF 檔案供用戶下載。 | [F-39-report-export-pdf-download.md](./F-39-report-export-pdf-download.md) |
+| **非同步報告生成管線 (Async Pipeline)** | 面試結束後非同步觸發背景任務，組裝評分與證據。 | [F-34-report-generation-pipeline.md](./features/F-34-report-generation-pipeline.md) |
+| **五維雷達圖算式 (Score & Radar Breakdown)**| 計算技術深度、溝通表達等 5 維度得分與加權比率。 | [F-35-overall-score-radar-breakdown.md](./features/F-35-overall-score-radar-breakdown.md) |
+| **逐題 STAR 復盤 (STAR Review Subagent)** | 對全場每個回答進行 S-T-A-R 深度復盤與對話逐字稿核對。 | [F-36-question-by-question-star-transcript-review.md](./features/F-36-question-by-question-star-transcript-review.md) |
+| **真實性證據視覺化 (Authenticity Snippets)** | 從對話逐字稿中萃取硬核 Evidence，防止 AI 無中生有。 | [F-37-communication-authenticity-evidence-visualization.md](./features/F-37-communication-authenticity-evidence-visualization.md) |
+| **可落地指導清單 (Actionable Coaching)** | 產出包含學習路徑、動詞替換與改進建議的 Coaching 清單。 | [F-38-report-coaching-actionable-improvement.md](./features/F-38-report-coaching-actionable-improvement.md) |
+| **內容品質修復 Agent (Parse Critic Agent)** | 稽核生成的報告品質，若發現格式或邏輯瑕疵自動修復。 | [F-12-jd-parse-critic-reparse-agent.md](./features/F-12-jd-parse-critic-reparse-agent.md) |
+| **PDF 匯出引擎 (Report Export Engine)** | 將 JSON 報告轉譯為格式優美的 PDF 檔案供用戶下載。 | [F-39-report-export-pdf-download.md](./features/F-39-report-export-pdf-download.md) |
 
 ---
 
@@ -68,10 +82,10 @@ Kiwi AI 平台劃分為 5 個高階架構分層，每個分層對應具體的 Fe
 
 | 您想了解的技術主題 (High-Level Concept) | 核心責任與產品合約 (Contract) | 必讀 獨立 Feature RFC 檔案連結 |
 | :--- | :--- | :--- |
-| **Harness 影子管線 (Shadow Harness Run)** | 錄製 `workflowRunId`，在 Shadow 模式下稽核對話軌跡。 | [F-40-eval-framework-google-cli-harness.md](./F-40-eval-framework-google-cli-harness.md)<br>[docs/harness/spec.md](../../docs/harness/spec.md) |
-| **模型決策 Auditing 日誌鏈 (Audit Log)** | 記錄每次大模型選擇的 Action 理由，維護透明度。 | [F-26-model-action-selection-audit-log.md](./F-26-model-action-selection-audit-log.md) |
-| **AI 治理與越獄防禦 (Governance & Safety)**| 自動化驗證 Prompt 注入攻擊抵抗力與 PII 脫敏完整度。 | [F-65-ai-governance-eval-runner.md](./F-65-ai-governance-eval-runner.md) |
-| **發佈品質門禁 (Release Gate CI)** | 整合 Vitest、Jest 與 Playwright，確保未通過測試前絕不安裝上線。 | [F-44-role-fit-refine-release-gate-ci.md](./F-44-role-fit-refine-release-gate-ci.md) |
+| **Harness 影子管線 (Shadow Harness Run)** | 錄製 `workflowRunId`，在 Shadow 模式下稽核對話軌跡。 | [F-40-eval-framework-google-cli-harness.md](./features/F-40-eval-framework-google-cli-harness.md)<br>[docs/harness/spec.md](../../docs/harness/spec.md) |
+| **模型決策 Auditing 日誌鏈 (Audit Log)** | 記錄每次大模型選擇的 Action 理由，維護透明度。 | [F-26-model-action-selection-audit-log.md](./features/F-26-model-action-selection-audit-log.md) |
+| **AI 治理與越獄防禦 (Governance & Safety)**| 自動化驗證 Prompt 注入攻擊抵抗力與 PII 脫敏完整度。 | [F-65-ai-governance-eval-runner.md](./features/F-65-ai-governance-eval-runner.md) |
+| **發佈品質門禁 (Release Gate CI)** | 整合 Vitest、Jest 與 Playwright，確保未通過測試前絕不安裝上線。 | [F-44-role-fit-refine-release-gate-ci.md](./features/F-44-role-fit-refine-release-gate-ci.md) |
 
 ---
 

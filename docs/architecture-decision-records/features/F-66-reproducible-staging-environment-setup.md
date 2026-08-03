@@ -6,6 +6,7 @@
 > **Git 演進 Commit 追蹤**：`PR #128`, Commit `21292ab`, `728cad5`  
 > **主要負責人 / 日期**：Kiwi AI Team / 2026-07-29    
 > **實作狀態 (Implementation Status)**：Partial / Onboarding Mapping
+> **校驗測試路徑 (Verified by Tests)**：None
 
 ---
 

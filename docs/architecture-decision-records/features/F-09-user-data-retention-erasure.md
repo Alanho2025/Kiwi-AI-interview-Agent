@@ -23,7 +23,7 @@
 | 新／舊資料一致性 | TTL 使用 `updatedAt`，不依賴舊資料是否有 `retentionUntil` | schema 與 policy source inspection |
 | 手動跨 store cleanup | 保留 audit manifest、dry-run、backup 與 matching approval token 的既有流程 | 不由此功能繞過 |
 
-不在本 RFC 宣稱的範圍：帳號級聯刪除、備份資料刪除、加密保證、法律或 GDPR/Privacy Act 合規認證。`RETENTION_WORKER_ENABLED` 的預設值仍是 `false`；這個 worker 與手動 cleanup 的安全流程沒有被改成自動刪除開關。
+不在本 RFC 宣稱的範圍：帳號級聯刪除、備份資料刪除、加密保證、法律或 GDPR/Privacy Act 合規認證。Company Values 的搜尋與抽取行為由 [`F-80`](./F-80-company-values-enrichment.md) 負責，本 RFC 只記錄其 profile 的 retention/read isolation。`RETENTION_WORKER_ENABLED` 的預設值仍是 `false`；這個 worker 與手動 cleanup 的安全流程沒有被改成自動刪除開關。
 
 ## 3. Saved JD 的資料流
 

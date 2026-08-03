@@ -6,7 +6,7 @@
 > **Git 演進 Commit 追蹤**：`PR #126`, Commit `e91201f`  
 > **主要負責人 / 日期**：Kiwi AI Team / 2026-07-30  
 > **實作狀態 (Implementation Status)**：Verified  
-> **校驗測試路徑 (Verified by Tests)**：`backend/tests/services/questionPoolComposerService.test.js`  
+> **校驗測試路徑 (Verified by Tests)**：`backend/tests/robustness/questions/questionPoolComposerService.test.js`
 
 ---
 

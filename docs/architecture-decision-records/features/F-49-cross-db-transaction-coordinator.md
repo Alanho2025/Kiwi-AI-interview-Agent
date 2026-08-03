@@ -6,7 +6,7 @@
 > **Git 演進 Commit 追蹤**：`PR #110`, Commit `df871ba`  
 > **主要負責人 / 日期**：Kiwi AI Team / 2026-07-30  
 > **實作狀態 (Implementation Status)**：Partial (PostgreSQL Client `withTransaction` Verified; Mongo 採應用層雙寫)  
-> **校驗測試路徑 (Verified by Tests)**：`backend/tests/db/postgres.test.js`  
+> **校驗測試路徑 (Verified by Tests)**：`backend/tests/robustness/retention/postgresRetentionRepository.test.js`
 
 ---
 
