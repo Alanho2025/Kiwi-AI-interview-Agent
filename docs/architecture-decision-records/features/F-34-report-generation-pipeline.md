@@ -6,7 +6,7 @@
 > **Git 演進 Commit 追蹤**：`PR #136`, Commit `f81902a`  
 > **主要負責人 / 日期**：Kiwi AI Team / 2026-07-30  
 > **實作狀態 (Implementation Status)**：Verified  
-> **校驗測試路徑 (Verified by Tests)**：`backend/tests/robustness/report/roleSpecificFrameworkRobustness.test.js`; `backend/tests/robustness/report/reportFrameworkPipeline.test.js`; `backend/tests/robustness/report/answerAlignmentService.test.js`; `backend/tests/robustness/contracts/reportPublicationSummary.test.js`; `frontend/src/components/report/__tests__/TurnBreakdownSection.test.jsx`
+> **校驗測試路徑 (Verified by Tests)**：`backend/tests/robustness/report/roleSpecificFrameworkRobustness.test.js`; `backend/tests/robustness/report/reportFrameworkPipeline.test.js`; `backend/tests/robustness/report/answerAlignmentService.test.js`; `backend/tests/robustness/report/voiceDurationAssessmentService.test.js`; `backend/tests/robustness/contracts/reportPublicationSummary.test.js`; `frontend/src/components/report/__tests__/TurnBreakdownSection.test.jsx`
 
 ---
 
@@ -20,6 +20,7 @@
 ### 1.2 基於 Git 歷史的從 0 到 1 演進歷程
 * **初始版本**：簡單對話總結，無 QA 審查與修復機制。
 * **現行架構**：實作 [reportActionExecutor.js](../../backend/src/services/aiControl/reportActionExecutor.js) 與 [reportQaRepairOrchestratorService.js](../../backend/src/services/report/reportQaRepairOrchestratorService.js)，導入「生成 ➔ QA 評估 ➔ 多輪 Repair 循環」管線。
+* **2026-08-09 Phase 1**：在既有 accepted-answer dataset 與 deterministic turn breakdown 之間加入 canonical voice-duration assessment；這是內部證據層資料，不改變現行 overall score、candidate projection 或 voice runtime。
 
 ---
 
@@ -28,14 +29,18 @@
 ### 2.1 涵蓋與非涵蓋範圍 (Scope Boundaries)
 * **In-Scope (包含範圍)**：
   - 報告初稿生成 (`reportGenerator`)、QA 評估 (`reportQa`)、多輪自動修復循環 (`runReportQaRepairLoop`)。
+  - Phase 1：對 accepted substantive root voice answers 產生 90–120 秒 canonical duration assessment，並將它放入 report dataset、interview metrics 與 deterministic per-turn breakdown。
 * **Out-of-Scope (排除範圍)**：
   - 排除 PDF 實體檔案產出（由獨立控制器處理）。
+  - Phase 1 不把 duration points 合併進 overall score；text timing、frontend rendering、public schema、coaching copy、voice runtime、DB schema 與 human calibration 留待後續 phase。
 
 ### 2.2 成功標準與量化 KPIs (Acceptance Criteria & Metrics)
 | 衡量指標 (Metric) | 目標值 (Target) | 驗證方式 / 自動化測試路徑 |
 | :--- | :--- | :--- |
 | **報告修復成功率** | `> 90%` | `backend/tests/robustness/report/reportFrameworkQa.test.js` |
 | **結構完整度** | `100%` 包含五維得分與評語 | 自動化模式測試 |
+
+Phase 1 的 acceptance contract 是：只有 accepted、root、voice-mode 且有 per-turn `speakingDurationSeconds` 的 answer 進入 duration denominator；`90 <= seconds <= 120` 為 Level 5 / 10 points。資料缺失、text、follow-up、unknown mode、unconfirmed 或 excluded turn 一律保留為 non-applicable，不轉成 candidate zero。
 
 ---
 
@@ -146,21 +151,34 @@ return report;
 | **報告可信度** | **極高** (經過 QA 多輪修復) | 差 (容易包含 LLM 幻覺) |
 | **架構完整性** | **完整** (回傳 QA 歷史與邊界狀態) | 低 |
 
+### 4.2 Phase 1 canonical voice-duration assessment
+
+* **規則唯一來源**：`backend/src/services/report/voiceDurationAssessmentService.js` 的 `mapVoiceDurationToLevel`、`buildVoiceDurationAssessment` 與 `summarizeVoiceDurationAssessments`。
+* **資料流**：`reportTurnDatasetService.js` 先沿用既有 question/answer eligibility，再以 `buildQuestionHistory` 的 `turnKind` 判斷 root/follow-up；assessment 只在 accepted pair 建立一次。`reportEvidenceAnalysis.js` 只發布 nested summary，`reportGeneratorAgent.js` 將 deterministic assessment 帶入 breakdown，model output 不具備覆寫權。
+* **五級邊界**：`<60` 或 `>150` = Level 1；`60–<70` 或 `>140–150` = Level 2；`70–<80` 或 `>130–140` = Level 3；`80–<90` 或 `>120–130` = Level 4；`90–120` = Level 5。分數為 `0 / 2.5 / 5 / 7.5 / 10`。
+
 ---
 
 ## 5. 爆炸半徑與失敗矩陣 (Blast Radius & Failure Matrix)
 - 影響面試完成後的報告呈現。
+- Phase 1 的 blast radius 限定在 report dataset、內部 metrics 與 deterministic turn breakdown；`reportScoreService.js`、candidate projection、frontend、voice runtime 與 persistence schema 沒有修改。
+- 缺失或未驗證的 duration 會輸出 `eligible: false`、`earnedPoints: null` 與 reason code，不會以 `0` 分污染平均值或既有總分。
 
 ---
 
 ## 6. 運維與回滾步驟 (Incident Response & Rollback Runbook)
 - 檢查日誌：`runReportQaRepairLoop`
+- 若 Phase 1 assessment 造成問題，回滾其新增 service、dataset annotation、metrics/breakdown handoff 與對應 tests/docs；既有 report scoring 與 public report contract 應保持可運作。
+- 驗證邊界：重新執行 `backend/tests/robustness/report`、`backend/tests/robustness/voice` 與 backend ESLint；不要用 live provider 或 production report 來替代 focused regression evidence。
 
 ---
 
 ## 7. 面試問答口述講稿 (Interview Q&A Presentation Notes)
 > 💡 **面試官問**：「你們的面試報告是如何生成的？」  
 > **回答範例**：「我們採取了帶有 QA 自動修復循環的管線。當面試完成時，`reportActionExecutor` 會先調用報告生成器產出初稿，隨即交由獨立的 `reportQa` 進行比對。若發現 Evidence 覆蓋不足，會發起 `runReportQaRepairLoop`（帶入 maxAttempts: 2）進行修復，最後才傳回前台。」
+
+Phase 1 的補充口述：
+> 「我們先在 accepted-answer pairing 的地方建立 canonical duration evidence。只有真正的 root voice answer、且 VAD 已提供 per-turn duration，才會進入 90–120 秒的五級 assessment；text、follow-up、未確認 transcript 和缺失資料會標示為 N/A。這一階段只建立可追溯的內部證據，不先偷偷改 overall score。」
 
 ## 8. 2026-07-30 CP4 coaching integrity 同步
 
@@ -233,3 +251,26 @@ return report;
 - **Tech Stack Context Hints**: Updated `roleAnswerAnalysisService.js` to incorporate candidate `techStack` and `jobTitle` from turn metadata/context into rule-based breakdown reasons.
 - **Grounded Stronger Answer Boundary**: `TurnBreakdownSection.jsx` 不再自行生成 candidate facts；只有 server-projected ready rewrite 顯示綠色正文，無法證明配對時顯示中性 unavailable 狀態。
 - **Verification**: Verified 52 backend robustness tests (`realtimeVoiceTurnMocked`, `questionScopeClarificationService`, `answerAlignmentService`, `reportFrameworkPipeline`, `roleSpecificFrameworkRobustness`) and 3 frontend Vitest component tests passed cleanly.
+
+## 18. 2026-08-09 Phase 1 canonical voice-duration assessment foundation
+
+### Changed / Added
+
+- Added `backend/src/services/report/voiceDurationAssessmentService.js` as the single owner of the five continuous duration bands and `0 / 2.5 / 5 / 7.5 / 10` points. The canonical target is inclusive `90–120` seconds.
+- Extended `backend/src/services/report/reportTurnDatasetService.js` so accepted question/answer pairs carry `questionTurnKind` and one deterministic `voiceDurationAssessment`; the dataset also exposes eligible-only summary counts and averages.
+- Extended `backend/src/services/agents/reportGenerator/reportEvidenceAnalysis.js` with a nested `voiceDurationAssessmentSummary` and `backend/src/services/agents/reportGeneratorAgent.js` with deterministic per-turn handoff. Model-provided duration fields cannot replace the measured assessment.
+- Kept `reportScoreService.js`, frontend/public schema, coaching copy, voice runtime, database schema and text timing outside this phase. Duration points are not yet part of the overall interview score.
+
+### Eligibility and failure boundary
+
+- Eligible means: accepted substantive answer pair, root question, `realtime_voice` or `duplex_voice`, and finite positive `answerTurn.metadata.voiceDelivery.speakingDurationSeconds`.
+- Follow-up, text, unknown mode, missing/zero/invalid duration, unconfirmed transcript, repair prompt and candidate-question intent remain non-applicable or excluded. They do not enter eligible averages and do not become candidate zero.
+
+### Verification
+
+- Focused Vitest: 3 files / 51 tests passed after Cycle 3 coverage repair.
+- Report robustness: 23 files / 166 tests passed after Cycle 3 coverage repair.
+- Voice robustness: 41 files / 183 tests passed. The first sandboxed attempt was blocked by `listen EPERM` in an existing local lifecycle test; the same suite passed after a controlled local-listener rerun.
+- Backend ESLint passed; `git diff --check` passed.
+- Independent Cycle 3 audit: same clean-context auditor returned a final 10/10 PASS matrix after the stale-plan-state and bounded coverage repairs; no blocking finding remained.
+- Browser/manual calibration, live voice/provider, real AI evaluation, frontend rendering, Mongo persistence and production rollout were not run in this phase.

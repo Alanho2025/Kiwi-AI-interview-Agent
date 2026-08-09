@@ -69,4 +69,18 @@ describe('voice delivery analyzer robustness', () => {
     });
     expect(summary.feedback).toEqual(['Check microphone clarity or repeat key terms more distinctly.']);
   });
+
+  it('keeps VAD duration as the per-turn source and treats missing duration as unavailable', () => {
+    expect(analyzeVoiceDelivery({
+      transcriptText: 'I delivered the project and verified the result.',
+      vad: { speechDurationMs: 90000 },
+      asrConfidence: 0.9,
+    })).toMatchObject({ speakingDurationSeconds: 90 });
+
+    expect(analyzeVoiceDelivery({
+      transcriptText: 'I delivered the project.',
+      vad: { speechDurationMs: 0 },
+      asrConfidence: 0.9,
+    })).toMatchObject({ speakingDurationSeconds: null });
+  });
 });

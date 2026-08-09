@@ -11,6 +11,7 @@
 
 import { buildReportTurnDataset } from '../../report/reportTurnDatasetService.js';
 import { extractAnswerEvidenceSignals } from '../../report/answerEvidenceSignalService.js';
+import { summarizeVoiceDurationAssessments } from '../../report/voiceDurationAssessmentService.js';
 import { lower, normalizeText, toWords } from './reportGeneratorShared.js';
 
 /**
@@ -135,6 +136,10 @@ export const buildInterviewMetrics = (transcriptOrDataset = [], totalQuestions =
     ? buildReportTurnDataset(transcriptOrDataset)
     : transcriptOrDataset;
   const turns = dataset.turns || [];
+  const voiceDurationAssessmentSummary = dataset.voiceDurationAssessmentSummary
+    || summarizeVoiceDurationAssessments(
+      (dataset.questionAnswerPairs || []).map((pair) => pair.voiceDurationAssessment),
+    );
   const extraAiTurns = turns.filter((turn) => (
     ['ai', 'assistant', 'interviewer'].includes(turn.role)
     && !dataset.countableQuestions?.includes(turn)
@@ -149,5 +154,6 @@ export const buildInterviewMetrics = (transcriptOrDataset = [], totalQuestions =
     repairTurnCount: dataset.repairTurnCount || 0,
     plannedQuestionCount: totalQuestions,
     interviewCompletedByLimit: (dataset.scoredAnswerCount || 0) >= totalQuestions && totalQuestions > 0,
+    voiceDurationAssessmentSummary,
   };
 };

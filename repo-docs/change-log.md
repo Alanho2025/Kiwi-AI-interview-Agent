@@ -447,3 +447,22 @@
 
 - Headed Chromium以本地Vite與candidate projection fixture驗證desktop/mobile turn cards、duplicate question順序、framework、Answer result、ready/unavailable stronger answer及private-copy negative check；console 0 errors。
 - Live backend/provider、human usability與production rollout仍未執行。
+
+## [2026-08-09] Phase 1 canonical voice-duration assessment foundation
+
+### Changed / Added
+
+- Added `backend/src/services/report/voiceDurationAssessmentService.js` as the single owner of the five continuous voice-duration bands: `<60`/`>150`, `60–<70`/`>140–150`, `70–<80`/`>130–140`, `80–<90`/`>120–130`, and inclusive `90–120` seconds. The corresponding points are `0 / 2.5 / 5 / 7.5 / 10`.
+- Extended the report turn dataset to annotate accepted substantive root voice answers once, while keeping text, follow-up, unknown-mode, missing-duration, unconfirmed, repair and candidate-question turns outside the eligible denominator.
+- Exposed an internal nested summary through interview metrics and carried the same deterministic assessment into per-turn report breakdowns. Model output cannot replace the measured duration evidence.
+- This slice does not change `reportScoreService.js`, overall score, frontend/public schema, coaching copy, voice runtime, text timing, persistence schema or candidate-facing projection.
+- Synced the owning RFC: `docs/architecture-decision-records/features/F-34-report-generation-pipeline.md`.
+
+### Verification
+
+- Focused Vitest: 3 files / 51 tests passed after Cycle 3 coverage repair.
+- Report robustness: 23 files / 166 tests passed after Cycle 3 coverage repair.
+- Voice robustness: 41 files / 183 tests passed; the initial sandbox run hit `listen EPERM` in an existing local lifecycle test, and the controlled local-listener rerun passed.
+- Backend ESLint and `git diff --check` passed.
+- Independent Cycle 3 audit: same clean-context auditor returned a final 10/10 PASS matrix after stale-plan-state and bounded coverage repairs; no blocking finding remained.
+- Browser/manual calibration, live voice/provider, real AI evaluation, frontend rendering, Mongo persistence and production rollout were not run.

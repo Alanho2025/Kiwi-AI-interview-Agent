@@ -69,7 +69,7 @@ export const buildDeterministicTurnBreakdowns = (transcriptOrPairs = [], analyse
   const questionAnswerPairs = transcriptOrPairs[0]?.questionTurn
     ? transcriptOrPairs
     : buildReportTurnDataset(transcriptOrPairs).questionAnswerPairs;
-  return questionAnswerPairs.map(({ questionTurn = {}, answerTurn = {} }, index) => {
+  return questionAnswerPairs.map(({ questionTurn = {}, answerTurn = {}, voiceDurationAssessment = null }, index) => {
     const analysis = analysedAnswers[index] || {};
     const turnStructure = analyzeTurnStructure({
       question: questionTurn.text,
@@ -89,6 +89,7 @@ export const buildDeterministicTurnBreakdowns = (transcriptOrPairs = [], analyse
     return {
       question: questionTurn.text || 'Interview question',
       answer: answerTurn.text || '',
+      voiceDurationAssessment,
       questionType: questionTurn.metadata?.questionType || questionTurn.metadata?.type || '',
       questionStage: questionTurn.metadata?.stage || '',
       questionTopic: questionTurn.metadata?.topic || '',
@@ -196,6 +197,7 @@ export const mergeTurnBreakdownsWithRubrics = (candidateTurns = [], deterministi
         ...(turn.dimensionReasons || turn.scoreReasons || {}),
         ...(fallback.dimensionReasons || {}),
       },
+      voiceDurationAssessment: fallback.voiceDurationAssessment || null,
     };
     return {
       ...merged,
