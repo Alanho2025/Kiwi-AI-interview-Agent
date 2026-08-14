@@ -85,7 +85,7 @@ const extractJsonObject = (text = '') => {
   return String(text || '').trim();
 };
 
-export const analyzeImpactFirstAnswer = async ({ question = '', answer = '', context = {} } = {}) => {
+export const analyzeImpactFirstAnswer = async ({ question = '', answer = '', _context = {} } = {}) => {
   const userPrompt = `Question: ${question}\nCandidate Answer: ${answer}`;
   
   let parsed;

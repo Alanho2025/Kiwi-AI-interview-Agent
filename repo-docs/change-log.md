@@ -420,6 +420,14 @@
 - This is an observe-only, default-off planning policy. It cannot affect scoring and records no raw answer or candidate-facing trace. If history refresh fails, preparation logs a warning and uses the ordinary pool.
 
 ### V5.1 (Next Release Draft)
+- **Phase 5: Past-example question wording and controlled follow-ups**:
+  - Updated `interviewMicroPlanningService.js` to rewrite the Deepseek system prompt using the 6-part XML schema (Instructions, Knowledge, Memory, Examples, Tools, Guardrails).
+  - Updated behavioral prompts in `questionCatalogSeed2026_1.js` and `questionCatalogSeed2026_2.js` to enforce outcome-first instructions.
+  - Updated `interviewerAgentQuestionBuilder.js` to construct targeted probing follow-ups based on specific missing evidence dimensions (e.g., `personal_ownership`, `result_or_validation`, `tradeoff_or_constraint`).
+  - Verified `interviewTurnOrchestratorService.js` correctly maps missing evidence signals to turn plans, preserving `rootQuestionId`.
+  - All tests (`questionCatalog2026_2.test.js`, `followUpQuestionService.test.js`, `rootFollowUpRuntimeFlow.test.js`) are green.
+
+
 - **Phase 2: Intent Engine & Rubric Routing (impact-first-past-example)**:
   - Added `resolveCanonicalEvidenceMode` and `resolveQuestionAssessmentIntent` to establish a single source of truth for categorizing evaluation modes and assessment intents across the system.
   - Refactored `questionCatalogSelectionService` and `questionPoolComposerService` to leverage the new central intent engine.

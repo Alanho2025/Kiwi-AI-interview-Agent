@@ -18,7 +18,7 @@ export const calculateFrameworkScore = (dimensions = []) => {
 };
 
 const lower = (value = '') => normalizeText(value).toLowerCase();
-const wordCount = (value = '') => normalizeText(value).split(/\s+/).filter(Boolean).length;
+
 
 const buildStarrRubric = ({ topic = '', targetedDimensions = [] } = {}) => {
   const isReaction = topic.includes('teamwork') || topic.includes('communication') || topic.includes('conflict');

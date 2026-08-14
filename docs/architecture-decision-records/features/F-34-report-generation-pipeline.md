@@ -305,3 +305,17 @@ Phase 1 的補充口述：
 ### Verification
 
 - Focused Vitest: Updated `reportFrameworkPipeline.test.js`, `reportScoringExplanationService.test.js`, and `reportFrameworkSchema.test.js` to assert the 90/10 math, 100% fallback, genuine 0-score inclusions, and schema integrity. 100% passed.
+
+## 21. 2026-08-14 Phase 5 Past-example question wording and controlled follow-ups
+
+### Changed / Added
+
+- **6-Part XML System Prompt**: Rewrote Deepseek system prompt in `interviewMicroPlanningService.js` using strict XML schema (`<instructions>`, `<knowledge>`, `<memory>`, `<examples>`, `<tools>`, `<guardrails>`).
+- **Outcome-First Prompting**: Refactored behavioral prompts in `questionCatalogSeed2026_1.js` and `questionCatalogSeed2026_2.js` to ensure questions explicitly ask candidates to start with the final outcome before explaining the process.
+- **Targeted Probing Construction**: Updated `interviewerAgentQuestionBuilder.js` to ingest `missingEvidence` dimensions (e.g., `personal_ownership`, `result_or_validation`) from the turn plan and conditionally synthesize precise probing follow-ups, preventing generic "tell me more" questions.
+- **Evidence Signal Mapping**: Verified `interviewTurnOrchestratorService.js` correctly orchestrates missing evidence propagation from `buildCheapAnswerSignals` down to the agent question builder, preserving `rootQuestionId`.
+
+### Verification
+
+- Focused Vitest: `questionCatalog2026_2.test.js`, `followUpQuestionService.test.js`, and `rootFollowUpRuntimeFlow.test.js`. 100% passed cleanly.
+

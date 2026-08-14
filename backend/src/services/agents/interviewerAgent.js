@@ -205,17 +205,17 @@ export const runInterviewerAgent = async ({
   if (phaseRequiresPreparedRoot) {
     // The deterministic turn-slot policy has already selected the only allowed root candidate.
   } else if (actionType === AGENT_ACTION_TYPES.ASK_PROBING_QUESTION) {
-    selectedQuestion = buildProbingQuestion({ targetTopic: targetTopic || decisionContext?.currentTopic || evidenceBundle?.validationTargets?.[0] || 'project', candidateText: environment?.latestAnswer?.text || lastUserAnswer });
+    selectedQuestion = buildProbingQuestion({ targetTopic: targetTopic || decisionContext?.currentTopic || evidenceBundle?.validationTargets?.[0] || 'project', candidateText: environment?.latestAnswer?.text || lastUserAnswer, missingEvidence: turnPlan?.answerSignals?.missingEvidence?.[0] || null });
   } else if (actionType === AGENT_ACTION_TYPES.REPHRASE_QUESTION) {
     selectedQuestion = buildRephrasedQuestion({ targetTopic: targetTopic || decisionContext?.currentTopic || 'project', environment });
   } else if (actionType === AGENT_ACTION_TYPES.ASK_DEEP_DIVE_QUESTION) {
     selectedQuestion = focusArea === 'behavioral'
-      ? buildProbingQuestion({ targetTopic: targetTopic || decisionContext?.currentTopic || 'behavioural_example', candidateText: environment?.latestAnswer?.text || lastUserAnswer })
+      ? buildProbingQuestion({ targetTopic: targetTopic || decisionContext?.currentTopic || 'behavioural_example', candidateText: environment?.latestAnswer?.text || lastUserAnswer, missingEvidence: turnPlan?.answerSignals?.missingEvidence?.[0] || null })
       : buildDeepDiveQuestion({ targetTopic: targetTopic || decisionContext?.currentTopic || 'project' });
   } else if (actionType === AGENT_ACTION_TYPES.ASK_VALIDATION_QUESTION) {
     if (!selectedQuestion?.preparedQuestionId) {
       selectedQuestion = focusArea === 'behavioral'
-        ? buildProbingQuestion({ targetTopic: targetTopic || decisionContext?.currentTopic || 'behavioural_example', candidateText: environment?.latestAnswer?.text || lastUserAnswer })
+        ? buildProbingQuestion({ targetTopic: targetTopic || decisionContext?.currentTopic || 'behavioural_example', candidateText: environment?.latestAnswer?.text || lastUserAnswer, missingEvidence: turnPlan?.answerSignals?.missingEvidence?.[0] || null })
         : buildValidationQuestion({ targetTopic: targetTopic || decisionContext?.matchState?.validationTargets?.[0] || 'claim' });
     }
   } else if (actionType === AGENT_ACTION_TYPES.SWITCH_TOPIC) {
@@ -266,7 +266,7 @@ export const runInterviewerAgent = async ({
 
   if (turnPlan.turnKind === 'follow_up' && !selectedQuestion) {
     selectedQuestion = focusArea === 'behavioral'
-      ? buildProbingQuestion({ targetTopic: turnPlan.followUpContext?.parentTopic || targetTopic || decisionContext?.currentTopic || 'behavioural_example' })
+      ? buildProbingQuestion({ targetTopic: turnPlan.followUpContext?.parentTopic || targetTopic || decisionContext?.currentTopic || 'behavioural_example', candidateText: environment?.latestAnswer?.text || lastUserAnswer, missingEvidence: turnPlan?.answerSignals?.missingEvidence?.[0] || null })
       : buildDeepDiveQuestion({ targetTopic: turnPlan.followUpContext?.parentTopic || targetTopic || decisionContext?.currentTopic || 'project' });
   }
 

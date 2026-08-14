@@ -248,11 +248,24 @@ export const inferEvidenceTypeHint = (question = {}) => {
   return 'adjacent_experience';
 };
 
-export const buildProbingQuestion = ({ targetTopic = 'project', candidateText = '' } = {}) => {
+export const buildProbingQuestion = ({ targetTopic = 'project', candidateText = '', missingEvidence = null } = {}) => {
   const hasTeamworkReference = /\b(we|our team|together|cooperated|collaborated)\b/i.test(candidateText);
-  const text = hasTeamworkReference
-    ? 'That sounds like a great team effort! What was your specific piece of the puzzle there, and what did you personally build or design?'
-    : 'What did you personally own and build in that example?';
+  let text = 'What did you personally own and build in that example?';
+  let reason = 'Culturally nuanced probing for personal action and ownership.';
+
+  if (missingEvidence === 'result_or_validation') {
+    text = 'What was the final outcome or measurable impact of that specific project?';
+    reason = 'Probing specifically for missing result or validation evidence.';
+  } else if (missingEvidence === 'tradeoff_or_constraint') {
+    text = 'What was the hardest decision or technical trade-off you had to make there?';
+    reason = 'Probing specifically for missing tradeoff evidence.';
+  } else if (missingEvidence === 'personal_ownership' || hasTeamworkReference) {
+    text = hasTeamworkReference
+      ? 'That sounds like a great team effort! What was your specific piece of the puzzle there, and what did you personally build or design?'
+      : 'What did you personally own and build in that example?';
+    reason = 'Culturally nuanced probing for personal action and ownership.';
+  }
+
   return {
     type: 'probing_follow_up',
     stage: 'technical_probe',
@@ -260,7 +273,7 @@ export const buildProbingQuestion = ({ targetTopic = 'project', candidateText = 
     category: 'technical',
     followUpDepth: 1,
     text,
-    reason: 'Culturally nuanced probing for personal action and ownership.',
+    reason,
     sourceType: 'controller_directed',
   };
 };
