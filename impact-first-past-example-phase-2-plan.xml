@@ -1,0 +1,515 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<implementation_plan
+  id="impact-first-past-example-phase-2"
+  version="1.0"
+  status="ready_for_implementation"
+>
+  <plan_boundary>
+    <requested_output>Phase 2 的完整 implementation-level XML plan；本輪只產出 plan，不實作。</requested_output>
+    <phase_name>Semantic assessment intent and framework routing</phase_name>
+    <source_of_truth>research.md</source_of_truth>
+    <parent_outline>impact-first-past-example-outline-plan.md</parent_outline>
+    <prior_phase>impact-first-past-example-phase-1-plan.xml</prior_phase>
+    <authorization>
+      本文件只規劃 Phase 2。它不授權修改 production code、建立新 branch、commit、push、deployment、live Mongo
+      catalog activation，或開始 Phase 3。implementation 需要 owner 另行明確要求。
+    </authorization>
+    <release_boundary>
+      Phase 2 是同一個 feature branch 上的 internal routing slice，不單獨 release。Phase 3 才會讓
+      Impact-first evaluator 消費這個 route；完整 feature 只在所有 phases 完成後一次 release。
+    </release_boundary>
+  </plan_boundary>
+
+  <research_gate status="ready_for_plan">
+    <evidence_examined>
+      <item path="research.md">三輪 research audit、owner alignment、score model、semantic past-example scope，以及已知 contradictions。</item>
+      <item path="backend/src/services/questions/questionCatalogSelectionService.js" lines="204-268">Catalog snapshot 目前保留 family/type，但沒有 evidenceMode。</item>
+      <item path="backend/src/services/questions/questionPoolComposerService.js" lines="149-168,190-277,646-676">非-catalog item 有 heuristic inference；catalog snapshot 繞過該 inference。</item>
+      <item path="backend/src/services/report/turnRubricService.js" lines="42-180,273-388">Keyword precedence 在 semantic family 前，且 concrete catalog family 沒有完整 route。</item>
+      <item path="backend/src/services/masterAiService.js" lines="303-352,930-998">Transcript 已保存 family/evidence/lineage，但沒有 canonical derived assessment intent。</item>
+      <item path="backend/src/services/questions/questionAssessmentContractService.js" lines="31-59">Follow-up targeted contract 已存在；本 phase 保留其 dimensions，只記錄 parent route。</item>
+      <item path="backend/src/data/questionCatalogSeed2026_1.js" lines="92-137,207-323">2026.1 catalog taxonomy、prompt、expected signals 與 target levels。</item>
+      <item path="backend/src/data/questionCatalogSeed2026_2.js" lines="94-145,214-341">2026.2 與 2026.1 共用 relevant semantic families，新增 ambiguity/clarification metadata。</item>
+      <item path="backend/tests/robustness/questions/questionCatalogSelectionService.test.js">Catalog eligibility、level variant、version provenance 的既有 test seam。</item>
+      <item path="backend/tests/robustness/questions/questionMetadataPersistence.test.js">Transcript metadata、parent lineage、prepared asked-state 的既有 test seam。</item>
+      <item path="backend/tests/robustness/report/roleSpecificFrameworkRobustness.test.js">Existing STARR, role-specific, scenario, knowledge, credential, self-intro、motivation route assertions。</item>
+    </evidence_examined>
+    <confirmed_current_state>
+      <item>Catalog source uses concrete families such as project_reflection, scenario-like AI/ML questions, and motivation families; report router only recognizes a small canonical subset.</item>
+      <item>2026.1 and 2026.2 have the same relevant question types and families; 2026.2 adds bounded-scenario/open-scope metadata.</item>
+      <item>Explicit evidenceMode already travels through pool, interviewer output, and transcript metadata when it exists.</item>
+      <item>Existing transcript metadata is Mixed and the report dataset retains the question turn, so a bounded derived route needs no migration.</item>
+      <item>Technical keyword branches can override behavioural family, motivation, or closing semantics; senior wording can trigger this indirectly.</item>
+      <item>Phase 3 owns Impact-first content evaluation; Phase 2 must establish the route without pretending that STARR or role-specific dimensions are the new evaluator.</item>
+    </confirmed_current_state>
+    <gaps>
+      <item>Catalog snapshots lack explicit evidenceMode.</item>
+      <item>Generated/legacy inference defaults too broadly to past_example.</item>
+      <item>No canonical assessmentIntent is persisted for report routing.</item>
+      <item>Concrete catalog family and questionType metadata do not consistently select scenario, knowledge, process, or past-example routes.</item>
+      <item>Follow-up transcript has parent family/evidence fields but no parent assessment route.</item>
+    </gaps>
+    <weak_reasoning>
+      <item>Literal “Tell me about a time” matching treats wording as evidence intent.</item>
+      <item>Technical keyword presence is incorrectly treated as proof that a question is technical or process-oriented.</item>
+      <item>Missing evidenceMode is treated as past_example even when the prompt is hypothetical or generic process.</item>
+      <item>Changing frameworkKey before an evaluator exists would produce a route label with incompatible score dimensions.</item>
+    </weak_reasoning>
+    <unsupported_assumptions>
+      <item>2026.2 is active in the live database; this remains unverified and is non-material because both source versions are tested.</item>
+      <item>questionType equals final report framework; it is source taxonomy only.</item>
+      <item>All technical catalog questions are completed past examples; generic workflow questions remain process reasoning.</item>
+      <item>CapabilityGroup can be safely invented from competency; Phase 2 does not infer it.</item>
+    </unsupported_assumptions>
+    <assumption_alignment>
+      <item status="human-aligned">Semantic past-example intent, not literal wording or selected technical topic, owns the new route.</item>
+      <item status="human-aligned">Approaches may be technical or cross-domain; Phase 2 only routes and does not score them.</item>
+      <item status="human-aligned">Old reports, text timing, and separate release are outside the feature boundary.</item>
+      <item status="evidence-validated">Existing Mixed transcript metadata can carry a bounded route without a database migration.</item>
+      <item status="implementation-decision">Use existing questionFamily/evidenceMode as source contract and add assessmentIntent only at transcript/report routing boundaries; do not invent a second catalog schema.</item>
+    </assumption_alignment>
+    <missing_requirements>
+      <item>Stable mode values and a deterministic precedence order.</item>
+      <item>Explicit current and parent route fields in transcript metadata.</item>
+      <item>Catalog mappings for both source versions and all current questionType families.</item>
+      <item>Tests that prove metadata beats technical keywords and senior wording.</item>
+      <item>A staged boundary that prevents Phase 2 from claiming Phase 3 scoring.</item>
+    </missing_requirements>
+    <ambiguities>
+      <item>Whether to call the derived field frameworkKey or assessmentIntent. Resolved for this plan: assessmentIntent is the route; frameworkKey remains the evaluator-owned field until Phase 3.</item>
+      <item>Whether to add a new catalog field. Resolved for this plan: no; catalog evidenceMode is derived from existing questionType/category/ambiguity metadata and persisted in the prepared snapshot.</item>
+      <item>Whether generic technical workflow is past_example. Resolved for this plan: no; use process_reasoning unless explicit metadata requests a completed example.</item>
+      <item>Whether follow-up targeted dimensions should be redesigned. Resolved for this plan: no; preserve current targeted contract and add parent route provenance.</item>
+    </ambiguities>
+    <contradictions>
+      <item>Catalog metadata has expectedSignals but no evidenceMode, while report routing treats evidenceMode as a selector.</item>
+      <item>Concrete family IDs can be stored as questionFamily but are not recognized by the report router.</item>
+      <item>Senior prompt variants add trade-off/risk words that can change routing without changing assessment intent.</item>
+      <item>Follow-up contract can reset missing parent mode to past_example; Phase 2 preserves explicit parent route metadata but does not redesign the targeted-dimension contract.</item>
+    </contradictions>
+    <questions_that_require_human_answers>None. Live catalog activation is explicitly a non-material operational unknown, not a plan blocker.</questions_that_require_human_answers>
+  </research_gate>
+
+  <phase_sequence>
+    <phase id="2" name="Semantic assessment intent and framework routing">
+      <goal>
+        Make the framework route deterministic from question metadata, persist that route for report consumption, and
+        route every genuine past-example root to assessmentIntent=impact_first_past_example without changing Phase 3
+        content scoring in this slice.
+      </goal>
+      <work_packages>
+        <work_package id="2.1" name="Canonical metadata resolver">
+          <goal>Define one pure resolver for evidenceMode and assessmentIntent, including explicit source precedence and process_reasoning for generic technical workflows.</goal>
+          <files>backend/src/services/questions/questionArtifactHelpers.js</files>
+        </work_package>
+        <work_package id="2.2" name="Catalog and prepared-pool normalization">
+          <goal>Make catalog snapshots and generated/legacy pool items carry the same explicit evidenceMode without assuming which catalog version is live.</goal>
+          <files>backend/src/services/questions/questionCatalogSelectionService.js; backend/src/services/questions/questionPoolComposerService.js</files>
+        </work_package>
+        <work_package id="2.3" name="Runtime metadata persistence">
+          <goal>Persist current and parent assessment intent at the existing transcript boundary while preserving root/follow-up IDs, asked-state order, and private-field filtering.</goal>
+          <files>backend/src/services/masterAiService.js</files>
+        </work_package>
+        <work_package id="2.4" name="Report routing precedence">
+          <goal>Make inferTurnRubric consume persisted/derived intent first, use wording only for degraded metadata, and keep scenario/knowledge/motivation/self-introduction/credential/conversation routes separate.</goal>
+          <files>backend/src/services/report/turnRubricService.js</files>
+        </work_package>
+        <work_package id="2.5" name="Regression evidence and documentation handoff">
+          <goal>Prove the routing matrix and metadata handoff, run package verification, and identify the exact behavior documentation change for the later implementation turn.</goal>
+          <files>backend/tests/robustness/questions/questionCatalogSelectionService.test.js; backend/tests/robustness/questions/questionMetadataPersistence.test.js; backend/tests/robustness/report/roleSpecificFrameworkRobustness.test.js; docs/architecture-decision-records/features/F-34-report-generation-pipeline.md; repo-docs/change-log.md</files>
+        </work_package>
+      </work_packages>
+    </phase>
+  </phase_sequence>
+
+  <task_contract>
+    <one_observable_goal>
+      Given complete catalog/pool metadata, the same semantic question family receives the same assessmentIntent
+      across catalog version, seniority wording, technical keyword decoration, interviewer output, transcript metadata,
+      and report routing. Missing metadata uses a deterministic bounded fallback and never silently claims past_example.
+    </one_observable_goal>
+    <allowed_areas>
+      <area>backend/src/services/questions/questionArtifactHelpers.js</area>
+      <area>backend/src/services/questions/questionCatalogSelectionService.js</area>
+      <area>backend/src/services/questions/questionPoolComposerService.js</area>
+      <area>backend/src/services/masterAiService.js</area>
+      <area>backend/src/services/report/turnRubricService.js</area>
+      <area>backend/tests/robustness/questions/questionCatalogSelectionService.test.js</area>
+      <area>backend/tests/robustness/questions/questionMetadataPersistence.test.js</area>
+      <area>backend/tests/robustness/report/roleSpecificFrameworkRobustness.test.js</area>
+      <area>docs/architecture-decision-records/features/F-34-report-generation-pipeline.md</area>
+      <area>repo-docs/change-log.md</area>
+    </allowed_areas>
+    <forbidden_areas>
+      <area reason="Phase 3">answerFrameworkService dimensions, Impact-first content extraction, five-level anchors, evidence rationale, and content score.</area>
+      <area reason="Phase 4">reportScoreService, score denominator, duration composition, scoring version, or overall score.</area>
+      <area reason="Phase 5">question wording, follow-up selection policy, catalog seed text, and root/follow-up prompt UX.</area>
+      <area reason="Source governance">catalog seed mutation, live Mongo activation, ranking, eligibility, or question reservation policy.</area>
+      <area reason="Runtime contract">interviewerAgent, interviewTurnOrchestrator, STT/TTS/VAD, WebSocket, latency, barge-in, or transcript acceptance state machine, unless a test proves an existing field is actually lost.</area>
+      <area reason="Candidate surfaces">frontend, public report schema, exports, PDF/TXT, coaching copy, or candidate-facing framework labels.</area>
+      <area reason="Migration">old-report regeneration, backfill, database migration, or compatibility redesign.</area>
+    </forbidden_areas>
+    <budgets>
+      <production_files maximum="5" forecast="5" />
+      <test_files maximum="3" forecast="3" />
+      <documentation_files maximum="2" forecast="2" />
+      <total_task_owned_files hard_stop="10" forecast="10" />
+      <incremental_changed_lines target="less_than_400" hard_stop="500" />
+      <implementation_cycles maximum="3" />
+    </budgets>
+    <stop_rule>
+      If the forecast exceeds 10 task-owned files or 500 incremental lines, or requires a forbidden surface to make
+      the route work, stop before implementation and present a split plan. Do not solve the scope problem by editing
+      an adjacent component without approval.
+    </stop_rule>
+  </task_contract>
+
+  <canonical_contracts>
+    <evidence_mode_contract>
+      <allowed_values>
+        <value>past_example</value>
+        <value>scenario_reasoning</value>
+        <value>knowledge_explanation</value>
+        <value>credential_verification</value>
+        <value>process_reasoning</value>
+      </allowed_values>
+      <precedence>
+        <rule order="1">An explicit valid evidenceMode from the source item is authoritative.</rule>
+        <rule order="2">For catalog items without a mode, use questionType plus ambiguityPolicy before reading prompt wording.</rule>
+        <rule order="3">For generated/legacy items without a mode, use explicit questionIntent/category and then bounded text fallback.</rule>
+        <rule order="4">A generic technical workflow is process_reasoning; a technical item is not past_example merely because it contains implementation, validation, risk, or trade-off words.</rule>
+        <rule order="5">An unresolved generic question returns a deterministic direct/process fallback with a source reason; it is never silently promoted to past_example.</rule>
+      </precedence>
+    </evidence_mode_contract>
+    <assessment_intent_contract>
+      <routes>
+        <route key="impact_first_past_example" source="past_example">A completed experience or project evidence request, including behavioural, conflict, teamwork, learning, failure, initiative, and project reflection.</route>
+        <route key="scenario_reasoning" source="scenario_reasoning">Hypothetical, bounded scenario, or explicit how-would/if reasoning.</route>
+        <route key="knowledge_explanation" source="knowledge_explanation">Principle, standard, framework, or explanation request.</route>
+        <route key="credential_verification" source="credential_verification">Registration, licence, qualification, or credential evidence.</route>
+        <route key="self_intro" source="opening/self_intro">Introduction request.</route>
+        <route key="company_motivation" source="motivation">Company, role, career, or transition motivation request.</route>
+        <route key="conversation" source="closing/conversation">Wrap-up or candidate-question turn.</route>
+        <route key="role_specific_reasoning" source="process_reasoning">Generic role/process evidence that is neither hypothetical nor a completed example.</route>
+        <route key="direct_answer" source="missing_metadata">No reliable assessment evidence type remains after bounded fallback.</route>
+      </routes>
+      <follow_up_rule>
+        A follow-up may have targeted dimensions from the existing contract, but its metadata must retain the parent/root
+        assessmentIntent. It does not create another root score or replace the root route with a keyword-derived route.
+      </follow_up_rule>
+      <seniority_rule>
+        targetLevel and prompt variant may change wording and expected depth, but never assessmentIntent when the source
+        family/questionType/evidenceMode is unchanged.
+      </seniority_rule>
+    </assessment_intent_contract>
+    <persistence_contract>
+      <root_fields>assessmentIntent, assessmentIntentSource, questionFamily, evidenceMode, parentAssessmentIntent=null</root_fields>
+      <follow_up_fields>assessmentIntent, assessmentIntentSource, parentAssessmentIntent, parentAssessmentIntentSource, parentQuestionId, parentPreparedQuestionId, rootQuestionId, followUpIntent, targetedDimensions</follow_up_fields>
+      <private_fields>Do not spread raw CV, raw job description, provider payload, or unbounded interviewer context.</private_fields>
+      <migration>None. Existing transcript metadata is Mixed and missing assessmentIntent is reconstructed by the report router.</migration>
+    </persistence_contract>
+    <score_boundary>
+      Phase 2 does not change framework dimensions, normalized scores, report score composition, denominator, or duration
+      points. The canonical route is evidence for Phase 3 and is not a user-facing score until the complete feature release.
+    </score_boundary>
+  </canonical_contracts>
+
+  <implementation_design>
+    <component path="backend/src/services/questions/questionArtifactHelpers.js" role="pure metadata normalization owner">
+      <contract>
+        Add small pure helpers rather than duplicating catalog and report regexes. They accept source metadata and return
+        stable values plus a source reason; they do not read Mongo, session state, seniority policy, or report scores.
+      </contract>
+      <functions>
+        <function name="resolveCanonicalEvidenceMode" caller="questionCatalogSelectionService, questionPoolComposerService, turnRubricService, masterAiService">
+          <inputs>category, questionFamily, questionType, questionIntent, explicit evidenceMode, text, ambiguityMode</inputs>
+          <output>{ mode, source }</output>
+          <side_effect>None.</side_effect>
+          <failure_behavior>Use an explicit deterministic process/direct fallback reason; never throw for a missing optional field.</failure_behavior>
+        </function>
+        <function name="resolveQuestionAssessmentIntent" caller="masterAiService, turnRubricService">
+          <inputs>questionFamily, category, questionType, questionIntent, evidenceMode, text, explicit assessmentIntent, parentAssessmentIntent</inputs>
+          <output>{ intent, source }</output>
+          <side_effect>None.</side_effect>
+          <failure_behavior>Return direct_answer with source missing_metadata when no reliable route remains.</failure_behavior>
+        </function>
+      </functions>
+      <pseudocode><![CDATA[
+1. Normalize every key with the repository's normalizeKey/normalizeText helpers.
+2. If a valid explicit assessmentIntent exists, return it with source explicit_metadata.
+3. If the caller supplies a parentAssessmentIntent for a follow-up, preserve that route and record source parent_metadata.
+4. Normalize family/category aliases: behavioral -> behavioural; opening, motivation, closing, wrap_up, and conversation
+   become their dedicated route families before technical keyword checks run.
+5. Resolve explicit evidenceMode. Map past_example to impact_first_past_example; map scenario_reasoning, knowledge_explanation,
+   credential_verification, and process_reasoning to their matching routes.
+6. If the source is a catalog item with no explicit mode, classify bounded_scenario and scenario question types as scenario_reasoning;
+   classify behavioural/project-reflection types as past_example; classify explanation/principle types as knowledge_explanation;
+   classify generic workflow types as process_reasoning.
+7. Only when source metadata is absent, apply bounded wording fallback for self-introduction, motivation, closing, scenario,
+   knowledge, and genuine past-example phrases. Do not use seniority suffix words as a separate signal.
+8. If category is technical and the prompt is a generic present-tense workflow, return process_reasoning. If no category or evidence
+   can be trusted, return direct_answer/missing_metadata.
+9. Return the route and source reason. Never return a numeric score or framework dimensions from these helpers.
+      ]]></pseudocode>
+    </component>
+
+    <component path="backend/src/services/questions/questionCatalogSelectionService.js" role="catalog-to-prepared snapshot boundary">
+      <contract>
+        Extend buildCatalogQuestionSnapshots without changing eligibility, ranking, reservation, lifecycle, prompt-variant,
+        or active-version selection rules.
+      </contract>
+      <function name="buildCatalogQuestionSnapshots" caller="buildInterviewQuestionPoolItems">
+        <inputs>selected catalog item, resolved targetLevel, prompt variant, selectionContext</inputs>
+        <output>Existing snapshot plus explicit evidenceMode and bounded metadata source.</output>
+        <side_effect>Creates in-memory prepared snapshot only; existing persistence happens downstream.</side_effect>
+        <dependencies>resolveCanonicalEvidenceMode, existing catalog eligibility and prompt selection helpers.</dependencies>
+        <failure_behavior>Current supported catalog types must resolve deterministically; an unsupported future type must carry a
+          bounded fallback reason and fail the focused matrix rather than silently becoming past_example.</failure_behavior>
+      </function>
+      <pseudocode><![CDATA[
+1. Leave catalog query, lifecycle gate, target-level gate, role gate, AI/ML gate, and prompt-variant selection unchanged.
+2. After prompt.text and catalogItem fields are known, call resolveCanonicalEvidenceMode with:
+   category=catalogItem.category, questionFamily=catalogItem.questionFamily, questionType=catalogItem.questionType,
+   questionIntent=catalogItem.questionType, text=prompt.text, ambiguityMode=catalogItem.ambiguityPolicy.mode.
+3. Add the returned mode to the snapshot's existing evidenceMode field.
+4. Add only a bounded source marker under existing safe metadata if needed for diagnostics; preserve catalogQuestionId,
+   catalogVersion, targetLevel, prompt variant, expected signals, and reportDimensions exactly as they are.
+5. Do not infer capabilityGroup from competency, do not mutate either seed file, and do not read live Mongo to decide the mode.
+6. Return the same items/rejected/selectionContext shape so downstream composition and dedupe contracts remain unchanged.
+      ]]></pseudocode>
+    </component>
+
+    <component path="backend/src/services/questions/questionPoolComposerService.js" role="generated and legacy prepared-pool normalization">
+      <contract>
+        Replace the local broad evidence-mode heuristic with the shared resolver at buildBaseItem. Preserve an explicit source
+        mode and all existing pool fields; do not alter pool ranking, dedupe, question limits, or asked-state reconciliation.
+      </contract>
+      <function name="buildBaseItem" caller="mapLegacyQuestion, mapSeedQuestion, requirement/gap/fallback builders">
+        <inputs>source category, stage, questionIntent, text, explicit evidenceMode, capabilityGroup, existing rest fields</inputs>
+        <output>Existing prepared item with canonical evidenceMode and unchanged assessmentKey/questionFingerprint semantics.</output>
+        <side_effect>Existing question-pool item construction only.</side_effect>
+        <dependencies>shared resolver, question artifact helpers, existing buildAssessmentKey/buildQuestionFingerprint.</dependencies>
+        <failure_behavior>Missing optional source metadata uses a stable reasoned fallback; no exception and no silent past-example promotion.</failure_behavior>
+      </function>
+      <pseudocode><![CDATA[
+1. Preserve the current input destructuring and explicit rest fields.
+2. Pass category, questionFamily, questionType/questionIntent, text, capabilityGroup, and rest.evidenceMode to the shared resolver.
+3. Use the returned mode for the item.evidenceMode field before the existing ...rest merge; if an explicit valid mode was supplied,
+   ensure the merge cannot replace it with a default.
+4. Keep questionFamily resolution, questionRole, followUpStrategies, weights, modeCompatibility, retention, and source provenance
+   unchanged unless required to preserve the resolved mode.
+5. Recompute assessmentKey/questionFingerprint from the same item fields as before; do not add wording or seniority to framework identity.
+6. Run the existing composer suite to prove legacy v2/current v3, dedupe, fallback, and prepared-root compatibility.
+      ]]></pseudocode>
+    </component>
+
+    <component path="backend/src/services/masterAiService.js" role="bounded transcript metadata persistence">
+      <contract>
+        Extend buildQuestionTranscriptMetadata and the append metadata object with current and parent route fields. Keep the existing
+        prepared asked-state and selection-trace ordering unchanged.
+      </contract>
+      <function name="buildQuestionTranscriptMetadata" caller="persistInterviewerQuestionTurn">
+        <inputs>bounded interviewerOutput including family, category, type, evidenceMode, parent fields, turn kind, and safe provenance</inputs>
+        <output>Existing metadata plus assessmentIntent, assessmentIntentSource, parentAssessmentIntent, parentAssessmentIntentSource.</output>
+        <side_effect>None in the pure builder.</side_effect>
+        <dependencies>resolveQuestionAssessmentIntent, existing turn-type/assessment-key/fingerprint helpers.</dependencies>
+        <failure_behavior>Current route falls back deterministically; parent route remains null when no parent metadata exists. Private fields remain excluded.</failure_behavior>
+      </function>
+      <function name="persistInterviewerQuestionTurn" caller="interview next-turn flow">
+        <inputs>interviewer output, selected action/plan, session</inputs>
+        <output>Existing transcript append result and returned interviewer output.</output>
+        <side_effect>Writes one AI transcript turn; may update prepared root asked-state exactly as before.</side_effect>
+        <failure_behavior>Asked-state failure continues to append transcript and suppresses selection trace according to the existing contract; route fields do not alter that behavior.</failure_behavior>
+      </function>
+      <pseudocode><![CDATA[
+1. Keep resolveQuestionTurnType, countsAsQuestion, parentQuestionId fallback, createInterviewQuestion, and asked-state sequencing unchanged.
+2. In buildQuestionTranscriptMetadata, resolve the current assessmentIntent from the bounded current question fields.
+3. If parentQuestionFamily or parentEvidenceMode exists, resolve parentAssessmentIntent separately; do not use current follow-up wording
+   to overwrite it.
+4. Add only the four bounded route fields to the returned metadata object. Do not spread raw interviewerOutput.
+5. Let the existing append metadata spread carry those fields to SessionTranscript.turns[].metadata.
+6. Keep preparedQuestionId, parentPreparedQuestionId, parentQuestionId, rootQuestionId, followUpIntent, targetedDimensions,
+   asked-state, and selection trace behavior unchanged.
+7. Verify the report dataset can read the persisted metadata without a schema migration or a new report-publication field.
+      ]]></pseudocode>
+    </component>
+
+    <component path="backend/src/services/report/turnRubricService.js" role="report-time route owner">
+      <contract>
+        Make inferTurnRubric metadata-first. Every returned rubric carries assessmentIntent and its source. Existing frameworkKey,
+        dimensions, and score-producing branches remain compatible until Phase 3 consumes the new route.
+      </contract>
+      <function name="inferTurnRubric" caller="analyzeTurnStructure and report deterministic turn breakdowns">
+        <inputs>question text, persisted transcript metadata, current/parent family and evidence mode, follow-up intent</inputs>
+        <output>Existing rubric shape plus assessmentIntent and assessmentIntentSource; current compatible scoring branch remains until Phase 3.</output>
+        <side_effect>None.</side_effect>
+        <dependencies>resolveQuestionAssessmentIntent, existing framework builders, existing follow-up contract.</dependencies>
+        <failure_behavior>Missing metadata uses the bounded resolver and returns direct or process route; no keyword-only promotion to Impact-first.</failure_behavior>
+      </function>
+      <pseudocode><![CDATA[
+1. Normalize question text and read metadata.assessmentIntent first.
+2. Resolve current route from persisted assessmentIntent or canonical family/evidence/type metadata.
+3. Resolve parentAssessmentIntent from persisted parent route or parent family/evidence fields when this is a follow-up.
+4. Handle follow-up targeted dimensions using the existing resolveFollowUpAssessmentContract. Attach the parent route to the returned
+   rubric; do not create another root score and do not change the existing targeted-dimension map in this phase.
+5. For root routes, choose dedicated self-intro, motivation, conversation, credential, scenario, knowledge, or role-specific builders
+   from assessmentIntent. For impact_first_past_example, keep the old analyzer-compatible carrier only as an internal non-release bridge;
+   expose assessmentIntent=impact_first_past_example and source metadata for Phase 3.
+6. Remove the old early technical-keyword return that ran before semantic family/evidence routing. Technical words are fallback evidence only.
+7. Keep validateRubricQuestionAlignment and all current score/dimension formulas unchanged unless a focused test proves the route field is lost.
+8. Return a stable source reason so tests and later audit can distinguish persisted metadata from degraded text fallback.
+      ]]></pseudocode>
+    </component>
+  </implementation_design>
+
+  <data_flow>
+    <step order="1">2026.1 or 2026.2 catalog item, or generated/legacy question source, provides category/family/type/intent/text.</step>
+    <step order="2">Shared resolver produces explicit evidenceMode; catalog snapshot or prepared item carries it.</step>
+    <step order="3">Existing interviewer carrier passes family/evidence/parent/provenance fields; no new LLM decision is introduced.</step>
+    <step order="4">masterAiService derives current assessmentIntent and parentAssessmentIntent and writes bounded transcript metadata.</step>
+    <step order="5">Report dataset keeps the AI question turn and its metadata; turnRubricService reads persisted route first.</step>
+    <step order="6">Scenario, knowledge, credential, self-intro, motivation, conversation, and role/process routes keep existing compatible analyzers; past-example turns expose Impact-first route intent for Phase 3.</step>
+    <step order="7">No Phase 2 operation changes duration, content score, denominator, overall score, frontend, or candidate publication.</step>
+  </data_flow>
+
+  <tests>
+    <test_file path="backend/tests/robustness/questions/questionCatalogSelectionService.test.js">
+      <cases>
+        <case>Parameterize equivalent 2026.1 and 2026.2 catalog items and assert explicit evidenceMode for behavioural/project, scenario, knowledge/process, motivation, and credential families.</case>
+        <case>Assert bounded_scenario selects scenario_reasoning even when prompt contains technical terms.</case>
+        <case>Assert junior/intermediate/senior prompt variants with the same source metadata produce the same evidenceMode.</case>
+        <case>Assert catalogVersion and prompt provenance remain unchanged.</case>
+      </cases>
+    </test_file>
+    <test_file path="backend/tests/robustness/questions/questionMetadataPersistence.test.js">
+      <cases>
+        <case>Root metadata persists assessmentIntent=impact_first_past_example for explicit past_example mode.</case>
+        <case>Root metadata persists scenario/knowledge/motivation/self-intro routes without private-field leakage.</case>
+        <case>Follow-up metadata persists parentAssessmentIntent, parent/root IDs, followUpIntent, and targetedDimensions without creating a prepared-root asked-state update.</case>
+        <case>Missing metadata returns a stable direct/process fallback and never a hidden candidate zero.</case>
+      </cases>
+    </test_file>
+    <test_file path="backend/tests/robustness/report/roleSpecificFrameworkRobustness.test.js">
+      <cases>
+        <case>Parameterize semantic past-example prompts: project reflection, teamwork, conflict, learning, failure, initiative, and non-literal “Have you been...” wording.</case>
+        <case>Assert explicit behavioural/past-example metadata wins over implementation, validation, trade-off, risk, and senior wording.</case>
+        <case>Assert scenario, knowledge, credential, self-intro, motivation, conversation, and process routes remain separate.</case>
+        <case>Assert the same metadata plus junior/senior wording has the same assessmentIntent and source.</case>
+        <case>Keep existing compatible frameworkKey/dimension assertions green until Phase 3 changes the evaluator owner.</case>
+      </cases>
+    </test_file>
+    <existing_suite path="backend/tests/robustness/questions/questionPoolComposerService.test.js">
+      Run as a required regression suite. Do not modify it unless a concrete Phase 2 failure cannot be covered in the three forecast test files.
+    </existing_suite>
+  </tests>
+
+  <verification>
+    <commands>
+      <command>cd backend &amp;&amp; ./node_modules/.bin/vitest run tests/robustness/questions/questionCatalogSelectionService.test.js tests/robustness/questions/questionMetadataPersistence.test.js tests/robustness/report/roleSpecificFrameworkRobustness.test.js tests/robustness/questions/questionPoolComposerService.test.js</command>
+      <command>cd backend &amp;&amp; npm run lint</command>
+      <command>git diff --check</command>
+      <command>git status --short</command>
+      <command>git diff --stat</command>
+      <command>git diff --name-only -- backend/src frontend/src | rg 'frontend|voice|score|coaching|export' ; expected result: empty</command>
+    </commands>
+    <observable_outcomes>
+      <outcome>Focused routing, catalog, persistence, and composer suites pass without real provider credentials.</outcome>
+      <outcome>Backend lint and diff check pass.</outcome>
+      <outcome>Assessment route is identical for equivalent source metadata across both catalog versions and seniority variants.</outcome>
+      <outcome>Explicit metadata route is unchanged by technical keyword decoration.</outcome>
+      <outcome>Transcript metadata contains current/parent route fields and existing lineage fields; no private source fields are added.</outcome>
+      <outcome>Diff contains no frontend, voice runtime, score-composition, coaching, export, seed, or live-activation change.</outcome>
+    </observable_outcomes>
+    <not_run>Live Mongo catalog activation, real AI/provider evaluation, browser/manual interview, frontend rendering, text timing, production deployment, and release verification are not run for Phase 2.</not_run>
+  </verification>
+
+  <completion_criteria>
+    <criterion id="C1">All current 2026.1 and 2026.2 catalog question types receive a deterministic evidenceMode in the prepared snapshot.</criterion>
+    <criterion id="C2">Every semantic past-example root, including non-literal and non-technical examples, exposes assessmentIntent=impact_first_past_example.</criterion>
+    <criterion id="C3">Scenario, knowledge, credential, self-introduction, motivation, conversation, and generic process routes remain distinct.</criterion>
+    <criterion id="C4">Explicit family/evidence metadata beats technical keywords, seniority suffixes, and prompt wording.</criterion>
+    <criterion id="C5">Generated and legacy questions use the same resolver; unknown generic technical questions do not silently become past_example.</criterion>
+    <criterion id="C6">Current and parent assessment intent are persisted in bounded transcript metadata and remain available to report input.</criterion>
+    <criterion id="C7">Follow-up targeted dimensions and asked-state sequencing remain unchanged; follow-up does not become another root score.</criterion>
+    <criterion id="C8">No Phase 3 evaluator, Phase 4 score composition, duration score, frontend, public schema, seed, live catalog, or voice-runtime behavior is changed.</criterion>
+    <criterion id="C9">All three modified test files plus the existing composer suite, backend lint, diff check, and forbidden-path inspection pass.</criterion>
+    <criterion id="C10">One owning RFC and one scoped change-log entry are updated only during the implementation turn, after verified behavior exists.</criterion>
+  </completion_criteria>
+
+  <risks_assumptions_decisions>
+    <decision id="D1">Use questionFamily/evidenceMode as the source contract and assessmentIntent as a derived transcript/report route; do not add a second catalog schema field.</decision>
+    <decision id="D2">Add process_reasoning for generic present-tense technical workflows so technical topic does not imply completed past evidence.</decision>
+    <decision id="D3">Metadata has precedence over wording. Wording is a bounded degraded fallback only.</decision>
+    <decision id="D4">Keep existing follow-up targeted dimensions and preserve parent route provenance; redesigning follow-up scoring belongs to later phases.</decision>
+    <decision id="D5">Keep frameworkKey and score-compatible analyzer shape until Phase 3 consumes assessmentIntent. No intermediate user-facing release exists.</decision>
+    <decision id="D6">Do not infer capabilityGroup from competency or prompt wording; absent capability remains absent.</decision>
+    <assumption id="A1" status="evidence-validated">Existing interviewer output already carries family, evidenceMode, parent fields, and catalog provenance; no interviewerAgent edit is forecast.</assumption>
+    <assumption id="A2" status="evidence-validated">Report dataset preserves question metadata through pairing, and transcript metadata is Mixed.</assumption>
+    <assumption id="A3" status="human-aligned">Semantic past-example scope includes teamwork, conflict, learning, failure, initiative, project reflection, and technical completed examples only when the source asks for completed evidence.</assumption>
+    <assumption id="A4" status="unresolved-non-material">The active live catalog version is unknown; both inspected source versions are supported instead.</assumption>
+    <risk id="R1">Older transcripts lack assessmentIntent. Mitigation: reconstruct from persisted family/evidence, then bounded wording fallback, and label the source.</risk>
+    <risk id="R2">A new mode could accidentally change an existing generic technical route. Mitigation: preserve explicit modes, test process_reasoning, run the full existing composer suite, and keep Phase 3 score code untouched.</risk>
+    <risk id="R3">A route label without an evaluator could be mistaken for a score. Mitigation: keep Phase 2 internal, retain analyzer-compatible carrier shape, and explicitly defer frameworkKey/evaluator cutover to Phase 3.</risk>
+    <risk id="R4">Mixed metadata can drift again. Mitigation: centralize the resolver, bounded persistence, and cross-layer tests; do not broaden the schema in this phase.</risk>
+  </risks_assumptions_decisions>
+
+  <outside_scope>
+    <item>Implementing or scoring the seven Impact-first components, including Outcome-first placement and 90-120-second duration points.</item>
+    <item>Changing reportScoreService, report denominator, normalized score, score explanation, or rubric version.</item>
+    <item>Changing catalog seeds, question wording, follow-up selection, ranking, eligibility, reservations, or live Mongo state.</item>
+    <item>Changing interviewer runtime, voice state machine, STT/TTS/VAD, latency, transcript confidence, or text timing.</item>
+    <item>Changing frontend, candidate report cards, coaching, PDF/TXT exports, or public schemas.</item>
+    <item>Backfilling, regenerating, migrating, or recalibrating old reports.</item>
+    <item>Running live provider, browser, human calibration, deployment, or production checks.</item>
+  </outside_scope>
+
+  <three_pass_audit>
+    <instruction>
+      Each pass below rechecks the same ten requested categories against the complete Phase 2 plan. The passes are not
+      different review angles; every pass must contain all ten categories and must fail the plan if any category is missing.
+    </instruction>
+    <pass id="1" result="PASS" label="full ten-item checklist replay 1">
+      <check number="1" category="the phases of work" status="PASS">Phase 2 is decomposed into five named work packages under one internal phase.</check>
+      <check number="2" category="the goal of each phase" status="PASS">The phase goal and each work-package goal are explicit and observable.</check>
+      <check number="3" category="files likely to be added or modified" status="PASS">Five production, three test, and two documentation files are named; read-only dependencies are separated.</check>
+      <check number="4" category="dependencies and setup steps" status="PASS">Research gate, Phase 1 pushed baseline, existing metadata seams, test dependencies, and no-live-service setup are stated.</check>
+      <check number="5" category="implementation details" status="PASS">Every production component names functions, caller, inputs, outputs, side effects, failure behavior, and granular pseudocode.</check>
+      <check number="6" category="tests required for that phase" status="PASS">Catalog, metadata persistence, routing matrix, seniority, follow-up, missing metadata, and composer regression cases are mapped.</check>
+      <check number="7" category="verification commands or observable outcomes" status="PASS">Focused Vitest, lint, diff, status, stat, and forbidden-surface outcomes are specified.</check>
+      <check number="8" category="completion criteria" status="PASS">Ten numbered criteria cover routing, persistence, compatibility, scope, tests, and documentation.</check>
+      <check number="9" category="risks, assumptions, and decisions" status="PASS">D1-D6, A1-A4, and R1-R4 explicitly record decisions, evidence status, and mitigations.</check>
+      <check number="10" category="work explicitly outside scope" status="PASS">Phase 3/4, seeds/live catalog, runtime, frontend/public surfaces, migration, and live checks are listed.</check>
+    </pass>
+    <pass id="2" result="PASS" label="full ten-item checklist replay 2">
+      <check number="1" category="the phases of work" status="PASS">The same complete plan still names Phase 2 and work packages 2.1 through 2.5.</check>
+      <check number="2" category="the goal of each phase" status="PASS">The same complete plan still states what Phase 2 and every work package must achieve.</check>
+      <check number="3" category="files likely to be added or modified" status="PASS">The same complete plan still lists the bounded ten-file forecast and read-only interviewer dependency.</check>
+      <check number="4" category="dependencies and setup steps" status="PASS">The same complete plan still records research readiness, Phase 1 dependency, existing contracts, and local-only verification.</check>
+      <check number="5" category="implementation details" status="PASS">The same complete plan still specifies the resolver, catalog snapshot, composer, persistence, and router behavior at function level.</check>
+      <check number="6" category="tests required for that phase" status="PASS">The same complete plan still covers both catalog versions, semantic families, conflicts, seniority, follow-up lineage, and fallback.</check>
+      <check number="7" category="verification commands or observable outcomes" status="PASS">The same complete plan still provides bounded commands and expected evidence, including forbidden-path inspection.</check>
+      <check number="8" category="completion criteria" status="PASS">The same complete plan still has ten explicit completion criteria with no hidden Phase 3 requirement.</check>
+      <check number="9" category="risks, assumptions, and decisions" status="PASS">The same complete plan still labels implementation decisions, human-aligned assumptions, non-material unknowns, and mitigations.</check>
+      <check number="10" category="work explicitly outside scope" status="PASS">The same complete plan still excludes score/evaluator/UI/runtime/catalog activation/migration/release work.</check>
+    </pass>
+    <pass id="3" result="PASS" label="full ten-item checklist replay 3">
+      <check number="1" category="the phases of work" status="PASS">The final plan retains the complete Phase 2 sequence and all five work packages.</check>
+      <check number="2" category="the goal of each phase" status="PASS">The final plan retains a single observable phase goal plus a goal for each work package.</check>
+      <check number="3" category="files likely to be added or modified" status="PASS">The final plan retains exact paths, file budgets, documentation ownership, and the no-edit runtime dependency.</check>
+      <check number="4" category="dependencies and setup steps" status="PASS">The final plan retains the ready research gate, Phase 1 branch baseline, local test setup, and no live-service dependency.</check>
+      <check number="5" category="implementation details" status="PASS">The final plan retains granular pseudocode and input/output/side-effect/failure contracts for every planned production file.</check>
+      <check number="6" category="tests required for that phase" status="PASS">The final plan retains all required routing, persistence, catalog-version, seniority, follow-up, fallback, and existing-suite tests.</check>
+      <check number="7" category="verification commands or observable outcomes" status="PASS">The final plan retains exact commands and observable pass/fail outcomes; live/provider claims remain NOT RUN.</check>
+      <check number="8" category="completion criteria" status="PASS">The final plan retains C1-C10 and requires documentation only after verified implementation behavior.</check>
+      <check number="9" category="risks, assumptions, and decisions" status="PASS">The final plan retains D1-D6, A1-A4, and R1-R4 with no silent assumption promoted to fact.</check>
+      <check number="10" category="work explicitly outside scope" status="PASS">The final plan retains every requested non-goal and the single-release boundary.</check>
+    </pass>
+  </three_pass_audit>
+
+  <handoff>
+    <review_surface>phase-2-review-brief.md</review_surface>
+    <execution_appendix>impact-first-past-example-phase-2-plan.xml</execution_appendix>
+    <next_authorized_action>Wait for owner approval and a separate implementation request; do not edit Phase 2 code from this plan-only turn.</next_authorized_action>
+    <implementation_order>Use the five work packages in order, stay within the task contract, run focused tests before broader verification, and update F-34 plus one change-log entry only after behavior is verified.</implementation_order>
+  </handoff>
+</implementation_plan>

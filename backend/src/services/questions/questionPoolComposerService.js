@@ -26,6 +26,7 @@ import {
   normalizeCategory,
   questionRetentionDate,
   stableQuestionId,
+  resolveCanonicalEvidenceMode,
 } from './questionArtifactHelpers.js';
 const BEHAVIOURAL_QUESTION_TEMPLATES = [
   (topic) =>
@@ -157,15 +158,7 @@ const resolveQuestionFamily = ({ category = '', questionIntent = '', questionFam
   return 'role_specific';
 };
 
-const resolveEvidenceMode = ({ capabilityGroup = '', questionIntent = '', text = '', evidenceMode = '' } = {}) => {
-  if (evidenceMode) return evidenceMode;
-  if (capabilityGroup === 'professional_credential') return 'credential_verification';
-  const normalizedIntent = normalizeKey(questionIntent);
-  const normalizedText = normalizeKey(text);
-  if (normalizedIntent.includes('scenario') || /\b(if|would|suppose|imagine)\b/.test(normalizedText)) return 'scenario_reasoning';
-  if (normalizedIntent.includes('knowledge') || /\b(explain|principle|standard|framework)\b/.test(normalizedText)) return 'knowledge_explanation';
-  return 'past_example';
-};
+
 
 const resolveQuestionRole = ({ sourceStage = '', category = '', stage = '', questionRole = '' } = {}) => {
   if (['root_question', 'fallback_root', 'wrap_up'].includes(questionRole)) return questionRole;
@@ -210,12 +203,16 @@ const buildBaseItem = ({
   ...rest
 }) => {
   const questionFamily = resolveQuestionFamily({ category, questionIntent, questionFamily: rest.questionFamily });
-  const evidenceMode = resolveEvidenceMode({
-    capabilityGroup: rest.capabilityGroup,
+  const resolvedEvidence = resolveCanonicalEvidenceMode({
+    category,
+    questionFamily,
+    questionType: questionIntent,
     questionIntent,
-    text,
+    capabilityGroup: rest.capabilityGroup,
     evidenceMode: rest.evidenceMode,
+    text,
   });
+  const evidenceMode = resolvedEvidence.mode;
   const item = {
     userId,
     sessionId,

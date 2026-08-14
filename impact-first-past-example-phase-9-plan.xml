@@ -1,0 +1,373 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<implementation_plan
+  id="impact-first-past-example-phase-9"
+  version="1.0"
+  status="planned"
+>
+  <plan_boundary>
+    <requested_output>Phase 9 的完整 implementation-level XML plan。</requested_output>
+    <phase_name>Universal LLM Evaluation Rollout</phase_name>
+    <source_of_truth>phase-9-universal-llm-research.md</source_of_truth>
+    <parent_outline>impact-first-past-example-outline-plan.md</parent_outline>
+    <authorization>本文件只規劃 Phase 9。它不授權 implementation、建立或切換 branch、commit、push、deployment。</authorization>
+    <release_boundary>Phase 9 是該 feature 分支的收尾階段，完成後整個專案將具備單一上線資格。</release_boundary>
+  </plan_boundary>
+
+  <phase_overview>
+    <phase_number>9</phase_number>
+    <phase_name>Universal LLM Evaluation Rollout</phase_name>
+    <phase_goal>徹底淘汰基於 Regex 的關鍵字評分引擎。將所有剩餘題型框架全面升級為 Semantic LLM evaluation，落實 L1-L5 BARS 行為錨定評分。</phase_goal>
+    <observable_end_state>所有的 legacy 關鍵字邏輯從 `answerFrameworkService.js` 與 `roleAnswerAnalysisService.js` 中移除。每個 turnBreakdown 將包含基於 15 組 Collision-Safe Mapping 的 Level 1-5 評分、原因與分數計算。</observable_end_state>
+    <depends_on>
+      <dependency>Research 階段已經歷 10 次對抗性審查，確保所有 dimension 無內部碰撞且補齊英文 BARS 定義。</dependency>
+    </depends_on>
+    <provides_to>
+      <consumer phase="end">最終的 QA 驗證與上線發布。</consumer>
+    </provides_to>
+  </phase_overview>
+
+  <research_and_evidence>
+    <evidence id="E1" path="backend/src/services/report/roleAnswerAnalysisService.js" lines="all">目前的 regex 算分邏輯高度依賴關鍵字，且經常誤判。</evidence>
+    <evidence id="E2" path="backend/src/services/report/turnRubricService.js" lines="all">負責路由 question intent 到對應的 analysis service。</evidence>
+  </research_and_evidence>
+
+  <task_contract>
+    <one_observable_goal>將所有尚未轉換的 frameworks 全部導向 DeepSeek LLM evaluation，並以 15 組無碰撞的 Anchors 進行評分。</one_observable_goal>
+    <allowed_areas>
+      <area>backend/src/services/report/</area>
+      <area>backend/tests/robustness/report/</area>
+      <area>docs/architecture-decision-records/features/</area>
+    </allowed_areas>
+    <forbidden_areas>
+      <area reason="Phase 1">Voice duration metrics.</area>
+      <area reason="Phase 4">Overall score calculation and denominator rules.</area>
+    </forbidden_areas>
+    <budgets>
+      <production_files maximum="5" forecast="4" />
+      <test_files maximum="3" forecast="2" />
+      <documentation_files maximum="2" forecast="1" />
+      <total_task_owned_files hard_stop="10" forecast="7" />
+      <incremental_changed_lines target="less_than_400" hard_stop="500" />
+      <implementation_cycles maximum="3" />
+    </budgets>
+    <stop_rule>若舊版測試因拔除 Regex 而發生無法修復的大規模依賴斷裂，必須停止實作並尋求 owner 決策。</stop_rule>
+  </task_contract>
+
+  <canonical_contracts>
+    <dimension_mapping_contract>
+      <mapping_strategy>15 組 Collision-Safe Mapping，一對一綁定 Unique Dimension Keys。</mapping_strategy>
+      <anchor_groups>
+        <group name="Context &amp; Goal" applies_to="contextGoal, requirements, principle, need, objectivePriorities, needGoal, contextRequirement">
+          <level n="1">Completely fails to mention context, requirements, or core principles.</level>
+          <level n="2">Mentions context but is extremely vague and lacks specific details.</level>
+          <level n="3">Provides basic context or requirements but misses key constraints or objectives.</level>
+          <level n="4">Clearly defines the problem context, requirements, or principles with good setup.</level>
+          <level n="5">Demonstrates deep understanding of underlying constraints, business drivers, or systemic impact.</level>
+        </group>
+        <group name="Approach &amp; Execution" applies_to="approach, execution, exploration">
+          <level n="1">No approach or execution steps provided.</level>
+          <level n="2">Provides only a dismissive or vague approach (e.g., "I will look it up").</level>
+          <level n="3">Proposes a basic action step but lacks completeness.</level>
+          <level n="4">Proposes a clear, actionable, and relevant solution or application.</level>
+          <level n="5">Proposes a comprehensive and logically rigorous systemic approach covering multiple dimensions.</level>
+        </group>
+        <group name="Options / Alternatives" applies_to="options">
+          <level n="1">Proposes no options or alternatives.</level>
+          <level n="2">Briefly mentions other possibilities but does not explore them.</level>
+          <level n="3">Proposes a single option or highly similar options.</level>
+          <level n="4">Proposes two or more distinctly different options.</level>
+          <level n="5">Proposes multiple diverse, effective alternative solutions tailored to different constraints.</level>
+        </group>
+        <group name="Reasoning / Judgement" applies_to="reasoning, judgementTradeoffs, rationale">
+          <level n="1">Provides no reasoning for decisions.</level>
+          <level n="2">Provides vague reasoning (e.g., "This is the standard way").</level>
+          <level n="3">Provides basic reasoning but does not consider alternatives.</level>
+          <level n="4">Clearly explains why the approach was chosen with sound logic.</level>
+          <level n="5">Explicitly weighs the trade-offs and constraints between different options.</level>
+        </group>
+        <group name="Risk Identification" applies_to="riskIdentification, riskQualityEthics">
+          <level n="1">Shows no risk awareness.</level>
+          <level n="2">Shows vague risk awareness (e.g., "I will be careful").</level>
+          <level n="3">Identifies surface-level risks.</level>
+          <level n="4">Clearly identifies specific risks or quality standards.</level>
+          <level n="5">Proactively anticipates systemic, long-term, or edge-case risks.</level>
+        </group>
+        <group name="Controls / Action" applies_to="controls, constraintsTradeoffs">
+          <level n="1">Proposes no control measures.</level>
+          <level n="2">Mentions attention to the issue but lacks concrete preventative actions.</level>
+          <level n="3">Proposes basic preventative actions.</level>
+          <level n="4">Proposes specific preventative or control measures.</level>
+          <level n="5">Establishes a systemic safety net or proactive risk-mitigation mechanism.</level>
+        </group>
+        <group name="Ethics / Escalation" applies_to="ethicsEscalation">
+          <level n="1">Fails to mention ethics or escalation mechanisms.</level>
+          <level n="2">Acknowledges a problem but does not specify how to handle it.</level>
+          <level n="3">Knows to report the problem.</level>
+          <level n="4">Clearly knows when to escalate or trigger ethical protocols.</level>
+          <level n="5">Clearly defines escalation boundaries and demonstrates high compliance and ethical judgment.</level>
+        </group>
+        <group name="Validation / Measurement" applies_to="validationVerification, verification, measurement, validation, feedbackValidation">
+          <level n="1">Completely fails to mention post-action validation.</level>
+          <level n="2">Briefly mentions checking (e.g., "I will test it").</level>
+          <level n="3">Mentions basic checks without clear metrics.</level>
+          <level n="4">Proposes specific validation methods or testing plans.</level>
+          <level n="5">Establishes quantitative metrics (KPIs) or rigorous closed-loop validation plans.</level>
+        </group>
+        <group name="Feedback / Iteration / Adaptation" applies_to="feedbackIteration, judgementAdaptation">
+          <level n="1">Refuses to change or fails to mention adjustments.</level>
+          <level n="2">Passively accepts feedback.</level>
+          <level n="3">Mentions modifying based on feedback.</level>
+          <level n="4">Proposes specific steps to collect feedback and iterate.</level>
+          <level n="5">Demonstrates high agility, systematically translating feedback into iterative design.</level>
+        </group>
+        <group name="Communication / Stakeholder Approach" applies_to="approachCommunication">
+          <level n="1">One-way communication or no communication.</level>
+          <level n="2">Will notify the other party.</level>
+          <level n="3">Engages in basic two-way information transfer.</level>
+          <level n="4">Consciously manages stakeholder expectations.</level>
+          <level n="5">Demonstrates high EQ stakeholder management and two-way expectation alignment.</level>
+        </group>
+        <group name="Outcome / Value" applies_to="outcomeValue, expectedOutcome, outcome, outcomeLearning">
+          <level n="1">Completely fails to mention expected outcomes.</level>
+          <level n="2">Briefly claims the result will be good.</level>
+          <level n="3">Mentions specific outcomes but lacks value linkage.</level>
+          <level n="4">Proposes clear, specific, and reasonable expected outcomes, value, or learnings.</level>
+          <level n="5">Perfectly aligns the outcome with the initial goal and extracts reusable value or learnings.</level>
+        </group>
+        <group name="Credential Verification_evidence" applies_to="evidence, validity">
+          <level n="1">Does not hold the credential or it is expired with no renewal plan.</level>
+          <level n="2">Holds an expired credential but has a clear renewal application submitted.</level>
+          <level n="3">Is preparing to obtain it, or holds it but it is expiring very soon.</level>
+          <level n="4">Holds a valid credential but documentation is pending final clearance.</level>
+          <level n="5">Confirmed holding a fully valid and active credential.</level>
+        </group>
+        <group name="Credential Verification_scope" applies_to="scope, conditions">
+          <level n="1">Completely unaware of practice scope or restrictions.</level>
+          <level n="2">Vaguely aware of scope but cannot name specific boundaries.</level>
+          <level n="3">Knows basic scope but is unclear on special restrictions (e.g., supervised practice).</level>
+          <level n="4">Clearly explains practice scope and most restrictions.</level>
+          <level n="5">Precisely explains exact practice scope and any attached conditions or restrictions.</level>
+        </group>
+        <group name="Conversation_relevance" applies_to="relevance">
+          <level n="1">Completely irrelevant or off-topic.</level>
+          <level n="2">Tangentially related but mostly off-topic.</level>
+          <level n="3">Basically answers the question but includes unnecessary tangential content.</level>
+          <level n="4">Directly and specifically answers the interviewer's question.</level>
+          <level n="5">Precisely on-topic and smoothly guides the conversation forward.</level>
+        </group>
+        <group name="Conversation_clarity" applies_to="clarity">
+          <level n="1">Incoherent and impossible to understand.</level>
+          <level n="2">Extremely fragmented expression or filled with filler words.</level>
+          <level n="3">Gist is understandable but sentence structure is messy or stuttered.</level>
+          <level n="4">Fluent sentences and coherent logic.</level>
+          <level n="5">Extremely organized communication, refined and professional expression.</level>
+        </group>
+        <group name="Conversation_completion" applies_to="completion">
+          <level n="1">Sentence unfinished or cut off directly.</level>
+          <level n="2">Uses only single words or extremely short dismissive phrases (e.g., "Yes", "Okay").</level>
+          <level n="3">Complete answer but lacks necessary context or is rigidly delivered.</level>
+          <level n="4">Provides a complete answer and appropriate confirmation.</level>
+          <level n="5">Complete answer and proactively confirms if the interviewer needs more information, showing high EQ.</level>
+        </group>
+        <group name="Self Intro_background" applies_to="background">
+          <level n="1">No mention.</level>
+          <level n="2">Only provides name or extremely brief single-word descriptions.</level>
+          <level n="3">Mentions education or current role but lacks depth of experience.</level>
+          <level n="4">Clearly describes core educational and professional background.</level>
+          <level n="5">Background description is highly organized and directly highlights strongest professional advantages.</level>
+        </group>
+        <group name="Self Intro_roleRelevance" applies_to="roleRelevance">
+          <level n="1">Completely unconnected to the applied role.</level>
+          <level n="2">Mentions "I want to apply for this role" with no further explanation.</level>
+          <level n="3">Vaguely mentions background is related to the role.</level>
+          <level n="4">Explicitly explains how past experience matches the core requirements of this role.</level>
+          <level n="5">Demonstrates deep understanding of the role's core challenges and precisely explains how their background directly solves them.</level>
+        </group>
+        <group name="Self Intro_evidence" applies_to="evidence">
+          <level n="1">No mention.</level>
+          <level n="2">Only claims "I have a lot of experience".</level>
+          <level n="3">Mentions participating in projects or work but no concrete results.</level>
+          <level n="4">Cites specific projects, achievements, or technologies used as evidence.</level>
+          <level n="5">Evidence includes clear quantitative data or highly persuasive qualitative impact.</level>
+        </group>
+        <group name="Motivation_companyReason" applies_to="companyReason">
+          <level n="1">No mention.</level>
+          <level n="2">Generic superficial praise (e.g., "You are a good company").</level>
+          <level n="3">Mentions a specific product or news but does not explain why it attracts them.</level>
+          <level n="4">Cites specific company characteristics and clearly links them to personal values or goals.</level>
+          <level n="5">Demonstrates deep research (business model, culture) and proposes a win-win perspective.</level>
+        </group>
+        <group name="Motivation_roleReason" applies_to="roleReason">
+          <level n="1">No mention.</level>
+          <level n="2">"I want to find a job" or "It looks interesting".</level>
+          <level n="3">Mentions the role's responsibilities but lacks personal passion linkage.</level>
+          <level n="4">Clearly explains which specific responsibilities of the role fit their career plan.</level>
+          <level n="5">Demonstrates deep understanding of the role's challenges and a strong desire to solve them.</level>
+        </group>
+      </anchor_groups>
+    </dimension_mapping_contract>
+    <score_math_contract>
+      <mapping_formula>
+        Level 1-5 必須精確轉換為 0-100% 的比例權重。
+        L1 = 0.0, L2 = 0.25, L3 = 0.5, L4 = 0.75, L5 = 1.0。
+        每個維度的得分 (dimensionScore) = levelMultiplier * dimensionWeight。
+      </mapping_formula>
+    </score_math_contract>
+    <llm_schema_contract>
+      <json_enforcement>
+        `[ { "dimension": "string", "level": number (1-5), "reason": "string" } ]`
+      </json_enforcement>
+    </llm_schema_contract>
+    <llm_prompt_contract>
+      <six_part_framework>
+        <system_prompt_template><![CDATA[
+<instructions>
+You are an expert HR Interview Evaluator. Your core role is to objectively map the candidate's spoken answer to the exact Behavioral Anchored Rating Scales (BARS) provided. Your operational boundary is strictly limited to evaluation; do not act as an interviewer or coach.
+</instructions>
+
+<examples>
+Here is a few-shot example of how to reason and output:
+<example>
+  <question>How do you handle risks?</question>
+  <answer>I usually just try to be careful.</answer>
+  <bars dimension="Risk Identification">
+    L1: No awareness -> L2: Vague/careful -> L3: Surface -> L4: Specific -> L5: Systemic.
+  </bars>
+  <expected_output>
+    [ { "dimension": "Risk Identification", "level": 2, "reason": "The candidate only vaguely mentions 'being careful' without identifying any specific surface or systemic risks, mapping exactly to L2." } ]
+  </expected_output>
+</example>
+</examples>
+
+<tools>
+You must output your response adhering strictly to the JSON array schema provided. You do not have access to external APIs.
+</tools>
+
+<guardrails>
+1. HARD CONSTRAINT: Do not hallucinate or invent criteria outside of the provided BARS.
+2. HARD CONSTRAINT: If the answer does not address the dimension at all, strictly assign Level 1.
+3. FORMATTING RULE: Output ONLY a valid JSON array matching the requested schema. No markdown fences (e.g., ```json), no conversational filler.
+4. SAFETY VALIDATION: The `level` MUST be an integer strictly between 1 and 5.
+</guardrails>
+]]></system_prompt_template>
+
+        <user_prompt_template><![CDATA[
+<memory>
+{interviewContext}
+</memory>
+
+<knowledge>
+  <interview_question>{questionText}</interview_question>
+  <candidate_answer>{answerText}</candidate_answer>
+  
+  <bars_definitions>
+{bars_definitions_injected_here}
+  </bars_definitions>
+</knowledge>
+]]></user_prompt_template>
+      </six_part_framework>
+    </llm_prompt_contract>
+  </canonical_contracts>
+
+  <data_flow>
+    <step order="1">turnRubricService.js 解析出框架。</step>
+    <step order="2">不呼叫舊版，組裝對應框架的 Dimension Keys。</step>
+    <step order="3">universalLlmEvaluationService.js 提取對應的 L1-L5 Anchors 組合 Prompt。</step>
+    <step order="4">呼叫 DeepSeek LLM。</step>
+    <step order="5">Error Handling (Timeout/Non-JSON) 降級或重試。</step>
+    <step order="6">轉換為分數。</step>
+  </data_flow>
+
+  <work_phase id="P9-A" name="Universal LLM Service Implementation">
+    <goal_of_each_phase>建立全新的 `universalLlmEvaluationService.js` 來處理 LLM 評估與 BARS 邏輯。</goal_of_each_phase>
+    <files>
+      <file>backend/src/services/report/universalLlmEvaluationService.js</file>
+      <file>backend/tests/robustness/report/universalLlmEvaluationService.test.js</file>
+    </files>
+    <implementation_details>
+      Service 負責將 answer, question 與對應維度的 BARS 定義組裝成 prompt。
+      呼叫 AI 控制層 (如 aiControlService)，並確保 parsing JSON array。
+    </implementation_details>
+    <pseudocode><![CDATA[
+EXPORT FUNCTION buildUniversalPrompt(turnData, dimensionsArray):
+  SET barsText = loop dimensionsArray to format "Dimension: [name]\nL1: [..]\nL2: [..]..."
+  SET systemPrompt = LLM_PROMPT_CONTRACT.system_prompt
+  SET userPrompt = "Question: {turnData.question}\nAnswer: {turnData.answer}\nEvaluate:\n{barsText}"
+  RETURN { systemPrompt, userPrompt }
+
+EXPORT FUNCTION evaluateWithUniversalLlm(turnData, dimensionsArray):
+  SET prompt = buildUniversalPrompt(turnData, dimensionsArray)
+  TRY
+    SET response = CALL llm with schema
+    RETURN parseAndScore(response, dimensionsArray)
+  CATCH
+    RETURN generateFallbackLevel1(dimensionsArray)
+    ]]></pseudocode>
+    <tests_required_for_this_phase>
+      <test>Mock LLM response with valid JSON validates math correctness (L1=0, L5=1.0).</test>
+      <test>Mock LLM timeout or invalid JSON falls back safely without crashing.</test>
+    </tests_required_for_this_phase>
+    <observable_outcome>Service 可獨立被呼叫，輸入 transcript 產出 1-5 分的 JSON breakdown。</observable_outcome>
+    <completion_criteria>Tests passing, handles edge cases.</completion_criteria>
+  </work_phase>
+
+  <work_phase id="P9-B" name="Routing Cutover and Legacy Regex Deprecation">
+    <goal_of_each_phase>將 `turnRubricService.js` 的路由指向新服務，並清空 `roleAnswerAnalysisService.js` 的 Regex 負債。</goal_of_each_phase>
+    <files>
+      <file>backend/src/services/report/turnRubricService.js</file>
+      <file>backend/src/services/report/roleAnswerAnalysisService.js</file>
+      <file>backend/tests/robustness/report/roleSpecificFrameworkRobustness.test.js</file>
+    </files>
+    <implementation_details>
+      不再使用 regex patterns。
+    </implementation_details>
+    <pseudocode><![CDATA[
+IN turnRubricService:
+  IF framework requires LLM eval (e.g., role_specific, knowledge)
+    RETURN await universalLlmEvaluationService.evaluateWithUniversalLlm(...)
+    ]]></pseudocode>
+    <tests_required_for_this_phase>
+      <test>Routing correctly passes payload to universal LLM instead of legacy regex.</test>
+    </tests_required_for_this_phase>
+    <observable_outcome>Legacy regex is deleted, all tests pass via mocked LLM response.</observable_outcome>
+    <completion_criteria>Zero regex dimension matching rules remaining in the codebase.</completion_criteria>
+  </work_phase>
+
+  <plan_quality_audit>
+    <audit_pass number="1" status="passed" checked_items="10" passed_items="10">
+      <method>Full 10-item cross-source consistency and acceptance review.</method>
+      <check number="1" category="the phases of work" status="passed">
+        Work phases (P9-A, P9-B) 與 parent outline 的 Phase 9 goal 一致，不會波及 Phase 1 或 Phase 4。
+      </check>
+      <check number="2" category="the goal of each phase" status="passed">
+        兩個 Phase 共同收斂到一個 end state：全面依賴 LLM 並移除 Legacy Regex。
+      </check>
+      <check number="3" category="files likely to be added or modified" status="passed">
+        Forecast paths 皆在合理範圍內，且已涵蓋新 Service 與 Test files。
+      </check>
+      <check number="4" category="dependencies and setup steps" status="passed">
+        完全依賴 Phase 9 Research 的 15 組 Anchor Mappings。
+      </check>
+      <check number="5" category="implementation details" status="passed">
+        包含了 BARS Math Contract (L1=0, L5=1.0) 與 LLM Schema JSON Enforcement。
+      </check>
+      <check number="6" category="tests required for that phase" status="passed">
+        已明定需要測試 LLM Fallback、Math Correctness 與 Routing Cutover。
+      </check>
+      <check number="7" category="verification commands or observable outcomes" status="passed">
+        Vitest suite 不會 crashed，observable outcome 為產出符合 JSON array 且經過 math scaling 的 score。
+      </check>
+      <check number="8" category="completion criteria" status="passed">
+        所有 Regex 負債清空，這是明確且可驗證的 completion criteria。
+      </check>
+      <check number="9" category="risks assumptions and decisions" status="passed">
+        明確了 LLM timeout 的 mitigation (重試與 fallback L1)。
+      </check>
+      <check number="10" category="work explicitly outside the scope" status="passed">
+        沒有觸碰到 duration 或是 overall scoring denominator。
+      </check>
+      <result>10/10 categories passed. Implementation framework correctly aligned with Phase 1 XML rules.</result>
+    </audit_pass>
+  </plan_quality_audit>
+
+</implementation_plan>

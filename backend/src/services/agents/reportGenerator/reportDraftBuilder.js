@@ -174,6 +174,7 @@ export const buildReportDraft = ({
 
   return {
     schemaVersion: 'v7',
+    scoringVersion: 'v2026.2',
     sessionId: session.id,
     candidateName: analysisResult.candidateName || session.candidateName || 'Candidate',
     jobTitle: analysisResult.jobTitle || session.targetRole || 'Target Role',

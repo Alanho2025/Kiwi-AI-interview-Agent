@@ -1,6 +1,6 @@
 import { normalizeSeniorityLevelKey } from '../../config/interviewBlueprints.js';
 import { ensureArray, normalizeKey, normalizeText } from '../../utils/commonHelpers.js';
-import { stableQuestionId } from './questionArtifactHelpers.js';
+import { resolveCanonicalEvidenceMode, stableQuestionId } from './questionArtifactHelpers.js';
 import { resolveAiDeliverySignalProfile } from './questionCatalogService.js';
 
 const SOFTWARE_ROLE_FAMILIES = new Set(['software', 'software_development', 'software_engineering', 'frontend', 'backend', 'devops']);
@@ -220,6 +220,16 @@ export const buildCatalogQuestionSnapshots = ({ catalogItems = [], context = {} 
     const scenarioEligibility = isBoundedTechnicalScenario(catalogItem)
       ? resolveScenarioEligibility(selectionContext)
       : null;
+      
+    const resolvedEvidence = resolveCanonicalEvidenceMode({
+      category: catalogItem.category,
+      questionFamily: catalogItem.questionFamily,
+      questionType: catalogItem.questionType,
+      questionIntent: catalogItem.questionType,
+      text: prompt.text,
+      ambiguityMode: catalogItem.ambiguityPolicy?.mode,
+    });
+
     items.push({
       userId: context.userId,
       sessionId: context.sessionId,
@@ -235,6 +245,7 @@ export const buildCatalogQuestionSnapshots = ({ catalogItems = [], context = {} 
       questionIntent: catalogItem.questionType,
       questionFamily: catalogItem.questionFamily,
       questionType: catalogItem.questionType,
+      evidenceMode: resolvedEvidence.mode,
       text: prompt.text,
       fallbackText: prompt.text,
       expectedSignal: ensureArray(catalogItem.expectedSignals),

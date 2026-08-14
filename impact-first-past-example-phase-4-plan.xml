@@ -1,0 +1,128 @@
+<phase_plan>
+  <phase>Phase 4 - Score composition, denominator integrity, and versioning</phase>
+  
+  <outline_definition>
+    <phase_goal>Make the aligned framework and cross-framework duration assessment change new report scores exactly once, without synthetic zeros or text-mode penalties.</phase_goal>
+    <affected_components>Expected boundary includes `reportScoreService.js`, `reportGeneratorAgent.js`, `reportDraftBuilder.js`, `reportScoringExplanationService.js`, and existing report/schema normalization as needed; no database migration is expected unless XML research disproves the current `Mixed` boundary.</affected_components>
+    <data_flow>Content framework score + Phase 1 duration assessment -> voice root score (`90% content + 10% duration`) or non-duration score (content renormalized to 100%) -> applicable-turn denominator -> overall interview performance -> versioned report breakdown and explanation.</data_flow>
+    <pseudocode>For eligible voice roots, scale non-Impact content to 90 and add duration points; for Impact-first, add its 0–90 content points and duration points; for text/ineligible/missing duration, preserve a 0–100 content score; exclude conversation and zero-dimension/non-applicable turns; average only applicable scores; persist framework/scoring version.</pseudocode>
+    <edge_cases>Direct rubric with zero dimensions; genuine zero-evidence answer; missing duration; text past-example answer; scenario voice answer; root plus follow-up chain; legacy report read; report regeneration after cutover; partial provider feedback; duplicate question text with distinct IDs.</edge_cases>
+    <tests>Extend `reportFrameworkPipeline.test.js`, `reportScoringExplanationService.test.js`, and `reportFrameworkSchema.test.js` with exact score arithmetic, denominator, version, text/voice, and legacy-read cases.</tests>
+  </outline_definition>
+
+  <dirty_baseline_inspection>
+    Files have been inspected. The baseline is clean and `reportScoreService.js` currently uses the `strengthScore * 0.4 + directRatioScore * 0.3 + averageTurnScore * 0.3` formula.
+  </dirty_baseline_inspection>
+
+  <boundary>
+    Expected boundary includes `reportScoreService.js`, `reportGeneratorAgent.js`, `reportDraftBuilder.js`, `reportScoringExplanationService.js`, and existing report/schema normalization as needed; no database migration is expected.
+  </boundary>
+
+  <non_goals>
+    - Text-answer timing, typing-time measurement, or estimated speaking time.
+    - Old-report backfill, migration, automatic regeneration, or numerical comparability claims.
+    - Live Mongo catalog activation, deployment, push, or release without separate approval.
+  </non_goals>
+
+  <objects_and_contracts>
+    <contract>
+      <object>computeInterviewPerformanceScore</object>
+      <role>Score composition logic</role>
+      <caller>reportDraftBuilder.js (buildReportDraft)</caller>
+      <input>evidenceSummary (object), candidateFeedback (object with turnBreakdowns)</input>
+      <output>Overall interview score (0-100 integer)</output>
+      <side_effect>None (pure function)</side_effect>
+      <dependency>math calculations, `ensureArray` utility</dependency>
+      <failure_behaviour>If turnBreakdowns is missing/empty (Legacy report read / report regeneration after cutover), gracefully fallback to legacy 55/45 metric calculation. If partial provider feedback causes a null/NaN score, exclude that turn from the denominator instead of crashing.</failure_behaviour>
+      <logic>
+        - Map each valid turn to a score.
+        - Voice eligible (e.g. Scenario voice answer or Impact-first voice answer): Score = (Content Score * 0.9) + Voice Duration points.
+        - Text / missing duration (e.g. Text past-example answer): Score = Content Score (normalized to 100).
+        - Denominator rules:
+          - Exclude `rubricType === 'conversation'` and turns with 0 evaluated dimensions (Direct rubric with zero dimensions).
+          - Include genuine 0-evidence answers as 0 points.
+          - Exclude follow-ups from adding duplicate denominator entries (Root plus follow-up chain).
+          - Do not dedupe by question text (Duplicate question text with distinct IDs); evaluate every distinct turn object.
+      </logic>
+    </contract>
+
+    <contract>
+      <object>buildDeterministicTurnBreakdowns</object>
+      <role>Report turn orchestration</role>
+      <caller>reportGeneratorAgent.js (runReportGeneratorAgent)</caller>
+      <input>transcriptOrPairs, analysedAnswers</input>
+      <output>Array of deterministic turn breakdowns</output>
+      <side_effect>None</side_effect>
+      <dependency>analyzeTurnStructure, reportScoreService helpers</dependency>
+      <failure_behaviour>Returns empty array if inputs are invalid or empty.</failure_behaviour>
+      <logic>
+        - Pass `voiceDurationAssessment` points into `frameworkBreakdown` so the score service can access them.
+      </logic>
+    </contract>
+
+    <contract>
+      <object>buildScoreExplanations</object>
+      <role>Score transparency</role>
+      <caller>reportDraftBuilder.js (buildReportDraft)</caller>
+      <input>scores, candidateFeedback</input>
+      <output>Object containing formatted explanations</output>
+      <side_effect>None</side_effect>
+      <dependency>None</dependency>
+      <failure_behaviour>Defaults to safe explanation strings if parameters missing.</failure_behaviour>
+      <logic>
+        - Update text to reflect voice duration math (10%) and framework applicability.
+        - Provide explanation distinguishing text fallback vs voice evaluation.
+      </logic>
+    </contract>
+
+    <contract>
+      <object>buildReportDraft</object>
+      <role>Report Persistence and Versioning</role>
+      <caller>reportGeneratorAgent.js (runReportGeneratorAgent)</caller>
+      <input>session, candidateFeedback, scores, etc.</input>
+      <output>Draft Report Object</output>
+      <side_effect>None</side_effect>
+      <dependency>None</dependency>
+      <failure_behaviour>Schema version defaults to current string if generation fails.</failure_behaviour>
+      <logic>
+        - Persist framework/scoring version directly on the output schema.
+      </logic>
+    </contract>
+  </objects_and_contracts>
+
+  <tests_mapping>
+    <mapping>
+      <criterion>Accepted weights produce exact expected totals.</criterion>
+      <focused_test>backend/tests/robustness/report/reportFrameworkPipeline.test.js - Add assertions for 90/10 math and 100 content scaling.</focused_test>
+    </mapping>
+    <mapping>
+      <criterion>No zero-dimension turn depresses the denominator.</criterion>
+      <focused_test>backend/tests/robustness/report/reportFrameworkPipeline.test.js - Mock a 0-dimension conversational/empty answer and assert denominator ignores it.</focused_test>
+    </mapping>
+    <mapping>
+      <criterion>Genuine zero-evidence answer does depress denominator.</criterion>
+      <focused_test>backend/tests/robustness/report/reportFrameworkPipeline.test.js - Mock a valid framework turn with 0 score and assert denominator includes it.</focused_test>
+    </mapping>
+    <mapping>
+      <criterion>Missing system duration does not penalize.</criterion>
+      <focused_test>backend/tests/robustness/report/reportFrameworkPipeline.test.js - Mock text turn and ensure score is 100% content.</focused_test>
+    </mapping>
+    <mapping>
+      <criterion>Every eligible voice root uses the same 10% rule.</criterion>
+      <focused_test>backend/tests/robustness/report/reportFrameworkPipeline.test.js - Mock a non-past-example voice turn and assert 10% duration points are applied.</focused_test>
+    </mapping>
+    <mapping>
+      <criterion>Text timing remains absent.</criterion>
+      <focused_test>backend/tests/robustness/report/reportFrameworkSchema.test.js - Verify the schema validates absent text timing and absent voice fields correctly.</focused_test>
+    </mapping>
+    <mapping>
+      <criterion>Old reports remain readable and untouched.</criterion>
+      <focused_test>backend/tests/robustness/report/reportFrameworkPipeline.test.js - Provide legacy payload without turnBreakdowns and assert legacy 55/45 return.</focused_test>
+    </mapping>
+    <mapping>
+      <criterion>New score explanations name the applicable framework/version.</criterion>
+      <focused_test>backend/tests/robustness/report/reportScoringExplanationService.test.js - Assert explanation object contains framework applicability and v2026.2 versioning text.</focused_test>
+    </mapping>
+  </tests_mapping>
+
+</phase_plan>

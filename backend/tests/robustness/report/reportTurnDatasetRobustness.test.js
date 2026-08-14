@@ -35,11 +35,11 @@ describe('report turn dataset', () => {
     });
   });
 
-  it('builds one scored breakdown for each countable question and accepted answer', () => {
+  it('builds one scored breakdown for each countable question and accepted answer', async () => {
     const dataset = buildReportTurnDataset(constructiveReportRegressionTranscript);
     const analysedAnswers = analyseCandidateAnswers(dataset.acceptedAnswers);
 
-    const breakdowns = buildDeterministicTurnBreakdowns(
+    const breakdowns = await buildDeterministicTurnBreakdowns(
       dataset.questionAnswerPairs,
       analysedAnswers,
     );

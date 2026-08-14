@@ -181,13 +181,13 @@ describe('voice duration assessment service', () => {
     expect(metrics).not.toHaveProperty('overlongAnswerCount');
   });
 
-  it('passes the same deterministic assessment through the turn breakdown and ignores model duration fields', () => {
+  it('passes the same deterministic assessment through the turn breakdown and ignores model duration fields', async () => {
     const dataset = buildReportTurnDataset([
       buildQuestion(),
       buildAnswer({ seconds: 100 }),
     ]);
     const pair = dataset.questionAnswerPairs[0];
-    const [breakdown] = buildDeterministicTurnBreakdowns(dataset.questionAnswerPairs, [{ evidenceStrength: 2 }]);
+    const [breakdown] = await buildDeterministicTurnBreakdowns(dataset.questionAnswerPairs, [{ evidenceStrength: 2 }]);
     const [merged] = mergeTurnBreakdownsWithRubrics([
       {
         question: pair.questionTurn.text,

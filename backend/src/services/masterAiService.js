@@ -57,6 +57,7 @@ import { buildCatalogCoverageOutcome } from './questions/questionCatalogSelectio
 import { cleanupQuestionArtifactsAfterReport } from './questions/questionArtifactCleanupService.js';
 import { indexReportSessionArtifactsSafely } from './reportIndexingGuardService.js';
 import { buildAssessmentKey, buildQuestionFingerprint } from './questions/questionDeduplicationService.js';
+import { resolveQuestionAssessmentIntent } from './questions/questionArtifactHelpers.js';
 import { buildRetentionExpiry } from './retention/retentionPolicy.js';
 import {
   getHarnessExecutionMode,
@@ -311,7 +312,29 @@ export const buildQuestionTranscriptMetadata = (interviewerOutput = {}) => {
     questionFamily: interviewerOutput.questionFamily || null,
     text: interviewerOutput.displayText || interviewerOutput.nextQuestion || interviewerOutput.text || '',
   };
+
+  const currentIntentResolution = resolveQuestionAssessmentIntent({
+    questionFamily: questionFields.questionFamily,
+    category: questionFields.requirementCategory,
+    questionType: questionFields.questionType,
+    questionIntent: questionFields.questionType,
+    evidenceMode: interviewerOutput.evidenceMode,
+    text: questionFields.text,
+  });
+
+  let parentIntentResolution = { intent: null, source: null };
+  if (interviewerOutput.parentQuestionFamily || interviewerOutput.parentEvidenceMode) {
+    parentIntentResolution = resolveQuestionAssessmentIntent({
+      questionFamily: interviewerOutput.parentQuestionFamily,
+      evidenceMode: interviewerOutput.parentEvidenceMode,
+    });
+  }
+
   return {
+    assessmentIntent: currentIntentResolution.intent,
+    assessmentIntentSource: currentIntentResolution.source,
+    parentAssessmentIntent: parentIntentResolution.intent,
+    parentAssessmentIntentSource: parentIntentResolution.source,
     questionFamily: questionFields.questionFamily,
     evidenceMode: interviewerOutput.evidenceMode || null,
     targetedDimensions: interviewerOutput.targetedDimensions || [],

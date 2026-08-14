@@ -6,9 +6,17 @@
 >
 > **Source of truth:** `research.md`. If a later XML plan conflicts with the human-aligned rules in that file, the XML plan must stop and surface the conflict.
 
+<outline_boundary>
 ## Outline boundary
 
 This document defines what the finished feature should look like, the order in which it should be built, and the verification gate for each phase. It intentionally does not define exact function signatures, line-level patches, XML tags, commits, deployment, or live catalog activation.
+</outline_boundary>
+
+<xml_plan_handoff_rule>
+- Only the owner requests the next XML plan.
+- The next XML plan must be based strictly on this outline and `research.md`.
+- No implementation, commit, or branching occurs before the owner explicitly authorizes that specific phase XML plan.
+</xml_plan_handoff_rule>
 
 Implementation starts only when the owner explicitly requests a phase-specific XML plan and then authorizes that phase. At that time, create one `codex/` feature branch and keep every phase on that branch. The feature is released once, after all phases pass; there is no temporary or shadow scoring release.
 
@@ -18,7 +26,9 @@ Each future phase is a separate bounded task contract. Default budget per phase:
 - Fewer than 400 incremental changed lines where practical.
 - No more than 3 implementation cycles: implement, focused repair, independent audit repair.
 - If an XML plan forecasts more than 10 task-owned files or 500 incremental lines, split that phase before implementation.
+</outline_boundary>
 
+<final_product_outcome>
 ## Final product outcome
 
 When the feature is complete:
@@ -56,7 +66,9 @@ When the feature is complete:
 11. The candidate report shows the framework name, Level 1–5, earned points versus weight, a short evidence-based reason, and the main improvement target. It never presents the coaching score as a hiring verdict.
 12. Candidate-facing coaching consistently says `90–120 seconds`; question-count mismatch, `>90 seconds`, or missing timing evidence cannot independently trigger “too long” advice.
 13. New reports carry an internal scoring/framework version. Existing reports are not migrated, backfilled, or regenerated automatically.
+</final_product_outcome>
 
+<final_user_visible_experience>
 ## Final user-visible experience
 
 ### During the interview
@@ -73,7 +85,9 @@ When the feature is complete:
 - The report can say, for example, that the outcome itself was strong while placement was weak because it appeared only in the closing sentence.
 - Non-past-example answers keep their existing content framework but use the same cross-framework 10% duration rule for eligible voice root answers.
 - HTML, candidate projection, text export, and PDF remain semantically consistent.
+</final_user_visible_experience>
 
+<target_data_flow>
 ## Target data flow
 
 ```mermaid
@@ -98,6 +112,7 @@ Business-rule ownership in the final design:
 - The deterministic score composer owns weights, normalization, denominator inclusion, and versioning.
 - Candidate projection owns the public allowlist; UI utilities do not invent or rescore evidence.
 
+<scope>
 ## Scope
 
 - Voice duration evidence, eligibility, bands, metrics, and coaching.
@@ -106,19 +121,24 @@ Business-rule ownership in the final design:
 - Impact-first framework definitions, evidence anchors, deterministic point calculation, and reasons.
 - Root/follow-up wording and metadata needed to elicit the aligned structure.
 - Report score composition, denominator safety, versioned persistence, candidate projection, UI, and exports.
+- Deprecating the legacy Regex scoring engine and migrating all remaining frameworks (scenario, knowledge, motivation, self-introduction, role-specific reasoning) to semantic LLM evaluation (Phase 9).
 - Focused calibration fixtures, cross-layer verification, one owning Feature RFC update, and one scoped change-log entry.
+</scope>
 
+<non_goals>
 ## Non-goals
 
 - Text-answer timing, typing-time measurement, or estimated speaking time.
 - Old-report backfill, migration, automatic regeneration, or numerical comparability claims.
-- Replacing scenario, knowledge, motivation, or self-introduction content rubrics with Impact-first.
+- Merging all question types into the Impact-first framework. (Each framework like scenario or motivation retains its distinct dimensions, but their underlying evaluation engine will be upgraded to LLM in Phase 9).
 - Redesigning voice STT, TTS, VAD, latency, barge-in, or transcript-confirmation behaviour beyond consuming already accepted duration metadata.
 - A new candidate report visual system; reuse the existing turn-card language and layout unless the later UI approval explicitly broadens scope.
 - A hiring recommendation, pass/fail decision, job-match verdict, or claim of psychometric validation.
 - Live Mongo catalog activation, deployment, push, or release without separate approval.
 - Real-provider evaluation runs without credentials, cost clarity, and explicit approval.
+</non_goals>
 
+<phase_sequence>
 ## Phase sequence
 
 | Phase | Outcome | Depends on | Released separately? |
@@ -131,7 +151,10 @@ Business-rule ownership in the final design:
 | 6 | Candidate-safe report data and coaching publish one consistent interpretation | Phases 1–5 | No |
 | 7 | UI and exports render the published interpretation without rescoring | Phase 6 | No |
 | 8 | Calibration, cross-layer QA, documentation, and single-release readiness | Phases 1–7 | No; readiness only |
+| 9 | Universal LLM evaluation for all remaining frameworks | Phases 1–8 | No |
+</phase_sequence>
 
+<phase_details>
 ## Phase 1 — Voice duration truth and five-band assessment [planned]
 
 - Phase goal: Turn persisted voice speaking duration into one canonical, evidence-backed assessment for every eligible substantive root voice answer, before broader framework scoring is changed.
@@ -212,6 +235,18 @@ Business-rule ownership in the final design:
 - Tests: Run all phase-focused suites, backend lint, frontend lint/quality checks, and the proportionate full backend/frontend gates for this cross-layer scoring change. Run a headed browser report fixture if locally available. Real AI evals, live provider, live Mongo activation, deployment, and production verification remain `NOT RUN` unless separately approved.
 - Completion criteria: Every phase criterion passes; the independent auditor returns a final evidence matrix with no blocking finding; candidate/private boundaries hold; F-34 and the single change-log entry match verified behaviour; no unrelated files are attributed; the branch is ready for owner review but is not committed, pushed, seeded, deployed, or released without explicit approval.
 
+## Phase 9 — Universal LLM Evaluator for remaining frameworks [planned]
+
+- Phase goal: Eradicate the legacy Regex keyword scoring engine by upgrading scenario, knowledge, motivation, self-introduction, and role-specific frameworks to use the LLM evaluation architecture proven in Phase 3.
+- Affected components: `turnRubricService.js`, `roleAnswerAnalysisService.js` (to be fully deprecated), new LLM analysis services for remaining frameworks.
+- Data flow: Canonical question intent -> targeted LLM evaluator for that specific framework -> JSON framework breakdown -> consistent 1-5 level points.
+- Pseudocode: Remove all Regex pattern matching from `answerFrameworkService.js` and `roleAnswerAnalysisService.js`; map all remaining intents in `turnRubricService.js` to semantic LLM evaluators; ensure LLM accurately scores dimensions specific to each framework.
+- Edge cases: High LLM latency, parsing failures, backward compatibility with existing tests relying on Regex exact matches.
+- Tests: Add robust mock and LLM fallback tests; update `roleSpecificFrameworkRobustness.test.js` to test semantic understanding instead of keyword presence.
+- Completion criteria: `roleAnswerAnalysisService.js` and `answerEvidenceSignalService.js` are deleted or fully deprecated; all frameworks receive semantic LLM-based 1-5 level scoring.
+</phase_details>
+
+<end_to_end_acceptance_criteria>
 ## End-to-end acceptance criteria
 
 The complete feature is ready only when all of the following are true:
@@ -226,7 +261,9 @@ The complete feature is ready only when all of the following are true:
 8. Candidate report cards, coaching, HTML, TXT, and PDF agree and contain no `60–90`, `under 90`, or `>90 means overlong` logic.
 9. New reports are versioned; existing reports remain readable and receive no backfill.
 10. Focused tests, required package gates, browser fixture, independent T3 audit, and scoped documentation evidence are recorded separately from live/provider/production claims.
+</end_to_end_acceptance_criteria>
 
+<xml_plan_handoff_rule>
 ## XML-plan handoff rule
 
 When the owner later requests a phase, create an XML-tag plan only for that phase. The XML plan must:

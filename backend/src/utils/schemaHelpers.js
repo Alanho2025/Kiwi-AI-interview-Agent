@@ -211,6 +211,10 @@ export const normalizeTurnBreakdown = (item = {}) => ({
     evidenceReason: ensureString(item.evidenceReason),
     needsUserConfirmation: Boolean(item.needsUserConfirmation),
     feedbackStatus: FEEDBACK_STATUSES.has(item.feedbackStatus) ? item.feedbackStatus : 'confirmed_feedback',
+    voiceDurationAssessment: isObject(item.voiceDurationAssessment) ? {
+        eligible: Boolean(item.voiceDurationAssessment.eligible),
+        earnedPoints: ensureNumber(item.voiceDurationAssessment.earnedPoints, 0),
+    } : undefined,
 });
 
 /**
