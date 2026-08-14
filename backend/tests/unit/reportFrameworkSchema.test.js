@@ -83,4 +83,34 @@ describe('report v5 framework schema', () => {
       reflection: 'clear',
     });
   });
+
+  it('validates absent voice duration for text answers and preserves it when present', () => {
+    const report = validateReportOutput({
+      schemaVersion: 'v5',
+      candidateFeedback: {
+        turnBreakdowns: [
+          {
+            question: 'Text question?',
+            rubricType: 'starr',
+            frameworkKey: 'behavioural_starr',
+            // voiceDurationAssessment is omitted entirely
+            frameworkBreakdown: { normalizedScore: 10 }
+          },
+          {
+            question: 'Voice question?',
+            rubricType: 'role_specific',
+            frameworkKey: 'scenario_case_reasoning',
+            voiceDurationAssessment: { eligible: true, earnedPoints: 10 },
+            frameworkBreakdown: { normalizedScore: 10 }
+          }
+        ]
+      }
+    });
+
+    expect(report.candidateFeedback.turnBreakdowns[0].voiceDurationAssessment).toBeUndefined();
+    expect(report.candidateFeedback.turnBreakdowns[1].voiceDurationAssessment).toMatchObject({
+      eligible: true,
+      earnedPoints: 10
+    });
+  });
 });

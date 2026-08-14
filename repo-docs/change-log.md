@@ -1,5 +1,18 @@
 # Change Log
 
+## [2026-08-14] Phase 4 Report Scoring Math & Schema Version Update
+
+### Changed / Added
+
+- **90/10 Voice Score Math**: Updated `computeInterviewPerformanceScore` in `reportScoreService.js` to blend content (90%) and voice duration (10%) for eligible voice root turns. Text turns fallback to 100% content weight.
+- **Score Scaling**: Adjusted math to ensure the `normalizedScore` (out of 10) correctly scales up to a 100-point basis.
+- **Turn Root Injection**: Extended `buildDeterministicTurnBreakdowns` and `mergeTurnBreakdownsWithRubrics` in `reportGeneratorAgent.js` to ensure `voiceDurationAssessment` propagates to the root of the deterministic breakdown object.
+- **Schema Validation**: Updated `schemaHelpers.js` to whitelist `voiceDurationAssessment` in the breakdown schema structure to prevent sanitization drops.
+- **String Versioning**: Bumped target algorithm string version to `v2026.2` in `reportScoringExplanationService.js`.
+
+### Verification
+
+- Focused Vitest: Updated `reportFrameworkPipeline.test.js`, `reportScoringExplanationService.test.js`, and `reportFrameworkSchema.test.js` to assert the 90/10 math, 100% fallback, genuine 0-score inclusions, and schema integrity. 100% passed.
 ## [2026-08-01 23:45 NZST] Question selection now follows session phase and accepted-answer coverage
 
 ### Changed / Added
@@ -405,6 +418,21 @@
 - A new session can now use its same-user, same-normalized-role projection before the first canonical question-set snapshot. Two independent fresh strong answers with no weak/partial conflict remove only the matching routine root; opening, closing, and fallback roots are retained.
 - Weak, partial, or conflicting history does not remove a question. It preserves the matching root and adds a bounded `0.18` revalidation priority boost. Answer quality is attributed to the last countable AI question answered, not the next selected question.
 - This is an observe-only, default-off planning policy. It cannot affect scoring and records no raw answer or candidate-facing trace. If history refresh fails, preparation logs a warning and uses the ordinary pool.
+
+### V5.1 (Next Release Draft)
+- **Phase 2: Intent Engine & Rubric Routing (impact-first-past-example)**:
+  - Added `resolveCanonicalEvidenceMode` and `resolveQuestionAssessmentIntent` to establish a single source of truth for categorizing evaluation modes and assessment intents across the system.
+  - Refactored `questionCatalogSelectionService` and `questionPoolComposerService` to leverage the new central intent engine.
+  - Updated `masterAiService` to persist `assessmentIntent` in interview transcripts at generation time.
+  - Refactored `turnRubricService` to strictly route scoring frameworks using the persisted `assessmentIntent`, replacing legacy, brittle text-matching heuristics. 
+  - Preserved backward compatibility by routing the new `impact_first_past_example` intent to the existing STARR evaluator (Phase 3 will introduce the true impact-first evaluator).
+  - All tests (`roleSpecificFrameworkRobustness.test.js`, `questionCatalogSelectionService.test.js`) are green.
+
+- **Phase 3: Universal LLM Evaluation Engine (Impact-First Past Example)**:
+  - Created `impactFirstAnalysisService.js` implementing a deterministic 6-dimension rubric (`Goal & Context`, `Methodology`, `Trade-offs`, `Impact`, `Reflection`, `Communication`), scoring answers from 1-5 with an LLM evaluator (`deepseekService.js`).
+  - Updated `turnRubricService.js` to route `impact_first_past_example` to the new LLM-driven service, completing the migration of past-example intent from the legacy STARR framework.
+  - Converted `analyzeTurnStructure` and `buildDeterministicTurnBreakdowns` (in `reportGeneratorAgent.js`) to async functions to support network-dependent evaluator calls.
+  - Refactored all dependent test suites (`reportFrameworkPipeline.test.js`, `roleSpecificFrameworkRobustness.test.js`, `reportGroundingRobustness.test.js`, `reportTurnDatasetRobustness.test.js`, `voiceDurationAssessmentService.test.js`) to await the async pipeline. All 83 tests passed.
 
 ### Verification
 

@@ -248,6 +248,9 @@ Phase 1 的補充口述：
 
 - **Self-Intro Keyword Detection**: Updated `isSelfIntroductionQuestion` in `turnRubricService.js` to include `briefly introduce`, ensuring opening turns combining self-introduction and motivation (e.g., *"Could you briefly introduce yourself..."*) are accurately classified as `self_intro` and evaluated using the 4-dimension **Introduction Framework** (`Background`, `Role Relevance`, `Evidence`, `Clarity`).
 - **Dynamic Fallback Framework Breakdown**: Updated `TurnBreakdownSection.jsx` and `turnRubricService.js`: question cards lacking explicit `frameworkBreakdown` now dynamically generate the 4-card Introduction Framework (for self-intro) or 6-dimension Role-Specific Reasoning grid (`Context/Goal`, `Approach`, `Judgement/Trade-offs`, `Risk/Quality/Ethics`, `Validation/Verification`, `Outcome/Value`), eliminating plain Micro-Scores bars.
+- **Intent-Based Routing (Phase 2)**: Replaced legacy regex text-matching heuristics in `turnRubricService.js` with strict semantic routing based on the canonical `assessmentIntent` provided by `masterAiService.js`.
+- **Universal LLM Evaluation Engine (Phase 3)**: Fully migrated `impact_first_past_example` from legacy STARR heuristics to a deterministic LLM-powered evaluation. The new `impactFirstAnalysisService.js` asynchronously evaluates 6 core dimensions (`Goal & Context`, `Methodology & Approach`, `Challenges & Trade-offs`, `Outcome & Impact`, `Learning & Reflection`, `Communication & Clarity`) and assigns a grounded 1-5 level score.
+- **Asynchronous Pipeline Refactor**: Updated `analyzeTurnStructure` and `buildDeterministicTurnBreakdowns` in `reportGeneratorAgent.js` to execute asynchronously to support LLM evaluation. Legacy test suites spanning `reportGroundingRobustness`, `roleSpecificFrameworkRobustness`, and `reportFrameworkPipeline` were migrated to support the new asynchronous signatures.
 - **Tech Stack Context Hints**: Updated `roleAnswerAnalysisService.js` to incorporate candidate `techStack` and `jobTitle` from turn metadata/context into rule-based breakdown reasons.
 - **Grounded Stronger Answer Boundary**: `TurnBreakdownSection.jsx` 不再自行生成 candidate facts；只有 server-projected ready rewrite 顯示綠色正文，無法證明配對時顯示中性 unavailable 狀態。
 - **Verification**: Verified 52 backend robustness tests (`realtimeVoiceTurnMocked`, `questionScopeClarificationService`, `answerAlignmentService`, `reportFrameworkPipeline`, `roleSpecificFrameworkRobustness`) and 3 frontend Vitest component tests passed cleanly.
@@ -274,3 +277,31 @@ Phase 1 的補充口述：
 - Backend ESLint passed; `git diff --check` passed.
 - Independent Cycle 3 audit: same clean-context auditor returned a final 10/10 PASS matrix after the stale-plan-state and bounded coverage repairs; no blocking finding remained.
 - Browser/manual calibration, live voice/provider, real AI evaluation, frontend rendering, Mongo persistence and production rollout were not run in this phase.
+
+## 19. 2026-08-14 Phase 9 Universal LLM Evaluation Engine Rollout
+
+### Changed / Added / Deprecated
+
+- **Removed Legacy Regex Scoring**: Permanently DEPRECATED and REMOVED `roleAnswerAnalysisService.js` and all regex string-matching heuristics for scoring frameworks.
+- **Universal LLM Evaluation**: Introduced `universalLlmEvaluationService.js` as the new core evaluation engine for all 15 non-STAR/non-Impact-First evaluation dimension variants (e.g., Self Intro, Motivation, Role-Specific Reasoning, Scenario Case Reasoning).
+- **Collision-Safe BARS Mapping**: Consolidated 40+ dimension permutations into 15 unique, collision-safe Behavioral Anchored Rating Scales (BARS).
+- **XML-Formatted Prompt Contract**: Evaluator prompts now use a strict `<instructions>`, `<memory>`, `<knowledge>`, `<bars_definitions>` XML schema to prevent LLM hallucination and ensure scoring aligns cleanly to the 5-point math contract (L1=0, L2=25%, L3=50%, L4=75%, L5=100%).
+
+### Verification
+
+- Focused Vitest: Updated `roleSpecificFrameworkRobustness.test.js` and created `universalLlmEvaluationService.test.js` with mocked LLM deterministic behavior. 28/28 tests passed.
+- Fully validated that system degrades gracefully to Level 1 and prevents pipeline crashes during LLM JSON schema errors or timeouts.
+
+## 20. 2026-08-14 Phase 4 Report Scoring Math & Schema Version Update
+
+### Changed / Added
+
+- **90/10 Voice Score Math**: Updated `computeInterviewPerformanceScore` in `reportScoreService.js` to blend content (90%) and voice duration (10%) for eligible voice root turns. Text turns fallback to 100% content weight.
+- **Score Scaling**: Adjusted math to ensure the `normalizedScore` (out of 10) correctly scales up to a 100-point basis.
+- **Turn Root Injection**: Extended `buildDeterministicTurnBreakdowns` and `mergeTurnBreakdownsWithRubrics` in `reportGeneratorAgent.js` to ensure `voiceDurationAssessment` propagates to the root of the deterministic breakdown object.
+- **Schema Validation**: Updated `schemaHelpers.js` to whitelist `voiceDurationAssessment` in the breakdown schema structure to prevent sanitization drops.
+- **String Versioning**: Bumped target algorithm string version to `v2026.2` in `reportScoringExplanationService.js`.
+
+### Verification
+
+- Focused Vitest: Updated `reportFrameworkPipeline.test.js`, `reportScoringExplanationService.test.js`, and `reportFrameworkSchema.test.js` to assert the 90/10 math, 100% fallback, genuine 0-score inclusions, and schema integrity. 100% passed.

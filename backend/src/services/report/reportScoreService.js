@@ -1,16 +1,35 @@
 import { ensureArray } from '../../utils/commonHelpers.js';
 
 export const computeInterviewPerformanceScore = (evidenceSummary = {}, candidateFeedback = {}) => {
-  const frameworkScores = ensureArray(candidateFeedback.turnBreakdowns)
-    .filter((turn) => turn.rubricType !== 'conversation' && turn.questionFamily !== 'conversation')
-    .map((turn) => Number(turn.frameworkBreakdown?.normalizedScore))
-    .filter(Number.isFinite);
+  const turnBreakdowns = ensureArray(candidateFeedback.turnBreakdowns);
 
-  if (frameworkScores.length) {
-    const average = frameworkScores.reduce((sum, score) => sum + score, 0) / frameworkScores.length;
-    return Math.round(Math.min(100, Math.max(0, average * 10)));
+  // Exclude conversation turns, empty direct answers, and follow-ups from the denominator
+  const eligibleTurns = turnBreakdowns.filter((turn) => {
+    if (turn.rubricType === 'conversation' || turn.questionFamily === 'conversation') return false;
+    if (turn.rubricType === 'direct_answer' && (!turn.frameworkBreakdown?.dimensions || turn.frameworkBreakdown.dimensions.length === 0)) return false;
+    if (turn.questionType === 'follow_up' || turn.isFollowUp) return false;
+    // Keep genuine 0-evidence answers, but skip if partial provider feedback caused missing normalizedScore
+    return turn.frameworkBreakdown && Number.isFinite(Number(turn.frameworkBreakdown.normalizedScore));
+  });
+
+  if (eligibleTurns.length > 0) {
+    let totalScore = 0;
+    
+    for (const turn of eligibleTurns) {
+      const contentScore = Number(turn.frameworkBreakdown.normalizedScore) * 10; // Convert 0-10 to 0-100
+
+      if (turn.voiceDurationAssessment?.eligible) {
+        const durationPoints = Number(turn.voiceDurationAssessment.earnedPoints || 0);
+        totalScore += (contentScore * 0.9) + durationPoints;
+      } else {
+        totalScore += contentScore;
+      }
+    }
+    
+    return Math.round(Math.min(100, Math.max(0, totalScore / eligibleTurns.length)));
   }
 
+  // Legacy fallback for old reports without turnBreakdowns
   const strength = Number(evidenceSummary.averageStrength || 0);
   const strengthScore = Math.min(100, (strength / 4) * 100);
   const totals = evidenceSummary.totals || {};
@@ -20,7 +39,8 @@ export const computeInterviewPerformanceScore = (evidenceSummary = {}, candidate
   const genericTurns = Number(totals.generic_filler || 0);
   const totalTurns = directTurns + adjacentTurns + hypotheticalTurns + genericTurns;
   const directRatioScore = totalTurns > 0 ? Math.min(100, (directTurns / totalTurns) * 100) : 0;
-  const turnScores = ensureArray(candidateFeedback.turnBreakdowns)
+  
+  const turnScores = turnBreakdowns
     .map((turn) => {
       const item = turn.scores || {};
       return (Number(item.business || 0) + Number(item.logic || 0) + Number(item.evidence || 0)) / 3;
