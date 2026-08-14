@@ -319,3 +319,16 @@ Phase 1 的補充口述：
 
 - Focused Vitest: `questionCatalog2026_2.test.js`, `followUpQuestionService.test.js`, and `rootFollowUpRuntimeFlow.test.js`. 100% passed cleanly.
 
+## 22. 2026-08-14 Phase 6 Candidate-safe report contract and coaching
+
+### Changed / Added
+
+- **Candidate-Safe Fields**: Updated `projectFrameworkBreakdown` in `reportPublicationSummaryService.js` to securely project the new 5-band mathematical fields (`level`, `weight`, `earnedPoints`, `version`).
+- **Duration Assessment Exposure**: Implemented `projectDurationAssessment` to safely expose deterministic duration fields (`eligible`, `reason`, `seconds`, `level`, `earnedPoints`, `maxPoints`) on the candidate payload, blocking private evidence keys.
+- **Removed Weak Proxies**: Refactored `buildCoachingAdvice` in `reportCoachingBuilder.js` to eliminate question-count causality (using `interviewerQuestionCount !== plannedQuestionCount`) as a trigger for concise answer advice.
+- **Deterministic 90-120s Coaching**: Advice is now deterministically triggered based on the actual measured `durationAssessment` band, and outputs the target canonical duration: `90-120 seconds` (replacing all legacy `60-90` or `under 90` strings).
+
+### Verification
+
+- Focused Vitest: `reportPublicationSummary.test.js` and `reportCoachingAndStarReview.test.js` passed 100%. Legacy payloads gracefully fail safe without fabricating missing fields.
+

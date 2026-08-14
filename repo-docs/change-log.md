@@ -502,3 +502,17 @@
 - Backend ESLint and `git diff --check` passed.
 - Independent Cycle 3 audit: same clean-context auditor returned a final 10/10 PASS matrix after stale-plan-state and bounded coverage repairs; no blocking finding remained.
 - Browser/manual calibration, live voice/provider, real AI evaluation, frontend rendering, Mongo persistence and production rollout were not run.
+
+## [2026-08-14] Phase 6 Candidate-safe report contract and coaching
+
+### Changed / Added
+
+- Updated `projectFrameworkBreakdown` in `backend/src/services/report/reportPublicationSummaryService.js` to project new 5-band mathematical fields (`level`, `weight`, `earnedPoints`, `version`).
+- Implemented `projectDurationAssessment` to explicitly allowlist deterministic duration fields (`eligible`, `reason`, `seconds`, `level`, `earnedPoints`, `maxPoints`) on the `candidateTurn` payload, safely exposing them to the frontend without leaking internal evidence arrays.
+- Refactored `buildCoachingAdvice` in `backend/src/services/agents/reportGenerator/reportCoachingBuilder.js` to eliminate weak proxy logic (question-count causality) that previously triggered concise answers advice.
+- Implemented deterministic coaching based on the actual `durationAssessment` band (triggering targeted `90-120` second advice if duration levels miss target).
+- Removed legacy hardcoded "60-90 seconds" and "under 90 seconds" strings, replacing them with the new canonical 90-120 seconds target.
+- Synced the owning RFC: `docs/architecture-decision-records/features/F-34-report-generation-pipeline.md`.
+
+### Verification
+- Focused Vitest: `reportPublicationSummary.test.js` and `reportCoachingAndStarReview.test.js` passed 100%. Legacy payloads and LLM feedback attempts to override deterministic fields fail safely.

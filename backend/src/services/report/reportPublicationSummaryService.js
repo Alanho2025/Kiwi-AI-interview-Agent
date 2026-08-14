@@ -164,16 +164,24 @@ const projectTurnRewrite = (rewrite = null) => {
   return { status: 'unavailable', unavailableReason: 'A grounded stronger answer could not be generated reliably.' };
 };
 
+const projectDurationAssessment = (assessment = null) => {
+  if (!assessment || typeof assessment !== 'object') return null;
+  return pickDefined(assessment, ['eligible', 'reason', 'seconds', 'level', 'earnedPoints', 'maxPoints']);
+};
+
 const projectFrameworkBreakdown = (breakdown = null) => {
   if (!breakdown || typeof breakdown !== 'object') return null;
   return {
-    ...pickDefined(breakdown, ['normalizedScore', 'summary']),
+    ...pickDefined(breakdown, ['normalizedScore', 'summary', 'version', 'level', 'weight', 'earnedPoints']),
     dimensions: asArray(breakdown.dimensions).map((dimension) => pickDefined(dimension, [
       'key',
       'label',
       'status',
       'score',
       'reason',
+      'level',
+      'weight',
+      'earnedPoints',
     ])),
   };
 };
@@ -230,6 +238,7 @@ const buildCandidateFeedbackProjection = (feedback = {}, roleFit = {}) => {
         'structureLabel',
       ]),
       scores: pickDefined(turn.scores || {}, ['business', 'logic', 'evidence']),
+      durationAssessment: projectDurationAssessment(turn.durationAssessment),
       frameworkBreakdown: projectFrameworkBreakdown(turn.frameworkBreakdown),
       starBreakdown: projectStarBreakdown(turn.starBreakdown || turn.starrBreakdown),
       strongerAnswer: projectTurnRewrite(takeMatchingRewrite(rewriteQueues, turn.question, turn.answer)),
