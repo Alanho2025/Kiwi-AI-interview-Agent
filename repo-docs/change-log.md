@@ -516,3 +516,16 @@
 
 ### Verification
 - Focused Vitest: `reportPublicationSummary.test.js` and `reportCoachingAndStarReview.test.js` passed 100%. Legacy payloads and LLM feedback attempts to override deterministic fields fail safely.
+
+## [2026-08-14] Phase 7 Candidate UI and export consistency
+
+### Changed / Added
+
+- Updated `TurnBreakdownSection.jsx` to dynamically render `durationAssessment` fields (eligible, seconds, level, points) inside the `FrameworkBreakdown` component, ensuring the new Phase 6 projection is visible on the candidate report without client-side rescoring.
+- Fixed fallback text logic in `frontend/src/utils/reportView/coaching.js` to target `> 120` seconds instead of `> 90`, and standardized all generic advice strings to "90-120 seconds".
+- Refactored `buildTurnFrameworkMeta` in `frontend/src/utils/reportPdf/reportPdfTemplate.js` to accurately serialize the `durationAssessment` fields for PDF export.
+- Enhanced `formatReportAsText` in `frontend/src/utils/reportHelpers.js` to include the `frameworkBreakdown` dimensions and `durationAssessment` text output, ensuring Text export consistency with HTML and PDF.
+- Synced the owning RFC: `docs/architecture-decision-records/features/F-34-report-generation-pipeline.md`.
+
+### Verification
+- Focused Vitest: `TurnBreakdownSection.test.jsx`, `reportTurnFrameworkFormatter.test.js`, and `reportHelpers.test.js` passed 100%. Legacy payloads correctly render neutrally without throwing errors.

@@ -25,7 +25,7 @@ const REWRITE_UNAVAILABLE_REASON = 'A grounded stronger answer could not be gene
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-export const buildImprovementPriorities = ({ analysisResult, evidenceSummary, interviewMetrics, turnBreakdowns = [] }) => {
+export const buildImprovementPriorities = ({ analysisResult, evidenceSummary, turnBreakdowns = [] }) => {
   const priorities = [];
 
   if ((evidenceSummary.totals.hypothetical_understanding || 0) > 0 && hasPastExampleQuestion(turnBreakdowns)) {

@@ -217,7 +217,10 @@ function FrameworkBreakdown({ turn }) {
     ? turn.frameworkBreakdown
     : (!hasStar && turn.scores ? buildFallbackFrameworkBreakdown(turn) : null);
 
-  if (!breakdown?.dimensions?.length) return null;
+  const hasDimensions = breakdown?.dimensions?.length > 0;
+  const hasDuration = turn.durationAssessment?.eligible === true;
+
+  if (!hasDimensions && !hasDuration) return null;
   const formatStatus = (status = '') => String(status).replace(/_/g, ' ');
 
   return (
@@ -226,12 +229,12 @@ function FrameworkBreakdown({ turn }) {
         <h5 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
           {turn.frameworkLabel || turn.structureLabel || 'Role-specific reasoning'}
         </h5>
-        {Number.isFinite(Number(breakdown.normalizedScore)) ? (
+        {hasDimensions && Number.isFinite(Number(breakdown.normalizedScore)) ? (
           <p className="text-xs text-slate-500">Framework score: {Number(breakdown.normalizedScore)}/10</p>
         ) : null}
       </div>
       <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-        {breakdown.dimensions.filter((dimension) => dimension.status !== 'not_applicable').map((dimension) => (
+        {hasDimensions && breakdown.dimensions.filter((dimension) => dimension.status !== 'not_applicable').map((dimension) => (
           <div key={dimension.key || dimension.label} className="rounded-lg bg-slate-50 px-3 py-3">
             <div className="flex items-start justify-between gap-2">
               <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{dimension.label}</p>
@@ -243,8 +246,20 @@ function FrameworkBreakdown({ turn }) {
             {dimension.reason ? <p className="mt-2 text-xs leading-5 text-slate-600">{dimension.reason}</p> : null}
           </div>
         ))}
+        {hasDuration && (
+          <div key="durationAssessment" className="rounded-lg bg-slate-50 px-3 py-3">
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Duration ({turn.durationAssessment.seconds || 0}s)</p>
+              <span className="text-xs font-medium text-slate-700">
+                {turn.durationAssessment.earnedPoints || 0}/{turn.durationAssessment.maxPoints || 10}
+              </span>
+            </div>
+            <p className="mt-1 text-sm font-medium capitalize text-slate-800">Level {turn.durationAssessment.level || 0}</p>
+            {turn.durationAssessment.reason ? <p className="mt-2 text-xs leading-5 text-slate-600">{turn.durationAssessment.reason}</p> : null}
+          </div>
+        )}
       </div>
-      {breakdown.summary ? <p className="mt-3 text-xs leading-5 text-slate-600">{breakdown.summary}</p> : null}
+      {breakdown?.summary ? <p className="mt-3 text-xs leading-5 text-slate-600">{breakdown.summary}</p> : null}
     </div>
   );
 }

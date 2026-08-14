@@ -212,6 +212,9 @@ export const resolveCanonicalEvidenceMode = ({
   if (normIntent.includes('scenario')) {
     return { mode: 'scenario_reasoning', source: 'intent_metadata' };
   }
+  if (normCategory === 'motivation' || normType.includes('motivation') || normIntent.includes('motivation')) {
+    return { mode: 'process_reasoning', source: 'intent_metadata' };
+  }
   if (normIntent.includes('knowledge')) {
     return { mode: 'knowledge_explanation', source: 'intent_metadata' };
   }

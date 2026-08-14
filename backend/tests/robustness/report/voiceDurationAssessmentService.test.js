@@ -201,7 +201,7 @@ describe('voice duration assessment service', () => {
     expect(merged.voiceDurationAssessment).toEqual(pair.voiceDurationAssessment);
   });
 
-  it('does not change the current overall score when Phase 1 duration data is attached', () => {
+  it('incorporates voice duration assessment into the overall score', () => {
     const baseTurn = {
       rubricType: 'role_specific',
       questionFamily: 'role_specific',
@@ -221,6 +221,7 @@ describe('voice duration assessment service', () => {
       }],
     });
 
-    expect(withDuration).toBe(withoutDuration);
+    expect(withoutDuration).toBe(80);
+    expect(withDuration).toBe(82);
   });
 });

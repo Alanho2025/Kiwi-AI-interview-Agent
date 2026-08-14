@@ -1,0 +1,586 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<implementation_plan
+  id="impact-first-past-example-phase-7"
+  version="1.0"
+  status="ready_for_plan"
+  implementation_allowed="false"
+  UserFacing="true"
+  RequestFeedback="true"
+>
+  <plan_boundary>
+    <requested_output>Phase 7 的完整 implementation-level XML plan；本輪只產出 plan，不實作。</requested_output>
+    <phase_name>Candidate UI and export consistency</phase_name>
+    <source_of_truth>research.md</source_of_truth>
+    <parent_outline>impact-first-past-example-outline-plan.md</parent_outline>
+    <prior_phase>Phase 6 — Candidate-safe report contract and coaching；目前 checkout 尚未有 Phase 6 XML 或完成證據，implementation 前必須重新驗證其 candidate-safe payload。</prior_phase>
+    <authorization>
+      本文件只規劃 Phase 7。它不授權修改 production code、建立或切換 branch、commit、push、deployment、
+      live catalog mutation、live provider evaluation，或開始 Phase 8/9。Phase 7 implementation 需要 owner 另行明確要求。
+    </authorization>
+    <release_boundary>
+      Phase 7 是同一個 feature branch 上的 internal slice，不單獨 release。完整 feature 仍依 outline 在所有 phases 完成後一次 release。
+    </release_boundary>
+  </plan_boundary>
+
+  <phase_overview>
+    <phase_number>7</phase_number>
+    <phase_name>Candidate UI and export consistency</phase_name>
+    <phase_goal>
+      將 Phase 6 預期發布的 candidate-safe framework/dimension percentage、optional level、reason、duration applicability 與 coaching 欄位，
+      原樣呈現在既有 candidate report HTML、TXT 與 PDF surface；任何 frontend renderer 都不得重新計分、推導 dimension 或改寫 server explanation。
+    </phase_goal>
+    <observable_end_state>
+      Candidate report turn card、candidate-visible TXT 與 client-generated PDF 對同一個 published turn 顯示相同的 framework identity、
+      server-published framework/dimension percentage score、可選的 published Level、safe reason、duration applicability 與來自
+      `candidateFeedback.improvementPriorities` 的 90-120 秒 coaching；candidate UI 不顯示 weighted points。
+      legacy 或缺少欄位的 report 維持可讀但不產生新的分數或 timing penalty。
+    </observable_end_state>
+    <depends_on>
+      <dependency>Phase 6 已完成並通過其 candidate projection、coaching、legacy-safe 與 versioned-field acceptance criteria。</dependency>
+      <dependency>Phase 6 final payload 的實際欄位仍須以 implementation 後的 source 為準；若欄位與本 plan 不同，先停止並更新 contract，不得猜測。</dependency>
+      <dependency>Owner 在 implementation 前核准既有 turn-card 內的 minimal card proposal；不得藉 Phase 7 擴大成新的 report visual system。</dependency>
+    </depends_on>
+    <ui_approval_gate status="required_before_implementation">
+      <user_problem>Candidate currently cannot inspect the same published framework/dimension percentage score, reason and applicable duration interpretation consistently across the expanded turn card and candidate exports.</user_problem>
+      <affected_screens_and_components>Report page expanded `FrameworkBreakdown` turn card in `TurnBreakdownSection.jsx`, candidate-visible TXT answer feedback, and client-generated PDF turn breakdown. No new route or page is affected.</affected_screens_and_components>
+      <layout_and_interaction>Keep the existing expanded turn card and expand/collapse interaction. Add compact label/value rows inside the current framework card for direct framework/dimension percentage, optional published Level, reason and eligible duration; do not add earned/available points to the candidate UI; preserve current PDF/TXT section order and wrapping.</layout_and_interaction>
+      <visual_direction>Reuse the current card borders, neutral typography, spacing and responsive grid. Long reasons wrap within existing containers; no new chart, grid system, visual language or broad responsive redesign is introduced.</visual_direction>
+      <approval_evidence>Owner approval of this exact minimal proposal must be recorded before WP7-2 UI implementation. A request for a new card family, page, chart, or broad layout change stops this phase and requires a separate scope decision.</approval_evidence>
+    </ui_approval_gate>
+    <provides_to>
+      <consumer phase="8">一組已通過 focused UI/TXT/PDF assertions、沒有 client-side rescoring 的 candidate publication surface，供 Phase 8 做 cross-layer、browser fixture、documentation 與 release-readiness gate。</consumer>
+    </provides_to>
+  </phase_overview>
+
+  <research_gate status="ready_for_plan">
+    <evidence_examined>
+      <item path="impact-first-past-example-outline-plan.md" lines="208-226">Phase 7 的 goal、affected components、data flow、edge cases、tests 與 completion criteria；lines 269-277 的 XML handoff boundary。</item>
+      <item path="research.md" lines="24-36">Current report flow、schema/persistence boundary 與 candidate framework UI owner。</item>
+      <item path="research.md" lines="136-153">Voice duration/coaching disconnect，以及 candidate projection 已有 dynamic framework fields 但 semantics 仍需 versioned contract。</item>
+      <item path="research.md" lines="261-277">目前 60-90、under-90、question-count、&gt;90 overlong coaching 與 frontend fallback contradictions。</item>
+      <item path="frontend/src/utils/reportView/viewModel.js" lines="22-87">`buildReportViewModel` 以 candidate feedback 優先，缺少時才呼叫 frontend coaching fallback，並把 turnBreakdowns 交給 HTML/PDF consumers。</item>
+      <item path="frontend/src/components/report/TurnBreakdownSection.jsx" lines="105-249">目前 `buildFallbackFrameworkBreakdown` 可由 legacy scores 合成六個 dynamic dimensions；`FrameworkBreakdown` 目前顯示 0-10 score/status/reason，未顯示 server-published percentage/duration。</item>
+      <item path="frontend/src/components/report/TurnBreakdownSection.jsx" lines="303-389">既有 report card 的 expand/collapse interaction、answer、feedback、stronger-answer layout；Phase 7 應在此 layout 內做最小增量。</item>
+      <item path="frontend/src/utils/reportView/coaching.js" lines="18-21,58-77">frontend fallback 以 average duration、overlong count、unfocused count、word count 推導 concision coaching，並仍使用 under-90 與 60-90 文案；`unfocusedAnswerCount` 尚未被定義成非 timing signal。</item>
+      <item path="frontend/src/utils/reportPdf/reportPdfTemplate.js" lines="406-469">PDF 由 `buildReportViewModel` 建立 view model；`buildTurnFrameworkMeta` 目前只輸出 framework/normalized 0-10 score/dimension 0-10 score，`drawTurnBreakdowns` 未輸出 published percentage/reason/duration。</item>
+      <item path="frontend/src/utils/reportHelpers.js" lines="64-186">candidate-visible TXT formatter 的 exact owner；目前 ANSWER FEEDBACK 只輸出 question、answer 與 feedback。</item>
+      <item path="frontend/src/hooks/useReportData.js" lines="171-212">TXT 下載先呼叫 frontend `formatReportAsText` 再建立 Blob；PDF 走 `generateReportPDF`；server `exportReport` 是後續 audit side effect。</item>
+      <item path="backend/src/services/report/reportPublicationSummaryService.js" lines="167-251">candidate projection 已 allowlist duration assessment、framework label、framework dimension 的 level/weight/earnedPoints/reason 與 legacy direct fields，但目前尚未 allowlist candidate-facing `scorePercent`。</item>
+      <item path="backend/src/services/report/impactFirstAnalysisService.js" lines="121-135">Impact-first content evaluator 目前以 0-90 content score 計算 `normalizedScore` 0-10；這是 scoring input，不是 candidate-facing percentage field。</item>
+      <item path="backend/src/services/report/reportScoreService.js" lines="15-24">Backend score composition 目前將 `normalizedScore * 10` 轉成 0-100 overall/turn score；這個轉換屬於 backend scoring owner，不能由 Phase 7 renderer 重複執行。</item>
+      <item path="backend/src/controllers/reportController.js" lines="144-212,220-348">另一個 server-side report text formatter 只用於 export audit/storage；它不是瀏覽器 TXT download 的 runtime owner，因此不在本 Phase 7 的 candidate-visible UI scope。</item>
+      <item path="frontend/src/utils/__tests__/crossRoleReportFallbacks.test.js" lines="22-65">目前已有 scenario-safe fallback 與 105 秒 concision regression target。</item>
+      <item path="frontend/src/components/report/__tests__/TurnBreakdownSection.test.jsx" lines="6-126">目前已有 dynamic framework、legacy-neutral stronger-answer、STARR preservation 的 component assertions。</item>
+      <item path="frontend/src/utils/__tests__/reportTurnFrameworkFormatter.test.js" lines="1-28">目前已有 PDF framework formatter 的 dynamic/legacy assertions；同一 formatter test surface 將增加 candidate TXT direct-field assertions，避免新增 test file。</item>
+    </evidence_examined>
+    <confirmed_current_state>
+      <item>Phase 6 candidate projection 已預留 `frameworkLabel`、framework `dimensions[].level/weight/earnedPoints/reason`、`durationAssessment` 與 `candidateFeedback.improvementPriorities`；目前沒有 direct `frameworkBreakdown.scorePercent` 或 `dimensions[].scorePercent`，這只證明 current allowlist，不代表 Phase 6 final implementation 已完成。</item>
+      <item>HTML report 的 current path 是 `ReportPage` -> `buildReportViewModel` -> `TurnBreakdownSection`；view model 會在 candidate feedback 缺少 improvement priorities 時使用 fallback coaching。</item>
+      <item>HTML current fallback 會從 `turn.scores.business/logic/evidence` 推導新的 semantic-looking dimensions；這是 Phase 7 必須移除的 client-side reinterpretation。移除 fallback 不得刪除既有 overall percentage，也不得把 legacy 0-10 raw score 私自轉成 percentage。</item>
+      <item>PDF 與 TXT 都是 frontend 產出；PDF 重用 view model，TXT 直接讀 `reportData.report.candidateFeedback`，兩者目前都缺少 Phase 6 的 candidate percentage/reason/duration display。</item>
+      <item>Server `exportReport` 仍會將另一份 text serialization 存成 audit artifact，但 browser download 不等待或讀回該 artifact；本 plan 不把 internal audit formatter 擴大成第二個 candidate export contract。</item>
+    </confirmed_current_state>
+    <gaps>
+      <item>Current checkout 沒有 Phase 6 plan 或 implementation evidence，無法在本輪把 final version string、exact coaching item schema 或實際 Phase 6 completion status 當成已驗證事實。</item>
+      <item>目前沒有一個跨 HTML/TXT/PDF 的 shared display contract test；本 phase 需要在既有 focused test files 內覆蓋相同 fixture 的 direct values。</item>
+      <item>目前 card 與 PDF 對長 reason 的處理不同；Phase 7 需要讓 HTML/TXT/PDF 保留可讀的 full reason，不用 UI truncation 或改寫 evidence。</item>
+    </gaps>
+    <weak_reasoning>
+      <item>`buildFallbackFrameworkBreakdown` 把三個 legacy micro-score 平均後映射成六個 semantic dimensions，沒有 published evidence 或 Phase 6 contract 支持，不能視為 renderer fallback。</item>
+      <item>frontend 以 average duration 大於 90 判斷 overlong，與 owner-aligned 90-120 top band 相衝；question count 或 word count 也不是 Phase 1 的 trusted voice duration evidence。</item>
+      <item>只更新 PDF 或只更新 browser TXT 都會讓同一個 candidate-safe payload 在不同 export surface 得到不同語意；因此 TXT owner 必須在 plan 中明確指定，且三個 surface 必須讀同一個 server-published percentage field。</item>
+    </weak_reasoning>
+    <unsupported_assumptions>
+      <item>不假設新的 framework/version 名稱、未出現在 Phase 6 final payload 的欄位，或 server audit formatter 會自動與 frontend formatter 同步。</item>
+      <item>不假設 legacy report 可以安全地從舊 scores 推導新的 percentage、Level、weight 或 earned points。</item>
+    </unsupported_assumptions>
+    <assumption_alignment>
+      <item status="evidence-validated">Candidate-visible TXT 的 caller 是 `useReportData.handleExport`，formatter 是 `frontend/src/utils/reportHelpers.js:70-186`；backend formatter 不取代這個 browser path。</item>
+      <item status="evidence-validated">PDF 由 `frontend/src/utils/reportPdf/reportPdfTemplate.js:449-469` 使用同一個 report view model 產出。</item>
+      <item status="human-aligned">Phase 7 只消費 Phase 6 published values，不改 score composition、denominator、routing、persistence 或 question wording；來源是 outline Phase 6/7 boundary。</item>
+      <item status="human-aligned">保留既有 report card layout，只有在 owner approval 後加入 minimal percentage/optional-level/reason/duration rows；來源是 outline Phase 7 的 reuse-current-layout rule，加上 owner 對 candidate-facing percentage 的澄清。</item>
+      <item status="implementation-decision">新 candidate UI contract 以 Phase 6 final payload 實際提供的 `frameworkBreakdown.scorePercent`、`dimensions[].scorePercent`、optional level、reason 與 duration 欄位為 authoritative；缺欄位時走 legacy direct-display 或 neutral state，不從 0-10、Level、weight 或 points 補算 percentage。</item>
+    </assumption_alignment>
+    <missing_requirements>
+      <item>Implementation 前需要確認 Phase 6 實際輸出的 candidate-safe fields 與 current projection 相符，尤其是 framework/dimension `scorePercent` 必須由 Phase 6 明確發布，且 90-120 coaching 必須落在 `candidateFeedback.improvementPriorities`；若 percentage 欄位不存在或只有未被 allowlist 的 `coachingAdvice`，先停止並回到 Phase 6 contract。</item>
+      <item>Implementation 前需要 owner 核准既有 turn card 內的 minimal visual proposal；此 proposal 不新增頁面、route、visual system 或 scoring control。</item>
+      <item>若 owner 要求 persisted server export artifact 也與 browser TXT 逐字同步，需另開 bounded scope；這不是本 Phase 7 的 candidate-visible contract。</item>
+    </missing_requirements>
+    <ambiguities>
+      <item>「text export」可能指 browser Blob 或 server audit artifact；已依 runtime evidence resolved 為：Phase 7 的 candidate-visible TXT owner 是 frontend formatter，server audit formatter 保持 out of scope。</item>
+      <item>Legacy turn 的 published percentage/level 不存在時，保留 raw server score at its original scale 或顯示 neutral state；本 plan 選擇 raw legacy direct-display/neutral，不合成新的 semantic dimensions，也不把 raw 0-10 轉成 percentage。</item>
+    </ambiguities>
+    <contradictions>
+      <item>Owner-aligned 90-120 秒 guidance 與 frontend 的 60-90、under-90、average-duration-&gt;90 fallback 同時存在；Phase 7 移除 frontend fallback 的舊 timing rule，直接顯示 Phase 6 published coaching。</item>
+      <item>Outline 要求 no client-side rescoring，但 current HTML fallback 仍由 legacy scores 建立 framework dimensions，且 current renderer 只顯示 0-10；Phase 7 移除此 branch，改讀 Phase 6 published percentage，不把 0-10 在 client 轉成 0-100。</item>
+      <item>Current PDF formatter 與 TXT formatter 都只顯示部分 turn information；Phase 7 要求同一組 candidate-safe fields 在兩個 surface 都可見。</item>
+    </contradictions>
+    <questions_that_require_human_answers>None blocking plan creation. Before implementation, owner approval of the minimal card proposal and Phase 6 contract completion are mandatory gates.</questions_that_require_human_answers>
+  </research_gate>
+
+  <scope_and_non_goals>
+    <in_scope>
+      <item>Frontend candidate report card rendering of published framework identity, framework/component percentage, optional levels, reasons and applicable voice duration.</item>
+      <item>Frontend fallback coaching cleanup so missing candidate-safe coaching never revives 60-90, under-90 or &gt;90 timing rules.</item>
+      <item>Candidate-visible frontend TXT serialization and client-generated PDF serialization.</item>
+      <item>Focused frontend tests for coaching, HTML turn cards, PDF formatter and candidate TXT fields.</item>
+      <item>One owning F-34 RFC update and one scoped repo-docs change-log entry during separately authorized behavior implementation, as required by auto-docs-sync.</item>
+    </in_scope>
+    <non_goals>
+      <item>Any backend score calculation, duration calculation, denominator logic, framework routing, candidate projection allowlist, schema migration or persistence change; those belong to prior phases.</item>
+      <item>Modification of `backend/src/controllers/reportController.js` server audit text formatter; it is not the browser download source in the current runtime. A request for server-artifact parity is a separate scope.</item>
+      <item>New report pages, new visual system, new chart/grid, responsive redesign, or changes to report action-menu behavior.</item>
+      <item>Question wording, follow-up selection, STT/TTS/VAD, transcript confirmation, live catalog activation, real provider evaluation, deployment or release.</item>
+      <item>Old-report backfill, regeneration, numerical comparability claims, or client invention of missing framework fields.</item>
+    </non_goals>
+  </scope_and_non_goals>
+
+  <canonical_contracts>
+    <candidate_turn_contract>
+      <input_source>Phase 6 candidate-safe `report.candidateFeedback.turnBreakdowns[]` delivered through the existing report API and `buildReportViewModel`.</input_source>
+      <field name="frameworkLabel">Published framework display name. Render directly; do not infer it from question wording or technical keywords.</field>
+      <field name="frameworkBreakdown">Published framework summary and dimensions. Phase 6 must publish candidate-facing `scorePercent` on the framework and each applicable dimension. New dimensions may also carry `level`, `reason`, `status`, and optional server-calculated summary/version fields; `weight`/`earnedPoints` remain backend scoring fields and are not candidate UI display fields.</field>
+      <field name="durationAssessment">Published voice-only assessment. `eligible=true` permits display of direct `seconds`, optional published level/percentage if the Phase 6 candidate contract supplies them, and `reason`; missing, false, text-mode, or unreliable evidence stays not applicable/neutral. Do not expose duration points by default.</field>
+      <field name="feedback">Candidate-safe feedback text. Render as supplied; never replace it with a client-generated score explanation.</field>
+    </candidate_turn_contract>
+    <display_contract>
+      <new_report>For each applicable dimension show its label, direct server-published `scorePercent` as the primary candidate score, optional published Level `1/5` through `5/5`, and the published reason. Do not show `earnedPoints` or `weight` in the candidate UI.</new_report>
+      <duration_display>Show the duration row only when `durationAssessment.eligible === true` and the candidate-safe fields are present. Display direct seconds and optional published duration score only; do not show a penalty for missing or ineligible duration.</duration_display>
+      <legacy_report>If direct percentage is absent, preserve readable direct legacy framework/status/score fields at their original scale where they already exist, or show a neutral unavailable state. Never convert legacy 0-10 scores to percentage or synthesize new dimensions, weights, levels or points.</legacy_report>
+      <not_applicable>Do not render dimensions marked `not_applicable` as scored component rows. Keep the answer and safe feedback readable.</not_applicable>
+      <long_reason>Allow existing HTML/TXT/PDF wrapping to show the published reason without changing, summarising, or truncating its semantic content.</long_reason>
+    </display_contract>
+    <coaching_contract>
+      <authoritative_source>Phase 6 must publish the 90-120 guidance as a candidate-safe `candidateFeedback.improvementPriorities` item; this is the only coaching field that Phase 7 treats as the cross-surface authoritative contract. `coachingAdvice` remains an optional non-timing UI field unless Phase 6 explicitly allowlists it and the owner expands the export contract.</authoritative_source>
+      <surface_precedence>HTML, PDF and TXT must read the same `buildReportViewModel(...).improvementPriorities` precedence for the published priority section. TXT may not bypass the view model and read a different fallback path.</surface_precedence>
+      <fallback_policy>Frontend fallback is only for missing legacy payloads and may provide non-timing general coaching. The same fallback priority result must be used by HTML, PDF and TXT; it must not derive duration advice from question count, word count, average duration, or overlong counters.</fallback_policy>
+      <timing_language>90-120 seconds may appear only inside the published `improvementPriorities` contract. The renderer must not invent an independent threshold or claim that a 100-second answer is too long.</timing_language>
+    </coaching_contract>
+    <no_client_rescoring_contract>
+      <rule>Do not multiply level by weight, multiply a 0-10 score by 10, average dimensions, convert legacy scores into new levels or percentage, create a normalized score, or select a main gap from raw client data.</rule>
+      <rule>Only Phase 6 server-published `scorePercent` may be rendered as a candidate percentage. Existing server-calculated numeric fields may be displayed as legacy direct values at their original scale, but the client must not reinterpret them as the Phase 7 contract.</rule>
+    </no_client_rescoring_contract>
+    <surface_consistency_contract>
+      <html>Use the candidate-safe turn object passed to `TurnBreakdownSection`.</html>
+      <txt>Use the same candidate-safe `reportData` already passed to frontend `formatReportAsText` before Blob download, then resolve `improvementPriorities` through `buildReportViewModel` so fallback precedence matches HTML/PDF.</txt>
+      <pdf>Use the same candidate-safe `reportData` and `buildReportViewModel` already used by `generateReportPDF`.</pdf>
+      <json>JSON export behavior is unchanged and is not reformatted by Phase 7.</json>
+    </surface_consistency_contract>
+  </canonical_contracts>
+
+  <task_contract>
+    <one_observable_goal>
+      Candidate-facing HTML, TXT and PDF surfaces display the Phase 6 published interpretation consistently, while stale frontend timing fallbacks and client-side framework rescoring are absent.
+    </one_observable_goal>
+    <allowed_areas>
+      <area>frontend/src/utils/reportView/coaching.js</area>
+      <area>frontend/src/components/report/TurnBreakdownSection.jsx</area>
+      <area>frontend/src/utils/reportPdf/reportPdfTemplate.js</area>
+      <area>frontend/src/utils/reportHelpers.js</area>
+      <area>frontend/src/utils/__tests__/crossRoleReportFallbacks.test.js</area>
+      <area>frontend/src/components/report/__tests__/TurnBreakdownSection.test.jsx</area>
+      <area>frontend/src/utils/__tests__/reportTurnFrameworkFormatter.test.js</area>
+      <area>docs/architecture-decision-records/features/F-34-report-generation-pipeline.md</area>
+      <area>repo-docs/change-log.md</area>
+    </allowed_areas>
+    <forbidden_areas>
+      <area reason="Phase 6 ownership">backend/src/services/reportCoachingService.js, backend/src/services/agents/reportGenerator/reportCoachingBuilder.js, backend/src/services/report/reportPublicationSummaryService.js, backend/src/utils/schemaHelpers.js, scoring services and persistence models.</area>
+      <area reason="Separate internal artifact">backend/src/controllers/reportController.js server-side audit formatter and server export storage behavior.</area>
+      <area reason="Phase 2/5 ownership">Question routing, catalog seed wording, follow-up orchestration, interview prompt generation and metadata selection.</area>
+      <area reason="Product non-goal">Voice VAD, STT/TTS, WebSocket, transcript trust, live Mongo catalog, real provider evaluation and deployment.</area>
+      <area reason="UI approval boundary">New report route, new visual system, new card family, new chart/grid or broad responsive redesign.</area>
+    </forbidden_areas>
+    <budgets>
+      <production_files maximum="4" forecast="4" />
+      <test_files maximum="3" forecast="3" />
+      <documentation_files maximum="2" forecast="2" />
+      <total_task_owned_files hard_stop="10" forecast="9" />
+      <incremental_changed_lines target="less_than_400" hard_stop="500" />
+      <implementation_cycles maximum="3" />
+    </budgets>
+    <stop_rule>
+      Stop before implementation if Phase 6 final payload removes or renames the listed fields, if client-side score derivation is required to make the UI work,
+      if the minimal card requires a new layout or new visual system, if server audit export parity becomes an owner requirement, or if the task exceeds 10 files,
+      500 incremental lines, or three implementation cycles. Surface the split instead of expanding this phase silently.
+    </stop_rule>
+  </task_contract>
+
+  <data_flow>
+    <step order="1">Existing report API returns the Phase 6 candidate-safe report projection; no new API or persistence write is introduced.</step>
+    <step order="2">`buildReportViewModel` keeps candidate-provided `improvementPriorities` and turnBreakdowns authoritative; only missing legacy coaching may use the cleaned fallback, and all three candidate surfaces consume the same priority result.</step>
+    <step order="3">`ReportPage` passes `viewModel.turnBreakdowns` to `TurnBreakdownSection`, which renders direct framework/duration fields and preserves answer/feedback state.</step>
+    <step order="4">`useReportData.handleExport('txt')` passes the same report data to frontend `formatReportAsText`, then `downloadReportFile` creates the Blob; no score calculation occurs.</step>
+    <step order="5">`useReportData.handleExport('pdf')` passes the same report data to `generateReportPDF`; the PDF builder uses the same view model and direct field display helpers.</step>
+    <step order="6">Any missing, legacy, text-mode, or ineligible duration state remains neutral on every candidate-visible surface; it never becomes a candidate zero.</step>
+  </data_flow>
+
+  <phase_sequence>
+    <phase id="7" name="Candidate UI and export consistency">
+      <goal>
+        Implement only the renderer and candidate-visible coaching changes required to publish the Phase 6 interpretation consistently, then verify every surface against the same fixture.
+      </goal>
+      <work_packages>
+        <work_package id="WP7-1" name="Remove stale frontend coaching fallbacks">
+          <task_contract>
+            <one_observable_goal>Frontend fallback coaching no longer interprets raw duration, overlong or word-count metrics as a 60-90, under-90, or &gt;90 recommendation; an existing `unfocusedAnswerCount` signal may remain only as non-timing focus/structure advice.</one_observable_goal>
+            <allowed_areas>
+              <area>frontend/src/utils/reportView/coaching.js</area>
+              <area>frontend/src/utils/__tests__/crossRoleReportFallbacks.test.js</area>
+            </allowed_areas>
+            <forbidden_areas>
+              <area>backend coaching or Phase 6 candidate payload generation.</area>
+              <area>New timing thresholds, new score fields, or alternative coaching engines.</area>
+            </forbidden_areas>
+            <budgets>
+              <total_task_owned_files>2</total_task_owned_files>
+              <incremental_changed_lines>less_than_80</incremental_changed_lines>
+              <production_files>1</production_files>
+              <test_files>1</test_files>
+              <documentation_files>0</documentation_files>
+              <implementation_cycles>1</implementation_cycles>
+            </budgets>
+            <stop_rule>Stop if the cleanup requires changing the Phase 6 coaching payload or if a direct published 90-120 item cannot pass through the existing view-model precedence.</stop_rule>
+          </task_contract>
+          <dependencies>
+            <dependency>Phase 6 candidate-safe coaching is present or its absence is explicitly represented as a legacy/unavailable case.</dependency>
+          </dependencies>
+          <implementation_design>
+            <component path="frontend/src/utils/reportView/coaching.js" role="legacy fallback coaching policy">
+              <contract>Keep scenario/past-example/general fallback advice grounded in existing report evidence, remove duration/overlong/word-count thresholds and old candidate-facing timing language, and treat `unfocusedAnswerCount` only as a non-timing focus/structure signal if it is retained.</contract>
+              <caller>`buildReportViewModel` calls `buildFallbackImprovementPriorities` and `buildFallbackCoachingAdvice` only when candidate feedback does not provide those arrays.</caller>
+              <input>report sections, report scores, interviewMetrics and evidenceDiagnostics from a legacy or incomplete report.</input>
+              <output>Non-timing fallback advice, or a neutral fallback that does not make an answer-length claim.</output>
+              <side_effect>None; this module remains pure.</side_effect>
+              <failure_behavior>If candidate-safe coaching is missing, preserve readable general coaching without inventing a duration verdict. Do not throw and do not create a score.</failure_behavior>
+              <pseudocode><![CDATA[
+1. Remove `averageAnswerDurationSeconds`, `overlongAnswerCount`, and `averageAnswerWordCount` from the fallback decision; do not add replacement timing thresholds.
+2. If `unfocusedAnswerCount` is retained, rename the helper and output to a non-timing focus/structure signal; it must never use concise, seconds, overlong or duration language.
+3. Remove the under-90 and 60-90 example language from fallback story-bank advice and replace it with an evidence-structure example.
+4. Preserve non-timing scenario/reasoning/evidence advice and existing candidate-safe rewrite fallback behavior.
+5. Verify that a published Phase 6 improvement priority remains authoritative through buildReportViewModel and is not replaced by this fallback.
+              ]]></pseudocode>
+            </component>
+          </implementation_design>
+          <verification>
+            <test_files>
+              <test_file path="frontend/src/utils/__tests__/crossRoleReportFallbacks.test.js" intent="Prove scenario-safe fallback remains intact, a published 90-120 improvement priority remains unchanged through `buildReportViewModel` for the HTML source, question-count/duration/word-count mismatch is not concision evidence, a 100/105-second raw metric does not create stale timing advice, retained `unfocusedAnswerCount` produces only non-timing focus advice, and old 60-90/under-90 strings are absent from fallback output." />
+            </test_files>
+          </verification>
+        </work_package>
+
+        <work_package id="WP7-2" name="Render published turn contract in existing HTML card">
+          <task_contract>
+            <one_observable_goal>Existing expanded turn cards show the published framework and component percentage score, optional published Level/reason and applicable duration without creating client-derived dimensions.</one_observable_goal>
+            <allowed_areas>
+              <area>frontend/src/components/report/TurnBreakdownSection.jsx</area>
+              <area>frontend/src/components/report/__tests__/TurnBreakdownSection.test.jsx</area>
+            </allowed_areas>
+            <forbidden_areas>
+              <area>ReportPage layout, new report routes, CSS system replacement or server projection changes.</area>
+              <area>Any conversion from legacy score or normalized 0-10 values to percentage, Level, weight or earnedPoints.</area>
+            </forbidden_areas>
+            <budgets>
+              <total_task_owned_files>2</total_task_owned_files>
+              <incremental_changed_lines>less_than_180</incremental_changed_lines>
+              <production_files>1</production_files>
+              <test_files>1</test_files>
+              <documentation_files>0</documentation_files>
+              <implementation_cycles>1</implementation_cycles>
+            </budgets>
+            <stop_rule>Stop if the minimal card proposal cannot fit the existing expanded card or if Phase 6 fields are not sufficient to render direct values.</stop_rule>
+          </task_contract>
+          <dependencies>
+            <dependency>The top-level `ui_approval_gate` is approved with no layout expansion: add rows inside the current `FrameworkBreakdown` card and retain the current expand/collapse interaction.</dependency>
+            <dependency>Phase 6 candidate turn fields have been re-read and confirmed before implementation.</dependency>
+          </dependencies>
+          <implementation_design>
+            <component path="frontend/src/components/report/TurnBreakdownSection.jsx" role="candidate turn framework display">
+              <contract>Render `frameworkLabel`, published framework/dimension `scorePercent`, optional published Level/reason, `durationAssessment`, answer, feedback and stronger-answer state without rescore or invented evidence.</contract>
+              <caller>`ReportPage` passes `viewModel.turnBreakdowns`; `FrameworkBreakdown` and `StructureBreakdown` render inside the expanded turn card.</caller>
+              <input>One candidate-safe turn object with new-contract fields, legacy direct fields, or unavailable fields.</input>
+              <output>Accessible HTML card with framework title, direct framework/component percentage rows, optional published Level/reason, optional duration row, and neutral legacy/unavailable state.</output>
+              <side_effect>React expansion state remains unchanged; no network call, persistence write or score mutation.</side_effect>
+              <failure_behavior>Missing duration or missing framework fields omit the affected score row and keep the answer/feedback readable. A legacy turn may show direct legacy fields but never synthesized semantic dimensions.</failure_behavior>
+              <pseudocode><![CDATA[
+1. Remove the branch that calls buildFallbackFrameworkBreakdown(turn) when frameworkBreakdown is absent.
+2. For a published framework and dimension, display the direct `scorePercent` as `{value}%`; never multiply a 0-10 score by 10 in the component.
+3. Display published Level/reason only when supplied; do not display `earnedPoints` or `weight` in the candidate card.
+4. Skip dimensions with status `not_applicable`.
+5. If a legacy frameworkBreakdown has only direct status/score/reason fields, label it as legacy/direct data at its original scale; do not map score into percentage, levels or points.
+6. If durationAssessment.eligible is true, display direct seconds and any explicitly published duration percentage; otherwise render no timing penalty.
+7. Preserve non-past frameworkLabel values, STARR/structure display, answer assessment, transcript-safe evidence badge, and stronger-answer neutral state.
+              ]]></pseudocode>
+            </component>
+          </implementation_design>
+          <verification>
+            <test_files>
+              <test_file path="frontend/src/components/report/__tests__/TurnBreakdownSection.test.jsx" intent="Prove Impact-first direct framework/dimension percentage, optional published Level/reason and duration rendering, not_applicable omission, non-past labels, legacy original-scale readability, long-reason rendering, and no percentage conversion or derived dimensions when raw scores disagree with published fields." />
+            </test_files>
+          </verification>
+        </work_package>
+
+        <work_package id="WP7-3" name="Align PDF turn rendering">
+          <task_contract>
+            <one_observable_goal>Client-generated PDF includes the same direct framework and duration interpretation as the HTML turn card, including reasons that wrap safely.</one_observable_goal>
+            <allowed_areas>
+              <area>frontend/src/utils/reportPdf/reportPdfTemplate.js</area>
+              <area>frontend/src/utils/__tests__/reportTurnFrameworkFormatter.test.js</area>
+            </allowed_areas>
+            <forbidden_areas>
+              <area>PDF visual redesign, new page sections unrelated to turn framework output, or server-side PDF generation.</area>
+              <area>Score arithmetic, level conversion, or hidden fallback dimensions.</area>
+            </forbidden_areas>
+            <budgets>
+              <total_task_owned_files>2</total_task_owned_files>
+              <incremental_changed_lines>less_than_140</incremental_changed_lines>
+              <production_files>1</production_files>
+              <test_files>1</test_files>
+              <documentation_files>0</documentation_files>
+              <implementation_cycles>1</implementation_cycles>
+            </budgets>
+            <stop_rule>Stop if displaying the candidate-safe contract requires changing the existing PDF layout beyond wrapped turn-card content or adding client calculations.</stop_rule>
+          </task_contract>
+          <dependencies>
+            <dependency>`generateReportPDF` continues to consume the same candidate-safe report data and view model.</dependency>
+            <dependency>WP7-2 establishes the direct-field display contract; PDF must not invent a second mapping.</dependency>
+          </dependencies>
+          <implementation_design>
+            <component path="frontend/src/utils/reportPdf/reportPdfTemplate.js" role="PDF turn renderer">
+              <contract>Make `buildTurnFrameworkMeta` and the turn body formatter use direct published percentage values; include optional published Level/reasons and applicable duration while preserving legacy direct output at its original scale.</contract>
+              <caller>`drawTurnBreakdowns` calls the formatter for each `vm.turnBreakdowns`; `generateReportPDF` invokes `drawTurnBreakdowns`.</caller>
+              <input>Candidate-safe turn object already normalized by `buildReportViewModel`.</input>
+              <output>PDF card text containing the same framework identity, direct framework/component percentage, optional Level/reason and optional duration as HTML/TXT.</output>
+              <side_effect>`pdf.save` remains the only export side effect; formatter helpers remain deterministic and pure.</side_effect>
+              <failure_behavior>Absent or legacy fields produce readable direct/neutral text; the PDF does not show a synthetic zero or a new timing penalty.</failure_behavior>
+              <pseudocode><![CDATA[
+1. Keep buildTurnFrameworkMeta as a short framework/legacy summary, but remove any new score derivation.
+2. Add a small pure turn-detail formatter used by drawTurnBreakdowns to append direct framework/component percentage, optional Level/reason lines and eligible duration.
+3. Never multiply a 0-10 normalized score by 10 in the PDF adapter; use only Phase 6 `scorePercent` for percentage output.
+4. Pass the detail text through the existing drawItemCard body so jsPDF splitTextToSize wraps long reasons.
+5. Filter not_applicable dimensions and omit duration when eligibility is false, missing, text-mode, or unreliable.
+6. Preserve the existing PDF order, cover, insights, coaching, answer rewrites, footer and filename.
+              ]]></pseudocode>
+            </component>
+          </implementation_design>
+          <verification>
+            <test_files>
+              <test_file path="frontend/src/utils/__tests__/reportTurnFrameworkFormatter.test.js" intent="Prove PDF formatter includes direct framework/component percentage, optional Level/reason and eligible duration, preserves legacy original-scale metadata, skips not_applicable values, and never converts contradictory raw scores into percentage." />
+            </test_files>
+          </verification>
+        </work_package>
+
+        <work_package id="WP7-4" name="Align candidate-visible TXT export">
+          <task_contract>
+            <one_observable_goal>Browser-downloaded TXT reports include the same candidate-safe framework/component percentage, reasons, duration and published `improvementPriorities` interpretation as HTML/PDF without exposing private fields.</one_observable_goal>
+            <allowed_areas>
+              <area>frontend/src/utils/reportHelpers.js</area>
+              <area>frontend/src/utils/__tests__/reportTurnFrameworkFormatter.test.js</area>
+            </allowed_areas>
+            <forbidden_areas>
+              <area>Backend `formatReportAsText` audit artifact, export storage, JSON serialization and export API contract.</area>
+              <area>Private evidence identifiers, QA controls, internal diagnostics or server-only scoring metadata.</area>
+            </forbidden_areas>
+            <budgets>
+              <total_task_owned_files>2</total_task_owned_files>
+              <incremental_changed_lines>less_than_130</incremental_changed_lines>
+              <production_files>1</production_files>
+              <test_files>1</test_files>
+              <documentation_files>0</documentation_files>
+              <implementation_cycles>1</implementation_cycles>
+            </budgets>
+            <stop_rule>Stop if TXT output needs a new backend endpoint, candidate projection field, or private evidence access to achieve parity.</stop_rule>
+          </task_contract>
+          <dependencies>
+            <dependency>`useReportData.handleExport('txt')` continues to call the frontend formatter before Blob download.</dependency>
+            <dependency>The Phase 6 projection remains the only source of candidate-safe fields.</dependency>
+            <dependency>Import `buildReportViewModel` from the existing `frontend/src/utils/reportView/index.js` export; confirm the current import graph remains acyclic and do not create a second fallback helper in `reportHelpers.js`.</dependency>
+          </dependencies>
+          <implementation_design>
+            <component path="frontend/src/utils/reportHelpers.js" role="candidate-visible TXT formatter">
+              <contract>Extend `formatReportAsText` with direct framework/component percentage, reason and duration output and the same `buildReportViewModel(...).improvementPriorities` priority source used by HTML/PDF, while preserving current candidate-only redaction and JSON/export behavior.</contract>
+              <caller>`useReportData.handleExport` calls `formatReportAsText(reportData)` for `format === 'txt'`, then `downloadReportFile` creates a text Blob.</caller>
+              <input>Candidate report data containing `report.candidateFeedback.turnBreakdowns`, candidate-safe improvement priorities, optional legacy fields, and the same report object accepted by `buildReportViewModel`.</input>
+              <output>Plain text report with framework label, applicable direct percentage/reason rows, optional published Level and duration row, the published priority section and any non-timing fallback selected by the shared view-model precedence; no internal identifiers or derived values.</output>
+              <side_effect>None in formatter; browser Blob/download behavior remains in `downloadReportFile`.</side_effect>
+              <failure_behavior>Missing/legacy fields are omitted or rendered as neutral direct legacy text. Do not print `undefined`, private evidence IDs, or synthetic score values.</failure_behavior>
+              <pseudocode><![CDATA[
+1. Import `buildReportViewModel` from `./reportView/index.js`, resolve `const vm = buildReportViewModel(report)`, and use `vm.improvementPriorities` for the priority section; do not read a separate raw fallback path or create a duplicate fallback helper.
+2. Keep existing candidate-safe sections, score explanation allowlist, limitation/redaction behavior and END OF REPORT marker.
+3. In ANSWER FEEDBACK, add the published framework label and one direct percentage/reason line per applicable published dimension.
+4. Print optional Level only when published; never calculate percentage from Level, weight, points or a 0-10 score.
+5. Print voice duration only when the published duration assessment is eligible; text-mode and missing duration remain absent.
+6. Keep legacy direct fields readable at their original scale without presenting them as the new percentage contract.
+7. Reuse the same candidate fixture and expected published 90-120 priority wording used by the PDF formatter test in this work package.
+8. Update the stale frontend formatter comment so it identifies the browser candidate export owner and does not claim parity with the separate server audit formatter.
+              ]]></pseudocode>
+            </component>
+          </implementation_design>
+          <verification>
+            <test_files>
+              <test_file path="frontend/src/utils/__tests__/reportTurnFrameworkFormatter.test.js" intent="Add candidate TXT assertions beside PDF formatter assertions: same direct framework/component percentage, optional Level/reason/duration values and the same published 90-120 improvement priority as HTML/PDF, plus neutral legacy/unavailable output and absence of private metadata or client-derived scores." />
+            </test_files>
+          </verification>
+        </work_package>
+
+        <work_package id="WP7-5" name="Scoped documentation and phase gate">
+          <task_contract>
+            <one_observable_goal>After behavior implementation is separately authorized and verified, the owning feature RFC and one change-log entry describe the actual candidate-visible rendering contract without claiming unrun browser/live evidence.</one_observable_goal>
+            <allowed_areas>
+              <area>docs/architecture-decision-records/features/F-34-report-generation-pipeline.md</area>
+              <area>repo-docs/change-log.md</area>
+            </allowed_areas>
+            <forbidden_areas>
+              <area>Reader-guide sweep, sitemap rewrite, milestone-wide documentation, unrelated RFCs or harness docs.</area>
+              <area>Writing implementation evidence into this plan before implementation has run.</area>
+            </forbidden_areas>
+            <budgets>
+              <total_task_owned_files>2</total_task_owned_files>
+              <incremental_changed_lines>less_than_100</incremental_changed_lines>
+              <production_files>0</production_files>
+              <test_files>0</test_files>
+              <documentation_files>2</documentation_files>
+              <implementation_cycles>1</implementation_cycles>
+            </budgets>
+            <stop_rule>Do not update docs during this plan-only turn. During implementation, stop if the owning RFC or change-log boundary is unclear or if code evidence does not support the proposed wording.</stop_rule>
+          </task_contract>
+          <dependencies>
+            <dependency>WP7-1 through WP7-4 focused checks pass and task-owned diff is known.</dependency>
+            <dependency>Independent product-behavior QA has returned an evidence matrix with no blocking finding before documentation sync.</dependency>
+            <dependency>Use the repository auto-docs-sync workflow; the documentation pass is not a substitute for code or browser verification.</dependency>
+          </dependencies>
+          <implementation_design>
+            <component path="docs/architecture-decision-records/features/F-34-report-generation-pipeline.md" role="owning feature RFC">
+              <contract>Record the verified candidate-visible UI/TXT/PDF projection behavior, implementation status and focused test path using actual post-implementation line ranges.</contract>
+              <caller>Auto-docs-sync after behavior-bearing code changes; not called by this plan-only write.</caller>
+              <input>Verified task diff, test results and final field names.</input>
+              <output>One narrow RFC evolution entry; no unsupported browser/live/provider claim.</output>
+              <side_effect>Documentation write only.</side_effect>
+              <failure_behavior>If source evidence is incomplete, mark the RFC Partial/Planned and stop instead of claiming Verified.</failure_behavior>
+              <pseudocode><![CDATA[
+1. Update the required implementation-status and verified-test headers if the RFC requires them.
+2. Add one Phase 7 evolution entry describing the candidate-safe render contract and no-rescoring boundary.
+3. Use actual file/line references from the completed implementation and focused verification.
+              ]]></pseudocode>
+            </component>
+            <component path="repo-docs/change-log.md" role="scoped change log">
+              <contract>Append one dated Phase 7 entry listing actual changed code/tests/docs and actual verification status.</contract>
+              <caller>Auto-docs-sync after implementation verification.</caller>
+              <input>Task-owned files and command results.</input>
+              <output>One precise change-log record; no milestone-wide rewrite.</output>
+              <side_effect>Documentation write only.</side_effect>
+              <failure_behavior>Record NOT RUN or Partial explicitly where evidence is unavailable.</failure_behavior>
+              <pseudocode><![CDATA[
+1. Append one scoped entry after the existing change-log format.
+2. List the frontend renderer/formatter files and focused test command actually changed/run.
+3. Separate local test evidence from browser, live provider, production and release claims.
+              ]]></pseudocode>
+            </component>
+          </implementation_design>
+          <verification>
+            <documentation_checks>
+              <documentation_check path="docs/architecture-decision-records/features/F-34-report-generation-pipeline.md" intent="Validate RFC status, links, line references and evidence wording after implementation; no docs are changed in this plan-only turn." />
+              <documentation_check path="repo-docs/change-log.md" intent="Validate one scoped entry and no unrelated reader-guide or sitemap changes." />
+            </documentation_checks>
+          </verification>
+        </work_package>
+      </work_packages>
+    </phase>
+  </phase_sequence>
+
+  <verification_policy>
+    <focused_commands>
+      <command>cd frontend &amp;&amp; ./node_modules/.bin/vitest run src/utils/__tests__/crossRoleReportFallbacks.test.js src/components/report/__tests__/TurnBreakdownSection.test.jsx src/utils/__tests__/reportTurnFrameworkFormatter.test.js</command>
+      <command>cd frontend &amp;&amp; npm run lint</command>
+      <command>git diff --check</command>
+    </focused_commands>
+    <source_checks>
+      <check>Search task-owned frontend production files for old candidate-facing `60-90`, `under 90`, `&gt;90`, duration-threshold, overlong-count or word-count fallback logic after implementation; `unfocusedAnswerCount` is allowed only with explicitly non-timing focus/structure output, and negative assertions in tests are allowed.</check>
+      <check>Search task-owned renderer code to confirm `buildFallbackFrameworkBreakdown` is not called and no level-times-weight, 0-10-times-10, dimension average or other client percentage conversion is introduced.</check>
+      <check>Inspect the Phase 6 final candidate payload and confirm direct `frameworkBreakdown.scorePercent` and `dimensions[].scorePercent` are present with a declared 0-100 scale; if only `normalizedScore` or raw 0-10 `score` exists, stop before implementation.</check>
+      <check>Inspect the exact Phase 6 candidate payload and task-scoped diff before accepting the implementation.</check>
+    </source_checks>
+    <human_and_browser_evidence>
+      <item>Owner approval of the minimal card proposal is required before UI implementation.</item>
+      <item>A headed browser report fixture is a Phase 8 integrated gate, not claimed by this plan or by focused Vitest.</item>
+      <item>Real AI evaluations, live Mongo catalog activation, deployment and production verification are NOT RUN unless separately approved.</item>
+    </human_and_browser_evidence>
+    <independent_qa required="true" timing="after_focused_tests_before_docs_sync">
+      <scope>Dispatch one independent QA worker with the task-owned diff, this plan's acceptance criteria, the candidate fixture contract and the focused test results. The worker reviews direct-field rendering, legacy/unavailable neutrality, no client-side rescoring, stale coaching removal and HTML/TXT/PDF priority parity.</scope>
+      <acceptance>Return a criterion-by-criterion evidence matrix. The worker must not change code, broaden scope, or treat browser/live/provider evidence as run.</acceptance>
+      <failure_behavior>Any blocking finding stops docs sync and Phase 7 acceptance. Repair only an auditor-confirmed gap within the remaining cycle budget, then rerun the focused checks and independent QA.</failure_behavior>
+    </independent_qa>
+  </verification_policy>
+
+  <three_pass_audit>
+    <pass id="1" name="Implementation">
+      <check>
+        <criterion>Every new-report framework/component percentage and duration value shown by HTML, TXT and PDF is a direct Phase 6 candidate-safe value; existing card and PDF layout remain bounded.</criterion>
+        <failure_behavior>Stop and classify the mismatch as a Phase 6 contract or UI-scope blocker. Do not add client calculations or silently broaden the layout.</failure_behavior>
+      </check>
+      <check>
+        <criterion>Legacy/unavailable/text-mode states remain readable and do not receive invented percentage, Level, points, duration penalty or hiring interpretation.</criterion>
+        <failure_behavior>Remove the unsupported fallback and return to neutral/direct legacy rendering.</failure_behavior>
+      </check>
+    </pass>
+    <pass id="2" name="Robustness Testing">
+      <check>
+        <criterion>Focused frontend tests pass for coaching fallback, HTML turn cards, PDF details and candidate TXT details; frontend lint and diff checks pass.</criterion>
+        <failure_behavior>Repair only the failed task-owned renderer/test contract within the three-cycle budget. Do not modify Phase 6 scoring or backend export audit behavior.</failure_behavior>
+      </check>
+      <check>
+        <criterion>Adversarial fixtures cover contradictory raw scores, missing duration, not_applicable dimensions, long reasons, legacy reports, text mode and a 100-second voice answer.</criterion>
+        <failure_behavior>Mark the phase incomplete until the relevant direct/neutral behavior is proven.</failure_behavior>
+      </check>
+      <check>
+        <criterion>Independent product-behavior QA returns a criterion-by-criterion evidence matrix with no blocking finding before documentation sync.</criterion>
+        <failure_behavior>Stop docs sync and Phase 7 acceptance; repair only auditor-confirmed gaps, rerun focused checks, and repeat the independent QA gate.</failure_behavior>
+      </check>
+    </pass>
+    <pass id="3" name="Documentation and Sync">
+      <check>
+        <criterion>After behavior implementation, auto-docs-sync updates exactly F-34 and one scoped change-log entry with actual evidence; this plan-only turn performs no documentation write.</criterion>
+        <failure_behavior>Do not claim the feature is documented or verified. Stop with the missing evidence and defer broader docs work.</failure_behavior>
+      </check>
+    </pass>
+  </three_pass_audit>
+
+  <completion_criteria>
+    <criterion id="C7-1">Owner-approved minimal turn-card proposal is recorded before implementation; no new report visual system is introduced.</criterion>
+    <criterion id="C7-2">HTML renders published framework label, direct framework/component `scorePercent`, optional published Level and safe reasons without client-side percentage conversion or rescoring.</criterion>
+    <criterion id="C7-3">Eligible voice duration is shown from direct published fields; missing, unreliable, text-mode and excluded turns do not receive a penalty or synthetic zero.</criterion>
+    <criterion id="C7-4">Frontend fallback coaching contains no 60-90, under-90, average-duration-&gt;90, overlong-count or word-count rule; any retained `unfocusedAnswerCount` signal is non-timing focus/structure advice; published 90-120 coaching remains authoritative.</criterion>
+    <criterion id="C7-5">Candidate-visible TXT and PDF contain the same framework, direct framework/component percentage, optional Level, reason, applicable duration and published 90-120 improvement priority values as HTML for the same fixture.</criterion>
+    <criterion id="C7-6">Legacy reports remain readable through direct legacy fields or neutral unavailable state; no old report is backfilled or regenerated.</criterion>
+    <criterion id="C7-7">Non-past framework labels remain unchanged and are not forced into Impact-first dimensions.</criterion>
+    <criterion id="C7-8">Focused frontend Vitest files and frontend lint pass, independent product-behavior QA returns no blocking finding, and no real AI, live catalog, deployment or production claim is made.</criterion>
+    <criterion id="C7-9">After separately authorized behavior implementation, F-34 and one scoped change-log entry match verified code and test evidence.</criterion>
+  </completion_criteria>
+
+  <risks_assumptions_and_decisions>
+    <risk id="R7-1" severity="high">
+      <description>Phase 6 final payload may differ from the current projection allowlist.</description>
+      <mitigation>Re-read Phase 6 implementation before coding; stop and update this plan if fields or ownership differ.</mitigation>
+    </risk>
+    <risk id="R7-2" severity="high">
+      <description>Removing the HTML fallback could make some legacy turns show fewer dimensions.</description>
+      <mitigation>Preserve direct legacy framework/structure fields and the answer/feedback card; neutral absence is safer than inventing a semantic framework.</mitigation>
+    </risk>
+    <risk id="R7-3" severity="high">
+      <description>Separate HTML, TXT and PDF formatters can drift.</description>
+      <mitigation>Use one labelled candidate fixture with contradictory raw scores across the three focused renderer assertions and compare direct values/reasons.</mitigation>
+    </risk>
+    <risk id="R7-4" severity="medium">
+      <description>Long evidence reasons can overflow a narrow card or PDF.</description>
+      <mitigation>Reuse existing HTML wrapping and PDF `splitTextToSize` body layout; do not truncate or rewrite the reason.</mitigation>
+    </risk>
+    <decision id="D7-1">Candidate-visible TXT means the frontend formatter called before Blob download; the server audit formatter is explicitly outside this phase.</decision>
+    <decision id="D7-2">No shared cross-package formatter is introduced; frontend HTML/PDF/TXT remain separate presentation adapters over the same published contract.</decision>
+    <decision id="D7-3">The phase keeps the current card and PDF structure. Any new layout proposal requires owner approval and a separate scope decision.</decision>
+  </risks_assumptions_and_decisions>
+
+  <implementation_handoff>
+    <next_authorized_action>Wait for owner approval and a separate Phase 7 implementation request. Do not edit frontend/backend code from this plan-only turn.</next_authorized_action>
+    <implementation_order>Re-read Phase 6 final payload, obtain minimal UI approval, implement WP7-1 through WP7-4, run focused frontend checks, dispatch the independent QA gate, repair only confirmed gaps within budget, then run auto-docs-sync and the Phase 7 gate. Do not start Phase 8/9 from this plan.</implementation_order>
+    <not_run>Product tests, frontend lint, browser fixture, backend tests, live provider evaluation, live Mongo activation, deployment and release are NOT RUN because this turn only creates the XML plan.</not_run>
+  </implementation_handoff>
+</implementation_plan>

@@ -1,0 +1,9 @@
+feat(report): integrate voice duration assessment and update PDF/text exports
+
+Implement Phase 7 presentation requirements for voice duration and framework dimensions:
+- Update `TurnBreakdownSection` to render `voiceDurationAssessment`
+- Hardcode duration coaching strings to "90-120 seconds" in `coaching.js`
+- Include duration and framework dimensions in `reportPdfTemplate` and `reportHelpers`
+- Fix frontend CI test failures related to cross-role fallback thresholds
+- Fix backend CI issues: removed unused variable in `reportCoachingBuilder.js`, corrected `motivation` mapping in `questionArtifactHelpers`, updated duration assessment score expectations, and synced question catalog review doc
+- Update F-34 feature RFC and change-log for Phase 7 implementation

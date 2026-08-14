@@ -17,7 +17,7 @@ import {
 
 const hasConcisionEvidence = (metrics = {}) => Number(metrics.overlongAnswerCount || 0) > 0
   || Number(metrics.unfocusedAnswerCount || 0) > 0
-  || Number(metrics.averageAnswerDurationSeconds || 0) > 90
+  || Number(metrics.averageAnswerDurationSeconds || 0) > 120
   || Number(metrics.averageAnswerWordCount || 0) > 120;
 
 /**
@@ -59,7 +59,7 @@ export const buildFallbackImprovementPriorities = ({ report, interviewMetrics, e
     advice.push({
       title: 'Prepare 3 reusable story banks',
       detail: 'Before the next interview, prepare three genuine stories that show role-specific judgement, teamwork, and ownership.',
-      example: 'Pick one delivery example, one problem-solving example, and one collaboration example, then practise each in under 90 seconds.',
+      example: 'Pick one delivery example, one problem-solving example, and one collaboration example, then practise each in 90-120 seconds.',
     });
   }
   if (genericTurns >= 3) {
@@ -73,7 +73,7 @@ export const buildFallbackImprovementPriorities = ({ report, interviewMetrics, e
     advice.push({
       title: 'Practise concise answers',
       detail: 'Keeping answers focused can help the interview stay on track and make your strongest evidence easier to notice.',
-      example: 'Aim for 60-90 second core answers, then expand only when the interviewer asks for more detail.',
+      example: 'Aim for 90-120 second core answers, then expand only when the interviewer asks for more detail.',
     });
   }
   if (focusAreas.length > 0) {

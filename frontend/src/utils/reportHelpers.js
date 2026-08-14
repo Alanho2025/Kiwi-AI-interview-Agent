@@ -156,6 +156,27 @@ export const formatReportAsText = (report) => {
             lines.push(`${index + 1}. ${turn.question || 'Interview question'}`);
             if (turn.answer || turn.answerSummary) lines.push(`Your answer: ${turn.answer || turn.answerSummary}`);
             if (turn.feedback) lines.push(`Feedback: ${turn.feedback}`);
+            
+            const frameworkLabel = turn.frameworkLabel || turn.structureLabel || 'Role-specific reasoning';
+            if (turn.frameworkBreakdown?.dimensions?.length) {
+                const score = Number(turn.frameworkBreakdown.normalizedScore);
+                lines.push(`Framework: ${frameworkLabel}${Number.isFinite(score) ? ` (${score}/10)` : ''}`);
+                turn.frameworkBreakdown.dimensions
+                    .filter((d) => d.status !== 'not_applicable')
+                    .forEach((d) => {
+                        lines.push(`  - ${d.label} (${Number(d.score || 0)}/10): ${d.reason || String(d.status).replace(/_/g, ' ')}`);
+                    });
+            } else if (turn.scores && !turn.starrBreakdown && !turn.starBreakdown) {
+                lines.push(`Framework: ${frameworkLabel}`);
+                lines.push(`  - Business: ${turn.scores.business ?? '-'}/10`);
+                lines.push(`  - Logic: ${turn.scores.logic ?? '-'}/10`);
+                lines.push(`  - Evidence: ${turn.scores.evidence ?? '-'}/10`);
+            }
+
+            if (turn.durationAssessment?.eligible) {
+                const d = turn.durationAssessment;
+                lines.push(`Duration: ${d.seconds || 0}s (${d.earnedPoints || 0}/${d.maxPoints || 10})`);
+            }
         });
         lines.push('');
     }

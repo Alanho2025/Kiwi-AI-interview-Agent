@@ -404,17 +404,25 @@ const drawReportLimitations = (layout, vm) => {
 };
 
 export const buildTurnFrameworkMeta = (turn = {}) => {
+  const parts = [];
   const dimensions = turn.frameworkBreakdown?.dimensions;
+
   if (Array.isArray(dimensions) && dimensions.length) {
     const score = Number(turn.frameworkBreakdown.normalizedScore);
     const frameworkSummary = `${turn.frameworkLabel || 'Role-specific framework'}${Number.isFinite(score) ? ` ${score}/10` : ''}`;
     const dimensionSummaries = dimensions
       .filter((dimension) => dimension.status !== 'not_applicable')
       .map((dimension) => `${dimension.label} ${Number(dimension.score || 0)}/10`);
-    return [frameworkSummary, ...dimensionSummaries].join(' | ');
+    parts.push(frameworkSummary, ...dimensionSummaries);
+  } else if (turn.scores) {
+    parts.push(`Business ${turn.scores.business ?? '-'} / Logic ${turn.scores.logic ?? '-'} / Evidence ${turn.scores.evidence ?? '-'}`);
   }
-  if (!turn.scores) return '';
-  return `Business ${turn.scores.business ?? '-'} / Logic ${turn.scores.logic ?? '-'} / Evidence ${turn.scores.evidence ?? '-'}`;
+
+  if (turn.durationAssessment?.eligible) {
+    parts.push(`Duration ${turn.durationAssessment.earnedPoints || 0}/${turn.durationAssessment.maxPoints || 10}`);
+  }
+
+  return parts.join(' | ');
 };
 
 const drawTurnBreakdowns = (layout, turns = []) => {
