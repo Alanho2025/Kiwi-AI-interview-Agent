@@ -1,0 +1,127 @@
+{
+  "evaluation": "JD prompt legacy/XML A/B with safeguard telemetry",
+  "date": "2026-08-15",
+  "provider": "DeepSeek",
+  "model": "deepseek-chat",
+  "fixtures": 6,
+  "runner": "backend/eval/runners/runJdPromptAbEval.js",
+  "executionProtocol": {
+    "providerConcurrency": "serial",
+    "processScope": "one prompt variant per process",
+    "caseOrder": "sequential",
+    "requiredOrder": "legacy process exits successfully before XML process starts",
+    "reason": "DeepSeek provider concurrency limits make parallel A/B execution invalid."
+  },
+  "historicalContext": "The instrumented repeat is a pre-fix bounded reparse gate run; its values and case details are retained as historical evidence and are not new live results.",
+  "telemetryContract": {
+    "persistsRawPrompts": false,
+    "persistsRawProviderResponses": false,
+    "captures": [
+      "low-level response body read errors and timeout attempts",
+      "critic JSON validity and issue object schema completeness",
+      "first review versus second review provider attempts",
+      "normalized safeguard verdict, issue severity, reparse status, and scorer output"
+    ]
+  },
+  "runs": [
+    {
+      "id": "initial_directional",
+      "source": "backend/eval/reports/jd-prompt-ab-2026-08-15.json",
+      "legacy": { "average": 0.977, "criticalAverage": 1, "safeguardReparseCases": 2 },
+      "xml": { "average": 0.982, "criticalAverage": 1, "safeguardReparseCases": 5 },
+      "delta": { "average": 0.005, "averagePercentagePoints": 0.5, "criticalAverage": 0 }
+    },
+    {
+      "id": "instrumented_repeat",
+      "legacy": {
+        "source": "HEAD d04ca51",
+        "average": 0.977,
+        "criticalAverage": 1,
+        "safeguardReparseCases": 2,
+        "providerTimeoutAttempts": 5,
+        "providerFallbackReviews": 1,
+        "providerTimeoutReviews": 1,
+        "criticSchemaValidResponses": 7,
+        "criticSchemaInvalidResponses": 0
+      },
+      "xml": {
+        "source": "working tree XML based on HEAD d04ca51",
+        "average": 0.973,
+        "criticalAverage": 0.992,
+        "safeguardReparseCases": 6,
+        "providerTimeoutAttempts": 8,
+        "providerFallbackReviews": 2,
+        "providerTimeoutReviews": 2,
+        "criticSchemaValidResponses": 0,
+        "criticSchemaInvalidResponses": 10
+      },
+      "delta": {
+        "average": -0.004,
+        "averagePercentagePoints": -0.4,
+        "criticalAverage": -0.008,
+        "safeguardReparseCases": 4,
+        "interpretation": "The repeat has no positive score direction and has more reparses, timeouts, and incomplete critic issue schemas in the XML variant."
+      },
+      "cases": [
+        {
+          "id": "data_engineer_clean",
+          "legacy": { "score": 0.95, "parseAttempts": 2, "finalStatus": "needs_review_after_reparse", "firstReview": "revise/high=2/issues=4", "secondReview": "revise/high=2/issues=6", "provider": { "first": "valid-schema/timeout=0", "second": "valid-schema/timeout=2" } },
+          "xml": { "score": 0.9, "parseAttempts": 2, "finalStatus": "needs_review_after_reparse", "firstReview": "revise/high=2/issues=5", "secondReview": "revise/high=1/issues=1/fallback-timeout", "provider": { "first": "invalid-issue-schema/timeout=1", "second": "fallback/timeout=3" } }
+        },
+        {
+          "id": "graduate_software_developer",
+          "legacy": { "score": 1, "parseAttempts": 1, "finalStatus": "accepted_first_parse", "firstReview": "pass/high=0/issues=1", "provider": { "first": "valid-schema/timeout=0" } },
+          "xml": { "score": 1, "parseAttempts": 2, "finalStatus": "needs_review_after_reparse", "firstReview": "revise/high=1/issues=5", "secondReview": "revise/high=1/issues=3", "provider": { "first": "invalid-issue-schema/timeout=0", "second": "invalid-issue-schema/timeout=0" } }
+        },
+        {
+          "id": "cloud_platform_engineer",
+          "legacy": { "score": 1, "parseAttempts": 1, "finalStatus": "accepted_first_parse", "firstReview": "pass/high=0/issues=1", "provider": { "first": "valid-schema/timeout=0" } },
+          "xml": { "score": 1, "parseAttempts": 2, "finalStatus": "needs_review_after_reparse", "firstReview": "revise/high=1/issues=3", "secondReview": "revise/high=1/issues=3", "provider": { "first": "invalid-issue-schema/timeout=0", "second": "invalid-issue-schema/timeout=0" } }
+        },
+        {
+          "id": "benefit_heavy_precision_guard",
+          "legacy": { "score": 0.91, "parseAttempts": 1, "finalStatus": "accepted_first_parse", "firstReview": "pass/high=0/issues=0", "provider": { "first": "valid-schema/timeout=0" } },
+          "xml": { "score": 0.94, "parseAttempts": 2, "finalStatus": "needs_review_after_reparse", "firstReview": "revise/high=1/issues=3", "secondReview": "revise/high=1/issues=3", "provider": { "first": "invalid-issue-schema/timeout=0", "second": "invalid-issue-schema/timeout=0" } }
+        },
+        {
+          "id": "leading_company_false_positive_guard",
+          "legacy": { "score": 1, "parseAttempts": 1, "finalStatus": "accepted_first_parse", "firstReview": "pass/high=0/issues=2", "provider": { "first": "valid-schema/timeout=0" } },
+          "xml": { "score": 1, "parseAttempts": 2, "finalStatus": "needs_review_after_reparse", "firstReview": "revise/high=2/issues=4", "secondReview": "revise/high=1/issues=3", "provider": { "first": "invalid-issue-schema/timeout=0", "second": "invalid-issue-schema/timeout=0" } }
+        },
+        {
+          "id": "heading_missing_paragraph",
+          "legacy": { "score": 1, "parseAttempts": 2, "finalStatus": "accepted_after_reparse", "firstReview": "revise/high=3/issues=7", "secondReview": "pass/fallback-timeout", "provider": { "first": "valid-schema/timeout=0", "second": "fallback/timeout=3" } },
+          "xml": { "score": 1, "parseAttempts": 2, "finalStatus": "accepted_after_reparse", "firstReview": "revise/high=2/issues=6", "secondReview": "pass/fallback-timeout", "provider": { "first": "invalid-issue-schema/timeout=0", "second": "fallback/timeout=3" } }
+        }
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "judgment": "confirmed",
+      "finding": "The pre-fix XML instrumented repeat produced valid JSON objects with a valid revise verdict, but the critic issue objects were incomplete.",
+      "evidence": "All 10 non-timeout XML critic responses in the instrumented repeat had issue objects with field and severity but no problem or action; the telemetry classified all 10 as invalid issue schema."
+    },
+    {
+      "judgment": "confirmed",
+      "finding": "The pre-fix gate, at the time of the instrumented repeat, treated every first-attempt revise verdict as reparse-eligible when an attempt remained.",
+      "evidence": "The pre-fix backend/src/services/jobDescription/jdParseGateService.js returned shouldReparse=true for revise without checking that issue details were complete or that a high-severity issue was grounded."
+    },
+    {
+      "judgment": "confirmed",
+      "finding": "Pre-fix normalization hid incomplete issue details instead of preserving the provider-schema failure.",
+      "evidence": "The pre-fix backend/src/services/agenticSafeguards/safeguardShared.js filled missing problem with Unspecified safeguard issue. and missing action with an empty string."
+    },
+    {
+      "judgment": "not_proven",
+      "finding": "XML improves JD extraction or reduces hallucination in general.",
+      "evidence": "The initial pair was +0.5 percentage points, while the instrumented repeat was -0.4 percentage points and critical average fell from 1.000 to 0.992. The scorer does not directly measure hallucination rate."
+    }
+  ],
+  "limitations": [
+    "Only six fixtures were used in each run.",
+    "The two variants were run sequentially against a live provider; timeout and response variability are visible confounders.",
+    "No human-labeled ground truth was added for whether each critic issue was a true positive or false positive.",
+    "The runner records telemetry summaries only; raw prompts and provider responses are not persisted."
+  ]
+}

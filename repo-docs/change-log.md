@@ -565,3 +565,35 @@
 
 ### Verification
 - Focused Vitest: `TurnBreakdownSection.test.jsx`, `reportTurnFrameworkFormatter.test.js`, and `reportHelpers.test.js` passed 100%. Legacy payloads correctly render neutrally without throwing errors.
+
+## [2026-08-15] JD six-element XML prompt boundary pilot
+
+Sync checkpoint: 2026-08-15 16:06 NZST · Synced through `d04ca51`
+
+### Changed / Added
+
+- Added `backend/src/services/jobDescription/jdPromptXml.js` as the shared JD prompt builder. It emits six XML contract elements—role/authority, objective, input context, evidence boundary, constraints, and output/failure—and escapes dynamic values before insertion.
+- Updated the four JD LLM callers (`jobDescriptionAiService.js`, `jdUniversalParserService.js`, `jdParseCriticAgent.js`, and `jdParseReparseAgent.js`) to use the XML system/user prompt boundary. Existing JSON parsing, timeout/retry, feature flags, fallback behavior, and orchestration were preserved.
+- Added the baseline and comparison records at `backend/eval/reports/jd-prompt-migration-baseline-2026-08-15.md` and `backend/eval/reports/jd-prompt-migration-comparison-2026-08-15.md`. The migration plan records this as the completed JD pilot work package; non-JD prompt flows remain planned.
+- Synced the owning RFC: `docs/architecture-decision-records/features/F-64-structured-prompt-engineering.md`.
+
+### Verification
+
+- Initial JD XML pilot prompt-contract and safeguard telemetry verification: 4 files / 10 tests passed; this is a historical pilot count. The corrected test runner records provider timeout attempts and critic issue-schema completeness. Backend lint passed.
+- Deterministic `npm run eval:jd`: 6 cases, average `0.96` before and after (`delta 0.00`). This runner sets `DISABLE_AI_JD_ENHANCEMENT=true`, so it is not evidence of live LLM prompt efficacy.
+- Independent clean-context audit: PASS for the XML prompt boundary, dynamic input escaping, fallback/data-node coverage, and unchanged orchestration boundary after remediation.
+- The initial real-provider A/B on the same 6 JD fixtures recorded legacy `0.977` vs XML `0.982` (`+0.5` percentage points), with critical average unchanged at `1.000`.
+- The pre-fix instrumented repeat (before the bounded reparse gate correction) recorded legacy `0.977` vs XML `0.973` (`-0.4` percentage points), critical average `1.000 → 0.992`, reparses `2/6 → 6/6`, and low-level timeout attempts `5 → 8`.
+- The repeat found 10 XML critic responses with incomplete issue schemas: outer JSON and `revise` were valid, but issue objects omitted `problem` and `action`. The pre-fix normalizer converted these to `Unspecified safeguard issue.` and the pre-fix gate at that time treated each `revise` as reparse-eligible; this historical result is recorded for follow-up rather than treated as a proven XML quality gain.
+- Post-fix local verification passed: 8 focused JD files / 46 tests and the full JD robustness set of 16 files / 105 tests; bounded reparse gate and reparse-provider metadata propagation are locally verified. The serial repeatCount=3 runner is implemented, and its post-fix live result is recorded below.
+- Eval telemetry now stores bounded, redacted error summaries and does not persist raw prompts or raw provider responses.
+- Full findings are in `backend/eval/reports/jd-prompt-ab-telemetry-2026-08-15.json`. The six-case scorer does not directly measure hallucination rate, so XML efficacy remains unproven.
+
+### Post-fix bounded live serial A/B
+
+- Report：`backend/eval/reports/jd-prompt-ab-serial-2026-08-15.json`；`repeatCount=3`，每輪順序為 `legacy → xml`，legacy process 完整 exit 後才啟動 XML process。
+- Sample：每個 variant 每輪 6 cases，共 36 fixture cases / 6 variant-runs（3 legacy + 3 XML）；`failedCaseCount=0`。
+- Aggregate：legacy `0.977`、XML `0.975`，delta `-0.2 percentage points`；critical average 均為 `1.000`，delta `0`。
+- Round deltas：Round 1 `+0.5pp`、Round 2 `-1.5pp`、Round 3 `+0.5pp`，方向不穩定。
+- Safeguard/provider observations：reparse cases 為 legacy `2,2,2`、XML `3,2,3`；provider timeout attempts 為 legacy `4,4,6`、XML `19,14,16`；provider fallback/timeout reviews 為 legacy 每輪 `1`、XML `6,4,5`。XML timeout/fallback telemetry 較高是本次觀察到的風險，不作因果結論。
+- Interpretation：本次 bounded live run 未證明 XML 帶來品質或 hallucination 改善；需要更廣泛的 controlled evaluation。Report 為 sanitized aggregate，未保存 raw prompt/response。

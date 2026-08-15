@@ -1,0 +1,443 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<implementation_plan id="llm-prompt-xml-migration" version="1.0" status="partial" UserFacing="true" RequestFeedback="true">
+  <title>Backend LLM prompt XML contract migration</title>
+  <language>zh-TW</language>
+
+  <plan_boundary>
+    <objective>把目前 backend 中所有 runtime-reachable、會送進 LLM 的 prompt，改成有明確 control/data 邊界的 XML-tagged prompt contract，並保留既有 deterministic controller、evidence grounding、JSON output、fallback、QA gate 與 voice state machine。</objective>
+    <current_turn>本輪已完成 P2A JD XML pilot、bounded reparse gate correction、local evidence、test 與 telemetry privacy corrections，並完成一組 bounded post-fix live serial A/B；aggregate 結果未證明品質或 hallucination 改善，整體 migration 仍為 partial。</current_turn>
+    <scope>
+      <runtime_scope>納入 18 個 active 或 conditional 的 prompt-producing flow；每個 flow 仍須以 call graph、feature flag 或 caller evidence 確認可達性。</runtime_scope>
+      <audit_scope>另外檢查 1 個目前未被 backend/src call graph 使用的 interviewPlanService flow、1 個 voiceAcknowledgementService.js.bak_llm_only legacy 檔，以及 callModel／callDeepSeekJson 等 indirect wrapper，避免誤判 coverage。</audit_scope>
+      <excluded_from_runtime_migration>未被使用的 flow 與 backup 檔不在本次 runtime migration；除非後續證明重新接回 runtime，否則只記錄 disposition。</excluded_from_runtime_migration>
+    </scope>
+    <non_goals>
+      <item>不以 XML 取代 controller、authorization、retrieval、source ownership、persistence 或 action execution。</item>
+      <item>不把 XML prompt 變成新的 orchestration engine，也不讓模型自行創造 action、改變 interview state、question count、score、QA status 或 publication gate。</item>
+      <item>不在沒有 baseline 和明確測試證據時宣稱 hallucination 下降了固定百分比。</item>
+      <item>不改 provider、model、temperature、voice state machine 或既有 fallback semantics，除非某個 phase 的 evidence 明確證明需要且另獲批准。</item>
+      <item>不把本次 bounded live A/B 當成整體 real AI evaluation；production provider、browser flow、Mongo persistence 與 deployment 仍不在本輪 evidence。</item>
+    </non_goals>
+    <authority_order>policy_and_safety &gt; controller &gt; contract_and_gate &gt; deterministic_rule &gt; model &gt; wording</authority_order>
+    <source_of_truth>
+      <primary>目前 source code、call graph、tests、VOICE_INTERVIEW_PRODUCT_BEHAVIOR.md，以及 docs/harness/ 的 current contract。</primary>
+      <secondary>repo-docs/ 與 F-64/F-34 RFC 只作為產品意圖與文件落差證據，不把文件聲稱當成 runtime completion proof。</secondary>
+    </source_of_truth>
+    <task_budget production_files_max="5" test_files_max="3" incremental_lines_max="400" hard_stop_files="10" hard_stop_lines="500" implementation_cycles_max="3">每個 work package 都是獨立、可審閱的 migration slice；整體 migration 不應在單一 task 內一次修改全部 caller。</task_budget>
+  </plan_boundary>
+
+  <research_gate status="ready_for_plan">
+    <evidence_examined>
+      <source path="AGENTS.md" lines="9-17,19-32,40-66,69-92,105-114,156-166">repo docs、required reading、ground-truth、change budget、三個 implementation cycle、voice contract 與 broad-plan split rules。</source>
+      <source path="repo-docs/README.md" lines="1-27">產品主流程與 source-grounded documentation policy。</source>
+      <source path="repo-docs/walkthroughs/one-real-run.md" lines="1-70">CV/JD、question pool、interview、report QA 及 LLM output 不自動等同 evidence 的 real-run boundary。</source>
+      <source path="VOICE_INTERVIEW_PRODUCT_BEHAVIOR.md" lines="1-19,21-47,59-172,217-341">voice state machine、transcript confirmation、question-count exclusion、three-second latency target、question selection transparency。</source>
+      <source path="docs/harness/AGENTS.md" lines="1-69">shadow-to-enforce sequence、current controller authority、raw payload boundary、hard stops 與 completion gate。</source>
+      <source path="backend/src/services/deepseekService.js" lines="101-120,203-270">systemInstruction 與 prompt 分別進 system/user message；transport 本身沒有 XML contract。</source>
+      <source path="backend/src/services/agenticSafeguards/deepseekJsonClient.js" lines="6-79">JSON extraction/repair、object-level check 與 caller-provided fallback；不是完整 schema validator。</source>
+      <source path="backend/src/services/questions/interviewMicroPlanningService.js" lines="181-245,365-390">目前一個 XML-like prompt flow，但 dynamic planning data 的 escaping 與 prompt capture 未被 test 驗證。</source>
+      <source path="backend/src/services/report/universalLlmEvaluationService.js" lines="277-413">目前另一個 XML-like evaluator；question、answer、roleTitle 直接進 user prompt，且 output normalization 有 defaulting。</source>
+      <source path="backend/src/services/aiControl/actionPlanner.js" lines="109-153,197-251">candidate action、priority、evidence need 與 controller ownership。</source>
+      <source path="backend/src/services/aiControl/modelActionSelectorService.js" lines="29-139">model 只能從 candidateActions 選擇；disallowed、parse error、provider error 回到 rule fallback。</source>
+      <source path="backend/src/services/aiControl/evidenceBundleService.js" lines="14-49">evidence bundle assembly 與 source attribution owner。</source>
+      <source path="backend/src/services/report/claimGroundingService.js" lines="66-169">unsupported report claim 的 downgrade、needs_user_confirmation 與 grounding status。</source>
+      <source path="docs/architecture-decision-records/features/F-64-structured-prompt-engineering.md" lines="3-9,29,46,111-116">F-64 標示 Partial/Onboarding Mapping，且列出的 prompt library/test path 尚未由本次 source inspection 證實。</source>
+      <source path="docs/architecture-decision-records/features/F-34-report-generation-pipeline.md" lines="299-307,368-378">report evaluator XML claim、schema ownership 與 provider/browser/production evidence boundary。</source>
+      <source path="backend/tests/robustness/report/universalLlmEvaluationService.test.js; backend/tests/robustness/report/impactFirstAnalysisService.test.js; backend/tests/robustness/questions/interviewMicroPlanningService.test.js; backend/tests/robustness/report/promptInjectionReportRobustness.test.js" lines="test run">delegated read-only verification reported 4 files and 15 existing tests passed；這不等同於 XML contract 已完成。</source>
+    </evidence_examined>
+
+    <confirmed_current_state>
+      <fact>目前 source-defined prompt flows 可整理為 19 個：18 個 active/conditional、1 個 unreferenced interviewPlan flow；另有 1 個 .bak legacy copy。此數字不包含 transport wrapper 本身。</fact>
+      <fact>18 個 active/conditional flow 分布在 question reserve、micro-planning、answer understanding、action selection、voice decision、company extraction、JD parsing/safeguards、CV-JD match、report evaluation/QA，以及 voice acknowledgement。</fact>
+      <fact>只有 interviewMicroPlanningService.js 與 universalLlmEvaluationService.js 被 source search 確認含有目前使用中的 XML-like LLM prompt tags；這不代表 tags 已形成共同 contract。</fact>
+      <fact>dynamic CV、JD、transcript、candidate answer、website text、report、retrieval evidence 多數直接插入 user prompt；目前沒有 LLM prompt 專用的 XML escaping/serialization contract。</fact>
+      <fact>existing system/user role mapping、JSON extraction、domain normalizers、fallback、claim grounding、allowlisted action 與 voice controller boundary 已存在，migration 應接在這些 boundary 之內。</fact>
+      <fact>既有 tests 主要驗證 model output、fallback、grounding 或 deterministic behavior；沒有系統性驗證送出的 prompt root、XML shape、dynamic escaping、data-only boundary 或所有 caller 的 role separation。</fact>
+    </confirmed_current_state>
+
+    <gaps>
+      <gap>尚無完整 active caller inventory 的 executable coverage gate；尤其需要同時覆蓋 callDeepSeek、callDeepSeekJson、injected callModel 與 feature-conditional branches。</gap>
+      <gap>尚無 prompt payload capture test，無法由 tests 證明 system/user message 的實際內容與 role separation。</gap>
+      <gap>尚無 LLM prompt XML serializer 的 well-formedness、escaping、Unicode、empty value 與 node-injection test。</gap>
+      <gap>callDeepSeekJson 只提供 object-level parsing/repair；各 caller 的欄位與語意驗證強度不一致。</gap>
+      <gap>沒有固定 replay corpus、unsupported-claim rate、invented-quote rate 或 prompt-injection regression baseline，因此目前不能量化 XML 的 hallucination benefit。</gap>
+      <gap>F-64/F-34 的文件描述與 current source 只有部分吻合；文件需要在 implementation slice 完成後再依實際 evidence 更新。</gap>
+    </gaps>
+
+    <weak_reasoning>
+      <item>「加 XML tag 就能防止 hallucination」是過度推論；XML 可能改善 instruction/data 分層與模型注意力，但不會驗證 evidence、執行 allowlist 或阻止 model 產生錯誤內容。</item>
+      <item>「focused tests passed」只能證明被執行的既有 behavior tests 沒有退化，不能證明 prompt payload 已 XML 化，也不能證明所有 runtime flow 都被覆蓋。</item>
+      <item>「文件已寫 XML contract」不能推論 runtime 已載入 XML；目前 source 中仍有 plain-text prompt。</item>
+    </weak_reasoning>
+
+    <unsupported_assumptions>
+      <item>未假設所有 raw input 都能或都應該改成 refs-only；是否允許 raw answer/CV/JD 送 provider 需要依 privacy、source lineage 與 product need 決定。</item>
+      <item>未假設需要一個過寬的 universal XML schema；evaluator、parser、critic、selector、naturalizer、writer 的 authority 不同。</item>
+      <item>未假設可改變既有 invalid-output fallback、L1 default、manual review 或 voice degradation semantics。</item>
+      <item>未假設 voice hot path 可承受額外 parse/serialization/round-trip 成本。</item>
+    </unsupported_assumptions>
+
+    <assumption_alignment>
+      <user_aligned>使用者明確要求「全改」且先 research/plan；因此本計畫以所有 runtime-reachable backend prompt 為主範圍，並保留 inactive/legacy audit。</user_aligned>
+      <evidence_validated>18 個 active/conditional flow、1 個 unreferenced flow、1 個 backup、transport role mapping、現有 XML-like files、主要 fallback/grounding/controller boundaries 皆有 source-level evidence。</evidence_validated>
+      <requires_owner_confirmation>strict XML 定義、canonical source 形式、raw input/provenance policy、fallback semantics 及 hallucination success metrics 尚未由 repository 或使用者明確定義。</requires_owner_confirmation>
+    </assumption_alignment>
+
+    <missing_requirements>
+      <requirement>「XML prompt」是指可被 XML parser 驗證的 single-root envelope，還是只要具 XML-like tags 的一般字串。</requirement>
+      <requirement>每種 flow 的最低 provenance 欄位：source type、source id、chunk/version/hash、trust/review status 的最低要求。</requirement>
+      <requirement>invalid JSON、unknown field、unsupported evidence、timeout 的 user-visible 與 developer-visible fallback semantics。</requirement>
+      <requirement>hallucination baseline/evaluation corpus 與可接受的 regression threshold。</requirement>
+      <requirement>voice hot path 對 prompt serialization 的 latency budget 與是否允許額外 validation。</requirement>
+    </missing_requirements>
+
+    <ambiguities>
+      <ambiguity id="scope">「全改」是否包含目前未被 call graph 使用的 interviewPlanService，以及 .bak 檔。</ambiguity>
+      <ambiguity id="xml-strictness">XML 是否必須 well-formed、escaped、single-root；目前兩個既有例子只是 XML-like fragments。</ambiguity>
+      <ambiguity id="source">XML 是否為 checked-in canonical template，或由 JS domain builder 加 serializer 在 runtime 產生。</ambiguity>
+      <ambiguity id="fallback">prompt migration 是否同時擴大到完整 output schema hardening，或先保留各 flow fallback，另外建立 schema-hardening slices。</ambiguity>
+      <ambiguity id="data-egress">raw candidate data 是否可繼續送到 provider，或改成 validated snippets/refs-only。</ambiguity>
+      <ambiguity id="measurement">成功標準是否只要求 contract/test coverage，還要有固定 replay set 的 hallucination metric。</ambiguity>
+    </ambiguities>
+
+    <contradictions>
+      <contradiction>F-64 的 Partial/Onboarding Mapping 與文件中宣稱 prompt library/test path 的描述不完全符合 current source inventory。</contradiction>
+      <contradiction>F-34 對 universal evaluator 的 XML 描述不能推論 impact-first evaluator 也已 XML 化；後者目前仍是 plain-text system/user construction。</contradiction>
+      <contradiction>現有 XML-like tags 與 dynamic raw interpolation 同時存在；因此 tag presence 不能被當成 data isolation 或 escaping proof。</contradiction>
+    </contradictions>
+
+    <questions_that_require_human_answers>
+      <question id="Q1" recommended_answer="active-runtime-plus-audit">是否同意 migration 以 18 個 active/conditional flow 為完成定義，unreferenced 與 .bak 只做 disposition audit，除非證明重新接回 runtime。</question>
+      <question id="Q2" recommended_answer="well-formed-single-root">是否同意 system 與 user message 各自使用可 parse 的 single-root XML envelope；model output 仍維持既有 JSON contract，不改成 XML output。</question>
+      <question id="Q3" recommended_answer="js-builder-plus-serializer">是否同意由 domain-local JS prompt builder 組成 static control，再由共用 serializer escape dynamic data；不把一份過寬 XML template 當成所有 flow 的 canonical schema。</question>
+      <question id="Q4" recommended_answer="preserve-fallback-first">是否同意第一輪只改 prompt boundary、escaping、capture tests，保留每個 domain 既有 fallback；完整欄位 schema hardening 只在 evidence 顯示必要時另拆 phase。</question>
+      <question id="Q5" recommended_answer="replay-metrics-before-claim">是否同意先建立固定 adversarial/replay corpus，再以 unsupported claim、invented quote、invalid output、action boundary violation 與 voice p95 latency 作為效益評估，而不是預先承諾百分比改善。</question>
+    </questions_that_require_human_answers>
+  </research_gate>
+
+  <contract_design>
+    <design_principle>XML 是 prompt envelope 與責任邊界的表示層，不是安全執行邊界；runtime validator、controller、retrieval、grounding、fallback 與 persistence gate 仍是 authoritative。</design_principle>
+    <message_contract>
+      <system_message>
+        <root>prompt_contract</root>
+        <required_sections>authority, role, task, allowed_scope, forbidden_actions, output_contract, failure_policy</required_sections>
+        <dynamic_data_policy>不得把 candidate answer、CV、JD、transcript、website text、report 或 retrieval snippet 直接插入 system control section。</dynamic_data_policy>
+      </system_message>
+      <user_message>
+        <root>input_bundle</root>
+        <required_sections>request_context, input_data, evidence_refs, optional_prior_output</required_sections>
+        <dynamic_data_policy>所有 untrusted data 只能位於明確 data element；內容必須經 serializer escaping，不能因資料本身包含 instruction-like tags 而產生 control node。</dynamic_data_policy>
+      </user_message>
+    </message_contract>
+    <role_specific_contracts>
+      <contract role="evaluator">只在 allowlisted dimensions/BARS 上評估；不可創造 criteria、score owner、publication status 或 evidence。</contract>
+      <contract role="parser">從 raw document 建立 bounded structured output；不可把 document text 當成 parser instruction。</contract>
+      <contract role="critic">只能指出既定 output contract 的問題；不可移除 deterministic safeguard 或把 prior model output 當成 ground truth。</contract>
+      <contract role="selector">只能從 controller-provided candidate actions 選擇；不可創造 action 或 execution input policy。</contract>
+      <contract role="naturalizer">只把 controller-selected question/intent 轉成 spoken wording；不可選題、改 question count 或洩漏 internal rubric。</contract>
+      <contract role="writer">只能產生允許的 coaching/rewrite wording；不可覆寫 deterministic score、evidence、QA flags 或 publication gate。</contract>
+    </role_specific_contracts>
+    <output_policy>XML input 不取代 JSON output contract。每個 caller 必須繼續使用既有 parser/normalizer/fallback；若 phase 要增加欄位級 validation，必須以獨立 acceptance criterion 與 regression test 證明。</output_policy>
+  </contract_design>
+
+  <phase_overview>
+    <phase id="P0" name="contract-and-baseline" status="research-complete">本輪完成；確認 inventory、ownership、gaps、questions 與 evidence matrix。</phase>
+    <phase id="P1" name="serializer-and-transport-contract">建立最小共用 escaping/element builder 與 payload capture tests，不改 provider API。</phase>
+    <phase id="P2A" name="jd-parsing-and-safeguards">migration jobDescriptionAi、jdUniversalParser、jdParseCritic、jdParseReparse。</phase>
+    <phase id="P2B" name="match-evidence-and-critic">migration evidenceJudge 與 matchCritic，保留 heuristic bypass 與 manual review。</phase>
+    <phase id="P3" name="interview-preparation">migration question reserve 與 micro-planning；unreferenced interviewPlan 只做 audit。</phase>
+    <phase id="P4" name="interview-control">migration fast answer understanding 與 model action selector，保留 candidate action allowlist。</phase>
+    <phase id="P5" name="voice-control-and-ack">migration voice agent decision 與 acknowledgement；以 voice product contract 和 p95 latency gate 為硬條件。</phase>
+    <phase id="P6" name="company-context">migration company motivation fit 與 company values extraction；外部 website/company content 一律 data-only。</phase>
+    <phase id="P7" name="report-evaluation">migration impact-first 與 universal evaluator，保持 scoring owner、BARS 與 fallback。</phase>
+    <phase id="P8" name="report-coaching-and-qa-rewrite">migration candidate feedback 與 report QA rewrite，保持 grounding、QA flags 與 deterministic fields。</phase>
+    <phase id="P9" name="coverage-closeout">再次從 call graph、wrapper、feature flags、tests 與 diff 驗證 active coverage；確認 legacy disposition。</phase>
+  </phase_overview>
+
+  <acceptance_criteria>
+    <criterion id="AC-01">Inventory gate：每一個 active/conditional caller 都有 flow、role、system input、user input、dynamic data、output contract、fallback、test 與 disposition；unreferenced/backup 不得被誤列為完成。</criterion>
+    <criterion id="AC-02">Message gate：所有 migrated calls 保持 system/user roles；system 與 user 各自有 single-root XML envelope、flow id 與 contract version；不得以 user message 假裝 system policy。</criterion>
+    <criterion id="AC-03">Data gate：dynamic data 經 escaping 且位於 data nodes；輸入中的 &lt;instructions&gt;、&lt;system&gt;、ignore-previous 類文字不會產生新的 control node。</criterion>
+    <criterion id="AC-04">Role gate：evaluator、parser、critic、selector、naturalizer、writer 使用各自最小 authority contract；不得建立過寬、可互相替代的 universal role。</criterion>
+    <criterion id="AC-05">Behavior gate：既有 JSON output、normalizer、fallback、claim grounding、allowlisted actions、question count、voice confirmation、report QA 與 persistence boundary 不退化。</criterion>
+    <criterion id="AC-06">Evidence gate：不能因 XML tag 宣稱 evidence grounded；任何 source ref、snippet、quote、claim 仍由既有 evidence/grounding logic 或新增的明確 validator 支持。</criterion>
+    <criterion id="AC-07">Adversarial test gate：每個 phase 至少有 control/data injection、XML special characters、malformed output、empty input 與既有 regression cases；測試須 capture prompt payload，而非只 mock model result。</criterion>
+    <criterion id="AC-08">Voice gate：repair、confirmation、clarification、system message、barge-in acknowledgement 不算正式 interview question；user speech end 到 next question first audio 的產品目標仍是 &lt;= 3 秒。</criterion>
+    <criterion id="AC-09">Measurement gate：先以 fixed replay/adversarial corpus 建 baseline，再報 unsupported claim rate、invented quote rate、invalid output rate、action violation rate、prompt contract pass rate 與 voice latency；不預先承諾改善幅度。</criterion>
+    <criterion id="AC-10">Documentation gate：每個 stable runtime behavior slice 只更新一個 owning Feature RFC 與一筆 scoped change-log；不因 internal tag migration 改寫 README/walkthrough，除非 user-visible behavior 變更。</criterion>
+    <criterion id="AC-11">Execution gate：本輪不改 product code；後續每一個 phase 需要在開始前確認 unresolved owner questions，超出 task budget 即停止並拆分。</criterion>
+  </acceptance_criteria>
+
+  <phase_sequence>
+    <work_package id="P1" owner="LLM prompt boundary" status="planned">
+      <goal>建立最小共用 XML serializer/element builder 與 transport payload contract tests，讓後續 caller migration 不各自重新處理 escaping。</goal>
+      <affected_components>
+        <production_file path="backend/src/services/llm/promptXml.js" action="add">只負責 safe text escaping、element construction、single-root envelope；不負責 domain policy、retrieval 或 output validation。</production_file>
+        <test_file path="backend/tests/robustness/llm/promptXml.test.js" action="add">escaping、well-formedness、empty/Unicode、node-looking data cases。</test_file>
+        <test_file path="backend/tests/robustness/llm/promptTransportContract.test.js" action="add">capture callDeepSeek request body，驗證 system/user roles 與 content separation。</test_file>
+      </affected_components>
+      <data_flow><![CDATA[domain builder static control -> promptXml serializer -> system/user strings -> existing callDeepSeek/callDeepSeekJson -> existing parser/fallback]]></data_flow>
+      <pseudocode><![CDATA[buildSystemEnvelope(contract) -> static XML root
+buildInputEnvelope(data) -> escape every text value -> XML root
+assertTransport(messages) -> role[0]=system and role[1]=user
+do not parse or execute model-provided XML as runtime instructions]]></pseudocode>
+      <edge_cases>ampersand、angle brackets、quotes、apostrophes、newline、Unicode、empty string、very long text、input containing closing tags。</edge_cases>
+      <tests>只使用 mocked fetch/model；不呼叫 live provider。驗證既有 DeepSeek request shape，不改 provider API。</tests>
+      <completion_criteria>serializer test pass；transport capture test pass；no caller migrated in this package；no system message contains caller-owned untrusted data。</completion_criteria>
+      <budget production_files="1" test_files="2" max_incremental_lines="250" cycles="3" />
+    </work_package>
+
+    <work_package id="P2A" owner="JD parsing and safeguards" status="completed">
+      <goal>把 JD skill enhancement、universal parser、critic、reparse 的 control/data boundary XML 化，保留 parser normalization、heuristic fallback、critic gate 與 reparse routing。</goal>
+      <affected_components>
+        <file path="backend/src/services/jobDescription/jobDescriptionAiService.js" />
+        <file path="backend/src/services/jobDescription/jdUniversalParserService.js" />
+        <file path="backend/src/services/jobDescription/jdParseCriticAgent.js" />
+        <file path="backend/src/services/jobDescription/jdParseReparseAgent.js" />
+        <test path="backend/tests/robustness/jd/jdPromptContract.test.js" />
+        <test path="backend/tests/robustness/jd/jdAiSkillEnhancementBudget.test.js" />
+        <test path="backend/tests/robustness/jd/jdSafeguardAiBudget.test.js" />
+      </affected_components>
+      <data_flow><![CDATA[existing JD heuristic/fallback -> parser-specific XML contract
+raw JD / parsed JD / critic feedback as escaped input_data
+-> existing callDeepSeekJson -> existing normalize/merge/gate -> existing role profile]]></data_flow>
+      <pseudocode><![CDATA[system = parserContract(role, schema, forbidden_actions)
+user = inputBundle(rawJd, parsedJd?, criticFeedback?, sourceRefs?)
+result = existing callDeepSeekJson({ prompt: user, systemInstruction: system, fallback })
+return existing normalize and safeguard result]]></pseudocode>
+      <edge_cases>JD contains XML/HTML headings、ignore-previous text、fake system tags、empty/short JD、critic output already polluted、reparse requested with missing fields。</edge_cases>
+      <tests>capture prompts；assert raw JD is data-only；assert parser rules remain system-owned；run existing JD safeguard regressions；do not broaden field schema without separate criterion。</tests>
+      <completion_criteria>all four active callers have XML envelopes；existing fallback/gate tests pass；malicious JD cannot add parser control nodes；no unverified source refs are fabricated。</completion_criteria>
+      <budget production_files="5" test_files="3" max_incremental_lines="350" cycles="3" />
+      <completion_evidence>四個 JD LLM flow 使用六元素 XML system contract 與 escaped untrusted input nodes；initial pilot 的 4 files/10 tests 保留為 historical count；目前 confirmed local evidence 為 8 focused files/46 tests、full JD robustness 16 files/105 tests、backend lint 與 git diff --check 通過；bounded reparse gate 與 reparse provider metadata propagation 已 local verified。post-fix bounded live serial A/B 以 repeatCount=3、每輪 legacy 先於 XML、36 fixture cases/6 variant-runs（3 legacy + 3 XML）、failedCaseCount=0 完成；aggregate XML 為 -0.2 percentage points、critical delta 為 0，round-to-round 不穩定，未證明品質或 hallucination 改善；XML timeout/fallback telemetry 較高是觀察到的風險，不作因果結論。結果見 backend/eval/reports/jd-prompt-ab-serial-2026-08-15.json，raw prompt/response 未寫入。</completion_evidence>
+      <post_fix_live_evidence report="backend/eval/reports/jd-prompt-ab-serial-2026-08-15.json">legacyAverage=0.977；xmlAverage=0.975；delta=-0.002（-0.2 percentage points）；legacyCriticalAverage=1、xmlCriticalAverage=1、critical delta=0；round deltas=+0.5pp,-1.5pp,+0.5pp。Safeguard reparse cases legacy=2,2,2、XML=3,2,3；provider timeout attempts legacy=4,4,6、XML=19,14,16；provider fallback/timeout reviews legacy=1 per round、XML=6,4,5。Report 為 sanitized aggregate，rawSensitiveKeyPaths=[]。</post_fix_live_evidence>
+    </work_package>
+
+    <work_package id="P2B" owner="CV-JD match evidence" status="planned">
+      <goal>把 evidence judge 與 match critic XML 化，維持 ambiguous-only LLM routing、heuristic bypass、manual review 與 match safeguard ownership。</goal>
+      <affected_components>
+        <file path="backend/src/services/match/evidenceJudgeService.js" />
+        <file path="backend/src/services/match/matchCriticAgent.js" />
+        <test path="backend/tests/robustness/match/matchPromptContractRobustness.test.js" />
+        <test path="backend/tests/robustness/match/guardedMatchHumanReviewRobustness.test.js" />
+      </affected_components>
+      <data_flow><![CDATA[existing similarity thresholds and fallback judgement
+-> XML input bundle for only ambiguous items
+-> existing callDeepSeekJson
+-> existing normalizeAiJudgements / safeguard review / manual review]]></data_flow>
+      <pseudocode><![CDATA[keep local bypass before model call
+system = evidenceJudgeOrMatchCriticContract(allowed_fields, forbidden_actions)
+user = inputBundle(requirement, cvEvidence, jdRubric, priorMatchResult)
+modelResult = existing JSON wrapper
+apply existing normalize, allowlist, manual-review routing]]></pseudocode>
+      <edge_cases>CV evidence contains &lt;bars&gt; or instruction-like text、prior match result contains unsupported strength、no ambiguous items、high/low similarity bypass、manual review required。</edge_cases>
+      <tests>assert data-only CV/JD/evidence nodes；attempt criteria/action override；confirm deterministic bypass and manual review unchanged。</tests>
+      <completion_criteria>no new LLM call is introduced for deterministic cases；critic cannot remove safeguard; evidence reason remains bounded by existing output contract。</completion_criteria>
+      <budget production_files="2" test_files="2" max_incremental_lines="280" cycles="3" />
+    </work_package>
+
+    <work_package id="P3" owner="Interview preparation" status="planned">
+      <goal>把 reserve question generation 與 micro-planning XML 化；維持 allowlisted goals、one-question rule、mode guard 與 candidate-safe fallback。</goal>
+      <affected_components>
+        <file path="backend/src/services/questions/questionPoolPreparationService.js" />
+        <file path="backend/src/services/questions/interviewMicroPlanningService.js" />
+        <test path="backend/tests/robustness/questions/promptContractRobustness.test.js" />
+        <test path="backend/tests/robustness/questions/interviewMicroPlanningService.test.js" />
+      </affected_components>
+      <data_flow><![CDATA[controller-selected unmet goals / planning frame
+-> role-specific question XML contract + escaped knowledge/memory data
+-> existing injected callModel / JSON parser
+-> existing goal/category/one-question validation and fallback]]></data_flow>
+      <pseudocode><![CDATA[system = questionNaturalizerOrReserveContract(...)
+user = inputBundle(unmetGoals or planningFrame, all marked data)
+model = existing injected adapter
+return existing bounded validation and fallback]]></pseudocode>
+      <edge_cases>goal topic contains instruction text、planning frame contains transcript injection、multiple questions returned、technical/behavioural mode mismatch、empty planning frame。</edge_cases>
+      <tests>capture injected callModel prompt；assert system-owned guardrails are not dynamic data；preserve one-question and allowlisted-goal tests。</tests>
+      <completion_criteria>no new goal/action/state is model-created；question selection remains controller-owned；interviewPlanService remains audit-only unless call graph evidence changes。</completion_criteria>
+      <budget production_files="2" test_files="2" max_incremental_lines="300" cycles="3" />
+    </work_package>
+
+    <work_package id="P4" owner="Interview control" status="planned">
+      <goal>把 semantic answer understanding 與 model action selector XML 化，維持 local understanding、candidate action allowlist、fallback plan 與 controller authority。</goal>
+      <affected_components>
+        <file path="backend/src/services/aiControl/fastAnswerUnderstandingService.js" />
+        <file path="backend/src/services/aiControl/modelActionSelectorService.js" />
+        <test path="backend/tests/robustness/agent/interviewPromptContractRobustness.test.js" />
+        <test path="backend/tests/robustness/agent/fastAnswerUnderstandingRobustness.test.js" />
+        <test path="backend/tests/robustness/agent/interviewControllerActionCompleteness.test.js" />
+      </affected_components>
+      <data_flow><![CDATA[deterministic local understanding / actionPlanner candidate set
+-> selector-specific XML system contract
+-> answer, evaluator signals, candidateActions as escaped user data
+-> existing model parse/normalize/allowlist
+-> existing interviewActionExecutor/controller]]></data_flow>
+      <pseudocode><![CDATA[if deterministic bypass applies: do not call model
+system = boundedUnderstandingOrSelectorContract
+user = inputBundle(answer, signals, candidateActions, fallbackPlan)
+selection = existing callDeepSeek and normalize
+reject action not in candidateActions; preserve fallback]]></pseudocode>
+      <edge_cases>answer asks to execute arbitrary action、nested selectedActionInput has unexpected keys、candidateActions empty/one、provider timeout、model rationale contains hidden prompt。</edge_cases>
+      <tests>answer injection cannot create action；selected action remains allowlisted；malformed JSON and provider failure preserve fallback；capture roles and XML roots。</tests>
+      <completion_criteria>model remains bounded semantic/selection helper only；no action execution or state mutation moves into XML/model。</completion_criteria>
+      <budget production_files="2" test_files="3" max_incremental_lines="350" cycles="3" />
+    </work_package>
+
+    <work_package id="P5" owner="Voice control and acknowledgement" status="planned">
+      <goal>把 voice decision 與 micro-acknowledgement XML 化，維持 confirmation/repair/question-count state machine、spoken safety 與 three-second target。</goal>
+      <affected_components>
+        <file path="backend/src/services/aiControl/voiceAgentDecisionService.js" />
+        <file path="backend/src/services/voice/voiceAcknowledgementService.js" />
+        <test path="backend/tests/robustness/voice/voicePromptContractRobustness.test.js" />
+        <test path="backend/tests/robustness/voice/confirmationGateAndPrompts.test.js" />
+        <test path="backend/tests/robustness/voice/duplexStateMachineChaos.test.js" />
+      </affected_components>
+      <data_flow><![CDATA[voice controller / confirmation state / candidate action set
+-> bounded voice XML contract
+-> transcript and decision context as escaped data
+-> existing callDeepSeek/timeout/allowlist/TTS safety gates
+-> existing duplex coordinator and state machine]]></data_flow>
+      <pseudocode><![CDATA[measure baseline user_speech_end_to_first_audio
+system = voiceDecisionOrAcknowledgementContract
+user = inputBundle(transcript, confidence, allowedActions, context)
+model = existing provider call with existing timeout
+apply existing confirmation, question-count, spoken-output filters
+fail closed to existing fallback if latency or contract gate fails]]></pseudocode>
+      <edge_cases>transcript contains &lt;system&gt;/&lt;tool&gt;、low-confidence contentful answer、barge-in、repair/confirmation response、empty acknowledgement、provider timeout、latency regression。</edge_cases>
+      <tests>prompt capture and escaping；no internal rubric in spoken output；repair/confirmation not counted as question；existing chaos/confirmation tests；mocked latency budget assertion。</tests>
+      <completion_criteria>voice product behavior document remains satisfied；no new question count；no regression in p95 latency target; live speech/provider remains NOT RUN unless separately approved。</completion_criteria>
+      <budget production_files="2" test_files="3" max_incremental_lines="350" cycles="3" />
+    </work_package>
+
+    <work_package id="P6" owner="Company context" status="planned">
+      <goal>把 company motivation fit 與 company values extraction XML 化，將 candidate transcript、company profile、website text 視為 untrusted data。</goal>
+      <affected_components>
+        <file path="backend/src/services/company/companyMotivationFitService.js" />
+        <file path="backend/src/services/company/companyValuesExtractorService.js" />
+        <test path="backend/tests/robustness/company/companyPromptContractRobustness.test.js" />
+        <test path="backend/tests/robustness/company/companyGroundingRobustness.test.js" />
+      </affected_components>
+      <data_flow><![CDATA[existing company source fetch/heuristic fallback
+-> motivation/values role-specific XML contract
+-> transcript/profile/page text as escaped input data
+-> existing parse/normalize/heuristic fallback -> report/company enrichment]]></data_flow>
+      <pseudocode><![CDATA[system = groundedCompanyContract(output_fields, source_policy)
+user = inputBundle(companyProfile, motivationAnswer, pageUrl, pageText, sourceRefs)
+result = existing provider call
+return existing normalize/fallback; do not invent sourceUrl or quote provenance]]></pseudocode>
+      <edge_cases>website page contains prompt injection、source text under minimum length、fake source URL、transcript asks for fabricated quote、AI disabled、empty company profile。</edge_cases>
+      <tests>source text cannot become instruction；candidateQuote/sourceUrl remain bounded；heuristic fallback and disabled flags unchanged。</tests>
+      <completion_criteria>external text is data-only；no new claim is treated as verified without existing source/grounding evidence。</completion_criteria>
+      <budget production_files="2" test_files="2" max_incremental_lines="280" cycles="3" />
+    </work_package>
+
+    <work_package id="P7" owner="Report evaluation" status="planned">
+      <goal>讓 impact-first 與 universal evaluator 使用一致的 prompt boundary discipline，但不改 scoring owner、BARS semantics 或 existing fallback。</goal>
+      <affected_components>
+        <file path="backend/src/services/report/impactFirstAnalysisService.js" />
+        <file path="backend/src/services/report/universalLlmEvaluationService.js" />
+        <test path="backend/tests/robustness/report/reportPromptContractRobustness.test.js" />
+        <test path="backend/tests/robustness/report/universalLlmEvaluationService.test.js" />
+        <test path="backend/tests/robustness/report/impactFirstAnalysisService.test.js" />
+      </affected_components>
+      <data_flow><![CDATA[existing turnRubricService selects evaluator
+-> evaluator-only XML system contract with fixed BARS/dimensions
+-> question/answer/role/evidence as escaped user data
+-> existing JSON parse, normalization, default/fallback, deterministic score projection]]></data_flow>
+      <pseudocode><![CDATA[system = evaluatorContract(allowedDimensions, barsVersion, unknownPolicy)
+user = inputBundle(question, answer, roleTitle, evidenceRefs)
+raw = existing callDeepSeek
+parsed = existing parse/normalize/fallback
+grounding and score ownership remain outside model prompt]]></pseudocode>
+      <edge_cases>answer contains closing tags/score demands、empty answer、unknown dimension、malformed JSON、unsupported evidence、role title injection。</edge_cases>
+      <tests>prompt parity between impact-first and universal flows；dynamic escaping；candidate cannot change dimension set or score owner；existing level clamp/default tests pass。</tests>
+      <completion_criteria>both evaluator flows have explicit system/user XML envelopes；no claim that XML itself validates evidence；existing report score contract unchanged。</completion_criteria>
+      <budget production_files="2" test_files="3" max_incremental_lines="350" cycles="3" />
+    </work_package>
+
+    <work_package id="P8" owner="Report coaching and QA rewrite" status="planned">
+      <goal>把 candidate feedback 與 report QA rewrite XML 化，限制 model 只能在允許的 wording/output 欄位工作，保留 grounding、QA flags 與 deterministic fields。</goal>
+      <affected_components>
+        <file path="backend/src/services/report/reportCoachingService.js" />
+        <file path="backend/src/services/report/reportRewriteService.js" />
+        <test path="backend/tests/robustness/report/reportPromptContractRobustness.test.js" />
+        <test path="backend/tests/robustness/report/promptInjectionReportRobustness.test.js" />
+        <test path="backend/tests/robustness/report/reportGroundingRobustness.test.js" />
+      </affected_components>
+      <data_flow><![CDATA[existing deterministic analysis/QA/retrieval bundle
+-> writer-specific XML contract
+-> transcript, report, QA result, retrieval evidence, user rewrite request as data
+-> existing parse/merge/sanitize/validate -> report QA gate]]></data_flow>
+      <pseudocode><![CDATA[system = writerContract(immutableFields, allowedRewriteFields, evidencePolicy)
+user = inputBundle(report, qaResult, retrievalEvidence, transcript, rewriteRequest)
+candidate = existing provider call
+return existing merge/sanitize/validate; immutable fields remain controller-owned]]></pseudocode>
+      <edge_cases>rewrite request asks to remove QA warning or change score、report contains malicious text、retrieval evidence unsupported、feedback invents quote/skill、invalid JSON、empty instruction。</edge_cases>
+      <tests>capture prompt; injection cannot modify immutable report fields; unsupported quote/claim is downgraded; existing report QA repair behavior remains.</tests>
+      <completion_criteria>rewrite is wording-only within allowed fields；report publication/QA status and deterministic score/evidence cannot be overwritten by model output。</completion_criteria>
+      <budget production_files="2" test_files="3" max_incremental_lines="350" cycles="3" />
+    </work_package>
+
+    <work_package id="P9" owner="Coverage closeout" status="planned">
+      <goal>完成 final source/call graph/prompt capture coverage audit，證明沒有漏掉 active caller，並明確記錄 inactive/legacy disposition。</goal>
+      <affected_components>
+        <audit path="backend/src">rg inventory for callDeepSeek, callDeepSeekJson, injected callModel, prompt builders, feature flags, and imports。</audit>
+        <audit path="backend/src/services/interviewPlanService.js">確認 unreferenced status；若 caller 已出現，建立獨立 migration slice。</audit>
+        <audit path="backend/src/services/voice/voiceAcknowledgementService.js.bak_llm_only">確認不在 runtime import graph；不修改 backup。</audit>
+        <test path="backend/tests/robustness/llm/promptCoverageAudit.test.js" />
+      </affected_components>
+      <data_flow><![CDATA[static inventory + captured prompt contract assertions + git diff
+-> active coverage matrix
+-> focused regressions and lint
+-> independent clean-context audit
+-> final status: complete, deferred, or blocked]]></data_flow>
+      <pseudocode><![CDATA[discover all call sites and injected adapters
+compare against migration manifest
+fail if active call lacks XML capture test or disposition
+report live provider/eval/browser evidence as NOT RUN when not approved]]></pseudocode>
+      <edge_cases>new indirect wrapper、feature flag path、test-only caller、stream caller becomes active、backup manually imported、generated prompt outside expected directories。</edge_cases>
+      <tests>static inventory gate；all focused phase suites；backend lint；full mock suite only when task contract approves；real AI remains separate。</tests>
+      <completion_criteria>coverage manifest matches source evidence；all active rows PASS or explicitly blocked/deferred；no claim of all migrated while any active row is unverified。</completion_criteria>
+      <budget production_files="0" test_files="1" max_incremental_lines="180" cycles="3" />
+    </work_package>
+  </phase_sequence>
+
+  <evidence_matrix>
+    <row criterion="active caller inventory" current_status="partial" evidence_required="source call graph plus reviewed indirect wrappers plus final coverage test" owner="P9" />
+    <row criterion="system/user role preservation" current_status="static-confirmed-not-test-verified" evidence_required="captured request body assertion" owner="P1" />
+    <row criterion="single-root XML shape" current_status="not-verified" evidence_required="serializer test plus parser/structural assertion per migrated flow" owner="P1-P8" />
+    <row criterion="dynamic escaping" current_status="not-verified" evidence_required="table-driven special-character and closing-tag injection tests" owner="P1-P8" />
+    <row criterion="untrusted data remains data" current_status="partial" evidence_required="node-looking input cannot alter control/output contract" owner="P2A-P8" />
+    <row criterion="output schema/fallback unchanged" current_status="partial" evidence_required="existing regression plus malformed output tests per flow" owner="P2A-P8" />
+    <row criterion="deterministic ownership preserved" current_status="partial" evidence_required="action/score/status/QA mutation attempts remain rejected or fallback" owner="P2B-P8" />
+    <row criterion="grounding/no invented evidence" current_status="partial" evidence_required="claim grounding, quote verification or explicit needs-review status" owner="P6-P8" />
+    <row criterion="voice latency and state" current_status="existing-contract-not-migration-verified" evidence_required="mocked prompt capture plus latency/state regression" owner="P5" />
+    <row criterion="real hallucination benefit" current_status="unknown" evidence_required="approved fixed replay/adversarial corpus and before/after metrics" owner="P9" />
+  </evidence_matrix>
+
+  <three_pass_audit>
+    <pass number="1" name="source-and-contract">每個 phase 先檢查 diff、call graph、system/user/data ownership、XML roots、dynamic interpolation 與 fallback path；不通過就不進 tests。</pass>
+    <pass number="2" name="focused-runtime-tests">執行該 phase 的 mocked prompt capture、escaping、adversarial、malformed output、existing regression 與 package lint；real provider 不列入 routine gate。</pass>
+    <pass number="3" name="independent-final-audit">由 clean-context auditor 依 migration manifest 重新檢查 active coverage、deterministic ownership、security/privacy/scoring/persistence boundary、voice SLO 與 documentation claims；只有 final evidence matrix 通過才可標記 complete。</pass>
+    <stop_rules>
+      <rule>超過 5 production files、3 test files、400 incremental lines，或預計超過 10 files/500 lines：停止並拆新 work package。</rule>
+      <rule>任何 XML migration 改變 action/state/score/question-count/publication/fallback semantics：停止，建立額外 behavior contract，不在 prompt migration 中順手處理。</rule>
+      <rule>voice latency 或 question-count regression：停止並回復該 phase 的 implementation decision，直到 product contract gate 重新通過。</rule>
+      <rule>若沒有 evidence 證明某 caller active，不得把它標成 migrated；維持 audit/deferred 狀態。</rule>
+      <rule>未取得 real AI、network、browser、production 或 deployment approval 時，相關證據標記 NOT RUN，不得用 mock result 代替。</rule>
+    </stop_rules>
+  </three_pass_audit>
+
+  <documentation_plan>
+    <current_decision>scoped_runtime_evidence_update</current_decision>
+    <reason>本輪完成 P2A local implementation/evidence corrections、eval telemetry privacy hardening 與 bounded post-fix live serial A/B 記錄；F-64、scoped change-log 與相關 historical reports 已同步，整體 migration 仍為 partial，live 結果未證明品質或 hallucination 改善。</reason>
+    <future_runtime_change>當 P1-P8 任一 slice 進入 runtime，使用 F-64 作為 prompt architecture owning RFC，並新增一筆 scoped change-log；若 report scoring/evaluation semantics 真的改變，該 slice 改由 F-34 承擔，不同一小 slice 同時全面更新兩份 RFC。</future_runtime_change>
+    <reader_guides>README、one-real-run 與 user-facing module docs 只有在可觀察產品行為、測試入口或安全 gate 改變時更新；純 internal XML representation 不自動改寫。</reader_guides>
+  </documentation_plan>
+
+  <implementation_authorization>
+    <status>partial_local_implementation</status>
+    <required_before_next_code_phase>後續 phase 仍須依 task budget、owner approval 與 focused evidence 分批執行；不得把 P2A local verification 或 historical A/B 當成整體 migration 完成證據。</required_before_next_code_phase>
+    <next_execution_recommendation>下一步應進行更廣泛且受控的 evaluation，涵蓋固定 corpus、unsupported-claim/hallucination proxy、invalid output、fallback、timeout、token 與 latency 指標；本次 live 結果只作 post-fix bounded evidence，XML migration 仍為 partial，needs broader controlled evaluation。</next_execution_recommendation>
+  </implementation_authorization>
+</implementation_plan>

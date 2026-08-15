@@ -31,7 +31,7 @@ export const assertSafeguardProviderConfigured = () => {
 
 export const getMaxSafeguardReparseAttempts = () => {
   const configured = Number(process.env.AGENTIC_SAFEGUARD_MAX_REPARSE_ATTEMPTS || 1);
-  return Number.isFinite(configured) && configured >= 0 ? Math.min(configured, 2) : 1;
+  return Number.isFinite(configured) && configured >= 0 ? Math.min(configured, 1) : 1;
 };
 
 export const buildSkippedSafeguardResult = (reason) => ({
@@ -55,6 +55,38 @@ export const normalizeVerdict = (value = '') => {
 };
 
 export const ensureArray = (value) => (Array.isArray(value) ? value.filter(Boolean) : []);
+
+const isNonEmptyString = (value) => typeof value === 'string' && value.trim().length > 0;
+
+export const inspectSafeguardReviewContract = (review = {}) => {
+  const contractIssues = [];
+
+  if (!review || typeof review !== 'object' || Array.isArray(review)) {
+    return { valid: false, issues: ['review_not_object'] };
+  }
+
+  if (!Object.values(SAFEGUARD_VERDICTS).includes(review.verdict)) {
+    contractIssues.push('invalid_verdict');
+  }
+
+  if (!Array.isArray(review.issues)) {
+    contractIssues.push('issues_not_array');
+    return { valid: contractIssues.length === 0, issues: contractIssues };
+  }
+
+  review.issues.forEach((issue, index) => {
+    if (!issue || typeof issue !== 'object' || Array.isArray(issue)) {
+      contractIssues.push(`issue_${index}_not_object`);
+      return;
+    }
+    if (!isNonEmptyString(issue.field)) contractIssues.push(`issue_${index}_missing_field`);
+    if (!['low', 'medium', 'high'].includes(issue.severity)) contractIssues.push(`issue_${index}_invalid_severity`);
+    if (!isNonEmptyString(issue.problem)) contractIssues.push(`issue_${index}_missing_problem`);
+    if (!isNonEmptyString(issue.action)) contractIssues.push(`issue_${index}_missing_action`);
+  });
+
+  return { valid: contractIssues.length === 0, issues: contractIssues };
+};
 
 export const normalizeIssue = (issue = {}) => ({
   field: String(issue.field || 'unknown'),

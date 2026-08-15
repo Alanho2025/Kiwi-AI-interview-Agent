@@ -1,0 +1,78 @@
+{
+  "evaluation": "JD prompt legacy/XML A/B",
+  "date": "2026-08-15",
+  "historicalStatus": "pre_bounded_reparse_gate_fix",
+  "historicalAnnotation": "Final statuses and parse attempts in this report reflect pre-fix code before the bounded reparse gate and reparse provider metadata corrections; they are historical evidence and must not be read as current behavior.",
+  "provider": "DeepSeek",
+  "model": "deepseek-chat",
+  "generationConfig": {
+    "temperature": 0,
+    "top_p": 1
+  },
+  "cases": 6,
+  "pipeline": [
+    "guarded JD parse",
+    "JD parse safeguard",
+    "semantic universal role profile",
+    "scoreJdParseCase"
+  ],
+  "legacy": {
+    "source": "HEAD d04ca51",
+    "promptVariant": "plain-text legacy",
+    "average": 0.977,
+    "criticalAverage": 1,
+    "casesCompleted": 6,
+    "universalProviderFallbackCases": 0,
+    "safeguardReparseCases": 2,
+    "observedTerminalTimeoutEvents": 1,
+    "averageCaseDurationMs": 17457,
+    "results": [
+      { "id": "data_engineer_clean", "score": 0.95, "criticalScore": 1, "parseAttempts": 2, "finalStatus": "needs_review_after_reparse", "durationMs": 36260 },
+      { "id": "graduate_software_developer", "score": 1, "criticalScore": 1, "parseAttempts": 1, "finalStatus": "accepted_first_parse", "durationMs": 11679 },
+      { "id": "cloud_platform_engineer", "score": 1, "criticalScore": 1, "parseAttempts": 1, "finalStatus": "accepted_first_parse", "durationMs": 6628 },
+      { "id": "benefit_heavy_precision_guard", "score": 0.91, "criticalScore": 1, "parseAttempts": 1, "finalStatus": "accepted_first_parse", "durationMs": 7590 },
+      { "id": "leading_company_false_positive_guard", "score": 1, "criticalScore": 1, "parseAttempts": 1, "finalStatus": "accepted_first_parse", "durationMs": 7737 },
+      { "id": "heading_missing_paragraph", "score": 1, "criticalScore": 1, "parseAttempts": 2, "finalStatus": "accepted_after_reparse", "durationMs": 34850 }
+    ]
+  },
+  "xml": {
+    "source": "working tree based on HEAD d04ca51",
+    "promptVariant": "six-element XML with escaped untrusted input nodes",
+    "average": 0.982,
+    "criticalAverage": 1,
+    "casesCompleted": 6,
+    "universalProviderFallbackCases": 0,
+    "safeguardReparseCases": 5,
+    "observedTerminalTimeoutEvents": 3,
+    "averageCaseDurationMs": 28394,
+    "results": [
+      { "id": "data_engineer_clean", "score": 0.95, "criticalScore": 1, "parseAttempts": 2, "finalStatus": "needs_review_after_reparse", "durationMs": 40538 },
+      { "id": "graduate_software_developer", "score": 1, "criticalScore": 1, "parseAttempts": 2, "finalStatus": "needs_review_after_reparse", "durationMs": 22063 },
+      { "id": "cloud_platform_engineer", "score": 1, "criticalScore": 1, "parseAttempts": 2, "finalStatus": "needs_review_after_reparse", "durationMs": 19278 },
+      { "id": "benefit_heavy_precision_guard", "score": 0.94, "criticalScore": 1, "parseAttempts": 2, "finalStatus": "needs_review_after_reparse", "durationMs": 24747 },
+      { "id": "leading_company_false_positive_guard", "score": 1, "criticalScore": 1, "parseAttempts": 2, "finalStatus": "accepted_after_reparse", "durationMs": 36082 },
+      { "id": "heading_missing_paragraph", "score": 1, "criticalScore": 1, "parseAttempts": 1, "finalStatus": "accepted_first_parse", "durationMs": 27657 }
+    ]
+  },
+  "delta": {
+    "average": 0.005,
+    "averagePercentagePoints": 0.5,
+    "criticalAverage": 0,
+    "casesImproved": 1,
+    "casesUnchanged": 5,
+    "casesRegressed": 0,
+    "largestCaseImprovement": {
+      "id": "benefit_heavy_precision_guard",
+      "delta": 0.03,
+      "percentagePoints": 3
+    },
+    "averageCaseDurationMs": 10937,
+    "averageCaseDurationPercent": 62.7,
+    "safeguardReparseCases": 3
+  },
+  "limitations": [
+    "This is one sequential six-case run, not a statistically stable estimate.",
+    "The scorer measures JD field extraction, not hallucination rate directly.",
+    "Provider timeout events were handled by existing retry/fallback behavior and are reported separately."
+  ]
+}

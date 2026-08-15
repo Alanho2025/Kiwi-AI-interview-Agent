@@ -18,8 +18,14 @@ graph TD
     F -->|如果启用 OpenSource NLP| G[pythonNlpService.analyzeTextWithSpacy]
     F -->|如果未启用 Safeguards| H[直接输出 parsedRubric]
     E -->|如果启用 Safeguards| I[jdParseCriticAgent 运行 DeepSeek Critic 审查]
-    I -->|Gate 判定通过| J[validateJobDescriptionRubric 输出 Rubric]
-    I -->|Gate 判定不通过| K[jdParseReparseAgent 生成 overrides 并 reparse]
+    I -->|valid pass| J[validateJobDescriptionRubric 输出 Rubric]
+    I -->|complete high-severity revise、无 provider failure、attempt 1| K[jdParseReparseAgent 生成 overrides 并最多 reparse 一次]
+    I -->|invalid / incomplete review| R[needs_review]
+    I -->|provider timeout / fallback| S[needs_review_provider_failure]
+    I -->|valid revise、无 high issue| T[needs_review_insufficient_high_severity_evidence]
+    K --> U[第二次 parse / critic review（attempt 2）]
+    U -->|valid pass| V[accepted_after_reparse]
+    U -->|仍需阻擋、不得再次 reparse| W[needs_review_after_reparse]
     C --> L[companyWebsiteEvidenceService.fetchCompanyWebsiteEvidence 采集官网证据]
     L --> M[roleFitProfileBuilder.buildRoleFitProfile 构造 Role-Fit Profile]
     M -->|公司特征分类| N[companyUnderstandingDetailService.buildCompanyUnderstandingDetails]
@@ -37,7 +43,8 @@ graph TD
    - 委託給 [guardedJobDescriptionService.js](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/jobDescription/guardedJobDescriptionService.js)。
    - **快取檢查**：優先從記憶體快取 (`memoryCache`) 查找歷史解析結果。
    - **基礎解析**：調用 [jobDescriptionRubricBuilder.js](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/jobDescription/jobDescriptionRubricBuilder.js) 提取職位 overview、標題、工作地點、職職要求，並調用 [pythonNlpService.js](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/pythonNlpService.js) spaCy 提取名詞片語。同時，若未設定禁用，調用 [jobDescriptionAiService.js](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/jobDescription/jobDescriptionAiService.js) AI 服務提取關鍵技術技能。
-   - **Critic 安全防禦 (Safeguard Gate)**：若開啟 Safeguards，調用 **DeepSeek Critic Agent** 審查首輪解析是否安全完整。若未通過，調用 **DeepSeek Reparse Agent** 產出 override 指令並重新調用 Rubric Builder 進行修正 (Reparse)，確保輸出的職責與要求具備高置信度。
+   - **Critic 安全防禦與 bounded gate (Safeguard Gate)**：若開啟 Safeguards，調用 **DeepSeek Critic Agent** 審查首輪解析是否安全完整。只有 review contract 完整、`verdict=revise`、至少有一個完整 `severity=high` issue、且沒有 provider timeout/fallback 時，首輪 `attempt=1` 才會調用 **DeepSeek Reparse Agent** 產出 override 指令，並最多 reparse 一次。
+   - **Gate 結果**：invalid 或 incomplete review 進 `needs_review`（包含 `needs_review_missing_review` 與 `needs_review_invalid_review_contract`）；provider timeout/fallback 進 `needs_review_provider_failure`；valid revise 但沒有 high-severity issue 進 `needs_review_insufficient_high_severity_evidence`。第二次 review（`attempt=2`）不得再次 reparse；若仍需阻擋則進 `needs_review_after_reparse`，valid pass 則保留 `accepted_after_reparse`。Safeguards disabled 時沿用 `buildSkippedSafeguardResult`，不呼叫 gate。
 3. **第二階段：公司網站證據採集 (Website Evidence Fetching)**：
    - 調用 [companyWebsiteEvidenceService.js](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/src/services/jobDescription/companyWebsiteEvidenceService.js) 的 `fetchCompanyWebsiteEvidence`。
    - 對網址進行安全性與公網屬性校驗。探測 base URL 及同源 candidate 路徑（如 `/about`, `/careers`, `/about-us`）。
@@ -140,4 +147,3 @@ graph TD
    - 對於手動輸入背景中的 prompt 注入指令（如 `ignore all system instructions`），系統會通過正則 `UNTRUSTED_INSTRUCTION_PATTERN` 強制攔截並剔除，並記錄於 `securityFlags.untrustedInstructionDetected`。
 4. **衝突與低信心警告不會直接阻擋流程**：
    - 當 manual context 與官網 snippets 衝突，或意圖解碼缺少公司事實支撐時，系統只會寫入 `company_context_source_conflict` 或 `low_confidence_hiring_logic` 等診斷代碼到 `roleFitDiagnostics` 中，而**不會硬性阻擋**解析。這只會使狀態變為 `needs_review`，提示用戶需要在 Human Review 中做人工修正或確認。
-

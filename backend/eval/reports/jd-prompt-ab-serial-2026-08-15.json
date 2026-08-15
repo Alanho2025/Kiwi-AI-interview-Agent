@@ -1,0 +1,154 @@
+{
+  "evaluation": "JD prompt A/B bounded serial evaluation",
+  "repeatCount": 3,
+  "executionProtocol": {
+    "providerConcurrency": "serial",
+    "legacyMustExitBeforeXml": true,
+    "caseOrder": "sequential"
+  },
+  "rounds": [
+    {
+      "round": 1,
+      "order": [
+        "legacy",
+        "xml"
+      ],
+      "legacy": {
+        "label": "legacy-round-1",
+        "source": "legacy-head",
+        "casesRun": 6,
+        "casesCompleted": 6,
+        "average": 0.977,
+        "criticalAverage": 1,
+        "failedCaseCount": 0,
+        "safeguardReparseCases": 2,
+        "providerTimeoutAttempts": 4,
+        "providerFallbackReviews": 1,
+        "providerTimeoutReviews": 1
+      },
+      "xml": {
+        "label": "xml-round-1",
+        "source": "working-tree",
+        "casesRun": 6,
+        "casesCompleted": 6,
+        "average": 0.982,
+        "criticalAverage": 1,
+        "failedCaseCount": 0,
+        "safeguardReparseCases": 3,
+        "providerTimeoutAttempts": 19,
+        "providerFallbackReviews": 6,
+        "providerTimeoutReviews": 6
+      },
+      "delta": {
+        "average": {
+          "score": 0.005,
+          "percentagePoints": 0.5
+        },
+        "criticalAverage": {
+          "score": 0,
+          "percentagePoints": 0
+        }
+      }
+    },
+    {
+      "round": 2,
+      "order": [
+        "legacy",
+        "xml"
+      ],
+      "legacy": {
+        "label": "legacy-round-2",
+        "source": "legacy-head",
+        "casesRun": 6,
+        "casesCompleted": 6,
+        "average": 0.977,
+        "criticalAverage": 1,
+        "failedCaseCount": 0,
+        "safeguardReparseCases": 2,
+        "providerTimeoutAttempts": 4,
+        "providerFallbackReviews": 1,
+        "providerTimeoutReviews": 1
+      },
+      "xml": {
+        "label": "xml-round-2",
+        "source": "working-tree",
+        "casesRun": 6,
+        "casesCompleted": 6,
+        "average": 0.962,
+        "criticalAverage": 1,
+        "failedCaseCount": 0,
+        "safeguardReparseCases": 2,
+        "providerTimeoutAttempts": 14,
+        "providerFallbackReviews": 4,
+        "providerTimeoutReviews": 4
+      },
+      "delta": {
+        "average": {
+          "score": -0.015,
+          "percentagePoints": -1.5
+        },
+        "criticalAverage": {
+          "score": 0,
+          "percentagePoints": 0
+        }
+      }
+    },
+    {
+      "round": 3,
+      "order": [
+        "legacy",
+        "xml"
+      ],
+      "legacy": {
+        "label": "legacy-round-3",
+        "source": "legacy-head",
+        "casesRun": 6,
+        "casesCompleted": 6,
+        "average": 0.977,
+        "criticalAverage": 1,
+        "failedCaseCount": 0,
+        "safeguardReparseCases": 2,
+        "providerTimeoutAttempts": 6,
+        "providerFallbackReviews": 1,
+        "providerTimeoutReviews": 1
+      },
+      "xml": {
+        "label": "xml-round-3",
+        "source": "working-tree",
+        "casesRun": 6,
+        "casesCompleted": 6,
+        "average": 0.982,
+        "criticalAverage": 1,
+        "failedCaseCount": 0,
+        "safeguardReparseCases": 3,
+        "providerTimeoutAttempts": 16,
+        "providerFallbackReviews": 5,
+        "providerTimeoutReviews": 5
+      },
+      "delta": {
+        "average": {
+          "score": 0.005,
+          "percentagePoints": 0.5
+        },
+        "criticalAverage": {
+          "score": 0,
+          "percentagePoints": 0
+        }
+      }
+    }
+  ],
+  "legacyAverage": 0.977,
+  "xmlAverage": 0.975,
+  "legacyCriticalAverage": 1,
+  "xmlCriticalAverage": 1,
+  "delta": {
+    "average": {
+      "score": -0.002,
+      "percentagePoints": -0.2
+    },
+    "criticalAverage": {
+      "score": 0,
+      "percentagePoints": 0
+    }
+  }
+}

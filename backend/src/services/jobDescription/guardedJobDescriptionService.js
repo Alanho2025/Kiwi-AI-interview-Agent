@@ -23,6 +23,23 @@ const attachSafeguard = (rubric = {}, safeguard = {}) => validateJobDescriptionR
   },
 });
 
+const mergeProviderFailureFlag = (reviewValue, metadataValue) => Boolean(reviewValue || metadataValue);
+
+export const mergeJdReparseReviewProviderMetadata = (review = {}, sectionOverrides = {}) => {
+  const reviewData = review && typeof review === 'object' ? review : {};
+  const metadata = sectionOverrides?.metadata && typeof sectionOverrides.metadata === 'object'
+    ? sectionOverrides.metadata
+    : {};
+
+  return {
+    ...reviewData,
+    // Failure signals are monotonic: a successful second critic must not hide a failed reparse provider call.
+    providerFallbackUsed: mergeProviderFailureFlag(reviewData.providerFallbackUsed, metadata.providerFallbackUsed),
+    providerTimedOut: mergeProviderFailureFlag(reviewData.providerTimedOut, metadata.providerTimedOut),
+    providerError: reviewData.providerError || metadata.providerError || null,
+  };
+};
+
 export const buildGuardedStructuredJobDescriptionRubric = async (rawJD = '') => {
   const cacheKey = memoryCache.generateKey('jd-guarded-parse', rawJD);
   const cachedResult = memoryCache.get(cacheKey);
@@ -64,10 +81,11 @@ export const buildGuardedStructuredJobDescriptionRubric = async (rawJD = '') => 
       });
 
       const secondReview = await reviewJdParseWithDeepSeek({ rawJD, parsedJD: secondParsed });
-      const secondGate = decideJdParseGate({ review: secondReview, attempt: 2, maxReparseAttempts });
+      const mergedSecondReview = mergeJdReparseReviewProviderMetadata(secondReview, sectionOverrides);
+      const secondGate = decideJdParseGate({ review: mergedSecondReview, attempt: 2, maxReparseAttempts });
 
       finalResult = attachSafeguard(secondParsed, {
-        ...secondReview,
+        ...mergedSecondReview,
         parseAttempts: 2,
         repairApplied: true,
         firstReview,

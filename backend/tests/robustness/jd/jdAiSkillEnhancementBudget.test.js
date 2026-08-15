@@ -53,7 +53,7 @@ describe('JD AI skill enhancement budget', () => {
     expect(result.technicalSkillRequirements).toContain('Python');
     expect(callDeepSeekMock).toHaveBeenCalledWith(
       expect.any(String),
-      'Return valid JSON only. No prose.',
+      expect.stringContaining('<jd_prompt_contract'),
       expect.objectContaining({
         timeoutMs: 2345,
         usageMetadata: { stage: 'jd_parse', operation: 'llm_chat', feature: 'jd_skill_extraction' },
