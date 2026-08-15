@@ -72,6 +72,19 @@ const friendlyEvidenceLabel = (value = '') => {
   return titleCase(value);
 };
 
+const formatPublishedMetric = (value, suffix, prefix = '') => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? `${prefix}${value}${suffix}` : null;
+};
+
+const formatFrameworkMetrics = (value = {}) => {
+  if (!Number.isFinite(value.level) || !Number.isFinite(value.scorePercent)) return null;
+  return [
+    formatPublishedMetric(value.level, '/5', 'Level '),
+    formatPublishedMetric(value.scorePercent, '/100'),
+  ].join(', ');
+};
+
 const hasInterviewPerformance = (value) => {
   const normalized = typeof value === 'string' ? value.trim() : value;
   return (typeof normalized === 'number' || typeof normalized === 'string')
@@ -405,21 +418,24 @@ const drawReportLimitations = (layout, vm) => {
 
 export const buildTurnFrameworkMeta = (turn = {}) => {
   const parts = [];
-  const dimensions = turn.frameworkBreakdown?.dimensions;
+  const dimensions = Array.isArray(turn.frameworkBreakdown?.dimensions)
+    ? turn.frameworkBreakdown.dimensions.filter((dimension) => dimension.status !== 'not_applicable')
+    : [];
+  const hasStarr = Boolean(turn.starrBreakdown || turn.starBreakdown);
+  const frameworkLabel = turn.frameworkLabel || 'Role-specific framework';
 
-  if (Array.isArray(dimensions) && dimensions.length) {
-    const score = Number(turn.frameworkBreakdown.normalizedScore);
-    const frameworkSummary = `${turn.frameworkLabel || 'Role-specific framework'}${Number.isFinite(score) ? ` ${score}/10` : ''}`;
+  if (dimensions.length) {
+    const frameworkMetrics = formatFrameworkMetrics(turn.frameworkBreakdown);
+    const frameworkSummary = `${frameworkLabel}${frameworkMetrics ? ` ${frameworkMetrics}` : ''}`;
     const dimensionSummaries = dimensions
-      .filter((dimension) => dimension.status !== 'not_applicable')
-      .map((dimension) => `${dimension.label} ${Number(dimension.score || 0)}/10`);
+      .map((dimension) => `${dimension.label} ${formatFrameworkMetrics(dimension) || 'Level unavailable'}${dimension.reason ? `: ${dimension.reason}` : ''}`);
     parts.push(frameworkSummary, ...dimensionSummaries);
-  } else if (turn.scores) {
-    parts.push(`Business ${turn.scores.business ?? '-'} / Logic ${turn.scores.logic ?? '-'} / Evidence ${turn.scores.evidence ?? '-'}`);
+  } else if (!hasStarr) {
+    parts.push(`${frameworkLabel} unavailable`);
   }
 
   if (turn.durationAssessment?.eligible) {
-    parts.push(`Duration ${turn.durationAssessment.earnedPoints || 0}/${turn.durationAssessment.maxPoints || 10}`);
+    parts.push(`Duration ${formatPublishedMetric(turn.durationAssessment.level, '/5', 'Level ') || 'Level unavailable'}`);
   }
 
   return parts.join(' | ');

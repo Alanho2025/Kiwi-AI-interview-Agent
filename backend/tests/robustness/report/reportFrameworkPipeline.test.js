@@ -11,6 +11,8 @@ import {
 import { buildReportScores, computeInterviewPerformanceScore } from '../../../src/services/report/reportScoreService.js';
 import { buildPlainEnglishMetrics } from '../../../src/services/agents/reportGenerator/reportMetricBuilder.js';
 import { generateCandidateFeedback } from '../../../src/services/reportCoachingService.js';
+import { normalizeTurnBreakdown } from '../../../src/utils/schemaHelpers.js';
+import { buildCandidateReportProjection } from '../../../src/services/report/reportPublicationSummaryService.js';
 
 describe('report framework pipeline', () => {
   it('uses interview performance as the report overall score', () => {
@@ -124,6 +126,9 @@ describe('report framework pipeline', () => {
     expect(turns).toHaveLength(1);
     expect(turns[0]).toMatchObject({
       frameworkKey: 'scenario_case_reasoning',
+      assessmentIntent: 'scenario_reasoning',
+      assessmentIntentSource: 'explicit_metadata',
+      parentAssessmentIntent: 'scenario_reasoning',
       questionFamily: 'role_specific',
       evidenceMode: 'scenario_reasoning',
       starApplicable: false,
@@ -140,6 +145,9 @@ describe('report framework pipeline', () => {
         feedback: 'Use STAR.',
         rubricType: 'starr',
         frameworkKey: 'behavioural_starr',
+        assessmentIntent: 'impact_first_past_example',
+        assessmentIntentSource: 'text_fallback',
+        parentAssessmentIntent: 'impact_first_past_example',
         starApplicable: true,
         starBreakdown: { situation: 'missing' },
         scores: { business: 10, logic: 10, evidence: 10 },
@@ -151,6 +159,9 @@ describe('report framework pipeline', () => {
         feedback: 'Explain the requirements, options, risks, validation, and expected outcome.',
         rubricType: 'role_specific',
         frameworkKey: 'scenario_case_reasoning',
+        assessmentIntent: 'scenario_reasoning',
+        assessmentIntentSource: 'explicit_metadata',
+        parentAssessmentIntent: 'scenario_reasoning',
         frameworkLabel: 'Scenario / Case Reasoning',
         questionFamily: 'role_specific',
         evidenceMode: 'scenario_reasoning',
@@ -169,6 +180,48 @@ describe('report framework pipeline', () => {
       scores: { business: 3, logic: 4, evidence: 2 },
     });
     expect(merged[0].feedback).not.toBe('Use STAR.');
+  });
+
+  it('keeps deterministic assessment lineage through normalization and out of candidate publication', () => {
+    const [merged] = reportGeneratorAgent.mergeTurnBreakdownsWithRubrics?.([{
+      question: 'How would you handle the case?',
+      answer: 'I would compare options.',
+      feedback: 'The candidate framework is different.',
+      rubricType: 'starr',
+      frameworkKey: 'behavioural_starr',
+      assessmentIntent: 'behavioural_star',
+      assessmentIntentSource: 'text_fallback',
+      parentAssessmentIntent: 'behavioural_star',
+    }], [{
+      question: 'How would you handle the case?',
+      answer: 'I would compare options.',
+      feedback: 'Explain the requirements, options, risks, validation, and expected outcome.',
+      rubricType: 'role_specific',
+      frameworkKey: 'scenario_case_reasoning',
+      assessmentIntent: 'scenario_reasoning',
+      assessmentIntentSource: 'explicit_metadata',
+      parentAssessmentIntent: 'scenario_reasoning',
+      questionFamily: 'role_specific',
+      evidenceMode: 'scenario_reasoning',
+      starApplicable: false,
+      starBreakdown: null,
+      frameworkBreakdown: { dimensions: [{ key: 'requirements', label: 'Requirements', status: 'missing', score: 0 }] },
+    }]) || [];
+
+    expect(normalizeTurnBreakdown(merged)).toMatchObject({
+      assessmentIntent: 'scenario_reasoning',
+      assessmentIntentSource: 'explicit_metadata',
+      parentAssessmentIntent: 'scenario_reasoning',
+    });
+
+    const projection = buildCandidateReportProjection({
+      sessionId: 'session-1',
+      latestStatus: 'ready',
+      report: { candidateFeedback: { turnBreakdowns: [merged] } },
+    });
+    expect(projection.report.candidateFeedback.turnBreakdowns[0]).not.toHaveProperty('assessmentIntent');
+    expect(projection.report.candidateFeedback.turnBreakdowns[0]).not.toHaveProperty('assessmentIntentSource');
+    expect(projection.report.candidateFeedback.turnBreakdowns[0]).not.toHaveProperty('parentAssessmentIntent');
   });
 
   it('matches reordered and omitted coaching only to the exact deterministic turn', () => {

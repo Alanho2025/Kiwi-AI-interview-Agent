@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { TurnBreakdownSection } from '../TurnBreakdownSection.jsx';
 
 describe('TurnBreakdownSection', () => {
-  it('renders role-specific framework labels and dynamic dimensions without STARR micro-scores', () => {
+  it('renders server-published framework labels, levels, and percentages without STARR micro-scores', () => {
     render(
       <TurnBreakdownSection
         turnBreakdowns={[{
@@ -18,14 +18,16 @@ describe('TurnBreakdownSection', () => {
           scores: { business: 5, logic: 7, evidence: 4 },
           frameworkBreakdown: {
             dimensions: [
-              { key: 'clinicalContext', label: 'Clinical context', status: 'clear', score: 10, reason: 'Context was clear.' },
-              { key: 'professionalJudgement', label: 'Professional judgement', status: 'partial', score: 5, reason: 'Add the decision rationale.' },
-              { key: 'riskQualityEthics', label: 'Risk / Quality / Ethics', status: 'clear', score: 10, reason: 'Risk was addressed.' },
-              { key: 'validationVerification', label: 'Documentation / Review', status: 'partial', score: 5, reason: 'Explain the review.' },
-              { key: 'outcomeValue', label: 'Patient outcome', status: 'not_applicable', score: 0, reason: 'Not required for this scenario.' },
+              { key: 'clinicalContext', label: 'Clinical context', status: 'clear', score: 10, level: 5, scorePercent: 100, reason: 'Context was clear.' },
+              { key: 'professionalJudgement', label: 'Professional judgement', status: 'partial', score: 5, level: 3, scorePercent: 50, reason: 'Add the decision rationale.' },
+              { key: 'riskQualityEthics', label: 'Risk / Quality / Ethics', status: 'clear', score: 10, level: 4, scorePercent: 75, reason: 'Risk was addressed.' },
+              { key: 'validationVerification', label: 'Documentation / Review', status: 'partial', score: 5, level: 2, scorePercent: 25, reason: 'Explain the review.' },
+              { key: 'outcomeValue', label: 'Patient outcome', status: 'not_applicable', score: 0, level: 1, scorePercent: 0, reason: 'Not required for this scenario.' },
             ],
             mainGapKey: 'professionalJudgement',
             normalizedScore: 7.5,
+            level: 4,
+            scorePercent: 75,
           },
           answerAssessment: {
             status: 'partly_addressed',
@@ -45,10 +47,14 @@ describe('TurnBreakdownSection', () => {
     expect(screen.getByText('Safety, Quality and Ethics')).toBeInTheDocument();
     expect(screen.getByText('Professional judgement')).toBeInTheDocument();
     expect(screen.getByText('Documentation / Review')).toBeInTheDocument();
+    expect(screen.getByText('Framework score: Level 4/5 · 75/100')).toBeInTheDocument();
+    expect(screen.getByText('Level 3/5 · 50/100')).toBeInTheDocument();
+    expect(screen.getByText('Level 5/5 · 100/100')).toBeInTheDocument();
     expect(screen.queryByText('Patient outcome')).not.toBeInTheDocument();
     expect(screen.queryByText('not applicable')).not.toBeInTheDocument();
     expect(screen.queryByText('STARR Evidence')).not.toBeInTheDocument();
     expect(screen.queryByText('Business')).not.toBeInTheDocument();
+    expect(screen.queryByText(/\/10\b/)).not.toBeInTheDocument();
     expect(screen.getByText('Answer result')).toBeInTheDocument();
     expect(screen.getByText('Partly addressed')).toBeInTheDocument();
     expect(screen.getByText('61/100')).toBeInTheDocument();
@@ -56,6 +62,86 @@ describe('TurnBreakdownSection', () => {
     expect(screen.getByText('What to add: validation.')).toBeInTheDocument();
     expect(screen.getByText('A stronger answer')).toBeInTheDocument();
     expect(screen.getByText(/I would state the safety concern/)).toBeInTheDocument();
+  });
+
+  it('keeps a formal dimension when its server metrics are unavailable', () => {
+    render(
+      <TurnBreakdownSection turnBreakdowns={[{
+        question: 'How would you approach the case?',
+        answer: 'I would clarify the requirements first.',
+        frameworkLabel: 'Scenario / Case Reasoning',
+        frameworkBreakdown: {
+          normalizedScore: 8,
+          dimensions: [{
+            label: 'Requirements',
+            score: 10,
+            reason: 'Requirements were identified.',
+          }],
+        },
+      }]} />
+    );
+
+    expect(screen.getByText('Requirements')).toBeInTheDocument();
+    expect(screen.getByText('Level unavailable')).toBeInTheDocument();
+    expect(screen.queryByText(/\/10\b/)).not.toBeInTheDocument();
+  });
+
+  it('shows Level unavailable when either server framework metric is missing', () => {
+    const buildTurn = (frameworkBreakdown) => ({
+      question: 'How would you approach the case?',
+      answer: 'I would clarify the requirements first.',
+      frameworkBreakdown,
+    });
+    const { rerender } = render(
+      <TurnBreakdownSection turnBreakdowns={[buildTurn({
+        dimensions: [{ label: 'Requirements', level: 4, reason: 'Requirements were identified.' }],
+      })]} />
+    );
+
+    expect(screen.getByText('Level unavailable')).toBeInTheDocument();
+
+    rerender(
+      <TurnBreakdownSection turnBreakdowns={[buildTurn({
+        dimensions: [{ label: 'Requirements', scorePercent: 75, reason: 'Requirements were identified.' }],
+      })]} />
+    );
+
+    expect(screen.getByText('Level unavailable')).toBeInTheDocument();
+    expect(screen.queryByText(/\/10\b/)).not.toBeInTheDocument();
+  });
+
+  it('does not fabricate semantic dimensions from legacy scores when formal framework data is absent', () => {
+    render(
+      <TurnBreakdownSection turnBreakdowns={[{
+        question: 'Please introduce yourself.',
+        answer: 'I enjoy solving practical problems.',
+        frameworkLabel: 'Introduction',
+        scores: { business: 8, logic: 7, evidence: 6 },
+      }]} />
+    );
+
+    expect(screen.getByText('Introduction')).toBeInTheDocument();
+    expect(screen.getByText('Formal framework feedback is unavailable for this answer.')).toBeInTheDocument();
+    expect(screen.queryByText('Context / Goal')).not.toBeInTheDocument();
+    expect(screen.queryByText('Business')).not.toBeInTheDocument();
+    expect(screen.queryByText(/\/10\b/)).not.toBeInTheDocument();
+  });
+
+  it('renders duration as a server-published level without earned points', () => {
+    render(
+      <TurnBreakdownSection turnBreakdowns={[{
+        question: 'How would you approach the case?',
+        answer: 'I would clarify the requirements first.',
+        frameworkBreakdown: { dimensions: [] },
+        durationAssessment: { eligible: true, seconds: 92, level: 4, earnedPoints: 8, maxPoints: 10, reason: 'Good answer length.' },
+      }]} />
+    );
+
+    expect(screen.getByText('Framework feedback')).toBeInTheDocument();
+    expect(screen.getByText('Formal framework feedback is unavailable for this answer.')).toBeInTheDocument();
+    expect(screen.getByText('Duration (92s)')).toBeInTheDocument();
+    expect(screen.getByText('Level 4/5')).toBeInTheDocument();
+    expect(screen.queryByText('8/10')).not.toBeInTheDocument();
   });
 
   it('shows a neutral unavailable state without generating candidate facts', () => {

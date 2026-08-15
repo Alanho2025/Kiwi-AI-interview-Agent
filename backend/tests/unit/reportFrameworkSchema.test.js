@@ -26,6 +26,8 @@ describe('report v5 framework schema', () => {
               label: 'Requirements',
               status: 'partial',
               score: 5,
+              level: 3,
+              scorePercent: 50,
               reason: 'Requirements were partly explained.',
             }],
             mainGapKey: 'riskQualityEthics',
@@ -33,6 +35,8 @@ describe('report v5 framework schema', () => {
             totalScore: 5,
             maxScore: 10,
             normalizedScore: 5,
+            level: 3,
+            scorePercent: 50,
           },
         }],
       },
@@ -48,6 +52,14 @@ describe('report v5 framework schema', () => {
       frameworkBreakdown: {
         mainGapKey: 'riskQualityEthics',
         normalizedScore: 5,
+        level: 3,
+        scorePercent: 50,
+        dimensions: [{
+          key: 'requirements',
+          level: 3,
+          scorePercent: 50,
+          reason: 'Requirements were partly explained.',
+        }],
       },
     });
   });

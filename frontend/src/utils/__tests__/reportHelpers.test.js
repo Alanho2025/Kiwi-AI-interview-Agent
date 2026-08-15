@@ -94,4 +94,86 @@ describe('report export text formatting', () => {
     expect(text).not.toContain('Historic blended score explanation.');
     expect(text).not.toContain('CV-JD Match:');
   });
+
+  it('exports formal framework levels and percentages without client score mapping or legacy dimensions', () => {
+    const text = formatReportAsText({
+      report: {
+        scores: { overall: 72 },
+        candidateFeedback: {
+          turnBreakdowns: [{
+            question: 'How would you approach the case?',
+            answer: 'I would clarify the requirements and validate the outcome.',
+            frameworkLabel: 'Scenario / Case Reasoning',
+            scores: { business: 9, logic: 8, evidence: 7 },
+            frameworkBreakdown: {
+              normalizedScore: 9.5,
+              level: 4,
+              scorePercent: 75,
+              dimensions: [{
+                label: 'Requirements',
+                score: 10,
+                level: 3,
+                scorePercent: 50,
+                reason: 'Requirements were clearly identified.',
+              }],
+            },
+          }, {
+            question: 'Please introduce yourself.',
+            answer: 'I enjoy solving practical problems.',
+            frameworkLabel: 'Introduction',
+            scores: { business: 8, logic: 7, evidence: 6 },
+          }],
+        },
+      },
+    });
+
+    expect(text).toContain('Framework: Scenario / Case Reasoning (Level 4/5, 75/100)');
+    expect(text).toContain('Requirements (Level 3/5, 50/100): Requirements were clearly identified.');
+    expect(text).toContain('Framework: Introduction (unavailable)');
+    expect(text).not.toMatch(/Business|Logic|Evidence/);
+    expect(text).not.toMatch(/\/10\b/);
+  });
+
+  it('formats duration with its server-published level', () => {
+    const text = formatReportAsText({
+      report: {
+        candidateFeedback: {
+          turnBreakdowns: [{
+            question: 'How would you approach the case?',
+            durationAssessment: { eligible: true, seconds: 92, level: 4, earnedPoints: 8, maxPoints: 10 },
+          }],
+        },
+      },
+    });
+
+    expect(text).toContain('Framework: Role-specific reasoning (unavailable)');
+    expect(text).toContain('Duration: 92s (Level 4/5)');
+    expect(text).not.toContain('8/10');
+  });
+
+  it('shows Level unavailable when either server framework metric is missing', () => {
+    const text = formatReportAsText({
+      report: {
+        candidateFeedback: {
+          turnBreakdowns: [{
+            question: 'Requirements question',
+            frameworkLabel: 'Scenario / Case Reasoning',
+            frameworkBreakdown: {
+              dimensions: [{ label: 'Requirements', level: 4, reason: 'Requirements were identified.' }],
+            },
+          }, {
+            question: 'Approach question',
+            frameworkLabel: 'Scenario / Case Reasoning',
+            frameworkBreakdown: {
+              dimensions: [{ label: 'Approach', scorePercent: 75, reason: 'Approach was described.' }],
+            },
+          }],
+        },
+      },
+    });
+
+    expect(text).toContain('Requirements (Level unavailable): Requirements were identified.');
+    expect(text).toContain('Approach (Level unavailable): Approach was described.');
+    expect(text).not.toMatch(/\/10\b/);
+  });
 });

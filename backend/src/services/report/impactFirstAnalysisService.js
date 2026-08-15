@@ -113,6 +113,7 @@ export const analyzeImpactFirstAnswer = async ({ question = '', answer = '', _co
       status: safeLevel >= 4 ? 'clear' : safeLevel >= 2 ? 'partial' : 'missing',
       score,
       level: safeLevel,
+      scorePercent: scorePercentage,
       weight,
       reason: evaluated.reason || 'Evaluation failed. Defaulting to missing evidence.',
     };
@@ -132,5 +133,6 @@ export const analyzeImpactFirstAnswer = async ({ question = '', answer = '', _co
     scoreReason: mainGap.reason,
     totalContentScore,
     normalizedScore,
+    scorePercent: Number((normalizedScore * 10).toFixed(2)),
   };
 };

@@ -66,16 +66,29 @@ export const normalizeQuestionIntent = ({ question = {}, actionType = '', focusA
 };
 
 
-export const buildRoleLockedQuestion = (retrievedItem, fallback = {}) => ({
-  type: fallback.type || fallback.stage || 'technical_core',
-  stage: fallback.stage || 'technical_core',
-  topic: fallback.topic || retrievedItem.metadata?.skillTags?.[0] || retrievedItem.metadata?.category || 'role_fit',
-  followUpDepth: fallback.followUpDepth || 0,
-  text: retrievedItem.metadata?.question || retrievedItem.text,
-  reason: `Retrieved from role-matched question bank (${retrievedItem.metadata?.roleCanonical || retrievedItem.metadata?.roleFamily || 'general'}).`,
-  sourceType: retrievedItem.sourceType,
-  sourceId: retrievedItem.sourceId,
-});
+export const buildRoleLockedQuestion = (retrievedItem = {}, fallback = {}) => {
+  const metadata = retrievedItem.metadata || {};
+  const questionFamily = fallback.questionFamily || retrievedItem.questionFamily || metadata.questionFamily || null;
+  const evidenceMode = fallback.evidenceMode || retrievedItem.evidenceMode || metadata.evidenceMode || null;
+
+  return {
+    type: fallback.type || retrievedItem.questionType || metadata.questionType || fallback.stage || 'technical_core',
+    stage: fallback.stage || retrievedItem.stage || metadata.stage || 'technical_core',
+    topic: fallback.topic || retrievedItem.topic || metadata.skillTags?.[0] || metadata.category || 'role_fit',
+    category: fallback.category || retrievedItem.category || metadata.category || null,
+    followUpDepth: fallback.followUpDepth || retrievedItem.followUpDepth || 0,
+    text: metadata.question || retrievedItem.text,
+    reason: `Retrieved from role-matched question bank (${metadata.roleCanonical || metadata.roleFamily || 'general'}).`,
+    sourceType: retrievedItem.sourceType,
+    sourceId: retrievedItem.sourceId,
+    questionFamily,
+    evidenceMode,
+    roleDomain: fallback.roleDomain || retrievedItem.roleDomain || metadata.roleDomain || 'general',
+    requirementCategory: fallback.requirementCategory || retrievedItem.requirementCategory || metadata.requirementCategory || null,
+    capabilityGroup: fallback.capabilityGroup || retrievedItem.capabilityGroup || metadata.capabilityGroup || null,
+    targetedDimensions: fallback.targetedDimensions || retrievedItem.targetedDimensions || metadata.targetedDimensions || [],
+  };
+};
 
 export const pickRetrievedQuestion = (retrievalBundle, selectedQuestion, targetTopic = '') => {
   if (!retrievalBundle?.items?.length) return null;

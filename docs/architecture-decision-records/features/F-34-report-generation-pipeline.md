@@ -6,7 +6,7 @@
 > **Git 演進 Commit 追蹤**：`PR #136`, Commit `f81902a`  
 > **主要負責人 / 日期**：Kiwi AI Team / 2026-07-30  
 > **實作狀態 (Implementation Status)**：Verified  
-> **校驗測試路徑 (Verified by Tests)**：`backend/tests/robustness/report/roleSpecificFrameworkRobustness.test.js`; `backend/tests/robustness/report/reportFrameworkPipeline.test.js`; `backend/tests/robustness/report/answerAlignmentService.test.js`; `backend/tests/robustness/report/voiceDurationAssessmentService.test.js`; `backend/tests/robustness/contracts/reportPublicationSummary.test.js`; `frontend/src/components/report/__tests__/TurnBreakdownSection.test.jsx`
+> **校驗測試路徑 (Verified by Tests)**：`backend/tests/robustness/report/roleSpecificFrameworkRobustness.test.js`; `backend/tests/robustness/report/reportFrameworkPipeline.test.js`; `backend/tests/robustness/report/impactFirstAnalysisService.test.js`; `backend/tests/robustness/report/impactFirstReportDiagnostic.test.js`; `backend/tests/robustness/contracts/reportPublicationSummary.test.js`; `backend/tests/unit/reportFrameworkSchema.test.js`; `frontend/src/components/report/__tests__/TurnBreakdownSection.test.jsx`
 
 ---
 
@@ -15,12 +15,13 @@
 ### 1.1 零基礎生活白話比喻 (Layman Analogy for Beginners)
 > 💡 **小白導讀**：
 > 想像面試結束後生成成績單與審核：
-> * **報告生成與修復管線 (本 Feature)**：面試結束時，控制層觸發 `GENERATE_REPORT_DRAFT`。由 [reportActionExecutor.js](../../backend/src/services/aiControl/reportActionExecutor.js) 呼叫 AI 產生初稿報告，隨即自動丟給 `reportQa` 稽核員審查。若品質不達標，自動發起 `runReportQaRepairLoop` 進行多輪修復，最後回傳包含 `{ report, qaResult, repairHistory, tools, isComplete, completedBecause }` 的結構化結果！
+> * **報告生成與修復管線 (本 Feature)**：面試結束時，控制層觸發 `GENERATE_REPORT_DRAFT`。由 [reportActionExecutor.js](../../../backend/src/services/aiControl/reportActionExecutor.js) 呼叫 AI 產生初稿報告，隨即自動丟給 `reportQa` 稽核員審查。若品質不達標，自動發起 `runReportQaRepairLoop` 進行多輪修復，最後回傳包含 `{ report, qaResult, repairHistory, tools, isComplete, completedBecause }` 的結構化結果！
 
 ### 1.2 基於 Git 歷史的從 0 到 1 演進歷程
 * **初始版本**：簡單對話總結，無 QA 審查與修復機制。
-* **現行架構**：實作 [reportActionExecutor.js](../../backend/src/services/aiControl/reportActionExecutor.js) 與 [reportQaRepairOrchestratorService.js](../../backend/src/services/report/reportQaRepairOrchestratorService.js)，導入「生成 ➔ QA 評估 ➔ 多輪 Repair 循環」管線。
+* **現行架構**：實作 [reportActionExecutor.js](../../../backend/src/services/aiControl/reportActionExecutor.js) 與 [reportQaRepairOrchestratorService.js](../../../backend/src/services/report/reportQaRepairOrchestratorService.js)，導入「生成 ➔ QA 評估 ➔ 多輪 Repair 循環」管線。
 * **2026-08-09 Phase 1**：在既有 accepted-answer dataset 與 deterministic turn breakdown 之間加入 canonical voice-duration assessment；這是內部證據層資料，不改變現行 overall score、candidate projection 或 voice runtime。
+* **2026-08-15 report contract correction**：修正 candidate report framework breakdown 的 ownership 與呈現契約。Backend framework-specific breakdown 現在是正式來源；舊有 client-side semantic fallback 已移除。Impact-first evaluator 直接發布 framework `scorePercent` 與六個 dimension 的 `level`/`scorePercent`；candidate projection 只發布這些 candidate-safe metrics 與理由，不發布 `normalizedScore`、`score`、`weight` 或 `earnedPoints`。若既有 Impact-first report 缺少六個完整 numeric metrics，projection 會保留 breakdown、標記 `needs_review`、加入 `regenerate_report` limitation，不把 `status`/`reason` 轉成分數。其他 framework 若 dimension 缺少 `level` 或 `scorePercent`，仍保留該 dimension 並顯示 `Level unavailable`；若沒有 actual STARR/starBreakdown 且沒有 formal renderable dimensions，HTML/TXT/PDF 顯示 framework label + `unavailable`。此同步不代表 browser、live provider 或 production release 已驗證。
 
 ---
 
@@ -75,7 +76,7 @@ sequenceDiagram
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：`executeReportAction`
-* **現行程式碼位置**：[`backend/src/services/aiControl/reportActionExecutor.js:L5-L54`](../../backend/src/services/aiControl/reportActionExecutor.js#L5-L54)
+* **現行程式碼位置**：[`backend/src/services/aiControl/reportActionExecutor.js:L5-L54`](../../../backend/src/services/aiControl/reportActionExecutor.js#L5-L54)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -157,18 +158,31 @@ return report;
 * **資料流**：`reportTurnDatasetService.js` 先沿用既有 question/answer eligibility，再以 `buildQuestionHistory` 的 `turnKind` 判斷 root/follow-up；assessment 只在 accepted pair 建立一次。`reportEvidenceAnalysis.js` 只發布 nested summary，`reportGeneratorAgent.js` 將 deterministic assessment 帶入 breakdown，model output 不具備覆寫權。
 * **五級邊界**：`<60` 或 `>150` = Level 1；`60–<70` 或 `>140–150` = Level 2；`70–<80` 或 `>130–140` = Level 3；`80–<90` 或 `>120–130` = Level 4；`90–120` = Level 5。分數為 `0 / 2.5 / 5 / 7.5 / 10`。
 
+### 4.3 Candidate projection 與 rendering ownership
+
+- `backend/src/utils/schemaHelpers.js` 保留 framework breakdown 的 server-published `level`、`scorePercent`、dimension `reason`、`weight` 與 `earnedPoints`；`level` bounded 到 `1–5`，`scorePercent` bounded 到 `0–100`。numeric `0` 是有效值；`null`、blank string 與 boolean 不會被轉成 `0`。
+- `backend/src/services/report/reportPublicationSummaryService.js` 以 allowlist 投影 framework/dimension 的 `level`、有效來源的 `scorePercent`、`reason`/`scoreReason`。server-side compatibility mapping 可以讀取既有 `normalizedScore`、`score`/`weight`，但 candidate projection 不發布這些 source fields，也不發布 `earnedPoints`。`assessmentIntent`、`assessmentIntentSource`、`parentAssessmentIntent` 等 assessment lineage 不發布給 candidate。
+- `reportPublicationSummaryService.js` 可在 server projection boundary 對既有 numeric source 做 bounded compatibility mapping 以產生 `scorePercent`；HTML/TXT/PDF 只讀 projection 後的 `scorePercent`，client 不做 mapping 或 rescoring。這不是 legacy semantic `business`/`logic`/`evidence` fallback。
+- `backend/src/services/agents/reportGeneratorAgent.js` 先依 deterministic framework routing/lineage 建立 breakdown，再合併 model output；candidate projection 不暴露該內部 lineage。`assessmentIntent` 為 `impact_first_past_example` 且 `evidenceMode=past_example` 的 exact role-specific question 保留 impact-first 的六個 content dimensions；不同 framework 不合併。
+- `frontend/src/components/report/TurnBreakdownSection.jsx`、`frontend/src/utils/reportHelpers.js` 與 `frontend/src/utils/reportPdf/reportPdfTemplate.js` 直接讀 server-published `level`、`scorePercent`、`reason`。framework/dimension/duration 不顯示 `/10` 或 `earnedPoints/maxPoints`；Answer Result 與 overall 的 `/100` summary 保留，STARR 與各 framework 的原生 dimensions 也保留。
+- Candidate report 不再由 legacy `scores.business`、`scores.logic`、`scores.evidence` 合成 Introduction 或 Role-specific 六維度。若沒有 actual STARR/starBreakdown 且沒有 formal renderable dimensions，HTML/TXT/PDF 顯示 framework label + `unavailable`；eligible duration 仍獨立顯示 `Duration Level N/5`，actual STARR 存在時不加 framework unavailable。Impact-first legacy report 若缺少六個完整 `level`/`scorePercent`，candidate report 會顯示需重新生成的 limitation 並降為 `needs_review`；不從 `status`/`reason` 或 legacy score 合成分數。其他 dimension 缺少 `level` 或 `scorePercent` 任一欄位時，三個 surface 保留該 dimension 並顯示 `Level unavailable`。
+
 ---
 
 ## 5. 爆炸半徑與失敗矩陣 (Blast Radius & Failure Matrix)
 - 影響面試完成後的報告呈現。
 - Phase 1 的 blast radius 限定在 report dataset、內部 metrics 與 deterministic turn breakdown；`reportScoreService.js`、candidate projection、frontend、voice runtime 與 persistence schema 沒有修改。
 - 缺失或未驗證的 duration 會輸出 `eligible: false`、`earnedPoints: null` 與 reason code，不會以 `0` 分污染平均值或既有總分。
+- 若沒有 actual STARR/starBreakdown 且沒有 formal renderable dimensions，HTML/TXT/PDF 都顯示 framework label + `unavailable`；`durationAssessment.eligible` 時另顯示獨立的 `Duration Level N/5`，不會被 framework unavailable 吃掉。actual STARR 存在時不加 framework unavailable。Impact-first legacy breakdown 缺少完整 numeric metrics 時，candidate projection 會標記 `needs_review` 並要求 `regenerate_report`；其他 dimension 缺少 `level` 或 `scorePercent` 任一欄位時，三個 surface 保留該 dimension 並顯示 `Level unavailable`，不從 legacy score 合成或推算分數；這個 failure path 不會把 `null`、blank 或 boolean 變成 numeric zero。
+- Compatibility numeric fields 只作為 server projection 的輸入，不會出現在 candidate projection；candidate HTML/TXT/PDF 不以這些 internal values 呈現 framework、dimension 或 duration 的 `/10`、points 或 `/maxPoints`。內部 assessment lineage 若出現在 report 內，也會在 candidate projection boundary 被排除。
 
 ---
 
 ## 6. 運維與回滾步驟 (Incident Response & Rollback Runbook)
 - 檢查日誌：`runReportQaRepairLoop`
 - 若 Phase 1 assessment 造成問題，回滾其新增 service、dataset annotation、metrics/breakdown handoff 與對應 tests/docs；既有 report scoring 與 public report contract 應保持可運作。
+- 若 framework-specific breakdown 或 candidate projection 出現缺欄，先檢查 backend source/projection 與 `schemaHelpers.js`、`reportPublicationSummaryService.js` 及三個 candidate renderers 的 field contract；frontend 不補算或重建 score。Impact-first legacy report 應顯示 `needs_review`/`regenerate_report`，其他缺欄狀態才依 source state 顯示 framework label + `unavailable`，或保留該 dimension 並顯示 `Level unavailable`。eligible duration 仍獨立顯示 `Duration Level N/5`，actual STARR 存在時不加 framework unavailable；不重新引入 client-side semantic fallback。若需恢復行為，應由對應 backend owner 修正 server field source，再重新執行 focused tests。
+- 本次文件同步本身不宣稱 browser、live AI/provider、Mongo persistence 或 production rollback 已執行；這些是獨立的後續驗證 gate。文件回滾只應移除本次 2026-08-15 contract correction，不能被當成 code rollback 證據。
 - 驗證邊界：重新執行 `backend/tests/robustness/report`、`backend/tests/robustness/voice` 與 backend ESLint；不要用 live provider 或 production report 來替代 focused regression evidence。
 
 ---
@@ -247,9 +261,9 @@ Phase 1 的補充口述：
 ## 17. 2026-07-30 CP4 Framework Breakdown, Self-Intro Detection, Tech Stack Context & Grounded Stronger Answer Updates
 
 - **Self-Intro Keyword Detection**: Updated `isSelfIntroductionQuestion` in `turnRubricService.js` to include `briefly introduce`, ensuring opening turns combining self-introduction and motivation (e.g., *"Could you briefly introduce yourself..."*) are accurately classified as `self_intro` and evaluated using the 4-dimension **Introduction Framework** (`Background`, `Role Relevance`, `Evidence`, `Clarity`).
-- **Dynamic Fallback Framework Breakdown**: Updated `TurnBreakdownSection.jsx` and `turnRubricService.js`: question cards lacking explicit `frameworkBreakdown` now dynamically generate the 4-card Introduction Framework (for self-intro) or 6-dimension Role-Specific Reasoning grid (`Context/Goal`, `Approach`, `Judgement/Trade-offs`, `Risk/Quality/Ethics`, `Validation/Verification`, `Outcome/Value`), eliminating plain Micro-Scores bars.
+- **Dynamic Fallback Framework Breakdown（歷史描述已由 2026-08-15 correction 取代）**: 舊版曾在 `TurnBreakdownSection.jsx` 以 legacy client-side semantic fallback，從缺少 explicit `frameworkBreakdown` 的題目合成 Introduction 或 Role-Specific dimensions；這條 fallback 已移除。現在由 backend framework-specific breakdown 提供正式欄位：若沒有 actual STARR/starBreakdown 且沒有 formal renderable dimensions，HTML/TXT/PDF 顯示 framework label + `unavailable`，但 eligible duration 仍另顯示 `Duration Level N/5`；actual STARR 存在時不加 framework unavailable；dimension 缺少 `level` 或 `scorePercent` 任一欄位時保留該 dimension 並顯示 `Level unavailable`，不再把 legacy micro-scores 重新解讀成 semantic dimensions。
 - **Intent-Based Routing (Phase 2)**: Replaced legacy regex text-matching heuristics in `turnRubricService.js` with strict semantic routing based on the canonical `assessmentIntent` provided by `masterAiService.js`.
-- **Universal LLM Evaluation Engine (Phase 3)**: Fully migrated `impact_first_past_example` from legacy STARR heuristics to a deterministic LLM-powered evaluation. The new `impactFirstAnalysisService.js` asynchronously evaluates 6 core dimensions (`Goal & Context`, `Methodology & Approach`, `Challenges & Trade-offs`, `Outcome & Impact`, `Learning & Reflection`, `Communication & Clarity`) and assigns a grounded 1-5 level score.
+- **Universal LLM Evaluation Engine (Phase 3)**: Fully migrated `impact_first_past_example` from legacy STARR heuristics to a deterministic LLM-powered evaluation. The new `impactFirstAnalysisService.js` asynchronously evaluates 6 core dimensions (`Outcome evidence`, `Problem solving`, `Personal role`, `Approaches / actions / decisions`, `Learning`, `Outcome-first placement`) and assigns a grounded 1-5 level score.
 - **Asynchronous Pipeline Refactor**: Updated `analyzeTurnStructure` and `buildDeterministicTurnBreakdowns` in `reportGeneratorAgent.js` to execute asynchronously to support LLM evaluation. Legacy test suites spanning `reportGroundingRobustness`, `roleSpecificFrameworkRobustness`, and `reportFrameworkPipeline` were migrated to support the new asynchronous signatures.
 - **Tech Stack Context Hints**: Updated `roleAnswerAnalysisService.js` to incorporate candidate `techStack` and `jobTitle` from turn metadata/context into rule-based breakdown reasons.
 - **Grounded Stronger Answer Boundary**: `TurnBreakdownSection.jsx` 不再自行生成 candidate facts；只有 server-projected ready rewrite 顯示綠色正文，無法證明配對時顯示中性 unavailable 狀態。
@@ -323,8 +337,9 @@ Phase 1 的補充口述：
 
 ### Changed / Added
 
-- **Candidate-Safe Fields**: Updated `projectFrameworkBreakdown` in `reportPublicationSummaryService.js` to securely project the new 5-band mathematical fields (`level`, `weight`, `earnedPoints`, `version`).
-- **Duration Assessment Exposure**: Implemented `projectDurationAssessment` to safely expose deterministic duration fields (`eligible`, `reason`, `seconds`, `level`, `earnedPoints`, `maxPoints`) on the candidate payload, blocking private evidence keys.
+- **Candidate-Safe Fields**: Updated `projectFrameworkBreakdown` in `reportPublicationSummaryService.js` to securely project framework/dimension `level`, valid-source `scorePercent`, and `reason`/`scoreReason`. Raw `score`, `normalizedScore`, `weight` and `earnedPoints` may be read for server-side compatibility mapping, but are stripped from the candidate projection.
+- **Duration Assessment Exposure**: Implemented `projectDurationAssessment` to safely expose deterministic duration fields (`eligible`, `reason`, `seconds`, `level`, `earnedPoints`, `maxPoints`) on the candidate payload, blocking private evidence keys. Candidate-facing framework/dimension/duration renderers do not display `earnedPoints/maxPoints`.
+- **Framework unavailable boundary**: If there is no actual STARR/starBreakdown and no formal renderable dimensions, HTML/TXT/PDF show framework label + `unavailable`; eligible duration remains separate as `Duration Level N/5`, and actual STARR suppresses framework unavailable. A dimension missing `level` or `scorePercent` remains visible as `Level unavailable`.
 - **Removed Weak Proxies**: Refactored `buildCoachingAdvice` in `reportCoachingBuilder.js` to eliminate question-count causality (using `interviewerQuestionCount !== plannedQuestionCount`) as a trigger for concise answer advice.
 - **Deterministic 90-120s Coaching**: Advice is now deterministically triggered based on the actual measured `durationAssessment` band, and outputs the target canonical duration: `90-120 seconds` (replacing all legacy `60-90` or `under 90` strings).
 
@@ -336,12 +351,38 @@ Phase 1 的補充口述：
 
 ### Changed / Added
 
-- **Turn Breakdown UI**: Updated `TurnBreakdownSection.jsx` to dynamically render `durationAssessment` fields (eligible, seconds, level, points) inside the `FrameworkBreakdown` component, ensuring the new Phase 6 projection is visible on the candidate report without client-side rescoring.
+- **Turn Breakdown UI**: Updated `TurnBreakdownSection.jsx` to render server-published framework/dimension `level` and `scorePercent`, with reasons and eligible duration level, without client-side rescoring or `/10`/points presentation. If there is no actual STARR/starBreakdown and no formal renderable dimensions, HTML/TXT/PDF show framework label + `unavailable`; eligible duration remains separately visible as `Duration Level N/5`, actual STARR does not receive framework unavailable, and a dimension missing `level` or `scorePercent` remains as `Level unavailable`.
 - **Coaching Fallbacks**: Fixed fallback text logic in `frontend/src/utils/reportView/coaching.js` to target `> 120` seconds instead of `> 90`, and standardized all generic advice strings to "90-120 seconds".
-- **PDF Export Consistency**: Refactored `buildTurnFrameworkMeta` in `frontend/src/utils/reportPdf/reportPdfTemplate.js` to accurately serialize the `durationAssessment` fields for PDF export.
-- **Text Export Consistency**: Enhanced `formatReportAsText` in `frontend/src/utils/reportHelpers.js` to include the `frameworkBreakdown` dimensions and `durationAssessment` text output, ensuring Text export consistency with HTML and PDF.
+- **PDF Export Consistency**: Refactored `buildTurnFrameworkMeta` in `frontend/src/utils/reportPdf/reportPdfTemplate.js` to consume the same server-published level/percentage/reason contract for PDF export, without emitting framework/dimension/duration points or `/10` values.
+- **Text Export Consistency**: Enhanced `formatReportAsText` in `frontend/src/utils/reportHelpers.js` to consume the same `frameworkBreakdown` dimensions and duration fields as HTML/PDF. The Answer Result and overall `/100` summary remain separate from framework rendering.
+- **Framework separation**: `impact_first_past_example` exact role-specific questions with `evidenceMode=past_example` retain the impact-first six content dimensions; STARR and other framework dimensions remain their own breakdowns and are not merged.
 
 ### Verification
 
 - Focused Vitest: `TurnBreakdownSection.test.jsx`, `reportTurnFrameworkFormatter.test.js`, and `reportHelpers.test.js` passed 100%. Legacy payloads correctly render neutrally without throwing errors.
 
+## 24. 2026-08-15 Candidate report framework contract correction
+
+### Changed / Added
+
+- **Schema ownership**: `backend/src/utils/schemaHelpers.js` now preserves framework breakdown fields and bounded-normalizes server-published `level` (`1–5`) and `scorePercent` (`0–100`), including dimension `reason`, `weight` and `earnedPoints`. Numeric zero remains meaningful; `null`, blank and boolean values are not coerced to zero.
+- **Candidate projection ownership**: `backend/src/services/report/reportPublicationSummaryService.js` allowlists framework/dimension `level`, valid-source `scorePercent`, and `reason`/`scoreReason`. Raw compatibility numeric fields are used only inside the server projection boundary and are not published to candidates. Internal `assessmentIntent` lineage is not published to candidates.
+- **Deterministic framework ownership**: `backend/src/services/agents/reportGeneratorAgent.js` gives deterministic framework routing/lineage (`assessmentIntent`, `assessmentIntentSource`, `parentAssessmentIntent`) precedence over model output. The candidate projection hides that internal lineage.
+- **Rendering consistency**: HTML, TXT and PDF read server-published `level`/`scorePercent`/`reason` directly. The legacy client-side semantic `buildFallbackFrameworkBreakdown` path was removed; without actual STARR/starBreakdown, a missing formal framework object or no renderable dimensions shows framework label + `unavailable`, while eligible duration remains separate as `Duration Level N/5`; actual STARR does not add framework unavailable. An existing dimension missing `level` or `scorePercent` remains visible as `Level unavailable`. Framework/dimension/duration do not display `/10` or `earnedPoints/maxPoints`; Answer Result and overall `/100` summaries remain, and the client performs no inference.
+- **Compatibility mapping boundary**: `reportPublicationSummaryService` can apply bounded compatibility mapping to existing `normalizedScore` or `score`/`weight` at the server projection boundary to produce `scorePercent`; HTML/TXT/PDF only read the projected `scorePercent`, and the client performs no mapping or rescoring. This is not the legacy semantic `business`/`logic`/`evidence` fallback.
+- **Framework isolation**: An exact role-specific question with `evidenceMode=past_example` routes to `impact_first_past_example` and keeps the impact-first six content dimensions. Different frameworks are not merged.
+
+### Failure / rollback boundary
+
+- Without actual STARR/starBreakdown, if the formal framework object is missing or has no renderable dimensions, candidate rendering shows framework label + `unavailable`; an eligible duration still renders separately as `Duration Level N/5`. Actual STARR does not add framework unavailable. If an Impact-first legacy turn lacks the six complete numeric metrics, the candidate projection marks `needs_review` and requests `regenerate_report`; other dimensions that lack `level` or `scorePercent` remain visible as `Level unavailable`. The frontend never infers a score. Compatibility numeric fields and internal lineage must not be described as candidate-facing semantic scores.
+- This is a documentation synchronization for already implemented behavior. Browser, live AI/provider, Mongo persistence and production execution were not run; none is evidence of a production release or rollback.
+
+### Verification
+
+- Backend Phase 1 focused checks: 2 files, 15 tests passed.
+- Backend Phase 2 focused checks: 2 files, 46 tests passed.
+- Backend final focused regression: 4 files / 61 tests passed（由 Phase 1 2 files / 15 + Phase 2 2 files / 46 組成）。
+- 2026-08-15 Impact-first follow-up：6 backend files / 66 focused tests passed；Q3 routing metadata、Q5 incomplete-report guard、candidate projection allowlist 與 controller publication status 同步均已檢查。
+- Frontend report focused regression: 3 files / 20 tests passed。
+- Backend/frontend lint passed；`git diff --check` passed。
+- Browser/manual、live AI/provider、Mongo persistence、production execution/rollback 未執行。

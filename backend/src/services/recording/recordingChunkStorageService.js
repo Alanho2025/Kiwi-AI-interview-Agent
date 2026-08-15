@@ -3,7 +3,10 @@ import path from 'path';
 import { createHash } from 'crypto';
 import { getRecordingConfig } from '../../config/recordingConfig.js';
 
-const safePart = (value) => String(value || '').replace(/[^a-zA-Z0-9_-]/g, '');
+const safePart = (value) => {
+  const sanitized = String(value || '').replace(/[^a-zA-Z0-9_.-]/g, '');
+  return (sanitized === '.' || sanitized === '..') ? 'invalid' : sanitized;
+};
 const extensionForMime = (mimeType = '') => mimeType.includes('mp4') ? '.mp4' : mimeType.includes('ogg') ? '.ogg' : '.webm';
 
 const moveFile = async (source, target) => {

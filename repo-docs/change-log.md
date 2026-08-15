@@ -1,5 +1,41 @@
 # Change Log
 
+## [2026-08-15] Candidate report framework contract correction
+
+### Changed / Added
+
+- **Affected product code**: `backend/src/utils/schemaHelpers.js`, `backend/src/services/report/reportPublicationSummaryService.js`, `backend/src/services/agents/reportGeneratorAgent.js`, `frontend/src/components/report/TurnBreakdownSection.jsx`, `frontend/src/utils/reportHelpers.js`, and `frontend/src/utils/reportPdf/reportPdfTemplate.js`.
+- **Synchronized documentation**: `docs/architecture-decision-records/features/F-34-report-generation-pipeline.md` and this scoped change-log entry.
+- **Framework field ownership**: Backend preserves and bounded-normalizes server-published framework `level` (`1–5`) and `scorePercent` (`0–100`), plus dimension `reason`/`weight`/`earnedPoints`; numeric zero remains valid, while null/blank/boolean values are not coerced to zero. Candidate projection allowlists valid framework/dimension `level`, `scorePercent`, `reason`/`scoreReason`, and does not publish internal assessment lineage.
+- **Compatibility boundary**: Backend may retain raw compatibility numeric fields for validation and server-side mapping, but candidate projection strips `normalizedScore`, `score`, `weight` and `earnedPoints`; candidate UI/export receives the direct `level`/`scorePercent` contract.
+- **Removed fallback**: Legacy client-side semantic `buildFallbackFrameworkBreakdown` synthesis from `scores.business`/`logic`/`evidence` was removed. Without actual STARR/starBreakdown, a missing formal framework object or no renderable dimensions now renders framework label + overall `unavailable`; eligible duration remains separately visible as `Duration Level N/5`, while a dimension with a missing metric remains visible as dimension-level `Level unavailable`; actual STARR does not add framework unavailable.
+- **HTML/TXT/PDF consistency**: `TurnBreakdownSection`, `reportHelpers`, and `reportPdfTemplate` directly consume server-published `level`/`scorePercent`/`reason`. Without actual STARR/starBreakdown, formal object/no renderable dimensions produce framework label + `unavailable`, eligible duration remains separate, and actual STARR suppresses framework unavailable. A dimension missing `level` or `scorePercent` remains with `Level unavailable`; framework/dimension/duration do not show `/10` or `earnedPoints/maxPoints`; Answer Result and overall `/100` summaries remain. The client performs no mapping, rescoring, or score inference.
+- **Deterministic routing**: An exact role-specific question with `evidenceMode=past_example` routes to `impact_first_past_example` and retains the impact-first six content dimensions; different frameworks are not merged. Deterministic assessment lineage takes precedence over model output but remains internal.
+
+### Verification
+
+- Backend Phase 1 focused checks: 2 files, 15 tests passed.
+- Backend Phase 2 focused checks: 2 files, 46 tests passed.
+- Backend final focused regression: 4 files / 61 tests passed（由 Phase 1 2 files / 15 + Phase 2 2 files / 46 組成）。
+- Frontend report focused regression: 3 files / 20 tests passed。
+- Backend/frontend lint passed；`git diff --check` passed。
+- Browser/manual、live AI/provider、Mongo persistence、production execution/rollback 未執行。
+
+## [2026-08-15] Impact-first report numeric contract and legacy guard
+
+### Changed / Added
+
+- **Q3 routing metadata**：`buildRoleLockedQuestion` 保留 retrieved question 的 `questionFamily`、`evidenceMode` 與 role assessment metadata，讓 `buildQuestionTranscriptMetadata` 能把 exact role-specific past-example question 路由到 `impact_first_past_example`，不把 internal `type` 和 public `questionType` 混用。
+- **Impact-first evaluator contract**：`impactFirstAnalysisService.js` 現在直接發布 framework `scorePercent`，以及六個 dimension 各自的 `level`（1–5）、`scorePercent`（0–100）、`score`/`weight` source。
+- **Candidate projection boundary**：candidate report 只發布 `level`、`scorePercent`、label/status/reason 等安全欄位；`normalizedScore`、`score`、`weight`、`earnedPoints` 只可作為 server compatibility mapping 的輸入，不再出現在 candidate projection。
+- **Legacy incomplete report**：Impact-first breakdown 若不是六個 expected keys 且每個 dimension 都有 numeric `level`/`scorePercent`，不從 `status` 或 `reason` 補造分數；candidate projection 加入 `legacy_impact_first_metrics_unavailable` 與 `regenerate_report`，raw status 為 `ready` 或 `ready_after_repair` 時降為 `needs_review`。generate、QA、read response 的 publication summary 都跟隨 candidate projection status。
+
+### Verification
+
+- Backend focused regression：6 files、66 tests passed，包含 Q3/Q5 screenshot reproduction、Impact-first evaluator、candidate publication contract、framework pipeline、role-specific fallback 與 schema tests。
+- Relevant backend ESLint passed；Phase 1/Phase 2 independent subagent reviews passed；`git diff --check` passed。
+- Browser/manual、live AI/provider、Mongo persistence、production execution/rollback 未執行。
+
 ## [2026-08-14] Phase 4 Report Scoring Math & Schema Version Update
 
 ### Changed / Added

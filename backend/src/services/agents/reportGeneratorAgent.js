@@ -96,6 +96,11 @@ export const buildDeterministicTurnBreakdowns = async (transcriptOrPairs = [], a
       rubricType: turnStructure.rubricType,
       frameworkKey: turnStructure.frameworkKey,
       frameworkLabel: turnStructure.frameworkLabel,
+      assessmentIntent: turnStructure.assessmentIntent,
+      assessmentIntentSource: turnStructure.assessmentIntentSource,
+      ...(turnStructure.parentAssessmentIntent
+        ? { parentAssessmentIntent: turnStructure.parentAssessmentIntent }
+        : {}),
       questionFamily: turnStructure.questionFamily,
       evidenceMode: turnStructure.evidenceMode,
       capabilityGroup: questionTurn.metadata?.capabilityGroup || '',
@@ -181,6 +186,11 @@ export const mergeTurnBreakdownsWithRubrics = (candidateTurns = [], deterministi
       rubricType: fallback.rubricType || turn.rubricType || 'star',
       frameworkKey: fallback.frameworkKey || turn.frameworkKey || '',
       frameworkLabel: fallback.frameworkLabel || turn.frameworkLabel || '',
+      assessmentIntent: fallback.assessmentIntent ?? turn.assessmentIntent,
+      assessmentIntentSource: fallback.assessmentIntentSource ?? turn.assessmentIntentSource,
+      ...(fallback.parentAssessmentIntent || turn.parentAssessmentIntent
+        ? { parentAssessmentIntent: fallback.parentAssessmentIntent || turn.parentAssessmentIntent }
+        : {}),
       questionFamily: fallback.questionFamily || turn.questionFamily || '',
       evidenceMode: fallback.evidenceMode || turn.evidenceMode || '',
       capabilityGroup: fallback.capabilityGroup || turn.capabilityGroup || '',

@@ -36,6 +36,33 @@ describe('role-specific report frameworks', () => {
     });
   });
 
+  it('routes the exact technical evidence Q2 from metadata intent to Impact-first dimensions', () => {
+    const rubric = inferTurnRubric({
+      question: 'Can you give me one practical example that shows your experience with data analysis in manufacturing?',
+      metadata: {
+        questionFamily: 'role_specific',
+        questionType: 'technical_evidence',
+        evidenceMode: 'past_example',
+      },
+    });
+
+    expect(rubric).toMatchObject({
+      rubricType: 'impact_first',
+      frameworkKey: 'impact_first_past_example',
+      assessmentIntent: 'impact_first_past_example',
+      assessmentIntentSource: 'explicit_metadata',
+      parentAssessmentIntent: 'impact_first_past_example',
+    });
+    expect(rubric.dimensions).toEqual([
+      'outcome',
+      'problem_solving',
+      'personal_role',
+      'approaches',
+      'learning',
+      'outcome_placement',
+    ]);
+  });
+
   it.each([
     'Which Python version do you currently use?',
     'What performance metric would you use?',

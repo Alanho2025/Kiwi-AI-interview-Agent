@@ -35,13 +35,16 @@ describe('analyzeImpactFirstAnswer', () => {
     
     expect(result.totalContentScore).toBe(55);
     expect(result.normalizedScore).toBe(6.11);
+    expect(result.scorePercent).toBe(61.1);
     
     // check statuses
     const outcome = result.dimensions.find(d => d.key === 'outcome');
     expect(outcome.status).toBe('clear');
+    expect(outcome.scorePercent).toBe(100);
     
     const problem = result.dimensions.find(d => d.key === 'problem_solving');
     expect(problem.status).toBe('partial');
+    expect(problem.scorePercent).toBe(50);
     
     const role = result.dimensions.find(d => d.key === 'personal_role');
     expect(role.status).toBe('missing');
