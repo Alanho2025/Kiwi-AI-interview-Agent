@@ -11,6 +11,8 @@ import {
 import { buildReportScores, computeInterviewPerformanceScore } from '../../../src/services/report/reportScoreService.js';
 import { buildPlainEnglishMetrics } from '../../../src/services/agents/reportGenerator/reportMetricBuilder.js';
 import { generateCandidateFeedback } from '../../../src/services/reportCoachingService.js';
+import { normalizeTurnBreakdown } from '../../../src/utils/schemaHelpers.js';
+import { buildCandidateReportProjection } from '../../../src/services/report/reportPublicationSummaryService.js';
 
 describe('report framework pipeline', () => {
   it('uses interview performance as the report overall score', () => {
@@ -56,8 +58,8 @@ describe('report framework pipeline', () => {
     expect(overview?.content).not.toMatch(/CV-JD|confidence|strong_match|match decision/i);
   });
 
-  it('does not score a validation follow-up with stale motivation metadata', () => {
-    const turn = analyzeTurnStructure({
+  it('does not score a validation follow-up with stale motivation metadata', async () => {
+    const turn = await analyzeTurnStructure({
       question: 'Can you walk me through a specific example of how you validated that the feedback helped a candidate improve?',
       answer: 'I separated feedback types but did not run before-and-after user validation.',
       metadata: {
@@ -78,8 +80,8 @@ describe('report framework pipeline', () => {
     })).toMatchObject({ passed: true });
   });
 
-  it('uses trade-off reasoning rather than STARR for a constraint follow-up', () => {
-    const turn = analyzeTurnStructure({
+  it('uses trade-off reasoning rather than STARR for a constraint follow-up', async () => {
+    const turn = await analyzeTurnStructure({
       question: 'What trade-offs or constraints did you consider when designing the experiments?',
       answer: 'I had to balance sample size, operator time, fixture changes, and reproducibility.',
       metadata: { followUpIntent: 'tradeoff', questionFamily: 'behavioural' },
@@ -90,8 +92,8 @@ describe('report framework pipeline', () => {
     expect(turn.frameworkBreakdown.dimensions.find((item) => item.key === 'judgementTradeoffs')?.status).not.toBe('not_applicable');
   });
 
-  it('scores only the requested result dimension on a behavioural result follow-up', () => {
-    const turn = analyzeTurnStructure({
+  it('scores only the requested result dimension on a behavioural result follow-up', async () => {
+    const turn = await analyzeTurnStructure({
       question: 'What was the result?',
       answer: 'The retest rate dropped from 15% to 5%.',
       metadata: { followUpIntent: 'result', questionFamily: 'behavioural' },
@@ -102,8 +104,8 @@ describe('report framework pipeline', () => {
     expect(turn.frameworkBreakdown.dimensions.find((item) => item.key === 'task')?.status).toBe('not_applicable');
   });
 
-  it('builds deterministic framework analysis before coaching enrichment', () => {
-    const turns = reportGeneratorAgent.buildDeterministicTurnBreakdowns?.([
+  it('builds deterministic framework analysis before coaching enrichment', async () => {
+    const turns = (await reportGeneratorAgent.buildDeterministicTurnBreakdowns?.([
       {
         role: 'ai',
         text: 'How would you adapt a lesson for different learner needs?',
@@ -119,11 +121,14 @@ describe('report framework pipeline', () => {
         role: 'user',
         text: 'I would clarify requirements, compare options, manage safeguarding risk, assess understanding, and adjust based on the result.',
       },
-    ]) || [];
+    ])) || [];
 
     expect(turns).toHaveLength(1);
     expect(turns[0]).toMatchObject({
       frameworkKey: 'scenario_case_reasoning',
+      assessmentIntent: 'scenario_reasoning',
+      assessmentIntentSource: 'explicit_metadata',
+      parentAssessmentIntent: 'scenario_reasoning',
       questionFamily: 'role_specific',
       evidenceMode: 'scenario_reasoning',
       starApplicable: false,
@@ -140,6 +145,9 @@ describe('report framework pipeline', () => {
         feedback: 'Use STAR.',
         rubricType: 'starr',
         frameworkKey: 'behavioural_starr',
+        assessmentIntent: 'impact_first_past_example',
+        assessmentIntentSource: 'text_fallback',
+        parentAssessmentIntent: 'impact_first_past_example',
         starApplicable: true,
         starBreakdown: { situation: 'missing' },
         scores: { business: 10, logic: 10, evidence: 10 },
@@ -151,6 +159,9 @@ describe('report framework pipeline', () => {
         feedback: 'Explain the requirements, options, risks, validation, and expected outcome.',
         rubricType: 'role_specific',
         frameworkKey: 'scenario_case_reasoning',
+        assessmentIntent: 'scenario_reasoning',
+        assessmentIntentSource: 'explicit_metadata',
+        parentAssessmentIntent: 'scenario_reasoning',
         frameworkLabel: 'Scenario / Case Reasoning',
         questionFamily: 'role_specific',
         evidenceMode: 'scenario_reasoning',
@@ -169,6 +180,48 @@ describe('report framework pipeline', () => {
       scores: { business: 3, logic: 4, evidence: 2 },
     });
     expect(merged[0].feedback).not.toBe('Use STAR.');
+  });
+
+  it('keeps deterministic assessment lineage through normalization and out of candidate publication', () => {
+    const [merged] = reportGeneratorAgent.mergeTurnBreakdownsWithRubrics?.([{
+      question: 'How would you handle the case?',
+      answer: 'I would compare options.',
+      feedback: 'The candidate framework is different.',
+      rubricType: 'starr',
+      frameworkKey: 'behavioural_starr',
+      assessmentIntent: 'behavioural_star',
+      assessmentIntentSource: 'text_fallback',
+      parentAssessmentIntent: 'behavioural_star',
+    }], [{
+      question: 'How would you handle the case?',
+      answer: 'I would compare options.',
+      feedback: 'Explain the requirements, options, risks, validation, and expected outcome.',
+      rubricType: 'role_specific',
+      frameworkKey: 'scenario_case_reasoning',
+      assessmentIntent: 'scenario_reasoning',
+      assessmentIntentSource: 'explicit_metadata',
+      parentAssessmentIntent: 'scenario_reasoning',
+      questionFamily: 'role_specific',
+      evidenceMode: 'scenario_reasoning',
+      starApplicable: false,
+      starBreakdown: null,
+      frameworkBreakdown: { dimensions: [{ key: 'requirements', label: 'Requirements', status: 'missing', score: 0 }] },
+    }]) || [];
+
+    expect(normalizeTurnBreakdown(merged)).toMatchObject({
+      assessmentIntent: 'scenario_reasoning',
+      assessmentIntentSource: 'explicit_metadata',
+      parentAssessmentIntent: 'scenario_reasoning',
+    });
+
+    const projection = buildCandidateReportProjection({
+      sessionId: 'session-1',
+      latestStatus: 'ready',
+      report: { candidateFeedback: { turnBreakdowns: [merged] } },
+    });
+    expect(projection.report.candidateFeedback.turnBreakdowns[0]).not.toHaveProperty('assessmentIntent');
+    expect(projection.report.candidateFeedback.turnBreakdowns[0]).not.toHaveProperty('assessmentIntentSource');
+    expect(projection.report.candidateFeedback.turnBreakdowns[0]).not.toHaveProperty('parentAssessmentIntent');
   });
 
   it('matches reordered and omitted coaching only to the exact deterministic turn', () => {
@@ -219,16 +272,47 @@ describe('report framework pipeline', () => {
     });
   });
 
-  it('computes new interview performance from scorable framework turns', () => {
+  it('computes 90/10 math for eligible voice turns and 100 fallback for text turns', () => {
     const score = reportDraftBuilder.computeInterviewPerformanceScore?.({}, {
       turnBreakdowns: [
-        { rubricType: 'role_specific', frameworkBreakdown: { normalizedScore: 8 } },
-        { rubricType: 'starr', frameworkBreakdown: { normalizedScore: 6 } },
-        { rubricType: 'conversation', frameworkBreakdown: { normalizedScore: 10 } },
+        { 
+          rubricType: 'role_specific', 
+          frameworkBreakdown: { normalizedScore: 8 },
+          voiceDurationAssessment: { eligible: true, earnedPoints: 10 } 
+        },
+        { 
+          rubricType: 'starr', 
+          frameworkBreakdown: { normalizedScore: 6 } 
+        },
+        { 
+          rubricType: 'conversation', 
+          frameworkBreakdown: { normalizedScore: 10 } 
+        },
+        { 
+          rubricType: 'direct_answer', 
+          frameworkBreakdown: { normalizedScore: 5, dimensions: [] } 
+        },
+        { 
+          rubricType: 'starr', 
+          frameworkBreakdown: { normalizedScore: 0, dimensions: [{}] } 
+        },
+        {
+          questionType: 'follow_up',
+          rubricType: 'starr',
+          frameworkBreakdown: { normalizedScore: 8, dimensions: [{}] } 
+        }
       ],
     });
 
-    expect(score).toBe(70);
+    // Calculations:
+    // Turn 1 (voice): 8*10 = 80. (80 * 0.9) + 10 = 82
+    // Turn 2 (text fallback): 6*10 = 60
+    // Turn 3 (conversation): excluded
+    // Turn 4 (direct 0-dimension): excluded
+    // Turn 5 (genuine 0): 0
+    // Turn 6 (follow_up): excluded
+    // Average: (82 + 60 + 0) / 3 = 47.33... -> Math.round -> 47
+    expect(score).toBe(47);
   });
 
   it('keeps the legacy interview formula when framework breakdowns are absent', () => {
@@ -346,5 +430,15 @@ describe('report framework pipeline', () => {
     expect(result.answerRewriteExamples[0].weak).toBe('I worked on web apps.');
     expect(result.answerRewriteExamples[1].question).toBe('How do you handle system failure?');
     expect(result.answerRewriteExamples[1].weak).toBe('I check the logs.');
+  });
+
+  it('persists v2026.2 scoring logic version on the report draft', () => {
+    const draft = reportDraftBuilder.buildReportDraft({
+      session: { id: 'session-1' },
+      analysisResult: {},
+      evidenceSummary: { totals: {} },
+      interviewMetrics: {},
+    });
+    expect(draft.scoringVersion).toBe('v2026.2');
   });
 });

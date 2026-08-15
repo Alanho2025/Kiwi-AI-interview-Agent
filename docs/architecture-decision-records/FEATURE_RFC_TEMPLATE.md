@@ -2,9 +2,11 @@
 
 > **文件狀態**：[Draft / Under Review / Approved / Deprecated]  
 > **系統成熟度 (Readiness Level)**：[Prototype / Single-EC2 Staging Candidate / Production-Ready]  
-> **核心模組路徑**：`backend/src/...`, `frontend/src/...`  
-> **Git 演進 Commit 追蹤**：[Commit SHA, PR #]  
+> **核心模組路徑**：`backend/src/...`, `frontend/src/...`
+> **Git 演進 Commit 追蹤**：[Commit SHA, PR #]
 > **主要負責人 / 日期**：[Author / Date]  
+> **實作狀態 (Implementation Status)**：[Verified / Partial / Planned]
+> **校驗測試路徑 (Verified by Tests)**：[Test file path or None]
 
 ---
 
@@ -29,6 +31,73 @@
 ### 2.2 成功標準與量化 KPIs (Acceptance Criteria & Metrics)
 | 衡量指標 (Metric) | 目標值 (Target) | 驗證方式 / 自動化測試路徑 |
 | :--- | :--- | :--- |
+
+### 2.3 Feature Definition & Code Blueprint（工程師可獨立實作的規格）
+
+這一節不是產品宣傳或架構摘要，而是讓工程師不依賴 AI 也能組出本 Feature 的 code-level contract。所有名稱、signature、路徑與行為必須能回溯到目前 repository；無法確認的內容標記為 `Partial`、`Planned` 或 `Not verified`。
+
+#### 2.3.1 Entry point 與 trigger
+
+| 項目 | 定義 |
+| :--- | :--- |
+| **使用者或系統 trigger** | [誰在什麼條件下啟動 Feature] |
+| **推薦入口函數 / endpoint** | `[module/path.js]::[symbol]`，signature：`...` |
+| **呼叫者** | `[caller path]::[symbol]` |
+| **前置條件** | [auth、ownership、review、schema 或狀態條件] |
+| **不應直接呼叫的 internal helper** | [列出只供上層 orchestrator 使用的函數] |
+
+#### 2.3.2 Object / data contract
+
+| Object | 來源 | 必要欄位與型別 | 產生或修改者 | 生命週期 / side effect |
+| :--- | :--- | :--- | :--- | :--- |
+| `InputObject` | [caller] | `{ field: type }` | [none / helper] | [request only / persisted] |
+| `DerivedObject` | `[path]::[symbol]` | `{ field: type }` | [helper] | [in-memory] |
+| `OutputObject` | `[path]::[symbol]` | `{ field: type }` | [builder / validator] | [returned / persisted / emitted] |
+
+#### 2.3.3 Reusable helper catalog
+
+只把可重用且會影響 Feature 行為的 helper 列出來；每一列都要說明 caller 是否可以直接依賴它。
+
+| Helper | Input | Output | Side effect | 可直接 reuse？ | 何時呼叫 |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `[path]::[symbol]` | `{ ... }` | `{ ... }` | [none / DB / provider] | [Yes / No] | [條件] |
+
+#### 2.3.4 Execution algorithm
+
+用接近實作的 pseudocode 描述 `const`、mutable state、loop、condition、early return 與 helper 呼叫順序。Pseudocode 必須標明它是規格，不可冒充 repository 的現行程式碼。
+
+```text
+function featureEntry(input):
+  const normalizedInput = normalize(input)
+  validate(normalizedInput)
+  const derived = buildDerivedObject(normalizedInput)
+
+  for each item in derived.items:
+    update state according to the deterministic rule
+
+  if guard fails:
+    return blockedOutput
+
+  return buildOutput(state, derived)
+```
+
+#### 2.3.5 Output field provenance
+
+| Output 欄位 | 來源 helper / state | deterministic？ | 失敗時的值或行為 |
+| :--- | :--- | :--- | :--- |
+| `output.field` | `[path]::[symbol]` | [Yes / No] | [fallback / error / omitted] |
+
+#### 2.3.6 Branch、error 與 fallback contract
+
+| 條件 | 系統動作 | Output / error code | 是否允許繼續下游 |
+| :--- | :--- | :--- | :--- |
+| [invalid input / blocked / provider failure] | [throw / early return / fallback] | `[code]` | [Yes / No] |
+
+#### 2.3.7 Evidence matrix
+
+| Claim | Source path / line | Test path | Evidence boundary | Status |
+| :--- | :--- | :--- | :--- | :--- |
+| [可驗證行為] | `[path]:Lx` | `[test path]` | [local / provider / browser / production] | [Verified / Partial / Planned] |
 
 ---
 

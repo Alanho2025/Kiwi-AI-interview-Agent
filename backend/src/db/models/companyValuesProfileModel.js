@@ -36,7 +36,7 @@ const FetchedPageSchema = new mongoose.Schema(
 
 const CompanyValuesProfileSchema = new mongoose.Schema(
   {
-    sessionId: { type: String, index: true, default: null },
+    sessionId: { type: String, default: null },
     jdFingerprint: { type: String, index: true, required: true },
     userId: { type: String, index: true, required: true },
 

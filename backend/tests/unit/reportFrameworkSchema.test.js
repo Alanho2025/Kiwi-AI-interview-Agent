@@ -26,6 +26,8 @@ describe('report v5 framework schema', () => {
               label: 'Requirements',
               status: 'partial',
               score: 5,
+              level: 3,
+              scorePercent: 50,
               reason: 'Requirements were partly explained.',
             }],
             mainGapKey: 'riskQualityEthics',
@@ -33,6 +35,8 @@ describe('report v5 framework schema', () => {
             totalScore: 5,
             maxScore: 10,
             normalizedScore: 5,
+            level: 3,
+            scorePercent: 50,
           },
         }],
       },
@@ -48,6 +52,14 @@ describe('report v5 framework schema', () => {
       frameworkBreakdown: {
         mainGapKey: 'riskQualityEthics',
         normalizedScore: 5,
+        level: 3,
+        scorePercent: 50,
+        dimensions: [{
+          key: 'requirements',
+          level: 3,
+          scorePercent: 50,
+          reason: 'Requirements were partly explained.',
+        }],
       },
     });
   });
@@ -81,6 +93,36 @@ describe('report v5 framework schema', () => {
       action: 'clear',
       resultOrReaction: 'partial',
       reflection: 'clear',
+    });
+  });
+
+  it('validates absent voice duration for text answers and preserves it when present', () => {
+    const report = validateReportOutput({
+      schemaVersion: 'v5',
+      candidateFeedback: {
+        turnBreakdowns: [
+          {
+            question: 'Text question?',
+            rubricType: 'starr',
+            frameworkKey: 'behavioural_starr',
+            // voiceDurationAssessment is omitted entirely
+            frameworkBreakdown: { normalizedScore: 10 }
+          },
+          {
+            question: 'Voice question?',
+            rubricType: 'role_specific',
+            frameworkKey: 'scenario_case_reasoning',
+            voiceDurationAssessment: { eligible: true, earnedPoints: 10 },
+            frameworkBreakdown: { normalizedScore: 10 }
+          }
+        ]
+      }
+    });
+
+    expect(report.candidateFeedback.turnBreakdowns[0].voiceDurationAssessment).toBeUndefined();
+    expect(report.candidateFeedback.turnBreakdowns[1].voiceDurationAssessment).toMatchObject({
+      eligible: true,
+      earnedPoints: 10
     });
   });
 });

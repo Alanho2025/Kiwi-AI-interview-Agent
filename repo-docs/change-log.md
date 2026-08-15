@@ -1,5 +1,54 @@
 # Change Log
 
+## [2026-08-15] Candidate report framework contract correction
+
+### Changed / Added
+
+- **Affected product code**: `backend/src/utils/schemaHelpers.js`, `backend/src/services/report/reportPublicationSummaryService.js`, `backend/src/services/agents/reportGeneratorAgent.js`, `frontend/src/components/report/TurnBreakdownSection.jsx`, `frontend/src/utils/reportHelpers.js`, and `frontend/src/utils/reportPdf/reportPdfTemplate.js`.
+- **Synchronized documentation**: `docs/architecture-decision-records/features/F-34-report-generation-pipeline.md` and this scoped change-log entry.
+- **Framework field ownership**: Backend preserves and bounded-normalizes server-published framework `level` (`1–5`) and `scorePercent` (`0–100`), plus dimension `reason`/`weight`/`earnedPoints`; numeric zero remains valid, while null/blank/boolean values are not coerced to zero. Candidate projection allowlists valid framework/dimension `level`, `scorePercent`, `reason`/`scoreReason`, and does not publish internal assessment lineage.
+- **Compatibility boundary**: Backend may retain raw compatibility numeric fields for validation and server-side mapping, but candidate projection strips `normalizedScore`, `score`, `weight` and `earnedPoints`; candidate UI/export receives the direct `level`/`scorePercent` contract.
+- **Removed fallback**: Legacy client-side semantic `buildFallbackFrameworkBreakdown` synthesis from `scores.business`/`logic`/`evidence` was removed. Without actual STARR/starBreakdown, a missing formal framework object or no renderable dimensions now renders framework label + overall `unavailable`; eligible duration remains separately visible as `Duration Level N/5`, while a dimension with a missing metric remains visible as dimension-level `Level unavailable`; actual STARR does not add framework unavailable.
+- **HTML/TXT/PDF consistency**: `TurnBreakdownSection`, `reportHelpers`, and `reportPdfTemplate` directly consume server-published `level`/`scorePercent`/`reason`. Without actual STARR/starBreakdown, formal object/no renderable dimensions produce framework label + `unavailable`, eligible duration remains separate, and actual STARR suppresses framework unavailable. A dimension missing `level` or `scorePercent` remains with `Level unavailable`; framework/dimension/duration do not show `/10` or `earnedPoints/maxPoints`; Answer Result and overall `/100` summaries remain. The client performs no mapping, rescoring, or score inference.
+- **Deterministic routing**: An exact role-specific question with `evidenceMode=past_example` routes to `impact_first_past_example` and retains the impact-first six content dimensions; different frameworks are not merged. Deterministic assessment lineage takes precedence over model output but remains internal.
+
+### Verification
+
+- Backend Phase 1 focused checks: 2 files, 15 tests passed.
+- Backend Phase 2 focused checks: 2 files, 46 tests passed.
+- Backend final focused regression: 4 files / 61 tests passed（由 Phase 1 2 files / 15 + Phase 2 2 files / 46 組成）。
+- Frontend report focused regression: 3 files / 20 tests passed。
+- Backend/frontend lint passed；`git diff --check` passed。
+- Browser/manual、live AI/provider、Mongo persistence、production execution/rollback 未執行。
+
+## [2026-08-15] Impact-first report numeric contract and legacy guard
+
+### Changed / Added
+
+- **Q3 routing metadata**：`buildRoleLockedQuestion` 保留 retrieved question 的 `questionFamily`、`evidenceMode` 與 role assessment metadata，讓 `buildQuestionTranscriptMetadata` 能把 exact role-specific past-example question 路由到 `impact_first_past_example`，不把 internal `type` 和 public `questionType` 混用。
+- **Impact-first evaluator contract**：`impactFirstAnalysisService.js` 現在直接發布 framework `scorePercent`，以及六個 dimension 各自的 `level`（1–5）、`scorePercent`（0–100）、`score`/`weight` source。
+- **Candidate projection boundary**：candidate report 只發布 `level`、`scorePercent`、label/status/reason 等安全欄位；`normalizedScore`、`score`、`weight`、`earnedPoints` 只可作為 server compatibility mapping 的輸入，不再出現在 candidate projection。
+- **Legacy incomplete report**：Impact-first breakdown 若不是六個 expected keys 且每個 dimension 都有 numeric `level`/`scorePercent`，不從 `status` 或 `reason` 補造分數；candidate projection 加入 `legacy_impact_first_metrics_unavailable` 與 `regenerate_report`，raw status 為 `ready` 或 `ready_after_repair` 時降為 `needs_review`。generate、QA、read response 的 publication summary 都跟隨 candidate projection status。
+
+### Verification
+
+- Backend focused regression：6 files、66 tests passed，包含 Q3/Q5 screenshot reproduction、Impact-first evaluator、candidate publication contract、framework pipeline、role-specific fallback 與 schema tests。
+- Relevant backend ESLint passed；Phase 1/Phase 2 independent subagent reviews passed；`git diff --check` passed。
+- Browser/manual、live AI/provider、Mongo persistence、production execution/rollback 未執行。
+
+## [2026-08-14] Phase 4 Report Scoring Math & Schema Version Update
+
+### Changed / Added
+
+- **90/10 Voice Score Math**: Updated `computeInterviewPerformanceScore` in `reportScoreService.js` to blend content (90%) and voice duration (10%) for eligible voice root turns. Text turns fallback to 100% content weight.
+- **Score Scaling**: Adjusted math to ensure the `normalizedScore` (out of 10) correctly scales up to a 100-point basis.
+- **Turn Root Injection**: Extended `buildDeterministicTurnBreakdowns` and `mergeTurnBreakdownsWithRubrics` in `reportGeneratorAgent.js` to ensure `voiceDurationAssessment` propagates to the root of the deterministic breakdown object.
+- **Schema Validation**: Updated `schemaHelpers.js` to whitelist `voiceDurationAssessment` in the breakdown schema structure to prevent sanitization drops.
+- **String Versioning**: Bumped target algorithm string version to `v2026.2` in `reportScoringExplanationService.js`.
+
+### Verification
+
+- Focused Vitest: Updated `reportFrameworkPipeline.test.js`, `reportScoringExplanationService.test.js`, and `reportFrameworkSchema.test.js` to assert the 90/10 math, 100% fallback, genuine 0-score inclusions, and schema integrity. 100% passed.
 ## [2026-08-01 23:45 NZST] Question selection now follows session phase and accepted-answer coverage
 
 ### Changed / Added
@@ -406,6 +455,29 @@
 - Weak, partial, or conflicting history does not remove a question. It preserves the matching root and adds a bounded `0.18` revalidation priority boost. Answer quality is attributed to the last countable AI question answered, not the next selected question.
 - This is an observe-only, default-off planning policy. It cannot affect scoring and records no raw answer or candidate-facing trace. If history refresh fails, preparation logs a warning and uses the ordinary pool.
 
+### V5.1 (Next Release Draft)
+- **Phase 5: Past-example question wording and controlled follow-ups**:
+  - Updated `interviewMicroPlanningService.js` to rewrite the Deepseek system prompt using the 6-part XML schema (Instructions, Knowledge, Memory, Examples, Tools, Guardrails).
+  - Updated behavioral prompts in `questionCatalogSeed2026_1.js` and `questionCatalogSeed2026_2.js` to enforce outcome-first instructions.
+  - Updated `interviewerAgentQuestionBuilder.js` to construct targeted probing follow-ups based on specific missing evidence dimensions (e.g., `personal_ownership`, `result_or_validation`, `tradeoff_or_constraint`).
+  - Verified `interviewTurnOrchestratorService.js` correctly maps missing evidence signals to turn plans, preserving `rootQuestionId`.
+  - All tests (`questionCatalog2026_2.test.js`, `followUpQuestionService.test.js`, `rootFollowUpRuntimeFlow.test.js`) are green.
+
+
+- **Phase 2: Intent Engine & Rubric Routing (impact-first-past-example)**:
+  - Added `resolveCanonicalEvidenceMode` and `resolveQuestionAssessmentIntent` to establish a single source of truth for categorizing evaluation modes and assessment intents across the system.
+  - Refactored `questionCatalogSelectionService` and `questionPoolComposerService` to leverage the new central intent engine.
+  - Updated `masterAiService` to persist `assessmentIntent` in interview transcripts at generation time.
+  - Refactored `turnRubricService` to strictly route scoring frameworks using the persisted `assessmentIntent`, replacing legacy, brittle text-matching heuristics. 
+  - Preserved backward compatibility by routing the new `impact_first_past_example` intent to the existing STARR evaluator (Phase 3 will introduce the true impact-first evaluator).
+  - All tests (`roleSpecificFrameworkRobustness.test.js`, `questionCatalogSelectionService.test.js`) are green.
+
+- **Phase 3: Universal LLM Evaluation Engine (Impact-First Past Example)**:
+  - Created `impactFirstAnalysisService.js` implementing a deterministic 6-dimension rubric (`Goal & Context`, `Methodology`, `Trade-offs`, `Impact`, `Reflection`, `Communication`), scoring answers from 1-5 with an LLM evaluator (`deepseekService.js`).
+  - Updated `turnRubricService.js` to route `impact_first_past_example` to the new LLM-driven service, completing the migration of past-example intent from the legacy STARR framework.
+  - Converted `analyzeTurnStructure` and `buildDeterministicTurnBreakdowns` (in `reportGeneratorAgent.js`) to async functions to support network-dependent evaluator calls.
+  - Refactored all dependent test suites (`reportFrameworkPipeline.test.js`, `roleSpecificFrameworkRobustness.test.js`, `reportGroundingRobustness.test.js`, `reportTurnDatasetRobustness.test.js`, `voiceDurationAssessmentService.test.js`) to await the async pipeline. All 83 tests passed.
+
 ### Verification
 
 - Seven focused backend Vitest files / 89 tests and backend ESLint passed. Browser text, live voice/provider, Mongo persistence, production observe, user controls, and source-delete validation were not run.
@@ -447,3 +519,49 @@
 
 - Headed Chromium以本地Vite與candidate projection fixture驗證desktop/mobile turn cards、duplicate question順序、framework、Answer result、ready/unavailable stronger answer及private-copy negative check；console 0 errors。
 - Live backend/provider、human usability與production rollout仍未執行。
+
+## [2026-08-09] Phase 1 canonical voice-duration assessment foundation
+
+### Changed / Added
+
+- Added `backend/src/services/report/voiceDurationAssessmentService.js` as the single owner of the five continuous voice-duration bands: `<60`/`>150`, `60–<70`/`>140–150`, `70–<80`/`>130–140`, `80–<90`/`>120–130`, and inclusive `90–120` seconds. The corresponding points are `0 / 2.5 / 5 / 7.5 / 10`.
+- Extended the report turn dataset to annotate accepted substantive root voice answers once, while keeping text, follow-up, unknown-mode, missing-duration, unconfirmed, repair and candidate-question turns outside the eligible denominator.
+- Exposed an internal nested summary through interview metrics and carried the same deterministic assessment into per-turn report breakdowns. Model output cannot replace the measured duration evidence.
+- This slice does not change `reportScoreService.js`, overall score, frontend/public schema, coaching copy, voice runtime, text timing, persistence schema or candidate-facing projection.
+- Synced the owning RFC: `docs/architecture-decision-records/features/F-34-report-generation-pipeline.md`.
+
+### Verification
+
+- Focused Vitest: 3 files / 51 tests passed after Cycle 3 coverage repair.
+- Report robustness: 23 files / 166 tests passed after Cycle 3 coverage repair.
+- Voice robustness: 41 files / 183 tests passed; the initial sandbox run hit `listen EPERM` in an existing local lifecycle test, and the controlled local-listener rerun passed.
+- Backend ESLint and `git diff --check` passed.
+- Independent Cycle 3 audit: same clean-context auditor returned a final 10/10 PASS matrix after stale-plan-state and bounded coverage repairs; no blocking finding remained.
+- Browser/manual calibration, live voice/provider, real AI evaluation, frontend rendering, Mongo persistence and production rollout were not run.
+
+## [2026-08-14] Phase 6 Candidate-safe report contract and coaching
+
+### Changed / Added
+
+- Updated `projectFrameworkBreakdown` in `backend/src/services/report/reportPublicationSummaryService.js` to project new 5-band mathematical fields (`level`, `weight`, `earnedPoints`, `version`).
+- Implemented `projectDurationAssessment` to explicitly allowlist deterministic duration fields (`eligible`, `reason`, `seconds`, `level`, `earnedPoints`, `maxPoints`) on the `candidateTurn` payload, safely exposing them to the frontend without leaking internal evidence arrays.
+- Refactored `buildCoachingAdvice` in `backend/src/services/agents/reportGenerator/reportCoachingBuilder.js` to eliminate weak proxy logic (question-count causality) that previously triggered concise answers advice.
+- Implemented deterministic coaching based on the actual `durationAssessment` band (triggering targeted `90-120` second advice if duration levels miss target).
+- Removed legacy hardcoded "60-90 seconds" and "under 90 seconds" strings, replacing them with the new canonical 90-120 seconds target.
+- Synced the owning RFC: `docs/architecture-decision-records/features/F-34-report-generation-pipeline.md`.
+
+### Verification
+- Focused Vitest: `reportPublicationSummary.test.js` and `reportCoachingAndStarReview.test.js` passed 100%. Legacy payloads and LLM feedback attempts to override deterministic fields fail safely.
+
+## [2026-08-14] Phase 7 Candidate UI and export consistency
+
+### Changed / Added
+
+- Updated `TurnBreakdownSection.jsx` to dynamically render `durationAssessment` fields (eligible, seconds, level, points) inside the `FrameworkBreakdown` component, ensuring the new Phase 6 projection is visible on the candidate report without client-side rescoring.
+- Fixed fallback text logic in `frontend/src/utils/reportView/coaching.js` to target `> 120` seconds instead of `> 90`, and standardized all generic advice strings to "90-120 seconds".
+- Refactored `buildTurnFrameworkMeta` in `frontend/src/utils/reportPdf/reportPdfTemplate.js` to accurately serialize the `durationAssessment` fields for PDF export.
+- Enhanced `formatReportAsText` in `frontend/src/utils/reportHelpers.js` to include the `frameworkBreakdown` dimensions and `durationAssessment` text output, ensuring Text export consistency with HTML and PDF.
+- Synced the owning RFC: `docs/architecture-decision-records/features/F-34-report-generation-pipeline.md`.
+
+### Verification
+- Focused Vitest: `TurnBreakdownSection.test.jsx`, `reportTurnFrameworkFormatter.test.js`, and `reportHelpers.test.js` passed 100%. Legacy payloads correctly render neutrally without throwing errors.

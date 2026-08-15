@@ -77,6 +77,15 @@ const EMAIL_PATTERN = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi;
 const PHONE_PATTERN = /(?<!\w)(?:\+?\d(?:[\s()-]*\d){7,})(?!\w)/g;
 const STREET_ADDRESS_PATTERN = /\b\d{1,5}\s+(?:[A-Z0-9][A-Z0-9.'-]*\s+){0,5}(?:street|st|road|rd|avenue|ave|lane|ln|drive|dr|way|place|pl|boulevard|blvd|crescent|cres|terrace|tce)\b/gi;
 const LEGACY_CLARIFICATION_PATTERN = /\b(?:can|could|would) you (?:please )?(?:clarify|repeat|rephrase|explain)|\bwhat (?:are|were) you asking\b|\b(?:do not|don't|did not|didn't|cannot|can't) (?:really )?(?:understand|follow)\b/i;
+const IMPACT_FIRST_FRAMEWORK_KEY = 'impact_first_past_example';
+const IMPACT_FIRST_DIMENSION_KEYS = Object.freeze([
+  'outcome',
+  'problem_solving',
+  'personal_role',
+  'approaches',
+  'learning',
+  'outcome_placement',
+]);
 
 const pickDefined = (source = {}, keys = []) => keys.reduce((result, key) => {
   if (source?.[key] !== undefined) result[key] = source[key];
@@ -164,17 +173,101 @@ const projectTurnRewrite = (rewrite = null) => {
   return { status: 'unavailable', unavailableReason: 'A grounded stronger answer could not be generated reliably.' };
 };
 
+const projectDurationAssessment = (assessment = null) => {
+  if (!assessment || typeof assessment !== 'object') return null;
+  return pickDefined(assessment, ['eligible', 'reason', 'seconds', 'level', 'earnedPoints', 'maxPoints']);
+};
+
+const parseNumericValue = (value) => {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : undefined;
+  if (typeof value !== 'string' || value.trim() === '') return undefined;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+};
+
+const boundedScorePercent = (value) => {
+  const scorePercent = parseNumericValue(value);
+  if (scorePercent === undefined) return undefined;
+  return Number(Math.max(0, Math.min(100, scorePercent)).toFixed(2));
+};
+
+const boundedFrameworkLevel = (value) => {
+  const level = parseNumericValue(value);
+  if (level === undefined) return undefined;
+  return Math.max(1, Math.min(5, Math.round(level)));
+};
+
+const mapScorePercent = ({ scorePercent, normalizedScore, score, weight } = {}) => {
+  const explicitScorePercent = boundedScorePercent(scorePercent);
+  if (explicitScorePercent !== undefined) return explicitScorePercent;
+
+  const normalized = parseNumericValue(normalizedScore);
+  if (normalized !== undefined) return boundedScorePercent(normalized * 10);
+
+  const numericScore = parseNumericValue(score);
+  if (numericScore === undefined) return undefined;
+  const numericWeight = parseNumericValue(weight);
+  const percentage = numericWeight !== undefined && numericWeight > 0
+    ? (numericScore / numericWeight) * 100
+    : numericScore * 10;
+  return boundedScorePercent(percentage);
+};
+
+const projectFrameworkDimension = (dimension = {}) => {
+  const projected = pickDefined(dimension, [
+    'key',
+    'label',
+    'status',
+    'reason',
+  ]);
+  const level = boundedFrameworkLevel(dimension.level);
+  const scorePercent = mapScorePercent(dimension);
+  if (level !== undefined) projected.level = level;
+  if (scorePercent !== undefined) projected.scorePercent = scorePercent;
+  return projected;
+};
+
 const projectFrameworkBreakdown = (breakdown = null) => {
   if (!breakdown || typeof breakdown !== 'object') return null;
+  const projection = pickDefined(breakdown, ['summary', 'scoreReason', 'version']);
+  const level = boundedFrameworkLevel(breakdown.level);
+  const scorePercent = mapScorePercent(breakdown);
+  if (level !== undefined) projection.level = level;
+  if (scorePercent !== undefined) projection.scorePercent = scorePercent;
+  projection.dimensions = asArray(breakdown.dimensions).map(projectFrameworkDimension);
+  return projection;
+};
+
+const hasCompleteImpactFirstMetrics = (turn = {}) => {
+  if (turn.frameworkKey !== IMPACT_FIRST_FRAMEWORK_KEY) return true;
+
+  const dimensions = projectFrameworkBreakdown(turn.frameworkBreakdown)?.dimensions || [];
+  const keys = new Set(dimensions.map((dimension) => dimension.key));
+  if (dimensions.length !== IMPACT_FIRST_DIMENSION_KEYS.length
+    || keys.size !== IMPACT_FIRST_DIMENSION_KEYS.length
+    || !IMPACT_FIRST_DIMENSION_KEYS.every((key) => keys.has(key))) {
+    return false;
+  }
+
+  return dimensions.every((dimension) => (
+    Number.isInteger(dimension.level)
+    && dimension.level >= 1
+    && dimension.level <= 5
+    && Number.isFinite(dimension.scorePercent)
+    && dimension.scorePercent >= 0
+    && dimension.scorePercent <= 100
+  ));
+};
+
+const buildImpactFirstMetricsLimitation = (report = {}) => {
+  const hasIncompleteTurn = asArray(report?.candidateFeedback?.turnBreakdowns)
+    .some((turn) => !hasCompleteImpactFirstMetrics(turn));
+  if (!hasIncompleteTurn) return null;
+
   return {
-    ...pickDefined(breakdown, ['normalizedScore', 'summary']),
-    dimensions: asArray(breakdown.dimensions).map((dimension) => pickDefined(dimension, [
-      'key',
-      'label',
-      'status',
-      'score',
-      'reason',
-    ])),
+    code: 'legacy_impact_first_metrics_unavailable',
+    message: 'This report contains an incomplete Impact-first score breakdown. Regenerate the report to see the six level and percentage metrics.',
+    action: 'regenerate_report',
   };
 };
 
@@ -230,6 +323,7 @@ const buildCandidateFeedbackProjection = (feedback = {}, roleFit = {}) => {
         'structureLabel',
       ]),
       scores: pickDefined(turn.scores || {}, ['business', 'logic', 'evidence']),
+      durationAssessment: projectDurationAssessment(turn.durationAssessment),
       frameworkBreakdown: projectFrameworkBreakdown(turn.frameworkBreakdown),
       starBreakdown: projectStarBreakdown(turn.starBreakdown || turn.starrBreakdown),
       strongerAnswer: projectTurnRewrite(takeMatchingRewrite(rewriteQueues, turn.question, turn.answer)),
@@ -272,9 +366,24 @@ const buildCandidateReportBody = (report = {}) => ({
 
 export const buildCandidateReportProjection = (record = {}) => {
   const raw = typeof record?.toObject === 'function' ? record.toObject() : record;
-  const report = buildCandidateReportBody(raw?.report || {});
+  const rawReport = raw?.report || {};
+  const impactFirstLimitation = buildImpactFirstMetricsLimitation(rawReport);
+  const existingLimitations = asArray(rawReport.legacyLimitations);
+  const legacyLimitations = impactFirstLimitation
+    && !existingLimitations.some((item) => item?.code === impactFirstLimitation.code)
+    ? [...existingLimitations, impactFirstLimitation]
+    : existingLimitations;
+  const report = buildCandidateReportBody({
+    ...rawReport,
+    ...(legacyLimitations.length ? { legacyLimitations } : {}),
+  });
+  const latestStatus = impactFirstLimitation
+    && ['ready', 'ready_after_repair'].includes(raw?.latestStatus)
+    ? 'needs_review'
+    : raw?.latestStatus;
   const projection = {
-    ...pickDefined(raw || {}, ['sessionId', 'latestStatus', 'createdAt', 'updatedAt']),
+    ...pickDefined(raw || {}, ['sessionId', 'createdAt', 'updatedAt']),
+    ...(latestStatus !== undefined ? { latestStatus } : {}),
     report,
   };
   return redactSensitiveReportValues(sanitizeCandidateReportProjection(projection));

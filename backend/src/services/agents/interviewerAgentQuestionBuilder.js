@@ -66,16 +66,29 @@ export const normalizeQuestionIntent = ({ question = {}, actionType = '', focusA
 };
 
 
-export const buildRoleLockedQuestion = (retrievedItem, fallback = {}) => ({
-  type: fallback.type || fallback.stage || 'technical_core',
-  stage: fallback.stage || 'technical_core',
-  topic: fallback.topic || retrievedItem.metadata?.skillTags?.[0] || retrievedItem.metadata?.category || 'role_fit',
-  followUpDepth: fallback.followUpDepth || 0,
-  text: retrievedItem.metadata?.question || retrievedItem.text,
-  reason: `Retrieved from role-matched question bank (${retrievedItem.metadata?.roleCanonical || retrievedItem.metadata?.roleFamily || 'general'}).`,
-  sourceType: retrievedItem.sourceType,
-  sourceId: retrievedItem.sourceId,
-});
+export const buildRoleLockedQuestion = (retrievedItem = {}, fallback = {}) => {
+  const metadata = retrievedItem.metadata || {};
+  const questionFamily = fallback.questionFamily || retrievedItem.questionFamily || metadata.questionFamily || null;
+  const evidenceMode = fallback.evidenceMode || retrievedItem.evidenceMode || metadata.evidenceMode || null;
+
+  return {
+    type: fallback.type || retrievedItem.questionType || metadata.questionType || fallback.stage || 'technical_core',
+    stage: fallback.stage || retrievedItem.stage || metadata.stage || 'technical_core',
+    topic: fallback.topic || retrievedItem.topic || metadata.skillTags?.[0] || metadata.category || 'role_fit',
+    category: fallback.category || retrievedItem.category || metadata.category || null,
+    followUpDepth: fallback.followUpDepth || retrievedItem.followUpDepth || 0,
+    text: metadata.question || retrievedItem.text,
+    reason: `Retrieved from role-matched question bank (${metadata.roleCanonical || metadata.roleFamily || 'general'}).`,
+    sourceType: retrievedItem.sourceType,
+    sourceId: retrievedItem.sourceId,
+    questionFamily,
+    evidenceMode,
+    roleDomain: fallback.roleDomain || retrievedItem.roleDomain || metadata.roleDomain || 'general',
+    requirementCategory: fallback.requirementCategory || retrievedItem.requirementCategory || metadata.requirementCategory || null,
+    capabilityGroup: fallback.capabilityGroup || retrievedItem.capabilityGroup || metadata.capabilityGroup || null,
+    targetedDimensions: fallback.targetedDimensions || retrievedItem.targetedDimensions || metadata.targetedDimensions || [],
+  };
+};
 
 export const pickRetrievedQuestion = (retrievalBundle, selectedQuestion, targetTopic = '') => {
   if (!retrievalBundle?.items?.length) return null;
@@ -248,11 +261,24 @@ export const inferEvidenceTypeHint = (question = {}) => {
   return 'adjacent_experience';
 };
 
-export const buildProbingQuestion = ({ targetTopic = 'project', candidateText = '' } = {}) => {
+export const buildProbingQuestion = ({ targetTopic = 'project', candidateText = '', missingEvidence = null } = {}) => {
   const hasTeamworkReference = /\b(we|our team|together|cooperated|collaborated)\b/i.test(candidateText);
-  const text = hasTeamworkReference
-    ? 'That sounds like a great team effort! What was your specific piece of the puzzle there, and what did you personally build or design?'
-    : 'What did you personally own and build in that example?';
+  let text = 'What did you personally own and build in that example?';
+  let reason = 'Culturally nuanced probing for personal action and ownership.';
+
+  if (missingEvidence === 'result_or_validation') {
+    text = 'What was the final outcome or measurable impact of that specific project?';
+    reason = 'Probing specifically for missing result or validation evidence.';
+  } else if (missingEvidence === 'tradeoff_or_constraint') {
+    text = 'What was the hardest decision or technical trade-off you had to make there?';
+    reason = 'Probing specifically for missing tradeoff evidence.';
+  } else if (missingEvidence === 'personal_ownership' || hasTeamworkReference) {
+    text = hasTeamworkReference
+      ? 'That sounds like a great team effort! What was your specific piece of the puzzle there, and what did you personally build or design?'
+      : 'What did you personally own and build in that example?';
+    reason = 'Culturally nuanced probing for personal action and ownership.';
+  }
+
   return {
     type: 'probing_follow_up',
     stage: 'technical_probe',
@@ -260,7 +286,7 @@ export const buildProbingQuestion = ({ targetTopic = 'project', candidateText = 
     category: 'technical',
     followUpDepth: 1,
     text,
-    reason: 'Culturally nuanced probing for personal action and ownership.',
+    reason,
     sourceType: 'controller_directed',
   };
 };

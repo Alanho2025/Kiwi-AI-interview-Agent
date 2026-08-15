@@ -5,6 +5,8 @@
 > **核心模組路徑**：`backend/src/services/session/sessionShared.js`, `backend/src/services/aiControl/actionPlanner.js`, `backend/src/services/agents/interviewerAgentQuestionBuilder.js`, `backend/src/services/agents/interviewerAgent.js`  
 > **Git 演進 Commit 追蹤**：Commit `F-73`  
 > **主要負責人 / 日期**：Kiwi AI Team / 2026-07-30  
+> **實作狀態 (Implementation Status)**：Partial
+> **校驗測試路徑 (Verified by Tests)**：`backend/tests/robustness/agent/interviewStressAndProbing.test.js`、`backend/tests/robustness/questions/interviewTurnOrchestratorService.test.js`
 
 ---
 

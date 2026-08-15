@@ -25,7 +25,7 @@ const REWRITE_UNAVAILABLE_REASON = 'A grounded stronger answer could not be gene
  * Returns: Returns the direct result of this operation, or a promise that resolves to that result for async flows.
  * Notes: Keep this function focused, and move extra branching or formatting into dedicated helpers when it starts growing.
  */
-export const buildImprovementPriorities = ({ analysisResult, evidenceSummary, interviewMetrics, turnBreakdowns = [] }) => {
+export const buildImprovementPriorities = ({ analysisResult, evidenceSummary, turnBreakdowns = [] }) => {
   const priorities = [];
 
   if ((evidenceSummary.totals.hypothetical_understanding || 0) > 0 && hasPastExampleQuestion(turnBreakdowns)) {
@@ -60,11 +60,12 @@ export const buildImprovementPriorities = ({ analysisResult, evidenceSummary, in
     });
   }
 
-  if ((interviewMetrics.plannedQuestionCount || 0) > 0 && interviewMetrics.interviewerQuestionCount !== interviewMetrics.plannedQuestionCount) {
+  const needsDurationCoaching = (turnBreakdowns || []).some(t => t.durationAssessment?.eligible && t.durationAssessment?.level < 4);
+  if (needsDurationCoaching) {
     priorities.push({
-      title: 'Practise more concise answers',
+      title: 'Practise more concise and structured answers',
       whyItMatters: 'Focused answers help the interview stay on track and make your strongest evidence easier to notice.',
-      action: 'Aim for a 60-90 second core answer, then expand only when the interviewer asks for more detail.',
+      action: 'Aim for a 90-120 second core answer, then expand only when the interviewer asks for more detail.',
     });
   }
 
@@ -126,7 +127,7 @@ export const buildCoachingAdvice = ({ evidenceSummary, interviewPlan = {}, turnB
     advice.push({
       theme: 'Prepare reusable stories',
       advice: 'Build a small bank of genuine examples that show role-specific judgement, collaboration, and ownership.',
-      example: 'Prepare one role-specific delivery example, one problem-solving example, and one teamwork example, each in under 90 seconds.',
+      example: 'Prepare one role-specific delivery example, one problem-solving example, and one teamwork example, each in 90-120 seconds.',
     });
   }
 

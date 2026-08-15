@@ -41,21 +41,21 @@ const buildLevelPromptVariants = ({ prompt = '', category = 'behavioural' } = {}
       targetLevels: ['junior'],
       text: technical
         ? `${prompt} Use one concrete example and explain what you personally did.`
-        : prompt,
+        : `${prompt} Start with the final outcome, then explain what you personally did.`,
     },
     {
       id: 'intermediate',
       targetLevels: ['intermediate'],
       text: technical
         ? `${prompt} Explain the key decision, how you validated it, and the outcome.`
-        : `${prompt} Include the decision you made, your personal contribution, and the outcome.`,
+        : `${prompt} Start by sharing the final outcome, then explain the decision you made and your personal contribution.`,
     },
     {
       id: 'senior',
       targetLevels: ['senior'],
       text: technical
         ? `${prompt} Explain the scope, trade-offs, risks, stakeholder impact, and how you knew the result was safe to operate.`
-        : `${prompt} Include the scope, trade-offs, stakeholder impact, and what you would carry into a similar situation.`,
+        : `${prompt} Start by sharing the final outcome, then explain the scope, trade-offs, stakeholder impact, and what you would carry into a similar situation.`,
     },
   ];
 };

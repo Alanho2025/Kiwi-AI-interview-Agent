@@ -7,6 +7,7 @@ import {
   redactSensitiveReportValues,
   sanitizeCandidateReportProjection,
 } from '../../../src/services/report/reportPublicationSummaryService.js';
+import { validateReportOutput } from '../../../src/services/schemaValidationService.js';
 
 describe('candidate-safe report publication summary', () => {
   it.each([
@@ -115,12 +116,18 @@ describe('candidate-safe report publication summary', () => {
               structureLabel: 'Role-specific reasoning',
               frameworkBreakdown: {
                 normalizedScore: 6,
+                level: 4,
+                scorePercent: 60,
+                privateEvaluatorNote: 'must not be published',
                 dimensions: [{
                   key: 'validationVerification',
                   label: 'Validation / Verification',
                   status: 'partial',
                   score: 6,
+                  level: 4,
+                  scorePercent: 60,
                   reason: 'The validation method needs more detail.',
+                  rawScoringDiagnostics: { hidden: true },
                 }],
               },
             },
@@ -226,16 +233,22 @@ describe('candidate-safe report publication summary', () => {
       starApplicable: false,
       structureLabel: 'Role-specific reasoning',
       frameworkBreakdown: {
-        normalizedScore: 6,
+        level: 4,
+        scorePercent: 60,
         dimensions: [{
           key: 'validationVerification',
           label: 'Validation / Verification',
           status: 'partial',
-          score: 6,
+          level: 4,
+          scorePercent: 60,
           reason: 'The validation method needs more detail.',
         }],
       },
     });
+    expect(projection.report.candidateFeedback.turnBreakdowns[0].frameworkBreakdown)
+      .not.toHaveProperty('normalizedScore');
+    expect(projection.report.candidateFeedback.turnBreakdowns[0].frameworkBreakdown.dimensions[0])
+      .not.toMatchObject({ score: expect.anything(), weight: expect.anything(), earnedPoints: expect.anything() });
     expect(projection.report.candidateFeedback.turnBreakdowns[0].answerAssessment).not.toHaveProperty('source');
     expect(projection.report.candidateFeedback.turnBreakdowns[0].answerAssessment).not.toHaveProperty('proofPointId');
     expect(projection.report.candidateFeedback.turnBreakdowns[1]).toMatchObject({
@@ -253,6 +266,142 @@ describe('candidate-safe report publication summary', () => {
     expect(projection.report.candidateFeedback).not.toHaveProperty('answerRewriteExamples');
     expect(JSON.stringify(projection)).not.toMatch(/generic_question_alignment|private-proof|private-evidence/);
     expect(JSON.stringify(projection)).not.toMatch(/candidate@example\\.com|\\+64 21 555 123|9999|internal_flag|private ambiguous rewrite|private stack diagnostic/);
+    expect(JSON.stringify(projection)).not.toContain('privateEvaluatorNote');
+    expect(JSON.stringify(projection)).not.toContain('rawScoringDiagnostics');
+  });
+
+  it('maps framework scores to bounded candidate percentages deterministically', () => {
+    const projection = buildCandidateReportProjection({
+      report: {
+        candidateFeedback: {
+          turnBreakdowns: [{
+            question: 'Mapped question?',
+            frameworkBreakdown: {
+              normalizedScore: 7,
+              scorePercent: null,
+              level: null,
+              dimensions: [
+                { key: 'weighted', score: 7.5, weight: 10, level: 4 },
+                { key: 'zero-percent', scorePercent: 0, score: 10, weight: 10, level: 3 },
+                { key: 'null-level', score: 5, level: null },
+                { key: 'empty-level', score: 5, level: '' },
+                { key: 'boolean-level', score: 5, level: false },
+                { key: 'bounded-high', scorePercent: 125, level: 9 },
+                { key: 'bounded-low', scorePercent: -10, level: 0 },
+              ],
+            },
+          }],
+        },
+      },
+    });
+
+    expect(projection.report.candidateFeedback.turnBreakdowns[0].frameworkBreakdown).toMatchObject({
+      scorePercent: 70,
+      dimensions: [
+        { key: 'weighted', scorePercent: 75, level: 4 },
+        { key: 'zero-percent', scorePercent: 0, level: 3 },
+        { key: 'null-level', scorePercent: 50 },
+        { key: 'empty-level', scorePercent: 50 },
+        { key: 'boolean-level', scorePercent: 50 },
+        { key: 'bounded-high', scorePercent: 100, level: 5 },
+        { key: 'bounded-low', scorePercent: 0, level: 1 },
+      ],
+    });
+    expect(projection.report.candidateFeedback.turnBreakdowns[0].frameworkBreakdown).not.toHaveProperty('level');
+    expect(projection.report.candidateFeedback.turnBreakdowns[0].frameworkBreakdown.dimensions[2]).not.toHaveProperty('level');
+    expect(projection.report.candidateFeedback.turnBreakdowns[0].frameworkBreakdown.dimensions[3]).not.toHaveProperty('level');
+    expect(projection.report.candidateFeedback.turnBreakdowns[0].frameworkBreakdown.dimensions[4]).not.toHaveProperty('level');
+  });
+
+  it('preserves candidate-safe framework fields through schema round-trip', () => {
+    const validatedReport = validateReportOutput({
+      candidateFeedback: {
+        turnBreakdowns: [
+          {
+            question: 'Missing score?',
+            frameworkBreakdown: {
+              normalizedScore: null,
+              scoreReason: 'Score source was unavailable.',
+              dimensions: [{
+                key: 'missing',
+                score: null,
+                weight: 20,
+                earnedPoints: null,
+                reason: 'No score source.',
+              }],
+            },
+          },
+          {
+            question: 'Zero score?',
+            frameworkBreakdown: {
+              normalizedScore: 0,
+              scoreReason: 'No evidence was present.',
+              dimensions: [{
+                key: 'zero',
+                score: 0,
+                weight: 20,
+                level: 1,
+                reason: 'No evidence was present.',
+              }],
+            },
+          },
+          {
+            question: 'Weighted score?',
+            frameworkBreakdown: {
+              normalizedScore: 5,
+              level: 3,
+              scoreReason: 'The weighted framework score is partial.',
+              dimensions: [{
+                key: 'weighted',
+                score: 10,
+                weight: 20,
+                earnedPoints: 4,
+                level: 3,
+                reason: 'The dimension is partially supported.',
+              }],
+            },
+          },
+        ],
+      },
+    });
+    const projection = buildCandidateReportProjection({ report: validatedReport });
+    const turns = projection.report.candidateFeedback.turnBreakdowns;
+
+    expect(turns[0].frameworkBreakdown).toMatchObject({
+      scoreReason: 'Score source was unavailable.',
+      dimensions: [{ key: 'missing', reason: 'No score source.' }],
+    });
+    expect(turns[0].frameworkBreakdown).not.toHaveProperty('normalizedScore');
+    expect(turns[0].frameworkBreakdown.dimensions[0]).not.toMatchObject({
+      score: expect.anything(),
+      weight: expect.anything(),
+      earnedPoints: expect.anything(),
+    });
+    expect(turns[0].frameworkBreakdown).not.toHaveProperty('scorePercent');
+    expect(turns[0].frameworkBreakdown.dimensions[0]).not.toHaveProperty('scorePercent');
+
+    expect(turns[1].frameworkBreakdown).toMatchObject({
+      scorePercent: 0,
+      dimensions: [{ key: 'zero', scorePercent: 0, level: 1 }],
+    });
+
+    expect(turns[2].frameworkBreakdown).toMatchObject({
+      scorePercent: 50,
+      level: 3,
+      scoreReason: 'The weighted framework score is partial.',
+      dimensions: [{
+        key: 'weighted',
+        scorePercent: 50,
+        level: 3,
+        reason: 'The dimension is partially supported.',
+      }],
+    });
+    expect(turns[2].frameworkBreakdown).not.toHaveProperty('normalizedScore');
+    expect(turns[2].frameworkBreakdown.dimensions[0]).not.toMatchObject({
+      score: expect.anything(),
+      weight: expect.anything(),
+      earnedPoints: expect.anything(),
+    });
   });
 
   it('omits any legacy score fallback when no interview-performance score was persisted', () => {

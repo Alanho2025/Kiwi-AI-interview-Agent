@@ -2,11 +2,11 @@
 
 > **文件狀態**：Approved  
 > **系統成熟度 (Readiness Level)**：Partial
-> **核心模組路徑**：`backend/src/services/matchService.js`
-> **Git 演進 Commit 追蹤**：`PR #124`, Commit `6e453bc`, `df871ba`  
-> **主要負責人 / 日期**：Kiwi AI Team / 2026-07-29    
+> **核心模組路徑**：`backend/src/services/cv/cvAnalysisService.js`, `backend/src/services/match/guardedMatchService.js`, `backend/src/services/matchService.js`, `backend/src/services/match/matchResultBuilder.js`
+> **Git 演進 Commit 追蹤**：歷史 `PR #124` / `6e453bc`; current source snapshot `a89e6eba` (2026-08-02); latest relevant scoring/evidence change `75cce1a`
+> **主要負責人 / 日期**：Kiwi AI Team / 2026-08-02
 > **實作狀態 (Implementation Status)**：Partial
-> **校驗測試路徑 (Verified by Tests)**：`backend/tests/robustness/cv/cvParsingRobustness.test.js`, `backend/tests/robustness/jd/seekIndeedParserCorpus.test.js`, `backend/tests/robustness/match/matchRequirementBindingAndDisjunction.test.js`
+> **校驗測試路徑 (Verified by Tests)**：`backend/tests/robustness/match/matchScoringService.test.js`, `backend/tests/robustness/match/matchRequirementBindingAndDisjunction.test.js`, `backend/tests/robustness/match/guardedMatchHumanReviewRobustness.test.js`, `backend/tests/robustness/match/roleFitMatchCutover.test.js`, `backend/tests/robustness/match/realCvJdMatchBenchmark.test.js`
 
 ---
 
@@ -25,11 +25,11 @@
   - 直接把 CV 與 JD 拼在一起發給大模型，讓 LLM 自由輸出一個 0-100 的分數。
 * **遭遇的痛點與瓶頸 (Pain Points & Bottlenecks)**：
   - 致命的黑盒效應與分數波動 (Variance > 20分)；同一份履歷刷頁重新計算分數會變，商業上完全不可解釋。
-* **現行架構 (Current Version - PR #124 `6e453bc` & ATS Benchmark Overhaul 2026-08)**：
-  - **ATS 產業權重模型**：硬核技術技能 (45%)、工作經驗與職責相關性 (30%)、加分/優先技能 (15%)、學歷與專業認證 (10%)。
-  - **Disjunctive (OR) 或條件匹配邏輯**：符合多選一（如 `Java or C# or Python`）中的任意一個選項即可獲得 100% 滿分（`met`），徹底消除「缺其一即全盤扣分」的傳統缺陷。
-  - **經歷優先級保護 (Section-Aware Priority)**：若候選人在工作經歷 (`experience`) 與專案 (`projects`) 中已展現該技能，優先判定為強佐證（`met`），防止被純技能清單 (`skills`) 誤判扣分。
-  - **30 份真實 JD 與真實 CV 基準測試**：建立 [realCvJdMatchBenchmark.test.js](file:///Users/heminghan/Kiwi-AI-interview-Agent/backend/tests/robustness/match/realCvJdMatchBenchmark.test.js)，針對 Alan Ho 的真實 CV 與 30 份真實 Seek/Indeed/BigTech JDs 進行 100% 自動化迴歸測試。
+* **現行架構（historical summary；目前 source truth 見 1.5）**：
+  - Match 不再由單一 LLM 直接決定總分；外層先做 ownership、input validation、Role-Fit review 與 JD safeguard gate，再進入 matcher。
+  - Score breakdown 由 rubric 提供的 macro/micro/requirement criteria 與 weights 計算；本 RFC 不再宣稱一組固定的 45/30/15/10 或 40/30/15/15 權重，除非該 rubric 與測試明確提供證據。
+  - Requirement status 支援 OR/disjunctive child matching、section-aware evidence、explicit technical evidence 與 evidence-strength policy；具體規則以 `matchScoringService.js` 目前實作與 focused tests 為準。
+  - `semantic` engine 是設定開啟時的 optional branch，不是所有 Match request 都必然會呼叫 provider。
 
 ### 1.3 2026-08-01 解析與證據 hygiene 修正
 
@@ -44,6 +44,14 @@
 - 右側 `Match control` 取代逐項 `Setup checklist`。它只保留當前下一步、既有主操作（產生、重試或開始面試）與已完成時的 `Regenerate match`。
 - 這是候選人準備流程的呈現收斂；不改變 CV/JD review gate、voice/text interview mode、舊 Match 在輸入變動時的清空行為，或任何 Match 計分／證據生成邏輯。
 
+### 1.5 Current code-truth snapshot（2026-08-02）
+
+- `runCvJdMatchExecution` 是目前較完整的 application-level boundary：先載入 owner-scoped CV、檢查 CV/JD 可用文字、確認 persisted Role-Fit review，再呼叫 guarded matcher。
+- `compareCvToJobDescriptionWithSafeguard` 會先處理 Role-Fit blocked、JD safeguard blocked、artifact cache hit/miss，以及必要時的 critic/recompare；這些不是 `compareCvToJobDescription` 內部的單純 scoring 步驟。
+- `compareCvToJobDescription` 會正規化文字與 rubric，建立 CV/evidence/semantic context，計算 macro、micro、requirement checks，建立 role evidence map、score breakdown、transition profile、question hints，最後交給 `buildAnalyzeResult` 驗證與組裝 output。
+- `75cce1a` 後的 requirement policy 包含 primary technical evidence rules、retail context hard requirement，以及 evidence strength 優先於 semantic score 的排序調整；舊 RFC 沒有記錄這些規則，故本次補入 code blueprint。
+- 本 RFC 不把 `matchService.js` 宣稱為 MongoDB persistence owner。此核心函數回傳 validated match result；實際 persistence 必須由其 caller 的 source 與 test 另行證明。
+
 ---
 
 ---
@@ -53,8 +61,10 @@
 ### 2.1 涵蓋與非涵蓋範圍 (Scope Boundaries)
 * **In-Scope (包含範圍)**：
   - 雙向匹配計算、多維度加權算式、Disjunctive OR 滿足性判斷、經歷區塊權重優先級、分池得分防護 Clamp。
+  - 消費已通過 CV/JD review 與 Role-Fit gate 的輸入，並產生可驗證的 match result。
 * **Out-of-Scope (排除範圍)**：
   - 不允許 LLM 無依據覆蓋確定性規則算出的基礎分數。
+  - CV human-review persistence、JD/Role-Fit review UI/API、JD URL capture 與 company-values enrichment 由 [`F-77`](./F-77-cv-profile-human-review-gate.md)、[`F-78`](./F-78-jd-role-fit-human-review.md)、[`F-79`](./F-79-jd-url-capture-and-analysis.md)、[`F-80`](./F-80-company-values-enrichment.md) 負責；本 RFC 只消費其已通過 gate 的輸入。
 
 ### 2.2 成功標準與量化 KPIs (Acceptance Criteria & Metrics)
 | 衡量指標 (Metric) | 目標值 (Target) | 驗證方式 / 自動化測試路徑 |
@@ -67,32 +77,146 @@
 
 ---
 
+### 2.3 Feature Definition & Code Blueprint
+
+本 Feature 的核心目標是把已通過 review/gate 的 CV 與 JD rubric 轉成可追溯的 match result。它不是一個「直接呼叫 LLM 取得分數」的函數；新增 caller 時應優先使用 `runCvJdMatchExecution`，不要跳過 owner、Role-Fit 或 JD safeguard。
+
+#### 2.3.1 Entry points 與輸入 objects
+
+| Entry point | Input | 前置條件 | Output |
+| :--- | :--- | :--- | :--- |
+| `runCvJdMatchExecution`（`backend/src/services/cv/cvAnalysisService.js`） | `{ cvId, userId, rawJD, jdRubric, settings, performanceTrace, progressReporter }` | `cvId`、`rawJD/jdRubric` 至少一項；`jdRubric.roleFit` 存在；CV/JD 文字通過長度與格式檢查；owner-scoped Role-Fit review version 必須一致 | `{ cvDocument, matchData }` |
+| `compareCvToJobDescriptionWithSafeguard`（`backend/src/services/match/guardedMatchService.js`） | `{ normalizedText, cvProfile, evidenceProfile, userId }`, `rawJD`, `jdRubric`, `settings`, `context` | caller 已提供可用 rubric；函數仍會檢查 verified Role-Fit、JD safeguard、cache 與 critic/recompare | guarded match result |
+| `compareCvToJobDescription`（`backend/src/services/matchService.js`） | `cvInput`, `rawJD`, `jdRubric`, `settings`, `context` | 內部 matcher boundary；不應被 UI 直接當成完整 review/persistence flow | validated analyze output |
+
+`cvInput` 可以是 normalized CV string，也可以是帶有 `normalizedText`、`cvProfile`、`evidenceProfile` 的 object。`jdRubric` 是 parser/review 產生的 rubric；若要讓 Match 通過外層 gate，它還必須帶有目前 persisted 的 Role-Fit identity/version。
+
+#### 2.3.2 Object 與 helper inventory
+
+| Object / helper | 來源 | 主要責任 | Side effect / reuse boundary |
+| :--- | :--- | :--- | :--- |
+| `cvDocument` | `getOwnedCvDocumentOrThrow` | 取得指定 user 擁有的 normalized CV/profile | 讀取 persistence；應由 use-case boundary 呼叫 |
+| `human-reviewed Role-Fit` | `assertVerifiedCompanyRoleFitReview` | 確認 fingerprint、profile id、review version 與 persisted verified record 一致 | 讀取 persistence；失敗時阻擋 match |
+| `humanReviewedJdRubric` | `buildHumanReviewedRubric` | 只有已 human-reviewed 的 blocked JD 才能套用明確 override metadata | 純 object transformation；只由 guarded matcher 使用 |
+| `baseRubric` | `normalizeRubric` | 將 raw JD / supplied rubric 轉成 scorer 可使用的 rubric | 可能使用 async parser path；不可假設固定權重 |
+| `parsedCvProfile` | `buildCvProfile` 或既有 `cvInput.cvProfile` | 建立／沿用 CV 結構化 profile | in-memory |
+| `cvEvidenceProfile` | `buildCvEvidenceProfile` 或既有 evidence profile | 將 CV sections/evidence 轉成可判定的 evidence context | in-memory |
+| `semanticEvidenceContext` | `buildSemanticEvidenceContext` + optional `judgeRequirementEvidenceBatch` | semantic engine 開啟時補充 evidence matches/judgements | 可能進入 provider branch；不保證每次執行都呼叫 |
+| `requirementChecks` | `buildRequirementChecks` | 逐項產生 `met / partial / not_met` 與 evidence metadata | deterministic rule + optional semantic context |
+| `scoreBreakdown` | `calculateScoreBreakdown` 或 semantic capability breakdown | 組合 macro、micro、requirement 分數 | deterministic output；受 rubric/criteria 影響 |
+| `roleEvidenceMap` | `buildRoleEvidenceMap` | 將 Role-Fit intent 與 requirement/evidence 連結 | in-memory |
+| `matchData` | `buildAnalyzeResult` → `validateAnalyzeOutput` | 組裝 candidate、decision、scores、evidence、diagnostics、hints | returned output；schema validation 是最後一道 boundary |
+
+#### 2.3.3 Execution algorithm（由目前 source 重建的規格 pseudocode）
+
+```text
+runCvJdMatchExecution(input):
+  require input.cvId
+  require input.rawJD or input.jdRubric
+  require input.jdRubric.roleFit
+
+  const cvDocument = getOwnedCvDocumentOrThrow({ cvId, userId })
+  assertUsableMatchText(cvDocument.normalizedText, 'CV')
+  if rawJD exists:
+    assertUsableMatchText(rawJD, 'JD')
+
+  assertVerifiedCompanyRoleFitReview({
+    userId,
+    jdFingerprint: jdRubric.roleFit.jdFingerprint,
+    reviewVersion: jdRubric.roleFit.review.version,
+    roleFitProfileId: jdRubric.roleFit.id,
+  })
+
+  const matchData = compareCvToJobDescriptionWithSafeguard(
+    cvDocument profile/evidence,
+    rawJD,
+    jdRubric,
+    settings + user identity,
+  )
+
+  return { cvDocument, matchData + sourceSnapshots }
+
+compareCvToJobDescription(cvInput, rawJD, jdRubric, settings, context):
+  const rawCvText = read string or cvInput.normalizedText
+  validate CV and normalize HTML/whitespace/bullets
+  if rawJD is usable:
+    validate and normalize JD
+
+  const baseRubric = normalizeRubric(cleanJD or rawJD, jdRubric)
+  const parsedCvProfile = reuse supplied profile or buildCvProfile(cleanCvText)
+  const cvEvidenceProfile = reuse supplied evidence or buildCvEvidenceProfile(...)
+
+  if semantic engine is enabled:
+    build universal role profile and semantic evidence judgements
+  else:
+    mark semantic steps skipped
+
+  const macroScores = buildMacroScores(...)
+  const microScores = buildMicroScores(...)
+  const requirementChecks = buildRequirementChecks(...)
+  const roleEvidenceMap = buildRoleEvidenceMap(...)
+  const scoreBreakdown = calculateScoreBreakdown(...)
+  const transitionProfile = buildTransitionProfile(...)
+  const explanation = buildExplanation(...)
+  const cvAnalysis = buildJdMatchedCvAnalysis(...)
+  const questionPlanHints = buildQuestionPlanHints(...)
+
+  return buildAnalyzeResult({ all derived objects })
+```
+
+#### 2.3.4 Output contract 與 blocked branches
+
+成功 output 的主要欄位由 `buildAnalyzeResult` 產生：`schemaVersion`、candidate/job identity、`overallScore`、`confidence`、`decision`、`parsedCvProfile`、`parsedJdProfile`、`macroScores`、`microScores`、`requirementChecks`、`scoreBreakdown`、`explanation`、`evidenceMap`、`roleEvidenceMap`、`roleFitDiagnostics`、`sourceSnapshots` 與 `matchingDetails`。
+
+| Branch | 行為 | 是否進入 scorer |
+| :--- | :--- | :--- |
+| Role-Fit 尚未 verified / version 不一致 | `runCvJdMatchExecution` 在 gate 失敗；或 guarded matcher 回傳 `manual_review`、`overallScore: 0`、`reasonCodes: ['role_fit_review_required']` | 否 |
+| JD safeguard blocked 且沒有合法 human-review override | 回傳 `manual_review`、`reasonCodes: ['jd_safeguard_blocked_match']` | 否 |
+| cache hit | 回傳已驗證 cache result | 否，使用既有 artifact |
+| semantic engine disabled | 跳過 universal role/evidence judge branch，使用 deterministic path | 是 |
+| fresh match + critic verdict `revise` | 依 max attempts 進行 bounded recompare | 是，最多受 safeguard policy 限制 |
+
+本 RFC 的 local tests 只證明對應 fixture/mock 的 deterministic、guard、schema 或 branch 行為；不證明 live provider、browser UI、部署後 persistence 或 production readiness。
+
+---
+
 ## 3. 架構與系統流向 (Architecture & Flow)
 
 ### 3.1 系統資料流與狀態轉移圖 (Data Flow & State Machine Diagram)
 ```mermaid
 sequenceDiagram
     autonumber
-    actor User as 用戶 / 前端
-    participant MatchService as matchService.js
-    participant Taxonomy as taxonomyService.js
-    participant LLM as DeepSeek API
-    participant DB as MongoDB (SessionAnalysis)
+    actor Caller as Match use-case caller
+    participant Execution as cvAnalysisService.js
+    participant Gate as guardedMatchService.js
+    participant Core as matchService.js
+    participant Scoring as "match scoring helpers"
+    participant Builder as matchResultBuilder.js
 
-    User->>MatchService: 發起 Analyze 請求 (cvProfileId, jdProfileId)
-    MatchService->>Taxonomy: 提取技能分類向量
-    MatchService->>MatchService: 執行確定性權重分池計算 (Skills 40%, Exp 30%...)
-    MatchService->>LLM: 請求語意關聯佐證 (Strict JSON Schema)
-    LLM-->>MatchService: 回傳關聯佐證說明
-    MatchService->>DB: 保存 SessionAnalysis 文檔
-    MatchService-->>User: 回傳結構化 Match Result (Score, Breakdown, Gaps)
+    Caller->>Execution: runCvJdMatchExecution(input)
+    Execution->>Execution: load owned CV + validate CV/JD text
+    Execution->>Execution: assert persisted Role-Fit review/version
+    Execution->>Gate: compareCvToJobDescriptionWithSafeguard(...)
+    alt Role-Fit or JD safeguard blocked
+        Gate-->>Caller: manual_review result, score 0
+    else cache hit
+        Gate-->>Caller: cached guarded match result
+    else fresh match
+        Gate->>Core: compareCvToJobDescription(...)
+        Core->>Core: normalize text and rubric
+        Core->>Scoring: build evidence, requirement checks, scores and role map
+        Core->>Builder: buildAnalyzeResult(...)
+        Builder-->>Gate: schema-validated match result
+        Gate-->>Caller: guarded result, optional critic/recompare metadata
+    end
 ```
 
 ### 3.2 流程文字逐步拆解導覽 (Step-by-Step Narrative Walkthrough for Beginners)
-1. **第一步（發起分析）**：用戶點擊開始匹配，`matchService.js` 接收 CV 與 JD Profile。
-2. **第二步（確定性分池計算）**：後端程式碼根據預設權重（技能 40%、經歷 30%、學歷 15%、文化 15%）算出現成的硬分數。
-3. **第三步（LLM 佐證補充）**：將文字發給 DeepSeek，要求大模型針對分數給出白話評語說明（大模型不能改動分數）。
-4. **第四步（結果存檔與回傳）**：將分析結果與得分拆解保存至 MongoDB，並回傳前端渲染。
+1. **第一步（use-case boundary）**：caller 將 `cvId`、`userId`、raw JD/rubric 與 settings 傳給 `runCvJdMatchExecution`。
+2. **第二步（input 與 ownership gate）**：載入 owner-scoped CV，驗證 CV/JD 可用文字，並確認 persisted Role-Fit review 的 fingerprint、profile id 與 version 沒有過期。
+3. **第三步（guarded match）**：`compareCvToJobDescriptionWithSafeguard` 先處理 Role-Fit block、JD safeguard block、cache hit/miss，以及需要時的 bounded critic/recompare。
+4. **第四步（core transformation）**：`compareCvToJobDescription` 正規化文字與 rubric，建立 CV evidence 與 optional semantic context，產生 requirement checks、score breakdown、role evidence map 與 question hints。
+5. **第五步（output）**：`buildAnalyzeResult` 組合 schema-validated match result，經 `validateAnalyzeOutput` 後回傳；candidate-facing projection 與 persistence 仍由 caller 另行負責，本 core function 不直接宣稱負責 MongoDB persistence。
 
 ---
 
@@ -101,7 +225,7 @@ sequenceDiagram
 ## 4. 微觀工程與程式碼替代方案對比 (Micro-SE & Code Trade-off Matrix)
 
 ### 4.1 關鍵函數 / 邏輯區塊：現行核心實作
-* **現行程式碼位置**：[`backend/src/services/matchService.js:L56-L63`](../../backend/src/services/matchService.js#L56-L63)
+* **現行程式碼位置**：[`backend/src/services/matchService.js:L56-L68`](../../../backend/src/services/matchService.js#L56-L68)
 
 #### 現行真實程式碼 (Current Real Code Snippet)
 ```javascript
@@ -110,23 +234,23 @@ export const compareCvToJobDescription = async (cvInput, rawJD, jdRubric, settin
   const minCharLimit = (process.env.NODE_ENV === 'test' && !settings.enableLengthValidation) ? 10 : 200;
   const cvVal = validateText(rawCvText, minCharLimit, 50000, 'CV');
   if (!cvVal.isValid) {
-    throw new Error(cvVal.error);
+    throw new AppError(cvVal.error.message, { statusCode: 400, code: cvVal.error.code });
   }
+  const cleanCvText = normalizeBullets(normalizeWhitespace(removeHtmlTags(rawCvText)));
 ```
 
 #### 【逐行白話文解讀 (Line-by-Line Explanation for Beginners)】
-* **關鍵說明**：compareCvToJobDescription 執行履歷與職缺文本校驗與加權比對。
-
-#### 替代寫法 A (Naive Pattern A)
-```javascript
-// 替代寫法：未做邊界防禦與異常處理的原始實現
-```
+* **第 56 行**：接受 string 或含 `normalizedText` 的 CV input。
+* **第 58 行**：production 最低文字長度為 200；test 可由設定放寬到 10。
+* **第 59-61 行**：透過 `validateText` 檢查 CV；失敗時轉成 HTTP 400 語意的 `AppError`。
+* **第 63 行**：移除 HTML、正規化 whitespace 與 bullet，後續 profile/evidence builder 使用這個 clean text。
 
 #### 微觀工程對比矩陣 (Micro Trade-off Analysis)
-| 對比維度 | 現行寫法 (Ground-Truth Code) | 替代寫法 A (Naive) |
+| 對比維度 | 現行寫法 (Ground-Truth Code) | 不採用的簡化寫法 |
 | :--- | :--- | :--- |
-| **防禦性** | **高** (經單元測試與 Subagent 驗證) | 弱 |
-| **可讀性** | **高** (結構清晰、符合 Clean Code 規範) | 差 |
+| **輸入錯誤** | 將 validation error 轉成帶 status/code 的 `AppError` | 直接丟一般 `Error`，caller 失去 HTTP error contract |
+| **文字一致性** | 先移除 HTML、normalise whitespace/bullets | 直接把 raw text 傳給 scorer，容易造成 parser/evidence 差異 |
+| **證據邊界** | 後續由 profile/evidence builders 產生可追溯中間物件 | 在 controller 內重寫 scoring 或直接讓 LLM 回傳總分 |
 
 ---
 
@@ -135,12 +259,18 @@ export const compareCvToJobDescription = async (cvInput, rawJD, jdRubric, settin
 ## 5. 爆炸半徑與失敗矩陣 (Blast Radius & Failure Matrix)
 
 ### 5.1 影響範圍 (Blast Radius)
-* **下游受影響模組**：`questionPoolComposerService.js`, `AnalyzePage.jsx`。
+* **直接 caller / 下游**：`backend/src/services/cv/cvAnalysisService.js`、`backend/src/services/match/matchAnalysisExecutionService.js`、frontend `AnalyzePage.jsx`。
+* **結果消費者**：question planning、role evidence、interview preparation、candidate-facing match view。
+* **不應推論**：核心 matcher 本身不等於 persistence、browser rendering 或 provider availability。
 
 ### 5.2 失敗路徑與降級機制 (Failure Modes & Fallbacks)
 | 失敗場景 (Failure Scenario) | 系統表現 (Behavior) | 降級 / 修復策略 (Fallback) |
 | :--- | :--- | :--- |
-| **維護欄位全為 undefined** | `(undefined || 0)` 觸發 | 自動傳回 0 分，避免 NaN 崩潰 |
+| CV 或 JD validation 失敗 | throw `AppError`，由 caller 轉成 bad request | 不進入 scorer |
+| owner-scoped Role-Fit review 缺少、過期或 identity 不一致 | 回傳 conflict / `manual_review` block | 重新 summarise 並確認最新 JD review |
+| JD safeguard block 且沒有合法 human review override | `overallScore: 0`，reason code `jd_safeguard_blocked_match` | 先完成 JD review |
+| semantic branch provider/error | 保留 semantic diagnostics，使用現有 fallback/判定邊界 | 以 local deterministic path 的證據為準 |
+| cache miss 或 critic 要求 revise | 執行 bounded fresh match / recompare | 遵守 max attempts，不做無限重試 |
 
 ---
 
@@ -149,10 +279,12 @@ export const compareCvToJobDescription = async (cvInput, rawJD, jdRubric, settin
 ## 6. 運維與回滾步驟 (Incident Response & Rollback Runbook)
 
 ### 6.1 除錯起點 (Debugging)
-* 查看 MongoDB `SessionAnalysis` 集合。
+* 先查看 `performanceTrace` 的 `match_*` step，確認是 input validation、role-fit gate、cache、critic、score build 或 result build 失敗。
+* 再依 caller 的 persistence contract 檢查 match artifact；不要把 `matchService.js` 本身當成 MongoDB owner。
 
 ### 6.2 緊急回滾流程 (Rollback SOP)
-1. 執行 `git revert 6e453bc`。
+1. 先確認部署中的 source SHA 與受影響的 Match slice。
+2. 以該 release 的 scoped commit / PR 執行 approved rollback；`6e453bc` 只保留為歷史演進 reference，不是目前通用 rollback 指令。
 
 ---
 

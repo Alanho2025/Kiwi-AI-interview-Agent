@@ -1,0 +1,1121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<implementation_plan
+  id="impact-first-past-example-phase-1"
+  version="1.0"
+  status="phase_1_implemented"
+>
+  <plan_boundary>
+    <requested_output>Phase 1 的完整 implementation-level XML plan。</requested_output>
+    <phase_name>Voice duration truth and five-band assessment</phase_name>
+    <source_of_truth>research.md</source_of_truth>
+    <parent_outline>impact-first-past-example-outline-plan.md</parent_outline>
+    <voice_contract>VOICE_INTERVIEW_PRODUCT_BEHAVIOR.md</voice_contract>
+    <authorization>
+      本文件只規劃 Phase 1。它不授權 implementation、建立或切換 branch、commit、push、deployment，
+      也不授權開始 Phase 2。
+    </authorization>
+    <release_boundary>
+      Phase 1 是同一個 feature branch 上的第一個 internal slice，不可單獨 release。
+      完整 feature 只在所有後續 phases 完成並通過 release gate 後發佈一次；不建立 shadow score、
+      temporary score 或第二套 duration score path。
+    </release_boundary>
+  </plan_boundary>
+
+  <phase_overview>
+    <phase_number>1</phase_number>
+    <phase_name>Voice duration truth and five-band assessment</phase_name>
+    <phase_goal>
+      將已同步寫入 accepted voice transcript turn 的 speaking duration，轉成唯一、deterministic、
+      evidence-backed 的 root-answer duration assessment，提供 Phase 4 score composition 與 Phase 6
+      coaching 使用，但本 phase 不改變 overall score 或 candidate-facing UI。
+    </phase_goal>
+    <observable_end_state>
+      每個 accepted question-answer pair 都有明確 root/follow-up identity；每個 eligible root voice answer
+      都有相同 shape 的 { eligible, reason, seconds, level, earnedPoints, maxPoints }；text、follow-up、
+      missing/unreliable duration 都是 not applicable，不會被轉成 0 分；report metrics 只 aggregate
+      eligible roots；現有 overall score 保持完全不變。
+    </observable_end_state>
+    <depends_on>
+      <dependency>research.md 已完成三輪 research audit，狀態 ready for plan。</dependency>
+      <dependency>Owner 已確認 duration 是 cross-framework 10-point component。</dependency>
+      <dependency>Owner 已確認 90-120 秒為 Level 5，並確認所有五段 boundaries。</dependency>
+      <dependency>Owner 已確認 short follow-up、confirmation、clarification、repair、repeat、acknowledgement、candidate question 不適用。</dependency>
+      <dependency>Owner 已確認 text timing deferred，Phase 1 不做 text timing。</dependency>
+    </depends_on>
+    <provides_to>
+      <consumer phase="4">使用同一 per-turn assessment 做 90/10 score composition；不得重新計算 duration band。</consumer>
+      <consumer phase="6">使用同一 assessment/summary 產生 90-120 秒 coaching；不得讀 legacy 60-90 heuristics。</consumer>
+      <consumer phase="8">使用 deterministic fixtures 做 calibration、cross-layer QA 與 release evidence。</consumer>
+    </provides_to>
+  </phase_overview>
+
+  <research_and_evidence>
+    <evidence id="E1" path="backend/src/services/voice/voiceDeliveryAnalyzerService.js" lines="25-29,61-62">
+      analyzeVoiceDelivery 已把 VAD speechDurationMs/durationMs 轉成兩位小數 speakingDurationSeconds；
+      非正值目前回傳 null。
+    </evidence>
+    <evidence id="E2" path="backend/src/services/voice/realtimeVoiceTurnService.js" lines="244-290">
+      accepted realtime/duplex voice turn 會同步把 inputMode、transcript acceptance 與完整 voiceDelivery
+      寫入 user transcript metadata。
+    </evidence>
+    <evidence id="E3" path="backend/src/services/voice/realtimeVoiceTurnService.js" lines="465-485">
+      SessionAnalysis voiceDelivery aggregate 在 completion-report trigger 之後才 enqueue；因此它可能落後，
+      不能成為 canonical score evidence。
+    </evidence>
+    <evidence id="E4" path="backend/src/services/voice/voiceDeliveryAnalyzerService.js" lines="77-125">
+      legacy voice summary 會 aggregate 所有帶 voiceDelivery 的 user turns，且優先返回 persisted summary；
+      它沒有 root/follow-up 或 accepted-answer eligibility boundary。
+    </evidence>
+    <evidence id="E5" path="backend/src/services/report/reportTurnDatasetService.js" lines="5-45,53-90">
+      report dataset 已集中處理 accepted answer、confirmation/repair/candidate-question exclusions 與
+      countable question pairing；duration eligibility 應建立在這個 dataset 上，不應另寫第二份 turn exclusion list。
+    </evidence>
+    <evidence id="E6" path="backend/src/services/questions/questionDeduplicationService.js" lines="53-115">
+      buildQuestionHistory 已將 countable question 分成 root_question、follow_up 或 repair；Phase 1 應重用
+      此 canonical classification，不依 question text 或 answer length 猜測。
+    </evidence>
+    <evidence id="E7" path="backend/src/services/agents/reportGenerator/reportEvidenceAnalysis.js" lines="133-152">
+      buildInterviewMetrics 目前沒有 duration assessment、eligible count 或 duration aggregates。
+    </evidence>
+    <evidence id="E8" path="backend/src/services/agents/reportGeneratorAgent.js" lines="235-254">
+      report generator 先建立 turnDataset，再建立 interviewMetrics 與 deterministicTurnBreakdowns，最後計算
+      report score；這是 Phase 1 assessment handoff 的既有 runtime seam。
+    </evidence>
+    <evidence id="E9" path="backend/src/services/report/reportScoreService.js" lines="3-35">
+      current overall score 只讀 frameworkBreakdown 或 legacy evidence/turn scores。Phase 1 必須保持此檔案不變，
+      避免 duration 提前或重複進入 overall score。
+    </evidence>
+    <evidence id="E10" path="VOICE_INTERVIEW_PRODUCT_BEHAVIOR.md" lines="59-146">
+      rejected/unconfirmed turn 不可 scoring；只有 genuine interview questions count；repair、confirmation、
+      clarification、repeat、system、acknowledgement 不 count。
+    </evidence>
+    <evidence id="E11" path="VOICE_INTERVIEW_PRODUCT_BEHAVIOR.md" lines="148-172">
+      speech end 到下一題首段 audio 的目標是 3 秒內。Phase 1 不可在 live turn path 加入 DB/provider/LLM work。
+    </evidence>
+    <evidence id="E12" path="research.md" lines="311-356">
+      Owner-aligned weights、five levels、duration bands、cross-framework eligibility、text deferral 與 single-release
+      boundary 已全部解決，沒有 material human question remaining。
+    </evidence>
+  </research_and_evidence>
+
+  <task_contract>
+    <one_observable_goal>
+      對 report dataset 中每個 eligible accepted root voice answer，從該 answer turn 自己的 transcript metadata
+      產出且只產出一個 exact five-band duration assessment；任何 ineligible 或 missing-system-evidence case
+      產出 not-applicable contract，不影響 current overall score。
+    </one_observable_goal>
+    <allowed_areas>
+      <area>backend/src/services/report/</area>
+      <area>backend/src/services/agents/reportGenerator/</area>
+      <area>backend/src/services/agents/reportGeneratorAgent.js</area>
+      <area>backend/tests/robustness/report/</area>
+      <area>backend/tests/robustness/voice/voiceDeliveryAnalyzerRobustness.test.js</area>
+      <area>docs/architecture-decision-records/features/F-34-report-generation-pipeline.md</area>
+      <area>repo-docs/change-log.md</area>
+    </allowed_areas>
+    <forbidden_areas>
+      <area reason="Phase 2">question catalogs、semantic framework routing、turnRubric framework identity。</area>
+      <area reason="Phase 4">reportScoreService overall composition、denominator、scoring version cutover。</area>
+      <area reason="Phase 6 and 7">candidate projection、schema publication、coaching copy、frontend、PDF/TXT/UI。</area>
+      <area reason="Voice runtime contract unchanged">STT、TTS、VAD capture、WebSocket、latency、barge-in、transcript confirmation state machine。</area>
+      <area reason="Non-goal">text answer timing、old-report migration/backfill/regeneration、database migration。</area>
+    </forbidden_areas>
+    <budgets>
+      <production_files maximum="5" forecast="4" />
+      <test_files maximum="3" forecast="3" />
+      <documentation_files maximum="2" forecast="2" />
+      <total_task_owned_files hard_stop="10" forecast="9" />
+      <incremental_changed_lines target="less_than_400" hard_stop="500" />
+      <implementation_cycles maximum="3" />
+    </budgets>
+    <stop_rule>
+      若 implementation forecast 超過 10 task-owned files 或 500 incremental lines，或必須改 voice runtime、
+      public report contract、overall score 才能完成 Phase 1，立即停止並提出 phase split；不可自行擴 scope。
+    </stop_rule>
+  </task_contract>
+
+  <canonical_contracts>
+    <source_contract>
+      <canonical_path>answerTurn.metadata.voiceDelivery.speakingDurationSeconds</canonical_path>
+      <mode_path>answerTurn.metadata.inputMode</mode_path>
+      <voice_modes>
+        <mode>realtime_voice</mode>
+        <mode>duplex_voice</mode>
+      </voice_modes>
+      <valid_duration>Number(value) 必須 finite 且大於 0；保留 analyzer 寫入的兩位小數，不先 round 成整數。</valid_duration>
+      <prohibited_sources>
+        <source>SessionAnalysis.latestVoiceDeliverySummary</source>
+        <source>SessionAnalysis.voiceDeliveryMetrics aggregate</source>
+        <source>turn.durationSeconds session elapsed time</source>
+        <source>word-count estimated speaking time</source>
+        <source>frontend timer 或 text typing duration</source>
+      </prohibited_sources>
+    </source_contract>
+
+    <eligibility_contract>
+      <eligible_when>
+        <condition>answer 已由 buildReportTurnDataset 配對成 accepted questionAnswerPair。</condition>
+        <condition>questionTurnKind 等於 root_question。</condition>
+        <condition>answerTurn.metadata.inputMode 是 realtime_voice 或 duplex_voice。</condition>
+        <condition>speakingDurationSeconds 是 finite positive number。</condition>
+      </eligible_when>
+      <not_applicable_when>
+        <condition reason="non_root_question">questionTurnKind 是 follow_up 或其他非 root kind。</condition>
+        <condition reason="text_timing_deferred">inputMode 明確是 text。</condition>
+        <condition reason="voice_mode_unverified">inputMode 缺失或不是兩個 current voice modes。</condition>
+        <condition reason="duration_evidence_unavailable">voice mode 正確，但 duration 缺失、null、NaN、Infinity、0 或負數。</condition>
+      </not_applicable_when>
+      <excluded_before_assessment>
+        repair、transcript confirmation/response、clarification、question-scope clarification、repeat request、system、
+        bridge acknowledgement、acknowledgement、candidate question，以及 pending/rejected/unconfirmed answer，
+        都沿用 reportTurnDatasetService 的 accepted-answer boundary，不建立 scored pair，也不建立 duration penalty。
+      </excluded_before_assessment>
+      <substantive_definition>
+        Phase 1 將「substantive」操作化為已通過 transcript gate 且進入 accepted questionAnswerPair 的 answer。
+        不新增另一個 word-count、character-count 或 LLM substantiveness threshold。
+      </substantive_definition>
+    </eligibility_contract>
+
+    <assessment_object_contract>
+      <eligible_shape><![CDATA[
+{
+  eligible: true,
+  reason: 'eligible_root_voice_answer',
+  seconds: <finite positive number>,
+  level: <1 | 2 | 3 | 4 | 5>,
+  earnedPoints: <0 | 2.5 | 5 | 7.5 | 10>,
+  maxPoints: 10
+}
+      ]]></eligible_shape>
+      <not_applicable_shape><![CDATA[
+{
+  eligible: false,
+  reason: <stable reason code>,
+  seconds: null,
+  level: null,
+  earnedPoints: null,
+  maxPoints: 10
+}
+      ]]></not_applicable_shape>
+      <negative_constraint>
+        not applicable 的 earnedPoints 必須是 null，不可用 0；只有 eligible Level 1 才是真正 candidate-earned 0 points。
+      </negative_constraint>
+    </assessment_object_contract>
+
+    <duration_band_contract>
+      <boundary_semantics>
+        使用 continuous, unrounded seconds。Band label 60-69 的 implementation boundary 是 60 &lt;= seconds &lt; 70；
+        其他整數 label 依相同方式延伸。這避免 69.99 被先 round 成 70。
+      </boundary_semantics>
+      <band level="1" earned_points="0"><range>seconds &lt; 60 OR seconds &gt; 150</range></band>
+      <band level="2" earned_points="2.5"><range>60 &lt;= seconds &lt; 70 OR 140 &lt; seconds &lt;= 150</range></band>
+      <band level="3" earned_points="5"><range>70 &lt;= seconds &lt; 80 OR 130 &lt; seconds &lt;= 140</range></band>
+      <band level="4" earned_points="7.5"><range>80 &lt;= seconds &lt; 90 OR 120 &lt; seconds &lt;= 130</range></band>
+      <band level="5" earned_points="10"><range>90 &lt;= seconds &lt;= 120</range></band>
+      <exact_boundary_expectations>
+        <case seconds="60" level="2" />
+        <case seconds="70" level="3" />
+        <case seconds="80" level="4" />
+        <case seconds="90" level="5" />
+        <case seconds="120" level="5" />
+        <case seconds="130" level="4" />
+        <case seconds="140" level="3" />
+        <case seconds="150" level="2" />
+      </exact_boundary_expectations>
+    </duration_band_contract>
+
+    <summary_contract>
+      <location>buildInterviewMetrics(...).voiceDurationAssessmentSummary</location>
+      <shape><![CDATA[
+{
+  eligibleAnswerCount,
+  notApplicableAnswerCount,
+  averageEligibleDurationSeconds,
+  averageEligibleEarnedPoints,
+  targetRangeAnswerCount,
+  underTargetAnswerCount,
+  overTargetAnswerCount,
+  levelCounts: { 1, 2, 3, 4, 5 },
+  notApplicableReasonCounts
+}
+      ]]></shape>
+      <aggregation_rules>
+        <rule>所有 averages、target/under/over counts、levelCounts 只看 eligible assessments。</rule>
+        <rule>average 保留兩位小數；eligible count 為 0 時 average 是 null，不是 0。</rule>
+        <rule>underTarget 是 seconds &lt; 90；target range 是 90 &lt;= seconds &lt;= 120；overTarget 是 seconds &gt; 120。</rule>
+        <rule>notApplicableReasonCounts 只作 internal diagnostics，不變成 candidate penalty。</rule>
+        <rule>不得建立 top-level interviewMetrics.averageAnswerDurationSeconds 或 overlongAnswerCount；現有 frontend 會把 100 秒誤判為 overlong，Phase 6 才一起修正 public coaching contract。</rule>
+      </aggregation_rules>
+    </summary_contract>
+  </canonical_contracts>
+
+  <data_flow>
+    <step order="1">Realtime/duplex voice flow 將 accepted user turn 與 voiceDelivery 同步寫入 transcript。</step>
+    <step order="2">buildReportTurnDataset 以既有 accepted-answer rules 排除 repair/confirmation/candidate-question 等 turns。</step>
+    <step order="3">同一 dataset 用 buildQuestionHistory 的 countable entry 取得 questionTurnKind，將 question 與 accepted answer 配對。</step>
+    <step order="4">voiceDurationAssessmentService 只讀 pair 的 questionTurnKind、inputMode 與 per-turn speakingDurationSeconds。</step>
+    <step order="5">service 先判 eligibility，再將 eligible seconds 映射到 Level 1-5 與 0/2.5/5/7.5/10 points。</step>
+    <step order="6">pair 保存 voiceDurationAssessment；dataset 保存只由這些 objects 產生的 summary。</step>
+    <step order="7">buildInterviewMetrics 暴露 nested summary；buildDeterministicTurnBreakdowns 暴露相同 per-turn object 給 Phase 4。</step>
+    <step order="8">current reportScoreService 完全不讀 duration assessment；Phase 1 的 overall score before/after 必須相同。</step>
+  </data_flow>
+
+  <files_likely_to_be_added_or_modified>
+    <file action="add" category="production" path="backend/src/services/report/voiceDurationAssessmentService.js">
+      唯一 business-rule owner。提供 duration band mapping、per-pair eligibility assessment、assessment summary；
+      pure、deterministic、無 DB、無 provider、無 clock side effect。
+    </file>
+    <file action="modify" category="production" path="backend/src/services/report/reportTurnDatasetService.js">
+      重用 buildQuestionHistory 的 countable entry，對每個 accepted pair 加入 questionTurnKind 與
+      voiceDurationAssessment，並建立 voiceDurationAssessmentSummary；保留所有現有 pairing/exclusion behavior。
+    </file>
+    <file action="modify" category="production" path="backend/src/services/agents/reportGenerator/reportEvidenceAnalysis.js">
+      在 buildInterviewMetrics 回傳 nested voiceDurationAssessmentSummary；不產生 coaching copy、不計 overall score。
+    </file>
+    <file action="modify" category="production" path="backend/src/services/agents/reportGeneratorAgent.js">
+      buildDeterministicTurnBreakdowns 將 pair 上同一 voiceDurationAssessment 帶到 deterministic score handoff；
+      merge 時 deterministic object 優先，LLM output 不可改寫 measured evidence。
+    </file>
+
+    <file action="add" category="test" path="backend/tests/robustness/report/voiceDurationAssessmentService.test.js">
+      Parameterized boundary、decimal edge、eligibility、summary、score-non-mutation 與 deterministic handoff tests。
+    </file>
+    <file action="modify" category="test" path="backend/tests/robustness/report/reportTurnDatasetRobustness.test.js">
+      Root/follow-up/text/missing-duration/confirmation/repair/candidate-question dataset integration cases。
+    </file>
+    <file action="modify" category="test" path="backend/tests/robustness/voice/voiceDeliveryAnalyzerRobustness.test.js">
+      鎖定 VAD milliseconds 到 speakingDurationSeconds 的 source conversion，以及 missing/non-positive source 回 null。
+    </file>
+
+    <file action="modify" category="documentation" path="docs/architecture-decision-records/features/F-34-report-generation-pipeline.md">
+      Auto Docs Sync owning RFC。只記錄 Phase 1 canonical source、eligibility、five bands、internal-only handoff、
+      score non-goal、failure modes 與實際 test evidence。
+    </file>
+    <file action="modify" category="documentation" path="repo-docs/change-log.md">
+      Append 一筆 scoped Phase 1 entry，列實際 code files、F-34 sync、實際 verification results 與未執行 gates。
+    </file>
+
+    <file action="read_only" category="dependency" path="backend/src/services/voice/voiceDeliveryAnalyzerService.js">
+      現有 source conversion 已符合 contract；正常 implementation 不修改。若 focused source test 反證，停止並重新確認 scope。
+    </file>
+    <file action="read_only" category="dependency" path="backend/src/services/voice/realtimeVoiceTurnService.js">
+      只驗證 synchronous transcript write；不可把 report assessment 加進 latency-critical live turn。
+    </file>
+    <file action="read_only" category="negative_guard" path="backend/src/services/report/reportScoreService.js">
+      Phase 1 不可修改，且 focused test 必須證明 overall score 未受 duration field 影響。
+    </file>
+    <file action="read_only" category="negative_guard" path="backend/src/services/agents/reportGenerator/reportCoachingBuilder.js">
+      60-90 copy 與 coaching triggers 延後到 Phase 6，因為此 feature 不單獨 release。
+    </file>
+    <file action="read_only" category="negative_guard" path="frontend/src/utils/reportView/coaching.js">
+      既有 &gt;90 fallback 延後到 Phase 6；Phase 1 不發布它會誤讀的 top-level metric names。
+    </file>
+  </files_likely_to_be_added_or_modified>
+
+  <dependencies_and_setup_steps>
+    <dependency_setup id="DS1">
+      <requirement>Implementation 只有在 owner 明確批准 Phase 1 implementation 後開始。</requirement>
+      <action><![CDATA[
+From repository root:
+1. Run `git branch --show-current` and `git status --short --untracked-files=all`.
+2. Preserve `research.md`, `impact-first-past-example-outline-plan.md`, and all unrelated dirty files.
+3. Create the single feature branch `codex/impact-first-past-example` only if it does not already exist.
+4. Do not stage, commit, push, seed a catalog, or deploy without separate approval.
+      ]]></action>
+    </dependency_setup>
+    <dependency_setup id="DS2">
+      <requirement>Required contracts must be reread at implementation start.</requirement>
+      <action>
+        Read docs/clean-code-rules.md and VOICE_INTERVIEW_PRODUCT_BEHAVIOR.md；確認 research.md 與本 XML
+        的 aligned bands/eligibility 沒有被後續 owner decision 取代。
+      </action>
+    </dependency_setup>
+    <dependency_setup id="DS3">
+      <requirement>Capture task-scoped baseline before first code write。</requirement>
+      <action>
+        對本 plan 列出的 9 future task-owned paths 執行 path-scoped git status 與 existing diff/hash；
+        若任何 allowed production/test/doc path 有 pre-existing overlapping edit，停止並向 owner 報告，不能覆寫。
+      </action>
+    </dependency_setup>
+    <dependency_setup id="DS4">
+      <requirement>Runtime/tooling。</requirement>
+      <action>
+        使用 backend 現有 Node 20+、Vitest 3 與 ESLint；不新增 npm dependency、不修改 env、不需要 Mongo、
+        speech provider、microphone、browser 或 paid AI credentials。
+      </action>
+    </dependency_setup>
+    <dependency_setup id="DS5">
+      <requirement>Documentation gate。</requirement>
+      <action>
+        Implementation code 完成後執行 auto-docs-sync 的 bounded slice：只更新 F-34 與一筆 change-log；
+        不更新 reader guides、sitemap、README、harness docs 或 milestone-wide documents。
+      </action>
+    </dependency_setup>
+  </dependencies_and_setup_steps>
+
+  <phases_of_work>
+    <work_phase id="P1-A" name="Baseline and acceptance-to-test lock">
+      <goal_of_each_phase>
+        在任何 production edit 前，固定 source-of-truth、allowed diff、assessment contract 與每個 acceptance criterion 的 test owner。
+      </goal_of_each_phase>
+      <files>
+        <file>backend/tests/robustness/voice/voiceDeliveryAnalyzerRobustness.test.js</file>
+        <file>backend/tests/robustness/report/reportTurnDatasetRobustness.test.js</file>
+        <file>backend/tests/robustness/report/voiceDurationAssessmentService.test.js</file>
+      </files>
+      <implementation_details>
+        先建立 test matrix，不修改 scoring implementation。Fixture 必須使用 current transcript shapes：AI question metadata
+        帶 turnKind/followUpDepth，user answer metadata 帶 inputMode、turnType、countsAsAnswer、transcriptAcceptance、voiceDelivery。
+      </implementation_details>
+      <pseudocode><![CDATA[
+READ the three existing focused test files and their fixture conventions.
+CREATE one shared local test helper inside the new test file only if it removes repeated construction of:
+  - a root/follow-up AI question turn;
+  - an accepted user answer turn;
+  - metadata.voiceDelivery.speakingDurationSeconds.
+DO NOT add a production fixture abstraction for three test files.
+
+MAP:
+  AC01 source conversion -> voiceDeliveryAnalyzerRobustness.test.js
+  AC02 exact bands/decimal edges -> voiceDurationAssessmentService.test.js
+  AC03 root/follow-up/text/missing eligibility -> voiceDurationAssessmentService.test.js
+  AC04 raw excluded turns never become assessments -> reportTurnDatasetRobustness.test.js
+  AC05 eligible-only summary -> voiceDurationAssessmentService.test.js
+  AC06 same object reaches deterministic breakdown -> voiceDurationAssessmentService.test.js
+  AC07 current overall score unchanged -> voiceDurationAssessmentService.test.js
+  AC08 docs and no forbidden-file diff -> verification commands, not runtime unit tests
+      ]]></pseudocode>
+      <tests_required_for_this_phase>
+        Test names與 expected values 必須在 implementation 前明確；不需要先跑 full backend suite。
+      </tests_required_for_this_phase>
+      <observable_outcome>
+        每個 acceptance criterion 都有唯一 primary automated check；沒有 “manual inspection only” 的核心 scoring rule。
+      </observable_outcome>
+      <completion_criteria>
+        Test matrix 完整、fixtures 不依 provider/DB/time、allowed diff 沒有 overlap。
+      </completion_criteria>
+    </work_phase>
+
+    <work_phase id="P1-B" name="Pure duration policy service">
+      <goal_of_each_phase>
+        建立唯一 deterministic owner，將 per-turn root/mode/duration evidence 映射為 not-applicable 或 exact Level 1-5 assessment。
+      </goal_of_each_phase>
+      <files>
+        <file>backend/src/services/report/voiceDurationAssessmentService.js</file>
+        <file>backend/tests/robustness/report/voiceDurationAssessmentService.test.js</file>
+      </files>
+      <implementation_details>
+        Service 不讀 transcript array、不查 DB、不讀 SessionAnalysis、不呼叫 LLM/provider、不修改 input object。
+        Eligibility 和 band mapping 分成小 pure functions；summary 只 aggregate assessment objects，不能重讀 raw metadata。
+      </implementation_details>
+      <pseudocode><![CDATA[
+IMPORT { ensureArray, normalizeKey } from '../../utils/commonHelpers.js'.
+DEFINE VOICE_INPUT_MODES = Set('realtime_voice', 'duplex_voice').
+DEFINE MAX_DURATION_POINTS = 10.
+DEFINE LEVEL_TO_POINTS = { 1: 0, 2: 2.5, 3: 5, 4: 7.5, 5: 10 }.
+
+FUNCTION buildNotApplicableAssessment(reason):
+  RETURN {
+    eligible: false,
+    reason,
+    seconds: null,
+    level: null,
+    earnedPoints: null,
+    maxPoints: 10
+  }.
+
+EXPORT FUNCTION mapVoiceDurationToLevel(rawSeconds):
+  SET seconds = Number(rawSeconds).
+  IF seconds is not finite OR seconds <= 0: RETURN null.
+  DO NOT round seconds.
+  IF seconds < 60 OR seconds > 150: RETURN 1.
+  IF seconds < 70 OR seconds > 140: RETURN 2.
+  IF seconds < 80 OR seconds > 130: RETURN 3.
+  IF seconds < 90 OR seconds > 120: RETURN 4.
+  RETURN 5.
+
+EXPORT FUNCTION buildVoiceDurationAssessment({ questionTurnKind, answerTurn }):
+  IF questionTurnKind !== 'root_question':
+    RETURN buildNotApplicableAssessment('non_root_question').
+
+  SET inputMode = normalized answerTurn.metadata.inputMode.
+  IF inputMode === 'text':
+    RETURN buildNotApplicableAssessment('text_timing_deferred').
+  IF inputMode is not in VOICE_INPUT_MODES:
+    RETURN buildNotApplicableAssessment('voice_mode_unverified').
+
+  SET seconds = Number(answerTurn.metadata.voiceDelivery.speakingDurationSeconds).
+  SET level = mapVoiceDurationToLevel(seconds).
+  IF level === null:
+    RETURN buildNotApplicableAssessment('duration_evidence_unavailable').
+
+  RETURN {
+    eligible: true,
+    reason: 'eligible_root_voice_answer',
+    seconds,
+    level,
+    earnedPoints: LEVEL_TO_POINTS[level],
+    maxPoints: 10
+  }.
+
+EXPORT FUNCTION summarizeVoiceDurationAssessments(assessments):
+  SET all = ensureArray(assessments).
+  SET eligible = all.filter(item => item.eligible === true).
+  COMPUTE eligible-only average seconds and average earned points to 2 decimals, else null.
+  COUNT eligible seconds below 90, within 90..120 inclusive, and above 120.
+  COUNT eligible levels 1..5.
+  COUNT all ineligible stable reason codes.
+  RETURN the exact summary_contract shape.
+
+NEGATIVE CONSTRAINTS:
+  - Do not infer seconds from word count.
+  - Do not use deliveryConfidence/asrConfidence as a candidate-quality score.
+  - Do not convert missing evidence into Level 1.
+  - Do not export a second percentage/overall score.
+      ]]></pseudocode>
+      <tests_required_for_this_phase>
+        <test>Table-test 59.99/60/69.99/70/79.99/80/89.99/90/120/120.01/130/130.01/140/140.01/150/150.01。</test>
+        <test>Assert exact points 0/2.5/5/7.5/10。</test>
+        <test>Assert null/undefined/NaN/Infinity/0/negative duration 是 not applicable，不是 Level 1。</test>
+        <test>Assert text、unverified mode、follow-up 各自得到 stable reason code 與 null points。</test>
+        <test>Assert 100 seconds 是 Level 5、10 points、targetRange，且不是 overTarget。</test>
+        <test>Parameterize root question families self_intro、past example、scenario、knowledge、motivation；同一 100-second voice evidence 必須得到相同 Level 5，證明 duration rule 不讀 content framework。</test>
+      </tests_required_for_this_phase>
+      <observable_outcome>
+        對相同 input object 重複呼叫得到 deep-equal output；所有 boundaries 無 overlap、無 gap。
+      </observable_outcome>
+      <completion_criteria>
+        Pure service focused tests 全部通過，且 file 沒有 DB/model/provider import。
+      </completion_criteria>
+    </work_phase>
+
+    <work_phase id="P1-C" name="Accepted-pair and root/follow-up integration">
+      <goal_of_each_phase>
+        讓 canonical report dataset 對每個 accepted pair 計算一次 assessment，同時沿用現有 turn exclusions，避免第二份 eligibility logic。
+      </goal_of_each_phase>
+      <files>
+        <file>backend/src/services/report/reportTurnDatasetService.js</file>
+        <file>backend/tests/robustness/report/reportTurnDatasetRobustness.test.js</file>
+      </files>
+      <implementation_details>
+        將目前 boolean isCountableQuestion 的 single-turn buildQuestionHistory result 保留下來，避免同一 turn 重算後
+        又自行猜 root/follow-up。Pending question 同時保存 raw turn 與 canonical history entry；pairing semantics 不變。
+      </implementation_details>
+      <pseudocode><![CDATA[
+IMPORT {
+  buildVoiceDurationAssessment,
+  summarizeVoiceDurationAssessments
+} from './voiceDurationAssessmentService.js'.
+
+REPLACE private boolean-only countable helper with:
+  FUNCTION resolveCountableQuestionEntry(turn):
+    IF role is not AI/assistant/interviewer: RETURN null.
+    SET [entry] = buildQuestionHistory([turn]).countableQuestions.
+    RETURN entry OR null.
+
+IN buildReportTurnDataset(transcript):
+  KEEP the current EXCLUDED_USER_TURN_TYPES and isAcceptedAnswer logic unchanged.
+  CHANGE pendingQuestion from raw turn to { turn, historyEntry }.
+
+  FOR each transcript turn:
+    SET countableEntry = resolveCountableQuestionEntry(turn).
+    IF countableEntry exists:
+      APPEND raw turn to countableQuestions.
+      SET pendingQuestion = { turn, historyEntry: countableEntry }.
+      CONTINUE.
+
+    IF turn is not accepted OR pendingQuestion is null:
+      CONTINUE.
+
+    SET questionTurnKind = pendingQuestion.historyEntry.turnKind.
+    SET voiceDurationAssessment = buildVoiceDurationAssessment({
+      questionTurnKind,
+      answerTurn: turn
+    }).
+    APPEND pair {
+      questionId: resolveQuestionId(pendingQuestion.turn),
+      questionTurn: pendingQuestion.turn,
+      answerTurn: turn,
+      questionTurnKind,
+      voiceDurationAssessment
+    }.
+    SET pendingQuestion = null.
+
+  AFTER pairing:
+    SET voiceDurationAssessmentSummary = summarizeVoiceDurationAssessments(
+      questionAnswerPairs.map(pair => pair.voiceDurationAssessment)
+    ).
+    RETURN every existing dataset field unchanged, plus voiceDurationAssessmentSummary.
+
+DO NOT:
+  - add repair/confirmation/candidate-question assessments outside questionAnswerPairs;
+  - clear pending root on a non-countable clarification turn;
+  - treat a countable follow-up as root;
+  - pair one answer to more than one question;
+  - mutate transcript turns.
+      ]]></pseudocode>
+      <tests_required_for_this_phase>
+        <test>Accepted root realtime_voice answer at 100 seconds produces one eligible Level 5 pair。</test>
+        <test>Accepted follow_up answer with valid 30-second duration remains a pair but assessment is non_root_question/null points。</test>
+        <test>Question-scope request、AI clarification、then root answer preserves original root pair；only root answer is eligible。</test>
+        <test>Unconfirmed low-confidence、repair response、acknowledgement、candidate question create no pair and no duration assessment。</test>
+        <test>Confirmed low-confidence original answer that satisfies accepted-answer metadata can be assessed; ASR confidence itself does not reduce duration level。</test>
+        <test>Text answer with accidental voiceDelivery field is text_timing_deferred。</test>
+      </tests_required_for_this_phase>
+      <observable_outcome>
+        dataset.questionAnswerPairs length 仍等於 accepted scored-answer count；duration summary denominator 只等於 eligible root voice answers。
+      </observable_outcome>
+      <completion_criteria>
+        所有既有 dataset tests 保持通過，新 exclusions/follow-up cases 通過；repairTurnCount、countableQuestionCount、
+        scoredAnswerCount semantics 沒有 regression。
+      </completion_criteria>
+    </work_phase>
+
+    <work_phase id="P1-D" name="Report metrics and score-ready handoff">
+      <goal_of_each_phase>
+        將同一 canonical assessment 暴露到 internal report metrics 與 deterministic turn breakdown，供後續 phase 使用，
+        同時證明 Phase 1 不改 overall score。
+      </goal_of_each_phase>
+      <files>
+        <file>backend/src/services/agents/reportGenerator/reportEvidenceAnalysis.js</file>
+        <file>backend/src/services/agents/reportGeneratorAgent.js</file>
+        <file>backend/tests/robustness/report/voiceDurationAssessmentService.test.js</file>
+      </files>
+      <implementation_details>
+        buildInterviewMetrics 只投影 nested summary。buildDeterministicTurnBreakdowns 只 copy pair object，不重新讀 metadata、
+        不重新算 band。Deterministic measured evidence 的優先權高於 model coaching output。
+      </implementation_details>
+      <pseudocode><![CDATA[
+IN buildInterviewMetrics(transcriptOrDataset, totalQuestions):
+  IMPORT summarizeVoiceDurationAssessments from '../../report/voiceDurationAssessmentService.js'.
+  KEEP all existing metrics unchanged.
+  ADD:
+    voiceDurationAssessmentSummary:
+      dataset.voiceDurationAssessmentSummary
+      OR summarizeVoiceDurationAssessments(
+           dataset.questionAnswerPairs.map(pair => pair.voiceDurationAssessment)
+         ).
+  DO NOT add averageAnswerDurationSeconds or overlongAnswerCount at the metrics root.
+
+IN buildDeterministicTurnBreakdowns(transcriptOrPairs, analysedAnswers):
+  DESTRUCTURE each pair as { questionTurn, answerTurn, voiceDurationAssessment }.
+  COPY `voiceDurationAssessment: voiceDurationAssessment || null` into that same turn breakdown.
+  DO NOT call buildVoiceDurationAssessment here.
+
+IN mergeTurnBreakdownsWithRubrics(candidateTurns, deterministicTurns):
+  SET merged.voiceDurationAssessment = fallback.voiceDurationAssessment || null.
+  IGNORE any model-supplied duration assessment/seconds/points.
+  KEEP deterministic question-answer identity alignment unchanged.
+
+LEAVE runReportGeneratorAgent execution order unchanged:
+  turnDataset -> analysedAnswers -> interviewMetrics -> deterministicTurnBreakdowns -> reportScores.
+
+LEAVE reportScoreService.js unchanged.
+LEAVE buildReportDraft public sections/copy unchanged.
+LEAVE schemaHelpers.js candidate-facing turn normalization unchanged until Phase 6.
+      ]]></pseudocode>
+      <tests_required_for_this_phase>
+        <test>buildInterviewMetrics exposes exact eligible/not-applicable counts and averages from dataset summary。</test>
+        <test>Injected stale latestVoiceDeliverySummary/aggregate-like fields cannot override pair-derived summary；nested summary exists but legacy top-level averageAnswerDurationSeconds/overlongAnswerCount do not。</test>
+        <test>buildDeterministicTurnBreakdowns returns the exact same assessment object values as the pair。</test>
+        <test>mergeTurnBreakdownsWithRubrics keeps deterministic assessment when model candidate turn omits or forges duration fields。</test>
+        <test>computeInterviewPerformanceScore with and without added duration assessment returns the same score in Phase 1。</test>
+        <test>Text-only dataset has eligibleAnswerCount 0、null averages、no score penalty。</test>
+      </tests_required_for_this_phase>
+      <observable_outcome>
+        Internal report draft 的 interviewMetrics 有 nested canonical summary；Phase 4 可以從 deterministic turn breakdown
+        使用同一 object；candidate projection/UI 沒有新增 field 或 copy；current overall score bit-for-bit 不變。
+      </observable_outcome>
+      <completion_criteria>
+        Assessment 只計算一次、後續 consumers 只 copy/read；score non-mutation test 通過；reportScoreService diff 為空。
+      </completion_criteria>
+    </work_phase>
+
+    <work_phase id="P1-E" name="Bounded docs, verification, and independent audit">
+      <goal_of_each_phase>
+        用 focused automated evidence、task-scoped diff 與一次 independent audit 證明 Phase 1 contract 完成，
+        同時準確記錄尚未驗證的 live/browser/release gates。
+      </goal_of_each_phase>
+      <files>
+        <file>docs/architecture-decision-records/features/F-34-report-generation-pipeline.md</file>
+        <file>repo-docs/change-log.md</file>
+      </files>
+      <implementation_details>
+        文件只能記錄實際落盤 code 與實際執行結果。不可預先寫 pass count、live accuracy、provider evidence、
+        browser evidence 或 production readiness。F-34 不重寫歷史，不修改無關 Feature RFC。
+      </implementation_details>
+      <pseudocode><![CDATA[
+AFTER production/tests pass:
+  UPDATE F-34 header test paths only if the new focused test is now authoritative.
+  UPDATE F-34 Section 1.2 evolution trace with the Phase 1 change and rationale;
+    do not invent a commit/PR identifier before one exists.
+  UPDATE F-34 Sections 2.1/2.2 scope and acceptance criteria with:
+    - per-turn transcript source;
+    - accepted root voice eligibility;
+    - five exact continuous bands;
+    - not-applicable null-points rule;
+    - internal-only Phase 1 handoff;
+    - overall score unchanged until Phase 4;
+    - VAD/live accuracy not established.
+  UPDATE F-34 Section 3 flow so transcript pair -> duration evaluator -> internal report metrics is explicit.
+  UPDATE F-34 Section 4.1 with the actual new pure function signature/snippet and post-write line reference;
+    quote only code that exists on disk after implementation.
+  UPDATE F-34 Sections 5/6 with missing duration, stale aggregate, unknown mode, and debugging boundaries.
+  UPDATE F-34 Section 7 with the per-turn-versus-aggregate ownership trade-off only if it remains accurate after implementation.
+  APPEND one dated Phase 1 change-log entry with actual changed files and actual commands/results.
+  MARK browser, live speech provider, human calibration, production, deployment as NOT RUN.
+
+RUN focused tests, backend lint, diff checks, and forbidden-path checks.
+THEN launch exactly one clean-context read-only auditor for Cycle 3.
+AUDITOR reviews only task-owned diff + acceptance criteria + source contracts.
+AUDITOR must return an evidence matrix for:
+  exact band boundaries;
+  N/A versus Level 1 distinction;
+  turn exclusions and follow-up handling;
+  text guard;
+  canonical per-turn source;
+  no overall-score mutation;
+  no live-turn latency-path edits;
+  docs truthfulness.
+REPAIR only auditor-confirmed blocking gaps, rerun affected focused checks,
+and ask the same auditor for the final matrix. Do not launch a second auditor.
+      ]]></pseudocode>
+      <tests_required_for_this_phase>
+        Focused Vitest、backend ESLint、XML/task diff checks、documentation diff inspection，以及 one independent
+        T3 scoring-boundary audit；不跑 real AI eval、live voice、browser 或 full quality:all。
+      </tests_required_for_this_phase>
+      <observable_outcome>
+        Focused commands exit 0；task diff 只包含 9 forecast paths；forbidden runtime/score/frontend files 無 diff；
+        auditor final evidence matrix 無 blocking finding；docs 的 NOT RUN boundary 清楚。
+      </observable_outcome>
+      <completion_criteria>
+        所有 automated criteria pass、F-34/change-log 同步完成、auditor final matrix 支持 PASS，且未做 commit/push/release。
+      </completion_criteria>
+    </work_phase>
+  </phases_of_work>
+
+  <implementation_details>
+    <business_rule_ownership>
+      <owner rule="accepted answer and question pairing">reportTurnDatasetService.js</owner>
+      <owner rule="root/follow-up classification">questionDeduplicationService.js via buildQuestionHistory</owner>
+      <owner rule="voice duration eligibility, bands, points, summary">voiceDurationAssessmentService.js</owner>
+      <owner rule="report metric projection">reportEvidenceAnalysis.js</owner>
+      <owner rule="deterministic score handoff">reportGeneratorAgent.js</owner>
+      <owner rule="overall score composition">Deferred to Phase 4; reportScoreService.js remains unchanged</owner>
+      <owner rule="candidate coaching/publication">Deferred to Phase 6 and 7</owner>
+    </business_rule_ownership>
+    <function_level_contracts>
+      <function name="mapVoiceDurationToLevel" file="backend/src/services/report/voiceDurationAssessmentService.js" visibility="exported">
+        <caller>buildVoiceDurationAssessment；focused unit tests。</caller>
+        <input>rawSeconds，可由 per-turn metadata 讀得；function 自行轉 Number 並驗 finite positive。</input>
+        <output>1|2|3|4|5；invalid evidence 回 null。</output>
+        <side_effects>None。</side_effects>
+        <dependencies>None beyond Number.isFinite。</dependencies>
+      </function>
+      <function name="buildVoiceDurationAssessment" file="backend/src/services/report/voiceDurationAssessmentService.js" visibility="exported">
+        <caller>buildReportTurnDataset pairing loop。</caller>
+        <input>{ questionTurnKind, answerTurn }；answerTurn 是 accepted pair 的 raw transcript turn。</input>
+        <output>assessment_object_contract 的 eligible 或 not-applicable exact shape。</output>
+        <side_effects>None；不得 mutate answerTurn。</side_effects>
+        <dependencies>VOICE_INPUT_MODES、mapVoiceDurationToLevel、LEVEL_TO_POINTS、normalizeKey。</dependencies>
+      </function>
+      <function name="summarizeVoiceDurationAssessments" file="backend/src/services/report/voiceDurationAssessmentService.js" visibility="exported">
+        <caller>buildReportTurnDataset；buildInterviewMetrics 只在 supplied dataset 缺 summary 時 fallback。</caller>
+        <input>assessment objects array；不接 raw transcript。</input>
+        <output>summary_contract exact shape。</output>
+        <side_effects>None。</side_effects>
+        <dependencies>ensureArray 與 small local average/count helpers。</dependencies>
+      </function>
+      <function name="resolveCountableQuestionEntry" file="backend/src/services/report/reportTurnDatasetService.js" visibility="private">
+        <caller>buildReportTurnDataset transcript loop，每個 AI-role turn 最多一次。</caller>
+        <input>raw transcript turn。</input>
+        <output>buildQuestionHistory([turn]).countableQuestions[0] 或 null。</output>
+        <side_effects>None。</side_effects>
+        <dependencies>AI_ROLES、normalizeKey、buildQuestionHistory。</dependencies>
+      </function>
+      <function name="buildReportTurnDataset" file="backend/src/services/report/reportTurnDatasetService.js" visibility="exported-existing">
+        <caller>runReportGeneratorAgent、buildInterviewMetrics array path、report tests/services。</caller>
+        <input>transcript array。</input>
+        <output>保留現有 fields；每 pair 新增 questionTurnKind/voiceDurationAssessment；dataset 新增 voiceDurationAssessmentSummary。</output>
+        <side_effects>None；不 persist、不 mutate transcript。</side_effects>
+        <dependencies>Existing accepted-answer rules、buildQuestionHistory、new duration service。</dependencies>
+      </function>
+      <function name="buildInterviewMetrics" file="backend/src/services/agents/reportGenerator/reportEvidenceAnalysis.js" visibility="exported-existing">
+        <caller>runReportGeneratorAgent 與 report-focused tests。</caller>
+        <input>raw transcript array 或 report dataset；totalQuestions。</input>
+        <output>保留所有現有 metrics，新增 nested voiceDurationAssessmentSummary。</output>
+        <side_effects>None。</side_effects>
+        <dependencies>buildReportTurnDataset、summarizeVoiceDurationAssessments fallback。</dependencies>
+      </function>
+      <function name="buildDeterministicTurnBreakdowns" file="backend/src/services/agents/reportGeneratorAgent.js" visibility="exported-existing">
+        <caller>runReportGeneratorAgent、report tests。</caller>
+        <input>assessed question-answer pairs 或 raw transcript；analysedAnswers。</input>
+        <output>保留 existing breakdown，copy 同一 voiceDurationAssessment 或 null。</output>
+        <side_effects>None。</side_effects>
+        <dependencies>buildReportTurnDataset、analyzeTurnStructure；不得依 LLM output 計 duration。</dependencies>
+      </function>
+      <function name="mergeTurnBreakdownsWithRubrics" file="backend/src/services/agents/reportGeneratorAgent.js" visibility="exported-existing">
+        <caller>runReportGeneratorAgent after candidate coaching generation。</caller>
+        <input>model candidate turns；deterministic fallback turns。</input>
+        <output>保留 unique exact Q&amp;A identity merge，duration assessment 一律取 deterministic fallback。</output>
+        <side_effects>None。</side_effects>
+        <dependencies>Existing identity matching and sanitizeNonStarFeedback。</dependencies>
+      </function>
+    </function_level_contracts>
+    <state_and_side_effects>
+      <state_change>Phase 1 不新增 DB write、不修改 transcript、不修改 SessionAnalysis persistence。</state_change>
+      <state_change>Assessment 在 report generation/read-model construction 時 pure-compute。</state_change>
+      <state_change>Persisted raw report 可透過既有 Mixed interviewMetrics 保存 nested summary；candidate projection 目前不發布 interviewMetrics。</state_change>
+      <state_change>Per-turn assessment 在 Phase 1 是 internal deterministic handoff；public schema/persistence allowlist 延後。</state_change>
+    </state_and_side_effects>
+    <failure_behavior>
+      <failure case="missing or invalid duration">回傳 not applicable；report generation 繼續。</failure>
+      <failure case="unknown mode">回傳 voice_mode_unverified；不猜測 voice、不 penalize。</failure>
+      <failure case="follow-up">回傳 non_root_question；不 aggregate、不 penalize。</failure>
+      <failure case="no eligible voice answers">summary counts 為 0、averages 為 null；不 throw、不建立 0 score。</failure>
+      <failure case="legacy aggregate conflicts with transcript">忽略 aggregate；per-turn transcript metadata 優先。</failure>
+      <failure case="test reveals source duration absent on accepted current voice turn">停止 implementation；不要從 word count 或 aggregate 補值。</failure>
+    </failure_behavior>
+  </implementation_details>
+
+  <tests_required_for_this_phase>
+    <acceptance_test_matrix>
+      <criterion id="AC01" owner_test="backend/tests/robustness/voice/voiceDeliveryAnalyzerRobustness.test.js">
+        90000ms 產生 90 seconds；missing/0 duration 產生 null；不改 analyzer runtime code。
+      </criterion>
+      <criterion id="AC02" owner_test="backend/tests/robustness/report/voiceDurationAssessmentService.test.js">
+        所有 exact/decimal boundaries 唯一映射到 Level 1-5 與 exact points。
+      </criterion>
+      <criterion id="AC03" owner_test="backend/tests/robustness/report/voiceDurationAssessmentService.test.js">
+        Text、unknown mode、follow-up、missing invalid evidence 全部 null points；100 seconds 是 Level 5。
+      </criterion>
+      <criterion id="AC04" owner_test="backend/tests/robustness/report/reportTurnDatasetRobustness.test.js">
+        Repair/confirmation/clarification/repeat/ack/candidate-question/unconfirmed 不建立 duration-scored pair；root pairing 不受 clarification 插入破壞。
+      </criterion>
+      <criterion id="AC05" owner_test="backend/tests/robustness/report/voiceDurationAssessmentService.test.js">
+        Summary denominator、averages、target/under/over、level/reason counts 只使用 eligible answers；stale aggregate-like
+        fields 被忽略，且不建立 frontend 會誤讀的 legacy top-level duration metrics。
+      </criterion>
+      <criterion id="AC06" owner_test="backend/tests/robustness/report/voiceDurationAssessmentService.test.js">
+        Pair assessment、deterministic turn breakdown 與 merged fallback 使用同一 values；model 不能 override。
+      </criterion>
+      <criterion id="AC07" owner_test="backend/tests/robustness/report/voiceDurationAssessmentService.test.js">
+        Current computeInterviewPerformanceScore 加入 Phase 1 fields 前後結果相同。</criterion>
+      <criterion id="AC08" owner_test="task-scoped git diff and independent audit">
+        Voice runtime、reportScoreService、frontend、public schema 無 diff；F-34/change-log claim 與執行證據相符。
+      </criterion>
+    </acceptance_test_matrix>
+    <test_policy>
+      先跑三個 focused files；只修正 task-caused failures。若 unchanged environment failure 需要 credentials/provider/port，
+      記錄 NOT RUN，不重試。Full backend test:all 不是 Phase 1 default gate；只有 focused evidence 顯示 cross-suite risk
+      或 owner 另行批准才擴大。
+    </test_policy>
+  </tests_required_for_this_phase>
+
+  <verification_commands_and_observable_outcomes>
+    <command id="V1" cwd="backend"><![CDATA[
+NODE_ENV=test AI_TEST_MODE=mock ./node_modules/.bin/vitest run \
+  tests/robustness/voice/voiceDeliveryAnalyzerRobustness.test.js \
+  tests/robustness/report/reportTurnDatasetRobustness.test.js \
+  tests/robustness/report/voiceDurationAssessmentService.test.js \
+  --reporter=dot
+    ]]></command>
+    <expected id="V1-outcome">Exit 0；三個 focused files 全部 pass；無 network/provider/DB dependency。</expected>
+
+    <command id="V2" cwd="backend"><![CDATA[
+npm run lint
+    ]]></command>
+    <expected id="V2-outcome">Exit 0；backend ESLint 無 error。</expected>
+
+    <command id="V3" cwd="repository-root"><![CDATA[
+git diff --check
+    ]]></command>
+    <expected id="V3-outcome">Exit 0；無 whitespace error 或 conflict marker。</expected>
+
+    <command id="V4" cwd="repository-root"><![CDATA[
+git status --short --untracked-files=all
+git diff --stat -- \
+  backend/src/services/report/voiceDurationAssessmentService.js \
+  backend/src/services/report/reportTurnDatasetService.js \
+  backend/src/services/agents/reportGenerator/reportEvidenceAnalysis.js \
+  backend/src/services/agents/reportGeneratorAgent.js \
+  backend/tests/robustness/report/voiceDurationAssessmentService.test.js \
+  backend/tests/robustness/report/reportTurnDatasetRobustness.test.js \
+  backend/tests/robustness/voice/voiceDeliveryAnalyzerRobustness.test.js \
+  docs/architecture-decision-records/features/F-34-report-generation-pipeline.md \
+  repo-docs/change-log.md
+    ]]></command>
+    <expected id="V4-outcome">
+      Task-owned diff 只含 9 forecast paths；pre-existing research/outline 與 unrelated dirty files 明確分開列出且未被修改。
+    </expected>
+
+    <command id="V5" cwd="repository-root"><![CDATA[
+git diff --exit-code -- \
+  backend/src/services/voice/realtimeVoiceTurnService.js \
+  backend/src/services/voice/voiceDeliveryAnalyzerService.js \
+  backend/src/services/report/reportScoreService.js \
+  backend/src/services/agents/reportGenerator/reportCoachingBuilder.js \
+  backend/src/utils/schemaHelpers.js \
+  frontend/src
+    ]]></command>
+    <expected id="V5-outcome">Exit 0；Phase 1 forbidden runtime/overall-score/public-schema/frontend surfaces 無 task diff。</expected>
+
+    <command id="V6" cwd="repository-root"><![CDATA[
+rg -n "voice duration|90-120|not applicable|overall score|NOT RUN" \
+  docs/architecture-decision-records/features/F-34-report-generation-pipeline.md \
+  repo-docs/change-log.md
+    ]]></command>
+    <expected id="V6-outcome">
+      F-34 與 change-log 有 scoped evidence；文字不聲稱 live VAD accuracy、browser、provider、human calibration、production 或 release 已驗證。
+    </expected>
+
+    <observable_runtime_outcomes>
+      <outcome>Root realtime_voice 100.00 seconds -&gt; eligible true, Level 5, 10 points。</outcome>
+      <outcome>Root realtime_voice 120.01 seconds -&gt; eligible true, Level 4, 7.5 points。</outcome>
+      <outcome>Follow-up 30 seconds -&gt; eligible false, non_root_question, null points。</outcome>
+      <outcome>Text answer with 100-second accidental field -&gt; text_timing_deferred, null points。</outcome>
+      <outcome>Missing root voice duration -&gt; duration_evidence_unavailable, null points。</outcome>
+      <outcome>Dataset with only N/A assessments -&gt; eligibleAnswerCount 0, averages null, current overall unchanged。</outcome>
+      <outcome>Report generation adds no LLM/provider/DB call and no live-turn latency work。</outcome>
+    </observable_runtime_outcomes>
+  </verification_commands_and_observable_outcomes>
+
+  <completion_criteria>
+    <criterion id="C1">唯一 canonical duration service 存在，沒有 duplicated band mapping。</criterion>
+    <criterion id="C2">Canonical source 只讀 accepted answer turn 自己的 speakingDurationSeconds，不讀 stale aggregate。</criterion>
+    <criterion id="C3">60/70/80/90/120/130/140/150 與 decimal edges 全部 deterministic、無 overlap/gap。</criterion>
+    <criterion id="C4">90-120 inclusive 為 Level 5；100 seconds 不被標為 over target。</criterion>
+    <criterion id="C5">Level 1 是 eligible candidate evidence 的 0 points；missing/ineligible 是 null points。</criterion>
+    <criterion id="C6">Follow-up 與所有 non-answer/system interaction 不進 eligible aggregate。</criterion>
+    <criterion id="C7">Confirmed accepted answer 可評；pending/rejected/unconfirmed 不可評。</criterion>
+    <criterion id="C8">Text timing 完全 deferred；text report 不產生 duration penalty。</criterion>
+    <criterion id="C9">interviewMetrics nested summary 只 aggregate eligible roots，0 eligible 時 averages 為 null。</criterion>
+    <criterion id="C10">同一 assessment 進入 deterministic score handoff；model output 不可改寫 measured values。</criterion>
+    <criterion id="C11">reportScoreService 無 diff，overall score non-mutation test 通過，沒有 shadow/temp score。</criterion>
+    <criterion id="C12">Voice runtime、latency path、DB schema、frontend/public schema 無 diff。</criterion>
+    <criterion id="C13">三個 focused tests 與 backend lint 通過；task diff/whitespace checks 通過。</criterion>
+    <criterion id="C14">F-34 與一筆 scoped change-log 只記錄已驗證事實與清楚 NOT RUN boundaries。</criterion>
+    <criterion id="C15">Exactly one independent auditor 的 final evidence matrix 無 blocking finding。</criterion>
+    <criterion id="C16">未開始 Phase 2、未 commit/push/deploy/release，且所有 unrelated dirty files 保持 untouched。</criterion>
+  </completion_criteria>
+
+  <risks_assumptions_and_decisions>
+    <assumption id="A1" status="evidence-validated">
+      Current realtime/duplex accepted transcript turn 同步包含 inputMode 與 voiceDelivery.speakingDurationSeconds。
+    </assumption>
+    <assumption id="A2" status="evidence-validated">
+      SessionAnalysis aggregate 是 background-derived 且 eligibility-blind，因此不是 canonical score source。
+    </assumption>
+    <assumption id="A3" status="human-aligned">
+      只有 substantive root voice answer 適用；substantive 由 accepted-pair gate 操作化，不新增第二個 quality threshold。
+    </assumption>
+    <assumption id="A4" status="human-aligned">
+      Text timing deferred；missing/unreliable system duration 不可 penalize candidate。
+    </assumption>
+    <assumption id="A5" status="implementation-decision">
+      因 source 保留兩位小數，owner 的 integer-labelled bands 以 continuous intervals 實作，不先 round seconds。
+    </assumption>
+    <assumption id="A6" status="evidence-limited">
+      speakingDurationSeconds 是 VAD-reported speaking duration，不等同完整 wall-clock answer duration；
+      Phase 1 focused tests 只證明 deterministic processing，不證明 browser/provider measurement accuracy。
+    </assumption>
+
+    <decision id="D1">Per-turn transcript metadata outranks persisted aggregate summary。</decision>
+    <decision id="D2">Eligibility order 是 non-root -&gt; text -&gt; unverified voice mode -&gt; unavailable duration -&gt; band mapping。</decision>
+    <decision id="D3">Current recognized voice modes 只列 realtime_voice 與 duplex_voice；未知 mode fail closed 為 N/A。</decision>
+    <decision id="D4">not-applicable object 使用 null points；不重用 Level 1 的 0 points。</decision>
+    <decision id="D5">Phase 1 summary 放在 nested voiceDurationAssessmentSummary；不發布 current frontend 會誤讀的 legacy top-level fields。</decision>
+    <decision id="D6">Phase 1 產生 10-point assessment input，但 overall composition 只在 Phase 4 做一次。</decision>
+    <decision id="D7">Phase 1 不修 60-90/under-90 coaching copy，因為 feature 不單獨 release；Phase 6 必須在 final release 前消除它。</decision>
+    <decision id="D8">No database migration：raw report/interviewMetrics 現為 object/Mixed boundary；public per-turn allowlist 延後 Phase 6。</decision>
+    <decision id="D9">Docs outcome 是 one owning Feature RFC plus one scoped change-log；不做 reader-guide/milestone sweep。</decision>
+
+    <risk id="R1" severity="high">
+      若誤用 latestVoiceDeliverySummary，completion report 可能讀到 stale data，且會混入 follow-up/repair turns。
+      <mitigation>Forbidden-source test/review；只讀 pair answer metadata。</mitigation>
+    </risk>
+    <risk id="R2" severity="high">
+      將 missing duration 設為 0 會把 system failure 變成 candidate Level 1。
+      <mitigation>Null-points contract、negative tests、auditor evidence matrix。</mitigation>
+    </risk>
+    <risk id="R3" severity="high">
+      提前把 earnedPoints 加到 reportScoreService 會造成 partial release 或未來 double count。
+      <mitigation>reportScoreService read-only guard、score before/after test、Phase 4 owner boundary。</mitigation>
+    </risk>
+    <risk id="R4" severity="medium">
+      Follow-up metadata 若來源不完整，root/follow-up classification 可能錯。
+      <mitigation>重用 buildQuestionHistory，不以 wording 猜測；current-mode fixtures 覆蓋 explicit turnKind/followUpDepth；unknown future metadata 需在 Phase 2/5 contract 解決。</mitigation>
+    </risk>
+    <risk id="R5" severity="medium">
+      Existing frontend &gt;90 heuristic 會把 100 seconds 誤判 overlong。
+      <mitigation>Phase 1 不發布它會讀的 top-level fields、不單獨 release；Phase 6 是 final-release blocker。</mitigation>
+    </risk>
+    <risk id="R6" severity="medium">
+      Decimal boundary 若先 round 會改變 69.99/120.01 等結果。
+      <mitigation>Continuous unrounded contract 與 decimal edge table tests。</mitigation>
+    </risk>
+    <risk id="R7" severity="low">
+      New summary fields 可能被誤稱為 calibrated assessment accuracy。
+      <mitigation>Docs 明確標示 deterministic rule verification only；human calibration 延後 Phase 8。</mitigation>
+    </risk>
+    <remaining_human_decisions count="0">
+      Research gate 已解決 Phase 1 所需的 weights、bands、eligibility、text boundary、release strategy。
+      若 implementation source evidence 與本 plan 衝突，必須停止並重新 grill owner；目前沒有問題需要 owner 回答。
+    </remaining_human_decisions>
+  </risks_assumptions_and_decisions>
+
+  <explicitly_out_of_scope>
+    <item>Phase 2 semantic past-example intent、catalog metadata normalization、framework routing。</item>
+    <item>Phase 3 Impact-first six content dimensions、five-level evidence evaluator、Outcome-first placement。</item>
+    <item>Phase 4 90/10 composition、applicable denominator、overall-score cutover、framework/scoring version。</item>
+    <item>Phase 5 root question wording、follow-up generation/targeting、catalog seed or live activation。</item>
+    <item>Phase 6 candidate-safe per-turn publication、90-120 coaching、removal of 60-90/under-90 copy。</item>
+    <item>Phase 7 frontend turn cards、HTML/TXT/PDF rendering、visual approval。</item>
+    <item>Phase 8 calibration dataset、human-rater agreement、full cross-layer release gate、milestone-wide docs。</item>
+    <item>Text typing duration、estimated speaking time、text duration scoring。</item>
+    <item>Old-report migration、backfill、automatic regeneration、historical score comparability。</item>
+    <item>STT/TTS/VAD/WebSocket/browser microphone/latency/barge-in/transcript-confirmation behavior changes。</item>
+    <item>Database schema/migration、new dependency、environment configuration。</item>
+    <item>Real AI/provider eval、browser manual test、live voice measurement、production deployment。</item>
+    <item>Commit、push、PR、catalog seed、release；全部需要 separate approval。</item>
+    <item>Reader guides、README、sitemap、harness docs、other Feature RFCs。</item>
+  </explicitly_out_of_scope>
+
+  <execution_cycles>
+    <cycle number="1" name="Implement confirmed Phase 1 contract">
+      完成 P1-A 至 P1-D 的 confirmed code/tests，不做 adjacent cleanup；更新 task-scoped diff forecast。
+    </cycle>
+    <cycle number="2" name="Focused verification and repair">
+      執行 V1-V6；只修 task-caused failure；完成 bounded F-34/change-log sync；重跑 affected checks。
+    </cycle>
+    <cycle number="3" name="Independent audit and confirmed repair">
+      Exactly one clean-context auditor review；只修 auditor-confirmed blocking gaps；由同一 auditor 回傳 final evidence matrix。
+    </cycle>
+  </execution_cycles>
+
+  <plan_quality_audit
+    status="completed"
+    method="Every pass independently rechecked all ten owner-required categories; the checklist was not divided across passes."
+  >
+    <audit_pass number="1" status="passed" checked_items="10" passed_items="10">
+      <method>Full 10-item completeness and source-presence review。</method>
+      <check number="1" category="the phases of work" status="passed">
+        P1-A 至 P1-E 五個 bounded work phases 與三個 execution cycles 均存在，順序與依賴清楚。
+      </check>
+      <check number="2" category="the goal of each phase" status="passed">
+        五個 work phases 各有一個 goal_of_each_phase、observable_outcome 與 phase-local completion_criteria。
+      </check>
+      <check number="3" category="files likely to be added or modified" status="passed">
+        明列 4 production、3 test、2 documentation files；另以 read_only 標示 5 個 dependencies/negative guards，未混入 change forecast。
+      </check>
+      <check number="4" category="dependencies and setup steps" status="passed">
+        明列 authorization、branch、dirty baseline、required docs、Node/Vitest/ESLint、no dependency/env/DB/provider setup 與 docs gate。
+      </check>
+      <check number="5" category="implementation details" status="passed">
+        Source、eligibility、object、band、summary contracts 和 P1-A 至 P1-E pseudocode 均存在；本輪補齊 F-34 Sections 1.2/2/3/4.1/5/6/7 的 bounded sync 指令。
+      </check>
+      <check number="6" category="tests required for that phase" status="passed">
+        三個 test files、boundary/exclusion/mode/summary/score-non-mutation cases 與 AC01-AC08 mapping 均存在。
+      </check>
+      <check number="7" category="verification commands or observable outcomes" status="passed">
+        V1-V6 commands 與七個 exact runtime outcomes 均存在，並分開標示 focused/local 與未執行 gates。
+      </check>
+      <check number="8" category="completion criteria" status="passed">
+        C1-C16 涵蓋 correctness、N/A、denominator、score guard、diff、tests、docs、audit 與 no-release boundary。
+      </check>
+      <check number="9" category="risks assumptions and decisions" status="passed">
+        六個 assumptions、九個 decisions、七個 risks 均有 status 或 mitigation；remaining human decisions 為 0。
+      </check>
+      <check number="10" category="work explicitly outside the scope" status="passed">
+        十四項 non-goals 明確排除 Phase 2-8、text timing、legacy migration、voice runtime、DB、live eval、publish 與 broad docs。
+      </check>
+      <result>10/10 categories passed after the documented F-34 sync-detail correction。</result>
+    </audit_pass>
+
+    <audit_pass number="2" status="passed" checked_items="10" passed_items="10">
+      <method>Full 10-item implementation-readiness review；每項都重新檢查，不沿用 Pass 1 結論。</method>
+      <check number="1" category="the phases of work" status="passed">
+        每個 work phase 都能在不開始 Phase 2 的情況下獨立完成，P1-B pure policy 先於 P1-C/D integration。
+      </check>
+      <check number="2" category="the goal of each phase" status="passed">
+        每個 goal 都是 observable state，不是泛稱「update service」；goal 與 phase-local output/criterion 一一對應。
+      </check>
+      <check number="3" category="files likely to be added or modified" status="passed">
+        每個 forecast file 都有 action、category、reason 與 owning responsibility；9-file forecast 符合 10-file hard stop。
+      </check>
+      <check number="4" category="dependencies and setup steps" status="passed">
+        Setup 足以讓 implementer 從 clean baseline 開始，且明確處理 branch exists、overlapping dirty edit、credentials 與 docs owner。
+      </check>
+      <check number="5" category="implementation details" status="passed">
+        本輪補上 8 個 function-level contracts，以及 exact import paths、callers、inputs、outputs、side effects、dependencies；五段 pseudocode 可直接轉成 code tasks。
+      </check>
+      <check number="6" category="tests required for that phase" status="passed">
+        本輪新增 self_intro/past-example/scenario/knowledge/motivation cross-framework parameterized case；每個 business rule 都有 deterministic test owner。
+      </check>
+      <check number="7" category="verification commands or observable outcomes" status="passed">
+        Commands 的 cwd、existing binaries、test paths、expected exit/outcome 與 forbidden-diff checks 均具體可執行。
+      </check>
+      <check number="8" category="completion criteria" status="passed">
+        Completion criteria 可以由 tests、diff、docs 與 auditor evidence 判定，沒有「looks good」或無法觀察的條件。
+      </check>
+      <check number="9" category="risks assumptions and decisions" status="passed">
+        Decimal boundary 是明示 implementation decision；VAD accuracy 是 evidence-limited；N/A、stale aggregate、double count 與 frontend heuristic 均有 mitigation。
+      </check>
+      <check number="10" category="work explicitly outside the scope" status="passed">
+        Pseudocode 與 file list 沒有偷偷實作 scoring cutover、coaching copy、frontend、voice runtime、migration 或 release。
+      </check>
+      <result>10/10 categories passed after function-contract, import-path, and cross-framework test improvements。</result>
+    </audit_pass>
+
+    <audit_pass number="3" status="passed" checked_items="10" passed_items="10">
+      <method>Full 10-item cross-source consistency and acceptance review；每項第三次重新檢查。</method>
+      <check number="1" category="the phases of work" status="passed">
+        Work phases 與 parent outline 的 Phase 1 goal 一致；後續 phases 只出現在 dependency/consumer/non-goal，不成為本 phase work。
+      </check>
+      <check number="2" category="the goal of each phase" status="passed">
+        五個 goals 共同收斂到一個 end state：canonical assessment input ready、overall/public behavior 尚未 cut over，沒有互相矛盾。
+      </check>
+      <check number="3" category="files likely to be added or modified" status="passed">
+        Forecast paths 與現有 runtime seams 相符；所有 existing paths 已在 disk 確認，新 service/test 的 parent directories 與 import topology 有效。
+      </check>
+      <check number="4" category="dependencies and setup steps" status="passed">
+        Setup 與 repository rules、single feature branch、three-cycle budget、Auto Docs Sync、Ground-Truth audit 要求一致，沒有先行 mutation 授權。
+      </check>
+      <check number="5" category="implementation details" status="passed">
+        Exact continuous bands 與 research 相同；per-turn source 與 realtime synchronous/background ordering 相符；root/follow-up classification 重用 current owner；無 duplicated calculator。
+      </check>
+      <check number="6" category="tests required for that phase" status="passed">
+        本輪補上 stale aggregate cannot override 與 no legacy top-level metric negative test；boundary、N/A、cross-framework、merge、overall non-mutation 仍完整。
+      </check>
+      <check number="7" category="verification commands or observable outcomes" status="passed">
+        Focused Vitest binary、backend package、F-34、change-log paths 已在 disk 確認；observable outcomes 與 exact contract 無矛盾。
+      </check>
+      <check number="8" category="completion criteria" status="passed">
+        C1-C16 與 AC01-AC08、V1-V6、P1-A 至 P1-E 可 trace；每個 blocking product rule 至少有一個 evidence gate。
+      </check>
+      <check number="9" category="risks assumptions and decisions" status="passed">
+        與 research/outline/voice contract 比對後無 unsupported material assumption；唯一未由 owner逐字指定的 decimal interpretation 已明示而非偽裝成 research fact。
+      </check>
+      <check number="10" category="work explicitly outside the scope" status="passed">
+        Planning-time Git status 顯示本文件完成時只新增 Phase 1 plan；implementation 當時刻意 deferred。實作後狀態與 verification evidence 改記錄在 phase-1-review-brief.md 與本文件的 post_implementation_evidence。
+      </check>
+      <result>10/10 categories passed；no material gap, ambiguity, contradiction, or human decision remains before implementation authorization。</result>
+    </audit_pass>
+  </plan_quality_audit>
+
+  <post_implementation_evidence status="final_audit_passed">
+    <branch>codex/impact-first-past-example</branch>
+    <review_surface path="phase-1-review-brief.md" section="11">Compact human-review surface with current implementation evidence。</review_surface>
+    <implementation_scope>One new duration-rule service; dataset, metrics and deterministic breakdown handoff; one new service test plus two existing robustness test extensions; F-34 and one scoped changelog entry synced。</implementation_scope>
+    <verification>
+      <check name="focused_vitest" status="passed">3 files / 51 tests passed after Cycle 3 coverage repair。</check>
+      <check name="report_robustness" status="passed">23 files / 166 tests passed after Cycle 3 coverage repair。</check>
+      <check name="voice_robustness" status="passed">41 files / 183 tests passed after a controlled local-listener rerun。</check>
+      <check name="backend_lint" status="passed">backend ESLint passed。</check>
+      <check name="diff_check" status="passed">git diff --check passed。</check>
+      <check name="xml_well_formed" status="passed">Python standard-library XML parse passed。</check>
+    </verification>
+    <not_run>Frontend rendering, browser/manual calibration, live voice/provider, real AI evaluation, Mongo persistence and production rollout。</not_run>
+    <audit_status>Same independent Cycle 3 auditor returned the final evidence matrix: 10/10 acceptance categories passed with no blocking finding。</audit_status>
+  </post_implementation_evidence>
+</implementation_plan>

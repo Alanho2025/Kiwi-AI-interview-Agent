@@ -1,0 +1,328 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<implementation_plan
+  id="impact-first-past-example-phase-5"
+  version="1.0"
+  status="ready_for_implementation"
+>
+  <plan_boundary>
+    <requested_output>Phase 5 的完整 implementation-level XML plan；本輪只產出 plan，不實作。</requested_output>
+    <phase_name>Past-example question wording and controlled follow-ups</phase_name>
+    <source_of_truth>research.md</source_of_truth>
+    <parent_outline>impact-first-past-example-outline-plan.md</parent_outline>
+    <prior_phase>impact-first-past-example-phase-4-plan.xml</prior_phase>
+    <authorization>
+      本文件只規劃 Phase 5。它不授權修改 production code、建立新 branch、commit、push、deployment、
+      或開始 Phase 6。implementation 需要 owner 另行明確要求。
+    </authorization>
+    <release_boundary>
+      Phase 5 是同一個 feature branch 上的一個 internal slice，不單獨 release。完整 feature 只在所有 phases 完成後一次 release。
+    </release_boundary>
+  </plan_boundary>
+
+  <research_gate status="ready_for_plan">
+    <evidence_examined>
+      <item path="research.md">三輪 research audit、owner alignment 以及 scope boundary，已確認 Phase 5 的目標。</item>
+      <item path="backend/src/data/questionCatalogSeed2026_1.js">確認了 catalog question 的 wording，需要增加 outcome-first 提示。</item>
+      <item path="backend/src/data/questionCatalogSeed2026_2.js">確認了與 2026_1 維持 wording 統一的要求。</item>
+      <item path="backend/src/services/agents/interviewerAgentQuestionBuilder.js">確認了 probing questions 針對缺失證據 (missing evidence) 進行追問的邏輯。</item>
+      <item path="backend/src/services/questions/interviewTurnOrchestratorService.js">確認了追問 intent 的建立和 `rootQuestionId` 的綁定機制。</item>
+    </evidence_examined>
+    <confirmed_current_state>
+      <item>目前的題庫尚未強制候選人以 "outcome-first" 方式回答問題。</item>
+      <item>目前的追問機制 (follow-ups) 已經能夠針對部分缺失證據 (如 ownership) 進行追問。</item>
+      <item>`interviewTurnOrchestratorService` 具備能力將 follow-ups 與 parent/root question ID 關聯，避免被重複視為 root。</item>
+    </confirmed_current_state>
+    <gaps>
+      <item>題庫種子檔案 (Seed files) 缺乏明確鼓勵候選人 "先講結果 (outcome)" 的 wording。</item>
+      <item>Question Builder 的追問缺乏針對 specific missing evidence (例如 outcome/comparison) 的細緻控制，目前主要專注於 teamwork/ownership/tradeoff。</item>
+    </gaps>
+    <weak_reasoning>
+      <item>假設候選人會自然提供有結構的回答，導致後端 Evaluator 取不到 Outcome-first placement 高分。</item>
+    </weak_reasoning>
+    <unsupported_assumptions>
+      <item>所有 past-example 問題都能直接轉換 wording 而不影響語氣。Phase 5 會謹慎保留 professional language。</item>
+    </unsupported_assumptions>
+    <assumption_alignment>
+      <item status="human-aligned">Wording 更新僅限於 genuine past-example root questions。</item>
+      <item status="human-aligned">Follow-ups 不能創造新的 root score，必須與原本的 root 綁定。</item>
+      <item status="implementation-decision">修改 `buildLevelPromptVariants` 和對應的 prompt templates 增加 outcome-first 指示。</item>
+    </assumption_alignment>
+    <missing_requirements>
+      <item>明確的 outcome-first prompt wording 規則。</item>
+      <item>針對 Impact-first 核心維度的 follow-up targets (例如 outcome comparison, learning) 的支援。</item>
+    </missing_requirements>
+    <ambiguities>
+      <item>是否要在每一個 follow-up 都重新提示 candidate 講 outcome？ Resolved: 不需要，follow-up 每次只針對一個 missing evidence。</item>
+    </ambiguities>
+    <contradictions>
+      <item>如果 candidate 提供了一個 short answer，orchestrator 會決定發起 probing。必須確保這個 probe 不被算作一個新的 duration score turn。Resolved: `rootQuestionId` 的延續將保護它不被當作新的 root。</item>
+    </contradictions>
+    <questions_that_require_human_answers>None.</questions_that_require_human_answers>
+  </research_gate>
+
+  <phase_sequence>
+    <phase id="5" name="Past-example question wording and controlled follow-ups">
+      <goal>
+        Elicit complete Impact-first answers naturally by adjusting root prompt wording to encourage outcome-first delivery, and configure follow-ups to target one missing evidence component without duplicating root scoring.
+      </goal>
+      <work_packages>
+        <work_package id="5.1" name="Root Wording Update">
+          <goal>Update question catalog seeds (2026.1 and 2026.2) to elicit outcome-first past examples.</goal>
+          <files>backend/src/data/questionCatalogSeed2026_1.js; backend/src/data/questionCatalogSeed2026_2.js</files>
+        </work_package>
+        <work_package id="5.2" name="Follow-Up Missing Evidence Targets">
+          <goal>Refine question builder to generate follow-up questions targeting specific Impact-first missing evidence areas (outcome comparison, rationale, etc.).</goal>
+          <files>backend/src/services/agents/interviewerAgentQuestionBuilder.js</files>
+        </work_package>
+        <work_package id="5.3" name="Follow-Up Orchestration and Root Linkage">
+          <goal>Ensure orchestrator maps missing evidence correctly and maintains strict rootQuestionId linkage.</goal>
+          <files>backend/src/services/questions/interviewTurnOrchestratorService.js</files>
+        </work_package>
+        <work_package id="5.4" name="Regression Evidence and Documentation">
+          <goal>Verify the new wording and follow-up strict root linkage using focused tests and write documentation.</goal>
+          <files>backend/tests/robustness/questions/questionCatalog2026_2.test.js; backend/tests/robustness/questions/followUpQuestionService.test.js; backend/tests/robustness/questions/rootFollowUpRuntimeFlow.test.js; docs/architecture-decision-records/features/F-34-report-generation-pipeline.md; repo-docs/change-log.md</files>
+        </work_package>
+      </work_packages>
+    </phase>
+  </phase_sequence>
+
+  <task_contract>
+    <one_observable_goal>
+      Genuine past-example root questions actively prompt the candidate to state the outcome first, and follow-ups effectively target exactly one missing evidence area while completely avoiding any disruption to the parent's duration or root-score identity.
+    </one_observable_goal>
+    <allowed_areas>
+      <area>backend/src/data/questionCatalogSeed2026_1.js</area>
+      <area>backend/src/data/questionCatalogSeed2026_2.js</area>
+      <area>backend/src/services/agents/interviewerAgentQuestionBuilder.js</area>
+      <area>backend/src/services/questions/interviewTurnOrchestratorService.js</area>
+      <area>backend/src/services/questions/interviewMicroPlanningService.js</area>
+      <area>backend/tests/robustness/questions/questionCatalog2026_2.test.js</area>
+      <area>backend/tests/robustness/questions/followUpQuestionService.test.js</area>
+      <area>backend/tests/robustness/questions/rootFollowUpRuntimeFlow.test.js</area>
+      <area>docs/architecture-decision-records/features/F-34-report-generation-pipeline.md</area>
+      <area>repo-docs/change-log.md</area>
+    </allowed_areas>
+    <forbidden_areas>
+      <area reason="Phase 3/4 ownership">answerFrameworkService.js, reportScoreService.js, evaluation models.</area>
+      <area reason="Phase 6 ownership">Candidate report projection, UI formatting, exports.</area>
+      <area reason="Runtime constraints">Voice VAD, latency, STT/TTS engine, websocket streaming.</area>
+      <area reason="Live Catalog">Live Mongo database seed running (only update the file).</area>
+    </forbidden_areas>
+    <budgets>
+      <production_files maximum="5" forecast="5" />
+      <test_files maximum="4" forecast="3" />
+      <documentation_files maximum="2" forecast="2" />
+      <total_task_owned_files hard_stop="12" forecast="10" />
+      <incremental_changed_lines target="less_than_400" hard_stop="500" />
+      <implementation_cycles maximum="3" />
+    </budgets>
+    <stop_rule>
+      If the plan exceeds line budget or necessitates changing live AI generation logic outside of builder/orchestrator rules, stop and propose a split.
+    </stop_rule>
+  </task_contract>
+
+  <canonical_contracts>
+    <root_wording_contract>
+      <behavior>
+        Every root question that targets a past example (behavioural, conflict, teamwork, project reflection, etc.) must include wording similar to "Use one concrete example, starting with the outcome...".
+      </behavior>
+    </root_wording_contract>
+    <follow_up_target_contract>
+      <behavior>
+        A follow-up aims for exactly one `missingEvidence` signal per turn (e.g., 'result_or_validation', 'personal_ownership'). The selected prompt text asks specifically about this missing area without asking a generic "tell me more" question.
+      </behavior>
+    </follow_up_target_contract>
+    <root_linkage_contract>
+      <behavior>
+        `rootQuestionId` is persisted natively on every follow-up. Turn kind is strictly `follow_up`. It generates NO duration assessment of its own (Phase 1 rules naturally bypass non-roots).
+      </behavior>
+    </root_linkage_contract>
+  </canonical_contracts>
+
+  <implementation_design>
+    <prompt_definition>
+      <system_prompt>
+        <instructions>
+          You are an AI interviewer conducting a technical and behavioral interview. Your core role is to elicit complete, impact-first answers from the candidate. For past-example questions, always encourage the candidate to start with the final outcome or result before diving into the context and actions. For follow-up questions, target exactly one missing evidence dimension (such as personal ownership, specific result, or tradeoff) without asking generic "tell me more" questions.
+        </instructions>
+        <knowledge>
+          You have access to the candidate's parsed CV profile, the aligned Job Description requirements, and a curated catalog of behavioral and technical questions. You understand the "Impact-first" evidence framework, which prioritizes outcomes, personal action, and tradeoffs.
+        </knowledge>
+        <memory>
+          Short-term: The transcript of the current interview session, including the latest user answer and the orchestrator's cheap answer signals (e.g., missing evidence flags).
+          Long-term: The overall interview structure, coverage state, and the set of missing topics or validation targets that still need to be addressed.
+        </memory>
+        <examples>
+          <example>
+            <context>Candidate gave a behavioral answer missing a clear result.</context>
+            <input>Missing Evidence: result_or_validation</input>
+            <output>What was the final outcome or measurable impact of that specific project?</output>
+          </example>
+          <example>
+            <context>Asking a prepared root behavioral question.</context>
+            <input>Question Topic: teamwork</input>
+            <output>Please share one concrete example of a time you worked with a difficult stakeholder. Start by sharing the final outcome, and then explain your specific role.</output>
+          </example>
+        </examples>
+        <tools>
+          You rely on the `interviewTurnOrchestratorService` to provide the `turnKind`, `missingEvidence`, and `followUpContext`. You generate the final spoken text based on the `planningFrame` provided by the system.
+        </tools>
+        <guardrails>
+          - Hard Constraint: Ask exactly one question per turn.
+          - Hard Constraint: Do not invent CV, JD, or transcript facts.
+          - Formatting Rule: Ensure the final spoken question is concise and TTS-ready (Text-to-Speech ready).
+          - Safety Validation: Do not consume a prepared root question when orchestrating a follow-up. Maintain strict parent-child linkage via `rootQuestionId`.
+        </guardrails>
+      </system_prompt>
+    </prompt_definition>
+
+    <component path="backend/src/data/questionCatalogSeed2026_1.js" role="catalog seeds wording">
+      <contract>Modify level prompt variants to elicit outcome-first.</contract>
+      <pseudocode><![CDATA[
+1. In buildLevelPromptVariants and related factory functions, locate where prompt wording is generated for behavioural or experience families.
+2. Append or integrate an instruction encouraging outcome-first. For example: "Use one concrete example and start by sharing the final outcome."
+3. Ensure technical workflow questions that are NOT past examples do not receive this instruction.
+      ]]></pseudocode>
+    </component>
+    <component path="backend/src/data/questionCatalogSeed2026_2.js" role="catalog seeds wording symmetry">
+      <contract>Maintain symmetry with 2026.1 by applying the identical wording logic.</contract>
+      <pseudocode><![CDATA[
+1. Apply the same prompt modifications to buildLevelPromptVariants and family generation factories as in 2026_1.
+      ]]></pseudocode>
+    </component>
+    <component path="backend/src/services/agents/interviewerAgentQuestionBuilder.js" role="follow-up text generator">
+      <contract>Provide precise probing questions for Impact-first missing dimensions.</contract>
+      <pseudocode><![CDATA[
+1. In buildProbingQuestion and related methods, accept missingEvidence dimensions (e.g. 'result_or_validation').
+2. If 'result_or_validation' is missing, generate text targeting the outcome or measurement (e.g., "What was the final outcome or result of that work?").
+3. Ensure existing constraints (like asking one question only) are maintained.
+      ]]></pseudocode>
+    </component>
+    <component path="backend/src/services/questions/interviewTurnOrchestratorService.js" role="follow-up intent linker">
+      <contract>Ensure the orchestrator correctly identifies the missing evidence scenario and preserves rootQuestionId.</contract>
+      <pseudocode><![CDATA[
+1. In buildCheapAnswerSignals, ensure all Impact-first missing pieces (results, tradeoff, ownership) are accurately identified from the answer tokens.
+2. In scenarioForFollowUp, map the new missing evidence accurately to intent keys.
+3. In buildFollowUpContext, verify `rootQuestionId` is always extracted from parentMetadata and passed down to the new question intent metadata.
+      ]]></pseudocode>
+    </component>
+    <component path="backend/src/services/questions/interviewMicroPlanningService.js" role="micro planner LLM wrapper">
+      <contract>Use XML tag based 6-part prompt structure for Deepseek readability.</contract>
+      <pseudocode><![CDATA[
+1. Rewrite buildPrompt to return an XML string with <system_prompt>, <instructions>, <knowledge>, <memory>, <examples>, <tools>, and <guardrails>.
+      ]]></pseudocode>
+    </component>
+  </implementation_design>
+
+  <data_flow>
+    <step order="1">Catalog seed factory generates prompt with outcome-first phrasing for past-example roots.</step>
+    <step order="2">Candidate hears root question and answers.</step>
+    <step order="3">Orchestrator computes cheap answer signals and identifies ONE specific missing evidence (e.g., outcome).</step>
+    <step order="4">Question builder constructs a focused follow-up prompt specifically targeting that missing evidence.</step>
+    <step order="5">Orchestrator maps `rootQuestionId` and `parentQuestionId` to the follow-up.</step>
+    <step order="6">Follow-up is appended to transcript with kind=follow_up; Phase 1 ignores it for duration; Phase 4 ignores it for root scores.</step>
+  </data_flow>
+
+  <tests>
+    <test_file path="backend/tests/robustness/questions/questionCatalog2026_2.test.js">
+      <cases>
+        <case>Verify that semantic past-example seeds contain the "outcome-first" or "concrete example" prompt phrasing.</case>
+        <case>Verify that scenario or knowledge seeds do NOT contain the outcome-first phrasing.</case>
+      </cases>
+    </test_file>
+    <test_file path="backend/tests/robustness/questions/followUpQuestionService.test.js">
+      <cases>
+        <case>Verify that buildProbingQuestion generates result-oriented questions when 'result_or_validation' is missing.</case>
+        <case>Verify that follow-up context correctly inherits rootQuestionId from parent.</case>
+      </cases>
+    </test_file>
+    <test_file path="backend/tests/robustness/questions/rootFollowUpRuntimeFlow.test.js">
+      <cases>
+        <case>Simulate a root answer and a follow-up, ensuring the follow-up turn does not generate an extra duration-scored root.</case>
+        <case>Verify that Outcome-first placement score is NOT retroactively rewritten by a follow-up answer.</case>
+      </cases>
+    </test_file>
+  </tests>
+
+  <verification>
+    <commands>
+      <command>cd backend &amp;&amp; ./node_modules/.bin/vitest run tests/robustness/questions/questionCatalog2026_2.test.js tests/robustness/questions/followUpQuestionService.test.js tests/robustness/questions/rootFollowUpRuntimeFlow.test.js</command>
+      <command>cd backend &amp;&amp; npm run lint</command>
+      <command>git diff --check</command>
+      <command>git status --short</command>
+    </commands>
+    <observable_outcomes>
+      <outcome>All focused test cases pass, verifying wording presence and rootQuestionId linkage.</outcome>
+      <outcome>Backend lint passes.</outcome>
+      <outcome>No changes to text timing, STT behaviour, evaluator definitions, or UI files.</outcome>
+    </observable_outcomes>
+    <not_run>Live Mongo seed execution, real AI evaluators, and frontend rendering are NOT RUN for Phase 5.</not_run>
+  </verification>
+
+  <completion_criteria>
+    <criterion id="C1">Applicable root wording clearly elicits the aligned structure (outcome-first).</criterion>
+    <criterion id="C2">Non-past-example wording remains unchanged.</criterion>
+    <criterion id="C3">Follow-ups target one missing component per turn.</criterion>
+    <criterion id="C4">`rootQuestionId` linkage is perfectly preserved on follow-ups.</criterion>
+    <criterion id="C5">No follow-up becomes an extra duration-scored root.</criterion>
+    <criterion id="C6">No follow-up silently repairs the parent root's Outcome-first placement score.</criterion>
+    <criterion id="C7">All test files pass.</criterion>
+    <criterion id="C8">F-34 RFC and change-log updated strictly based on verified changes.</criterion>
+  </completion_criteria>
+
+  <risks_assumptions_decisions>
+    <decision id="D1">Do not execute Mongo seeders; only modify seed files to ensure controlled deployment.</decision>
+    <decision id="D2">Target only one missing evidence component per follow-up to avoid overwhelming candidates.</decision>
+    <assumption id="A1" status="human-aligned">The addition of "outcome-first" to prompt text will not negatively impact TTS or audio latency.</assumption>
+    <risk id="R1">Follow-ups could be mistaken as roots. Mitigation: Strict assertion of `rootQuestionId` and `turnKind` in tests.</risk>
+  </risks_assumptions_decisions>
+
+  <outside_scope>
+    <item>Changing Live Mongo catalog.</item>
+    <item>Modifying Phase 1 duration mechanics.</item>
+    <item>Modifying Phase 3 content evaluator formulas.</item>
+    <item>Altering UI reporting layout.</item>
+  </outside_scope>
+
+  <three_pass_audit>
+    <instruction>
+      Each pass below rechecks the same ten requested categories against the complete Phase 5 plan. Every pass must contain all ten categories.
+    </instruction>
+    <pass id="1" result="PASS" label="full ten-item checklist replay 1">
+      <check number="1" category="the phases of work" status="PASS">Phase 5 is decomposed into four specific work packages.</check>
+      <check number="2" category="the goal of each phase" status="PASS">Phase 5 and its work packages clearly specify wording update and follow-up linkage.</check>
+      <check number="3" category="files likely to be added or modified" status="PASS">Four production files, three test files, and two docs are listed.</check>
+      <check number="4" category="dependencies and setup steps" status="PASS">Depends on research and outlines Phase 4 boundary.</check>
+      <check number="5" category="implementation details" status="PASS">All seed factories and orchestrator functions are detailed with pseudocode.</check>
+      <check number="6" category="tests required for that phase" status="PASS">Tested catalog symmetries, wording, follow-up probe generation, and root-id linkage.</check>
+      <check number="7" category="verification commands or observable outcomes" status="PASS">Vitest commands, linting, and diff checks included.</check>
+      <check number="8" category="completion criteria" status="PASS">Eight distinct, testable completion criteria provided.</check>
+      <check number="9" category="risks, assumptions, and decisions" status="PASS">Non-execution of live DB seeds and strict follow-up constraints are documented.</check>
+      <check number="10" category="work explicitly outside scope" status="PASS">Evaluation engine edits, UI logic, and live catalog changes are explicitly outside scope.</check>
+    </pass>
+    <pass id="2" result="PASS" label="full ten-item checklist replay 2">
+      <check number="1" category="the phases of work" status="PASS">Phase 5 sequence is stable.</check>
+      <check number="2" category="the goal of each phase" status="PASS">Goal is observable and measurable.</check>
+      <check number="3" category="files likely to be added or modified" status="PASS">File budgets align with task restrictions.</check>
+      <check number="4" category="dependencies and setup steps" status="PASS">No unverified dependencies inserted.</check>
+      <check number="5" category="implementation details" status="PASS">Implementation aligns with phase definitions.</check>
+      <check number="6" category="tests required for that phase" status="PASS">Test coverage handles all edge cases (non-past examples, root-id carry-over).</check>
+      <check number="7" category="verification commands or observable outcomes" status="PASS">Verification ignores UI paths completely.</check>
+      <check number="8" category="completion criteria" status="PASS">Completion ensures no duplicate root score generated.</check>
+      <check number="9" category="risks, assumptions, and decisions" status="PASS">Single-target missing evidence minimizes candidate load.</check>
+      <check number="10" category="work explicitly outside scope" status="PASS">No unauthorized cross-phase overlaps.</check>
+    </pass>
+    <pass id="3" result="PASS" label="full ten-item checklist replay 3">
+      <check number="1" category="the phases of work" status="PASS">Plan holds.</check>
+      <check number="2" category="the goal of each phase" status="PASS">Goal holds.</check>
+      <check number="3" category="files likely to be added or modified" status="PASS">File limits hold.</check>
+      <check number="4" category="dependencies and setup steps" status="PASS">Dependencies hold.</check>
+      <check number="5" category="implementation details" status="PASS">Design holds.</check>
+      <check number="6" category="tests required for that phase" status="PASS">Tests hold.</check>
+      <check number="7" category="verification commands or observable outcomes" status="PASS">Commands hold.</check>
+      <check number="8" category="completion criteria" status="PASS">Criteria hold.</check>
+      <check number="9" category="risks, assumptions, and decisions" status="PASS">Mitigations hold.</check>
+      <check number="10" category="work explicitly outside scope" status="PASS">Exclusions hold.</check>
+    </pass>
+  </three_pass_audit>
+</implementation_plan>

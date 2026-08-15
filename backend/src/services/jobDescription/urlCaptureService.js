@@ -147,7 +147,14 @@ export const extractVisibleText = (html = '') => {
   const targetedHtml = extractTargetedContainer(html);
 
   let text = targetedHtml
-    .replace(/<script[^>]*>([\s\S]*?)<\/script>/gi, ' ')
+    .replace(/<script[^>]*>([\s\S]*?)<\/script>/gi, (match) => {
+      // Preserve structured data (e.g., JobPosting schema) which is often the only
+      // source of JD text in modern SPA recruitment sites (like Eightfold/Nvidia)
+      if (match.toLowerCase().includes('type="application/ld+json"')) {
+        return match;
+      }
+      return ' ';
+    })
     .replace(/<style[^>]*>([\s\S]*?)<\/style>/gi, ' ')
     .replace(/<nav[^>]*>([\s\S]*?)<\/nav>/gi, ' ')
     .replace(/<footer[^>]*>([\s\S]*?)<\/footer>/gi, ' ')

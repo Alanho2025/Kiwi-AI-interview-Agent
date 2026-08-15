@@ -61,6 +61,19 @@ const formatListItem = (item) => {
     return item.title || item.label || item.message || item.description || item.content || item.summary || JSON.stringify(item);
 };
 
+const formatPublishedMetric = (value, suffix, prefix = '') => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? `${prefix}${value}${suffix}` : null;
+};
+
+const formatFrameworkMetrics = (value = {}) => {
+    if (!Number.isFinite(value.level) || !Number.isFinite(value.scorePercent)) return null;
+    return [
+        formatPublishedMetric(value.level, '/5', 'Level '),
+        formatPublishedMetric(value.scorePercent, '/100'),
+    ].join(', ');
+};
+
 /**
  * Format report as readable text
  * Mirrors backend formatReportAsText function
@@ -156,6 +169,28 @@ export const formatReportAsText = (report) => {
             lines.push(`${index + 1}. ${turn.question || 'Interview question'}`);
             if (turn.answer || turn.answerSummary) lines.push(`Your answer: ${turn.answer || turn.answerSummary}`);
             if (turn.feedback) lines.push(`Feedback: ${turn.feedback}`);
+            
+            const frameworkLabel = turn.frameworkLabel || turn.structureLabel || 'Role-specific reasoning';
+            const dimensions = Array.isArray(turn.frameworkBreakdown?.dimensions)
+                ? turn.frameworkBreakdown.dimensions.filter((d) => d.status !== 'not_applicable')
+                : [];
+            if (dimensions.length) {
+                const frameworkMetrics = formatFrameworkMetrics(turn.frameworkBreakdown);
+                lines.push(`Framework: ${frameworkLabel}${frameworkMetrics ? ` (${frameworkMetrics})` : ''}`);
+                dimensions
+                    .filter((d) => d.status !== 'not_applicable')
+                    .forEach((d) => {
+                        const dimensionMetrics = formatFrameworkMetrics(d) || 'Level unavailable';
+                        lines.push(`  - ${d.label} (${dimensionMetrics}): ${d.reason || String(d.status).replace(/_/g, ' ')}`);
+                    });
+            } else if (!turn.starrBreakdown && !turn.starBreakdown) {
+                lines.push(`Framework: ${frameworkLabel} (unavailable)`);
+            }
+
+            if (turn.durationAssessment?.eligible) {
+                const d = turn.durationAssessment;
+                lines.push(`Duration: ${d.seconds || 0}s (${formatPublishedMetric(d.level, '/5', 'Level ') || 'Level unavailable'})`);
+            }
         });
         lines.push('');
     }

@@ -2,8 +2,6 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../common/Card.jsx';
 import { EvidenceBadge } from './EvidenceBadge.jsx';
 
-const clampMicroScore = (score = 0) => Math.max(0, Math.min(10, Number(score || 0)));
-
 const ANSWER_RESULT_LABELS = {
   directly_addressed: 'Directly addressed',
   partly_addressed: 'Partly addressed',
@@ -22,29 +20,6 @@ const formatStructureLabel = (label = '') => String(label || '')
   .replace(/^resultOrReaction$/i, 'result')
   .replace(/([A-Z])/g, ' $1')
   .trim();
-
-
-
-function ScoreBar({ label, score, color, reason }) {
-  const safeScore = clampMicroScore(score);
-  const percentage = (safeScore / 10) * 100;
-  
-  return (
-    <div className="rounded-xl border border-slate-100 glass p-3">
-      <div className="flex items-center gap-3 text-sm">
-        <span className="w-20 shrink-0 text-faint font-medium">{label}</span>
-        <div className="flex-1 h-2 bg-chip rounded-full overflow-hidden">
-          <div 
-            className="h-full transition-all duration-500"
-            style={{ width: `${percentage}%`, backgroundColor: color }}
-          />
-        </div>
-        <span className="w-8 shrink-0 text-right font-semibold text-muted">{safeScore}/10</span>
-      </div>
-      <p className="mt-2 pl-0 text-xs leading-5 text-slate-600 sm:pl-20">{reason}</p>
-    </div>
-  );
-}
 
 
 
@@ -102,149 +77,74 @@ function StructureBreakdown({ turn }) {
   );
 }
 
-function buildFallbackFrameworkBreakdown(turn) {
-  const questionText = (turn.question || '').toLowerCase();
-  const isSelfIntro = turn.rubricType === 'self_intro'
-    || turn.frameworkKey === 'self_intro'
-    || /introduce yourself|briefly introduce|about yourself|quick introduction/i.test(questionText);
+const formatPublishedMetric = (value, suffix, prefix = '') => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? `${prefix}${value}${suffix}` : null;
+};
 
-  const scores = turn.scores || {};
-  const b = Number(scores.business ?? 5);
-  const l = Number(scores.logic ?? 5);
-  const e = Number(scores.evidence ?? 5);
-  const avg = Math.round(((b + l + e) / 3) * 10) / 10;
-
-  const toStatus = (score) => {
-    if (score >= 8) return 'clear';
-    if (score >= 4) return 'partial';
-    return 'missing';
-  };
-
-  if (isSelfIntro) {
-    return {
-      normalizedScore: avg,
-      dimensions: [
-        {
-          key: 'background',
-          label: 'Background',
-          score: l,
-          status: toStatus(l),
-          reason: l >= 7 ? 'Education and professional background are clear.' : 'Background is mentioned but needs a clearer sequence.',
-        },
-        {
-          key: 'roleRelevance',
-          label: 'Role Relevance',
-          score: Math.round((l + b) / 2),
-          status: toStatus(Math.round((l + b) / 2)),
-          reason: Math.round((l + b) / 2) >= 7 ? 'Connection to the target role is explicit.' : 'Role relevance needs a sharper link to the role requirements.',
-        },
-        {
-          key: 'evidence',
-          label: 'Evidence',
-          score: e,
-          status: toStatus(e),
-          reason: e >= 7 ? 'Includes concrete project or product evidence.' : 'Needs more specific proof from past projects or achievements.',
-        },
-        {
-          key: 'clarity',
-          label: 'Clarity',
-          score: l,
-          status: toStatus(l),
-          reason: l >= 7 ? 'Structure is clear and easy to follow.' : 'Clarity can be improved with a concise, logical flow.',
-        },
-      ],
-      summary: 'Evaluated against the Self-Introduction framework.',
-    };
-  }
-
-  const dimensions = [
-    {
-      key: 'contextGoal',
-      label: 'Context / Goal',
-      score: l,
-      status: toStatus(l),
-      reason: l >= 7 ? 'Context / Goal evidence is explicit in the answer.' : 'Context / Goal is implied but needs a clearer, role-specific explanation.',
-    },
-    {
-      key: 'approach',
-      label: 'Approach',
-      score: Math.round((l + b) / 2),
-      status: toStatus(Math.round((l + b) / 2)),
-      reason: Math.round((l + b) / 2) >= 7 ? 'Approach evidence is clearly articulated.' : 'Approach is implied but needs a clearer, role-specific explanation.',
-    },
-    {
-      key: 'judgementTradeoffs',
-      label: 'Judgement / Trade-offs',
-      score: Math.round((b + e) / 2),
-      status: toStatus(Math.round((b + e) / 2)),
-      reason: Math.round((b + e) / 2) >= 7 ? 'Judgement / Trade-offs evidence is explicitly detailed.' : 'Judgement / Trade-offs is implied but needs a clearer, role-specific explanation.',
-    },
-    {
-      key: 'riskQualityEthics',
-      label: 'Risk / Quality / Ethics',
-      score: Math.round((l + e) / 2),
-      status: toStatus(Math.round((l + e) / 2)),
-      reason: Math.round((l + e) / 2) >= 7 ? 'Risk / Quality / Ethics evidence is clear.' : 'Risk / Quality / Ethics is implied but needs a clearer, role-specific explanation.',
-    },
-    {
-      key: 'validationVerification',
-      label: 'Validation / Verification',
-      score: e,
-      status: toStatus(e),
-      reason: e >= 7 ? 'Validation / Verification evidence is explicit.' : 'Validation / Verification is implied but needs a clearer, role-specific explanation.',
-    },
-    {
-      key: 'outcomeValue',
-      label: 'Outcome / Value',
-      score: b,
-      status: toStatus(b),
-      reason: b >= 7 ? 'Outcome / Value evidence is clear and quantified.' : 'Outcome / Value is implied but needs a clearer, role-specific explanation.',
-    },
-  ];
-
-  return {
-    normalizedScore: avg,
-    dimensions,
-    summary: 'This evaluates the answer against the Role-specific Reasoning framework.',
-  };
-}
+const formatFrameworkMetrics = (value = {}) => {
+  if (!Number.isFinite(value.level) || !Number.isFinite(value.scorePercent)) return null;
+  return [
+    formatPublishedMetric(value.level, '/5', 'Level '),
+    formatPublishedMetric(value.scorePercent, '/100'),
+  ].join(' · ');
+};
 
 function FrameworkBreakdown({ turn }) {
   const hasStar = Boolean(turn.starrBreakdown || turn.starBreakdown);
   if (turn.starApplicable === true && hasStar) return null;
 
-  const breakdown = turn.frameworkBreakdown?.dimensions?.length
-    ? turn.frameworkBreakdown
-    : (!hasStar && turn.scores ? buildFallbackFrameworkBreakdown(turn) : null);
+  const breakdown = turn.frameworkBreakdown;
+  const dimensions = Array.isArray(breakdown?.dimensions)
+    ? breakdown.dimensions.filter((dimension) => dimension.status !== 'not_applicable')
+    : [];
+  const hasDimensions = dimensions.length > 0;
+  const hasDuration = turn.durationAssessment?.eligible === true;
+  const showUnavailable = !hasStar && !hasDimensions;
 
-  if (!breakdown?.dimensions?.length) return null;
+  if (!showUnavailable && !hasDimensions && !hasDuration) return null;
   const formatStatus = (status = '') => String(status).replace(/_/g, ' ');
+  const frameworkMetrics = formatFrameworkMetrics(breakdown);
 
   return (
     <div className="rounded-xl border border-slate-100 bg-white/70 p-4">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
         <h5 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-          {turn.frameworkLabel || turn.structureLabel || 'Role-specific reasoning'}
+          {turn.frameworkLabel || turn.structureLabel || 'Framework feedback'}
         </h5>
-        {Number.isFinite(Number(breakdown.normalizedScore)) ? (
-          <p className="text-xs text-slate-500">Framework score: {Number(breakdown.normalizedScore)}/10</p>
+        {hasDimensions && frameworkMetrics ? (
+          <p className="text-xs text-slate-500">Framework score: {frameworkMetrics}</p>
         ) : null}
       </div>
+      {showUnavailable ? (
+        <p className="mt-3 text-sm leading-5 text-slate-600">Formal framework feedback is unavailable for this answer.</p>
+      ) : null}
       <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-        {breakdown.dimensions.filter((dimension) => dimension.status !== 'not_applicable').map((dimension) => (
+        {hasDimensions && dimensions.map((dimension) => (
           <div key={dimension.key || dimension.label} className="rounded-lg bg-slate-50 px-3 py-3">
             <div className="flex items-start justify-between gap-2">
               <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{dimension.label}</p>
               <span className="text-xs font-medium text-slate-700">
-                {Number(dimension.score || 0)}/10
+                {formatFrameworkMetrics(dimension) || 'Level unavailable'}
               </span>
             </div>
             <p className="mt-1 text-sm font-medium capitalize text-slate-800">{formatStatus(dimension.status || 'missing')}</p>
             {dimension.reason ? <p className="mt-2 text-xs leading-5 text-slate-600">{dimension.reason}</p> : null}
           </div>
         ))}
+        {hasDuration && (
+          <div key="durationAssessment" className="rounded-lg bg-slate-50 px-3 py-3">
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Duration ({turn.durationAssessment.seconds || 0}s)</p>
+              <span className="text-xs font-medium text-slate-700">
+                {formatPublishedMetric(turn.durationAssessment.level, '/5', 'Level ') || 'Level unavailable'}
+              </span>
+            </div>
+            {turn.durationAssessment.reason ? <p className="mt-2 text-xs leading-5 text-slate-600">{turn.durationAssessment.reason}</p> : null}
+          </div>
+        )}
       </div>
-      {breakdown.summary ? <p className="mt-3 text-xs leading-5 text-slate-600">{breakdown.summary}</p> : null}
+      {breakdown?.summary ? <p className="mt-3 text-xs leading-5 text-slate-600">{breakdown.summary}</p> : null}
     </div>
   );
 }

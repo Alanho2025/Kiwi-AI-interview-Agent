@@ -199,7 +199,7 @@ describe('report grounding robustness', () => {
   });
 
   it('does not apply STAR scoring to self-introduction turns', async () => {
-    const structure = analyzeTurnStructure({
+    const structure = await analyzeTurnStructure({
       question: 'Hi, thanks for joining. Could you tell me a bit about yourself and what interested you in this Game AI Product Management Intern interview?',
       answer: 'I study information technology, I am interested in AI and games, and I built an AI interview coach web app.',
       metadata: { stage: 'opening', topic: 'self_intro' },

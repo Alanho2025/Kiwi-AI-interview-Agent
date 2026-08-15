@@ -65,13 +65,13 @@ const buildFrameworkFeedback = (turnStructure = {}) => {
   return `Strengthen ${mainGap.label.toLowerCase()}: ${mainGap.reason}`;
 };
 
-export const buildDeterministicTurnBreakdowns = (transcriptOrPairs = [], analysedAnswers = []) => {
+export const buildDeterministicTurnBreakdowns = async (transcriptOrPairs = [], analysedAnswers = []) => {
   const questionAnswerPairs = transcriptOrPairs[0]?.questionTurn
     ? transcriptOrPairs
     : buildReportTurnDataset(transcriptOrPairs).questionAnswerPairs;
-  return questionAnswerPairs.map(({ questionTurn = {}, answerTurn = {} }, index) => {
+  const results = await Promise.all(questionAnswerPairs.map(async ({ questionTurn = {}, answerTurn = {}, voiceDurationAssessment = null }, index) => {
     const analysis = analysedAnswers[index] || {};
-    const turnStructure = analyzeTurnStructure({
+    const turnStructure = await analyzeTurnStructure({
       question: questionTurn.text,
       answer: answerTurn.text,
       metadata: questionTurn.metadata || {},
@@ -89,12 +89,18 @@ export const buildDeterministicTurnBreakdowns = (transcriptOrPairs = [], analyse
     return {
       question: questionTurn.text || 'Interview question',
       answer: answerTurn.text || '',
+      voiceDurationAssessment,
       questionType: questionTurn.metadata?.questionType || questionTurn.metadata?.type || '',
       questionStage: questionTurn.metadata?.stage || '',
       questionTopic: questionTurn.metadata?.topic || '',
       rubricType: turnStructure.rubricType,
       frameworkKey: turnStructure.frameworkKey,
       frameworkLabel: turnStructure.frameworkLabel,
+      assessmentIntent: turnStructure.assessmentIntent,
+      assessmentIntentSource: turnStructure.assessmentIntentSource,
+      ...(turnStructure.parentAssessmentIntent
+        ? { parentAssessmentIntent: turnStructure.parentAssessmentIntent }
+        : {}),
       questionFamily: turnStructure.questionFamily,
       evidenceMode: turnStructure.evidenceMode,
       capabilityGroup: questionTurn.metadata?.capabilityGroup || '',
@@ -125,7 +131,8 @@ export const buildDeterministicTurnBreakdowns = (transcriptOrPairs = [], analyse
       evidenceStatus: questionTurn.metadata?.evidenceStatus || answerTurn.metadata?.evidenceStatus || (answerTurn.metadata?.candidateDenial ? 'EXPLICIT_NO_EXPERIENCE' : 'EXACT_MATCH'),
       topicDisposition: questionTurn.metadata?.topicDisposition || (answerTurn.metadata?.candidateDenial ? 'SKIPPED_CANDIDATE_DENIAL' : 'ASSESSED'),
     };
-  }).filter((item) => item.answer);
+  }));
+  return results.filter((item) => item.answer);
 };
 
 const sanitizeNonStarFeedback = (turn = {}, fallback = {}) => {
@@ -179,6 +186,11 @@ export const mergeTurnBreakdownsWithRubrics = (candidateTurns = [], deterministi
       rubricType: fallback.rubricType || turn.rubricType || 'star',
       frameworkKey: fallback.frameworkKey || turn.frameworkKey || '',
       frameworkLabel: fallback.frameworkLabel || turn.frameworkLabel || '',
+      assessmentIntent: fallback.assessmentIntent ?? turn.assessmentIntent,
+      assessmentIntentSource: fallback.assessmentIntentSource ?? turn.assessmentIntentSource,
+      ...(fallback.parentAssessmentIntent || turn.parentAssessmentIntent
+        ? { parentAssessmentIntent: fallback.parentAssessmentIntent || turn.parentAssessmentIntent }
+        : {}),
       questionFamily: fallback.questionFamily || turn.questionFamily || '',
       evidenceMode: fallback.evidenceMode || turn.evidenceMode || '',
       capabilityGroup: fallback.capabilityGroup || turn.capabilityGroup || '',
@@ -187,7 +199,10 @@ export const mergeTurnBreakdownsWithRubrics = (candidateTurns = [], deterministi
       starApplicable: fallback.starApplicable ?? turn.starApplicable ?? true,
       structureLabel: fallback.structureLabel || turn.structureLabel || 'STARR evidence',
       structureBreakdown: fallback.structureBreakdown || turn.structureBreakdown || turn.starBreakdown || null,
-      frameworkBreakdown: fallback.frameworkBreakdown || turn.frameworkBreakdown || null,
+      frameworkBreakdown: (fallback.frameworkBreakdown || turn.frameworkBreakdown) ? {
+        ...(fallback.frameworkBreakdown || turn.frameworkBreakdown),
+        voiceDurationAssessment: fallback.voiceDurationAssessment || turn.voiceDurationAssessment || null,
+      } : null,
       frameworkQualityScore: fallback.frameworkQualityScore ?? turn.frameworkQualityScore ?? null,
       starBreakdown: (fallback.starApplicable ?? turn.starApplicable ?? true) ? (fallback.starBreakdown || turn.starBreakdown) : null,
       resultOrReactionLabel: fallback.resultOrReactionLabel || turn.resultOrReactionLabel,
@@ -196,6 +211,7 @@ export const mergeTurnBreakdownsWithRubrics = (candidateTurns = [], deterministi
         ...(turn.dimensionReasons || turn.scoreReasons || {}),
         ...(fallback.dimensionReasons || {}),
       },
+      voiceDurationAssessment: fallback.voiceDurationAssessment || null,
     };
     return {
       ...merged,
@@ -239,7 +255,7 @@ export const runReportGeneratorAgent = async ({ session = {}, analysisResult = {
   const analysedAnswers = analyseCandidateAnswers(turnDataset.acceptedAnswers);
   const evidenceSummary = buildEvidenceSummary(analysedAnswers);
   const interviewMetrics = buildInterviewMetrics(turnDataset, session.totalQuestions || 0);
-  const deterministicTurnBreakdowns = buildDeterministicTurnBreakdowns(turnDataset.questionAnswerPairs, analysedAnswers);
+  const deterministicTurnBreakdowns = await buildDeterministicTurnBreakdowns(turnDataset.questionAnswerPairs, analysedAnswers);
   const roleFit = buildRoleFitReportSummary({
     questionAnswerPairs: turnDataset.questionAnswerPairs,
     interviewPlan,

@@ -57,7 +57,7 @@ describe('cross-role report view fallbacks', () => {
   it('shows concision coaching only when answer-length evidence exists', () => {
     const priorities = buildFallbackImprovementPriorities({
       report,
-      interviewMetrics: { averageAnswerDurationSeconds: 105 },
+      interviewMetrics: { averageAnswerDurationSeconds: 125 },
       evidenceDiagnostics: { totals: {} },
     });
 

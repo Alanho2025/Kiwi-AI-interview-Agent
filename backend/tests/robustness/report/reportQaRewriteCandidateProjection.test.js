@@ -71,10 +71,13 @@ describe('report QA rewrite candidate projection', () => {
       frameworkLabel: 'Role-specific reasoning',
       starApplicable: false,
       frameworkBreakdown: {
-        normalizedScore: 6,
-        dimensions: [{ key: 'validationVerification', status: 'partial', score: 6 }],
+        scorePercent: 60,
+        dimensions: [{ key: 'validationVerification', status: 'partial', scorePercent: 60 }],
       },
     });
+
+    expect(result.report.candidateFeedback.turnBreakdowns[0].frameworkBreakdown).not.toHaveProperty('normalizedScore');
+    expect(result.report.candidateFeedback.turnBreakdowns[0].frameworkBreakdown.dimensions[0]).not.toHaveProperty('score');
     expect(result.stored.report.candidateFeedback.turnBreakdowns).toEqual(
       result.report.candidateFeedback.turnBreakdowns,
     );

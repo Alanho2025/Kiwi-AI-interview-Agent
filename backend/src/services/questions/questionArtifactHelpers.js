@@ -166,3 +166,164 @@ export const extractTargetTechnicalTerms = ({
   return Array.from(termsMap.values());
 };
 
+export const resolveCanonicalEvidenceMode = ({
+  category = '',
+  questionFamily = '',
+  questionType = '',
+  questionIntent = '',
+  evidenceMode = '',
+  text = '',
+  ambiguityMode = '',
+  capabilityGroup = '',
+} = {}) => {
+  const normCategory = normalizeKey(category);
+  const normFamily = normalizeKey(questionFamily).replace('behavioral', 'behavioural');
+  const normType = normalizeKey(questionType);
+  const normIntent = normalizeKey(questionIntent);
+  const normExplicitMode = normalizeKey(evidenceMode);
+  const normAmbiguity = normalizeKey(ambiguityMode);
+  const normCapabilityGroup = normalizeKey(capabilityGroup);
+
+  const VALID_MODES = new Set(['past_example', 'scenario_reasoning', 'knowledge_explanation', 'credential_verification', 'process_reasoning']);
+  if (VALID_MODES.has(normExplicitMode)) {
+    return { mode: normExplicitMode, source: 'explicit_metadata' };
+  }
+
+  if (normCapabilityGroup === 'professional_credential') {
+    return { mode: 'credential_verification', source: 'capability_metadata' };
+  }
+
+  if (normAmbiguity === 'bounded_scenario' || normType.includes('scenario')) {
+    return { mode: 'scenario_reasoning', source: 'catalog_metadata' };
+  }
+  if (normType.includes('behavioural') || normType.includes('project_reflection') || normFamily.includes('behavioural')) {
+    return { mode: 'past_example', source: 'catalog_metadata' };
+  }
+  if (normType.includes('explanation') || normType.includes('principle')) {
+    return { mode: 'knowledge_explanation', source: 'catalog_metadata' };
+  }
+  if (normType.includes('workflow') || normFamily.includes('workflow')) {
+    return { mode: 'process_reasoning', source: 'catalog_metadata' };
+  }
+
+  if (normCategory === 'behavioural' || normIntent.includes('behavioural') || normIntent.includes('past_example')) {
+    return { mode: 'past_example', source: 'intent_metadata' };
+  }
+  if (normIntent.includes('scenario')) {
+    return { mode: 'scenario_reasoning', source: 'intent_metadata' };
+  }
+  if (normCategory === 'motivation' || normType.includes('motivation') || normIntent.includes('motivation')) {
+    return { mode: 'process_reasoning', source: 'intent_metadata' };
+  }
+  if (normIntent.includes('knowledge')) {
+    return { mode: 'knowledge_explanation', source: 'intent_metadata' };
+  }
+  if (normFamily.includes('credential')) {
+    return { mode: 'credential_verification', source: 'intent_metadata' };
+  }
+
+  const lowerText = String(text || '').toLowerCase();
+  const textWithoutSuffixes = lowerText
+    .replace(/include the scope, trade-offs, stakeholder impact, and what you would carry into a similar situation/g, '')
+  if (/\b(if|would|suppose|imagine)\b/.test(textWithoutSuffixes)) {
+    return { mode: 'scenario_reasoning', source: 'text_fallback' };
+  }
+  if (/\b(tell me about a time|describe a situation|give an example|project are you most proud of|have you been|past|previously|specific project|specific example|what did you personally do|what did you build|what was the result|what outcome did you achieve)\b/.test(textWithoutSuffixes)) {
+    return { mode: 'past_example', source: 'text_fallback' };
+  }
+
+  if (normCategory === 'technical') {
+    return { mode: 'process_reasoning', source: 'generic_process_fallback' };
+  }
+
+  if (/\b(explain|principle|standard|framework)\b/.test(textWithoutSuffixes)) {
+    return { mode: 'knowledge_explanation', source: 'text_fallback' };
+  }
+
+  return { mode: 'process_reasoning', source: 'missing_metadata_fallback' };
+};
+
+export const resolveQuestionAssessmentIntent = ({
+  questionFamily = '',
+  category = '',
+  questionType = '',
+  questionIntent = '',
+  evidenceMode = '',
+  text = '',
+  assessmentIntent = '',
+  parentAssessmentIntent = '',
+} = {}) => {
+  const normExplicitIntent = normalizeKey(assessmentIntent);
+  const normParentIntent = normalizeKey(parentAssessmentIntent);
+
+  const VALID_INTENTS = new Set([
+    'impact_first_past_example', 'scenario_reasoning', 'knowledge_explanation',
+    'credential_verification', 'self_intro', 'company_motivation',
+    'conversation', 'role_specific_reasoning', 'direct_answer'
+  ]);
+  
+  if (VALID_INTENTS.has(normExplicitIntent)) {
+    return { intent: normExplicitIntent, source: 'explicit_metadata' };
+  }
+  if (VALID_INTENTS.has(normParentIntent)) {
+    return { intent: normParentIntent, source: 'parent_metadata' };
+  }
+
+  const normCategory = normalizeKey(category);
+  const normFamily = normalizeKey(questionFamily).replace('behavioral', 'behavioural');
+  const normIntent = normalizeKey(questionIntent);
+
+  if (normCategory === 'opening' || normIntent.includes('self_intro') || normFamily.includes('opening') || normFamily === 'self_intro' || normalizeKey(questionType).includes('self_intro')) {
+    return { intent: 'self_intro', source: 'family_metadata' };
+  }
+  if (normCategory === 'motivation' || normIntent.includes('motivation') || normFamily.includes('motivation') || normFamily === 'motivation' || normalizeKey(questionType).includes('company_motivation')) {
+    return { intent: 'company_motivation', source: 'family_metadata' };
+  }
+  if (normCategory === 'closing' || normCategory === 'wrap_up' || normFamily.includes('closing') || normFamily.includes('conversation') || normFamily === 'conversation') {
+    return { intent: 'conversation', source: 'family_metadata' };
+  }
+
+  const textWithoutSuffixes = String(text || '').toLowerCase()
+    .replace(/include the scope, trade-offs, stakeholder impact, and what you would carry into a similar situation/g, '')
+    .replace(/explain the scope, trade-offs, risks, stakeholder impact, and how you knew the result was safe to operate/g, '')
+    .replace(/explain the scope, trade-offs, risks, and how you knew the result was safe to operate/g, '');
+
+  if (/\b(quick introduction|tell me a bit about yourself|introduce yourself|about yourself|briefly introduce)\b/.test(textWithoutSuffixes)) {
+    return { intent: 'self_intro', source: 'text_fallback' };
+  }
+  if (/\b(what attracted you|why.*(company|role)|interested in.*role)\b/.test(textWithoutSuffixes)) {
+    return { intent: 'company_motivation', source: 'text_fallback' };
+  }
+  if (/\b(do you have any questions|what would you like to ask)\b/.test(textWithoutSuffixes)) {
+    return { intent: 'conversation', source: 'text_fallback' };
+  }
+
+  const resolvedMode = resolveCanonicalEvidenceMode({ category, questionFamily, questionType, questionIntent, evidenceMode, text });
+  
+  if (resolvedMode.mode === 'past_example') {
+    return { intent: 'impact_first_past_example', source: resolvedMode.source };
+  }
+  if (resolvedMode.mode === 'scenario_reasoning') {
+    if (resolvedMode.source === 'text_fallback' && !category && !questionFamily && !questionType) {
+      return { intent: 'direct_answer', source: 'text_fallback_direct' };
+    }
+    return { intent: 'scenario_reasoning', source: resolvedMode.source };
+  }
+  if (resolvedMode.mode === 'knowledge_explanation') {
+    if (resolvedMode.source === 'text_fallback' && !category && !questionFamily && !questionType) {
+      return { intent: 'direct_answer', source: 'text_fallback_direct' };
+    }
+    return { intent: 'knowledge_explanation', source: resolvedMode.source };
+  }
+  if (resolvedMode.mode === 'credential_verification') {
+    return { intent: 'credential_verification', source: resolvedMode.source };
+  }
+  if (resolvedMode.mode === 'process_reasoning') {
+    if (resolvedMode.source === 'missing_metadata_fallback') {
+      return { intent: 'direct_answer', source: 'missing_metadata' };
+    }
+    return { intent: 'role_specific_reasoning', source: resolvedMode.source };
+  }
+
+  return { intent: 'direct_answer', source: resolvedMode.source };
+};

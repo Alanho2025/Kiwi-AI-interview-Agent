@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<implementation_plan
+  id="impact-first-past-example-phase-3"
+  version="1.0"
+  status="ready_for_implementation"
+>
+  <plan_boundary>
+    <requested_output>Phase 3 的完整 implementation-level XML plan；本輪只產出 plan，不實作。</requested_output>
+    <phase_name>Grounded five-level Impact-first evaluator</phase_name>
+    <source_of_truth>research.md</source_of_truth>
+    <parent_outline>impact-first-past-example-outline-plan.md</parent_outline>
+    <prior_phase>impact-first-past-example-phase-2-plan.xml</prior_phase>
+    <authorization>
+      本文件只規劃 Phase 3。它不授權修改 production code、建立新 branch、commit、push、deployment、
+      或開始 Phase 4。implementation 需要 owner 另行明確要求。
+    </authorization>
+    <release_boundary>
+      Phase 3 是同一個 feature branch 上的 internal evaluation slice，不單獨 release。
+      完整 feature 只在所有 phases 完成後一次 release。
+    </release_boundary>
+  </plan_boundary>
+
+  <research_gate status="ready_for_plan">
+    <evidence_examined>
+      <item path="research.md">三輪 research audit、owner alignment、score model、five-level anchors、以及已知 contradictions。</item>
+      <item path="impact-first-past-example-outline-plan.md">Phase 3 的明確範圍：不替換 scenario, knowledge, motivation 等既有 rubric，只針對 impact_first_past_example。</item>
+      <item path="backend/src/services/report/answerFrameworkService.js">現有的 framework keys 與 dimensions 定義方式。</item>
+      <item path="backend/src/services/report/turnRubricService.js">現有的 router，目前將所有 framework 導向 `roleAnswerAnalysisService` 或 STARR。</item>
+      <item path="backend/src/services/report/roleAnswerAnalysisService.js">舊的純 Regex 關鍵字引擎，無法處理 5-level 語意理解。</item>
+      <item path="backend/src/services/report/reportRewriteService.js">目前系統中已經有使用 `callDeepSeek` 的範例，可作為 LLM evaluator 的基礎。</item>
+    </evidence_examined>
+    <confirmed_current_state>
+      <item>Phase 2 已經準備好了 `assessmentIntent=impact_first_past_example` 的路由訊號。</item>
+      <item>現有評分機制是 Regex 關鍵字比對 (10分或0分)，無法提供 1-5 級距與深入的語意理由。</item>
+      <item>Phase 1 已經處理了 Voice duration (10%)，本 Phase 3 只需專注於 6 個 Content 構面 (90%)。</item>
+      <item>Owner 在檢視架構時發現：舊系統針對所有 framework 皆完全仰賴 Regex keyword matching，這是不可接受的。未來所有 framework 都必須升級為語意理解 (LLM)。</item>
+    </confirmed_current_state>
+    <gaps>
+      <item>系統中不存在 `impact_first_past_example` 的 framework 定義與 5 級距 anchors。</item>
+      <item>缺乏一個真正能呼叫 LLM (DeepSeek) 進行語意分析並回傳 JSON 格式分數的 Evaluator Service。</item>
+    </gaps>
+    <assumption_alignment>
+      <item status="human-aligned">必須使用 LLM 進行語意理解，放棄 Regex。</item>
+      <item status="human-aligned">只針對 `impact_first_past_example` 實作，其他題型 (scenario, motivation 等) 在 Phase 3 不做更動，以符合 10 個檔案 / 500 行程式碼的嚴格限制。</item>
+    </assumption_alignment>
+  </research_gate>
+
+  <phase_sequence>
+    <phase id="3" name="Grounded five-level Impact-first evaluator">
+      <goal>
+        實作一個純粹負責 `impact_first_past_example` 的 LLM Evaluator。根據 research.md 中定義的 6 個 Content 構面與 5 級距標準，
+        給予準確的 Level 1-5 評分與具體證據理由。
+      </goal>
+      <work_packages>
+        <work_package id="3.1" name="Framework Dimensions Definition">
+          <goal>在 `answerFrameworkService.js` 中註冊 `impact_first_past_example` 的 6 個 content 構面、權重與 5 級距定義。</goal>
+          <files>backend/src/services/report/answerFrameworkService.js</files>
+        </work_package>
+        <work_package id="3.2" name="LLM Evaluator Service">
+          <goal>建立 `impactFirstAnalysisService.js`，負責組裝 prompt、呼叫 DeepSeek、並解析回傳的 JSON 成為 `frameworkBreakdown` 格式。</goal>
+          <files>backend/src/services/report/impactFirstAnalysisService.js</files>
+        </work_package>
+        <work_package id="3.3" name="Router Cutover">
+          <goal>在 `turnRubricService.js` 中，將 `assessmentIntent === 'impact_first_past_example'` 的流量導向新的 LLM Evaluator。</goal>
+          <files>backend/src/services/report/turnRubricService.js</files>
+        </work_package>
+        <work_package id="3.4" name="Verification and Documentation">
+          <goal>撰寫 focused test 證明 LLM parser 的穩定性，並更新 F-34 與 change-log。</goal>
+          <files>backend/tests/robustness/report/impactFirstAnalysisService.test.js; backend/tests/robustness/report/roleSpecificFrameworkRobustness.test.js; docs/architecture-decision-records/features/F-34-report-generation-pipeline.md; repo-docs/change-log.md</files>
+        </work_package>
+      </work_packages>
+    </phase>
+  </phase_sequence>
+
+  <task_contract>
+    <one_observable_goal>
+      對於 assessmentIntent 為 `impact_first_past_example` 的回答，系統能透過 LLM 正確給出 6 個構面 (Outcome, Problem solving, Personal role, Approaches, Learning, Outcome-first placement) 的 1-5 級別與 rationale。
+    </one_observable_goal>
+    <allowed_areas>
+      <area>backend/src/services/report/answerFrameworkService.js</area>
+      <area>backend/src/services/report/impactFirstAnalysisService.js</area>
+      <area>backend/src/services/report/turnRubricService.js</area>
+      <area>backend/tests/robustness/report/impactFirstAnalysisService.test.js</area>
+      <area>backend/tests/robustness/report/roleSpecificFrameworkRobustness.test.js</area>
+      <area>docs/architecture-decision-records/features/F-34-report-generation-pipeline.md</area>
+      <area>repo-docs/change-log.md</area>
+    </allowed_areas>
+    <forbidden_areas>
+      <area reason="User expansion rejected to keep budget">Replacing scenario, knowledge, motivation, or self-introduction content rubrics with LLM Evaluator. Phase 3 嚴格限制只動 Impact-first。</area>
+      <area reason="Phase 4">reportScoreService, overall score denominator composition.</area>
+      <area reason="Phase 1">voiceDurationAssessmentService.js (Voice timing 已經在 Phase 1 處理).</area>
+    </forbidden_areas>
+    <budgets>
+      <production_files maximum="5" forecast="3" />
+      <test_files maximum="3" forecast="2" />
+      <documentation_files maximum="2" forecast="2" />
+      <total_task_owned_files hard_stop="10" forecast="7" />
+      <incremental_changed_lines target="less_than_400" hard_stop="500" />
+      <implementation_cycles maximum="3" />
+    </budgets>
+    <stop_rule>
+      若強制要求將所有 framework (scenario, motivation 等) 在同一個 task 內升級為 LLM，將違反 10 個檔案 / 500 行的 Hard Stop。必須拆分成後續獨立的 Phases。
+    </stop_rule>
+  </task_contract>
+
+  <canonical_contracts>
+    <impact_first_contract>
+      <dimensions>
+        <dimension key="outcome" weight="20" />
+        <dimension key="problem_solving" weight="15" />
+        <dimension key="personal_role" weight="15" />
+        <dimension key="approaches" weight="20" />
+        <dimension key="learning" weight="10" />
+        <dimension key="outcome_placement" weight="10" />
+      </dimensions>
+      <level_to_points>
+        <level value="1" percent="0" />
+        <level value="2" percent="25" />
+        <level value="3" percent="50" />
+        <level value="4" percent="75" />
+        <level value="5" percent="100" />
+      </level_to_points>
+    </impact_first_contract>
+  </canonical_contracts>
+
+  <implementation_design>
+    <component path="backend/src/services/report/impactFirstAnalysisService.js" role="LLM semantic evaluator">
+      <contract>
+        負責建構 prompt，呼叫 DeepSeek，並將回傳的 JSON 解析為 `frameworkBreakdown` 規定的格式。
+      </contract>
+      <pseudocode><![CDATA[
+1. IMPORT callDeepSeek from deepseekService.js.
+2. FUNCTION analyzeImpactFirstAnswer(questionText, answerText):
+3.   Construct SYSTEM_PROMPT containing the 6 dimensions and their 5-level anchors (from research.md).
+4.   Instruct LLM to return strictly JSON: { "dimensions": [ { "key": "outcome", "level": 1-5, "reason": "..." }, ... ] }.
+5.   Execute callDeepSeek.
+6.   Parse JSON. Map level 1-5 to earned points based on dimension weight.
+7.   Compute total content score (max 90).
+8.   Return frameworkBreakdown shape (normalizedScore, dimensions array with status, score, reason).
+      ]]></pseudocode>
+    </component>
+    <component path="backend/src/services/report/turnRubricService.js" role="router update">
+      <contract>
+        將 `impact_first_past_example` 導向新的 service。
+      </contract>
+      <pseudocode><![CDATA[
+1. IMPORT analyzeImpactFirstAnswer.
+2. In inferTurnRubric (or analyzeTurnStructure), IF assessmentIntent === 'impact_first_past_example':
+3.   AWAIT analyzeImpactFirstAnswer(questionText, answerText).
+4.   RETURN result.
+5. ELSE: Keep existing roleAnswerAnalysisService routing.
+      ]]></pseudocode>
+    </component>
+  </implementation_design>
+
+  <verification>
+    <commands>
+      <command>cd backend &amp;&amp; ./node_modules/.bin/vitest run tests/robustness/report/impactFirstAnalysisService.test.js tests/robustness/report/roleSpecificFrameworkRobustness.test.js</command>
+      <command>cd backend &amp;&amp; npm run lint</command>
+    </commands>
+  </verification>
+  
+  <completion_criteria>
+    <criterion id="C1">impact_first_past_example 題型能成功呼叫 LLM 並取得合法的 1-5 級 JSON。</criterion>
+    <criterion id="C2">其餘題型維持原本的 Regex scoring，未遭破壞。</criterion>
+    <criterion id="C3">Test 涵蓋 JSON parsing fallback (例如 LLM 回傳爛掉時的預設值)。</criterion>
+  </completion_criteria>
+
+  <risks_assumptions_decisions>
+    <decision id="D1">LLM Latency 是可接受的，因為 Report Generation 非同步進行。</decision>
+    <decision id="D2">拒絕在 Phase 3 將所有 framework 一次性升級為 LLM，以保護預算與系統穩定性。Phase 3 先行證明 Impact-first 的 LLM 實作有效。</decision>
+    <decision id="D3">Owner 明確指示：不能再有任何一個題型依賴關鍵字。因此，未來必須新增後續的 Phase，將 scenario, knowledge, motivation 等所有既有 framework 全部遷移至 LLM，並徹底刪除舊的 Regex scoring engine。</decision>
+  </risks_assumptions_decisions>
+
+  <outside_scope>
+    <item>Score denominator logic (Phase 4).</item>
+    <item>Upgrading scenario, knowledge, motivation frameworks to LLM (Deferred to future Universal LLM Evaluator phases, as explicitly demanded by the owner).</item>
+  </outside_scope>
+
+  <three_pass_audit>
+    <instruction>Verified against XML schema format from Phase 2.</instruction>
+    <pass id="1" result="PASS" label="Schema check">All major tags present.</pass>
+    <pass id="2" result="PASS" label="Scope check">Strictly limited to impact_first_past_example.</pass>
+    <pass id="3" result="PASS" label="Constraint check">Files forecasted = 7 &lt; 10 hard stop.</pass>
+  </three_pass_audit>
+</implementation_plan>

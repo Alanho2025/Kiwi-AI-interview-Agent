@@ -3,8 +3,10 @@
 > **文件狀態**：Approved & Implemented  
 > **系統成熟度 (Readiness Level)**：Production-Ready  
 > **核心模組路徑**：`backend/src/config/transcriptReplacements.js`, `backend/src/services/voice/speechPhraseHintService.js`, `backend/src/services/voice/transcriptCalibrationService.js`  
-> **Git 演進 Commit 追蹤**：Commit `F-72`  
+> **Git 演進 Commit 追蹤**：Commit `F-72`
 > **主要負責人 / 日期**：Kiwi AI Team / 2026-07-30  
+> **實作狀態 (Implementation Status)**：Partial
+> **校驗測試路徑 (Verified by Tests)**：`backend/tests/robustness/voice/voiceTranscriptCalibrationService.test.js`、`backend/tests/robustness/voice/phraseHintAndCalibration.test.js`
 > **嚴格邊界約束**：專注於回答側 (Candidate Answer Processing)，不修改出題側 (Questioning / Prompt Builder)  
 
 ---

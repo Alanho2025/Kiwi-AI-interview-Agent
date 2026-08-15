@@ -150,6 +150,22 @@ export const normalizeStructureBreakdown = (value = {}) => {
 };
 
 const FRAMEWORK_DIMENSION_STATUSES = new Set(['clear', 'partial', 'missing', 'not_applicable']);
+const parseNumericValue = (value) => {
+    if (typeof value === 'number') return Number.isFinite(value) ? value : undefined;
+    if (typeof value !== 'string' || value.trim() === '') return undefined;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+};
+const normalizeFrameworkLevel = (value) => {
+    const level = parseNumericValue(value);
+    if (level === undefined) return undefined;
+    return Math.max(1, Math.min(5, Math.round(level)));
+};
+const normalizeScorePercent = (value) => {
+    const scorePercent = parseNumericValue(value);
+    if (scorePercent === undefined) return undefined;
+    return Number(Math.max(0, Math.min(100, scorePercent)).toFixed(2));
+};
 
 export const normalizeFrameworkBreakdown = (value = null) => {
     if (!isObject(value)) return null;
@@ -158,8 +174,12 @@ export const normalizeFrameworkBreakdown = (value = null) => {
             key: ensureString(dimension.key),
             label: ensureString(dimension.label),
             status: FRAMEWORK_DIMENSION_STATUSES.has(dimension.status) ? dimension.status : 'missing',
-            score: ensureNumber(dimension.score, 0),
+            score: parseNumericValue(dimension.score),
             reason: ensureString(dimension.reason),
+            weight: parseNumericValue(dimension.weight),
+            earnedPoints: parseNumericValue(dimension.earnedPoints),
+            level: normalizeFrameworkLevel(dimension.level),
+            scorePercent: normalizeScorePercent(dimension.scorePercent),
         })),
         mainGapKey: ensureString(value.mainGapKey || value.mainMissingElement),
         mainMissingElement: ensureString(value.mainMissingElement || value.mainGapKey),
@@ -167,7 +187,9 @@ export const normalizeFrameworkBreakdown = (value = null) => {
         scoreReason: ensureString(value.scoreReason),
         totalScore: ensureNumber(value.totalScore, 0),
         maxScore: ensureNumber(value.maxScore, 0),
-        normalizedScore: ensureNumber(value.normalizedScore, 0),
+        normalizedScore: parseNumericValue(value.normalizedScore),
+        level: normalizeFrameworkLevel(value.level),
+        scorePercent: normalizeScorePercent(value.scorePercent),
     };
 };
 
@@ -184,6 +206,9 @@ export const normalizeTurnBreakdown = (item = {}) => ({
     rubricType: ensureString(item.rubricType, 'star'),
     frameworkKey: ensureString(item.frameworkKey),
     frameworkLabel: ensureString(item.frameworkLabel),
+    assessmentIntent: ensureString(item.assessmentIntent),
+    assessmentIntentSource: ensureString(item.assessmentIntentSource),
+    parentAssessmentIntent: ensureString(item.parentAssessmentIntent),
     questionFamily: ensureString(item.questionFamily),
     evidenceMode: ensureString(item.evidenceMode),
     capabilityGroup: ensureString(item.capabilityGroup),
@@ -211,6 +236,10 @@ export const normalizeTurnBreakdown = (item = {}) => ({
     evidenceReason: ensureString(item.evidenceReason),
     needsUserConfirmation: Boolean(item.needsUserConfirmation),
     feedbackStatus: FEEDBACK_STATUSES.has(item.feedbackStatus) ? item.feedbackStatus : 'confirmed_feedback',
+    voiceDurationAssessment: isObject(item.voiceDurationAssessment) ? {
+        eligible: Boolean(item.voiceDurationAssessment.eligible),
+        earnedPoints: ensureNumber(item.voiceDurationAssessment.earnedPoints, 0),
+    } : undefined,
 });
 
 /**

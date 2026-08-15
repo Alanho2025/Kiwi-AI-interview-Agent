@@ -32,7 +32,9 @@ import {
 
 const attachCandidatePublicationSummary = (value = {}, latestStatus = value?.latestStatus) => ({
   ...value,
-  publicationSummary: buildCandidateReportPublicationSummary({ latestStatus }),
+  publicationSummary: buildCandidateReportPublicationSummary({
+    latestStatus: value?.latestStatus ?? latestStatus,
+  }),
 });
 
 const toCandidateReportRecord = (value = {}) => buildCandidateReportProjection(value);

@@ -1,4 +1,8 @@
 import { buildQuestionHistory } from '../questions/questionDeduplicationService.js';
+import {
+  buildVoiceDurationAssessment,
+  summarizeVoiceDurationAssessments,
+} from './voiceDurationAssessmentService.js';
 import { ensureArray, normalizeKey, normalizeText } from '../../utils/commonHelpers.js';
 
 const AI_ROLES = new Set(['ai', 'assistant', 'interviewer']);
@@ -39,9 +43,9 @@ const isAcceptedAnswer = (turn = {}) => {
     || metadata.countsAsQuestion === true;
 };
 
-const isCountableQuestion = (turn = {}) => {
-  if (!AI_ROLES.has(normalizeKey(turn.role))) return false;
-  return buildQuestionHistory([turn]).countableQuestions.length === 1;
+const resolveCountableQuestionEntry = (turn = {}) => {
+  if (!AI_ROLES.has(normalizeKey(turn.role))) return null;
+  return buildQuestionHistory([turn]).countableQuestions[0] || null;
 };
 
 const resolveQuestionId = (turn = {}) => turn.questionId
@@ -57,22 +61,35 @@ export const buildReportTurnDataset = (transcript = []) => {
   let pendingQuestion = null;
 
   for (const turn of turns) {
-    if (isCountableQuestion(turn)) {
+    const countableQuestionEntry = resolveCountableQuestionEntry(turn);
+    if (countableQuestionEntry) {
       countableQuestions.push(turn);
-      pendingQuestion = turn;
+      pendingQuestion = {
+        turn,
+        historyEntry: countableQuestionEntry,
+      };
       continue;
     }
 
     if (!isAcceptedAnswer(turn) || !pendingQuestion) continue;
+    const questionTurnKind = pendingQuestion.historyEntry.turnKind;
     questionAnswerPairs.push({
-      questionId: resolveQuestionId(pendingQuestion),
-      questionTurn: pendingQuestion,
+      questionId: resolveQuestionId(pendingQuestion.turn),
+      questionTurn: pendingQuestion.turn,
       answerTurn: turn,
+      questionTurnKind,
+      voiceDurationAssessment: buildVoiceDurationAssessment({
+        questionTurnKind,
+        answerTurn: turn,
+      }),
     });
     pendingQuestion = null;
   }
 
   const acceptedAnswers = questionAnswerPairs.map((item) => item.answerTurn);
+  const voiceDurationAssessmentSummary = summarizeVoiceDurationAssessments(
+    questionAnswerPairs.map((item) => item.voiceDurationAssessment),
+  );
   const rawCandidateTurnCount = turns.filter((turn) => normalizeKey(turn.role) === 'user').length;
   const excludedUserTurnCount = Math.max(0, rawCandidateTurnCount - acceptedAnswers.length);
   const repairQuestionCount = buildQuestionHistory(turns).repairQuestions.length;
@@ -87,5 +104,6 @@ export const buildReportTurnDataset = (transcript = []) => {
     rawCandidateTurnCount,
     excludedUserTurnCount,
     repairTurnCount: repairQuestionCount + excludedUserTurnCount,
+    voiceDurationAssessmentSummary,
   };
 };

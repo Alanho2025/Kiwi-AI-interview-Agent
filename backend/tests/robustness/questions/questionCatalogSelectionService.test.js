@@ -445,4 +445,68 @@ describe('question catalog session snapshots and reservations', () => {
       followUpIntent: 'tradeoff',
     }));
   });
+
+  describe('catalog evidenceMode resolution', () => {
+    it.each([
+      ['group_failure_learning', 'past_example'],
+      ['underperforming_project_reflection', 'past_example'],
+      ['company_role_internship_motivation', 'process_reasoning'],
+      ['ai_literacy_responsible_use', 'scenario_reasoning'],
+      ['coding_ownership_and_verification', 'process_reasoning'],
+    ])('resolves evidenceMode %s -> %s for both 2026.1 and 2026.2 formats', (catalogId, expectedMode) => {
+      const v1Item = catalogItem(catalogId);
+      const v2Item = approved2026_2CatalogItem(catalogId);
+
+      if (v1Item) {
+        const v1 = buildCatalogQuestionSnapshots({
+          catalogItems: [v1Item],
+          context: { ...softwareContext, explicitCandidateSignals: ['ai_or_digital_work'] },
+        }).items[0];
+        if (v1) expect(v1.evidenceMode).toBe(expectedMode);
+      }
+      
+      if (v2Item) {
+        const v2 = buildCatalogQuestionSnapshots({
+          catalogItems: [v2Item],
+          context: { ...softwareContext, explicitCandidateSignals: ['ai_or_digital_work'] },
+        }).items[0];
+        if (v2) expect(v2.evidenceMode).toBe(expectedMode);
+      }
+    });
+
+    it('asserts bounded_scenario selects scenario_reasoning even when prompt contains technical terms', () => {
+      const result = buildCatalogQuestionSnapshots({
+        catalogItems: [{
+          ...catalogItem('ai_assisted_delivery'),
+          ambiguityPolicy: { mode: 'bounded_scenario' },
+        }],
+        context: { ...softwareContext, settings: { ...softwareContext.settings, questionLimit: 12, timeLimitMinutes: 30 } },
+      });
+      expect(result.items[0].evidenceMode).toBe('scenario_reasoning');
+    });
+
+    it('asserts junior/intermediate/senior prompt variants with the same source metadata produce the same evidenceMode', () => {
+      const resultJunior = buildCatalogQuestionSnapshots({
+        catalogItems: [catalogItem('ai_assisted_delivery')],
+        context: { ...softwareContext, settings: { ...softwareContext.settings, seniorityLevel: 'junior' } },
+      });
+      const resultSenior = buildCatalogQuestionSnapshots({
+        catalogItems: [catalogItem('ai_assisted_delivery')],
+        context: { ...softwareContext, settings: { ...softwareContext.settings, seniorityLevel: 'senior' } },
+      });
+      expect(resultJunior.items[0].evidenceMode).toBe(resultSenior.items[0].evidenceMode);
+      expect(resultJunior.items[0].evidenceMode).toBe('process_reasoning');
+    });
+
+    it('asserts catalogVersion and prompt provenance remain unchanged', () => {
+      const result = buildCatalogQuestionSnapshots({
+        catalogItems: [catalogItem('ai_assisted_delivery')],
+        context: softwareContext,
+      });
+      expect(result.items[0].catalogVersion).toBe('2026.1');
+      expect(result.items[0].sourceType).toBe('question_catalog');
+      expect(result.items[0].sourceStage).toBe('catalog');
+      expect(result.items[0].evidenceMode).toBeDefined();
+    });
+  });
 });
